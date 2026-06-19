@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@theme {
+  /* === NATURAL EARTH COLOR PALETTE === */
+
+  /* Wood Brown — primary brand color, sidebar, headers, primary buttons */
+  --color-wood-50:  #FAF6F1;
+  --color-wood-100: #F2E8DC;
+  --color-wood-200: #E4D0BA;
+  --color-wood-300: #C9A787;
+  --color-wood-400: #A87B52;
+  --color-wood-500: #8B5A3C;
+  --color-wood-600: #6F4530;
+  --color-wood-700: #533525;
+  --color-wood-800: #3A2620;
+  --color-wood-900: #2A1B17;
+
+  /* Leaf Green — secondary brand, success states, growth indicators */
+  --color-leaf-50:  #F1F6EC;
+  --color-leaf-100: #DDEACF;
+  --color-leaf-200: #B8D29C;
+  --color-leaf-300: #94BA6F;
+  --color-leaf-400: #7AA456;
+  --color-leaf-500: #6B8E4E;
+  --color-leaf-600: #54733D;
+  --color-leaf-700: #3F5A2E;
+  --color-leaf-800: #2D4020;
+  --color-leaf-900: #1F2D16;
+
+  /* Cream — page background, evokes kraft paper */
+  --color-cream-50:  #FDFBF6;
+  --color-cream-100: #F9F4EB;
+  --color-cream-200: #F0E8D8;
+  --color-cream-300: #E5D9C2;
+
+  /* Clay — accent for warnings, highlights */
+  --color-clay-400: #C97B5A;
+  --color-clay-500: #B05A3A;
+  --color-clay-600: #8E4528;
+
+  /* Honey — accent for premium features, CTAs */
+  --color-honey-400: #D4A547;
+  --color-honey-500: #B88A2E;
+  --color-honey-600: #927023;
+
+  /* Sky — info accents */
+  --color-sky-400: #6B95B5;
+  --color-sky-500: #4F7A9A;
+  --color-sky-600: #3D5F7A;
+
+  /* Semantic colors */
+  --color-success: #6B8E4E;
+  --color-success-bg: #F1F6EC;
+  --color-warning: #B05A3A;
+  --color-warning-bg: #FBF0E8;
+  --color-error: #B0392A;
+  --color-error-bg: #FAEBE5;
+  --color-info: #4F7A9A;
+  --color-info-bg: #EDF2F7;
+
+  /* === SEMANTIC ALIASES === */
+  --color-background: #F9F4EB;
+  --color-surface: #FDFBF6;
+  --color-surface-elevated: #FFFFFF;
+  --color-border: #E4D0BA;
+  --color-border-strong: #C9A787;
+  --color-text-primary: #2A1B17;
+  --color-text-secondary: #6F4530;
+  --color-text-muted: #A87B52;
+  --color-text-on-primary: #FDFBF6;
+
+  /* === TYPOGRAPHY === */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+
+  /* === RADII === */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* === SHADOWS — warm, like paper === */
+  --shadow-xs: 0 1px 2px 0 rgba(58, 38, 32, 0.05);
+  --shadow-sm: 0 2px 4px -1px rgba(58, 38, 32, 0.08), 0 1px 2px -1px rgba(58, 38, 32, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(58, 38, 32, 0.10), 0 2px 4px -1px rgba(58, 38, 32, 0.06);
+  --shadow-lg: 0 12px 20px -4px rgba(58, 38, 32, 0.12), 0 4px 8px -2px rgba(58, 38, 32, 0.06);
+
+  /* === Z-INDEX SCALE === */
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-drawer: 1200;
+  --z-modal: 1300;
+  --z-toast: 1400;
+}
+
+/* === BASE STYLES === */
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  lang: "id";
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Numeric formatting for currency */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-sans);
+  color: var(--color-wood-800);
+  letter-spacing: 0;
+}
+
+/* Focus visible — accessible */
+:focus-visible {
+  outline: 2px solid var(--color-wood-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-cream-200);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-wood-300);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-wood-400);
+}
+
+/* Selection */
+::selection {
+  background: var(--color-leaf-200);
+  color: var(--color-leaf-900);
+}
+
+/* Print styles */
+@media print {
+  nav, .no-print { display: none !important; }
+  body { background: white; }
+}

@@ -1,0 +1,177 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { PageSpinner } from "@/components/ui/spinner";
+import { ErrorState } from "@/components/ui/error-state";
+import { formatIDR, formatDate } from "@/lib/utils";
+
+interface ProfitLossItem {
+  section: string;
+  account_code: number;
+  account_name: string;
+  amount: number;
+}
+
+const SECTION_LABELS: Record<string, { label: string; color: string }> = {
+  revenue: { label: "Pendapatan", color: "text-leaf-700" },
+  cogs: { label: "Harga Pokok Penjualan", color: "text-clay-600" },
+  gross_profit: { label: "Laba Kotor", color: "text-wood-800 font-bold" },
+  expense: { label: "Beban Operasional", color: "text-clay-600" },
+  operating_profit: { label: "Laba Operasional", color: "text-wood-800 font-bold" },
+  other_income: { label: "Pendapatan Lain", color: "text-leaf-700" },
+  other_expense: { label: "Beban Lain", color: "text-clay-600" },
+  net_income: { label: "Laba Bersih", color: "text-wood-800 font-bold border-t-2 border-wood-800" },
+};
+
+export function ProfitLossPage() {
+  const { data: orgData } = useOrganization();
+  const { canViewReports } = useOrgPermissions();
+  
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+  const [fromDate, setFromDate] = useState(firstDayOfMonth);
+  const [toDate, setToDate] = useState(today.toISOString().split("T")[0]);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["profit-loss", orgData?.organization?.id, fromDate, toDate],
+    queryFn: async () => {
+      if (!orgData?.organization?.id) return [];
+      const { data, error } = await supabase.rpc("get_profit_loss", {
+        p_organization_id: orgData.organization.id,
+        p_from_date: fromDate,
+        p_to_date: toDate,
+      });
+      if (error) throw error;
+      return data as ProfitLossItem[];
+    },
+    enabled: !!orgData?.organization?.id && canViewReports,
+  });
+
+  if (!canViewReports) {
+    return (
+      <Card>
+        <CardContent className="text-center py-8">
+          <p className="text-wood-500">Anda tidak memiliki izin untuk melihat laporan ini.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) return <ErrorState error={error} onRetry={refetch} />;
+
+  const groupedData = (data || []).reduce((acc, item) => {
+    if (!acc[item.section]) acc[item.section] = [];
+    acc[item.section].push(item);
+    return acc;
+  }, {} as Record<string, ProfitLossItem[]>);
+
+  const sections = ["revenue", "cogs", "gross_profit", "expense", "operating_profit", "other_income", "other_expense", "net_income"];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-wood-800">Laba Rugi</h1>
+          <p className="text-sm text-wood-500 mt-1">
+            Periode: {formatDate(fromDate)} — {formatDate(toDate)}
+          </p>
+        </div>
+      </div>
+
+      {/* Date Range */}
+      <Card>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <Input
+              label="Dari Tanggal"
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+            <Input
+              label="Sampai Tanggal"
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+            <Button variant="outline" onClick={() => void refetch()} loading={isLoading}>
+              Muat Ulang
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Report */}
+      {isLoading ? (
+        <PageSpinner />
+      ) : (
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-semibold text-wood-800">Laporan Laba Rugi</h2>
+          </CardHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-wood-200">
+                  <th className="px-5 py-3 text-left font-medium text-wood-600">Akun</th>
+                  <th className="px-5 py-3 text-right font-medium text-wood-600">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sections.map((section) => {
+                  const items = groupedData[section] || [];
+                  const sectionInfo = SECTION_LABELS[section];
+                  if (items.length === 0 && !sectionInfo) return null;
+
+                  return (
+                    <SectionBlock
+                      key={section}
+                      section={section}
+                      label={sectionInfo?.label || section}
+                      color={sectionInfo?.color || ""}
+                      items={items}
+                    />
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function SectionBlock({ section, label, color, items }: { section: string; label: string; color: string; items: ProfitLossItem[] }) {
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const isSummaryRow = section === "gross_profit" || section === "operating_profit" || section === "net_income";
+
+  return (
+    <>
+      <tr className="border-b border-wood-100 bg-cream-100/50">
+        <td colSpan={2} className="px-5 py-2 font-semibold text-wood-700">{label}</td>
+      </tr>
+      {items.map((item) => (
+        <tr key={item.account_code} className="border-b border-wood-50">
+          <td className="px-5 py-2 pl-8 text-wood-600">
+            <span className="font-mono text-xs text-wood-400 mr-2">{item.account_code}</span>
+            {item.account_name}
+          </td>
+          <td className={`px-5 py-2 text-right tabular-nums ${color}`}>
+            {formatIDR(item.amount)}
+          </td>
+        </tr>
+      ))}
+      {isSummaryRow && (
+        <tr className={`border-b border-wood-200 ${color}`}>
+          <td className="px-5 py-3 font-bold">Total {label}</td>
+          <td className="px-5 py-3 text-right font-bold tabular-nums">{formatIDR(total)}</td>
+        </tr>
+      )}
+    </>
+  );
+}
