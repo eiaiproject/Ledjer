@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
-import { checkRateLimit, getResetTime, RATE_LIMITS } from "@/lib/rate-limit";
+import { checkRateLimit, getResetTime, resetRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { supabase } from "@/lib/supabase";
 import { Lock, Mail } from "lucide-react";
 
@@ -51,7 +51,6 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const rateLimitWindowSeconds = Math.ceil(RATE_LIMITS.login.windowMs / 1000);
       const lockoutMinutes = Math.ceil(RATE_LIMITS.login.windowMs / 60_000) * 3;
 
       const { data: isLocked } = await supabase.rpc("is_email_rate_limited", {
@@ -66,20 +65,8 @@ export function LoginPage() {
         return;
       }
 
-      const { data: isAllowed } = await supabase.rpc("check_rate_limit", {
-        p_identifier: email,
-        p_action: "login",
-        p_max_attempts: RATE_LIMITS.login.maxAttempts,
-        p_window_seconds: rateLimitWindowSeconds,
-      });
-
-      if (isAllowed === false) {
-        setRateLimited(true);
-        setError(`Terlalu banyak percobaan. Coba lagi dalam ${rateLimitWindowSeconds} detik.`);
-        return;
-      }
-
       await signIn(email, data.password);
+      resetRateLimit(localRateLimitKey);
       void supabase.rpc("record_login_attempt", {
         p_email: email,
         p_success: true,

@@ -30,8 +30,9 @@ const ProductsPage = lazy(async () => ({ default: (await import("@/pages/product
 
 function RouteFallback() {
   return (
-    <div className="flex min-h-[300px] items-center justify-center">
+    <div className="flex min-h-[300px] items-center justify-center gap-3" role="status" aria-live="polite">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" />
+      <span className="text-sm text-ink-600">Memuat...</span>
     </div>
   );
 }

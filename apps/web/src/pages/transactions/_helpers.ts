@@ -132,9 +132,9 @@ export const CASH_ACCOUNT_LABELS: Record<string, string> = {
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
-  cash_purchase: "Kategori pembelian",
-  credit_purchase: "Kategori pembelian",
-  expense_payment: "Kategori beban",
+  cash_purchase: "Akun beban / HPP (CoA)",
+  credit_purchase: "Akun beban / HPP (CoA)",
+  expense_payment: "Akun beban operasional (CoA)",
 };
 
 export const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
@@ -150,6 +150,7 @@ export const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
   cash_transfer: "Contoh: Transfer dari Kas ke Bank BCA",
 };
 
+// ponytail: kept as fallback labels only. Actual accounts come from CoA query.
 export const EXPENSE_CATEGORIES = [
   "Gaji",
   "Sewa",

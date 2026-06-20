@@ -66,6 +66,7 @@ const transactionSchema = z.object({
   productId: z.string().optional(),
   quantity: z.number().optional(),
   unitPrice: z.number().optional(),
+  debitAccountId: z.string().optional(),
 });
 
 type TransactionForm = z.infer<typeof transactionSchema>;
@@ -80,13 +81,14 @@ type PostTransactionArgs = {
   p_cash_account_id?: string;
   p_destination_cash_account_id?: string;
   p_payment_status?: string;
-  p_partial_amount?: number;
+  p_partial_amount: number;
   p_due_date?: string;
   p_description?: string;
   p_notes?: string;
   p_product_id?: string;
   p_quantity?: number;
   p_unit_price?: number;
+  p_debit_account_id?: string;
 };
 
 interface ImpactSummary {
@@ -165,6 +167,7 @@ export function NewTransactionPage() {
   const selectedDestinationCashAccountId = useWatch({ control, name: "destinationCashAccountId" });
   const selectedPartyName = useWatch({ control, name: "partyName" }) || "";
   const selectedCategoryName = useWatch({ control, name: "categoryName" }) || "";
+  const selectedDebitAccountId = useWatch({ control, name: "debitAccountId" }) || "";
   const selectedDueDate = useWatch({ control, name: "dueDate" });
   const selectedPartialAmount = useWatch({ control, name: "partialAmount" }) || 0;
 
@@ -189,6 +192,24 @@ export function NewTransactionPage() {
         .select("id, code, name, account_type, is_cash_account")
         .eq("organization_id", orgData.organization.id)
         .eq("is_active", true)
+        .order("code");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgData?.organization?.id,
+  });
+
+  /* -- Query: expense/cogs accounts for CoA dropdown -- */
+  const { data: expenseCogsAccounts, isLoading: expenseAccountsLoading } = useQuery({
+    queryKey: ["accounts", orgData?.organization?.id, "expense-cogs"],
+    queryFn: async () => {
+      if (!orgData?.organization?.id) return [];
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("id, code, name, account_type")
+        .eq("organization_id", orgData.organization.id)
+        .eq("is_active", true)
+        .in("account_type", ["expense", "cogs"])
         .order("code");
       if (error) throw error;
       return data || [];
@@ -253,6 +274,19 @@ export function NewTransactionPage() {
       }));
   }, [accounts]);
 
+  // ponytail: CoA dropdown options — filtered by transaction type
+  const debitAccountOptions = useMemo(() => {
+    const accounts = expenseCogsAccounts || [];
+    if (selectedType === "expense_payment") {
+      // Expense payments: only operating expense accounts
+      return accounts
+        .filter((a) => a.account_type === "expense")
+        .map((a) => ({ value: a.id, label: `${a.code} - ${a.name}` }));
+    }
+    // cash_purchase / credit_purchase without product: COGS + expense accounts
+    return accounts.map((a) => ({ value: a.id, label: `${a.code} - ${a.name}` }));
+  }, [expenseCogsAccounts, selectedType]);
+
   const selectedCashAccountOption = cashAccountOptions.find((account) => account.id === selectedCashAccountId);
   const selectedDestinationCashAccountOption = cashAccountOptions.find((account) => account.id === selectedDestinationCashAccountId);
   const selectedProduct = products?.find((product) => product.id === selectedProductId);
@@ -265,6 +299,16 @@ export function NewTransactionPage() {
   const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
   const stockAfterSale = selectedProduct && selectedQuantity ? (selectedProduct.current_stock ?? 0) - selectedQuantity : null;
 
+  // ponytail: derive account name for preview from CoA or fallback to category/product name
+  const debitAccountName = (() => {
+    if (selectedProductId && selectedProduct) return selectedProduct.name;
+    if (selectedDebitAccountId) {
+      const account = expenseCogsAccounts?.find((a) => a.id === selectedDebitAccountId);
+      if (account) return account.name;
+    }
+    return selectedCategoryName || "Beban / Pembelian";
+  })();
+
   const preview = buildPreview({
     transactionType: selectedType,
     amount: selectedAmount,
@@ -272,7 +316,7 @@ export function NewTransactionPage() {
     paymentStatus: selectedPaymentStatus,
     cashAccountLabel: selectedCashAccountOption?.label || "Kas / Bank",
     destinationAccountLabel: selectedDestinationCashAccountOption?.label || "Akun tujuan",
-    categoryName: selectedCategoryName,
+    categoryName: debitAccountName,
     productName: selectedProduct?.name || "",
   });
 
@@ -320,7 +364,15 @@ export function NewTransactionPage() {
     if (lastCashAccountId && cashAccountOptions.some((account) => account.id === lastCashAccountId)) {
       setValue("cashAccountId", lastCashAccountId);
     }
-  }, [cashAccountOptions, getValues, selectedType, setValue]);
+
+    // Auto-select first debit account when type changes and no product is selected
+    if (usesCategory(selectedType) && !selectedProductId && debitAccountOptions.length > 0) {
+      const current = getValues("debitAccountId");
+      if (!current || !debitAccountOptions.some((a) => a.value === current)) {
+        setValue("debitAccountId", debitAccountOptions[0].value, { shouldDirty: true, shouldValidate: true });
+      }
+    }
+  }, [cashAccountOptions, debitAccountOptions, getValues, selectedProductId, selectedType, setValue]);
 
   // Auto-set due date if empty
   useEffect(() => {
@@ -426,11 +478,22 @@ export function NewTransactionPage() {
         p_transaction_type: data.transactionType,
         p_amount: data.amount,
         p_payment_status: paymentStatus,
+        p_partial_amount: data.partialAmount ?? 0,
         p_description: data.description,
       };
 
       if (shouldUseParty && partyId) rpcParams.p_party_id = partyId;
-      if (shouldUseCategory && data.categoryName?.trim()) rpcParams.p_category_name = data.categoryName.trim();
+
+      // CoA account ID for debit account (expense/cogs purchases)
+      if (shouldUseCategory && data.debitAccountId) {
+        rpcParams.p_debit_account_id = data.debitAccountId;
+        // Also send account name as category_name for transaction record display
+        const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
+        if (selectedAccount) rpcParams.p_category_name = selectedAccount.name;
+      } else if (shouldUseCategory && data.categoryName?.trim()) {
+        // Legacy fallback: category name only
+        rpcParams.p_category_name = data.categoryName.trim();
+      }
       if (shouldSendCashAccount && data.cashAccountId) rpcParams.p_cash_account_id = data.cashAccountId;
       if (shouldUseDestinationAccount && data.destinationCashAccountId) {
         rpcParams.p_destination_cash_account_id = data.destinationCashAccountId;
@@ -441,10 +504,6 @@ export function NewTransactionPage() {
         ? `Bank: ${data.bankName}${data.notes ? "\n" + data.notes : ""}`
         : data.notes?.trim();
       if (notes) rpcParams.p_notes = notes;
-
-      if (paymentStatus === "partial" && data.partialAmount !== undefined && data.partialAmount !== null) {
-        rpcParams.p_partial_amount = data.partialAmount;
-      }
 
       if (data.productId) {
         rpcParams.p_product_id = data.productId;
@@ -489,6 +548,13 @@ export function NewTransactionPage() {
 
     if (usesDestinationAccount(data.transactionType) && !data.destinationCashAccountId) {
       setError("destinationCashAccountId", { type: "manual", message: "Pilih akun tujuan" });
+      scrollToError();
+      return;
+    }
+
+    // Validate debit account for expense/purchase types (when no product selected)
+    if (usesCategory(data.transactionType) && !data.productId && !data.debitAccountId) {
+      setError("debitAccountId", { type: "manual", message: "Pilih akun CoA" });
       scrollToError();
       return;
     }
@@ -814,13 +880,21 @@ export function NewTransactionPage() {
                 />
               )}
 
-              {/* Category */}
-              {showCategory && (
-                <Select
+              {/* Debit account from CoA — hidden when product is selected (auto → Persediaan) */}
+              {showCategory && !selectedProductId && (
+                <Combobox
+                  id="debitAccountId"
+                  name="debitAccountId"
                   label={categoryLabel}
-                  {...register("categoryName")}
-                  options={EXPENSE_CATEGORIES.map((category) => ({ value: category, label: category }))}
-                  placeholder="Pilih kategori..."
+                  value={selectedDebitAccountId}
+                  onChange={(value) => {
+                    setValue("debitAccountId", value, { shouldDirty: true, shouldValidate: true });
+                    clearErrors("debitAccountId");
+                  }}
+                  options={debitAccountOptions}
+                  placeholder="Pilih akun CoA..."
+                  loading={expenseAccountsLoading}
+                  error={errors.debitAccountId?.message}
                 />
               )}
 
