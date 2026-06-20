@@ -4,6 +4,7 @@ import { BookOpen, ChevronDown, ChevronRight, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -45,6 +46,7 @@ export function AccountsPage() {
         .from("accounts")
         .select("id, code, name, account_type, parent_account_id, is_active, is_cash_account, normal_balance")
         .eq("organization_id", orgData.organization.id)
+        .neq("code", 1130) // Hide E-Wallet / QRIS
         .order("code");
       if (error) throw error;
       return data;
@@ -78,15 +80,12 @@ export function AccountsPage() {
         <p className="text-sm text-wood-500 mt-1">Struktur akun pembukuan bisnis Anda</p>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-        <Input
-          placeholder="Cari kode atau nama akun..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <Input
+        placeholder="Cari kode atau nama akun..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        leftIcon={<Search className="h-4 w-4" />}
+      />
 
       {isLoading ? (
         <PageSpinner />
@@ -104,9 +103,11 @@ export function AccountsPage() {
 
             return (
               <Card key={group.type}>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
                   onClick={() => toggleType(group.type)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-cream-100/50 transition-colors"
+                  className="h-auto w-full justify-between rounded-xl px-5 py-4 hover:bg-cream-100/50"
                 >
                   <div className="flex items-center gap-3">
                     {isExpanded ? (
@@ -122,7 +123,7 @@ export function AccountsPage() {
                       <p className="text-xs text-wood-400 mt-0.5">{group.description}</p>
                     </div>
                   </div>
-                </button>
+                </Button>
 
                 {isExpanded && (
                   <div className="border-t border-wood-100">

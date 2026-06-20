@@ -73,7 +73,7 @@ export function BalanceSheetPage() {
               value={asOfDate}
               onChange={(e) => setAsOfDate(e.target.value)}
             />
-            <Button variant="outline" onClick={() => void refetch()} loading={isLoading}>
+            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               Muat Ulang
             </Button>
           </div>

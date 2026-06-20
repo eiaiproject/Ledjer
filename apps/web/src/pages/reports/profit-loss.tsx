@@ -17,14 +17,14 @@ interface ProfitLossItem {
 }
 
 const SECTION_LABELS: Record<string, { label: string; color: string }> = {
-  revenue: { label: "Pendapatan", color: "text-leaf-700" },
-  cogs: { label: "Harga Pokok Penjualan", color: "text-clay-600" },
-  gross_profit: { label: "Laba Kotor", color: "text-wood-800 font-bold" },
-  expense: { label: "Beban Operasional", color: "text-clay-600" },
-  operating_profit: { label: "Laba Operasional", color: "text-wood-800 font-bold" },
-  other_income: { label: "Pendapatan Lain", color: "text-leaf-700" },
-  other_expense: { label: "Beban Lain", color: "text-clay-600" },
-  net_income: { label: "Laba Bersih", color: "text-wood-800 font-bold border-t-2 border-wood-800" },
+  revenue: { label: "Pendapatan", color: "text-success" },
+  cogs: { label: "Harga Pokok Penjualan", color: "text-warning" },
+  gross_profit: { label: "Laba Kotor", color: "text-text-primary font-bold" },
+  expense: { label: "Beban Operasional", color: "text-warning" },
+  operating_profit: { label: "Laba Operasional", color: "text-text-primary font-bold" },
+  other_income: { label: "Pendapatan Lain", color: "text-success" },
+  other_expense: { label: "Beban Lain", color: "text-warning" },
+  net_income: { label: "Laba Bersih", color: "text-text-primary font-bold border-t-2 border-wood-800" },
 };
 
 export function ProfitLossPage() {
@@ -69,7 +69,28 @@ export function ProfitLossPage() {
     return acc;
   }, {} as Record<string, ProfitLossItem[]>);
 
-  const sections = ["revenue", "cogs", "gross_profit", "expense", "operating_profit", "other_income", "other_expense", "net_income"];
+  const sectionTotal = (section: string) =>
+    (groupedData[section] || []).reduce((sum, item) => sum + item.amount, 0);
+
+  const revenueTotal = sectionTotal("revenue");
+  const cogsTotal = sectionTotal("cogs");
+  const expenseTotal = sectionTotal("expense");
+  const otherIncomeTotal = sectionTotal("other_income");
+  const otherExpenseTotal = sectionTotal("other_expense");
+  const grossProfit = revenueTotal - cogsTotal;
+  const operatingProfit = grossProfit - expenseTotal;
+  const netIncome = operatingProfit + otherIncomeTotal - otherExpenseTotal;
+
+  const sections: { key: string; items: ProfitLossItem[]; total?: number }[] = [
+    { key: "revenue", items: groupedData.revenue || [] },
+    { key: "cogs", items: groupedData.cogs || [] },
+    { key: "gross_profit", items: [], total: grossProfit },
+    { key: "expense", items: groupedData.expense || [] },
+    { key: "operating_profit", items: [], total: operatingProfit },
+    { key: "other_income", items: groupedData.other_income || [] },
+    { key: "other_expense", items: groupedData.other_expense || [] },
+    { key: "net_income", items: [], total: netIncome },
+  ];
 
   return (
     <div className="space-y-6">
@@ -98,7 +119,7 @@ export function ProfitLossPage() {
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
             />
-            <Button variant="outline" onClick={() => void refetch()} loading={isLoading}>
+            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               Muat Ulang
             </Button>
           </div>
@@ -123,17 +144,17 @@ export function ProfitLossPage() {
               </thead>
               <tbody>
                 {sections.map((section) => {
-                  const items = groupedData[section] || [];
-                  const sectionInfo = SECTION_LABELS[section];
-                  if (items.length === 0 && !sectionInfo) return null;
+                  const sectionInfo = SECTION_LABELS[section.key];
+                  if (section.items.length === 0 && !sectionInfo) return null;
 
                   return (
                     <SectionBlock
-                      key={section}
-                      section={section}
-                      label={sectionInfo?.label || section}
+                      key={section.key}
+                      section={section.key}
+                      label={sectionInfo?.label || section.key}
                       color={sectionInfo?.color || ""}
-                      items={items}
+                      items={section.items}
+                      totalOverride={section.total}
                     />
                   );
                 })}
@@ -146,8 +167,20 @@ export function ProfitLossPage() {
   );
 }
 
-function SectionBlock({ section, label, color, items }: { section: string; label: string; color: string; items: ProfitLossItem[] }) {
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
+function SectionBlock({
+  section,
+  label,
+  color,
+  items,
+  totalOverride,
+}: {
+  section: string;
+  label: string;
+  color: string;
+  items: ProfitLossItem[];
+  totalOverride?: number;
+}) {
+  const total = totalOverride ?? items.reduce((sum, item) => sum + item.amount, 0);
   const isSummaryRow = section === "gross_profit" || section === "operating_profit" || section === "net_income";
 
   return (

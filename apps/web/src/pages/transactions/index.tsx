@@ -7,15 +7,13 @@ import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { formatIDR, formatShortDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Receipt } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Receipt, Search } from "lucide-react";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transactions";
-
-const STATUS_BADGES: Record<string, string> = {
-  posted: "bg-leaf-100 text-leaf-700 border-leaf-200",
-  voided: "bg-error/10 text-error border-error/30",
-  draft: "bg-wood-100 text-wood-700 border-wood-200",
-  reversed: "bg-clay-400/10 text-clay-600 border-clay-400/30",
-};
 
 interface Transaction {
   id: string;
@@ -28,6 +26,20 @@ interface Transaction {
   payment_status: string;
   created_by: string;
   parties?: { name: string };
+}
+
+function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
+  if (status === "posted") return "success";
+  if (status === "voided") return "error";
+  if (status === "reversed") return "warning";
+  return "neutral";
+}
+
+function statusLabel(status: string) {
+  if (status === "posted") return "Posted";
+  if (status === "voided") return "Dibatalkan";
+  if (status === "reversed") return "Reversal";
+  return status;
 }
 
 export function TransactionListPage() {
@@ -88,34 +100,54 @@ export function TransactionListPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
+      <div className="grid gap-3 sm:grid-cols-[minmax(16rem,1fr)_12rem_12rem]">
+        <Input
           placeholder="Cari transaksi..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          className="h-10 min-w-64 rounded-md border border-wood-200 bg-cream-50 px-3 text-sm text-wood-900 placeholder:text-wood-400 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500"
+          leftIcon={<Search className="h-4 w-4" />}
         />
-        <select
+        <Select
           value={typeFilter}
           onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
-          className="h-10 appearance-none rounded-md border border-wood-200 bg-cream-50 px-3 pr-8 text-sm text-wood-900 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500"
-        >
-          <option value="">Semua Jenis</option>
-          {Object.entries(TRANSACTION_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <select
+          placeholder="Semua Jenis"
+          options={Object.entries(TRANSACTION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+        />
+        <Select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value as transaction_status | ""); setPage(0); }}
-          className="h-10 appearance-none rounded-md border border-wood-200 bg-cream-50 px-3 pr-8 text-sm text-wood-900 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500"
-        >
-          <option value="">Semua Status</option>
-          <option value="posted">Posted</option>
-          <option value="voided">Dibatalkan</option>
-        </select>
+          placeholder="Semua Status"
+          options={[
+            { value: "posted", label: "Posted" },
+            { value: "voided", label: "Dibatalkan" },
+          ]}
+        />
       </div>
+
+      {(search || typeFilter || statusFilter) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {search && <Badge variant="neutral">Cari: {search}</Badge>}
+          {typeFilter && (
+            <Badge variant="info">
+              Jenis: {TRANSACTION_TYPE_LABELS[typeFilter as keyof typeof TRANSACTION_TYPE_LABELS] || typeFilter}
+            </Badge>
+          )}
+          {statusFilter && <Badge variant={statusVariant(statusFilter)}>{statusLabel(statusFilter)}</Badge>}
+          <Button
+            type="button"
+            variant="link"
+            size="xs"
+            onClick={() => {
+              setSearch("");
+              setTypeFilter("");
+              setStatusFilter("");
+              setPage(0);
+            }}
+          >
+            Reset filter
+          </Button>
+        </div>
+      )}
 
       {/* Table */}
       {isLoading ? (
@@ -135,24 +167,47 @@ export function TransactionListPage() {
           ) : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-wood-200 bg-cream-50">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-wood-100 bg-cream-100/70">
-              <tr>
-                <th className="px-4 py-3 font-medium text-wood-600">Tanggal</th>
-                <th className="px-4 py-3 font-medium text-wood-600">No.</th>
-                <th className="px-4 py-3 font-medium text-wood-600">Jenis</th>
-                <th className="px-4 py-3 font-medium text-wood-600">Deskripsi</th>
-                <th className="px-4 py-3 text-right font-medium text-wood-600">Nominal</th>
-                <th className="px-4 py-3 font-medium text-wood-600">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-wood-50">
-              {transactions.map((txn) => (
-                <tr key={txn.id} className="hover:bg-cream-100/60">
-                  <td className="whitespace-nowrap px-4 py-3 text-wood-600">
-                    {formatShortDate(txn.transaction_date)}
-                  </td>
+        <>
+          <div className="space-y-3 sm:hidden">
+            {transactions.map((txn) => (
+              <Card key={txn.id}>
+                <CardContent>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link to={`/transactions/${txn.id}`} className="font-mono text-xs font-medium text-wood-700">
+                        {txn.transaction_number}
+                      </Link>
+                      <p className="mt-1 truncate text-sm font-medium text-text-primary">{txn.description || "-"}</p>
+                      <p className="mt-1 text-xs text-text-tertiary">
+                        {formatShortDate(txn.transaction_date)} · {TRANSACTION_TYPE_LABELS[txn.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || txn.transaction_type}
+                      </p>
+                    </div>
+                    <Badge variant={statusVariant(txn.status)}>{statusLabel(txn.status)}</Badge>
+                  </div>
+                  <p className="mt-3 text-right num-mono text-lg font-semibold text-text-primary">{formatIDR(Number(txn.amount))}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-lg border border-wood-200 bg-cream-50 sm:block">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-wood-100 bg-cream-100/70">
+                <tr>
+                  <th className="px-4 py-3 font-medium text-wood-600">Tanggal</th>
+                  <th className="px-4 py-3 font-medium text-wood-600">No.</th>
+                  <th className="px-4 py-3 font-medium text-wood-600">Jenis</th>
+                  <th className="px-4 py-3 font-medium text-wood-600">Deskripsi</th>
+                  <th className="px-4 py-3 text-right font-medium text-wood-600">Nominal</th>
+                  <th className="px-4 py-3 font-medium text-wood-600">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-wood-50">
+                {transactions.map((txn) => (
+                  <tr key={txn.id} className="hover:bg-cream-100/60">
+                    <td className="whitespace-nowrap px-4 py-3 text-wood-600">
+                      {formatShortDate(txn.transaction_date)}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
                       <Link
                         to={`/transactions/${txn.id}`}
@@ -160,46 +215,49 @@ export function TransactionListPage() {
                       >
                         {txn.transaction_number}
                       </Link>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-wood-700">
-                    {TRANSACTION_TYPE_LABELS[txn.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || txn.transaction_type}
-                  </td>
-                  <td className="max-w-[200px] truncate px-4 py-3 text-wood-600">
-                    {txn.description || "-"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-medium tabular-nums text-wood-800">
-                    {formatIDR(Number(txn.amount))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGES[txn.status] || "bg-wood-100 text-wood-700 border-wood-200"}`}>
-                      {txn.status === "posted" ? "Posted" : txn.status === "voided" ? "Dibatalkan" : txn.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-wood-700">
+                      {TRANSACTION_TYPE_LABELS[txn.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || txn.transaction_type}
+                    </td>
+                    <td className="max-w-[200px] truncate px-4 py-3 text-wood-600">
+                      {txn.description || "-"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium num-mono text-wood-800">
+                      {formatIDR(Number(txn.amount))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusVariant(txn.status)}>{statusLabel(txn.status)}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}
       {transactions && (page > 0 || transactions.length === limit) && (
         <div className="mt-4 flex justify-center gap-2">
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="rounded-md border border-wood-200 bg-cream-50 px-3 py-1.5 text-sm text-wood-700 disabled:opacity-50"
           >
             Sebelumnya
-          </button>
+          </Button>
           <span className="px-3 py-1.5 text-sm text-wood-500">Halaman {page + 1}</span>
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => p + 1)}
             disabled={transactions.length < limit}
-            className="rounded-md border border-wood-200 bg-cream-50 px-3 py-1.5 text-sm text-wood-700 disabled:opacity-50"
           >
             Selanjutnya
-          </button>
+          </Button>
         </div>
       )}
     </div>

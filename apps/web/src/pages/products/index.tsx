@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Package, Edit2, Trash2 } from "lucide-react";
+import { Plus, Package, Edit2, Trash2, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -22,12 +22,12 @@ interface Product {
   code: string;
   name: string;
   description: string | null;
-  current_stock: number;
-  min_stock: number;
-  unit: string;
-  purchase_price: number;
-  selling_price: number;
-  is_active: boolean;
+  current_stock: number | null;
+  min_stock: number | null;
+  unit: string | null;
+  purchase_price: number | null;
+  selling_price: number | null;
+  is_active: boolean | null;
 }
 
 interface ProductFormData {
@@ -89,7 +89,6 @@ export function ProductsPage() {
         name: data.name,
         description: data.description.trim() || null,
         unit: data.unit,
-        purchase_price: data.purchase_price,
         selling_price: data.selling_price,
         min_stock: data.min_stock,
         is_active: true,
@@ -106,6 +105,7 @@ export function ProductsPage() {
           .from("products")
           .insert({
             ...basePayload,
+            purchase_price: data.purchase_price,
             organization_id: orgData.organization.id,
             current_stock: data.current_stock,
           });
@@ -164,11 +164,11 @@ export function ProductsPage() {
       code: product.code,
       name: product.name,
       description: product.description || "",
-      unit: product.unit,
-      purchase_price: product.purchase_price,
-      selling_price: product.selling_price,
-      current_stock: product.current_stock,
-      min_stock: product.min_stock,
+      unit: product.unit || "pcs",
+      purchase_price: product.purchase_price ?? 0,
+      selling_price: product.selling_price ?? 0,
+      current_stock: product.current_stock ?? 0,
+      min_stock: product.min_stock ?? 0,
     });
     setEditingProduct(product);
     setModalOpen(true);
@@ -207,13 +207,12 @@ export function ProductsPage() {
         )}
       </div>
 
-      <div className="relative">
-        <Input
-          placeholder="Cari kode atau nama produk..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <Input
+        placeholder="Cari kode atau nama produk..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        leftIcon={<Search className="h-4 w-4" />}
+      />
 
       {isLoading ? (
         <PageSpinner />
@@ -225,7 +224,49 @@ export function ProductsPage() {
           action={canManageProducts ? <Button onClick={openCreateModal}><Plus className="h-4 w-4" /> Tambah Produk</Button> : undefined}
         />
       ) : (
-        <Card>
+        <>
+          <div className="space-y-3 sm:hidden">
+            {filteredProducts.map((product) => (
+              <Card key={product.id}>
+                <CardContent>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-text-tertiary">{product.code}</p>
+                      <h2 className="mt-1 truncate text-sm font-semibold text-text-primary">{product.name}</h2>
+                      {product.description && <p className="mt-1 line-clamp-2 text-xs text-text-tertiary">{product.description}</p>}
+                    </div>
+                    <Badge variant={(product.current_stock ?? 0) <= (product.min_stock ?? 0) ? "warning" : "success"}>
+                      {formatNumber(product.current_stock)} {product.unit || "pcs"}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-text-tertiary">Harga Beli</p>
+                      <p className="num-mono font-medium text-text-secondary">{formatIDR(product.purchase_price)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-text-tertiary">Harga Jual</p>
+                      <p className="num-mono font-semibold text-text-primary">{formatIDR(product.selling_price)}</p>
+                    </div>
+                  </div>
+                  {canManageProducts && (
+                    <div className="mt-4 flex justify-end gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(product)}>
+                        <Edit2 className="h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }} className="text-error hover:bg-error-bg">
+                        <Trash2 className="h-4 w-4" />
+                        Hapus
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="hidden sm:block">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -247,10 +288,10 @@ export function ProductsPage() {
                       {product.description && <div className="text-xs text-wood-400">{product.description}</div>}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Badge variant={product.current_stock <= product.min_stock ? "warning" : "success"}>
-                        {formatNumber(product.current_stock)} {product.unit}
+                      <Badge variant={(product.current_stock ?? 0) <= (product.min_stock ?? 0) ? "warning" : "success"}>
+                        {formatNumber(product.current_stock)} {product.unit || "pcs"}
                       </Badge>
-                      {product.min_stock > 0 && (
+                      {(product.min_stock ?? 0) > 0 && (
                         <div className="mt-1 text-xs text-wood-400">Min {formatNumber(product.min_stock)}</div>
                       )}
                     </td>
@@ -259,12 +300,12 @@ export function ProductsPage() {
                     {canManageProducts && (
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => openEditModal(product)} className="p-1.5 rounded-md text-wood-400 hover:text-wood-600 hover:bg-cream-200" title="Edit">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => openEditModal(product)} aria-label="Edit produk" className="h-8 w-8 min-h-0 min-w-0 text-wood-400 hover:text-wood-600">
                             <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }} className="p-1.5 rounded-md text-wood-400 hover:text-error hover:bg-error/10" title="Hapus">
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }} aria-label="Hapus produk" className="h-8 w-8 min-h-0 min-w-0 text-wood-400 hover:text-error hover:bg-error-bg">
                             <Trash2 className="h-4 w-4" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     )}
@@ -273,7 +314,8 @@ export function ProductsPage() {
               </tbody>
             </table>
           </div>
-        </Card>
+          </Card>
+        </>
       )}
 
       {/* Create/Edit Modal */}
@@ -289,7 +331,16 @@ export function ProductsPage() {
               onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
               options={UNITS.map((u) => ({ value: u, label: u }))}
             />
-            <Input label="Harga Beli" type="number" value={formData.purchase_price || ""} onChange={(e) => setFormData({ ...formData, purchase_price: Number(e.target.value) })} placeholder="0" prefix="Rp" />
+            <Input
+              label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
+              type="number"
+              value={formData.purchase_price || ""}
+              onChange={(e) => setFormData({ ...formData, purchase_price: Number(e.target.value) })}
+              placeholder="0"
+              prefix="Rp"
+              readOnly={!!editingProduct}
+              helperText={editingProduct ? "Dihitung otomatis dari pembelian stok." : undefined}
+            />
             <Input label="Harga Jual" type="number" value={formData.selling_price || ""} onChange={(e) => setFormData({ ...formData, selling_price: Number(e.target.value) })} placeholder="0" prefix="Rp" />
             {!editingProduct && (
               <Input label="Stok Awal" type="number" value={formData.current_stock || ""} onChange={(e) => setFormData({ ...formData, current_stock: Number(e.target.value) })} placeholder="0" />

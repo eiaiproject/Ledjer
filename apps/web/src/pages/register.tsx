@@ -7,8 +7,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
-import { Lock, Mail, User, BookOpen } from "lucide-react";
+import { Lock, Mail, User } from "lucide-react";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Nama harus minimal 2 karakter"),
@@ -50,12 +51,12 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream-100 flex">
+    <div className="min-h-screen bg-cream-100 lg:grid lg:grid-cols-2">
       {/* Left side — illustration (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-wood-700 items-center justify-center p-12">
+      <div className="hidden bg-wood-700 p-12 lg:flex lg:items-center lg:justify-center">
         <div className="max-w-md text-center">
-          <div className="h-20 w-20 rounded-2xl bg-leaf-500 flex items-center justify-center mx-auto mb-6">
-            <BookOpen className="h-10 w-10 text-white" />
+          <div className="mb-6 flex justify-center">
+            <Logo size="lg" variant="icon" tone="light" />
           </div>
           <h1 className="text-3xl font-bold text-cream-50">Ledjer</h1>
           <p className="mt-3 text-wood-200 text-lg">
@@ -69,18 +70,15 @@ export function RegisterPage() {
       </div>
 
       {/* Right side — form */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center p-6 lg:min-h-0">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="h-12 w-12 rounded-xl bg-leaf-500 flex items-center justify-center mx-auto mb-3">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-wood-800">Ledjer</h1>
+          <div className="mb-8 flex justify-center lg:hidden">
+            <Logo size="md" variant="full" tone="dark" />
           </div>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card padding="lg">
+            <CardContent>
               <h2 className="text-xl font-bold text-wood-800">Daftar</h2>
               <p className="mt-1 text-sm text-wood-500">
                 Buat akun baru untuk mulai menggunakan Ledjer
@@ -93,48 +91,36 @@ export function RegisterPage() {
               )}
 
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-                  <Input
-                    {...register("fullName")}
-                    placeholder="Nama lengkap"
-                    className="pl-10"
-                    error={errors.fullName?.message}
-                  />
-                </div>
+                <Input
+                  {...register("fullName")}
+                  placeholder="Nama lengkap"
+                  prefix={<User className="h-4 w-4 text-wood-400" />}
+                  error={errors.fullName?.message}
+                />
 
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-                  <Input
-                    {...register("email")}
-                    type="email"
-                    placeholder="email@contoh.com"
-                    className="pl-10"
-                    error={errors.email?.message}
-                  />
-                </div>
+                <Input
+                  {...register("email")}
+                  type="email"
+                  placeholder="email@contoh.com"
+                  prefix={<Mail className="h-4 w-4 text-wood-400" />}
+                  error={errors.email?.message}
+                />
 
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-                  <Input
-                    {...register("password")}
-                    type="password"
-                    placeholder="Password (minimal 8 karakter)"
-                    className="pl-10"
-                    error={errors.password?.message}
-                  />
-                </div>
+                <Input
+                  {...register("password")}
+                  type="password"
+                  placeholder="Password (minimal 8 karakter)"
+                  prefix={<Lock className="h-4 w-4 text-wood-400" />}
+                  error={errors.password?.message}
+                />
 
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-                  <Input
-                    {...register("confirmPassword")}
-                    type="password"
-                    placeholder="Konfirmasi password"
-                    className="pl-10"
-                    error={errors.confirmPassword?.message}
-                  />
-                </div>
+                <Input
+                  {...register("confirmPassword")}
+                  type="password"
+                  placeholder="Konfirmasi password"
+                  prefix={<Lock className="h-4 w-4 text-wood-400" />}
+                  error={errors.confirmPassword?.message}
+                />
 
                 <Button type="submit" fullWidth loading={loading}>
                   Daftar

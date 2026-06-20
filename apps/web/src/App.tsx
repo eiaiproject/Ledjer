@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -9,6 +9,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { queryClient } from "@/lib/query-client";
 
 // Lazy imports
+const LandingPage = lazy(async () => ({ default: (await import("@/pages/landing")).LandingPage }));
 const LoginPage = lazy(async () => ({ default: (await import("@/pages/login")).LoginPage }));
 const RegisterPage = lazy(async () => ({ default: (await import("@/pages/register")).RegisterPage }));
 const OnboardingPage = lazy(async () => ({ default: (await import("@/pages/onboarding")).OnboardingPage }));
@@ -35,49 +36,57 @@ function RouteFallback() {
   );
 }
 
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <PublicRoute />,
+    children: [
+      { index: true, element: <LandingPage /> },
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+    ],
+  },
+  {
+    path: "/onboarding",
+    element: <ProtectedRoute />,
+    children: [
+      { index: true, element: <OnboardingPage /> },
+    ],
+  },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <DashboardLayout />,
+        children: [
+          { path: "/dashboard", element: <DashboardPage /> },
+          { path: "/transactions", element: <TransactionListPage /> },
+          { path: "/transactions/new", element: <NewTransactionPage /> },
+          { path: "/transactions/:id", element: <TransactionDetailPage /> },
+          { path: "/accounts", element: <AccountsPage /> },
+          { path: "/products", element: <ProductsPage /> },
+          { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
+          { path: "/reports/trial-balance", element: <TrialBalancePage /> },
+          { path: "/reports/profit-loss", element: <ProfitLossPage /> },
+          { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
+          { path: "/settings/team", element: <TeamSettingsPage /> },
+          { path: "/settings/billing", element: <BillingSettingsPage /> },
+        ],
+      },
+    ],
+  },
+  { path: "*", element: <Navigate to="/dashboard" replace /> },
+]);
+
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <Suspense fallback={<RouteFallback />}>
-              <Routes>
-                {/* Public routes */}
-                <Route element={<PublicRoute />}>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/register" element={<RegisterPage />} />
-                </Route>
-
-                {/* Onboarding */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/onboarding" element={<OnboardingPage />} />
-                </Route>
-
-                {/* Protected dashboard routes */}
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<DashboardLayout />}>
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/transactions" element={<TransactionListPage />} />
-                    <Route path="/transactions/new" element={<NewTransactionPage />} />
-                    <Route path="/transactions/:id" element={<TransactionDetailPage />} />
-                    <Route path="/accounts" element={<AccountsPage />} />
-                    <Route path="/products" element={<ProductsPage />} />
-                    <Route path="/reports/general-ledger" element={<GeneralLedgerPage />} />
-                    <Route path="/reports/trial-balance" element={<TrialBalancePage />} />
-                    <Route path="/reports/profit-loss" element={<ProfitLossPage />} />
-                    <Route path="/reports/balance-sheet" element={<BalanceSheetPage />} />
-                    <Route path="/settings/team" element={<TeamSettingsPage />} />
-                    <Route path="/settings/billing" element={<BillingSettingsPage />} />
-                  </Route>
-                </Route>
-
-                {/* Default redirect */}
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
+          <Suspense fallback={<RouteFallback />}>
+            <RouterProvider router={router} />
+          </Suspense>
         </AuthProvider>
         </ToastProvider>
       </QueryClientProvider>

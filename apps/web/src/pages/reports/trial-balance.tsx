@@ -59,7 +59,9 @@ export function TrialBalancePage() {
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 items-end">
             <Input label="Per Tanggal" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <Button variant="outline" onClick={() => void refetch()} loading={isLoading}>Muat Ulang</Button>
+            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
+              Muat Ulang
+            </Button>
           </div>
         </CardContent>
       </Card>

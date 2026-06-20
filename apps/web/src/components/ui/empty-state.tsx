@@ -15,9 +15,9 @@ export function EmptyState({ icon, title, description, action, className }: Empt
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cream-200 mb-4">
         {icon || <FileText className="h-8 w-8 text-wood-400" />}
       </div>
-      <h3 className="text-lg font-semibold text-wood-800">{title}</h3>
+      <h3 className="text-lg font-serif font-semibold text-text-primary">{title}</h3>
       {description && (
-        <p className="mt-1 text-sm text-wood-500 max-w-sm">{description}</p>
+        <p className="mt-1 text-sm text-text-secondary max-w-sm">{description}</p>
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>

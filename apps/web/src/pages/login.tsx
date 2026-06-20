@@ -7,10 +7,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
 import { checkRateLimit, getResetTime, RATE_LIMITS } from "@/lib/rate-limit";
 import { supabase } from "@/lib/supabase";
-import { Lock, Mail, BookOpen } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Email tidak valid"),
@@ -100,14 +101,14 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream-100 flex">
+    <div className="min-h-screen bg-cream-100 lg:grid lg:grid-cols-2">
       {/* Left side — illustration (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/3 bg-wood-700 items-center justify-center p-12">
+      <div className="hidden bg-wood-700 p-12 lg:flex lg:items-center lg:justify-center">
         <div className="max-w-md text-center">
-          <div className="h-20 w-20 rounded-2xl bg-leaf-500 flex items-center justify-center mx-auto mb-6">
-            <BookOpen className="h-10 w-10 text-white" />
+          <div className="mb-6 flex justify-center">
+            <Logo size="lg" variant="icon" tone="light" />
           </div>
-          <h1 className="text-3xl font-bold" style={{ color: '#ffffff' }}>Ledjer</h1>
+          <h1 className="text-3xl font-bold text-cream-50">Ledjer</h1>
           <p className="mt-3 text-wood-200 text-lg">
             Pembukuan UMKM Indonesia yang mudah dan terpercaya
           </p>
@@ -120,18 +121,15 @@ export function LoginPage() {
       </div>
 
       {/* Right side — form */}
-      <div className="lg:w-2/3 flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center p-6 lg:min-h-0">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="h-12 w-12 rounded-xl bg-leaf-500 flex items-center justify-center mx-auto mb-3">
-              <BookOpen className="h-6 w-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Ledjer</h1>
+          <div className="mb-8 flex justify-center lg:hidden">
+            <Logo size="md" variant="full" tone="dark" />
           </div>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card padding="lg">
+            <CardContent>
               <h2 className="text-xl font-bold text-wood-800">Masuk</h2>
               <p className="mt-1 text-sm text-wood-500">
                 Selamat datang kembali! Silakan masuk ke akun Anda.
@@ -144,29 +142,23 @@ export function LoginPage() {
               )}
 
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-                  <Input
-                    {...register("email")}
-                    type="email"
-                    placeholder="email@contoh.com"
-                    className="pl-10"
-                    error={errors.email?.message}
-                    disabled={rateLimited}
-                  />
-                </div>
+                <Input
+                  {...register("email")}
+                  type="email"
+                  placeholder="email@contoh.com"
+                  prefix={<Mail className="h-4 w-4 text-wood-400" />}
+                  error={errors.email?.message}
+                  disabled={rateLimited}
+                />
 
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-wood-400" />
-                  <Input
-                    {...register("password")}
-                    type="password"
-                    placeholder="Password"
-                    className="pl-10"
-                    error={errors.password?.message}
-                    disabled={rateLimited}
-                  />
-                </div>
+                <Input
+                  {...register("password")}
+                  type="password"
+                  placeholder="Password"
+                  prefix={<Lock className="h-4 w-4 text-wood-400" />}
+                  error={errors.password?.message}
+                  disabled={rateLimited}
+                />
 
                 <Button type="submit" fullWidth loading={loading} disabled={rateLimited}>
                   Masuk
@@ -178,7 +170,7 @@ export function LoginPage() {
                   <div className="w-full border-t border-wood-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-white px-2 text-wood-400">atau</span>
+                  <span className="bg-cream-100 px-2 text-wood-400">atau</span>
                 </div>
               </div>
 
@@ -209,7 +201,7 @@ export function LoginPage() {
 
           {/* Security notice */}
           <p className="mt-6 text-center text-xs text-wood-400">
-            🔒 Koneksi terenkripsi. Data Anda aman.
+            Koneksi terenkripsi. Data Anda aman.
           </p>
         </div>
       </div>

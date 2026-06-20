@@ -5,13 +5,15 @@ import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import type { Json } from "@/lib/database-types";
 import { formatAmountInput, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookOpen, Building2, Wallet, CheckCircle, Plus, Trash2, Info } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
+import { translateError } from "@/lib/errors";
+import { Building2, CheckCircle, Info, Trash2, Wallet } from "lucide-react";
 
 const businessSchema = z.object({
   organizationName: z.string().min(2, "Nama bisnis harus minimal 2 karakter"),
@@ -33,17 +35,44 @@ const cashSetupSchema = z.object({
 type BusinessForm = z.infer<typeof businessSchema>;
 type CashSetupForm = z.infer<typeof cashSetupSchema>;
 
+interface ExtraOpeningBalance {
+  accountCode?: string;
+  openingBalance: number;
+  description: string;
+  createBank?: boolean;
+  bankNumber?: number;
+  accountName?: string;
+}
+
 // Default cash/bank accounts from chart of accounts
 const CASH_ACCOUNTS = [
   { code: "1110", name: "Kas", type: "cash" },
   { code: "1120", name: "Bank", type: "bank" },
 ];
 
+const BUSINESS_TYPES = [
+  {
+    value: "simple_trading",
+    label: "Jual Beli Barang",
+    description: "Untuk toko, reseller, dan bisnis yang punya stok barang.",
+  },
+  {
+    value: "service",
+    label: "Penyedia Jasa",
+    description: "Untuk jasa profesional, agensi, bengkel, atau layanan lain.",
+  },
+] as const;
+
 const STEPS = [
   { number: 1, label: "Profil Bisnis", icon: Building2 },
   { number: 2, label: "Atur Saldo", icon: Wallet },
-  { number: 3, label: "Selesai", icon: CheckCircle },
 ];
+
+function localDate() {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().split("T")[0];
+}
 
 export function OnboardingPage() {
   const { user } = useAuth();
@@ -58,7 +87,7 @@ export function OnboardingPage() {
     resolver: zodResolver(businessSchema),
     defaultValues: {
       businessType: "service",
-      booksStartDate: new Date().toISOString().split("T")[0],
+      booksStartDate: localDate(),
     },
   });
 
@@ -67,6 +96,7 @@ export function OnboardingPage() {
     defaultValues: {
       accounts: [
         { accountCode: "1110", openingBalance: 0 },
+        { accountCode: "1120", openingBalance: 0 },
       ],
     },
   });
@@ -76,14 +106,18 @@ export function OnboardingPage() {
     name: "accounts",
   });
 
-  // Get available accounts (not already selected)
-  const getAvailableAccounts = () => {
-    const selectedCodes = fields.map((f) => cashForm.watch(`accounts.${fields.indexOf(f)}.accountCode`));
-    return CASH_ACCOUNTS.filter((a) => !selectedCodes.includes(a.code));
-  };
-
   const onBusinessSubmit = (data: BusinessForm) => {
     setBusinessData(data);
+    setStep(2);
+  };
+
+  const onSkipBusinessDetails = () => {
+    const values = businessForm.getValues();
+    setBusinessData({
+      organizationName: values.organizationName?.trim() || "Bisnis Saya",
+      businessType: values.businessType || "service",
+      booksStartDate: values.booksStartDate || localDate(),
+    });
     setStep(2);
   };
 
@@ -93,17 +127,46 @@ export function OnboardingPage() {
     setError(null);
 
     try {
-      // Find the main cash account (first one with balance > 0, or first one)
-      const mainAccount = data.accounts.find((a) => a.openingBalance > 0) || data.accounts[0];
+      const defaultAccountRows = data.accounts.slice(0, 2);
+      const mainAccount =
+        defaultAccountRows.find((a) => a.openingBalance > 0) ||
+        defaultAccountRows[0] ||
+        data.accounts[0];
       const mainAccountInfo = CASH_ACCOUNTS.find((a) => a.code === mainAccount.accountCode);
+      const extraOpeningBalances: ExtraOpeningBalance[] = [];
+      let extraBankNumber = 2;
 
-      // Create organization with main cash account
-      const { data: orgResponse, error: orgError } = await supabase.rpc("create_organization_with_template", {
+      for (const [index, account] of data.accounts.entries()) {
+        if (account === mainAccount || account.openingBalance <= 0) continue;
+
+        if (index <= 1) {
+          const accountInfo = CASH_ACCOUNTS.find((a) => a.code === account.accountCode);
+          extraOpeningBalances.push({
+            accountCode: account.accountCode,
+            openingBalance: account.openingBalance,
+            description: `Saldo awal ${accountInfo?.name || "Kas/Bank"}`,
+          });
+          continue;
+        }
+
+        const accountName = `Bank ${extraBankNumber}`;
+        extraOpeningBalances.push({
+          createBank: true,
+          bankNumber: extraBankNumber,
+          accountName,
+          openingBalance: account.openingBalance,
+          description: `Saldo awal ${accountName}`,
+        });
+        extraBankNumber += 1;
+      }
+
+      const { data: orgResponse, error: orgError } = await supabase.rpc("create_organization_with_opening_balances", {
         p_organization_name: businessData.organizationName,
         p_business_type: businessData.businessType,
         p_books_start_date: businessData.booksStartDate,
         p_default_cash_account_name: mainAccountInfo?.name || "Kas",
         p_opening_cash_balance: mainAccount.openingBalance,
+        p_extra_opening_balances: extraOpeningBalances as unknown as Json,
       });
 
       if (orgError) {
@@ -122,40 +185,23 @@ export function OnboardingPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["organization"] });
-      setStep(3);
+      await queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("Error creating organization:", err);
-      setError("Terjadi kesalahan, coba lagi");
+      setError(translateError(err));
       setLoading(false);
     }
   };
-
-  if (step === 3) {
-    return (
-      <div className="min-h-screen bg-cream-100 flex items-center justify-center px-4">
-        <div className="w-full max-w-md space-y-6 text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-leaf-100">
-            <CheckCircle className="h-10 w-10 text-leaf-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-wood-800">Siap digunakan!</h1>
-          <p className="text-wood-600">
-            Akun bisnis Anda sudah dibuat. Sekarang Anda bisa mulai mencatat transaksi.
-          </p>
-          <Button fullWidth size="lg" onClick={() => navigate("/dashboard")}>
-            Masuk ke Dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-cream-100 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg space-y-6">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-leaf-500">
-            <BookOpen className="h-6 w-6 text-white" />
+          <div className="mb-4 flex justify-center">
+            <Logo size="md" variant="icon" tone="dark" />
           </div>
           <h1 className="text-2xl font-bold text-wood-800">Selamat datang di Ledjer</h1>
           <p className="mt-1 text-sm text-wood-500">Mari siapkan bisnis Anda dalam 2 langkah mudah</p>
@@ -167,7 +213,7 @@ export function OnboardingPage() {
             <div key={s.number} className="flex items-center gap-2">
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
                 step >= s.number
-                  ? "bg-leaf-500 text-white"
+                  ? "bg-leaf-500 text-text-on-success"
                   : "bg-cream-200 text-wood-400"
               }`}>
                 {step > s.number ? (
@@ -176,7 +222,7 @@ export function OnboardingPage() {
                   s.number
                 )}
               </div>
-              {s.number < 3 && (
+              {s.number < STEPS.length && (
                 <div className={`w-12 h-0.5 ${step > s.number ? "bg-leaf-500" : "bg-cream-200"}`} />
               )}
             </div>
@@ -190,8 +236,8 @@ export function OnboardingPage() {
 
         {/* Step 1: Business Profile */}
         {step === 1 && (
-          <Card>
-            <CardContent className="p-6">
+          <Card padding="lg">
+            <CardContent>
               <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-4">
                 <div>
                   <h2 className="text-lg font-semibold text-wood-800">Profil Bisnis</h2>
@@ -205,14 +251,37 @@ export function OnboardingPage() {
                   error={businessForm.formState.errors.organizationName?.message}
                 />
 
-                <Select
-                  label="Jenis Bisnis"
-                  {...businessForm.register("businessType")}
-                  options={[
-                    { value: "simple_trading", label: "Jual Beli Barang" },
-                    { value: "service", label: "Penyedia Jasa" },
-                  ]}
-                  error={businessForm.formState.errors.businessType?.message}
+                <Controller
+                  control={businessForm.control}
+                  name="businessType"
+                  render={({ field }) => (
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-text-secondary">Jenis Bisnis</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {BUSINESS_TYPES.map((type) => (
+                          <Button
+                            key={type.value}
+                            type="button"
+                            variant="outline"
+                            onClick={() => field.onChange(type.value)}
+                            className={`h-auto min-h-[112px] items-start justify-start p-4 text-left shadow-none ${
+                              field.value === type.value
+                                ? "border-leaf-500 bg-leaf-50 text-leaf-700"
+                                : "border-wood-200 bg-surface text-text-secondary hover:bg-cream-100"
+                            }`}
+                          >
+                            <span>
+                              <span className="block text-sm font-semibold">{type.label}</span>
+                              <span className="mt-1 block text-xs text-text-tertiary">{type.description}</span>
+                            </span>
+                          </Button>
+                        ))}
+                      </div>
+                      {businessForm.formState.errors.businessType && (
+                        <p className="mt-1 text-xs text-error">{businessForm.formState.errors.businessType.message}</p>
+                      )}
+                    </div>
+                  )}
                 />
 
                 <div>
@@ -221,14 +290,20 @@ export function OnboardingPage() {
                     type="date"
                     {...businessForm.register("booksStartDate")}
                   />
-                  <p className="mt-1 text-xs text-wood-400 flex items-center gap-1">
+                  <span
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-text-tertiary"
+                    title="Tanggal ini menjadi hari pertama pencatatan dan dasar perhitungan saldo awal."
+                  >
                     <Info className="h-3 w-3" />
-                    Tanggal mulai pencatatan adalah hari pertama Anda mulai mencatat keuangan bisnis di Ledjer. Saldo awal akan dihitung mulai dari tanggal ini.
-                  </p>
+                    Dasar saldo awal
+                  </span>
                 </div>
 
                 <Button type="submit" fullWidth>
                   Selanjutnya
+                </Button>
+                <Button type="button" variant="link" fullWidth onClick={onSkipBusinessDetails}>
+                  Lewati, saya akan atur nanti
                 </Button>
               </form>
             </CardContent>
@@ -237,8 +312,8 @@ export function OnboardingPage() {
 
         {/* Step 2: Cash Setup */}
         {step === 2 && (
-          <Card>
-            <CardContent className="p-6">
+          <Card padding="lg">
+            <CardContent>
               <form onSubmit={cashForm.handleSubmit(onCashSubmit)} className="space-y-4">
                 <div>
                   <h2 className="text-lg font-semibold text-wood-800">Atur Saldo</h2>
@@ -247,34 +322,28 @@ export function OnboardingPage() {
 
                 <div className="space-y-3">
                   {fields.map((field, index) => {
-                    const selectedCode = cashForm.watch(`accounts.${index}.accountCode`);
-                    const accountInfo = CASH_ACCOUNTS.find((a) => a.code === selectedCode);
+                    const selectedCode = field.accountCode;
+                    const accountInfo = CASH_ACCOUNTS.find((a) => a.code === selectedCode) || CASH_ACCOUNTS[1];
 
                     return (
                       <div key={field.id} className="p-4 rounded-lg border border-wood-200 bg-cream-50 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-wood-700">
-                            {accountInfo?.name || `Akun ${index + 1}`}
+                            {index > 1 ? `Bank ${index}` : accountInfo.name}
                           </span>
-                          {fields.length > 1 && (
-                            <button
+                          {index > 1 && (
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Hapus rekening bank"
                               onClick={() => remove(index)}
-                              className="p-1 text-wood-400 hover:text-error transition-colors"
+                              className="h-8 w-8 min-h-0 min-w-0 text-wood-400 hover:text-error"
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </Button>
                           )}
                         </div>
-
-                        <Select
-                          label="Pilih Akun"
-                          {...cashForm.register(`accounts.${index}.accountCode`)}
-                          options={CASH_ACCOUNTS.map((a) => ({
-                            value: a.code,
-                            label: `${a.name} (${a.type === "cash" ? "Kas" : "Bank"})`,
-                          }))}
-                        />
 
                         <Controller
                           control={cashForm.control}
@@ -297,23 +366,13 @@ export function OnboardingPage() {
                   })}
                 </div>
 
-                {getAvailableAccounts().length > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    fullWidth
-                    onClick={() => {
-                      const available = getAvailableAccounts();
-                      if (available.length > 0) {
-                        append({ accountCode: available[0].code, openingBalance: 0 });
-                      }
-                    }}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Tambah Akun Lain
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="link"
+                  onClick={() => append({ accountCode: "1120", openingBalance: 0 })}
+                >
+                  Tambah rekening bank lain
+                </Button>
 
                 <div className="flex gap-3">
                   <Button type="button" variant="outline" fullWidth onClick={() => setStep(1)}>

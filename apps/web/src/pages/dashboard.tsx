@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { formatDate, formatIDR } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 interface DashboardSummary {
   cash_balance: number;
@@ -70,14 +70,14 @@ export function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-wood-800">
+        <h1 className="text-2xl font-bold text-text-primary">
           Halo{orgData?.organization ? `, ${orgData.organization.name}` : ""}
         </h1>
-        <p className="text-sm text-wood-500">
+        <p className="text-sm text-text-secondary">
           Berikut ringkasan keuangan bisnis Anda
         </p>
         {summary?.period_from && summary?.period_to && (
-          <p className="text-xs text-wood-400">
+          <p className="text-xs text-text-tertiary">
             Periode: {formatDate(summary.period_from)} — {formatDate(summary.period_to)}
           </p>
         )}
@@ -90,25 +90,25 @@ export function DashboardPage() {
             label="Saldo Kas/Bank"
             value={summary.cash_balance}
             icon={Wallet}
-            color="green"
+            tone="leaf"
           />
           <StatCard
             label="Pendapatan"
             value={summary.revenue_current_period}
             icon={TrendingUp}
-            color="wood"
+            tone="wood"
           />
           <StatCard
             label="Beban"
             value={summary.expense_current_period}
             icon={TrendingDown}
-            color="clay"
+            tone="clay"
           />
           <StatCard
             label="Laba/Rugi"
             value={summary.net_profit_current_period}
             icon={BarChart3}
-            color={summary.net_profit_current_period >= 0 ? "green" : "clay"}
+            tone={summary.net_profit_current_period >= 0 ? "leaf" : "clay"}
           />
         </div>
       )}
@@ -116,36 +116,18 @@ export function DashboardPage() {
       {/* AR/AP Summary */}
       {canViewReports && summary && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="shrink-0 p-3 rounded-xl bg-leaf-100">
-                  <ArrowUpRight className="h-6 w-6 text-leaf-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-wood-500">Piutang Usaha</p>
-                  <p className="mt-0.5 text-xl font-bold text-wood-800 tabular-nums">
-                    {formatIDR(summary.accounts_receivable)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="shrink-0 p-3 rounded-xl bg-clay-400/10">
-                  <ArrowDownRight className="h-6 w-6 text-clay-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-wood-500">Utang Usaha</p>
-                  <p className="mt-0.5 text-xl font-bold text-wood-800 tabular-nums">
-                    {formatIDR(summary.accounts_payable)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            label="Piutang Usaha"
+            value={summary.accounts_receivable}
+            icon={ArrowUpRight}
+            tone="leaf"
+          />
+          <StatCard
+            label="Utang Usaha"
+            value={summary.accounts_payable}
+            icon={ArrowDownRight}
+            tone="clay"
+          />
         </div>
       )}
 
@@ -170,14 +152,14 @@ export function DashboardPage() {
             {canCreateTransaction && (
               <Link
                 to="/transactions/new"
-                className="group flex items-center gap-3 rounded-xl border border-wood-200 p-4 transition-all hover:border-leaf-400 hover:bg-leaf-50/50 hover:shadow-sm min-h-[72px]"
+                className="group flex min-h-[72px] items-center gap-3 rounded-xl border border-wood-600 bg-wood-500 p-4 text-text-on-primary shadow-sm transition-all hover:bg-wood-600 hover:shadow-md"
               >
-                <div className="shrink-0 p-2.5 rounded-xl bg-leaf-100 group-hover:bg-leaf-200 transition-colors">
-                  <Plus className="h-5 w-5 text-leaf-600" />
+                <div className="shrink-0 rounded-xl bg-cream-50/15 p-2.5 transition-colors group-hover:bg-cream-50/20">
+                  <Plus className="h-5 w-5 text-cream-50" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-wood-800 group-hover:text-leaf-700 transition-colors">Catat Transaksi</p>
-                  <p className="text-xs text-wood-500">Tambah transaksi baru</p>
+                  <p className="text-sm font-semibold text-text-on-primary">Catat Transaksi</p>
+                  <p className="text-xs text-text-on-dark-secondary">Tambah transaksi baru</p>
                 </div>
               </Link>
             )}
@@ -192,7 +174,7 @@ export function DashboardPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-wood-800 group-hover:text-wood-700 transition-colors">Laba Rugi</p>
-                    <p className="text-xs text-wood-500">Lihat laporan</p>
+                    <p className="text-xs text-text-tertiary">Lihat laporan</p>
                   </div>
                 </Link>
                 <Link
@@ -204,7 +186,7 @@ export function DashboardPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-wood-800 group-hover:text-honey-700 transition-colors">Neraca Saldo</p>
-                    <p className="text-xs text-wood-500">Cek keseimbangan</p>
+                    <p className="text-xs text-text-tertiary">Cek keseimbangan</p>
                   </div>
                 </Link>
               </>
@@ -218,7 +200,7 @@ export function DashboardPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-wood-800 group-hover:text-sky-700 transition-colors">Bagan Akun</p>
-                <p className="text-xs text-wood-500">Kelola akun</p>
+                <p className="text-xs text-text-tertiary">Kelola akun</p>
               </div>
             </Link>
           </div>

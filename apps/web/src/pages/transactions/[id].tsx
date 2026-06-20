@@ -10,6 +10,10 @@ import {
   TRANSACTION_TYPE_LABELS,
   usesCategory,
 } from "@/lib/transactions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface TransactionDetail {
   id: string;
@@ -49,11 +53,25 @@ interface JournalEntry {
   journal_lines: JournalLine[];
 }
 
+function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
+  if (status === "posted") return "success";
+  if (status === "voided") return "error";
+  if (status === "reversed") return "warning";
+  return "neutral";
+}
+
+function statusLabel(status: string) {
+  if (status === "posted") return "Posted";
+  if (status === "voided") return "Dibatalkan";
+  if (status === "reversed") return "Reversal";
+  return status;
+}
+
 export function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
-  const { canVoidTransaction } = useOrgPermissions();
+  const { canViewReports, canVoidTransaction } = useOrgPermissions();
   const [showVoidForm, setShowVoidForm] = useState(false);
   const [voidReason, setVoidReason] = useState("");
   const [showJournal, setShowJournal] = useState(false);
@@ -71,7 +89,7 @@ export function TransactionDetailPage() {
       if (error) throw error;
       return data as unknown as TransactionDetail;
     },
-    enabled: !!id && !!orgData?.organization?.id,
+    enabled: !!id && !!orgData?.organization?.id && canViewReports,
   });
 
   const { data: createdByProfile } = useQuery({
@@ -148,18 +166,14 @@ export function TransactionDetailPage() {
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-wood-900">
+          <h1 className="text-2xl font-bold text-wood-900">
             {TRANSACTION_TYPE_LABELS[transaction.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || transaction.transaction_type}
           </h1>
           <p className="mt-1 font-mono text-sm text-wood-500">{transaction.transaction_number}</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-          transaction.status === "posted" ? "bg-leaf-100 text-leaf-700" :
-          transaction.status === "voided" ? "bg-error/10 text-error" :
-          "bg-wood-100 text-wood-800"
-        }`}>
-          {transaction.status === "posted" ? "Posted" : transaction.status === "voided" ? "Dibatalkan" : transaction.status}
-        </span>
+        <Badge variant={statusVariant(transaction.status)} size="md">
+          {statusLabel(transaction.status)}
+        </Badge>
       </div>
 
       {/* Transaction Details */}
@@ -222,39 +236,44 @@ export function TransactionDetailPage() {
       {transaction.status === "posted" && canVoidTransaction && (
         <div className="mt-4">
           {!showVoidForm ? (
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setShowVoidForm(true)}
-              className="rounded-md border border-error/30 px-4 py-2 text-sm font-medium text-error hover:bg-error/10"
+              className="border-error-border text-error hover:bg-error-bg"
             >
               Batalkan Transaksi
-            </button>
+            </Button>
           ) : (
             <div className="rounded-lg border border-error/30 bg-error/10 p-4">
               <h3 className="text-sm font-medium text-error">Pembatalan Transaksi</h3>
               <p className="mt-1 text-xs text-error">
                 Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
               </p>
-              <textarea
+              <Textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
-                className="mt-2 block w-full rounded-md border border-error/30 bg-cream-50 px-3 py-2 text-sm focus:border-error focus:outline-none focus:ring-1 focus:ring-error"
+                containerClassName="mt-2"
                 placeholder="Alasan pembatalan..."
                 rows={2}
               />
               <div className="mt-3 flex gap-2">
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setShowVoidForm(false)}
-                  className="rounded-md border border-wood-300 px-3 py-1.5 text-sm text-wood-700 hover:bg-cream-100"
                 >
                   Batal
-                </button>
-                <button
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
                   onClick={() => voidMutation.mutate()}
                   disabled={!voidReason || voidMutation.isPending}
-                  className="rounded-md bg-error px-3 py-1.5 text-sm font-medium text-cream-50 hover:opacity-90 disabled:opacity-50"
+                  loading={voidMutation.isPending}
                 >
-                  {voidMutation.isPending ? "Memproses..." : "Batalkan"}
-                </button>
+                  Batalkan
+                </Button>
               </div>
             </div>
           )}
@@ -262,26 +281,24 @@ export function TransactionDetailPage() {
       )}
 
       {/* Journal Entries */}
-      {journalEntries && journalEntries.length > 0 && (
+      {canViewReports && journalEntries && journalEntries.length > 0 && (
         <div className="mt-6">
-          <button
+          <Button
+            type="button"
+            variant="link"
             onClick={() => setShowJournal(!showJournal)}
             className="flex items-center gap-2 text-sm font-medium text-wood-600 hover:text-wood-500"
           >
-            <span>{showJournal ? "▼" : "▶"}</span>
+            {showJournal ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             Lihat jurnal akuntansi
-          </button>
+          </Button>
           {showJournal && (
             <div className="mt-3 space-y-3">
               {journalEntries.map((je) => (
                 <div key={je.id} className="rounded-lg border border-wood-200 bg-cream-50 p-4">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="font-mono text-xs text-wood-500">{je.entry_number}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${
-                      je.status === "posted" ? "bg-leaf-100 text-leaf-700" : "bg-error/10 text-error"
-                    }`}>
-                      {je.status}
-                    </span>
+                    <Badge variant={statusVariant(je.status)}>{statusLabel(je.status)}</Badge>
                   </div>
                   <table className="w-full text-sm">
                     <thead>

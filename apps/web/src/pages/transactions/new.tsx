@@ -1,21 +1,14 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useBlocker, useNavigate } from "react-router-dom";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { Database } from "@/lib/database-types";
-import { formatAmountInput, parseAmountInput, parseDecimalInput } from "@/lib/utils";
+import { formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { Link } from "react-router-dom";
-import { DollarSign, FileText, Download, ShoppingCart, ClipboardList, CreditCard, Receipt, Landmark, Wallet, ArrowRightLeft } from "lucide-react";
+import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
 import {
-  fetchMonthlyTransactionUsage,
-  FREE_PLAN_TRANSACTION_LIMIT,
-} from "@/lib/transaction-usage";
-import {
-  TRANSACTION_TYPE_LABELS,
   partyTypeForTransaction,
   usesCashAccount,
   usesCategory,
@@ -23,8 +16,38 @@ import {
   usesParty,
   usesPaymentStatus,
 } from "@/lib/transactions";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  TransactionTypeSelector,
+  PaymentStatusSelector,
+  ProductDetailFields,
+  ReviewPanel,
+  MobileReviewToggle,
+  PlanUsageBanner,
+  SubmitBar,
+  ErrorSummary,
+  UnsavedChangesDialog,
+  SectionCard,
+} from "./_components";
+import {
+  buildPreview,
+  TRANSACTION_META,
+  PARTY_COPY,
+  CASH_ACCOUNT_LABELS,
+  CATEGORY_LABELS,
+  DESCRIPTION_PLACEHOLDERS,
+  EXPENSE_CATEGORIES,
+} from "./_helpers";
+
+/* ------------------------------------------------------------------ */
+/*  Schema                                                             */
+/* ------------------------------------------------------------------ */
 
 const transactionSchema = z.object({
   transactionDate: z.string().min(1, "Tanggal wajib diisi"),
@@ -46,32 +69,25 @@ const transactionSchema = z.object({
 });
 
 type TransactionForm = z.infer<typeof transactionSchema>;
-type PostTransactionArgs = Database["public"]["Functions"]["post_transaction"]["Args"];
 
-const TRANSACTION_TYPES = [
-  { value: "cash_sale", label: TRANSACTION_TYPE_LABELS.cash_sale, icon: DollarSign },
-  { value: "credit_sale", label: TRANSACTION_TYPE_LABELS.credit_sale, icon: FileText },
-  { value: "receive_receivable", label: TRANSACTION_TYPE_LABELS.receive_receivable, icon: Download },
-  { value: "cash_purchase", label: TRANSACTION_TYPE_LABELS.cash_purchase, icon: ShoppingCart },
-  { value: "credit_purchase", label: TRANSACTION_TYPE_LABELS.credit_purchase, icon: ClipboardList },
-  { value: "pay_payable", label: TRANSACTION_TYPE_LABELS.pay_payable, icon: CreditCard },
-  { value: "expense_payment", label: TRANSACTION_TYPE_LABELS.expense_payment, icon: Receipt },
-  { value: "owner_capital", label: TRANSACTION_TYPE_LABELS.owner_capital, icon: Landmark },
-  { value: "owner_draw", label: TRANSACTION_TYPE_LABELS.owner_draw, icon: Wallet },
-  { value: "cash_transfer", label: TRANSACTION_TYPE_LABELS.cash_transfer, icon: ArrowRightLeft },
-];
-
-const EXPENSE_CATEGORIES = [
-  "Gaji",
-  "Sewa",
-  "Listrik dan Air",
-  "Internet dan Telepon",
-  "Transportasi",
-  "Iklan dan Promosi",
-  "Perlengkapan",
-  "Software / Langganan",
-  "Lain-lain",
-];
+type PostTransactionArgs = {
+  p_organization_id: string;
+  p_transaction_date: string;
+  p_transaction_type: string;
+  p_amount: number;
+  p_party_id?: string;
+  p_category_name?: string;
+  p_cash_account_id?: string;
+  p_destination_cash_account_id?: string;
+  p_payment_status?: string;
+  p_partial_amount?: number;
+  p_due_date?: string;
+  p_description?: string;
+  p_notes?: string;
+  p_product_id?: string;
+  p_quantity?: number;
+  p_unit_price?: number;
+};
 
 interface ImpactSummary {
   debit_account: string;
@@ -80,51 +96,37 @@ interface ImpactSummary {
   credit_change: string;
 }
 
-const PARTY_COPY: Record<string, { label: string; placeholder: string }> = {
-  credit_sale: { label: "Pelanggan", placeholder: "Ketik nama pelanggan..." },
-  receive_receivable: { label: "Pelanggan yang membayar", placeholder: "Ketik nama pelanggan..." },
-  credit_purchase: { label: "Supplier", placeholder: "Ketik nama supplier..." },
-  pay_payable: { label: "Supplier yang dibayar", placeholder: "Ketik nama supplier..." },
-};
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
-const CASH_ACCOUNT_LABELS: Record<string, string> = {
-  cash_sale: "Uang masuk ke akun",
-  credit_sale: "Uang diterima lewat akun",
-  receive_receivable: "Uang diterima lewat akun",
-  cash_purchase: "Uang keluar dari akun",
-  credit_purchase: "Uang dibayar lewat akun",
-  pay_payable: "Uang dibayar lewat akun",
-  expense_payment: "Uang keluar dari akun",
-  owner_capital: "Modal masuk ke akun",
-  owner_draw: "Uang diambil dari akun",
-  cash_transfer: "Sumber transfer",
-};
+function localDate(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().split("T")[0];
+}
 
-const CATEGORY_LABELS: Record<string, string> = {
-  cash_purchase: "Kategori pembelian",
-  credit_purchase: "Kategori pembelian",
-  expense_payment: "Kategori beban",
-};
+function getLastCashAccountKey(transactionType: string) {
+  return `ledjer:last-cash-account:${transactionType}`;
+}
 
-const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
-  cash_sale: "Contoh: Penjualan tunai produk A",
-  credit_sale: "Contoh: Penjualan kredit produk A ke Budi",
-  receive_receivable: "Contoh: Pelunasan piutang dari Budi",
-  cash_purchase: "Contoh: Pembelian perlengkapan toko",
-  credit_purchase: "Contoh: Pembelian kredit dari supplier",
-  pay_payable: "Contoh: Pembayaran utang ke supplier",
-  expense_payment: "Contoh: Pembayaran listrik bulan ini",
-  owner_capital: "Contoh: Setoran modal pemilik",
-  owner_draw: "Contoh: Pengambilan pribadi pemilik",
-  cash_transfer: "Contoh: Transfer dari Kas ke Bank",
-};
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
 
 export function NewTransactionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
   const { canCreateTransaction } = useOrgPermissions();
-  const [impact, setImpact] = useState<ImpactSummary | null>(null);
+  const [manualAmount, setManualAmount] = useState(false);
+  const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
+  const [isTypeSelectorExpanded, setIsTypeSelectorExpanded] = useState(true);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const activeFieldsRef = useRef<HTMLDivElement>(null);
+  const previousTypeRef = useRef<string>("");
 
   const {
     register,
@@ -132,43 +134,53 @@ export function NewTransactionPage() {
     control,
     setValue,
     setError,
-    formState: { errors },
+    clearErrors,
+    getValues,
+    formState,
   } = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      transactionDate: new Date().toISOString().split("T")[0],
+      transactionDate: localDate(),
       paymentStatus: "unpaid",
       description: "",
+      amount: 0,
     },
   });
 
-  const selectedType = useWatch({ control, name: "transactionType" });
-  const selectedPaymentStatus = useWatch({ control, name: "paymentStatus" });
-  const selectedAmount = useWatch({ control, name: "amount" });
-  const amountDisplay = formatAmountInput(selectedAmount, true);
+  const { errors, isDirty } = formState;
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "");
-    const numValue = value ? parseInt(value, 10) : 0;
-    setValue("amount", numValue, { shouldDirty: true, shouldValidate: true });
-  };
+  /* -- Blocker & navigation safety -- */
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    return isDirty && !successTransactionId && currentLocation.pathname !== nextLocation.pathname;
+  });
 
+  /* -- Watched values -- */
+  const selectedType = useWatch({ control, name: "transactionType" }) || "";
+  const selectedPaymentStatus = useWatch({ control, name: "paymentStatus" }) || "unpaid";
+  const selectedAmount = useWatch({ control, name: "amount" }) || 0;
   const selectedProductId = useWatch({ control, name: "productId" });
   const selectedQuantity = useWatch({ control, name: "quantity" });
   const selectedUnitPrice = useWatch({ control, name: "unitPrice" });
   const selectedCashAccountId = useWatch({ control, name: "cashAccountId" });
   const selectedDestinationCashAccountId = useWatch({ control, name: "destinationCashAccountId" });
+  const selectedPartyName = useWatch({ control, name: "partyName" }) || "";
+  const selectedCategoryName = useWatch({ control, name: "categoryName" }) || "";
+  const selectedDueDate = useWatch({ control, name: "dueDate" });
+  const selectedPartialAmount = useWatch({ control, name: "partialAmount" }) || 0;
 
-  useEffect(() => {
-    if (selectedProductId && selectedQuantity && selectedUnitPrice) {
-      const calculatedAmount = selectedQuantity * selectedUnitPrice;
-      if (calculatedAmount > 0) {
-        setValue("amount", calculatedAmount, { shouldDirty: true, shouldValidate: true });
-      }
-    }
-  }, [selectedProductId, selectedQuantity, selectedUnitPrice, setValue]);
+  /* -- Derived booleans -- */
+  const selectedTypeLabel = selectedType ? (TRANSACTION_META[selectedType]?.label || selectedType) : "";
+  const showPaymentStatus = usesPaymentStatus(selectedType);
+  const showCashAccount = usesCashAccount(selectedType) || (showPaymentStatus && selectedPaymentStatus !== "unpaid");
+  const showDestinationAccount = usesDestinationAccount(selectedType);
+  const showParty = usesParty(selectedType);
+  const showCategory = usesCategory(selectedType);
+  const showDueDate = showPaymentStatus && selectedPaymentStatus !== "paid";
+  const isProductType = selectedType === "cash_purchase" || selectedType === "credit_purchase" || selectedType === "cash_sale" || selectedType === "credit_sale";
+  const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
 
-  const { data: accounts } = useQuery({
+  /* -- Query: accounts -- */
+  const { data: accounts, isLoading: accountsLoading } = useQuery({
     queryKey: ["accounts", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
@@ -184,7 +196,8 @@ export function NewTransactionPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  const { data: parties } = useQuery({
+  /* -- Query: parties -- */
+  const { data: parties, isLoading: partiesLoading } = useQuery({
     queryKey: ["parties", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
@@ -200,13 +213,14 @@ export function NewTransactionPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  const { data: products } = useQuery({
+  /* -- Query: products -- */
+  const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["products", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, current_stock")
+        .select("id, code, name, unit, purchase_price, selling_price, current_stock")
         .eq("organization_id", orgData.organization.id)
         .eq("is_active", true)
         .order("name");
@@ -216,20 +230,7 @@ export function NewTransactionPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  const cashAccountOptions = (() => {
-    return (accounts || [])
-      .filter((account) => account.account_type === "asset" && account.is_cash_account)
-      .map((account) => ({
-        id: account.id,
-        label: `${account.code} - ${account.name}`,
-        kind: account.code === 1110 ? "cash" : "bank",
-      }));
-  })();
-
-  const selectedCashAccountOption = cashAccountOptions.find((a) => a?.id === selectedCashAccountId);
-  const selectedDestinationCashAccountOption = cashAccountOptions.find((a) => a?.id === selectedDestinationCashAccountId);
-  const showBankNameField = selectedCashAccountOption?.kind === "bank" || selectedDestinationCashAccountOption?.kind === "bank";
-
+  /* -- Query: monthly usage -- */
   const { data: monthlyUsage } = useQuery({
     queryKey: ["monthly-usage", orgData?.organization?.id],
     queryFn: async () => {
@@ -239,11 +240,144 @@ export function NewTransactionPage() {
     enabled: !!orgData?.organization?.id && orgData.organization.current_plan === "free",
   });
 
+  /* -- Derived data -- */
+  const cashAccountOptions = useMemo(() => {
+    return (accounts || [])
+      .filter((account) => account.account_type === "asset" && account.is_cash_account)
+      .map((account) => ({
+        id: account.id,
+        value: account.id,
+        label: `${account.code} - ${account.name}`,
+        secondaryLabel: account.code === 1110 ? "Kas" : "Bank",
+        kind: account.code === 1110 ? "cash" : "bank",
+      }));
+  }, [accounts]);
+
+  const selectedCashAccountOption = cashAccountOptions.find((account) => account.id === selectedCashAccountId);
+  const selectedDestinationCashAccountOption = cashAccountOptions.find((account) => account.id === selectedDestinationCashAccountId);
+  const selectedProduct = products?.find((product) => product.id === selectedProductId);
+  const showBankNameField = selectedCashAccountOption?.kind === "bank" || selectedDestinationCashAccountOption?.kind === "bank";
+  const partyCopy = PARTY_COPY[selectedType] || { label: "Pihak", placeholder: "Ketik nama pihak...", helper: "" };
+  const cashAccountLabel = CASH_ACCOUNT_LABELS[selectedType] || "Akun kas/bank";
+  const categoryLabel = CATEGORY_LABELS[selectedType] || "Kategori";
+  const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
+  const productSubtotal = selectedProductId && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
+  const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
+  const stockAfterSale = selectedProduct && selectedQuantity ? (selectedProduct.current_stock ?? 0) - selectedQuantity : null;
+
+  const preview = buildPreview({
+    transactionType: selectedType,
+    amount: selectedAmount,
+    partialAmount: selectedPartialAmount,
+    paymentStatus: selectedPaymentStatus,
+    cashAccountLabel: selectedCashAccountOption?.label || "Kas / Bank",
+    destinationAccountLabel: selectedDestinationCashAccountOption?.label || "Akun tujuan",
+    categoryName: selectedCategoryName,
+    productName: selectedProduct?.name || "",
+  });
+
   const isFreePlan = orgData?.organization?.current_plan === "free";
   const usageCount = monthlyUsage?.count || 0;
   const usageLimit = monthlyUsage?.limit ?? FREE_PLAN_TRANSACTION_LIMIT;
   const isAtLimit = isFreePlan && usageCount >= usageLimit;
 
+  /* -- Effects -- */
+
+  // Before unload protection
+  useEffect(() => {
+    if (!isDirty || successTransactionId) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty, successTransactionId]);
+
+  const showUnsavedDialog = blocker.state === "blocked" && isDirty && !successTransactionId;
+
+  const handleUnsavedConfirm = () => {
+    blocker.proceed?.();
+  };
+
+  const handleUnsavedCancel = () => {
+    blocker.reset?.();
+  };
+
+  // Auto-set payment status & due date when type changes
+  useEffect(() => {
+    if (!selectedType) return;
+    if (usesPaymentStatus(selectedType)) {
+      const currentStatus = getValues("paymentStatus");
+      if (!currentStatus || currentStatus === "paid") setValue("paymentStatus", "unpaid");
+      if (!getValues("dueDate")) setValue("dueDate", localDate(30));
+    } else {
+      setValue("paymentStatus", "paid");
+      setValue("dueDate", "");
+    }
+
+    const lastCashAccountId = window.localStorage.getItem(getLastCashAccountKey(selectedType));
+    if (lastCashAccountId && cashAccountOptions.some((account) => account.id === lastCashAccountId)) {
+      setValue("cashAccountId", lastCashAccountId);
+    }
+  }, [cashAccountOptions, getValues, selectedType, setValue]);
+
+  // Auto-set due date if empty
+  useEffect(() => {
+    if (showDueDate && !selectedDueDate) setValue("dueDate", localDate(30));
+  }, [selectedDueDate, setValue, showDueDate]);
+
+  // Auto-fill product price and quantity
+  useEffect(() => {
+    if (!selectedProductId || !selectedProduct) return;
+    if (!selectedQuantity) setValue("quantity", 1, { shouldDirty: true, shouldValidate: true });
+    const defaultPrice = (isSaleType ? selectedProduct.selling_price : selectedProduct.purchase_price) ?? 0;
+    if ((!selectedUnitPrice || selectedUnitPrice <= 0) && defaultPrice > 0) {
+      setValue("unitPrice", defaultPrice, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [isSaleType, selectedProduct, selectedProductId, selectedQuantity, selectedUnitPrice, setValue]);
+
+  // Auto-fill amount from product subtotal
+  useEffect(() => {
+    if (!selectedProductId || manualAmount || productSubtotal <= 0) return;
+    setValue("amount", productSubtotal, { shouldDirty: true, shouldValidate: true });
+  }, [manualAmount, productSubtotal, selectedProductId, setValue]);
+
+  // Auto-navigate after success
+  useEffect(() => {
+    if (!successTransactionId) return;
+    const timer = window.setTimeout(() => navigate(`/transactions/${successTransactionId}`), 1400);
+    return () => window.clearTimeout(timer);
+  }, [navigate, successTransactionId]);
+
+  // Collapse type selector & scroll to active fields when selectedType changes
+  useEffect(() => {
+    if (!selectedType) {
+      previousTypeRef.current = "";
+      return;
+    }
+    const previousType = previousTypeRef.current;
+    previousTypeRef.current = selectedType;
+
+    // Only act when transitioning from empty to selected, or to a different type
+    if (previousType === selectedType) return;
+
+    setIsTypeSelectorExpanded(false);
+
+    // Mobile only: scroll to active fields
+    const isMobile = window.innerWidth < 1024;
+    if (isMobile && activeFieldsRef.current) {
+      requestAnimationFrame(() => {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        activeFieldsRef.current?.scrollIntoView({
+          behavior: prefersReduced ? "auto" : "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, [selectedType]);
+
+  /* -- Mutation -- */
   const postMutation = useMutation({
     mutationFn: async (data: TransactionForm) => {
       const organizationId = orgData?.organization?.id;
@@ -255,7 +389,7 @@ export function NewTransactionPage() {
       const shouldUseDestinationAccount = usesDestinationAccount(data.transactionType);
       const shouldUsePaymentStatus = usesPaymentStatus(data.transactionType);
       const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
-      const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus === "partial");
+      const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
       let partyId: string | null = null;
 
       if (shouldUseParty && data.partyName && data.partyName.trim()) {
@@ -291,15 +425,22 @@ export function NewTransactionPage() {
         p_transaction_date: data.transactionDate,
         p_transaction_type: data.transactionType,
         p_amount: data.amount,
-        p_party_id: shouldUseParty ? partyId : null,
-        p_category_name: shouldUseCategory ? data.categoryName?.trim() || null : null,
-        p_cash_account_id: shouldSendCashAccount ? data.cashAccountId || null : null,
-        p_destination_cash_account_id: shouldUseDestinationAccount ? data.destinationCashAccountId || null : null,
         p_payment_status: paymentStatus,
-        p_due_date: shouldUsePaymentStatus && paymentStatus !== "paid" ? data.dueDate || null : null,
         p_description: data.description,
-        p_notes: data.bankName ? `Bank: ${data.bankName}${data.notes ? '\n' + data.notes : ''}` : (data.notes || null),
       };
+
+      if (shouldUseParty && partyId) rpcParams.p_party_id = partyId;
+      if (shouldUseCategory && data.categoryName?.trim()) rpcParams.p_category_name = data.categoryName.trim();
+      if (shouldSendCashAccount && data.cashAccountId) rpcParams.p_cash_account_id = data.cashAccountId;
+      if (shouldUseDestinationAccount && data.destinationCashAccountId) {
+        rpcParams.p_destination_cash_account_id = data.destinationCashAccountId;
+      }
+      if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) rpcParams.p_due_date = data.dueDate;
+
+      const notes = data.bankName
+        ? `Bank: ${data.bankName}${data.notes ? "\n" + data.notes : ""}`
+        : data.notes?.trim();
+      if (notes) rpcParams.p_notes = notes;
 
       if (paymentStatus === "partial" && data.partialAmount !== undefined && data.partialAmount !== null) {
         rpcParams.p_partial_amount = data.partialAmount;
@@ -307,8 +448,8 @@ export function NewTransactionPage() {
 
       if (data.productId) {
         rpcParams.p_product_id = data.productId;
-        rpcParams.p_quantity = data.quantity !== undefined && data.quantity !== null ? data.quantity : null;
-        rpcParams.p_unit_price = data.unitPrice !== undefined && data.unitPrice !== null ? data.unitPrice : null;
+        if (data.quantity !== undefined) rpcParams.p_quantity = data.quantity;
+        if (data.unitPrice !== undefined) rpcParams.p_unit_price = data.unitPrice;
       }
 
       const { data: result, error } = await supabase.rpc("post_transaction", rpcParams);
@@ -320,58 +461,66 @@ export function NewTransactionPage() {
       }
       return result as unknown as { transaction_id: string; impact: ImpactSummary };
     },
-    onSuccess: (result) => {
-      setImpact(result.impact);
+    onSuccess: (result, variables) => {
+      if (variables.cashAccountId) {
+        window.localStorage.setItem(getLastCashAccountKey(variables.transactionType), variables.cashAccountId);
+      }
+      setSuccessTransactionId(result.transaction_id);
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-usage"] });
     },
   });
 
+  /* -- Submit handler -- */
   const onSubmit = (data: TransactionForm) => {
     if (usesParty(data.transactionType) && !data.partyName?.trim()) {
       setError("partyName", { type: "manual", message: "Isi nama pihak" });
+      scrollToError();
       return;
     }
 
-    const needsCashAccount = usesCashAccount(data.transactionType) || (usesPaymentStatus(data.transactionType) && data.paymentStatus === "partial");
+    const needsCashAccount = usesCashAccount(data.transactionType) || (usesPaymentStatus(data.transactionType) && data.paymentStatus !== "unpaid");
     if (needsCashAccount && !data.cashAccountId) {
       setError("cashAccountId", { type: "manual", message: "Pilih akun kas/bank" });
+      scrollToError();
       return;
     }
 
     if (usesDestinationAccount(data.transactionType) && !data.destinationCashAccountId) {
       setError("destinationCashAccountId", { type: "manual", message: "Pilih akun tujuan" });
+      scrollToError();
       return;
     }
 
     if (data.transactionType === "cash_transfer" && data.cashAccountId === data.destinationCashAccountId) {
-      setError("destinationCashAccountId", { type: "manual", message: "Akun tujuan harus berbeda" });
+      setError("destinationCashAccountId", { type: "manual", message: "Akun tujuan harus berbeda dari sumber" });
+      scrollToError();
       return;
     }
 
     if (usesPaymentStatus(data.transactionType) && data.paymentStatus === "partial") {
       if (!data.partialAmount || data.partialAmount <= 0) {
         setError("partialAmount", { type: "manual", message: "Isi jumlah pembayaran sebagian" });
+        scrollToError();
         return;
       }
       if (data.partialAmount >= data.amount) {
-        setError("partialAmount", { type: "manual", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal" });
+        setError("partialAmount", { type: "manual", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal transaksi" });
+        scrollToError();
         return;
       }
     }
 
     if (data.productId) {
       if (!data.quantity || data.quantity <= 0) {
-        setError("quantity", { type: "manual", message: "Isi kuantitas produk" });
+        setError("quantity", { type: "manual", message: "Isi kuantitas produk (minimal 1)" });
+        scrollToError();
         return;
       }
       if (data.unitPrice === undefined || data.unitPrice < 0) {
         setError("unitPrice", { type: "manual", message: "Isi harga satuan produk" });
-        return;
-      }
-      if (Math.abs(data.amount - data.quantity * data.unitPrice) > 0.01) {
-        setError("amount", { type: "manual", message: "Nominal harus sama dengan kuantitas x harga satuan" });
+        scrollToError();
         return;
       }
     }
@@ -379,342 +528,416 @@ export function NewTransactionPage() {
     postMutation.mutate(data);
   };
 
-  if (impact) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-8">
-        <div className="rounded-lg border border-leaf-200 bg-leaf-50 p-6 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-100">
-            <svg className="h-6 w-6 text-leaf-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-lg font-semibold text-leaf-800">Transaksi Berhasil!</h2>
-          <div className="mt-4 space-y-2 text-sm text-leaf-700">
-            <p>
-              <strong>{impact.debit_account}</strong>{" "}
-              {impact.debit_change === "increase" ? "bertambah" : "berkurang"}
-            </p>
-            <p>
-              <strong>{impact.credit_account}</strong>{" "}
-              {impact.credit_change === "increase" ? "bertambah" : "berkurang"}
-            </p>
-          </div>
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={() => { setImpact(null); postMutation.reset(); }}
-              className="flex-1 rounded-md border border-leaf-300 px-4 py-2 text-sm font-medium text-leaf-700 hover:bg-leaf-100"
-            >
-              Tambah Lagi
-            </button>
-            <button
-              onClick={() => navigate("/transactions")}
-              className="flex-1 rounded-md bg-leaf-500 px-4 py-2 text-sm font-medium text-white hover:bg-leaf-600"
-            >
-              Lihat Transaksi
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const scrollToError = () => {
+    // Use requestAnimationFrame to ensure errors are rendered before scrolling
+    requestAnimationFrame(() => {
+      errorSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      errorSummaryRef.current?.focus();
+    });
+  };
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      formRef.current?.requestSubmit();
+    }
+  };
+
+  /* -- No access guard -- */
   if (orgData?.member && !canCreateTransaction) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8">
         <Card>
           <CardContent className="text-center py-8">
-            <h1 className="text-lg font-semibold text-wood-800">Tidak ada akses</h1>
-            <p className="mt-2 text-sm text-wood-500">Anda tidak memiliki izin untuk mencatat transaksi.</p>
+            <h1 className="text-lg font-semibold text-text-primary">Tidak ada akses</h1>
+            <p className="mt-2 text-sm text-text-secondary">Anda tidak memiliki izin untuk mencatat transaksi.</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const showPaymentStatus = usesPaymentStatus(selectedType);
-  const showCashAccount = usesCashAccount(selectedType) || (showPaymentStatus && selectedPaymentStatus === "partial");
-  const showDestinationAccount = usesDestinationAccount(selectedType);
-  const showParty = usesParty(selectedType);
-  const showCategory = usesCategory(selectedType);
-  const showDueDate = showPaymentStatus && selectedPaymentStatus !== "paid";
-  const selectedTypeKey = selectedType || "";
-  const partyCopy = PARTY_COPY[selectedTypeKey] || { label: "Pihak", placeholder: "Ketik nama pihak..." };
-  const cashAccountLabel = CASH_ACCOUNT_LABELS[selectedTypeKey] || "Akun kas/bank";
-  const categoryLabel = CATEGORY_LABELS[selectedTypeKey] || "Kategori";
-  const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedTypeKey] || "Contoh: Keterangan transaksi";
-
+  /* -- Render -- */
   return (
-    <div className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold text-wood-800">Transaksi Baru</h1>
-
-      {isFreePlan && (
-        <div className={`mb-4 rounded-md p-3 text-sm ${
-          isAtLimit ? "border border-error/30 bg-error/10 text-error"
-            : usageCount >= 40 ? "border border-clay-400/30 bg-clay-400/10 text-clay-600"
-            : "border border-wood-200 bg-cream-100 text-wood-600"
-        }`}>
-          {isAtLimit ? (
-            <div>
-              <p className="font-medium">Limit transaksi bulanan tercapai ({usageLimit}/{usageLimit})</p>
-              <p className="mt-1">Upgrade ke paket Solo untuk transaksi unlimited.</p>
-              <Link to="/settings/billing" className="mt-2 inline-block font-medium underline">Lihat paket →</Link>
-            </div>
-          ) : (
-            <p>
-              Paket Gratis: {usageCount}/{usageLimit} transaksi bulan ini
-              {usageCount >= usageLimit * 0.8 && <span className="ml-1">— pertimbangkan upgrade</span>}
-            </p>
-          )}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <input type="hidden" {...register("amount", { valueAsNumber: true })} value={selectedAmount ?? ""} readOnly />
-
-        {postMutation.isError && (
-          <div className="rounded-md bg-error/10 p-3 text-sm text-error">
-            {(postMutation.error as Error).message || "Gagal memproses transaksi"}
-          </div>
-        )}
-
-        {/* Transaction Type */}
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+      {/* Header */}
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <label className="block text-sm font-medium text-wood-700">Transaksi ini tentang apa?</label>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {TRANSACTION_TYPES.map((t) => (
-              <label
-                key={t.value}
-                className={`flex cursor-pointer items-center gap-2 rounded-md border p-3 text-sm transition-colors ${
-                  selectedType === t.value
-                    ? "border-leaf-500 bg-leaf-50 text-leaf-700"
-                    : "border-wood-200 hover:border-wood-300"
-                }`}
-              >
-                <input type="radio" value={t.value} {...register("transactionType")} className="sr-only" />
-                <t.icon className="h-4 w-4 shrink-0" />
-                <span>{t.label}</span>
-              </label>
-            ))}
-          </div>
-          {errors.transactionType && <p className="mt-1 text-xs text-error">{errors.transactionType.message}</p>}
+          <h1 className="text-2xl font-bold text-text-primary">Transaksi Baru</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Catat transaksi bisnis Anda. Isi dari atas ke bawah.
+          </p>
         </div>
+        {successTransactionId && <Badge variant="success">Tersimpan, membuka detail...</Badge>}
+      </div>
 
-        {/* Date */}
-        <div>
-          <label className="block text-sm font-medium text-wood-700">Tanggal berapa?</label>
-          <input
-            type="date"
-            {...register("transactionDate")}
-            className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-          />
-          {errors.transactionDate && <p className="mt-1 text-xs text-error">{errors.transactionDate.message}</p>}
-        </div>
+      {/* Free plan usage banner */}
+      <PlanUsageBanner
+        isFreePlan={isFreePlan}
+        isAtLimit={isAtLimit}
+        usageCount={usageCount}
+        usageLimit={usageLimit}
+      />
 
-        {/* Amount */}
-        <div>
-          <label className="block text-sm font-medium text-wood-700">Berapa nominalnya?</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={amountDisplay}
-            onChange={handleAmountChange}
-            className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-            placeholder="0"
-          />
-          {errors.amount && <p className="mt-1 text-xs text-error">{errors.amount.message}</p>}
-        </div>
+      {/* Error summary (after failed submit) */}
+      <ErrorSummary ref={errorSummaryRef} errors={errors} formErrorMessage={postMutation.isError ? (postMutation.error as Error).message || "Gagal memproses transaksi" : undefined} />
 
-        {/* Party */}
-        {showParty && (
-          <div>
-            <label className="block text-sm font-medium text-wood-700">{partyCopy.label}</label>
-            <input
-              type="text"
-              list="parties-list"
-              {...register("partyName")}
-              className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-              placeholder={partyCopy.placeholder}
-            />
-            <datalist id="parties-list">
-              {parties?.map((p) => <option key={p.id} value={p.name} />)}
-            </datalist>
-            {errors.partyName && <p className="mt-1 text-xs text-error">{errors.partyName.message}</p>}
-          </div>
-        )}
+      {/* Main grid: form + desktop sidebar */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)] xl:gap-6">
+        <form
+          ref={formRef}
+          onSubmit={(event) => {
+            void handleSubmit(onSubmit)(event);
+          }}
+          onKeyDown={handleKeyDown}
+          className="min-w-0 space-y-4"
+          noValidate
+        >
+          {/* Section 1: Detail utama */}
+          <SectionCard
+            id="section-type"
+            title="Detail utama"
+            step={1}
+            helperText="Pilih jenis transaksi, isi deskripsi, tanggal, dan nominal."
+          >
+            {/* Full type selector: shown when no type selected or user explicitly expands */}
+            {(!selectedType || isTypeSelectorExpanded) && (
+              <TransactionTypeSelector
+                value={selectedType}
+                onChange={(type) => {
+                  setValue("transactionType", type, { shouldDirty: true, shouldValidate: true });
+                  clearErrors("transactionType");
+                }}
+                error={errors.transactionType?.message}
+              />
+            )}
 
-        {/* Cash Account */}
-        {showCashAccount && (
-          <>
-            <Select
-              label={cashAccountLabel}
-              {...register("cashAccountId")}
-              options={cashAccountOptions.map((a) => ({ value: a.id, label: a.label }))}
-              placeholder="Pilih Kas atau Bank..."
-              error={errors.cashAccountId?.message}
-            />
-            {showBankNameField && (
-              <div>
-                <label className="block text-sm font-medium text-wood-700">Nama bank</label>
-                <input
-                  type="text"
-                  {...register("bankName")}
-                  className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-                  placeholder="Contoh: BCA, Mandiri, BRI, BNI..."
-                />
+            {/* Compact summary: shown when type is selected and selector is collapsed */}
+            {selectedType && !isTypeSelectorExpanded && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-wood-200 bg-cream-50 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-text-tertiary">Jenis transaksi dipilih</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-text-primary">
+                    {selectedTypeLabel}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsTypeSelectorExpanded(true)}
+                  className="shrink-0"
+                >
+                  Ganti jenis
+                </Button>
               </div>
             )}
-          </>
-        )}
 
-        {/* Destination Account */}
-        {showDestinationAccount && (
-          <Select
-            label="Tujuan transfer"
-            {...register("destinationCashAccountId")}
-            options={cashAccountOptions.map((a) => ({ value: a.id, label: a.label }))}
-            placeholder="Pilih akun tujuan..."
-            error={errors.destinationCashAccountId?.message}
-          />
-        )}
+            {/* Active fields: shown immediately below the type area */}
+            {selectedType && (
+              <div ref={activeFieldsRef} className="space-y-4 pt-1">
+                <Input
+                  label="Deskripsi Transaksi"
+                  {...register("description")}
+                  placeholder={descriptionPlaceholder}
+                  error={errors.description?.message}
+                  required
+                />
 
-        {/* Category */}
-        {showCategory && (
-          <Select
-            label={categoryLabel}
-            {...register("categoryName")}
-            options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))}
-            placeholder="Pilih kategori..."
-          />
-        )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Input
+                      label="Tanggal Transaksi"
+                      type="date"
+                      {...register("transactionDate")}
+                      error={errors.transactionDate?.message}
+                      required
+                    />
+                    <div className="mt-2 flex gap-2">
+                      <Button type="button" variant="secondary" size="xs" onClick={() => setValue("transactionDate", localDate(), { shouldDirty: true })}>
+                        Hari ini
+                      </Button>
+                      <Button type="button" variant="secondary" size="xs" onClick={() => setValue("transactionDate", localDate(-1), { shouldDirty: true })}>
+                        Kemarin
+                      </Button>
+                    </div>
+                  </div>
 
-        {/* Product Selection */}
-        {(selectedType === "cash_purchase" || selectedType === "credit_purchase" || selectedType === "cash_sale" || selectedType === "credit_sale") && (
-          <>
-            <Select
-              label="Produk (opsional - untuk stok)"
-              {...register("productId")}
-              options={products?.map((p) => ({ value: p.id, label: `${p.code} - ${p.name} (Stok: ${p.current_stock})` })) || []}
-              placeholder="-- Tidak pakai stok --"
-              helperText="Pilih produk jika transaksi ini mempengaruhi stok"
-            />
-            {selectedProductId && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-wood-700">Kuantitas</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    {...register("quantity", { setValueAs: parseDecimalInput })}
-                    className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-                    placeholder="0"
-                  />
-                  {errors.quantity && <p className="mt-1 text-xs text-error">{errors.quantity.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-wood-700">Harga Satuan</label>
                   <Controller
                     control={control}
-                    name="unitPrice"
+                    name="amount"
                     render={({ field }) => (
-                      <input
+                      <Input
                         ref={field.ref}
                         name={field.name}
-                        type="text"
-                        inputMode="numeric"
-                        value={formatAmountInput(field.value)}
+                        label="Nominal"
+                        value={formatAmountInput(field.value, true)}
                         onBlur={field.onBlur}
-                        onChange={(event) => field.onChange(parseAmountInput(event.target.value))}
-                        className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
+                        onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
                         placeholder="0"
+                        isCurrency
+                        readOnly={Boolean(selectedProductId && !manualAmount)}
+                        helperText={selectedProductId && !manualAmount ? "Otomatis: kuantitas × harga satuan" : undefined}
+                        error={errors.amount?.message}
+                        required
                       />
                     )}
                   />
-                  {errors.unitPrice && <p className="mt-1 text-xs text-error">{errors.unitPrice.message}</p>}
                 </div>
+
+                {selectedProductId && (
+                  <Button type="button" variant="link" size="xs" onClick={() => setManualAmount((current) => !current)}>
+                    {manualAmount ? "Gunakan otomatis" : "Edit manual"}
+                  </Button>
+                )}
+
+                {/* Payment status */}
+                {showPaymentStatus && (
+                  <PaymentStatusSelector
+                    value={selectedPaymentStatus as "paid" | "unpaid" | "partial"}
+                    onChange={(status) => {
+                      setValue("paymentStatus", status, { shouldDirty: true, shouldValidate: true });
+                      if (status !== "partial") setValue("partialAmount", undefined);
+                    }}
+                    showDueDate={showDueDate}
+                    dueDate={selectedDueDate || ""}
+                    onDueDateChange={(date) => setValue("dueDate", date, { shouldDirty: true })}
+                  />
+                )}
+
+                {/* Partial payment fields */}
+                {selectedPaymentStatus === "partial" && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Controller
+                      control={control}
+                      name="partialAmount"
+                      render={({ field }) => (
+                        <Input
+                          ref={field.ref}
+                          name={field.name}
+                          label="Jumlah yang dibayar"
+                          value={formatAmountInput(field.value, true)}
+                          onBlur={field.onBlur}
+                          onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
+                          placeholder="0"
+                          isCurrency
+                          error={errors.partialAmount?.message}
+                          required
+                        />
+                      )}
+                    />
+                    <Input
+                      label="Sisa Tagihan"
+                      value={formatAmountInput(remainingAmount)}
+                      isCurrency
+                      readOnly
+                      helperText={remainingAmount > 0 ? "Belum dibayar" : undefined}
+                    />
+                  </div>
+                )}
               </div>
             )}
-          </>
-        )}
+          </SectionCard>
 
-        {/* Payment Status */}
-        {showPaymentStatus && (
-          <>
-            <Select
-              label="Sudah dibayar atau belum?"
-              {...register("paymentStatus")}
-              options={[
-                { value: "unpaid", label: "Belum dibayar" },
-                { value: "partial", label: "Sebagian dibayar" },
-              ]}
-            />
-            {selectedPaymentStatus === "partial" && (
-              <div>
-                <label className="block text-sm font-medium text-wood-700">Jumlah yang dibayar saat ini</label>
-                <Controller
-                  control={control}
-                  name="partialAmount"
-                  render={({ field }) => (
-                    <input
-                      ref={field.ref}
-                      name={field.name}
-                      type="text"
-                      inputMode="numeric"
-                      value={formatAmountInput(field.value)}
-                      onBlur={field.onBlur}
-                      onChange={(event) => field.onChange(parseAmountInput(event.target.value))}
-                      className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-                      placeholder="0"
+          {/* Section 2: Pihak, akun, dan detail tambahan */}
+          {selectedType && (
+            <SectionCard
+              id="section-details"
+              title="Pihak, akun, dan detail tambahan"
+              step={2}
+              helperText="Pilih pihak, akun, kategori, dan produk jika diperlukan."
+            >
+              {/* Party */}
+              {showParty && (
+                <Combobox
+                  id="partyName"
+                  name="partyName"
+                  label={partyCopy.label}
+                  value={selectedPartyName}
+                  onChange={(value) => {
+                    setValue("partyName", value, { shouldDirty: true, shouldValidate: true });
+                    clearErrors("partyName");
+                  }}
+                  options={(parties || []).map((party) => ({ value: party.name, label: party.name }))}
+                  placeholder={partyCopy.placeholder}
+                  helperText={partyCopy.helper}
+                  allowCreate
+                  loading={partiesLoading}
+                  emptyText="Ketik nama baru untuk membuat data"
+                  error={errors.partyName?.message}
+                />
+              )}
+
+              {/* Cash account */}
+              {showCashAccount && (
+                <>
+                  <Combobox
+                    id="cashAccountId"
+                    name="cashAccountId"
+                    label={cashAccountLabel}
+                    value={selectedCashAccountId || ""}
+                    onChange={(value) => {
+                      setValue("cashAccountId", value, { shouldDirty: true, shouldValidate: true });
+                      clearErrors("cashAccountId");
+                    }}
+                    options={cashAccountOptions}
+                    placeholder="Pilih Kas atau Bank..."
+                    loading={accountsLoading}
+                    error={errors.cashAccountId?.message}
+                  />
+                  {showBankNameField && (
+                    <Input
+                      label="Nama Bank (opsional)"
+                      {...register("bankName")}
+                      placeholder="Contoh: BCA, Mandiri, BRI, BNI..."
                     />
                   )}
-                />
-                {errors.partialAmount && <p className="mt-1 text-xs text-error">{errors.partialAmount.message}</p>}
-              </div>
-            )}
-          </>
-        )}
+                </>
+              )}
 
-        {/* Due Date */}
-        {showDueDate && (
-          <div>
-            <label className="block text-sm font-medium text-wood-700">Jatuh tempo</label>
-            <input
-              type="date"
-              {...register("dueDate")}
-              className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
+              {/* Destination account (for transfers) */}
+              {showDestinationAccount && (
+                <Combobox
+                  id="destinationCashAccountId"
+                  name="destinationCashAccountId"
+                  label="Akun Tujuan"
+                  value={selectedDestinationCashAccountId || ""}
+                  onChange={(value) => {
+                    setValue("destinationCashAccountId", value, { shouldDirty: true, shouldValidate: true });
+                    clearErrors("destinationCashAccountId");
+                  }}
+                  options={cashAccountOptions.filter((account) => account.id !== selectedCashAccountId)}
+                  placeholder="Pilih akun tujuan..."
+                  helperText={selectedCashAccountId === selectedDestinationCashAccountId ? "Akun tujuan harus berbeda dari sumber." : undefined}
+                  loading={accountsLoading}
+                  error={errors.destinationCashAccountId?.message}
+                />
+              )}
+
+              {/* Category */}
+              {showCategory && (
+                <Select
+                  label={categoryLabel}
+                  {...register("categoryName")}
+                  options={EXPENSE_CATEGORIES.map((category) => ({ value: category, label: category }))}
+                  placeholder="Pilih kategori..."
+                />
+              )}
+
+              {/* Product */}
+              {isProductType && (
+                <Combobox
+                  id="productId"
+                  name="productId"
+                  label="Produk (opsional)"
+                  value={selectedProductId || ""}
+                  onChange={(value) => {
+                    setManualAmount(false);
+                    setValue("productId", value, { shouldDirty: true, shouldValidate: true });
+                    clearErrors("productId");
+                  }}
+                  options={(products || []).map((product) => ({
+                    value: product.id,
+                    label: `${product.code} - ${product.name}`,
+                    secondaryLabel: `Stok: ${formatNumber(product.current_stock)} ${product.unit}`,
+                  }))}
+                  placeholder="Pilih produk jika mempengaruhi stok"
+                  helperText="Opsional. Pilih produk untuk otomatis mengisi harga dan memantau stok."
+                  loading={productsLoading}
+                  emptyText="Tidak ada produk. Tambahkan dari menu Produk."
+                />
+              )}
+
+              {/* Product detail fields */}
+              {selectedProductId && selectedProduct && (
+                <ProductDetailFields
+                  product={selectedProduct}
+                  isSaleType={isSaleType}
+                  quantity={selectedQuantity || 0}
+                  unitPrice={selectedUnitPrice || 0}
+                  subtotal={productSubtotal}
+                  stockAfterSale={stockAfterSale}
+                  onQuantityChange={(value) => setValue("quantity", value, { shouldDirty: true, shouldValidate: true })}
+                  onUnitPriceChange={(value) => setValue("unitPrice", value, { shouldDirty: true, shouldValidate: true })}
+                  quantityError={errors.quantity?.message}
+                  unitPriceError={errors.unitPrice?.message}
+                />
+              )}
+            </SectionCard>
+          )}
+
+          {/* Section 3: Catatan tambahan */}
+          {selectedType && (
+            <SectionCard id="section-notes" title="Catatan tambahan" step={3}>
+              <Textarea
+                label="Catatan (opsional)"
+                {...register("notes")}
+                rows={2}
+                placeholder="Catatan tambahan untuk transaksi ini..."
+              />
+            </SectionCard>
+          )}
+
+          {/* Mobile review toggle */}
+          {selectedType && (
+            <MobileReviewToggle
+              debit={preview.debit}
+              credit={preview.credit}
+              transactionType={selectedType}
+              amount={selectedAmount}
+              paymentStatus={selectedPaymentStatus}
+              remainingAmount={remainingAmount}
+              dueDate={selectedDueDate || ""}
+              partyName={selectedPartyName}
+              productSubtotal={productSubtotal}
+              stockWarning={stockAfterSale}
+              isAtLimit={isAtLimit}
+              usageCount={usageCount}
+              usageLimit={usageLimit}
+            />
+          )}
+
+          {/* Submit bar */}
+          <div className="sticky bottom-0 z-sticky -mx-4 border-t border-wood-100 bg-surface p-4 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+            <SubmitBar
+              loading={postMutation.isPending}
+              disabled={postMutation.isPending || isAtLimit || !selectedType}
+              isAtLimit={isAtLimit}
+              successId={successTransactionId}
             />
           </div>
-        )}
+        </form>
 
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-wood-700">Deskripsi</label>
-          <input
-            {...register("description")}
-            className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-            placeholder={descriptionPlaceholder}
-          />
-          {errors.description && <p className="mt-1 text-xs text-error">{errors.description.message}</p>}
-        </div>
+        {/* Desktop sidebar: Review Panel */}
+        <aside className="hidden lg:block">
+          <Card className="sticky top-6">
+            <CardContent>
+              <ReviewPanel
+                debit={preview.debit}
+                credit={preview.credit}
+                transactionType={selectedType}
+                amount={selectedAmount}
+                paymentStatus={selectedPaymentStatus}
+                remainingAmount={remainingAmount}
+                dueDate={selectedDueDate || ""}
+                partyName={selectedPartyName}
+                productSubtotal={productSubtotal}
+                stockWarning={stockAfterSale}
+                isAtLimit={isAtLimit}
+                usageCount={usageCount}
+                usageLimit={usageLimit}
+              />
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
 
-        {/* Notes */}
-        <div>
-          <label className="block text-sm font-medium text-wood-700">Catatan (opsional)</label>
-          <textarea
-            {...register("notes")}
-            rows={2}
-            className="mt-1 block w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 shadow-xs focus:border-leaf-500 focus:outline-none focus:ring-2 focus:ring-leaf-500"
-            placeholder="Catatan tambahan..."
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={postMutation.isPending || isAtLimit}
-          className="w-full rounded-md bg-leaf-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-leaf-600 disabled:opacity-50"
-        >
-          {postMutation.isPending ? "Memproses..." : "Catat Transaksi"}
-        </button>
-      </form>
+      {/* Unsaved changes dialog */}
+      <UnsavedChangesDialog
+        open={showUnsavedDialog}
+        onConfirm={handleUnsavedConfirm}
+        onCancel={handleUnsavedCancel}
+      />
     </div>
   );
 }
