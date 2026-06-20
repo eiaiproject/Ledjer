@@ -150,19 +150,6 @@ export const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
   cash_transfer: "Contoh: Transfer dari Kas ke Bank BCA",
 };
 
-// ponytail: kept as fallback labels only. Actual accounts come from CoA query.
-export const EXPENSE_CATEGORIES = [
-  "Gaji",
-  "Sewa",
-  "Listrik dan Air",
-  "Internet dan Telepon",
-  "Transportasi",
-  "Iklan dan Promosi",
-  "Perlengkapan",
-  "Software / Langganan",
-  "Lain-lain",
-];
-
 const RECENT_TYPES_KEY = "ledjer:recent-transaction-types";
 const MAX_RECENT_TYPES = 4;
 
