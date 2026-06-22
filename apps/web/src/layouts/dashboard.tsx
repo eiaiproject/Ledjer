@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -18,6 +18,7 @@ import type { LucideIcon } from "lucide-react";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/ui/logo";
 
 type NavItem =
   | { to: string; label: string; icon: LucideIcon; children?: never }
@@ -42,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
     label: "Pengaturan",
     icon: Settings,
     children: [
+      { to: "/settings/billing", label: "Langganan" },
       { to: "/settings/team", label: "Tim" },
     ],
   },
@@ -56,6 +58,32 @@ export function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // P1.4: Onboarding guard — redirect to onboarding if not completed
+  useEffect(() => {
+    if (orgData && orgData.needsOnboarding) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [orgData, navigate]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
+
+  if (orgData && orgData.needsOnboarding) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -78,33 +106,30 @@ export function DashboardLayout() {
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-[1200] lg:flex lg:flex-col bg-wood-700 transition-all duration-300",
+        "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-drawer lg:flex lg:flex-col",
         sidebarWidth
       )}>
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b border-wood-600 px-4">
           {sidebarCollapsed ? (
             <button
+              type="button"
               onClick={() => setSidebarCollapsed(false)}
               className="flex items-center gap-2"
               aria-label="Perluas sidebar"
             >
-              <div className="h-8 w-8 rounded-lg bg-leaf-500 flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-sm">L</span>
-              </div>
+              <Logo size="sm" variant="icon" className="h-8 w-8" />
             </button>
           ) : (
             <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-leaf-500 flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-sm">L</span>
-              </div>
-              <span className="text-xl font-bold text-cream-50">Ledjer</span>
+              <Logo size="md" variant="full" color="white" className="h-8" />
             </Link>
           )}
           {!sidebarCollapsed && (
             <button
+              type="button"
               onClick={() => setSidebarCollapsed(true)}
-              className="p-1.5 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors"
+              className="p-2 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Ciutkan sidebar"
             >
               <ChevronsLeft className="h-4 w-4" />
@@ -120,12 +145,16 @@ export function DashboardLayout() {
               const children = item.children;
               const isExpanded = expandedMenus.includes(item.label);
               const active = children ? isParentActive(children) : isActive(item.to);
+              const menuId = `desktop-nav-${item.label.toLowerCase()}`;
 
               if (children) {
                 return (
                   <li key={item.label}>
                     <button
+                      type="button"
                       onClick={() => toggleMenu(item.label)}
+                      aria-expanded={isExpanded}
+                      aria-controls={menuId}
                       className={cn(
                         "flex w-full items-center gap-3 rounded-lg text-sm font-medium transition-colors",
                         sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
@@ -138,7 +167,7 @@ export function DashboardLayout() {
                       <Icon className="h-5 w-5 shrink-0" />
                       {!sidebarCollapsed && (
                         <>
-                          <span className="flex-1 text-left">{item.label}</span>
+                          <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
                           <ChevronDown
                             className={cn(
                               "h-4 w-4 transition-transform",
@@ -149,11 +178,12 @@ export function DashboardLayout() {
                       )}
                     </button>
                     {!sidebarCollapsed && isExpanded && (
-                      <ul className="mt-1 ml-8 space-y-1">
+                      <ul id={menuId} className="mt-1 ml-8 space-y-1">
                         {children.map((child) => (
                           <li key={child.to}>
                             <Link
                               to={child.to}
+                              aria-current={isActive(child.to) ? "page" : undefined}
                               className={cn(
                                 "block rounded-lg px-3 py-2 text-sm transition-colors",
                                 isActive(child.to)
@@ -161,7 +191,7 @@ export function DashboardLayout() {
                                   : "text-wood-300 hover:bg-wood-600/30 hover:text-cream-50"
                               )}
                             >
-                              {child.label}
+                              <span className="break-words">{child.label}</span>
                             </Link>
                           </li>
                         ))}
@@ -175,6 +205,7 @@ export function DashboardLayout() {
                 <li key={item.to}>
                   <Link
                     to={item.to}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
                       sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
@@ -185,7 +216,7 @@ export function DashboardLayout() {
                     title={sidebarCollapsed ? item.label : undefined}
                   >
                     <Icon className="h-5 w-5 shrink-0" />
-                    {!sidebarCollapsed && <span>{item.label}</span>}
+                    {!sidebarCollapsed && <span className="min-w-0 break-words">{item.label}</span>}
                   </Link>
                 </li>
               );
@@ -210,7 +241,7 @@ export function DashboardLayout() {
             {!sidebarCollapsed && (
               <>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-cream-50 truncate">
+                  <p className="break-words text-sm font-medium text-cream-50">
                     {orgData?.organization?.name || "Organisasi"}
                   </p>
                   <p className="text-xs text-wood-300 capitalize">
@@ -218,8 +249,9 @@ export function DashboardLayout() {
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleSignOut}
-                  className="p-1.5 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600"
+                  className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Keluar"
                 >
                   <LogOut className="h-4 w-4" />
@@ -229,8 +261,9 @@ export function DashboardLayout() {
           </div>
           {sidebarCollapsed && (
             <button
+              type="button"
               onClick={handleSignOut}
-              className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center"
+              className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center min-h-[44px]"
               aria-label="Keluar"
             >
               <LogOut className="h-4 w-4" />
@@ -240,9 +273,10 @@ export function DashboardLayout() {
       </aside>
 
       {/* Mobile Header */}
-      <div className="lg:hidden sticky top-0 z-[1100] bg-cream-50 border-b border-wood-200">
+      <div className="sticky top-0 z-dropdown border-b border-wood-200 bg-cream-50 lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(true)}
             className="p-2 -ml-2 text-wood-600 hover:bg-cream-200 rounded-lg"
             aria-label="Buka menu"
@@ -250,10 +284,7 @@ export function DashboardLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-leaf-500 flex items-center justify-center">
-              <span className="text-white font-bold text-xs">L</span>
-            </div>
-            <span className="font-bold text-wood-800">Ledjer</span>
+            <Logo size="sm" variant="full" className="h-7" />
           </Link>
           <Link
             to="/transactions/new"
@@ -267,17 +298,20 @@ export function DashboardLayout() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[1300]">
-          <div
-            className="absolute inset-0 bg-wood-900/50"
+        <div className="fixed inset-0 z-modal lg:hidden">
+          <button
+            type="button"
+            aria-label="Tutup menu"
+            className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-72 bg-wood-700 shadow-xl">
+          <div className="ledger-drawer absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-wood-700 shadow-xl" role="dialog" aria-modal="true" aria-label="Menu navigasi">
             <div className="flex h-16 items-center justify-between px-5 border-b border-wood-600">
-              <span className="text-xl font-bold text-cream-50">Ledjer</span>
+              <Logo size="md" variant="full" className="h-8" />
               <button
+                type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1 text-wood-300 hover:text-cream-50"
+                className="p-2 text-wood-300 hover:text-cream-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label="Tutup menu"
               >
                 <X className="h-5 w-5" />
@@ -291,12 +325,16 @@ export function DashboardLayout() {
                   const active = children
                     ? isParentActive(children)
                     : isActive(item.to);
+                  const menuId = `mobile-nav-${item.label.toLowerCase()}`;
 
                   if (children) {
                     return (
                       <li key={item.label}>
                         <button
+                          type="button"
                           onClick={() => toggleMenu(item.label)}
+                          aria-expanded={expandedMenus.includes(item.label)}
+                          aria-controls={menuId}
                           className={cn(
                             "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
                             active
@@ -305,7 +343,7 @@ export function DashboardLayout() {
                           )}
                         >
                           <Icon className="h-5 w-5" />
-                          <span className="flex-1 text-left">{item.label}</span>
+                          <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
                           <ChevronDown
                             className={cn(
                               "h-4 w-4 transition-transform",
@@ -314,12 +352,13 @@ export function DashboardLayout() {
                           />
                         </button>
                         {expandedMenus.includes(item.label) && (
-                          <ul className="mt-1 ml-8 space-y-1">
+                          <ul id={menuId} className="mt-1 ml-8 space-y-1">
                             {children.map((child) => (
                               <li key={child.to}>
                                 <Link
                                   to={child.to}
                                   onClick={() => setMobileMenuOpen(false)}
+                                  aria-current={isActive(child.to) ? "page" : undefined}
                                   className={cn(
                                     "block rounded-lg px-3 py-2 text-sm",
                                     isActive(child.to)
@@ -327,7 +366,7 @@ export function DashboardLayout() {
                                       : "text-wood-300 hover:bg-wood-600/30"
                                   )}
                                 >
-                                  {child.label}
+                                  <span className="break-words">{child.label}</span>
                                 </Link>
                               </li>
                             ))}
@@ -342,6 +381,7 @@ export function DashboardLayout() {
                       <Link
                         to={item.to}
                         onClick={() => setMobileMenuOpen(false)}
+                        aria-current={active ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
                           active
@@ -350,7 +390,7 @@ export function DashboardLayout() {
                         )}
                       >
                         <Icon className="h-5 w-5" />
-                        <span>{item.label}</span>
+                        <span className="min-w-0 break-words">{item.label}</span>
                       </Link>
                     </li>
                   );
@@ -363,13 +403,14 @@ export function DashboardLayout() {
                   {orgData?.organization?.name?.charAt(0) || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-cream-50 truncate">
+                  <p className="break-words text-sm font-medium text-cream-50">
                     {orgData?.organization?.name || "Organisasi"}
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleSignOut}
-                  className="p-1.5 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-60"
+                  className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Keluar"
                 >
                   <LogOut className="h-4 w-4" />
@@ -382,10 +423,10 @@ export function DashboardLayout() {
 
       {/* Main Content */}
       <main className={cn(
-        "min-h-screen bg-background transition-all duration-300",
+        "min-h-screen bg-background transition-[padding] duration-300 ease-out",
         sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
       )}>
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>

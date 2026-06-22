@@ -1,12 +1,34 @@
+# Dependencies
 node_modules
+**/node_modules
+
+# Build output
 dist
+**/dist
+
+# Environment files
 .env
 .env.local
 .env.*
 !.env.example
 !**/.env.example
-.env.*.local
-*.log
+
+# OS files
 .DS_Store
+__MACOSX
+
+# Logs
+*.log
+
+# Supabase
 supabase/.temp
+
+# Turborepo
 .turbo
+
+# IDE
+.vscode
+.idea
+
+# Pi agent config (local only)
+.impeccable/config.local.json

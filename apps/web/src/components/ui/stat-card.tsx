@@ -17,11 +17,11 @@ interface StatCardProps {
 }
 
 const colorStyles = {
-  leaf: { bg: "bg-leaf-100", icon: "text-leaf-600" },
-  wood: { bg: "bg-wood-100", icon: "text-wood-600" },
-  clay: { bg: "bg-clay-100", icon: "text-clay-600" },
-  sky: { bg: "bg-sky-100", icon: "text-sky-600" },
-  honey: { bg: "bg-honey-100", icon: "text-honey-600" },
+  leaf: { bg: "bg-leaf-100", icon: "text-leaf-600", border: "border-leaf-200" },
+  wood: { bg: "bg-wood-100", icon: "text-wood-600", border: "border-wood-200" },
+  clay: { bg: "bg-clay-100", icon: "text-clay-600", border: "border-clay-200" },
+  sky: { bg: "bg-sky-100", icon: "text-sky-600", border: "border-sky-200" },
+  honey: { bg: "bg-honey-100", icon: "text-honey-600", border: "border-honey-200" },
 };
 
 function formatValue(value: number | string, format: StatCardProps["format"]) {
@@ -36,20 +36,22 @@ export function StatCard({ label, value, icon: Icon, trend, tone, color, format 
   const TrendIcon = trend?.isPositive ? TrendingUp : TrendingDown;
 
   return (
-    <div className={cn("bg-surface border border-wood-200 rounded-xl p-5 h-full", className)}>
+    <div className={cn("h-full min-h-[112px] rounded-xl border bg-surface-elevated p-5 transition-[border-color,box-shadow] duration-200 ease-out", colors.border, className)}>
       <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-text-secondary truncate">{label}</p>
-          <p className={cn("mt-1.5 text-2xl font-bold text-text-primary", format === "text" ? "font-sans" : "num-mono")}>
-            {formatValue(value, format)}
-          </p>
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm text-text-secondary">{label}</p>
+          <div className="mt-1.5">
+            <span className={cn("inline-flex max-w-full items-baseline whitespace-nowrap leading-none tracking-tight text-text-primary", format === "text" ? "font-sans text-xl font-bold sm:text-2xl" : "num-mono text-[clamp(1.25rem,1.6vw,1.5rem)] font-bold tabular-nums sm:text-2xl")}>
+              {formatValue(value, format)}
+            </span>
+          </div>
         </div>
         <div className={cn("ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", colors.bg)}>
           <Icon className={cn("h-5 w-5", colors.icon)} />
         </div>
       </div>
       {trend && (
-        <div className="mt-3 flex items-center gap-1 text-xs">
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1 text-xs">
           <span className={cn(
             "inline-flex items-center gap-1 font-medium",
             trend.isPositive ? "text-success" : "text-error"
@@ -57,7 +59,7 @@ export function StatCard({ label, value, icon: Icon, trend, tone, color, format 
             <TrendIcon className="h-3.5 w-3.5" />
             {Math.abs(trend.value)}%
           </span>
-          <span className="text-text-tertiary">{trend.label ?? "vs bulan lalu"}</span>
+          <span className="min-w-0 break-words text-text-tertiary">{trend.label ?? "vs bulan lalu"}</span>
         </div>
       )}
     </div>

@@ -6,14 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/lib/database-types";
-import { formatAmountInput, parseAmountInput } from "@/lib/utils";
+import { formatAmountInput, formatDateInputValue, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
-import { Building2, CheckCircle, Info, Trash2, Wallet } from "lucide-react";
+import { CheckCircle, Info, Trash2 } from "lucide-react";
 
 const businessSchema = z.object({
   organizationName: z.string().min(2, "Nama bisnis harus minimal 2 karakter"),
@@ -63,15 +63,10 @@ const BUSINESS_TYPES = [
   },
 ] as const;
 
-const STEPS = [
-  { number: 1, label: "Profil Bisnis", icon: Building2 },
-  { number: 2, label: "Atur Saldo", icon: Wallet },
-];
+const STEPS = [1, 2] as const;
 
 function localDate() {
-  const date = new Date();
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().split("T")[0];
+  return formatDateInputValue();
 }
 
 export function OnboardingPage() {
@@ -196,34 +191,36 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-cream-100 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-lg space-y-6">
+    <div className="ledger-page flex min-h-screen items-center justify-center bg-cream-100 px-4 py-8 sm:py-12">
+      <div className="w-full max-w-lg space-y-7">
         {/* Header */}
-        <div className="text-center">
-          <div className="mb-4 flex justify-center">
-            <Logo size="md" variant="icon" tone="dark" />
+        <div className="space-y-3 text-center">
+          <div className="flex justify-center">
+            <Logo size="md" variant="icon" />
           </div>
-          <h1 className="text-2xl font-bold text-wood-800">Selamat datang di Ledjer</h1>
-          <p className="mt-1 text-sm text-wood-500">Mari siapkan bisnis Anda dalam 2 langkah mudah</p>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-text-primary">Selamat datang di Ledjer</h1>
+            <p className="text-sm text-text-secondary">Siapkan bisnis Anda.</p>
+          </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2">
-          {STEPS.map((s) => (
-            <div key={s.number} className="flex items-center gap-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                step >= s.number
+        <div className="flex items-center justify-center gap-2.5" aria-label={`Langkah ${step} dari ${STEPS.length}`}>
+          {STEPS.map((stepNumber) => (
+            <div key={stepNumber} className="flex items-center gap-2.5">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-[background-color,color,transform] duration-200 ease-out ${
+                step >= stepNumber
                   ? "bg-leaf-500 text-text-on-success"
                   : "bg-cream-200 text-wood-400"
-              }`}>
-                {step > s.number ? (
+              }`} aria-current={step === stepNumber ? "step" : undefined}>
+                {step > stepNumber ? (
                   <CheckCircle className="h-4 w-4" />
                 ) : (
-                  s.number
+                  stepNumber
                 )}
               </div>
-              {s.number < STEPS.length && (
-                <div className={`w-12 h-0.5 ${step > s.number ? "bg-leaf-500" : "bg-cream-200"}`} />
+              {stepNumber < STEPS.length && (
+                <div className={`h-0.5 w-10 transition-colors duration-200 ease-out ${step > stepNumber ? "bg-leaf-500" : "bg-cream-200"}`} />
               )}
             </div>
           ))}
@@ -231,80 +228,91 @@ export function OnboardingPage() {
 
         {/* Error */}
         {error && (
-          <div className="rounded-md bg-error/10 p-3 text-sm text-error">{error}</div>
+          <div className="rounded-md bg-error/10 p-3 text-sm text-error" role="alert">{error}</div>
         )}
 
         {/* Step 1: Business Profile */}
         {step === 1 && (
           <Card padding="lg">
             <CardContent>
-              <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-4">
-                <div>
+              <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-6">
+                {/* Header section */}
+                <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-wood-800">Profil Bisnis</h2>
-                  <p className="text-sm text-wood-500">Ceritakan tentang bisnis Anda</p>
+                  <p className="text-sm text-text-tertiary">Isi informasi dasar bisnis Anda.</p>
                 </div>
 
-                <Input
-                  label="Nama Bisnis"
-                  {...businessForm.register("organizationName")}
-                  placeholder="Toko Berkah"
-                  error={businessForm.formState.errors.organizationName?.message}
-                />
+                {/* Divider */}
+                <div className="border-t border-wood-100" />
 
-                <Controller
-                  control={businessForm.control}
-                  name="businessType"
-                  render={({ field }) => (
-                    <div>
-                      <p className="mb-2 text-sm font-medium text-text-secondary">Jenis Bisnis</p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {BUSINESS_TYPES.map((type) => (
-                          <Button
-                            key={type.value}
-                            type="button"
-                            variant="outline"
-                            onClick={() => field.onChange(type.value)}
-                            className={`h-auto min-h-[112px] items-start justify-start p-4 text-left shadow-none ${
-                              field.value === type.value
-                                ? "border-leaf-500 bg-leaf-50 text-leaf-700"
-                                : "border-wood-200 bg-surface text-text-secondary hover:bg-cream-100"
-                            }`}
-                          >
-                            <span>
-                              <span className="block text-sm font-semibold">{type.label}</span>
-                              <span className="mt-1 block text-xs text-text-tertiary">{type.description}</span>
-                            </span>
-                          </Button>
-                        ))}
-                      </div>
-                      {businessForm.formState.errors.businessType && (
-                        <p className="mt-1 text-xs text-error">{businessForm.formState.errors.businessType.message}</p>
-                      )}
-                    </div>
-                  )}
-                />
-
-                <div>
+                {/* Form fields section */}
+                <div className="space-y-5">
                   <Input
-                    label="Tanggal Mulai Pencatatan"
-                    type="date"
-                    {...businessForm.register("booksStartDate")}
+                    label="Nama Bisnis"
+                    {...businessForm.register("organizationName")}
+                    placeholder="Toko Berkah"
+                    error={businessForm.formState.errors.organizationName?.message}
                   />
-                  <span
-                    className="mt-1 inline-flex items-center gap-1 text-xs text-text-tertiary"
-                    title="Tanggal ini menjadi hari pertama pencatatan dan dasar perhitungan saldo awal."
-                  >
-                    <Info className="h-3 w-3" />
-                    Dasar saldo awal
-                  </span>
+
+                  <Controller
+                    control={businessForm.control}
+                    name="businessType"
+                    render={({ field }) => (
+                      <div>
+                        <p className="mb-2.5 text-sm font-medium text-text-secondary">Jenis Bisnis</p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Jenis bisnis" aria-describedby={businessForm.formState.errors.businessType ? "business-type-error" : undefined}>
+                          {BUSINESS_TYPES.map((type) => (
+                            <button
+                              key={type.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={field.value === type.value}
+                              onClick={() => field.onChange(type.value)}
+                              className={`ledger-interactive inline-flex w-full flex-col items-start justify-start gap-1.5 rounded-md border p-4 text-left shadow-none transition-[background-color,border-color,box-shadow] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 ${
+                                field.value === type.value
+                                  ? "border-leaf-500 bg-leaf-50 text-leaf-700 ring-1 ring-leaf-200"
+                                  : "border-wood-200 bg-surface text-text-secondary hover:border-wood-300 hover:bg-cream-100"
+                              }`}
+                            >
+                              <span className="text-sm font-semibold">{type.label}</span>
+                              <span className="text-xs leading-relaxed text-text-tertiary">{type.description}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {businessForm.formState.errors.businessType && (
+                          <p id="business-type-error" className="mt-2 text-xs text-error" role="alert">{businessForm.formState.errors.businessType.message}</p>
+                        )}
+                      </div>
+                    )}
+                  />
+
+                  <div>
+                    <Input
+                      label="Tanggal Mulai Pencatatan"
+                      type="date"
+                      {...businessForm.register("booksStartDate")}
+                      aria-describedby="books-start-date-hint"
+                    />
+                    <span
+                      id="books-start-date-hint"
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs text-text-tertiary"
+                      title="Tanggal ini menjadi hari pertama pencatatan dan dasar perhitungan saldo awal."
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                      Dasar saldo awal
+                    </span>
+                  </div>
                 </div>
 
-                <Button type="submit" fullWidth>
-                  Selanjutnya
-                </Button>
-                <Button type="button" variant="link" fullWidth onClick={onSkipBusinessDetails}>
-                  Lewati, saya akan atur nanti
-                </Button>
+                {/* Actions section */}
+                <div className="space-y-3 pt-2">
+                  <Button type="submit" fullWidth>
+                    Selanjutnya
+                  </Button>
+                  <Button type="button" variant="ghost" fullWidth onClick={onSkipBusinessDetails} disabled={loading} className="text-text-tertiary hover:text-text-secondary">
+                    Lewati, saya akan atur nanti
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -317,7 +325,7 @@ export function OnboardingPage() {
               <form onSubmit={cashForm.handleSubmit(onCashSubmit)} className="space-y-4">
                 <div>
                   <h2 className="text-lg font-semibold text-wood-800">Atur Saldo</h2>
-                  <p className="text-sm text-wood-500">Tentukan saldo awal kas dan/atau rekening bank Anda</p>
+                  <p className="text-sm text-wood-500">Saldo awal kas dan bank.</p>
                 </div>
 
                 <div className="space-y-3">
@@ -326,9 +334,9 @@ export function OnboardingPage() {
                     const accountInfo = CASH_ACCOUNTS.find((a) => a.code === selectedCode) || CASH_ACCOUNTS[1];
 
                     return (
-                      <div key={field.id} className="p-4 rounded-lg border border-wood-200 bg-cream-50 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-wood-700">
+                      <div key={field.id} className="space-y-3 rounded-lg border border-wood-200 bg-cream-50 p-4 transition-colors duration-150 ease-out focus-within:border-wood-300">
+                        <div className="flex min-w-0 items-center justify-between gap-3">
+                          <span className="min-w-0 break-words text-sm font-medium text-wood-700">
                             {index > 1 ? `Bank ${index}` : accountInfo.name}
                           </span>
                           {index > 1 && (
@@ -338,7 +346,8 @@ export function OnboardingPage() {
                               size="icon"
                               aria-label="Hapus rekening bank"
                               onClick={() => remove(index)}
-                              className="h-8 w-8 min-h-0 min-w-0 text-wood-400 hover:text-error"
+                              disabled={loading}
+                              className="h-10 w-10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-wood-500 hover:text-error"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -357,7 +366,6 @@ export function OnboardingPage() {
                               onBlur={field.onBlur}
                               onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                               placeholder="0"
-                              helperText="Bisa diisi 0 jika belum ada saldo"
                             />
                           )}
                         />
@@ -369,16 +377,17 @@ export function OnboardingPage() {
                 <Button
                   type="button"
                   variant="link"
+                  disabled={loading}
                   onClick={() => append({ accountCode: "1120", openingBalance: 0 })}
                 >
                   Tambah rekening bank lain
                 </Button>
 
                 <div className="flex gap-3">
-                  <Button type="button" variant="outline" fullWidth onClick={() => setStep(1)}>
+                  <Button type="button" variant="outline" fullWidth onClick={() => setStep(1)} disabled={loading}>
                     Kembali
                   </Button>
-                  <Button type="submit" fullWidth loading={loading}>
+                  <Button type="submit" fullWidth loading={loading} disabled={loading}>
                     Buat Akun Bisnis
                   </Button>
                 </div>

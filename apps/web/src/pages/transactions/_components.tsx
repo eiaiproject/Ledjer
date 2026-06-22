@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useId,
   useMemo,
   useState,
   type ReactNode,
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Field } from "@/components/ui/field";
 import {
   addRecentTransactionType,
@@ -47,7 +49,7 @@ export function SectionCard({ title, step, helperText, id, children }: SectionCa
     <div id={id}>
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-serif font-semibold text-text-primary">
+          <h2 className="text-lg font-semibold text-text-primary">
             {step != null && (
               <span className="mr-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-leaf-100 text-xs font-bold text-leaf-700">
                 {step}
@@ -115,7 +117,7 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
         tabIndex={-1}
         role="alert"
         aria-label="Ringkasan kesalahan"
-        className="mb-4 rounded-lg border border-error-border bg-error-bg p-4 focus:outline-none focus:ring-2 focus:ring-error"
+        className="mb-4 rounded-lg border border-error-border bg-error-bg p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error"
       >
         <div className="flex items-start gap-2">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
@@ -126,7 +128,7 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
                 : "Terjadi kesalahan:"}
             </p>
             {formErrorMessage && (
-              <p className="mt-1 text-sm text-error">{formErrorMessage}</p>
+              <p className="mt-1 break-words text-sm text-error">{formErrorMessage}</p>
             )}
             {fieldErrors.length > 0 && (
               <ul className="mt-2 space-y-1">
@@ -135,7 +137,7 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
                     <button
                       type="button"
                       onClick={() => scrollToField(err.field)}
-                      className="text-left text-sm text-error underline underline-offset-2 hover:text-error/80 focus:outline-none focus:ring-2 focus:ring-error"
+                      className="break-words text-left text-sm text-error underline underline-offset-2 hover:text-error/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error"
                     >
                       {err.message}
                     </button>
@@ -165,7 +167,7 @@ interface PlanUsageBannerProps {
 export function PlanUsageBanner({ isFreePlan, isAtLimit, usageCount, usageLimit }: PlanUsageBannerProps) {
   if (!isFreePlan) return null;
 
-  const usagePercent = Math.min((usageCount / usageLimit) * 100, 100);
+  const usagePercent = usageLimit > 0 ? Math.min(Math.max((usageCount / usageLimit) * 100, 0), 100) : 0;
   const isWarning = usagePercent >= 80;
 
   return (
@@ -177,27 +179,34 @@ export function PlanUsageBanner({ isFreePlan, isAtLimit, usageCount, usageLimit 
               <AlertCircle className="h-5 w-5 text-error" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-medium">Limit transaksi bulanan tercapai</p>
-              <p className="mt-1 text-sm">
+              <p className="break-words font-medium">Limit transaksi bulanan tercapai</p>
+              <p className="mt-1 break-words text-sm">
                 Anda sudah mencapai {usageLimit} dari {usageLimit} transaksi gratis bulan ini.
               </p>
               <Link
                 to="/settings/billing"
-                className="mt-2 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-2 hover:text-error/80"
+                className="mt-2 inline-flex max-w-full items-center gap-1 break-words text-sm font-medium underline underline-offset-2 hover:text-error/80"
               >
-                Upgrade ke paket Solo →
+                Upgrade ke paket Solo
               </Link>
             </div>
           </div>
         ) : (
           <div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 break-words text-sm">
                 Paket Gratis: <span className="font-medium">{usageCount}/{usageLimit}</span> transaksi bulan ini
               </p>
               {isWarning && <Badge variant="warning" dot>Hampir limit</Badge>}
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-wood-200">
+            <div
+              className="mt-2 h-1.5 overflow-hidden rounded-full bg-wood-200"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={usagePercent}
+              aria-valuetext={`${usageCount} dari ${usageLimit} transaksi digunakan`}
+            >
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-500",
@@ -300,7 +309,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
                     aria-pressed={selected}
                     onClick={() => handleSelect(type)}
                     className={cn(
-                      "group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left transition-all duration-150",
+                      "ledger-interactive group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
                       selected
                         ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
@@ -316,10 +325,10 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
                       <Icon className="h-4 w-4" />
                     </div>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-text-primary">
+                      <span className="block break-words text-sm font-medium text-text-primary">
                         {meta.label}
                       </span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-text-tertiary">
+                      <span className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
                         {meta.description}
                       </span>
                     </span>
@@ -350,8 +359,8 @@ interface PaymentStatusSelectorProps {
 }
 
 const PAYMENT_OPTIONS = [
-  { value: "unpaid" as const, label: "Belum Dibayar", description: "Belum ada pembayaran" },
-  { value: "partial" as const, label: "Bayar Sebagian", description: "Dibayar sebagian" },
+  { value: "unpaid" as const, label: "Belum Dibayar" },
+  { value: "partial" as const, label: "Bayar Sebagian" },
 ];
 
 export function PaymentStatusSelector({
@@ -365,7 +374,7 @@ export function PaymentStatusSelector({
     <div className="space-y-4">
       <div>
         <p className="mb-2 text-sm font-medium text-text-secondary">Status Pembayaran</p>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Status pembayaran">
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Status pembayaran">
           {PAYMENT_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -376,15 +385,14 @@ export function PaymentStatusSelector({
                 onChange(option.value);
               }}
               className={cn(
-                "flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg border px-3 py-2 text-center transition-all duration-150",
+                "ledger-interactive flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg border px-3 py-2 text-center",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
                 value === option.value
                   ? "border-leaf-500 bg-leaf-50 text-leaf-700 shadow-sm ring-1 ring-leaf-500/20"
                   : "border-wood-200 bg-surface text-text-secondary hover:bg-cream-100"
               )}
             >
-              <span className="text-sm font-medium">{option.label}</span>
-              <span className="hidden text-[11px] text-text-tertiary sm:block">{option.description}</span>
+              <span className="break-words text-sm font-medium">{option.label}</span>
             </button>
           ))}
         </div>
@@ -400,9 +408,9 @@ export function PaymentStatusSelector({
             type="date"
             value={dueDate}
             onChange={(e) => onDueDateChange(e.target.value)}
-            className="h-10 w-full rounded-md border border-wood-200 bg-cream-50 px-3 text-sm text-wood-900 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500"
+            className="min-h-[44px] h-10 w-full rounded-md border border-wood-200 bg-cream-50 px-3 text-sm text-wood-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
           />
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <Button type="button" variant="secondary" size="xs" onClick={() => onDueDateChange(localDate())}>
               Hari ini
             </Button>
@@ -459,14 +467,14 @@ export function ProductDetailFields({
   unitPriceError,
 }: ProductDetailFieldsProps) {
   return (
-    <div className="space-y-4 rounded-lg border border-wood-100 bg-cream-100 p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
+    <div className="min-w-0 space-y-4 rounded-lg border border-wood-100 bg-cream-100 p-4">
+      <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
         <Package className="h-4 w-4 text-wood-500" />
-        Detail Produk: {product.code} - {product.name}
+        <span className="min-w-0 break-words">Detail Produk: {product.code} - {product.name}</span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Kuantitas" error={quantityError} htmlFor="product-quantity">
+        <Field label="Kuantitas" error={quantityError} htmlFor="product-quantity" feedbackId="product-quantity-feedback">
           <input
             id="product-quantity"
             type="number"
@@ -474,43 +482,37 @@ export function ProductDetailFields({
             step="1"
             value={quantity || ""}
             onChange={(e) => onQuantityChange(Number(e.target.value) || 0)}
-            className="h-10 w-full rounded-md border border-wood-200 bg-cream-50 px-3 text-sm text-wood-900 num-mono focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500"
-            aria-invalid={!!quantityError}
-            aria-describedby={quantityError ? "product-quantity-error" : undefined}
+            className={cn(
+              "min-h-[44px] h-10 w-full min-w-0 rounded-md border bg-cream-50 px-3 text-sm text-wood-900 num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
+              quantityError ? "border-error" : "border-wood-200",
+              "sm:min-h-0"
+            )}
+            aria-invalid={quantityError ? true : undefined}
+            aria-describedby={quantityError ? "product-quantity-feedback" : undefined}
           />
         </Field>
 
-        <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-400">
-              Rp
-            </span>
-            <input
-              id="product-unit-price"
-              type="text"
-              inputMode="numeric"
-              value={unitPrice ? formatIDR(unitPrice) : ""}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9]/g, "");
-                onUnitPriceChange(Number(raw) || 0);
-              }}
-              className="h-10 w-full rounded-md border border-wood-200 bg-cream-50 pl-10 pr-3 text-right text-sm text-wood-900 num-mono focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500"
-              aria-invalid={!!unitPriceError}
-              aria-describedby={unitPriceError ? "product-unit-price-error" : undefined}
-            />
-          </div>
+        <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
+          <CurrencyInput
+            id="product-unit-price"
+            value={unitPrice}
+            onValueChange={onUnitPriceChange}
+            error={!!unitPriceError}
+            aria-invalid={unitPriceError ? true : undefined}
+            aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
+          />
         </Field>
       </div>
 
-      <div className="flex items-center justify-between rounded-md bg-cream-50 px-3 py-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md bg-cream-50 px-3 py-2">
         <span className="text-sm text-text-secondary">Subtotal</span>
-        <span className="text-sm font-semibold num-mono text-text-primary">{formatIDR(subtotal)}</span>
+        <span className="min-w-0 break-words text-sm font-semibold num-mono text-text-primary">{formatIDR(subtotal)}</span>
       </div>
 
       {isSaleType && stockAfterSale !== null && (
         <div
           className={cn(
-            "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
+            "flex min-w-0 items-start gap-2 rounded-md px-3 py-2 text-sm",
             stockAfterSale < 0
               ? "border border-error-border bg-error-bg text-error"
               : stockAfterSale === 0
@@ -520,11 +522,11 @@ export function ProductDetailFields({
           role={stockAfterSale < 0 ? "alert" : undefined}
         >
           {stockAfterSale < 0 && <AlertTriangle className="h-4 w-4 shrink-0" />}
-          <span>
+          <span className="min-w-0 break-words">
             Stok setelah transaksi: <strong>{formatNumber(stockAfterSale)}</strong> {product.unit}
             {stockAfterSale < 0 && (
               <span className="block text-xs mt-0.5">
-                ⚠️ Stok akan menjadi negatif. Pastikan data sudah benar.
+                Stok akan menjadi negatif. Pastikan data sudah benar.
               </span>
             )}
           </span>
@@ -535,174 +537,207 @@ export function ProductDetailFields({
 }
 
 /* ------------------------------------------------------------------ */
-/*  ReviewPanel (enhanced)                                             */
+/*  ReviewPanel (seller-first summary)                                 */
 /* ------------------------------------------------------------------ */
 
 interface ReviewPanelProps {
   debit: PreviewLine[];
   credit: PreviewLine[];
-  transactionType: string;
-  amount: number;
-  paymentStatus: string;
-  remainingAmount: number;
-  dueDate: string;
-  partyName: string;
-  productSubtotal: number;
   stockWarning: number | null;
   isAtLimit: boolean;
   usageCount: number;
   usageLimit: number;
   className?: string;
+  /** Seller-first summary props */
+  transactionType?: string;
+  amount?: number;
+  cashAccountLabel?: string;
+  productName?: string;
 }
 
 export function ReviewPanel({
   debit,
   credit,
-  transactionType,
-  amount,
-  paymentStatus,
-  remainingAmount,
-  dueDate,
-  partyName,
-  productSubtotal,
   stockWarning,
   isAtLimit,
   usageCount,
   usageLimit,
   className,
+  transactionType,
+  amount = 0,
+  cashAccountLabel,
+  productName,
 }: ReviewPanelProps) {
   const hasPreview = debit.length > 0 || credit.length > 0;
-  const meta = TRANSACTION_META[transactionType];
+  const isSale = transactionType === "cash_sale" || transactionType === "credit_sale";
+  const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+  const [journalOpen, setJournalOpen] = useState(false);
+
+  // Seller-first summary for sale/purchase types
+  const showSellerSummary = isSale || isPurchase;
 
   return (
-    <div className={cn("space-y-5", className)}>
+    <div className={cn("min-w-0 space-y-5", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-serif font-semibold text-text-primary">Review Transaksi</h3>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h3 className="min-w-0 break-words text-base font-semibold text-text-primary">Ringkasan Transaksi</h3>
         {hasPreview && (
           <Badge variant="info" size="sm">
-            Pratinjau Jurnal
+            {debit.length + credit.length} jurnal
           </Badge>
         )}
       </div>
 
-      {/* Transaction summary */}
-      {meta && (
-        <div className="space-y-2 rounded-lg bg-cream-100 px-3 py-2.5 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-text-secondary">Jenis</span>
-            <span className="font-medium text-text-primary">{meta.label}</span>
-          </div>
-          {amount > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">Nominal</span>
-              <span className="font-semibold num-mono text-text-primary">{formatIDR(amount)}</span>
-            </div>
+      {/* Seller-first summary */}
+      {showSellerSummary && (
+        <div className="space-y-3 border-t border-wood-100 pt-3">
+          {isSale && (
+            <>
+              <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="text-text-secondary">Total penjualan</span>
+                <span className="shrink-0 text-right num-mono font-semibold text-text-primary">{formatIDR(amount)}</span>
+              </div>
+              <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="text-text-secondary">Diterima di</span>
+                <span className="shrink-0 text-right text-text-primary">{cashAccountLabel || "Kas / Bank"}</span>
+              </div>
+              <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="text-text-secondary">Pendapatan bertambah</span>
+                <span className="shrink-0 text-right num-mono font-medium text-success">+{formatIDR(amount)}</span>
+              </div>
+              {stockWarning !== null && (
+                <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  <span className="text-text-secondary">Stok berkurang</span>
+                  <span className={cn("shrink-0 text-right num-mono font-medium", stockWarning < 0 ? "text-error" : "text-text-primary")}>
+                    {productName || "Produk"}: {formatNumber(stockWarning)}
+                  </span>
+                </div>
+              )}
+            </>
           )}
-          {partyName && (
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">{partyName.includes("supplier") ? "Supplier" : "Pelanggan"}</span>
-              <span className="font-medium text-text-primary">{partyName}</span>
-            </div>
+          {isPurchase && (
+            <>
+              <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="text-text-secondary">Total pembelian</span>
+                <span className="shrink-0 text-right num-mono font-semibold text-text-primary">{formatIDR(amount)}</span>
+              </div>
+              <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="text-text-secondary">Dibayar dari</span>
+                <span className="shrink-0 text-right text-text-primary">{cashAccountLabel || "Kas / Bank"}</span>
+              </div>
+              <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="text-text-secondary">Beban bertambah</span>
+                <span className="shrink-0 text-right num-mono font-medium text-error">+{formatIDR(amount)}</span>
+              </div>
+            </>
           )}
-          {paymentStatus && (
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">Status</span>
-              <Badge
-                variant={paymentStatus === "paid" ? "success" : paymentStatus === "partial" ? "warning" : "neutral"}
-                size="sm"
-              >
-                {paymentStatus === "paid" ? "Lunas" : paymentStatus === "partial" ? "Sebagian" : "Belum Dibayar"}
-              </Badge>
-            </div>
-          )}
-          {paymentStatus === "partial" && remainingAmount > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">Sisa Tagihan</span>
-              <span className="font-medium num-mono text-warning">{formatIDR(remainingAmount)}</span>
-            </div>
-          )}
-          {dueDate && paymentStatus !== "paid" && (
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">Jatuh Tempo</span>
-              <span className={cn(
-                "font-medium",
-                new Date(dueDate) < new Date() ? "text-error" : "text-text-primary"
-              )}>
-                {new Date(dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                {new Date(dueDate) < new Date() && " (sudah lewat)"}
-              </span>
-            </div>
-          )}
-          {productSubtotal > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">Subtotal Produk</span>
-              <span className="font-medium num-mono text-text-primary">{formatIDR(productSubtotal)}</span>
+        </div>
+      )}
+
+      {/* Collapsible journal preview */}
+      {hasPreview && (
+        <div className="border-t border-wood-100 pt-3">
+          <button
+            type="button"
+            onClick={() => setJournalOpen(!journalOpen)}
+            className="flex w-full items-center justify-between gap-2 text-sm font-medium text-text-secondary hover:text-text-primary"
+            aria-expanded={journalOpen}
+          >
+            <span>Lihat jurnal</span>
+            {journalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          {journalOpen && (
+            <div className="mt-3 space-y-2">
+              {debit.map((line, index) => (
+                <div key={`debit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  <span className="min-w-0 break-words text-text-secondary">
+                    <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
+                    {line.account}
+                  </span>
+                  <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
+                </div>
+              ))}
+              {credit.map((line, index) => (
+                <div key={`credit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  <span className="min-w-0 break-words text-text-secondary">
+                    <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
+                    {line.account}
+                  </span>
+                  <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Journal preview */}
-      <div>
-        <h4 className="mb-2 text-sm font-semibold text-text-primary">Pratinjau Jurnal</h4>
-        <div className="space-y-2 border-t border-wood-100 pt-3">
-          {hasPreview ? (
-            <>
-              {debit.map((line, index) => (
-                <div key={`debit-${index}`} className="flex items-start justify-between gap-3 text-sm">
-                  <span className="text-text-secondary">
-                    <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
-                    {line.account}
-                  </span>
-                  <span className="num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
-                </div>
-              ))}
-              {credit.map((line, index) => (
-                <div key={`credit-${index}`} className="flex items-start justify-between gap-3 text-sm">
-                  <span className="text-text-secondary">
-                    <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
-                    {line.account}
-                  </span>
-                  <span className="num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
-                </div>
-              ))}
-            </>
-          ) : (
-            <p className="text-sm text-text-tertiary">
-              Pilih jenis transaksi dan isi nominal untuk melihat pratinjau jurnal.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Balance impact */}
-      <div>
-        <h4 className="mb-2 text-sm font-semibold text-text-primary">Pengaruh Saldo</h4>
-        <div className="space-y-2 border-t border-wood-100 pt-3">
-          {[...debit, ...credit].map((line, index) => (
-            <div key={`impact-${index}`} className="flex items-start justify-between gap-3 text-sm">
-              <span className="text-text-secondary">{line.account}</span>
-              <span className={cn("num-mono font-medium", line.direction === "increase" ? "text-success" : "text-error")}>
-                {line.direction === "increase" ? "+" : "-"}
-                {formatIDR(line.amount)}
-              </span>
+      {/* Fallback: no seller summary (non-sale/purchase types) */}
+      {!showSellerSummary && (
+        <>
+          {/* Journal preview */}
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-text-primary">Pratinjau Jurnal</h4>
+            <div className="space-y-2 border-t border-wood-100 pt-3">
+              {hasPreview ? (
+                <>
+                  {debit.map((line, index) => (
+                    <div key={`debit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                      <span className="min-w-0 break-words text-text-secondary">
+                        <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
+                        {line.account}
+                      </span>
+                      <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
+                    </div>
+                  ))}
+                  {credit.map((line, index) => (
+                    <div key={`credit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                      <span className="min-w-0 break-words text-text-secondary">
+                        <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
+                        {line.account}
+                      </span>
+                      <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-sm text-text-tertiary">
+                  Pilih jenis transaksi dan isi nominal untuk melihat pratinjau jurnal.
+                </p>
+              )}
             </div>
-          ))}
-          {!hasPreview && <p className="text-sm text-text-tertiary">Belum ada dampak saldo.</p>}
-        </div>
-      </div>
+          </div>
+
+          {/* Balance impact */}
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-text-primary">Pengaruh Saldo</h4>
+            <div className="space-y-2 border-t border-wood-100 pt-3">
+              {[...debit, ...credit].map((line, index) => (
+                <div key={`impact-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  <span className="min-w-0 break-words text-text-secondary">{line.account}</span>
+                  <span className={cn("shrink-0 text-right num-mono font-medium", line.direction === "increase" ? "text-success" : "text-error")}>
+                    {line.direction === "increase" ? "+" : "-"}
+                    {formatIDR(line.amount)}
+                  </span>
+                </div>
+              ))}
+              {!hasPreview && <p className="text-sm text-text-tertiary">Belum ada dampak saldo.</p>}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Warnings */}
       <div className="space-y-2">
         {stockWarning !== null && stockWarning < 0 && (
-          <div className="rounded-md border border-error-border bg-error-bg px-3 py-2 text-xs text-error" role="alert">
-            ⚠️ Stok produk akan menjadi negatif ({formatNumber(stockWarning)}).
+          <div className="flex min-w-0 items-start gap-2 rounded-md border border-error-border bg-error-bg px-3 py-2 text-xs text-error" role="alert">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 break-words">Stok produk akan menjadi negatif ({formatNumber(stockWarning)}).</span>
           </div>
         )}
         {isAtLimit && (
-          <div className="rounded-md border border-error-border bg-error-bg px-3 py-2 text-xs text-error" role="alert">
-            ⚠️ Anda sudah mencapai limit transaksi gratis ({usageCount}/{usageLimit}).
+          <div className="flex min-w-0 items-start gap-2 rounded-md border border-error-border bg-error-bg px-3 py-2 text-xs text-error" role="alert">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 break-words">Anda sudah mencapai limit transaksi gratis ({usageCount}/{usageLimit}).</span>
           </div>
         )}
       </div>
@@ -719,52 +754,82 @@ interface MobileReviewToggleProps {
   credit: PreviewLine[];
   transactionType: string;
   amount: number;
-  paymentStatus: string;
-  remainingAmount: number;
-  dueDate: string;
-  partyName: string;
-  productSubtotal: number;
   stockWarning: number | null;
   isAtLimit: boolean;
   usageCount: number;
   usageLimit: number;
+  cashAccountLabel?: string;
+  productName?: string;
 }
 
+const REVIEW_HINT_KEY = "ledjer:mobile-review-hint-seen";
+
 export function MobileReviewToggle(props: MobileReviewToggleProps) {
+  const panelId = useId();
   const [open, setOpen] = useState(false);
-  const hasData = props.amount > 0 || props.transactionType !== "";
-  const count = props.debit.length + props.credit.length;
+  const [showHint, setShowHint] = useState(() => {
+    try { return !localStorage.getItem(REVIEW_HINT_KEY); } catch { return false; }
+  });
+  const handleToggle = () => {
+    setOpen(!open);
+    if (showHint) {
+      setShowHint(false);
+      try {
+        localStorage.setItem(REVIEW_HINT_KEY, "1");
+      } catch {
+        // Ignore storage errors.
+      }
+    }
+  };
 
   return (
-    <div className="lg:hidden">
+    <div className="relative min-w-0 lg:hidden">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className={cn(
-          "flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors",
+          "ledger-interactive flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left text-sm font-medium",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
           open
             ? "border-leaf-500 bg-leaf-50 text-leaf-700"
             : "border-wood-200 bg-surface text-text-primary hover:bg-cream-100"
         )}
         aria-expanded={open}
+        aria-controls={panelId}
       >
-        <span className="flex items-center gap-2">
-          <span>Review Transaksi</span>
-          {hasData && count > 0 && (
-            <Badge variant="info" size="sm">{count} jurnal</Badge>
-          )}
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 break-words">Ringkasan Transaksi</span>
         </span>
         {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
+      {/* First-use hint */}
+      {showHint && !open && (
+        <div className="absolute -top-10 left-0 right-0 rounded-lg bg-wood-800 px-3 py-2 text-xs text-cream-50 shadow-lg" role="note">
+          <span className="break-words">Ketuk untuk melihat preview jurnal sebelum menyimpan</span>
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-3 w-3 rotate-45 bg-wood-800" />
+        </div>
+      )}
       <div
+        id={panelId}
+        aria-hidden={!open}
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
           open ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
-        <div className="border border-t-0 border-wood-200 rounded-b-lg p-4 bg-surface">
-          <ReviewPanel {...props} />
+        <div className="rounded-b-lg border border-t-0 border-wood-200 bg-surface p-4">
+          <ReviewPanel
+            debit={props.debit}
+            credit={props.credit}
+            stockWarning={props.stockWarning}
+            isAtLimit={props.isAtLimit}
+            usageCount={props.usageCount}
+            usageLimit={props.usageLimit}
+            transactionType={props.transactionType}
+            amount={props.amount}
+            cashAccountLabel={props.cashAccountLabel}
+            productName={props.productName}
+          />
         </div>
       </div>
     </div>
@@ -780,22 +845,18 @@ interface SubmitBarProps {
   disabled: boolean;
   isAtLimit: boolean;
   successId: string | null;
+  label?: string;
 }
 
-export function SubmitBar({ loading, disabled, isAtLimit, successId }: SubmitBarProps) {
+export function SubmitBar({ loading, disabled, isAtLimit, successId, label }: SubmitBarProps) {
   const buttonLabel = successId
     ? "Transaksi Tersimpan"
     : loading
     ? "Menyimpan..."
-    : "Catat Transaksi";
+    : label || "Catat Transaksi";
 
   return (
     <div className="space-y-3 border-t border-wood-100 pt-4">
-      {/* Keyboard shortcut hint */}
-      <p className="hidden text-center text-xs text-text-tertiary sm:block">
-        Tekan <kbd className="rounded border border-wood-200 bg-cream-50 px-1.5 py-0.5 font-mono text-[11px]">Ctrl</kbd> + <kbd className="rounded border border-wood-200 bg-cream-50 px-1.5 py-0.5 font-mono text-[11px]">Enter</kbd> untuk menyimpan
-      </p>
-
       {/* Submit button */}
       <Button
         type="submit"

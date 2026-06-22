@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode, type SelectHTMLAttributes } from "react";
+import { forwardRef, useId, type ReactNode, type SelectHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { Field } from "./field";
@@ -14,17 +14,20 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "siz
 }
 
 const sizeStyles = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-3 text-sm",
+  sm: "min-h-[44px] h-8 px-3 text-sm sm:h-8 sm:min-h-0",
+  md: "min-h-[44px] h-10 px-3 text-sm sm:h-10 sm:min-h-0",
   lg: "h-12 px-4 text-base",
 };
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, options, placeholder, size = "md", leftIcon, id, required, ...props }, ref) => {
-    const selectId = id || label?.toLowerCase().replace(/\s/g, "-");
+    const generatedId = useId();
+    const selectId = id || label?.toLowerCase().replace(/\s/g, "-") || generatedId;
+    const feedbackId = `${selectId}-feedback`;
+    const describedBy = error || helperText ? feedbackId : undefined;
 
     return (
-      <Field label={label} error={error} helperText={helperText} required={required} htmlFor={selectId}>
+      <Field label={label} error={error} helperText={helperText} required={required} htmlFor={selectId} feedbackId={feedbackId}>
         <div className="relative">
           {leftIcon && (
             <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-wood-400">
@@ -35,13 +38,17 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             id={selectId}
             required={required}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
             className={cn(
               "w-full appearance-none rounded-md border bg-cream-50 pr-9 text-wood-900",
-              "focus:outline-none focus:ring-2 focus:ring-wood-500 focus:border-wood-500",
+              "transition-[background-color,border-color,box-shadow] duration-150 ease-out focus-visible:bg-surface-elevated",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               sizeStyles[size],
               error ? "border-error" : "border-wood-200",
               leftIcon && "pl-9",
+              "min-w-0",
               className
             )}
             {...props}

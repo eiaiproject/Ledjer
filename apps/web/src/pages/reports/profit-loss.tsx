@@ -2,12 +2,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
 
 interface ProfitLossItem {
   section: string;
@@ -32,9 +32,10 @@ export function ProfitLossPage() {
   const { canViewReports } = useOrgPermissions();
   
   const today = new Date();
-  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+  const firstDayOfMonth = formatDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1));
   const [fromDate, setFromDate] = useState(firstDayOfMonth);
-  const [toDate, setToDate] = useState(today.toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState(formatDateInputValue(today));
+  const dateRangeInvalid = fromDate > toDate;
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["profit-loss", orgData?.organization?.id, fromDate, toDate],
@@ -48,7 +49,7 @@ export function ProfitLossPage() {
       if (error) throw error;
       return data as ProfitLossItem[];
     },
-    enabled: !!orgData?.organization?.id && canViewReports,
+    enabled: !!orgData?.organization?.id && canViewReports && !dateRangeInvalid,
   });
 
   if (!canViewReports) {
@@ -96,9 +97,9 @@ export function ProfitLossPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-wood-800">Laba Rugi</h1>
-          <p className="text-sm text-wood-500 mt-1">
-            Periode: {formatDate(fromDate)} — {formatDate(toDate)}
+          <h1 className="text-2xl font-bold text-text-primary">Laba Rugi</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Periode: {formatDate(fromDate)} - {formatDate(toDate)}
           </p>
         </div>
       </div>
@@ -112,30 +113,31 @@ export function ProfitLossPage() {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
+              error={dateRangeInvalid ? "Tanggal awal tidak boleh setelah tanggal akhir." : undefined}
             />
             <Input
               label="Sampai Tanggal"
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
+              error={dateRangeInvalid ? "Tanggal akhir harus sama atau setelah tanggal awal." : undefined}
             />
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
-              Muat Ulang
+              {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Report */}
-      {isLoading ? (
+      {dateRangeInvalid ? (
+        <ErrorState message="Perbaiki rentang tanggal untuk melihat laporan laba rugi." />
+      ) : isLoading ? (
         <PageSpinner />
       ) : (
         <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-wood-800">Laporan Laba Rugi</h2>
-          </CardHeader>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="min-w-[680px] w-full text-sm">
               <thead>
                 <tr className="border-b border-wood-200">
                   <th className="px-5 py-3 text-left font-medium text-wood-600">Akun</th>
@@ -190,8 +192,8 @@ function SectionBlock({
       </tr>
       {items.map((item) => (
         <tr key={item.account_code} className="border-b border-wood-50">
-          <td className="px-5 py-2 pl-8 text-wood-600">
-            <span className="font-mono text-xs text-wood-400 mr-2">{item.account_code}</span>
+          <td className="min-w-[280px] max-w-[520px] break-words px-5 py-2 pl-8 text-wood-600">
+            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
             {item.account_name}
           </td>
           <td className={`px-5 py-2 text-right tabular-nums ${color}`}>

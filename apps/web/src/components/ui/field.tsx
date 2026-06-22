@@ -8,13 +8,14 @@ interface FieldProps {
   helperText?: string;
   required?: boolean;
   htmlFor?: string;
+  feedbackId?: string;
   children: ReactNode;
   className?: string;
 }
 
-export function Field({ label, error, helperText, required, htmlFor, children, className }: FieldProps) {
+export function Field({ label, error, helperText, required, htmlFor, feedbackId, children, className }: FieldProps) {
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full min-w-0", className)}>
       {label && (
         <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-text-secondary">
           {label}
@@ -23,12 +24,12 @@ export function Field({ label, error, helperText, required, htmlFor, children, c
       )}
       {children}
       {error ? (
-        <p className="mt-1 flex items-center gap-1 text-xs text-error">
+        <p id={feedbackId} className="mt-1 flex items-start gap-1 break-words text-xs text-error" role="alert">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          {error}
+          <span className="min-w-0">{error}</span>
         </p>
       ) : helperText ? (
-        <p className="mt-1 text-xs text-text-tertiary">{helperText}</p>
+        <p id={feedbackId} className="mt-1 break-words text-xs text-text-tertiary">{helperText}</p>
       ) : null}
     </div>
   );

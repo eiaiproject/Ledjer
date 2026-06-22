@@ -13,6 +13,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorState } from "@/components/ui/error-state";
+import { PageSpinner } from "@/components/ui/spinner";
+import { toast } from "@/components/ui/toast-api";
+import { translateError } from "@/lib/errors";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface TransactionDetail {
@@ -76,20 +80,25 @@ export function TransactionDetailPage() {
   const [voidReason, setVoidReason] = useState("");
   const [showJournal, setShowJournal] = useState(false);
 
-  const { data: transaction, isLoading } = useQuery({
+  // P1.3: Allow any member with transaction access to view business details.
+  // Journal lines are separately gated by RLS (can_view_reports policy).
+  const { data: transaction, isLoading, error, refetch } = useQuery({
     queryKey: ["transaction", id],
     queryFn: async () => {
       if (!id || !orgData?.organization?.id) return null;
       const { data, error } = await supabase
         .from("transactions")
-        .select("*, parties(name)")
+        .select(`
+          *,
+          parties:parties!transactions_party_same_org_fkey(name)
+        `)
         .eq("id", id)
         .eq("organization_id", orgData.organization.id)
         .single();
       if (error) throw error;
       return data as unknown as TransactionDetail;
     },
-    enabled: !!id && !!orgData?.organization?.id && canViewReports,
+    enabled: !!id && !!orgData?.organization?.id,
   });
 
   const { data: createdByProfile } = useQuery({
@@ -102,13 +111,26 @@ export function TransactionDetailPage() {
     enabled: !!transaction?.created_by,
   });
 
-  const { data: journalEntries } = useQuery({
+  const { data: journalEntries, error: journalError, refetch: refetchJournal } = useQuery({
     queryKey: ["journal-entries", id],
     queryFn: async () => {
       if (!id || !orgData?.organization?.id) return [];
       const { data, error } = await supabase
         .from("journal_entries")
-        .select("*, journal_lines(*, accounts(code, name))")
+        .select(`
+          *,
+          journal_lines:journal_lines!journal_lines_entry_same_org_fkey(
+            id,
+            account_id,
+            debit,
+            credit,
+            description,
+            accounts:accounts!journal_lines_account_same_org_fkey(
+              code,
+              name
+            )
+          )
+        `)
         .eq("transaction_id", id)
         .eq("organization_id", orgData.organization.id)
         .order("created_at");
@@ -137,21 +159,23 @@ export function TransactionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["monthly-usage"] });
       setShowVoidForm(false);
     },
+    onError: (err) => toast.error(translateError(err)),
   });
 
+  // P1.3: No longer block entire page for non-report users.
+  // Journal lines section below is separately gated by canViewReports.
+
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" />
-      </div>
-    );
+    return <PageSpinner />;
   }
+
+  if (error) return <ErrorState error={error} onRetry={refetch} />;
 
   if (!transaction) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 text-center">
-        <p className="text-wood-500">Transaksi tidak ditemukan</p>
-        <Link to="/transactions" className="mt-2 text-sm text-wood-600 hover:text-wood-500">
+        <p className="break-words text-wood-500">Transaksi tidak ditemukan</p>
+        <Link to="/transactions" className="mt-2 inline-block text-sm text-wood-600 hover:text-wood-500">
           ← Kembali ke daftar
         </Link>
       </div>
@@ -164,21 +188,21 @@ export function TransactionDetailPage() {
         ← Kembali
       </Link>
 
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-wood-900">
+      <div className="mb-6 flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold text-text-primary">
             {TRANSACTION_TYPE_LABELS[transaction.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || transaction.transaction_type}
           </h1>
-          <p className="mt-1 font-mono text-sm text-wood-500">{transaction.transaction_number}</p>
+          <p className="mt-1 break-words font-mono text-sm text-wood-500">{transaction.transaction_number}</p>
         </div>
-        <Badge variant={statusVariant(transaction.status)} size="md">
+        <Badge variant={statusVariant(transaction.status)} size="md" className="shrink-0">
           {statusLabel(transaction.status)}
         </Badge>
       </div>
 
       {/* Transaction Details */}
       <div className="rounded-lg border border-wood-200 bg-cream-50 p-6">
-        <dl className="grid grid-cols-2 gap-4 text-sm">
+        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-wood-500">Tanggal</dt>
             <dd className="mt-1 font-medium">{formatShortDate(transaction.transaction_date)}</dd>
@@ -190,7 +214,7 @@ export function TransactionDetailPage() {
           {transaction.parties && (
             <div>
               <dt className="text-wood-500">Pihak</dt>
-              <dd className="mt-1 font-medium">{transaction.parties.name}</dd>
+              <dd className="mt-1 break-words font-medium">{transaction.parties.name}</dd>
             </div>
           )}
           <div>
@@ -202,7 +226,7 @@ export function TransactionDetailPage() {
           {usesCategory(transaction.transaction_type) && transaction.category_name && (
             <div>
               <dt className="text-wood-500">Kategori</dt>
-              <dd className="mt-1 font-medium">{transaction.category_name}</dd>
+              <dd className="mt-1 break-words font-medium">{transaction.category_name}</dd>
             </div>
           )}
           {transaction.due_date && (
@@ -211,19 +235,19 @@ export function TransactionDetailPage() {
               <dd className="mt-1 font-medium">{formatShortDate(transaction.due_date)}</dd>
             </div>
           )}
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <dt className="text-wood-500">Deskripsi</dt>
-            <dd className="mt-1">{transaction.description || "-"}</dd>
+            <dd className="mt-1 break-words">{transaction.description || "-"}</dd>
           </div>
           {transaction.notes && (
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <dt className="text-wood-500">Catatan</dt>
-              <dd className="mt-1">{transaction.notes}</dd>
+              <dd className="mt-1 break-words">{transaction.notes}</dd>
             </div>
           )}
             <div>
               <dt className="text-wood-500">Dibuat oleh</dt>
-              <dd className="mt-1">{createdByProfile?.full_name || "-"}</dd>
+              <dd className="mt-1 break-words">{createdByProfile?.full_name || "-"}</dd>
             </div>
           <div>
             <dt className="text-wood-500">Diposting</dt>
@@ -251,11 +275,13 @@ export function TransactionDetailPage() {
                 Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
               </p>
               <Textarea
+                label="Alasan pembatalan"
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
                 containerClassName="mt-2"
                 placeholder="Alasan pembatalan..."
                 rows={2}
+                error={voidReason.trim().length > 0 && voidReason.trim().length < 5 ? "Alasan minimal 5 karakter." : undefined}
               />
               <div className="mt-3 flex gap-2">
                 <Button
@@ -269,7 +295,7 @@ export function TransactionDetailPage() {
                   type="button"
                   variant="danger"
                   onClick={() => voidMutation.mutate()}
-                  disabled={!voidReason || voidMutation.isPending}
+                  disabled={voidReason.trim().length < 5 || voidMutation.isPending}
                   loading={voidMutation.isPending}
                 >
                   Batalkan
@@ -281,13 +307,20 @@ export function TransactionDetailPage() {
       )}
 
       {/* Journal Entries */}
-      {canViewReports && journalEntries && journalEntries.length > 0 && (
+      {canViewReports && journalError && (
+        <div className="mt-6">
+          <ErrorState error={journalError} onRetry={refetchJournal} />
+        </div>
+      )}
+
+      {canViewReports && !journalError && journalEntries && journalEntries.length > 0 && (
         <div className="mt-6">
           <Button
             type="button"
             variant="link"
             onClick={() => setShowJournal(!showJournal)}
             className="flex items-center gap-2 text-sm font-medium text-wood-600 hover:text-wood-500"
+            aria-expanded={showJournal}
           >
             {showJournal ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             Lihat jurnal akuntansi
@@ -300,7 +333,8 @@ export function TransactionDetailPage() {
                     <span className="font-mono text-xs text-wood-500">{je.entry_number}</span>
                     <Badge variant={statusVariant(je.status)}>{statusLabel(je.status)}</Badge>
                   </div>
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto">
+                  <table className="min-w-[560px] w-full text-sm">
                     <thead>
                       <tr className="border-b text-left text-xs text-wood-500">
                         <th className="pb-1">Akun</th>
@@ -311,7 +345,7 @@ export function TransactionDetailPage() {
                     <tbody>
                       {je.journal_lines.map((line) => (
                         <tr key={line.id} className="border-b border-wood-50">
-                          <td className="py-1.5">
+                          <td className="max-w-[280px] break-words py-1.5">
                             <span className="font-mono text-xs text-wood-500">{line.accounts?.code}</span>{" "}
                             {line.accounts?.name}
                           </td>
@@ -325,6 +359,7 @@ export function TransactionDetailPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               ))}
             </div>

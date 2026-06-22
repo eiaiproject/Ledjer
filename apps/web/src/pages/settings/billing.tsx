@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import {
@@ -7,13 +8,17 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { ErrorState } from "@/components/ui/error-state";
+import { Check, ArrowRight, MessageCircle, RefreshCw } from "lucide-react";
+
+type BillingPeriod = "monthly" | "yearly";
 
 const PLAN_DETAILS = {
   free: {
     name: "Gratis",
-    price: "Rp 0",
-    period: "/bulan",
+    description: "Cocok untuk usaha kecil yang baru mulai",
+    monthlyPrice: 0,
+    yearlyPrice: 0,
     userAllowance: "1 pemilik",
     transactionAllowance: "50/bulan",
     transactionLimit: 50,
@@ -27,8 +32,10 @@ const PLAN_DETAILS = {
   },
   solo: {
     name: "Solo",
-    price: "Rp 99.000",
-    period: "/bulan",
+    description: "Untuk usaha yang mulai berkembang",
+    monthlyPrice: 39000,
+    yearlyPrice: 390000,
+    monthlyEquivalent: 32500,
     userAllowance: "1 pemilik",
     transactionAllowance: "Unlimited",
     transactionLimit: Infinity,
@@ -36,15 +43,20 @@ const PLAN_DETAILS = {
     features: [
       "1 pemilik",
       "Transaksi unlimited",
-      "Laporan lengkap",
+      "Semua laporan keuangan",
       "Buku besar",
+      "Neraca saldo",
+      "Laba rugi",
+      "Neraca",
       "Audit log",
     ],
   },
   business: {
     name: "Business",
-    price: "Rp 199.000",
-    period: "/bulan",
+    description: "Untuk tim dengan kasir atau admin",
+    monthlyPrice: 49000,
+    yearlyPrice: 490000,
+    monthlyEquivalent: 40833,
     userAllowance: "1 pemilik + 1 staf",
     transactionAllowance: "Unlimited",
     transactionLimit: Infinity,
@@ -52,22 +64,30 @@ const PLAN_DETAILS = {
     features: [
       "1 pemilik + 1 staf",
       "Transaksi unlimited",
-      "Kelola izin staf",
       "Semua fitur Solo",
+      "Kelola izin staf",
+      "Audit aktivitas staf",
+      "Cocok untuk kasir/admin",
     ],
   },
 } as const;
 
 type PlanKey = keyof typeof PLAN_DETAILS;
 
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat("id-ID").format(price);
+}
+
 export function BillingSettingsPage() {
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
   const plan = (orgData?.organization?.current_plan as PlanKey) || "free";
   const planInfo = PLAN_DETAILS[plan] || PLAN_DETAILS.free;
   const isFreePlan = plan === "free";
+  const isYearly = billingPeriod === "yearly";
 
-  const { data: usage } = useQuery({
+  const { data: usage, error: usageError, refetch: refetchUsage } = useQuery({
     queryKey: ["monthly-usage", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return null;
@@ -81,6 +101,7 @@ export function BillingSettingsPage() {
   const usagePercent = isFreePlan
     ? Math.round((usageCount / usageLimit) * 100)
     : 0;
+  const boundedUsagePercent = Math.min(Math.max(usagePercent, 0), 100);
   const remaining = isFreePlan
     ? (usage?.remaining ?? usageLimit)
     : 0;
@@ -90,9 +111,9 @@ export function BillingSettingsPage() {
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-wood-900">Langganan & Billing</h1>
-        <p className="mt-1 text-sm text-wood-500">
-          Tinjau paket, penggunaan, dan opsi upgrade langganan Anda.
+        <h1 className="text-2xl font-bold text-text-primary">Langganan & Billing</h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          Kelola paket langganan dan lihat penggunaan Anda.
         </p>
       </div>
 
@@ -116,43 +137,41 @@ export function BillingSettingsPage() {
                     Aktif
                   </Badge>
                 </div>
-                <p className="mt-1 text-2xl font-bold text-wood-700">
-                  {planInfo.price}
-                  <span className="text-sm font-normal text-wood-500">
-                    {planInfo.period}
-                  </span>
-                </p>
+                <p className="mt-1 text-sm text-wood-600">{planInfo.description}</p>
+                <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                  <div>
+                    <span className="block text-xs text-wood-500">Pengguna</span>
+                    <span className="font-medium text-wood-800">
+                      {planInfo.userAllowance}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-wood-500">Transaksi</span>
+                    <span className="font-medium text-wood-800">
+                      {planInfo.transactionAllowance}
+                    </span>
+                  </div>
+                  {isFreePlan && (
+                    <div>
+                      <span className="block text-xs text-wood-500">Reset kuota</span>
+                      <span className="font-medium text-wood-800">Setiap awal bulan</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Key plan details */}
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="block text-xs text-wood-400">Pengguna</span>
-                  <span className="font-medium text-wood-800">
-                    {planInfo.userAllowance}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-xs text-wood-400">Transaksi</span>
-                  <span className="font-medium text-wood-800">
-                    {planInfo.transactionAllowance}
-                  </span>
-                </div>
+              {/* Price display */}
+              <div className="text-right">
+                {planInfo.monthlyPrice === 0 ? (
+                  <p className="text-2xl font-bold text-wood-900">Gratis</p>
+                ) : (
+                  <p className="text-2xl font-bold text-wood-900">
+                    Rp {formatPrice(planInfo.monthlyPrice)}
+                    <span className="text-sm font-normal text-wood-500">/bulan</span>
+                  </p>
+                )}
               </div>
             </div>
-
-            {/* Feature list */}
-            <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-              {planInfo.features.map((feature) => (
-                <li
-                  key={feature}
-                  className="flex items-center gap-2 text-sm text-wood-700"
-                >
-                  <Check className="h-4 w-4 shrink-0 text-leaf-600" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
           </CardContent>
         </Card>
       </section>
@@ -166,18 +185,23 @@ export function BillingSettingsPage() {
           Penggunaan Bulan Ini
         </h2>
 
-        {isFreePlan ? (
+        {usageError ? (
+          <ErrorState error={usageError} onRetry={refetchUsage} />
+        ) : isFreePlan ? (
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-end justify-between">
+              <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-wood-500">Transaksi</p>
-                  <p className="text-2xl font-bold text-wood-900">
+                  <p className="text-sm text-wood-500">Transaksi terpakai</p>
+                  <p className="text-3xl font-bold text-wood-900">
                     {usageCount}
-                    <span className="text-sm font-normal text-wood-500">
+                    <span className="text-base font-normal text-wood-500">
                       {" "}
                       / {usageLimit}
                     </span>
+                  </p>
+                  <p className="mt-1 text-xs text-wood-500">
+                    {remaining} transaksi tersisa bulan ini
                   </p>
                 </div>
                 {isNearLimit && (
@@ -187,24 +211,38 @@ export function BillingSettingsPage() {
                 )}
               </div>
 
-              <div className="mt-4" role="progressbar" aria-valuenow={usagePercent} aria-valuemin={0} aria-valuemax={100}>
-                <div className="h-2.5 overflow-hidden rounded-full bg-wood-100">
+              <div className="mt-4" role="progressbar" aria-valuenow={boundedUsagePercent} aria-valuemin={0} aria-valuemax={100} aria-valuetext={`${usageCount} dari ${usageLimit} transaksi digunakan`}>
+                <div className="h-3 overflow-hidden rounded-full bg-wood-100">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
                       isNearLimit ? "bg-clay-500" : "bg-wood-500"
                     }`}
-                    style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                    style={{ width: `${boundedUsagePercent}%` }}
                   />
                 </div>
-                <p className="mt-1.5 text-xs text-wood-500">
-                  {remaining} transaksi tersisa bulan ini
-                  <span className="ml-1 text-wood-400">({usagePercent}%)</span>
+                <p className="mt-1.5 text-right text-xs text-wood-500">
+                  {usagePercent}%
                 </p>
               </div>
 
               {isNearLimit && (
-                <div className="mt-3 rounded-md border border-clay-200 bg-clay-50 p-3 text-xs text-clay-700">
-                  Pertimbangkan upgrade agar pencatatan tidak terhenti.
+                <div className="mt-4 rounded-lg border border-clay-200 bg-clay-50 p-4">
+                  <p className="text-sm font-medium text-clay-800">
+                    Kuota hampir habis
+                  </p>
+                  <p className="mt-1 text-xs text-clay-600">
+                    Upgrade ke paket berbayar untuk transaksi unlimited dan fitur lengkap.
+                  </p>
+                  {isOwner && (
+                    <button
+                      onClick={() => {
+                        document.getElementById("plans-heading")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="mt-2 text-xs font-medium text-clay-700 underline underline-offset-2 hover:text-clay-900"
+                    >
+                      Lihat paket lainnya
+                    </button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -230,124 +268,203 @@ export function BillingSettingsPage() {
         )}
       </section>
 
-      {/* Upgrade / Plan Comparison */}
+      {/* Billing Period Toggle */}
       <section aria-labelledby="plans-heading">
-        <h2
-          id="plans-heading"
-          className="mb-3 text-sm font-semibold text-wood-700"
-        >
-          Perbandingan Paket
-        </h2>
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h2
+            id="plans-heading"
+            className="text-sm font-semibold text-wood-700"
+          >
+            Perbandingan Paket
+          </h2>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+          {/* Toggle */}
+          <div className="flex items-center gap-1 rounded-lg bg-wood-100 p-1">
+            <button
+              type="button"
+              onClick={() => setBillingPeriod("monthly")}
+              className={`relative rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                billingPeriod === "monthly"
+                  ? "bg-white text-wood-900 shadow-sm"
+                  : "text-wood-600 hover:text-wood-800"
+              }`}
+              aria-pressed={billingPeriod === "monthly"}
+            >
+              Bulanan
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingPeriod("yearly")}
+              className={`relative rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                billingPeriod === "yearly"
+                  ? "bg-white text-wood-900 shadow-sm"
+                  : "text-wood-600 hover:text-wood-800"
+              }`}
+              aria-pressed={billingPeriod === "yearly"}
+            >
+              Tahunan
+              <Badge variant="success" size="sm" className="ml-1.5">
+                Hemat 2 bulan
+              </Badge>
+            </button>
+          </div>
+        </div>
+
+        {/* Plan Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-stretch">
           {(Object.keys(PLAN_DETAILS) as PlanKey[]).map((key) => {
             const info = PLAN_DETAILS[key];
             const isCurrent = key === plan;
             const isRecommended = key === "business" && plan !== "business";
+            const price = isYearly ? info.yearlyPrice : info.monthlyPrice;
 
             return (
-              <Card
-                key={key}
-                variant={isRecommended ? "elevated" : "default"}
-                className={
-                  isCurrent
-                    ? "ring-2 ring-wood-500"
-                    : isRecommended
-                      ? "ring-2 ring-leaf-300"
-                      : ""
-                }
-              >
-                <CardContent className="p-5">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-bold text-wood-900">{info.name}</h3>
-                    <div className="flex gap-1.5">
-                      {isCurrent && (
-                        <Badge variant="info" size="sm">
-                          Saat ini
-                        </Badge>
+              <div key={key} className="flex h-full flex-col">
+                <Card
+                  variant={isRecommended ? "elevated" : "default"}
+                  className={
+                    "flex h-full flex-col " +
+                    (isCurrent
+                      ? "ring-2 ring-wood-500"
+                      : isRecommended
+                        ? "ring-2 ring-leaf-300"
+                        : "")
+                  }
+                >
+                  <CardContent className="flex flex-1 flex-col p-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="font-bold text-wood-900">{info.name}</h3>
+                      <div className="flex gap-1.5">
+                        {isCurrent && (
+                          <Badge variant="info" size="sm">
+                            Saat ini
+                          </Badge>
+                        )}
+                        {isRecommended && (
+                          <Badge variant="success" size="sm">
+                            Disarankan
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="mb-3 text-xs text-wood-500">{info.description}</p>
+
+                    {/* Price */}
+                    <div className="mb-4">
+                      {price === 0 ? (
+                        <p className="text-2xl font-bold text-wood-900">Gratis</p>
+                      ) : (
+                        <>
+                          <p className="text-2xl font-bold text-wood-900">
+                            Rp {formatPrice(price)}
+                            <span className="text-sm font-normal text-wood-500">
+                              /{isYearly ? "tahun" : "bulan"}
+                            </span>
+                          </p>
+                          {isYearly && 'monthlyEquivalent' in info && (
+                            <p className="mt-0.5 text-xs text-wood-500">
+                              Setara Rp {formatPrice((info as {monthlyEquivalent?: number}).monthlyEquivalent || 0)}/bulan
+                            </p>
+                          )}
+                        </>
                       )}
-                      {isRecommended && (
-                        <Badge variant="success" size="sm">
-                          Disarankan
-                        </Badge>
-                      )}
                     </div>
-                  </div>
 
-                  <p className="text-xl font-bold text-wood-900">
-                    {info.price}
-                    <span className="text-sm font-normal text-wood-500">
-                      {info.period}
-                    </span>
-                  </p>
-
-                  {/* Key details */}
-                  <div className="mt-3 flex flex-col gap-1 text-sm text-wood-600">
-                    <div className="flex justify-between">
-                      <span>Pengguna</span>
-                      <span className="font-medium text-wood-800">
-                        {info.userAllowance}
-                      </span>
+                    {/* Key details */}
+                    <div className="mb-4 flex flex-col gap-1.5 text-sm text-wood-600">
+                      <div className="flex min-w-0 justify-between gap-3">
+                        <span>Pengguna</span>
+                        <span className="break-words text-right font-medium text-wood-800">
+                          {info.userAllowance}
+                        </span>
+                      </div>
+                      <div className="flex min-w-0 justify-between gap-3">
+                        <span>Transaksi</span>
+                        <span className="break-words text-right font-medium text-wood-800">
+                          {info.transactionAllowance}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Transaksi</span>
-                      <span className="font-medium text-wood-800">
-                        {info.transactionAllowance}
-                      </span>
-                    </div>
-                  </div>
 
-                  <ul className="mt-4 space-y-1.5">
-                    {info.features.map((f) => (
-                      <li
-                        key={f}
-                        className="flex items-center gap-1.5 text-xs text-wood-600"
-                      >
-                        <Check className="h-3.5 w-3.5 shrink-0 text-leaf-600" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                    {/* Features */}
+                    <ul className="mb-4 space-y-2">
+                      {info.features.map((f) => (
+                        <li
+                          key={f}
+                          className="flex min-w-0 items-start gap-2 text-xs text-wood-600"
+                        >
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-leaf-600" />
+                          <span className="min-w-0 break-words">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
 
-                  {/* CTA */}
-                  <div className="mt-4">
-                    {isCurrent ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        fullWidth
-                        disabled
-                      >
-                        Paket saat ini
-                      </Button>
-                    ) : (
-                      <>
+                    {/* CTA - pushed to bottom */}
+                    <div className="mt-auto pt-6">
+                      {isCurrent ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          fullWidth
+                          disabled
+                        >
+                          Paket saat ini
+                        </Button>
+                      ) : info.monthlyPrice === 0 ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          fullWidth
+                          disabled
+                        >
+                          Sudah menggunakan
+                        </Button>
+                      ) : (
                         <Button
                           type="button"
                           variant={isRecommended ? "primary" : "secondary"}
                           fullWidth
-                          disabled
+                          disabled={!isOwner}
                         >
-                          {isOwner ? "Upgrade" : "Tidak tersedia"}
+                          {isOwner ? (
+                            <>
+                              <MessageCircle className="h-4 w-4" />
+                              Minta Upgrade
+                              <ArrowRight className="h-4 w-4" />
+                            </>
+                          ) : (
+                            "Tidak tersedia"
+                          )}
                         </Button>
-                        {isOwner && (
-                          <p className="mt-1.5 text-center text-xs text-wood-400">
-                            Pembayaran online segera tersedia.
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             );
           })}
         </div>
 
+        {/* Manual Upgrade Notice */}
         {isOwner && (
-          <p className="mt-3 text-center text-xs text-wood-500">
-            Untuk sementara, silakan hubungi admin untuk upgrade manual.
-          </p>
+          <Card className="mt-4">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-wood-100">
+                  <RefreshCw className="h-5 w-5 text-wood-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-wood-800">
+                    Ingin upgrade sekarang?
+                  </p>
+                  <p className="mt-0.5 text-xs text-wood-600">
+                    Pembayaran online sedang disiapkan. Untuk upgrade sekarang, hubungi admin Ledjer melalui WhatsApp atau email.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </section>
 

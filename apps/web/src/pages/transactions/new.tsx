@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
+import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
 import {
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,8 +40,12 @@ import {
   TRANSACTION_META,
   PARTY_COPY,
   CASH_ACCOUNT_LABELS,
+  CASH_ACCOUNT_PLACEHOLDERS,
   CATEGORY_LABELS,
   DESCRIPTION_PLACEHOLDERS,
+  SECTION_LABELS,
+  generateAutoDescription,
+  getSubmitLabel,
 } from "./_helpers";
 
 /* ------------------------------------------------------------------ */
@@ -103,8 +108,7 @@ interface ImpactSummary {
 function localDate(offsetDays = 0) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().split("T")[0];
+  return formatDateInputValue(date);
 }
 
 function getLastCashAccountKey(transactionType: string) {
@@ -181,7 +185,12 @@ export function NewTransactionPage() {
   const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
 
   /* -- Query: accounts -- */
-  const { data: accounts, isLoading: accountsLoading } = useQuery({
+  const {
+    data: accounts,
+    isLoading: accountsLoading,
+    error: accountsError,
+    refetch: refetchAccounts,
+  } = useQuery({
     queryKey: ["accounts", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
@@ -198,7 +207,12 @@ export function NewTransactionPage() {
   });
 
   /* -- Query: expense/cogs accounts for CoA dropdown -- */
-  const { data: expenseCogsAccounts, isLoading: expenseAccountsLoading } = useQuery({
+  const {
+    data: expenseCogsAccounts,
+    isLoading: expenseAccountsLoading,
+    error: expenseAccountsError,
+    refetch: refetchExpenseAccounts,
+  } = useQuery({
     queryKey: ["accounts", orgData?.organization?.id, "expense-cogs"],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
@@ -216,7 +230,12 @@ export function NewTransactionPage() {
   });
 
   /* -- Query: parties -- */
-  const { data: parties, isLoading: partiesLoading } = useQuery({
+  const {
+    data: parties,
+    isLoading: partiesLoading,
+    error: partiesError,
+    refetch: refetchParties,
+  } = useQuery({
     queryKey: ["parties", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
@@ -233,7 +252,12 @@ export function NewTransactionPage() {
   });
 
   /* -- Query: products -- */
-  const { data: products, isLoading: productsLoading } = useQuery({
+  const {
+    data: products,
+    isLoading: productsLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: ["products", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
@@ -250,7 +274,11 @@ export function NewTransactionPage() {
   });
 
   /* -- Query: monthly usage -- */
-  const { data: monthlyUsage } = useQuery({
+  const {
+    data: monthlyUsage,
+    error: usageError,
+    refetch: refetchMonthlyUsage,
+  } = useQuery({
     queryKey: ["monthly-usage", orgData?.organization?.id],
     queryFn: async () => {
       if (!orgData?.organization?.id) return null;
@@ -272,7 +300,7 @@ export function NewTransactionPage() {
       }));
   }, [accounts]);
 
-  // ponytail: CoA dropdown options — filtered by transaction type
+  // ponytail: CoA dropdown options filtered by transaction type
   const debitAccountOptions = useMemo(() => {
     const accounts = expenseCogsAccounts || [];
     if (selectedType === "expense_payment") {
@@ -296,6 +324,14 @@ export function NewTransactionPage() {
   const productSubtotal = selectedProductId && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
   const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
   const stockAfterSale = selectedProduct && selectedQuantity ? (selectedProduct.current_stock ?? 0) - selectedQuantity : null;
+  const lookupError = accountsError || expenseAccountsError || partiesError || productsError;
+
+  const retryLookups = () => {
+    void refetchAccounts();
+    void refetchExpenseAccounts();
+    void refetchParties();
+    void refetchProducts();
+  };
 
   // ponytail: derive account name for preview from CoA or fallback to category/product name
   const debitAccountName = (() => {
@@ -392,6 +428,22 @@ export function NewTransactionPage() {
     if (!selectedProductId || manualAmount || productSubtotal <= 0) return;
     setValue("amount", productSubtotal, { shouldDirty: true, shouldValidate: true });
   }, [manualAmount, productSubtotal, selectedProductId, setValue]);
+
+  // Auto-generate description for sale/purchase types when product is selected
+  useEffect(() => {
+    if (!isSaleType && !isProductType) return;
+    if (!selectedProductId || !selectedProduct) return;
+    const currentDesc = getValues("description");
+    // Only auto-fill if description is empty or auto-generated
+    if (currentDesc && !currentDesc.startsWith("Penjualan ") && !currentDesc.startsWith("Pembelian ")) return;
+    const autoDesc = generateAutoDescription({
+      transactionType: selectedType,
+      productName: selectedProduct.name,
+      quantity: selectedQuantity,
+      totalAmount: selectedAmount,
+    });
+    setValue("description", autoDesc, { shouldDirty: true });
+  }, [selectedType, selectedProduct, selectedProductId, selectedQuantity, selectedAmount, isSaleType, isProductType, getValues, setValue]);
 
   // Auto-navigate after success
   useEffect(() => {
@@ -511,10 +563,18 @@ export function NewTransactionPage() {
 
       const { data: result, error } = await supabase.rpc("post_transaction", rpcParams);
       if (error) {
-        if (error.code === "PGRST202") {
-          throw new Error("Database Supabase belum memakai migration transaksi terbaru. Jalankan migration terbaru agar transaksi produk/pembayaran sebagian tersedia.");
+        console.error("post_transaction error:", error);
+        const msg = error.message || error.details || JSON.stringify(error);
+        // Friendly messages for common errors
+        if (msg.includes("does not exist") || msg.includes("column")) {
+          throw new Error("Terjadi kesalahan sistem. Silakan hubungi admin.");
         }
-        throw error;
+        if (msg.includes("multiple function") || error.code === "PGRST202") {
+          throw new Error("Database belum di-update. Silakan hubungi admin.");
+        }
+        // Extract PostgreSQL error message
+        const pgMatch = msg.match(/ERROR:\s*(.+?)(?:\n|$)/);
+        throw new Error(pgMatch ? pgMatch[1].trim() : "Gagal menyimpan transaksi. Silakan coba lagi.");
       }
       return result as unknown as { transaction_id: string; impact: ImpactSummary };
     },
@@ -629,7 +689,15 @@ export function NewTransactionPage() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Transaksi Baru</h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Catat transaksi bisnis Anda. Isi dari atas ke bawah.
+            {selectedType === "cash_sale"
+              ? "Catat penjualan yang langsung dibayar."
+              : selectedType === "credit_sale"
+              ? "Catat penjualan yang belum dibayar."
+              : selectedType === "cash_purchase"
+              ? "Catat pembelian yang langsung dibayar."
+              : selectedType === "credit_purchase"
+              ? "Catat pembelian dengan utang."
+              : "Catat transaksi bisnis Anda. Isi dari atas ke bawah."}
           </p>
         </div>
         {successTransactionId && <Badge variant="success">Tersimpan, membuka detail...</Badge>}
@@ -643,26 +711,47 @@ export function NewTransactionPage() {
         usageLimit={usageLimit}
       />
 
+      {usageError && isFreePlan && (
+        <div className="mb-4 flex min-w-0 flex-col gap-2 rounded-lg border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <p className="min-w-0 break-words">
+            Gagal memuat pemakaian paket gratis. Batas transaksi mungkin belum akurat.
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetchMonthlyUsage()} className="shrink-0">
+            Coba lagi
+          </Button>
+        </div>
+      )}
+
       {/* Error summary (after failed submit) */}
       <ErrorSummary ref={errorSummaryRef} errors={errors} formErrorMessage={postMutation.isError ? (postMutation.error as Error).message || "Gagal memproses transaksi" : undefined} />
 
-      {/* Main grid: form + desktop sidebar */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)] xl:gap-6">
-        <form
-          ref={formRef}
-          onSubmit={(event) => {
-            void handleSubmit(onSubmit)(event);
-          }}
-          onKeyDown={handleKeyDown}
-          className="min-w-0 space-y-4"
-          noValidate
-        >
+      {lookupError ? (
+        <Card>
+          <CardContent>
+            <ErrorState
+              error={lookupError}
+              message="Gagal memuat data akun, pihak, atau produk yang dibutuhkan untuk mencatat transaksi."
+              onRetry={retryLookups}
+              className="py-8"
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className={selectedType ? "grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)] xl:gap-6" : "grid gap-5"}>
+          <form
+            ref={formRef}
+            onSubmit={(event) => {
+              void handleSubmit(onSubmit)(event);
+            }}
+            onKeyDown={handleKeyDown}
+            className="min-w-0 space-y-4"
+            noValidate
+          >
           {/* Section 1: Detail utama */}
           <SectionCard
             id="section-type"
-            title="Detail utama"
+            title={SECTION_LABELS[selectedType]?.detail || "Detail utama"}
             step={1}
-            helperText="Pilih jenis transaksi, isi deskripsi, tanggal, dan nominal."
           >
             {/* Full type selector: shown when no type selected or user explicitly expands */}
             {(!selectedType || isTypeSelectorExpanded) && (
@@ -680,8 +769,7 @@ export function NewTransactionPage() {
             {selectedType && !isTypeSelectorExpanded && (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-wood-200 bg-cream-50 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-text-tertiary">Jenis transaksi dipilih</p>
-                  <p className="mt-0.5 truncate text-sm font-semibold text-text-primary">
+                  <p className="break-words text-sm font-semibold text-text-primary">
                     {selectedTypeLabel}
                   </p>
                 </div>
@@ -700,60 +788,82 @@ export function NewTransactionPage() {
             {/* Active fields: shown immediately below the type area */}
             {selectedType && (
               <div ref={activeFieldsRef} className="space-y-4 pt-1">
-                <Input
-                  label="Deskripsi Transaksi"
-                  {...register("description")}
-                  placeholder={descriptionPlaceholder}
-                  error={errors.description?.message}
-                  required
-                />
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Input
-                      label="Tanggal Transaksi"
-                      type="date"
-                      {...register("transactionDate")}
-                      error={errors.transactionDate?.message}
-                      required
+                {/* For sale/purchase types: Product first */}
+                {isProductType && (
+                  <>
+                    <Combobox
+                      id="productId"
+                      name="productId"
+                      label="Produk / Jasa"
+                      value={selectedProductId || ""}
+                      onChange={(value) => {
+                        setManualAmount(false);
+                        setValue("productId", value, { shouldDirty: true, shouldValidate: true });
+                        clearErrors("productId");
+                      }}
+                      options={(products || []).map((product) => ({
+                        value: product.id,
+                        label: `${product.code} - ${product.name}`,
+                        secondaryLabel: `Stok: ${formatNumber(product.current_stock)} ${product.unit}`,
+                      }))}
+                      placeholder="Pilih produk atau ketik nama item"
+                      loading={productsLoading}
+                      emptyText="Tidak ada produk. Tambahkan dari menu Produk."
                     />
-                    <div className="mt-2 flex gap-2">
-                      <Button type="button" variant="secondary" size="xs" onClick={() => setValue("transactionDate", localDate(), { shouldDirty: true })}>
-                        Hari ini
-                      </Button>
-                      <Button type="button" variant="secondary" size="xs" onClick={() => setValue("transactionDate", localDate(-1), { shouldDirty: true })}>
-                        Kemarin
-                      </Button>
-                    </div>
-                  </div>
 
-                  <Controller
-                    control={control}
-                    name="amount"
-                    render={({ field }) => (
-                      <Input
-                        ref={field.ref}
-                        name={field.name}
-                        label="Nominal"
-                        value={formatAmountInput(field.value, true)}
-                        onBlur={field.onBlur}
-                        onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
-                        placeholder="0"
-                        isCurrency
-                        readOnly={Boolean(selectedProductId && !manualAmount)}
-                        helperText={selectedProductId && !manualAmount ? "Otomatis: kuantitas × harga satuan" : undefined}
-                        error={errors.amount?.message}
-                        required
+                    {/* Product detail fields */}
+                    {selectedProductId && selectedProduct && (
+                      <ProductDetailFields
+                        product={selectedProduct}
+                        isSaleType={isSaleType}
+                        quantity={selectedQuantity || 0}
+                        unitPrice={selectedUnitPrice || 0}
+                        subtotal={productSubtotal}
+                        stockAfterSale={stockAfterSale}
+                        onQuantityChange={(value) => setValue("quantity", value, { shouldDirty: true, shouldValidate: true })}
+                        onUnitPriceChange={(value) => setValue("unitPrice", value, { shouldDirty: true, shouldValidate: true })}
+                        quantityError={errors.quantity?.message}
+                        unitPriceError={errors.unitPrice?.message}
                       />
                     )}
-                  />
-                </div>
+                  </>
+                )}
+
+                {/* Total / Amount */}
+                <Controller
+                  control={control}
+                  name="amount"
+                  render={({ field }) => (
+                    <Input
+                      ref={field.ref}
+                      name={field.name}
+                      label={isSaleType ? "Total Penjualan" : isProductType ? "Total Pembelian" : "Nominal"}
+                      value={formatAmountInput(field.value, true)}
+                      onBlur={field.onBlur}
+                      onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
+                      placeholder="0"
+                      isCurrency
+                      readOnly={Boolean(selectedProductId && !manualAmount)}
+                      helperText={selectedProductId && !manualAmount ? "Otomatis: kuantitas x harga satuan" : undefined}
+                      error={errors.amount?.message}
+                      required
+                    />
+                  )}
+                />
 
                 {selectedProductId && (
                   <Button type="button" variant="link" size="xs" onClick={() => setManualAmount((current) => !current)}>
                     {manualAmount ? "Gunakan otomatis" : "Edit manual"}
                   </Button>
                 )}
+
+                {/* Description / Keterangan */}
+                <Input
+                  label="Keterangan"
+                  {...register("description")}
+                  placeholder={descriptionPlaceholder}
+                  error={errors.description?.message}
+                />
 
                 {/* Payment status */}
                 {showPaymentStatus && (
@@ -807,9 +917,8 @@ export function NewTransactionPage() {
           {selectedType && (
             <SectionCard
               id="section-details"
-              title="Pihak, akun, dan detail tambahan"
+              title={SECTION_LABELS[selectedType]?.payment || "Pihak, akun, dan detail tambahan"}
               step={2}
-              helperText="Pilih pihak, akun, kategori, dan produk jika diperlukan."
             >
               {/* Party */}
               {showParty && (
@@ -845,7 +954,7 @@ export function NewTransactionPage() {
                       clearErrors("cashAccountId");
                     }}
                     options={cashAccountOptions}
-                    placeholder="Pilih Kas atau Bank..."
+                    placeholder={CASH_ACCOUNT_PLACEHOLDERS[selectedType] || "Pilih akun kas/bank..."}
                     loading={accountsLoading}
                     error={errors.cashAccountId?.message}
                   />
@@ -878,7 +987,7 @@ export function NewTransactionPage() {
                 />
               )}
 
-              {/* Debit account from CoA — hidden when product is selected (auto → Persediaan) */}
+              {/* Debit account from CoA, hidden when product is selected */}
               {showCategory && !selectedProductId && (
                 <Combobox
                   id="debitAccountId"
@@ -895,52 +1004,12 @@ export function NewTransactionPage() {
                   error={errors.debitAccountId?.message}
                 />
               )}
-
-              {/* Product */}
-              {isProductType && (
-                <Combobox
-                  id="productId"
-                  name="productId"
-                  label="Produk (opsional)"
-                  value={selectedProductId || ""}
-                  onChange={(value) => {
-                    setManualAmount(false);
-                    setValue("productId", value, { shouldDirty: true, shouldValidate: true });
-                    clearErrors("productId");
-                  }}
-                  options={(products || []).map((product) => ({
-                    value: product.id,
-                    label: `${product.code} - ${product.name}`,
-                    secondaryLabel: `Stok: ${formatNumber(product.current_stock)} ${product.unit}`,
-                  }))}
-                  placeholder="Pilih produk jika mempengaruhi stok"
-                  helperText="Opsional. Pilih produk untuk otomatis mengisi harga dan memantau stok."
-                  loading={productsLoading}
-                  emptyText="Tidak ada produk. Tambahkan dari menu Produk."
-                />
-              )}
-
-              {/* Product detail fields */}
-              {selectedProductId && selectedProduct && (
-                <ProductDetailFields
-                  product={selectedProduct}
-                  isSaleType={isSaleType}
-                  quantity={selectedQuantity || 0}
-                  unitPrice={selectedUnitPrice || 0}
-                  subtotal={productSubtotal}
-                  stockAfterSale={stockAfterSale}
-                  onQuantityChange={(value) => setValue("quantity", value, { shouldDirty: true, shouldValidate: true })}
-                  onUnitPriceChange={(value) => setValue("unitPrice", value, { shouldDirty: true, shouldValidate: true })}
-                  quantityError={errors.quantity?.message}
-                  unitPriceError={errors.unitPrice?.message}
-                />
-              )}
             </SectionCard>
           )}
 
-          {/* Section 3: Catatan tambahan */}
+          {/* Section 3: Catatan */}
           {selectedType && (
-            <SectionCard id="section-notes" title="Catatan tambahan" step={3}>
+            <SectionCard id="section-notes" title={SECTION_LABELS[selectedType]?.notes || "Catatan"} step={3}>
               <Textarea
                 label="Catatan (opsional)"
                 {...register("notes")}
@@ -957,15 +1026,12 @@ export function NewTransactionPage() {
               credit={preview.credit}
               transactionType={selectedType}
               amount={selectedAmount}
-              paymentStatus={selectedPaymentStatus}
-              remainingAmount={remainingAmount}
-              dueDate={selectedDueDate || ""}
-              partyName={selectedPartyName}
-              productSubtotal={productSubtotal}
               stockWarning={stockAfterSale}
               isAtLimit={isAtLimit}
               usageCount={usageCount}
               usageLimit={usageLimit}
+              cashAccountLabel={selectedCashAccountOption?.label || "Kas / Bank"}
+              productName={selectedProduct?.name}
             />
           )}
 
@@ -976,33 +1042,40 @@ export function NewTransactionPage() {
               disabled={postMutation.isPending || isAtLimit || !selectedType}
               isAtLimit={isAtLimit}
               successId={successTransactionId}
+              label={getSubmitLabel({
+                transactionType: selectedType,
+                amount: selectedAmount,
+                isEditing: false,
+                loading: postMutation.isPending,
+                successId: successTransactionId,
+              })}
             />
           </div>
         </form>
 
         {/* Desktop sidebar: Review Panel */}
-        <aside className="hidden lg:block">
-          <Card className="sticky top-6">
-            <CardContent>
-              <ReviewPanel
-                debit={preview.debit}
-                credit={preview.credit}
-                transactionType={selectedType}
-                amount={selectedAmount}
-                paymentStatus={selectedPaymentStatus}
-                remainingAmount={remainingAmount}
-                dueDate={selectedDueDate || ""}
-                partyName={selectedPartyName}
-                productSubtotal={productSubtotal}
-                stockWarning={stockAfterSale}
-                isAtLimit={isAtLimit}
-                usageCount={usageCount}
-                usageLimit={usageLimit}
-              />
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
+          {selectedType && (
+            <aside className="hidden lg:block">
+              <Card className="sticky top-6">
+                <CardContent>
+                  <ReviewPanel
+                    debit={preview.debit}
+                    credit={preview.credit}
+                    stockWarning={stockAfterSale}
+                    isAtLimit={isAtLimit}
+                    usageCount={usageCount}
+                    usageLimit={usageLimit}
+                    transactionType={selectedType}
+                    amount={selectedAmount}
+                    cashAccountLabel={selectedCashAccountOption?.label || "Kas / Bank"}
+                    productName={selectedProduct?.name}
+                  />
+                </CardContent>
+              </Card>
+            </aside>
+          )}
+        </div>
+      )}
 
       {/* Unsaved changes dialog */}
       <UnsavedChangesDialog

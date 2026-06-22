@@ -25,14 +25,16 @@ export function ConfirmDialog({
   variant = "danger",
   loading,
 }: ConfirmDialogProps) {
+  const closeDialog = loading ? () => {} : onClose;
+
   return (
-    <Modal open={open} onClose={onClose} size="sm">
+    <Modal open={open} onClose={closeDialog} size="sm" ariaLabel={title}>
       <ModalContent className="text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-error/10">
           <AlertTriangle className="h-6 w-6 text-error" />
         </div>
-        <h3 className="text-lg font-semibold text-wood-800">{title}</h3>
-        <p className="mt-2 text-sm text-wood-600">{message}</p>
+        <h3 className="break-words text-lg font-semibold text-wood-800">{title}</h3>
+        <p className="mt-2 break-words text-sm text-wood-600">{message}</p>
       </ModalContent>
       <ModalFooter>
         <Button variant="ghost" onClick={onClose} disabled={loading}>
@@ -42,6 +44,7 @@ export function ConfirmDialog({
           variant={variant === "danger" ? "danger" : "primary"}
           onClick={onConfirm}
           loading={loading}
+          disabled={loading}
         >
           {confirmLabel}
         </Button>

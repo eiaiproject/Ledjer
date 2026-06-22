@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-21T06:37:06Z",
+  "title": "Design System: Ledjer",
+  "extensions": {
+    "colorMeta": {
+      "primary-wood": {
+        "role": "primary",
+        "displayName": "Wood Brown",
+        "canonical": "#8B5A3C",
+        "tonalRamp": ["#2A1B17", "#3A2620", "#533525", "#6F4530", "#8B5A3C", "#A87B52", "#C9A787", "#E4D0BA", "#F2E8DC", "#FAF6F1"]
+      },
+      "leaf-accent": {
+        "role": "secondary",
+        "displayName": "Leaf Green",
+        "canonical": "#6B8E4E",
+        "tonalRamp": ["#1F2D16", "#2D4020", "#3F5A2E", "#54733D", "#6B8E4E", "#7AA456", "#94BA6F", "#B8D29C", "#DDEACF", "#F1F6EC"]
+      },
+      "cream-background": {
+        "role": "neutral",
+        "displayName": "Cream Background",
+        "canonical": "#F9F4EB",
+        "tonalRamp": ["#2A1B17", "#3A2620", "#533525", "#8B5A3C", "#C9A787", "#E5D9C2", "#F0E8D8", "#F9F4EB", "#FDFBF6", "#FFFFFF"]
+      },
+      "clay-warning": {
+        "role": "secondary",
+        "displayName": "Clay Warning",
+        "canonical": "#8E4528",
+        "tonalRamp": ["#321708", "#4F2515", "#6E341E", "#8E4528", "#B05A3A", "#C97B5A", "#DB9B78", "#E9BCA1", "#F5DCC9", "#FBF0E8"]
+      },
+      "honey-premium": {
+        "role": "tertiary",
+        "displayName": "Honey Premium",
+        "canonical": "#B88A2E",
+        "tonalRamp": ["#2E230A", "#4D3A11", "#6F5519", "#927023", "#B88A2E", "#D4A547", "#DDB73E", "#ECC968", "#F5E2A8", "#FBF3DC"]
+      },
+      "sky-info": {
+        "role": "tertiary",
+        "displayName": "Sky Info",
+        "canonical": "#3D5F7A",
+        "tonalRamp": ["#122130", "#1F3445", "#2E4A60", "#3D5F7A", "#4F7A9A", "#6B95B5", "#8AAAC9", "#B0C6DD", "#D6E2EE", "#EDF2F7"]
+      },
+      "error": {
+        "role": "error",
+        "displayName": "Accounting Red",
+        "canonical": "#A12D1E",
+        "tonalRamp": ["#321708", "#4F2515", "#6E341E", "#8E4528", "#A12D1E", "#B05A3A", "#DB9B78", "#E8B5A8", "#FAEBE5", "#FFFFFF"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Ledger Display",
+        "purpose": "Landing-page hero and major persuasive moments."
+      },
+      "headline": {
+        "displayName": "Ledger Headline",
+        "purpose": "Page, modal, and section headings."
+      },
+      "body": {
+        "displayName": "Plus Jakarta Body",
+        "purpose": "Readable interface and explanatory copy."
+      },
+      "numeric": {
+        "displayName": "Financial Numerals",
+        "purpose": "Currency, balances, report values, and account numbers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "hairline-lift",
+        "value": "0 1px 2px 0 rgba(58, 38, 32, 0.05)",
+        "purpose": "Small affordances and quiet hover states."
+      },
+      {
+        "name": "low-paper-lift",
+        "value": "0 2px 4px -1px rgba(58, 38, 32, 0.08), 0 1px 2px -1px rgba(58, 38, 32, 0.04)",
+        "purpose": "Primary buttons and elevated cards."
+      },
+      {
+        "name": "panel-lift",
+        "value": "0 4px 8px -2px rgba(58, 38, 32, 0.10), 0 2px 4px -1px rgba(58, 38, 32, 0.06)",
+        "purpose": "Popovers and panels that need separation."
+      },
+      {
+        "name": "mockup-lift",
+        "value": "0 12px 20px -4px rgba(58, 38, 32, 0.12), 0 4px 8px -2px rgba(58, 38, 32, 0.06)",
+        "purpose": "Landing-page product mockups and active feature surfaces."
+      },
+      {
+        "name": "modal-lift",
+        "value": "0 20px 32px -8px rgba(58, 38, 32, 0.18), 0 8px 16px -4px rgba(58, 38, 32, 0.08)",
+        "purpose": "Dialogs, mobile drawers, and top-layer surfaces."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing for modal entrance and state transitions."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.65, 0, 0.35, 1)",
+        "purpose": "Controlled toggle and navigation transitions."
+      },
+      {
+        "name": "duration-fast",
+        "value": "150ms",
+        "purpose": "Fast hover and focus changes."
+      },
+      {
+        "name": "duration-base",
+        "value": "200ms",
+        "purpose": "Default interface transition duration."
+      },
+      {
+        "name": "duration-slow",
+        "value": "320ms",
+        "purpose": "Larger panel transitions that need more room."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action style for registration, transaction creation, and confirmed app actions.",
+      "html": "<button class=\"ds-btn-primary\">Mulai Gratis</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:8px;background:var(--color-wood-500,#8B5A3C);color:var(--color-cream-50,#FDFBF6);font:600 14px/1.5 var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif);box-shadow:0 2px 4px -1px rgba(58,38,32,.08),0 1px 2px -1px rgba(58,38,32,.04);transition:background-color 150ms cubic-bezier(.16,1,.3,1),box-shadow 150ms cubic-bezier(.16,1,.3,1)}.ds-btn-primary:hover{background:var(--color-wood-600,#6F4530)}.ds-btn-primary:active{background:var(--color-wood-700,#533525)}.ds-btn-primary:focus-visible{outline:2px solid var(--color-wood-500,#8B5A3C);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The calm alternative action for secondary navigation and non-destructive choices.",
+      "html": "<button class=\"ds-btn-secondary\">Lihat Fitur</button>",
+      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border:1px solid var(--color-wood-200,#E4D0BA);border-radius:8px;background:var(--color-cream-50,#FDFBF6);color:var(--color-wood-700,#533525);font:600 14px/1.5 var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif);transition:background-color 150ms cubic-bezier(.16,1,.3,1),border-color 150ms cubic-bezier(.16,1,.3,1)}.ds-btn-secondary:hover{background:var(--color-cream-100,#F9F4EB)}.ds-btn-secondary:active{background:var(--color-cream-200,#F0E8D8)}.ds-btn-secondary:focus-visible{outline:2px solid var(--color-wood-500,#8B5A3C);outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-md",
+      "description": "The default form field for onboarding, settings, filters, and accounting forms.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Nama bisnis</span><input class=\"ds-input\" placeholder=\"Toko Berkah\" /></label>",
+      "css": ".ds-field{display:grid;gap:6px;font-family:var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}.ds-label{color:var(--color-wood-700,#533525);font-size:14px;font-weight:500}.ds-input{height:40px;width:100%;box-sizing:border-box;border:1px solid var(--color-wood-200,#E4D0BA);border-radius:8px;background:var(--color-cream-50,#FDFBF6);color:var(--color-wood-900,#2A1B17);padding:0 12px;font:500 14px/1.5 var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}.ds-input::placeholder{color:var(--color-wood-400,#A87B52)}.ds-input:focus-visible{outline:2px solid var(--color-wood-500,#8B5A3C);outline-offset:2px}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "A compact state label for transaction status, permission states, and report hints.",
+      "html": "<span class=\"ds-badge-success\"><span class=\"ds-badge-dot\"></span>Lunas</span>",
+      "css": ".ds-badge-success{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--color-leaf-200,#B8D29C);border-radius:9999px;background:var(--color-leaf-50,#F1F6EC);color:var(--color-leaf-600,#54733D);padding:2px 8px;font:600 12px/1.5 var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}.ds-badge-dot{width:6px;height:6px;border-radius:9999px;background:var(--color-leaf-600,#54733D)}"
+    },
+    {
+      "name": "Ledger Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "The default app container for quick actions, reports, and grouped form content.",
+      "html": "<section class=\"ds-card\"><h3>Ringkasan Kas</h3><p>Saldo kas dan bank hari ini.</p></section>",
+      "css": ".ds-card{border:1px solid var(--color-wood-200,#E4D0BA);border-radius:12px;background:var(--color-cream-50,#FDFBF6);color:var(--color-wood-900,#2A1B17);padding:20px;font-family:var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}.ds-card h3{margin:0;color:var(--color-wood-900,#2A1B17);font:600 18px/1.2 var(--font-serif,Lora,Georgia,serif);letter-spacing:-.01em}.ds-card p{margin:6px 0 0;color:var(--color-wood-700,#533525);font-size:14px;line-height:1.5}"
+    },
+    {
+      "name": "Sidebar Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation-sidebar",
+      "description": "The compact app navigation item used in the authenticated product shell.",
+      "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><span class=\"ds-nav-icon\">L</span><span>Dashboard</span></a>",
+      "css": ".ds-nav-item{display:flex;align-items:center;gap:12px;border-radius:8px;padding:10px 12px;color:var(--color-wood-200,#E4D0BA);text-decoration:none;font:600 14px/1.5 var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif);transition:background-color 150ms cubic-bezier(.16,1,.3,1),color 150ms cubic-bezier(.16,1,.3,1)}.ds-nav-item:hover{background:rgba(111,69,48,.5);color:var(--color-cream-50,#FDFBF6)}.ds-nav-item-active{background:var(--color-wood-600,#6F4530);color:var(--color-cream-50,#FDFBF6)}.ds-nav-icon{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--color-leaf-500,#6B8E4E);color:var(--color-cream-50,#FDFBF6);font-size:11px;font-weight:800}"
+    },
+    {
+      "name": "Financial Stat Card",
+      "kind": "custom",
+      "refersTo": "stat-card",
+      "description": "A dashboard metric card for Rupiah values and financial report summaries.",
+      "html": "<article class=\"ds-stat\"><div><p class=\"ds-stat-label\">Saldo Kas/Bank</p><p class=\"ds-stat-value\">Rp 45.200.000</p></div><span class=\"ds-stat-icon\">Rp</span></article>",
+      "css": ".ds-stat{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border:1px solid var(--color-wood-200,#E4D0BA);border-radius:12px;background:var(--color-cream-50,#FDFBF6);padding:20px;color:var(--color-wood-900,#2A1B17);font-family:var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}.ds-stat-label{margin:0;color:var(--color-wood-700,#533525);font-size:14px;line-height:1.5}.ds-stat-value{margin:6px 0 0;color:var(--color-wood-900,#2A1B17);font:700 24px/1.2 var(--font-mono,'JetBrains Mono',ui-monospace,monospace)}.ds-stat-icon{display:grid;place-items:center;min-width:40px;height:40px;border-radius:8px;background:var(--color-leaf-100,#DDEACF);color:var(--color-leaf-600,#54733D);font:700 12px/1 var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}"
+    },
+    {
+      "name": "Landing Product Mockup",
+      "kind": "custom",
+      "refersTo": "product-mockup",
+      "description": "The landing-page proof surface: a simplified dashboard with concrete Rupiah values.",
+      "html": "<div class=\"ds-mockup\"><div class=\"ds-mockup-bar\"><span></span><span></span><span></span><strong>Ledjer - Dashboard</strong></div><div class=\"ds-mockup-grid\"><div><small>Saldo Kas</small><b>Rp 45.200.000</b></div><div><small>Laba/Rugi</small><b>Rp 95.750.000</b></div></div></div>",
+      "css": ".ds-mockup{overflow:hidden;border:1px solid var(--color-wood-200,#E4D0BA);border-radius:16px;background:#fff;box-shadow:0 12px 20px -4px rgba(58,38,32,.12),0 4px 8px -2px rgba(58,38,32,.06);font-family:var(--font-sans,'Plus Jakarta Sans',system-ui,sans-serif)}.ds-mockup-bar{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--color-wood-100,#F2E8DC);background:var(--color-cream-50,#FDFBF6);padding:12px 20px}.ds-mockup-bar span{width:12px;height:12px;border-radius:9999px}.ds-mockup-bar span:nth-child(1){background:var(--color-clay-400,#C97B5A)}.ds-mockup-bar span:nth-child(2){background:var(--color-honey-400,#D4A547)}.ds-mockup-bar span:nth-child(3){background:var(--color-leaf-400,#7AA456)}.ds-mockup-bar strong{flex:1;text-align:center;color:var(--color-wood-400,#A87B52);font-size:12px}.ds-mockup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px}.ds-mockup-grid div{border:1px solid var(--color-wood-100,#F2E8DC);border-radius:8px;background:var(--color-cream-50,#FDFBF6);padding:12px}.ds-mockup-grid small{display:block;color:var(--color-wood-500,#8B5A3C);font-size:11px;font-weight:600}.ds-mockup-grid b{display:block;margin-top:4px;color:var(--color-wood-800,#3A2620);font:700 14px/1.5 var(--font-mono,'JetBrains Mono',ui-monospace,monospace)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Shop Counter Ledger",
+    "overview": "Ledjer should feel like the trustworthy ledger sitting beside a busy shop counter: close to daily business, precise about money, and practical enough to use between sales, purchases, stock checks, and bank transfers. The visual system is grounded in earth tones, warm paper surfaces, and visible accounting structure rather than abstract fintech polish.\n\nThe landing page is the primary brand surface. It should persuade through concrete Indonesian UMKM context, real bookkeeping outcomes, and product evidence. The authenticated app then becomes calmer and denser: the same palette and typography, but tuned for repeated financial work, tabular numbers, forms, reports, and permissions.\n\nThe system explicitly rejects cold enterprise fintech, generic gradient SaaS, childish bookkeeping software, and decorative finance pages that hide accounting correctness behind visual noise.",
+    "keyCharacteristics": [
+      "Warm paper surfaces with wood-brown structure.",
+      "Leaf green used sparingly for growth, success, and the logo mark.",
+      "Serif headings for brand confidence; sans-serif UI for repeated work.",
+      "Monospaced numerals only where money or accounting values need alignment.",
+      "Borders carry most structure; shadows are subtle and purposeful."
+    ],
+    "rules": [
+      {
+        "name": "The Shop Counter Rule",
+        "body": "Cream is the working surface, Wood is the accounting structure, and Leaf is the earned signal. Do not reverse those roles.",
+        "section": "colors"
+      },
+      {
+        "name": "The Accent Rarity Rule",
+        "body": "Leaf, Honey, Clay, and Sky should clarify status or business meaning. If a color does not explain state, action, or accounting context, remove it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Mean Money Rule",
+        "body": "Use JetBrains Mono only where alignment improves financial comprehension. Never use monospace as a lazy shorthand for \"technical\".",
+        "section": "typography"
+      },
+      {
+        "name": "The Serif Earns Attention Rule",
+        "body": "Lora belongs on brand and structural headings. Do not use it in buttons, form labels, table cells, or dense UI labels.",
+        "section": "typography"
+      },
+      {
+        "name": "The Border Before Shadow Rule",
+        "body": "If a surface only needs grouping, use a warm border. Add shadow only when the element is actually elevated, interactive, or top-layer.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** lead with concrete Indonesian UMKM context: Rupiah, transactions, stock, cash, bank, receivables, payables, and reports.",
+      "**Do** use Wood Brown for primary action and structure, Cream for working surfaces, and Leaf only for the logo, success, or growth.",
+      "**Do** keep financial values dark, legible, and tabular with JetBrains Mono where alignment matters.",
+      "**Do** use borders and `8px` to `16px` radii to make the app feel durable and practical.",
+      "**Do** make accounting correctness visible through balanced journals, audit logs, reports, and precise labels.",
+      "**Do** preserve reduced-motion behavior and clear focus states on every interactive component."
+    ],
+    "donts": [
+      "**Don't** make Ledjer feel like cold enterprise fintech.",
+      "**Don't** use generic gradient SaaS styling, gradient text, or decorative finance glow.",
+      "**Don't** make the product feel like childish bookkeeping software.",
+      "**Don't** create a decorative finance landing page that hides accounting correctness behind visual noise.",
+      "**Don't** make surfaces look expensive for their own sake.",
+      "**Don't** use vague \"business growth\" promises without showing concrete workflows.",
+      "**Don't** over-simplify accounting to the point that trust is weakened.",
+      "**Don't** use colored side-stripe borders, repeated section eyebrows, or numbered section markers unless the order itself matters.",
+      "**Don't** combine `1px` borders with soft shadows over `16px` blur on the same element as decoration.",
+      "**Don't** use `32px+` card radii, sketchy SVG illustrations, repeating stripe backgrounds, or all-caps body copy."
+    ]
+  }
+}

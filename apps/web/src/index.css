@@ -101,7 +101,7 @@
   --color-text-primary: var(--color-wood-900);
   --color-text-secondary: var(--color-wood-700);
   --color-text-tertiary: var(--color-wood-500);
-  --color-text-muted: var(--color-wood-400);
+  --color-text-muted: var(--color-wood-500);
   --color-text-on-primary: var(--color-cream-50);
   --color-text-on-success: var(--color-cream-50);
   --color-text-on-dark: var(--color-cream-50);
@@ -109,7 +109,6 @@
 
   /* === TYPOGRAPHY === */
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-serif: 'Lora', Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
   /* Type scale (1.125 modular) */
@@ -174,6 +173,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -182,21 +182,27 @@ body {
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
+  font-kerning: normal;
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--font-serif);
-  color: var(--color-text-primary);
+  font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: var(--leading-tight);
+  text-wrap: balance;
 }
 
 h1 { font-size: var(--text-2xl); }
 h2 { font-size: var(--text-xl); }
 h3 { font-size: var(--text-lg); }
+
+p, li {
+  text-wrap: pretty;
+}
 
 /* Numeric formatting for currency */
 .tabular-nums {
@@ -238,6 +244,86 @@ h3 { font-size: var(--text-lg); }
   color: var(--color-leaf-900);
 }
 
+/* Shared product motion: short, stateful, and reduced-motion friendly. */
+.ledger-page {
+  animation: ledger-page-in var(--duration-base) var(--ease-out) both;
+}
+
+.ledger-interactive {
+  transition-property: background-color, border-color, box-shadow, color, transform;
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-out);
+}
+
+.ledger-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.ledger-interactive:active {
+  transform: translateY(0);
+}
+
+.ledger-pressable {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.ledger-pressable:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.ledger-command-panel {
+  animation: ledger-command-in var(--duration-base) var(--ease-out) both;
+  transform-origin: top center;
+}
+
+.ledger-drawer-backdrop {
+  animation: modal-overlay-in var(--duration-base) var(--ease-out) both;
+}
+
+.ledger-drawer {
+  animation: ledger-drawer-in var(--duration-slow) var(--ease-out) both;
+}
+
+.ledger-stagger > * {
+  animation: ledger-item-in 420ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* Landing signature: rows reconcile into a balanced ledger. */
+.landing-ledger {
+  background:
+    linear-gradient(115deg, var(--color-cream-50) 0%, var(--color-cream-100) 58%, var(--color-leaf-50) 100%);
+}
+
+.ledger-hero-copy > * {
+  animation: ledger-copy-in 620ms var(--ease-out) both;
+  animation-delay: calc(80ms + var(--i, 0) * 70ms);
+}
+
+.ledger-mockup {
+  animation: ledger-mockup-in 720ms var(--ease-out) both;
+}
+
+.ledger-row {
+  animation: ledger-row-in 520ms var(--ease-out) both;
+  animation-delay: calc(180ms + var(--i, 0) * 80ms);
+}
+
+.ledger-flow-line {
+  animation: ledger-line-in 780ms var(--ease-out) both;
+  animation-delay: calc(260ms + var(--i, 0) * 120ms);
+  transform-origin: left center;
+}
+
+.ledger-balance-stamp {
+  animation: ledger-stamp-in 640ms var(--ease-out) both;
+  animation-delay: 720ms;
+}
+
+.ledger-soft-float {
+  animation: ledger-soft-float 6s ease-in-out infinite;
+}
+
 /* Print styles */
 @media print {
   nav, .no-print { display: none !important; }
@@ -245,9 +331,128 @@ h3 { font-size: var(--text-lg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@keyframes ledger-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ledger-command-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.375rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ledger-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ledger-item-in {
+  from {
+    opacity: 1;
+    transform: translateY(0.375rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ledger-copy-in {
+  from {
+    opacity: 1;
+    transform: translateY(0.75rem);
+    filter: blur(0.375rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes ledger-mockup-in {
+  from {
+    opacity: 1;
+    transform: translateY(1rem) rotateX(5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0);
+  }
+}
+
+@keyframes ledger-row-in {
+  from {
+    opacity: 1;
+    transform: translateX(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ledger-line-in {
+  from {
+    opacity: 1;
+    transform: scaleX(0.25);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ledger-stamp-in {
+  0% {
+    opacity: 1;
+    transform: translateY(-0.5rem) scale(1.08) rotate(-1deg);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0.125rem) scale(0.98) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(-1deg);
+  }
+}
+
+@keyframes ledger-soft-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.25rem);
   }
 }
 

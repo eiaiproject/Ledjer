@@ -10,6 +10,7 @@ interface ModalProps {
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  ariaLabel?: string;
 }
 
 const sizeStyles = {
@@ -28,11 +29,16 @@ const focusableSelector = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
 
-export function Modal({ open, onClose, title, children, size = "md", className }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = "md", className, ariaLabel }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -41,7 +47,7 @@ export function Modal({ open, onClose, title, children, size = "md", className }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -79,7 +85,7 @@ export function Modal({ open, onClose, title, children, size = "md", className }
       document.body.style.overflow = "";
       previousFocusRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -102,15 +108,16 @@ export function Modal({ open, onClose, title, children, size = "md", className }
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        aria-label={!title ? ariaLabel : undefined}
       >
         {title && (
           <div className="flex items-center justify-between px-5 py-4 border-b border-wood-100">
-            <h2 id={titleId} className="text-lg font-serif font-semibold text-text-primary">
+            <h2 id={titleId} className="text-lg font-semibold text-text-primary">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-md text-wood-400 hover:text-wood-600 hover:bg-cream-200"
+              className="p-1 rounded-md text-wood-500 hover:text-wood-600 hover:bg-cream-200"
               aria-label="Tutup"
             >
               <X className="h-5 w-5" />

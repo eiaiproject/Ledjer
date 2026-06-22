@@ -1,4 +1,4 @@
-import { forwardRef, type CSSProperties, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useId, type CSSProperties, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { Field } from "./field";
 
@@ -18,15 +18,20 @@ const sizeStyles = {
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, containerClassName, label, helperText, error, id, required, rows = 3, size = "md", onInput, style, ...props }, ref) => {
-    const textareaId = id || label?.toLowerCase().replace(/\s/g, "-");
+    const generatedId = useId();
+    const textareaId = id || label?.toLowerCase().replace(/\s/g, "-") || generatedId;
+    const feedbackId = `${textareaId}-feedback`;
+    const describedBy = error || helperText ? feedbackId : undefined;
 
     return (
-      <Field label={label} error={error} helperText={helperText} required={required} htmlFor={textareaId} className={containerClassName}>
+      <Field label={label} error={error} helperText={helperText} required={required} htmlFor={textareaId} feedbackId={feedbackId} className={containerClassName}>
         <textarea
           ref={ref}
           id={textareaId}
           required={required}
           rows={rows}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           onInput={(event) => {
             const target = event.currentTarget;
             target.style.height = "auto";
@@ -37,9 +42,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={cn(
             "w-full resize-y rounded-md border bg-cream-50 text-wood-900",
             "placeholder:text-text-muted",
-            "focus:outline-none focus:ring-2 focus:ring-wood-500 focus:border-wood-500",
+            "transition-[background-color,border-color,box-shadow] duration-150 ease-out focus-visible:bg-surface-elevated",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             error ? "border-error" : "border-wood-200",
+            "min-w-0",
             sizeStyles[size],
             className
           )}

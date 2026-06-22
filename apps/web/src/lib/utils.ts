@@ -25,10 +25,26 @@ export function formatNumber(value: number | null | undefined, decimals = 0): st
   }).format(value);
 }
 
+function parseDateValue(date: string | Date): Date {
+  if (date instanceof Date) return date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(date);
+}
+
+export function formatDateInputValue(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 /** Format date as DD/MM/YYYY (Indonesian) */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseDateValue(date);
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     day: "2-digit",
@@ -40,7 +56,7 @@ export function formatDate(date: string | Date | null | undefined): string {
 /** Format date with month name (e.g., "15 Juni 2026") */
 export function formatDateLong(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseDateValue(date);
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
@@ -52,7 +68,7 @@ export function formatDateLong(date: string | Date | null | undefined): string {
 /** Format short date (e.g., "15 Jun 2026") */
 export function formatShortDate(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseDateValue(date);
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     day: "2-digit",
@@ -64,7 +80,7 @@ export function formatShortDate(date: string | Date | null | undefined): string 
 /** Format relative time (e.g., "2 jam lalu") */
 export function formatRelativeTime(date: string | Date | null | undefined): string {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseDateValue(date);
   const diff = Date.now() - d.getTime();
   const rtf = new Intl.RelativeTimeFormat("id-ID", { numeric: "auto" });
   const minutes = Math.round(diff / 60000);

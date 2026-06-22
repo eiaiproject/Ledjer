@@ -1,3 +1,14 @@
+-- =============================================================================
+-- DEV ONLY - DO NOT RUN IN PRODUCTION
+-- =============================================================================
+-- This script deletes ALL data for admin@ledjer.id including:
+--   - All organizations and their members
+--   - All financial data (transactions, journal entries, products, etc.)
+--   - User profile and authentication data
+--
+-- USE ONLY FOR LOCAL DEVELOPMENT OR TESTING
+-- =============================================================================
+
 -- Reset admin@ledjer.id to fresh registration state
 -- Run this in Supabase SQL Editor
 

@@ -10,6 +10,7 @@ import {
   ShoppingCart,
   Wallet,
 } from "lucide-react";
+import { formatDateInputValue, formatIDR } from "@/lib/utils";
 import { TRANSACTION_TYPE_LABELS } from "@/lib/transactions";
 
 export interface PreviewLine {
@@ -119,16 +120,29 @@ export const PARTY_COPY: Record<string, { label: string; placeholder: string; he
 };
 
 export const CASH_ACCOUNT_LABELS: Record<string, string> = {
-  cash_sale: "Uang masuk ke akun",
-  credit_sale: "Uang diterima lewat akun",
-  receive_receivable: "Uang diterima lewat akun",
-  cash_purchase: "Uang keluar dari akun",
-  credit_purchase: "Uang dibayar lewat akun",
-  pay_payable: "Uang dibayar lewat akun",
-  expense_payment: "Uang keluar dari akun",
-  owner_capital: "Modal masuk ke akun",
-  owner_draw: "Uang diambil dari akun",
-  cash_transfer: "Sumber transfer",
+  cash_sale: "Diterima di",
+  credit_sale: "Diterima lewat",
+  receive_receivable: "Diterima lewat",
+  cash_purchase: "Dibayar dari",
+  credit_purchase: "Dibayar lewat",
+  pay_payable: "Dibayar lewat",
+  expense_payment: "Dibayar dari",
+  owner_capital: "Masuk ke",
+  owner_draw: "Diambil dari",
+  cash_transfer: "Dari rekening",
+};
+
+export const CASH_ACCOUNT_PLACEHOLDERS: Record<string, string> = {
+  cash_sale: "Pilih kas, bank, atau QRIS",
+  credit_sale: "Pilih kas, bank, atau QRIS",
+  receive_receivable: "Pilih kas, bank, atau QRIS",
+  cash_purchase: "Pilih akun sumber pembayaran",
+  credit_purchase: "Pilih akun sumber pembayaran",
+  pay_payable: "Pilih akun sumber pembayaran",
+  expense_payment: "Pilih akun sumber pembayaran",
+  owner_capital: "Pilih akun penerimaan",
+  owner_draw: "Pilih akun penarikan",
+  cash_transfer: "Pilih rekening sumber",
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -138,7 +152,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
-  cash_sale: "Contoh: Penjualan tunai produk A ke Pak Budi",
+  cash_sale: "Contoh: Penjualan tunai Kopi Susu x2",
   credit_sale: "Contoh: Penjualan kredit produk A ke Budi",
   receive_receivable: "Contoh: Pelunasan piutang dari Budi",
   cash_purchase: "Contoh: Pembelian perlengkapan toko",
@@ -149,6 +163,55 @@ export const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
   owner_draw: "Contoh: Pengambilan pribadi pemilik",
   cash_transfer: "Contoh: Transfer dari Kas ke Bank BCA",
 };
+
+export const SECTION_LABELS: Record<string, { detail: string; payment: string; notes: string }> = {
+  cash_sale: { detail: "Detail Penjualan", payment: "Pembayaran", notes: "Catatan" },
+  credit_sale: { detail: "Detail Penjualan", payment: "Pembayaran & Pelanggan", notes: "Catatan" },
+  cash_purchase: { detail: "Detail Pembelian", payment: "Pembayaran", notes: "Catatan" },
+  credit_purchase: { detail: "Detail Pembelian", payment: "Pembayaran & Supplier", notes: "Catatan" },
+};
+
+/** Auto-generate description from product + qty + total */
+export function generateAutoDescription(args: {
+  transactionType: string;
+  productName?: string;
+  quantity?: number;
+  totalAmount: number;
+}): string {
+  const { transactionType, productName, quantity, totalAmount } = args;
+  const isSale = transactionType === "cash_sale" || transactionType === "credit_sale";
+  const prefix = isSale ? "Penjualan" : "Pembelian";
+
+  if (productName && quantity && quantity > 0) {
+    return `${prefix} ${productName} x${quantity}`;
+  }
+  if (productName) {
+    return `${prefix} ${productName}`;
+  }
+  return `${prefix.toLowerCase()} ${formatIDR(totalAmount)}`;
+}
+
+/** Get contextual submit button label */
+export function getSubmitLabel(args: {
+  transactionType: string;
+  amount: number;
+  isEditing: boolean;
+  loading: boolean;
+  successId: string | null;
+}): string {
+  const { transactionType, amount, loading, successId } = args;
+  if (successId) return "Transaksi Tersimpan";
+  if (loading) return "Menyimpan...";
+
+  const isSale = transactionType === "cash_sale" || transactionType === "credit_sale";
+  const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+
+  const verb = isSale ? "Catat Penjualan" : isPurchase ? "Catat Pembelian" : "Catat Transaksi";
+  if (amount > 0) {
+    return `${verb} ${formatIDR(amount)}`;
+  }
+  return verb;
+}
 
 const RECENT_TYPES_KEY = "ledjer:recent-transaction-types";
 const MAX_RECENT_TYPES = 4;
@@ -176,8 +239,7 @@ export function addRecentTransactionType(type: string): string[] {
 export function localDate(offsetDays = 0): string {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().split("T")[0];
+  return formatDateInputValue(date);
 }
 
 export function buildPreview({

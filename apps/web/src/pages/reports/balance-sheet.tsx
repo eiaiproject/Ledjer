@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
 
 interface BalanceSheetItem {
   section: string;
@@ -20,7 +21,7 @@ export function BalanceSheetPage() {
   const { data: orgData } = useOrganization();
   const { canViewReports } = useOrgPermissions();
   
-  const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split("T")[0]);
+  const [asOfDate, setAsOfDate] = useState(formatDateInputValue());
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["balance-sheet", orgData?.organization?.id, asOfDate],
@@ -30,7 +31,10 @@ export function BalanceSheetPage() {
         p_organization_id: orgData.organization.id,
         p_as_of_date: asOfDate,
       });
-      if (error) throw error;
+      if (error) {
+        console.error("get_balance_sheet error", { code: error.code, message: error.message, details: error.details, hint: error.hint });
+        throw error;
+      }
       return data as BalanceSheetItem[];
     },
     enabled: !!orgData?.organization?.id && canViewReports,
@@ -60,8 +64,8 @@ export function BalanceSheetPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-wood-800">Neraca (Balance Sheet)</h1>
-        <p className="text-sm text-wood-500 mt-1">Posisi keuangan per {formatDate(asOfDate)}</p>
+        <h1 className="text-2xl font-bold text-text-primary">Neraca (Balance Sheet)</h1>
+        <p className="text-sm text-text-secondary mt-1">Posisi keuangan per {formatDate(asOfDate)}</p>
       </div>
 
       <Card>
@@ -74,7 +78,7 @@ export function BalanceSheetPage() {
               onChange={(e) => setAsOfDate(e.target.value)}
             />
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
-              Muat Ulang
+              {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
           </div>
         </CardContent>
@@ -82,20 +86,25 @@ export function BalanceSheetPage() {
 
       {isLoading ? (
         <PageSpinner />
+      ) : !data?.length ? (
+        <EmptyState
+          title="Belum ada data neraca"
+          description="Belum ada saldo neraca pada tanggal ini."
+        />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Assets */}
           <Card>
             <CardHeader>
-              <h2 className="text-lg font-semibold text-wood-800">Aset</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Aset</h2>
             </CardHeader>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="min-w-[520px] w-full text-sm">
                 <tbody>
                   {assets.map((item) => (
                     <tr key={item.account_code} className="border-b border-wood-50">
-                      <td className="px-5 py-2 text-wood-600">
-                        <span className="font-mono text-xs text-wood-400 mr-2">{item.account_code}</span>
+                      <td className="min-w-[260px] max-w-[420px] break-words px-5 py-2 text-wood-600">
+                        <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
                         {item.account_name}
                       </td>
                       <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
@@ -113,10 +122,10 @@ export function BalanceSheetPage() {
           {/* Liabilities & Equity */}
           <Card>
             <CardHeader>
-              <h2 className="text-lg font-semibold text-wood-800">Kewajiban & Ekuitas</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Kewajiban & Ekuitas</h2>
             </CardHeader>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="min-w-[560px] w-full text-sm">
                 <tbody>
                   {liabilities.length > 0 && (
                     <>
@@ -125,8 +134,8 @@ export function BalanceSheetPage() {
                       </tr>
                       {liabilities.map((item) => (
                         <tr key={item.account_code} className="border-b border-wood-50">
-                          <td className="px-5 py-2 pl-8 text-wood-600">
-                            <span className="font-mono text-xs text-wood-400 mr-2">{item.account_code}</span>
+                          <td className="min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
+                            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
                             {item.account_name}
                           </td>
                           <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
@@ -141,8 +150,8 @@ export function BalanceSheetPage() {
                       </tr>
                       {equity.map((item) => (
                         <tr key={item.account_code} className="border-b border-wood-50">
-                          <td className="px-5 py-2 pl-8 text-wood-600">
-                            <span className="font-mono text-xs text-wood-400 mr-2">{item.account_code}</span>
+                          <td className="min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
+                            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
                             {item.account_name}
                           </td>
                           <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
@@ -165,20 +174,20 @@ export function BalanceSheetPage() {
       {data && data.length > 0 && (
         <Card>
           <CardContent>
-            <div className="flex items-center justify-between">
+            <div className="flex min-w-0 items-center justify-between gap-4">
               <span className="text-sm text-wood-600">Total Aset</span>
-              <span className="font-bold tabular-nums text-wood-800">{formatIDR(totalAssets)}</span>
+              <span className="break-words text-right font-bold tabular-nums text-wood-800">{formatIDR(totalAssets)}</span>
             </div>
-            <div className="flex items-center justify-between mt-2">
+            <div className="mt-2 flex min-w-0 items-center justify-between gap-4">
               <span className="text-sm text-wood-600">Total Kewajiban + Ekuitas</span>
-              <span className="font-bold tabular-nums text-wood-800">{formatIDR(totalLiabEquity)}</span>
+              <span className="break-words text-right font-bold tabular-nums text-wood-800">{formatIDR(totalLiabEquity)}</span>
             </div>
             <div className="mt-3 pt-3 border-t border-wood-200">
               {Math.abs(totalAssets - totalLiabEquity) < 1 ? (
-                <p className="text-sm text-leaf-600 font-medium">✓ Neraca seimbang</p>
+                <p className="text-sm font-medium text-leaf-600">Neraca seimbang</p>
               ) : (
                 <p className="text-sm text-error font-medium">
-                  ⚠ Selisih: {formatIDR(Math.abs(totalAssets - totalLiabEquity))}
+                  Selisih: {formatIDR(Math.abs(totalAssets - totalLiabEquity))}
                 </p>
               )}
             </div>

@@ -30,9 +30,9 @@ const ProductsPage = lazy(async () => ({ default: (await import("@/pages/product
 
 function RouteFallback() {
   return (
-    <div className="flex min-h-[300px] items-center justify-center gap-3" role="status" aria-live="polite">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" />
-      <span className="text-sm text-ink-600">Memuat...</span>
+    <div className="ledger-page flex min-h-[300px] items-center justify-center gap-3" role="status" aria-live="polite">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" aria-hidden="true" />
+      <span className="text-sm text-text-secondary">Memuat...</span>
     </div>
   );
 }
@@ -84,11 +84,11 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-        <AuthProvider>
-          <Suspense fallback={<RouteFallback />}>
-            <RouterProvider router={router} />
-          </Suspense>
-        </AuthProvider>
+          <AuthProvider>
+            <Suspense fallback={<RouteFallback />}>
+              <RouterProvider router={router} />
+            </Suspense>
+          </AuthProvider>
         </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>

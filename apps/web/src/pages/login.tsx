@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
+import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { translateError } from "@/lib/errors";
 import { checkRateLimit, getResetTime, resetRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +25,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
 
@@ -36,6 +38,7 @@ export function LoginPage() {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    if (loading || oauthLoading) return;
     const email = data.email.trim().toLowerCase();
     const localRateLimitKey = `login:${email}`;
 
@@ -87,43 +90,50 @@ export function LoginPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-cream-100 lg:grid lg:grid-cols-2">
-      {/* Left side — illustration (hidden on mobile) */}
-      <div className="hidden bg-wood-700 p-12 lg:flex lg:items-center lg:justify-center">
-        <div className="max-w-md text-center">
-          <div className="mb-6 flex justify-center">
-            <Logo size="lg" variant="icon" tone="light" />
-          </div>
-          <h1 className="text-3xl font-bold text-cream-50">Ledjer</h1>
-          <p className="mt-3 text-wood-200 text-lg">
-            Pembukuan UMKM Indonesia yang mudah dan terpercaya
-          </p>
-          <div className="mt-8 flex items-center justify-center gap-6 text-sm text-wood-300">
-            <span>✓ Sesuai PSAK ETAP</span>
-            <span>✓ Data aman</span>
-            <span>✓ Gratis</span>
-          </div>
-        </div>
-      </div>
+  const handleGoogleSignIn = async () => {
+    if (loading || oauthLoading) return;
+    setOauthLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+      if (error) throw error;
+    } catch (err) {
+      setError(translateError(err));
+      setOauthLoading(false);
+    }
+  };
 
-      {/* Right side — form */}
-      <div className="flex min-h-screen items-center justify-center p-6 lg:min-h-0">
+  return (
+    <div className="ledger-page min-h-screen bg-cream-100 lg:grid lg:grid-cols-3">
+      {/* Brand panel — 33% */}
+      <AuthBrandPanel
+        className="col-span-1"
+        title="Masuk ke pembukuan yang rapi."
+        description="Transaksi, stok, dan laporan tersambung dalam satu alur yang bisa ditelusuri."
+        entries={[
+          { label: "Penjualan tunai", amount: "+8,5 jt", tone: "leaf" },
+          { label: "Pembelian bahan", amount: "-3,2 jt", tone: "clay" },
+          { label: "Saldo kas", amount: "45,2 jt", tone: "wood" },
+        ]}
+      />
+
+      {/* Form — 67% */}
+      <div className="col-span-1 flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:col-span-2">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="mb-8 flex justify-center lg:hidden">
-            <Logo size="md" variant="full" tone="dark" />
+            <Logo size="md" variant="full" />
           </div>
 
           <Card padding="lg">
             <CardContent>
-              <h2 className="text-xl font-bold text-wood-800">Masuk</h2>
-              <p className="mt-1 text-sm text-wood-500">
-                Selamat datang kembali! Silakan masuk ke akun Anda.
+              <h1 className="text-xl font-bold text-text-primary">Masuk</h1>
+              <p className="mt-1 text-sm text-text-secondary">
+                Masuk ke akun Anda.
               </p>
 
               {error && (
-                <div className="mt-4 p-3 rounded-lg bg-error/10 text-sm text-error">
+                <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
                   {error}
                 </div>
               )}
@@ -131,23 +141,27 @@ export function LoginPage() {
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
                 <Input
                   {...register("email")}
+                  label="Email"
                   type="email"
                   placeholder="email@contoh.com"
                   prefix={<Mail className="h-4 w-4 text-wood-400" />}
                   error={errors.email?.message}
                   disabled={rateLimited}
+                  autoComplete="email"
                 />
 
                 <Input
                   {...register("password")}
+                  label="Password"
                   type="password"
                   placeholder="Password"
                   prefix={<Lock className="h-4 w-4 text-wood-400" />}
                   error={errors.password?.message}
                   disabled={rateLimited}
+                  autoComplete="current-password"
                 />
 
-                <Button type="submit" fullWidth loading={loading} disabled={rateLimited}>
+                <Button type="submit" fullWidth loading={loading} disabled={rateLimited || oauthLoading}>
                   Masuk
                 </Button>
               </form>
@@ -157,7 +171,7 @@ export function LoginPage() {
                   <div className="w-full border-t border-wood-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-cream-100 px-2 text-wood-400">atau</span>
+                  <span className="bg-surface px-2 text-wood-500">atau</span>
                 </div>
               </div>
 
@@ -165,7 +179,9 @@ export function LoginPage() {
                 type="button"
                 variant="outline"
                 fullWidth
-                onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+                onClick={handleGoogleSignIn}
+                loading={oauthLoading}
+                disabled={loading || rateLimited || oauthLoading}
                 className="mt-4 gap-2"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -187,7 +203,7 @@ export function LoginPage() {
           </Card>
 
           {/* Security notice */}
-          <p className="mt-6 text-center text-xs text-wood-400">
+          <p className="mt-6 text-center text-xs text-wood-500">
             Koneksi terenkripsi. Data Anda aman.
           </p>
         </div>

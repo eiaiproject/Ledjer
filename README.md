@@ -7,292 +7,325 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB)
 ![Supabase](https://img.shields.io/badge/Supabase-Backend-3FCF8E)
 
-> Sistem pembukuan dan akuntansi berbasis web untuk bisnis kecil dan menengah di Indonesia.
+> Sistem pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola persediaan, danhasilkan laporan keuangan — tanpa spreadsheet.
+
+<!-- PLACEHOLDER: Screenshot dashboard, transaksi, laporan. Ganti baris di bawah dengan path gambar. -->
+<!-- ![Dashboard](docs/screenshots/dashboard.png) -->
 
 ---
 
-## Deskripsi
+## TL;DR
 
-Ledjer adalah platform akuntansi web yang dirancang untuk membantu bisnis kecil dan menengah di Indonesia mengelola keuangan dengan cara yang terstruktur dan sesuai standar akuntansi.
-
-Dibangun dengan arsitektur modern menggunakan **Supabase** sebagai backend dan **React** sebagai frontend, Ledjer menyediakan pencatatan transaksi, pengelolaan akun, manajemen persediaan, serta pelaporan keuangan dalam satu platform yang terintegrasi.
-
-### Masalah yang Diselesaikan
-
-- Banyak bisnis kecil masih mengelola keuangan dengan spreadsheet atau buku tulis
-- Sulitnya membuat laporan keuangan standar (Neraca, Laba Rugi) tanpa software akuntansi yang mahal
-- Kebutuhan pencatatan double-entry bookkeeping yang benar namun tetap mudah digunakan
-- Manajemen persediaan yang terhubung langsung dengan pencatatan keuangan
+Ledjer adalah aplikasi akuntansi web untuk bisnis kecil dan menengah di Indonesia. Menggunakan metode double-entry bookkeeping dengan 14 jenis transaksi, manajemen persediaan weighted-average, dan 4 laporan keuangan standar (General Ledger, Trial Balance, Profit & Loss, Balance Sheet). Dibangun dengan React 19 + Supabase, dijalankan sepenuhnya di browser tanpa install.
 
 ---
 
-## Fitur Utama
+## Fitur
 
 ### Pencatatan Transaksi
 
-Mendukung **14 jenis transaksi** yang mencakup seluruh aktivitas keuangan operasional:
+14 jenis transaksi yang mencakup seluruh aktivitas keuangan operasional:
 
 | Kategori | Jenis Transaksi |
 |----------|-----------------|
 | **Kas** | Penjualan Tunai, Pembelian Tunai, Terima Piutang, Bayar Utang, Bayar Beban, Modal Pemilik, Penarikan Tunai, Transfer Antar Rekening |
-| **Kredit** | Penjualan Kredit, Pembelian Kredit (dengan status lunas/parsial) |
-| **Penyesuaian** | Penyesuaian (Adjustment) |
+| **Kredit** | Penjualan Kredit, Pembelian Kredit (lunas / parsial) |
+| **Penyesuaian** | Penyesuaian Manual (owner only) |
+| **Saldo Awal** | Saldo Awal Kas, Saldo Awal Piutang, Saldo Awal Utang |
 
-Setiap transaksi yang diposting otomatis membuat jurnal akuntansi (general ledger) yang seimbang.
+Setiap transaksi yang diposting otomatis membuat jurnal akuntansi yang seimbang (debit = credit).
 
 ### Manajemen Persediaan
 
-- CRUD produk dengan informasi kode, nama, harga beli, harga jual, dan stok
-- Perhitungan Harga Pokok Penjualan (HPP) menggunakan metode **Weighted Average**
-- Pencatatan riwayat pergerakan stok (stock movements)
+- CRUD produk dengan kode, nama, harga beli, harga jual, stok
+- Harga Pokok Penjualan (HPP) menggunakan metode **Weighted Average**
+- Riwayat pergerakan stok (stock movements)
 - Validasi stok negatif
-
-### Pengelolaan Akun (Chart of Accounts)
-
-- 8 tipe akun: Aset, Liabilitas, Ekuitas, Pendapatan, HPP, Beban Operasional, Pendapatan Lain, Beban Lain
-- Daftar akun standar yang dibuat otomatis saat organisasi baru dibuat
-- Penanda akun kas (`is_cash_account`) untuk deteksi akun kas/bank
 
 ### Pelaporan Keuangan
 
 | Laporan | Deskripsi |
 |---------|-----------|
-| **General Ledger** | Rincian transaksi per akun dengan saldo berjalan |
-| **Trial Balance** | Ringkasan saldo debit dan kredit seluruh akun |
-| **Profit & Loss** | Pendapatan, beban, HPP, dan laba/rugi bersih |
-| **Balance Sheet** | Posisi keuangan: aset, liabilitas, ekuitas, dan saldo laba |
+| General Ledger | Rincian transaksi per akun dengan saldo berjalan |
+| Trial Balance | Ringkasan saldo debit dan kredit seluruh akun aktif |
+| Profit & Loss | Pendapatan, HPP, beban operasional, pendapatan lain, beban lain |
+| Balance Sheet | Aset = Liabilitas + Ekuitas + Laba Tahun Berjalan |
 
-### Sistem Izin dan Tim
+### Sistem Izin
 
-- Autentikasi menggunakan email dan password (Supabase Auth)
-- Multi-pengguna (multi-tenant) dengan sistem organisasi
-- Peran: **Owner** dan **Staff** dengan hak akses granular (6 izin terpisah)
-- Undangan anggota tim melalui email
+- **Owner**: Akses penuh
+- **Staff**: Akses terbatas berdasarkan 6 izin granular
+
+| Izin | Deskripsi |
+|------|-----------|
+| `can_create_transaction` | Membuat transaksi |
+| `can_view_reports` | Melihat laporan keuangan |
+| `can_manage_accounts` | Mengelola Chart of Accounts |
+| `can_void_transaction` | Membatalkan transaksi |
+| `can_manage_products` | Mengelola data produk |
+| `can_view_audit_log` | Melihat log audit |
 
 ### Fitur Lainnya
 
-- Dashboard dengan ringkasan keuangan (saldo kas, pendapatan, beban, laba/rugi, piutang, utang)
-- Format mata uang Rupiah Indonesia (IDR)
-- Pencarian dan filter transaksi
-- Detail transaksi dengan tampilan jurnal akuntansi
-- Log audit untuk setiap perubahan data penting
-- Loading skeleton untuk UX yang lebih baik
+- Dashboard dengan ringkasan keuangan
+- Multi-tenant (organisasi terpisah)
+- Undangan tim melalui email
+- Log audit untuk setiap perubahan data
+- Format Rupiah Indonesia (IDR)
+- Onboarding wizard untuk setup bisnis baru
 
 ---
 
 ## Tech Stack
 
-### Frontend
-
-| Komponen | Teknologi |
-|----------|-----------|
-| Framework | React 19 |
-| Bahasa | TypeScript (strict mode) |
-| Bundler | Vite 8 |
-| Styling | Tailwind CSS 4 |
+| Layer | Teknologi |
+|-------|-----------|
+| Frontend | React 19, TypeScript, Vite 8, Tailwind CSS 4 |
 | Routing | React Router DOM 7 |
-| State Management | TanStack React Query 5 |
-| Form Handling | React Hook Form 7 + Zod 4 |
-| Icons | Lucide React |
-| Utilities | clsx + tailwind-merge |
-
-### Backend
-
-| Komponen | Teknologi |
-|----------|-----------|
-| Platform | Supabase |
-| Database | PostgreSQL 15 |
-| Auth | Supabase Auth (JWT) |
-| Security | Row Level Security (RLS) |
-| RPC | PostgreSQL Functions (plpgsql) |
-
-### Development Tools
-
-| Komponen | Teknologi |
-|----------|-----------|
-| Package Manager | pnpm 10 (workspaces) |
-| Linting | ESLint 10 |
+| State | TanStack React Query 5 |
+| Forms | React Hook Form 7 + Zod 4 |
+| Backend | Supabase (PostgreSQL 15, Auth, RLS) |
+| RPC | PostgreSQL Functions (PL/pgSQL) |
 | Testing | Vitest + Testing Library |
-| Database Migrations | Supabase CLI |
+| Package | pnpm 10 (monorepo workspaces) |
 
 ---
 
-## Demo / Screenshot
-
-```
-[Tambahkan screenshot di sini]
-```
-
----
-
-## Instalasi
+## Getting Started
 
 ### Prasyarat
 
-- **Node.js** 18 atau lebih baru
-- **pnpm** 10 atau lebih baru
-- **Docker** (untuk Supabase lokal)
-- **Supabase CLI**
+- Node.js 18+
+- pnpm 10+
+- Docker (untuk Supabase lokal)
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
 
-### Langkah Instalasi
-
-1. **Clone repositori:**
+### Instalasi
 
 ```bash
-git clone https://github.com/username/ledjer.git
+git clone https://github.com/eiaiproject/Ledjer.git
 cd ledjer
-```
-
-2. **Instal dependensi:**
-
-```bash
 pnpm install
 ```
 
-3. **Siapkan environment variables:**
+### Konfigurasi Environment
 
 ```bash
-cd apps/web
-cp .env.example .env.local
+cp apps/web/.env.example apps/web/.env.local
 ```
 
-4. **Edit `apps/web/.env.local` dengan nilai yang benar** (lihat bagian Environment Variables).
+Edit `apps/web/.env.local`:
 
----
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
 
-## Cara Menjalankan
-
-### Development Mode
+### Jalankan
 
 ```bash
 pnpm dev
 ```
 
-Aplikasi tersedia di `http://localhost:5173`.
-
-### Build Production
-
-```bash
-pnpm build
-```
-
-### Preview Build
-
-```bash
-cd apps/web
-pnpm preview
-```
+Buka `http://localhost:5173`.
 
 ---
 
-## Environment Variables
-
-Buat file `apps/web/.env.local` berdasarkan `apps/web/.env.example`:
-
-```env
-# Supabase Configuration
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-| Variable | Deskripsi | Contoh |
-|----------|-----------|--------|
-| `VITE_SUPABASE_URL` | URL endpoint Supabase project | `https://xxx.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | Anonymous key dari Supabase | `eyJhbGci...` |
-
-### Supabase Cloud (Production)
-
-```bash
-supabase login
-supabase link --project-ref your-project-id
-supabase db push
-```
-
-### Supabase Lokal (Development)
-
-```bash
-supabase start
-```
-
-Update `apps/web/.env.local`:
-
-```env
-VITE_SUPABASE_URL=http://localhost:54321
-VITE_SUPABASE_ANON_KEY=your-local-anon-key
-```
-
-Supabase Studio: `http://localhost:54323`
-
----
-
-## Struktur Folder
+## Project Structure
 
 ```
 Ledjer/
 ├── apps/
-│   └── web/                              # Frontend aplikasi
+│   └── web/                          # Frontend React
 │       └── src/
-│           ├── components/
-│           │   ├── error-boundary.tsx     # Error boundary
-│           │   └── ui/                    # Komponen UI (14+ komponen)
-│           ├── contexts/                  # Auth context
-│           ├── hooks/                     # Custom hooks
-│           ├── layouts/                   # Layout dashboard (sidebar responsive)
-│           ├── lib/                       # Utilitas (supabase, formatting, dll)
-│           ├── pages/
-│           │   ├── dashboard.tsx          # Dashboard utama
-│           │   ├── login.tsx              # Halaman login
-│           │   ├── register.tsx           # Halaman registrasi
-│           │   ├── onboarding.tsx         # Onboarding baru
-│           │   ├── accounts/              # Chart of Accounts
-│           │   ├── products/              # Manajemen produk
-│           │   ├── transactions/          # Pencatatan transaksi
-│           │   ├── reports/               # Laporan keuangan
-│           │   └── settings/              # Pengaturan & tim
-│           └── routes/
+│           ├── components/ui/        # 20+ komponen UI
+│           ├── contexts/             # Auth context
+│           ├── hooks/                # Custom hooks
+│           ├── layouts/              # Dashboard layout (sidebar)
+│           ├── lib/                  # Utilitas, Supabase client, tipe
+│           └── pages/
+│               ├── dashboard.tsx
+│               ├── transactions/     # List, form, detail
+│               ├── accounts/         # Chart of Accounts
+│               ├── products/         # Manajemen produk
+│               ├── reports/          # General Ledger, Trial Balance, P&L, Balance Sheet
+│               └── settings/         # Tim, billing
 ├── packages/
-│   ├── accounting-core/                   # Logic akuntansi (planned)
-│   ├── database-types/                    # TypeScript types dari database
-│   └── schemas/                           # Validation schemas
+│   ├── database-types/               # TypeScript types (generated)
+│   ├── accounting-core/              # Logic akuntansi (planned)
+│   └── schemas/                      # Validation schemas
 ├── supabase/
-│   ├── config.toml                        # Konfigurasi Supabase
-│   └── migrations/                        # 26 migrasi SQL
-├── package.json
-├── pnpm-workspace.yaml
-└── README.md
+│   ├── migrations/                   # 43 migrasi SQL
+│   └── tests/                        # SQL regression tests
+└── docs/
+    ├── accounting-rules.md           # Referensi aturan akuntansi
+    ├── production-readiness.md       # Checklist production
+    └── qa-checklist.md              # QA scenarios
 ```
+
+---
+
+## Accounting Rules
+
+### Jurnal per Transaksi
+
+<details>
+<summary><strong>Cash Sale</strong> — Penjualan tunai</summary>
+
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Kas/Bank (1110-1130) | Rp X | |
+| Pendapatan (4100+) | | Rp X |
+
+Dengan produk → tambah jurnal HPP:
+| Akun | Debit | Credit |
+|------|-------|--------|
+| HPP (5100) | Rp Harga Beli × Qty | |
+| Persediaan (1300) | | Rp Harga Beli × Qty |
+</details>
+
+<details>
+<summary><strong>Credit Sale</strong> — Penjualan kredit (piutang)</summary>
+
+| Status | Debit | Credit |
+|--------|-------|--------|
+| Unpaid | Piutang Usaha (1200) | Pendapatan (4100+) |
+| Partial | Kas/Bank + Piutang Usaha | Pendapatan (4100+) |
+</details>
+
+<details>
+<summary><strong>Receive Receivable</strong> — Terima piutang</summary>
+
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Kas/Bank (1110-1130) | Rp X | |
+| Piutang Usaha (1200) | | Rp X |
+</details>
+
+<details>
+<summary><strong>Cash Purchase</strong> — Pembelian tunai</summary>
+
+Tanpa produk:
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Beban/Persediaan (5100+) | Rp X | |
+| Kas/Bank (1110-1130) | | Rp X |
+
+Dengan produk:
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Persediaan (1300) | Rp X | |
+| Kas/Bank (1110-1130) | | Rp X |
+</details>
+
+<details>
+<summary><strong>Credit Purchase</strong> — Pembelian kredit (utang)</summary>
+
+| Status | Debit | Credit |
+|--------|-------|--------|
+| Unpaid | Persediaan/Beban | Utang Usaha (2100) |
+| Partial | Persediaan/Beban | Kas/Bank + Utang Usaha |
+</details>
+
+<details>
+<summary><strong>Pay Payable</strong> — Bayar utang</summary>
+
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Utang Usaha (2100) | Rp X | |
+| Kas/Bank (1110-1130) | | Rp X |
+</details>
+
+<details>
+<summary><strong>Expense Payment</strong> — Bayar beban operasional</summary>
+
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Beban (6xxx) | Rp X | |
+| Kas/Bank (1110-1130) | | Rp X |
+</details>
+
+<details>
+<summary><strong>Owner Capital / Draw</strong></summary>
+
+Modal masuk:
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Kas/Bank | Rp X | |
+| Modal Pemilik (3100) | | Rp X |
+
+Prive (tarik tunai):
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Prive (3300) | Rp X | |
+| Kas/Bank | | Rp X |
+</details>
+
+<details>
+<summary><strong>Cash Transfer</strong> — Antar rekening</summary>
+
+| Akun | Debit | Credit |
+|------|-------|--------|
+| Rekening Tujuan | Rp X | |
+| Rekening Sumber | | Rp X |
+</details>
+
+<details>
+<summary><strong>Void / Reversal</strong></summary>
+
+Membatalkan transaksi:
+1. Buat jurnal reversal (debit ↔ credit dibalik)
+2. Status transaksi → `voided`
+3. Stok dikembalikan (jika produk)
+4. Audit log tercatat
+</details>
+
+Dokumentasi lengkap: [`docs/accounting-rules.md`](docs/accounting-rules.md)
+
+---
+
+## Security
+
+| Layer | Implementasi |
+|-------|-------------|
+| Auth | Supabase Auth (JWT) |
+| Data isolation | Row Level Security (RLS) — setiap tabel terisolasi per organisasi |
+| RPC | `SECURITY DEFINER` + `search_path = public` |
+| Permissions | `has_permission()` checked in every RPC |
+| Audit | `audit_logs` tercatat untuk semua aksi finansial |
+| Rate limiting | `rate_limits` table + `check_rate_limit()` |
+| Login tracking | `login_attempts` table |
+| Input sanitization | Client-side + server-side validation |
 
 ---
 
 ## Testing
 
 ```bash
-# Jalankan semua test
-pnpm test
+pnpm typecheck    # TypeScript compilation
+pnpm lint         # ESLint
+pnpm test         # Unit tests (Vitest)
+pnpm build        # Production build
+```
 
-# Jalankan test dengan watch mode
-pnpm test:watch
-
-# Type checking
-pnpm typecheck
-
-# Linting
-pnpm lint
+SQL regression tests:
+```bash
+supabase db reset
+supabase test db
 ```
 
 ---
 
 ## Deployment
 
-### Frontend (Vercel / Netlify)
+### Frontend (Vercel / Netlify / Cloudflare Pages)
 
-1. Push kode ke repository
-2. Hubungkan ke Vercel atau Netlify
-3. Set environment variables:
+1. Hubungkan repository
+2. Set environment variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-4. Build command: `pnpm --filter web build`
-5. Output directory: `apps/web/dist`
+3. Build command: `pnpm --filter web build`
+4. Output: `apps/web/dist`
 
 ### Database (Supabase Cloud)
 
@@ -304,138 +337,47 @@ supabase db push
 
 ---
 
-## Arsitektur Sistem
+## Known Limitations
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│  React Frontend │────▶│  Supabase Edge  │────▶│  PostgreSQL DB  │
-│  (Vite + TS)    │     │  Functions (RPC)│     │  + RLS Policies │
-│                 │     │                 │     │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                                               │
-        │                ┌─────────────────┐            │
-        └───────────────▶│  Supabase Auth  │◀───────────┘
-                         │  (JWT + RLS)    │
-                         └─────────────────┘
-```
-
-**Alur Data:**
-1. Pengguna berinteraksi dengan frontend (React + TypeScript)
-2. Frontend melakukan RPC call ke Supabase Edge Functions
-3. Edge Functions menjalankan logika bisnis (validasi, perhitungan jurnal)
-4. Data disimpan di PostgreSQL dengan Row Level Security (RLS)
-5. Autentikasi dan autorisasi ditangani oleh Supabase Auth
-
----
-
-## Alur Transaksi dan Jurnal Akuntansi
-
-### Contoh Jurnal
-
-#### Penjualan Tunai (Tanpa Produk)
-```
-Debit:  Kas/Bank (1110-1130)       Rp X
-Credit: Pendapatan Usaha (4100)    Rp X
-```
-
-#### Penjualan Tunai (Dengan Produk)
-```
-Entry 1 (Revenue):
-Debit:  Kas/Bank (1110-1130)       Rp Harga Jual × Qty
-Credit: Pendapatan Usaha (4100)    Rp Harga Jual × Qty
-
-Entry 2 (COGS - otomatis):
-Debit:  HPP (5100)                 Rp Harga Beli × Qty
-Credit: Persediaan (1300)          Rp Harga Beli × Qty
-```
-
-#### Pembelian Tunai (Dengan Produk)
-```
-Debit:  Persediaan (1300)          Rp X
-Credit: Kas/Bank (1110-1130)       Rp X
-```
-
----
-
-## Sistem Izin
-
-| Peran | Keterangan |
-|-------|------------|
-| **Owner** | Akses penuh ke seluruh fitur |
-| **Staff** | Akses terbatas sesuai pengaturan |
-
-### Hak Akses Staff
-
-| Izin | Deskripsi |
-|------|-----------|
-| `can_create_transaction` | Membuat transaksi baru |
-| `can_view_reports` | Melihat laporan keuangan |
-| `can_manage_accounts` | Mengelola daftar akun |
-| `can_void_transaction` | Membatalkan transaksi |
-| `can_manage_products` | Mengelola data produk |
-| `can_view_audit_log` | Melihat log audit |
-
----
+- Tidak ada export laporan (CSV/PDF)
+- Tidak ada closing entries otomatis
+- Tidak ada multi-currency
+- Tidak ada invoice-level AR/AP tracking
+- Tidak ada integrasi payment gateway
+- Tidak ada pajak (PPN/PPh) otomatis
+- Terbatas pada konteks bisnis Indonesia (IDR, Bahasa Indonesia)
 
 ## Roadmap
 
-- [ ] Ekspor laporan ke PDF dan Excel
-- [ ] Multi-currency support
-- [ ] Fitur recurring transactions
+- [ ] Export laporan ke PDF dan Excel
+- [ ] Closing entries otomatis
 - [ ] Pencetakan faktur (invoice)
-- [ ] Integrasi dengan payment gateway
-- [ ] Mobile responsive optimization
+- [ ] Rekonsiliasi bank
+- [ ] Integrasi payment gateway
 - [ ] Pajak (PPN/PPh) otomatis
-- [ ] Reconciliasi bank
+- [ ] Multi-currency
+- [ ] Multi-gudang
 
 ---
 
-## Kontribusi
+## Contributing
 
-Kontribusi sangat diterima! Silakan buka issue terlebih dahulu untuk mendiskusikan perubahan yang ingin Anda lakukan.
-
-1. Fork repository ini
-2. Buat branch baru (`git checkout -b feature/fitur-baru`)
-3. Commit perubahan Anda (`git commit -m 'Add fitur baru'`)
-4. Push ke branch (`git push origin feature/fitur-baru`)
-5. Buka Pull Request
+1. Fork repository
+2. Buat branch (`git checkout -b feature/nama-fitur`)
+3. Commit (`git commit -m 'Add: deskripsi'`)
+4. Push (`git push origin feature/nama-fitur`)
+5. Buka Pull Request ke `https://github.com/eiaiproject/Ledjer`
 
 ---
 
-## Keamanan
-
-Fitur keamanan yang diimplementasikan:
-
-- **Row Level Security (RLS)** — Isolasi data per organisasi
-- **Rate Limiting** — Client-side dan server-side
-- **Input Sanitization** — Validasi dan sanitasi input
-- **Security Headers** — CSP, X-Frame-Options, dll
-- **Audit Logging** — Pelacakan semua perubahan data
-- **Login Tracking** — Pencatatan percobaan login
-
----
-
-## Troubleshooting
-
-| Masalah | Solusi |
-|---------|--------|
-| Data tidak muncul | Cek `VITE_SUPABASE_URL` dan RLS policies |
-| Transaksi gagal | Pastikan akun kas/bank benar dan data pelanggan ada |
-| Stok tidak update | Pastikan produk dipilih dan kuantitas terisi |
-| Laporan kosong | Cek hak akses `can_view_reports` dan status transaksi |
-| Migrasi gagal | Cek log error, pastikan tidak ada konflik nama |
-
----
-
-## Lisensi
+## License
 
 [ISC License](LICENSE)
 
 ---
 
-## Kontak
-
-Untuk pertanyaan atau masukan, silakan buka [issue](https://github.com/username/ledjer/issues) di repository.
-
-**Author:** [Nama Anda](https://github.com/username)
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- TODO SEBELUM PRODUCTION:                                       -->
+<!-- 1. Screenshot → simpan di docs/screenshots/ lalu uncomment     -->
+<!--    baris gambar di bagian atas README                           -->
+<!-- ════════════════════════════════════════════════════════════════ -->

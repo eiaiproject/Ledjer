@@ -28,12 +28,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="flex min-h-[300px] flex-col items-center justify-center px-4 py-12 text-center">
-          <span className="text-4xl"></span>
+        <div className="flex min-h-[300px] flex-col items-center justify-center px-4 py-12 text-center" role="alert" aria-live="assertive">
           <h2 className="mt-3 text-lg font-semibold text-wood-900">
             Terjadi kesalahan
           </h2>
-          <p className="mt-1 text-sm text-wood-500">
+          <p className="mt-1 max-w-sm break-words text-sm text-wood-500">
             {this.state.error?.message || "Terjadi kesalahan yang tidak terduga"}
           </p>
           <button

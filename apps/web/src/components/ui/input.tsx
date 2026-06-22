@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Field } from "./field";
 
@@ -16,8 +16,8 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix
 }
 
 const sizeStyles = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-3 text-sm",
+  sm: "min-h-[44px] h-8 px-3 text-sm sm:h-8 sm:min-h-0",
+  md: "min-h-[44px] h-10 px-3 text-sm sm:h-10 sm:min-h-0",
   lg: "h-12 px-4 text-base",
 };
 
@@ -42,12 +42,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = id || label?.toLowerCase().replace(/\s/g, "-");
+    const generatedId = useId();
+    const inputId = id || label?.toLowerCase().replace(/\s/g, "-") || generatedId;
+    const feedbackId = `${inputId}-feedback`;
+    const describedBy = error || helperText ? feedbackId : undefined;
     const resolvedPrefix = isCurrency ? (prefix ?? "Rp") : (prefix ?? leftIcon);
     const numericInputMode = isCurrency || isNumeric ? "numeric" : inputMode;
 
     return (
-      <Field label={label} error={error} helperText={helperText} required={required} htmlFor={inputId} className={containerClassName}>
+      <Field label={label} error={error} helperText={helperText} required={required} htmlFor={inputId} feedbackId={feedbackId} className={containerClassName}>
         <div className="relative">
           {resolvedPrefix && (
             <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-400">
@@ -59,10 +62,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             required={required}
             inputMode={numericInputMode}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
             className={cn(
               "w-full rounded-md border bg-cream-50 text-wood-900",
               "placeholder:text-text-muted",
-              "focus:outline-none focus:ring-2 focus:ring-wood-500 focus:border-wood-500",
+              "transition-[background-color,border-color,box-shadow] duration-150 ease-out focus-visible:bg-surface-elevated",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               sizeStyles[size],
               error ? "border-error" : "border-wood-200",
@@ -70,6 +76,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               suffix && "pr-8",
               (isCurrency || isNumeric) && "num-mono",
               isCurrency && "text-right",
+              "min-w-0",
               className
             )}
             {...props}
