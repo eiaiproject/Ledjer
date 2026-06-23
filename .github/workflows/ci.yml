@@ -31,7 +31,6 @@ jobs:
 
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
-
       - name: TypeScript typecheck
         run: pnpm --filter web typecheck
 
@@ -48,28 +47,6 @@ jobs:
     name: Supabase migrations & SQL tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 54322:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      # Used by supabase config.toml db.major_version / db.port.
-      SUPABASE_DB_URL: postgres://postgres:postgres@localhost:54322/postgres
-      SUPABASE_PGHOST: localhost
-      SUPABASE_PGPORT: 5432
-      SUPABASE_PGUSER: postgres
-      SUPABASE_PGPASSWORD: postgres
-      SUPABASE_PGDATABASE: postgres
     steps:
       - uses: actions/checkout@v4
 
@@ -83,40 +60,63 @@ jobs:
         with:
           node-version: 20
 
-      # We don't strictly need pnpm for the SQL tests, but the project's
-      # root package.json declares pnpm-managed scripts. Install once so
-      # any pre-step that wants them works.
-      - name: Install (no scripts, no frozen)
-        run: pnpm install --ignore-scripts --no-frozen-lockfile
-        continue-on-error: true
+      - name: Install (no scripts, ignore errors)        # SQL tests don't need frontend deps, but `supabase` CLI itself is
+        # written in Go and doesn't need node_modules. Install is a no-op for
+        # the SQL job, kept for future tooling that may run `pnpm exec`.
+        run: pnpm install --ignore-scripts --no-frozen-lockfile || true
 
       - name: Install Supabase CLI
         run: |
+          set -euo pipefail
           curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
             -o /tmp/supabase.tar.gz
           tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase
           supabase --version
 
-      - name: Reset database from migrations
-        # We bypass `supabase db reset` (which spins up its own Docker container)
-        # and apply migrations directly against the service-postgres, then run
-        # the SQL tests against the same DB.
+      - name: Start local Supabase stack
+        # `supabase start` brings up the full stack: Postgres, GoTrue (auth),
+        # PostgREST, Realtime, Storage, Studio, Inbucket. The Postgres image
+        # already has the `auth` schema, `auth.users`, `auth.uid()`, and the
+        # `anon` / `authenticated` / `service_role` roles — exactly what our
+        # migrations require.
+        run: supabase start --workdir supabase
+
+      - name: Apply migrations from empty DB and run SQL tests
+        # `supabase db reset` drops the public schema, reapplies every
+        # migration in supabase/migrations/ in sorted order, then runs the
+        # `supabase/tests/` scripts defined in `supabase/config.toml`.
+        # This is the canonical way to validate migrations + SQL tests
+        # against a production-like Supabase Postgres.
+        run: supabase db reset --workdir supabase --no-seed
+
+      - name: Capture DB URL for diagnostic logging
+        run: |
+          supabase status --workdir supabase --output env | tee /tmp/supabase.env
+          echo "DB URL components:"
+          grep -E '^(DB_URL|POSTGRES_HOST|POSTGRES_PORT|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=' /tmp/supabase.env || true
+
+      - name: Run SQL tests explicitly via psql
+        # Belt-and-suspenders: re-run the test files directly against the
+        # Supabase Postgres so the CI log makes test PASS/FAIL explicit
+        # regardless of config.toml test ordering.
+        env:
+          PGPASSWORD: postgres
+          PGHOST: localhost
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
         run: |
           set -euo pipefail
-          export PGPASSWORD=postgres
-          PSQL="psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1"
+          if ! command -v psql >/dev/null 2>&1; then
+            echo "Installing postgresql-client for psql..."
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client >/dev/null
+          fi
+          PSQL="psql -h localhost -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1"
 
-          # Apply migrations in order
-          for f in $(ls supabase/migrations/*.sql | sort); do
-            echo "Applying $f"
-            $PSQL -f "$f"
-          done
-
-          # Helper file (functions only, no DO blocks that mutate state)
+          echo "=== _test_helpers.sql ==="
           $PSQL -f supabase/tests/_test_helpers.sql
 
-          # Run tests in order: security first (no data needed),
-          # then golden (creates its own org), then regression.
           echo "=== security_rls_tests.sql ==="
           $PSQL -f supabase/tests/security_rls_tests.sql
 
@@ -129,8 +129,21 @@ jobs:
           echo "=== p0_critical_fix_tests.sql ==="
           $PSQL -f supabase/tests/p0_critical_fix_tests.sql
 
+          echo "=== opening_balance_guard_tests.sql ==="
+          $PSQL -f supabase/tests/opening_balance_guard_tests.sql
+
+          echo "=== payable_behavior_tests.sql ==="
+          $PSQL -f supabase/tests/payable_behavior_tests.sql
+
+          echo "=== permission_matrix_tests.sql ==="
+          $PSQL -f supabase/tests/permission_matrix_tests.sql
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --workdir supabase --no-backup || true
+
   guard-no-test-assert-in-migrations:
-    name: Guard: no test code in migrations
+    name: "Guard: no test code in migrations"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -142,3 +155,24 @@ jobs:
             exit 1
           fi
           echo "OK: no _test_assert in migrations"
+
+  guard-package-clean:
+    name: "Guard: source archive excludes secrets and generated artifacts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install unzip and tar (for archive inspection)
+        run: sudo apt-get install -y -qq unzip tar >/dev/null
+      - name: Create source tarball via git archive
+        run: |
+          git archive --format=tar.gz --output=/tmp/ledjer-src.tar.gz HEAD
+      - name: Create source zip via git ls-files
+        run: |
+          git ls-files | zip -@ /tmp/ledjer-src.zip
+      - name: Run packaging guard against both archives
+        run: |
+          set -e
+          chmod +x scripts/check-package-clean.sh
+          ./scripts/check-package-clean.sh /tmp/ledjer-src.tar.gz
+          ./scripts/check-package-clean.sh /tmp/ledjer-src.zip
