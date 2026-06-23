@@ -17,6 +17,63 @@
 
 \i supabase/tests/_test_helpers.sql
 
+-- ── Setup helper (must be defined here because golden_scenario_tests.sql drops it) ──
+CREATE OR REPLACE FUNCTION public._test_create_owner_and_org(
+  p_org_name TEXT,
+  p_books_start DATE
+)
+RETURNS TABLE (
+  out_user_id UUID, out_organization_id UUID,
+  out_cash_account_id UUID, out_cogs_account_id UUID, out_inventory_account_id UUID,
+  out_receivable_account_id UUID, out_payable_account_id UUID, out_modal_account_id UUID,
+  out_prive_account_id UUID, out_revenue_account_id UUID, out_expense_account_id UUID
+) LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  p_uid UUID := gen_random_uuid();
+  p_oid UUID := gen_random_uuid();
+  v_cash_id UUID; v_cogs_id UUID; v_inv_id UUID; v_rcv_id UUID;
+  v_pay_id UUID; v_mod_id UUID; v_pri_id UUID; v_rev_id UUID; v_exp_id UUID;
+  v_books DATE := COALESCE(p_books_start, CURRENT_DATE);
+BEGIN
+  INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+    confirmation_token, email_change, email_change_token_new, recovery_token)
+  VALUES (p_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'golden-' || p_uid::TEXT || '@test.local', '', now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"Golden Test"}'::jsonb, now(), now(), '', '', '', '')
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.profiles (user_id, full_name, email)
+  VALUES (p_uid, 'Golden Test', 'golden-' || p_uid::TEXT || '@test.local')
+  ON CONFLICT (user_id) DO NOTHING;
+
+  INSERT INTO public.organizations (id, name, business_type, base_currency, books_start_date, onboarding_status, created_by)
+  VALUES (p_oid, p_org_name, 'simple_trading', 'IDR', v_books, 'in_progress', p_uid)
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.organization_members (organization_id, user_id, role, status,
+    can_create_transaction, can_view_reports, can_manage_accounts, can_void_transaction,
+    can_view_audit_log, can_manage_products, invited_by, joined_at)
+  VALUES (p_oid, p_uid, 'owner', 'active', true, true, true, true, true, true, p_uid, now())
+  ON CONFLICT DO NOTHING;
+
+  PERFORM public.create_default_accounts(p_oid, p_org_name);
+
+  SELECT id INTO v_cash_id FROM public.accounts WHERE organization_id = p_oid AND code = 1110 AND is_active = true LIMIT 1;
+  SELECT id INTO v_cogs_id FROM public.accounts WHERE organization_id = p_oid AND code = 5100 AND is_active = true LIMIT 1;
+  SELECT id INTO v_inv_id  FROM public.accounts WHERE organization_id = p_oid AND code = 1300 AND is_active = true LIMIT 1;
+  SELECT id INTO v_rcv_id  FROM public.accounts WHERE organization_id = p_oid AND code = 1200 AND is_active = true LIMIT 1;
+  SELECT id INTO v_pay_id  FROM public.accounts WHERE organization_id = p_oid AND code = 2100 AND is_active = true LIMIT 1;
+  SELECT id INTO v_mod_id  FROM public.accounts WHERE organization_id = p_oid AND code = 3100 AND is_active = true LIMIT 1;
+  SELECT id INTO v_pri_id  FROM public.accounts WHERE organization_id = p_oid AND code = 3300 AND is_active = true LIMIT 1;
+  SELECT id INTO v_rev_id  FROM public.accounts WHERE organization_id = p_oid AND account_type = 'revenue' AND code = 4100 AND is_active = true LIMIT 1;
+  SELECT id INTO v_exp_id  FROM public.accounts WHERE organization_id = p_oid AND account_type = 'expense' AND code = 6190 AND is_active = true LIMIT 1;
+
+  RETURN QUERY SELECT p_uid, p_oid, v_cash_id, v_cogs_id, v_inv_id, v_rcv_id, v_pay_id, v_mod_id, v_pri_id, v_rev_id, v_exp_id;
+END;
+$$;
+
 DO $$
 DECLARE
   v_user_id   UUID;
