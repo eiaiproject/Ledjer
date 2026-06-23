@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { Database } from "@/lib/database-types";
+import type { Database } from "@ledjer/database-types";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { fetchProfilesByUserIds } from "@/lib/profiles";
 import { Button } from "@/components/ui/button";

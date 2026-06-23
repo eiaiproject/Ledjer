@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { Json } from "@/lib/database-types";
+import type { Json } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";

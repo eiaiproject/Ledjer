@@ -1315,6 +1315,10 @@ export type Database = {
         }
         Returns: string
       }
+      rename_account: {
+        Args: { p_account_id: string; p_new_name: string }
+        Returns: { id: string; name: string; code: number }
+      }
       post_opening_balance: {
         Args: {
           p_account_id: string

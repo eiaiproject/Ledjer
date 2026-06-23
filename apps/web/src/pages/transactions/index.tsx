@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { transaction_status } from "@/lib/database-types";
+import type { transaction_status } from "@ledjer/database-types";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { useFilterPresets } from "@/hooks/useFilterPresets";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";

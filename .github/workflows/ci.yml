@@ -43,6 +43,26 @@ jobs:
       - name: Production build
         run: pnpm --filter web build
 
+  db-types-guard:
+    name: "Guard: database types in sync"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify database types are in sync
+        run: pnpm db-types:check
+
   supabase:
     name: Supabase migrations & SQL tests
     runs-on: ubuntu-latest
@@ -122,6 +142,9 @@ jobs:
 
           echo "=== golden_scenario_tests.sql ==="
           $PSQL -f supabase/tests/golden_scenario_tests.sql
+
+          echo "=== inventory_golden_tests.sql ==="
+          $PSQL -f supabase/tests/inventory_golden_tests.sql
 
           echo "=== accounting_regression_tests.sql ==="
           $PSQL -f supabase/tests/accounting_regression_tests.sql
