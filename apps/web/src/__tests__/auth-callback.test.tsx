@@ -36,6 +36,7 @@ function renderWithSearchParams(search: string) {
         <Route path="/onboarding" element={<div data-testid="onboarding" />} />
         <Route path="/login" element={<div data-testid="login" />} />
         <Route path="/settings/team" element={<div data-testid="team" />} />
+        <Route path="/reset-password" element={<div data-testid="reset-password" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -92,7 +93,7 @@ describe('AuthCallbackPage', () => {
     expect(await screen.findByText(/email terkonfirmasi/i)).toBeTruthy();
   });
 
-  it('recovery type redirects to settings/team instead of onboarding', async () => {
+  it('recovery type redirects to /reset-password (NOT /settings/team)', async () => {
     mocks.verifyOtp.mockResolvedValue({ error: null });
 
     renderWithSearchParams('?token_hash=xyz&type=recovery');
@@ -110,9 +111,13 @@ describe('AuthCallbackPage', () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
 
+    // Must land on /reset-password — the recovery flow should never
+    // redirect to /settings/team (unrelated) or anywhere else.
     await waitFor(() => {
-      expect(screen.getByTestId('team')).toBeTruthy();
+      expect(screen.getByTestId('reset-password')).toBeTruthy();
     });
+    expect(screen.queryByTestId('team')).toBeNull();
+    expect(screen.queryByTestId('onboarding')).toBeNull();
   });
 
   it('shows invalid state when neither code nor token_hash is present', async () => {
