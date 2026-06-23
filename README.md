@@ -337,6 +337,45 @@ supabase db push
 
 ---
 
+## Source Distribution (Packaging)
+
+When sharing the source as a tarball / zip (for review, handoff, or backup),
+**always exclude** secrets, generated artifacts, and VCS metadata. The
+recommended method is `git archive` or `git ls-files`, both of which honor
+`.gitignore`:
+
+```bash
+# Tarball (preferred)
+git archive --format=tar.gz \
+  --output=ledjer-src.tar.gz \
+  --worktree-attributes \
+  HEAD
+
+# Zip (alternative)
+git ls-files | zip -@ ledjer-src.zip
+```
+
+The following paths are guaranteed absent from the resulting archive:
+
+- `.git`, `.gitignore` is still tracked
+- `node_modules`, `dist`, `.turbo`, `coverage`
+- `.env`, `.env.local`, `.env.*` (except `.env.example`)
+- `.DS_Store`, `__MACOSX`
+- `supabase/.temp`, `supabase/.branches`, `supabase/.env`
+
+A local packaging guard is included:
+
+```bash
+./scripts/check-package-clean.sh                       # inspect git ls-files
+./scripts/check-package-clean.sh ledjer-src.tar.gz     # inspect a tarball
+./scripts/check-package-clean.sh ledjer-src.zip        # inspect a zip
+```
+
+It returns non-zero exit code if any forbidden path is found. CI runs this
+guard as the `guard-package-clean` job on every push.
+
+---
+
 ## Known Limitations
 
 - Tidak ada export laporan (CSV/PDF)
