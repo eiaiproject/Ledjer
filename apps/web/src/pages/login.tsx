@@ -12,6 +12,7 @@ import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { translateError } from "@/lib/errors";
 import { checkRateLimit, getResetTime, resetRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { supabase } from "@/lib/supabase";
+import { isAuthError } from "@supabase/supabase-js";
 import { Lock, Mail } from "lucide-react";
 
 const loginSchema = z.object({
@@ -23,11 +24,17 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, resendConfirmationEmail } = useAuth();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
+
+  // Email-not-confirmed state
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -36,6 +43,19 @@ export function LoginPage() {
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
+
+  const startResendCooldown = (seconds: number) => {
+    setResendCooldown(seconds);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   const onSubmit = async (data: LoginForm) => {
     if (loading || oauthLoading) return;
@@ -85,8 +105,29 @@ export function LoginPage() {
         p_error_message: message,
       });
       setError(message);
+
+      // Detect "email not confirmed" so we can offer a resend action.
+      if (isAuthError(err) && err.code === "email_not_confirmed") {
+        setUnverifiedEmail(email);
+        startResendCooldown(60);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendFromLogin = async () => {
+    if (!unverifiedEmail || resendLoading || resendCooldown > 0) return;
+    setResendLoading(true);
+    setResendMessage(null);
+    try {
+      await resendConfirmationEmail(unverifiedEmail);
+      setResendMessage("Email konfirmasi telah dikirim ulang.");
+      startResendCooldown(60);
+    } catch (err) {
+      setError(translateError(err));
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -135,6 +176,31 @@ export function LoginPage() {
               {error && (
                 <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
                   {error}
+                </div>
+              )}
+
+              {unverifiedEmail && (
+                <div className="mt-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+                  <p>
+                    Email <span className="font-medium break-all">{unverifiedEmail}</span>{" "}
+                    belum dikonfirmasi.
+                  </p>
+                  {resendMessage && (
+                    <p className="text-amber-800">{resendMessage}</p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    fullWidth
+                    onClick={handleResendFromLogin}
+                    loading={resendLoading}
+                    disabled={resendLoading || resendCooldown > 0}
+                  >
+                    {resendCooldown > 0
+                      ? `Kirim ulang (${resendCooldown}s)`
+                      : "Kirim ulang email konfirmasi"}
+                  </Button>
                 </div>
               )}
 

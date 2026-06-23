@@ -12,6 +12,7 @@ import { queryClient } from "@/lib/query-client";
 const LandingPage = lazy(async () => ({ default: (await import("@/pages/landing")).LandingPage }));
 const LoginPage = lazy(async () => ({ default: (await import("@/pages/login")).LoginPage }));
 const RegisterPage = lazy(async () => ({ default: (await import("@/pages/register")).RegisterPage }));
+const AuthCallbackPage = lazy(async () => ({ default: (await import("@/pages/auth-callback")).AuthCallbackPage }));
 const OnboardingPage = lazy(async () => ({ default: (await import("@/pages/onboarding")).OnboardingPage }));
 const DashboardPage = lazy(async () => ({ default: (await import("@/pages/dashboard")).DashboardPage }));
 const TransactionListPage = lazy(async () => ({ default: (await import("@/pages/transactions/index")).TransactionListPage }));
@@ -47,6 +48,10 @@ const router = createBrowserRouter([
       { path: "register", element: <RegisterPage /> },
     ],
   },
+  // Auth callback must NOT sit under PublicRoute/ProtectedRoute: after
+  // verifyOtp sets a session the guards would redirect before our own
+  // navigate("/onboarding") runs.
+  { path: "/auth/callback", element: <AuthCallbackPage /> },
   {
     path: "/onboarding",
     element: <ProtectedRoute />,

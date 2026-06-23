@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext, type SignUpResult } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,15 +41,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string
+  ): Promise<SignUpResult> => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
         },
+        // Pin the verification link to our callback page so we can show a
+        // branded success state and route the user to onboarding.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
+    });
+    if (error) throw error;
+    return {
+      session: data.session,
+      user: data.user,
+      // When email confirmations are enabled, Supabase returns a user but
+      // no session until the user verifies their email.
+      needsEmailConfirmation: !!data.user && !data.session,
+    };
+  };
+
+  const resendConfirmationEmail = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
     });
     if (error) throw error;
   };
@@ -62,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn,
         signUp,
+        resendConfirmationEmail,
         signOut,
       }}
     >
