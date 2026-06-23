@@ -38,19 +38,23 @@ BEGIN
   END IF;
 
   -- Calculate weighted average cost from cost-bearing stock movements only.
-  -- Include:
+  -- Use SIGNED quantities so that void movements correctly subtract quantity
+  -- and cost basis (e.g., voiding a purchase reverses the original cost layer).
+  --
+  -- Include (cost-bearing movements only):
   --   - opening_balance: always has meaningful cost
   --   - purchase: always has meaningful cost
   --   - void WHERE unit_cost IS NOT NULL AND unit_cost > 0: cost-bearing reversal
   --     (e.g., voiding a purchase that originally had cost)
+  --
   -- Exclude:
   --   - sale: reduces stock, no cost to average in
   --   - void WHERE unit_cost IS NULL OR unit_cost <= 0: non-cost-bearing reversal
   --     (e.g., voiding a sale that had no cost assigned)
   --   - adjustment: manual adjustments with no reliable cost basis
   SELECT
-    COALESCE(SUM(ABS(sm.quantity) * sm.unit_cost), 0),
-    COALESCE(SUM(ABS(sm.quantity)), 0)
+    COALESCE(SUM(sm.quantity * sm.unit_cost), 0),
+    COALESCE(SUM(sm.quantity), 0)
   INTO v_total_cost, v_total_qty
   FROM public.stock_movements sm
   WHERE sm.product_id = p_product_id
