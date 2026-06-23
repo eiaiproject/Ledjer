@@ -62,7 +62,7 @@ BEGIN
                           created_at, updated_at, confirmation_token,
                           email_change, email_change_token_new, recovery_token)
   VALUES (p_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-          'golden@test.local', '', now(),
+          'golden-' || p_uid::TEXT || '@test.local', '', now(),
           '{"provider":"email","providers":["email"]}'::jsonb,
           '{"full_name":"Golden Test"}'::jsonb,
           now(), now(), '', '', '', '')
@@ -70,7 +70,7 @@ BEGIN
 
   -- Profile
   INSERT INTO public.profiles (user_id, full_name, email)
-  VALUES (p_uid, 'Golden Test', 'golden@test.local')
+  VALUES (p_uid, 'Golden Test', 'golden-' || p_uid::TEXT || '@test.local')
   ON CONFLICT (user_id) DO NOTHING;
 
   -- Organization
