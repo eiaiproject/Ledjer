@@ -22,6 +22,8 @@ __MACOSX
 
 # Supabase
 supabase/.temp
+supabase/.branches
+supabase/.env
 
 # Turborepo
 .turbo
@@ -30,5 +32,17 @@ supabase/.temp
 .vscode
 .idea
 
+# CI / tooling cache
+.eslintcache
+.parcel-cache
+.vite
+coverage
+
 # Pi agent config (local only)
 .impeccable/config.local.json
+
+# Local-only credential / scratch files (NEVER commit)
+temporary.md
+*.local.md
+.env.local.md
+supabase-credentials.*
