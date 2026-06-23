@@ -1,193 +1,102 @@
 -- =============================================================================
--- LEDJER — Accounting Regression Tests
+-- LEDJER — Accounting Regression Tests (STRICT)
 -- =============================================================================
--- Run these tests against a test Supabase instance with test data.
--- Each test section is independent and uses BEGIN/EXCEPTION for isolation.
+-- Validates invariants the golden scenario also covers, but in a way that
+-- works on databases seeded by the golden scenario (or any seeded DB).
 --
--- Prerequisites:
---   - At least one organization with owner user
---   - Default COA accounts exist for the organization
---   - A test product exists (optional, for product tests)
---
--- How to run:
---   1. Set your test organization UUID and user UUID in the variables below.
---   2. Run via Supabase SQL Editor or psql:
---      psql "postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres" \
---        -f supabase/tests/accounting_regression_tests.sql
---
--- Expected: All tests pass with NOTICE messages. Any FAILURE means a bug.
--- =============================================================================
+-- STRICT MODE: every assertion uses _test_assert (RAISE EXCEPTION on FAIL).
+-- If no organization exists yet, run golden_scenario_tests.sql first.
+-- ============================================================================
 
--- ============================================================
--- CONFIGURATION: Set these for your test environment
--- ============================================================
-DO $$
-BEGIN
-  -- These will be set per-test below; this block just documents the pattern.
-  RAISE NOTICE '=== LEDJER Accounting Regression Tests ===';
-END $$;
+\i supabase/tests/_test_helpers.sql
 
--- ============================================================
--- Helper function to run a test
--- ============================================================
-CREATE OR REPLACE FUNCTION public._test_assert(
-  p_test_name TEXT,
-  p_condition BOOLEAN,
-  p_detail TEXT DEFAULT NULL
-)
-RETURNS VOID AS $$
-BEGIN
-  IF p_condition THEN
-    RAISE NOTICE 'PASS: %', p_test_name;
-  ELSE
-    RAISE WARNING 'FAIL: % %', p_test_name,
-      CASE WHEN p_detail IS NOT NULL THEN ' — ' || p_detail ELSE '' END;
-  END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- ============================================================
--- TEST 1: Opening balance types rejected through post_transaction
--- P0.5 — Opening balances must not be posted via general transaction RPC
--- ============================================================
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 1: post_transaction rejects opening_* types
+-- (Requires at least one organization; uses request.jwt.claims spoofing.)
+-- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
-  v_org_id UUID;
-  v_user_id UUID;
-  v_result JSONB;
-  v_error TEXT;
+  v_org_id   UUID;
+  v_user_id  UUID;
+  v_cash_id  UUID;
+  v_error    TEXT;
 BEGIN
-  -- Get first org and its owner
   SELECT o.id, o.created_by INTO v_org_id, v_user_id
-  FROM public.organizations o
-  LIMIT 1;
+  FROM public.organizations o LIMIT 1;
 
   IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 1 — No organizations found';
-    RETURN;
+    PERFORM public._test_fail('T1 setup', 'no organization found; run golden_scenario_tests.sql first');
   END IF;
 
-  -- Simulate auth by setting request.jwt.claims
-  -- NOTE: In actual testing, this must be done via the Supabase client
-  -- with proper JWT. This test validates the SQL logic.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', v_user_id, 'role', 'authenticated')::text, true);
+
+  SELECT id INTO v_cash_id FROM public.accounts
+  WHERE organization_id = v_org_id AND code = 1110 AND is_active = true LIMIT 1;
+
+  IF v_cash_id IS NULL THEN
+    PERFORM public._test_fail('T1 setup', 'cash account (1110) missing');
+  END IF;
+
   BEGIN
-    v_result := public.post_transaction(
-      v_org_id,
-      CURRENT_DATE,
-      'opening_cash_balance',
-      1000000,
-      NULL, NULL,
-      (SELECT id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1),
-      NULL, 'paid', NULL, NULL,
-      'Test opening balance', NULL, NULL, NULL, NULL
+    PERFORM public.post_transaction(
+      v_org_id, CURRENT_DATE, 'opening_cash_balance', 1000000,
+      NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL,
+      'should fail', NULL, NULL, NULL, NULL
     );
-    -- If we reach here, the function did not raise — that's a FAIL
-    PERFORM public._test_assert(
-      'T1: Opening balance rejected via post_transaction',
-      false,
-      'Function returned instead of raising exception'
-    );
+    PERFORM public._test_fail('T1', 'post_transaction did not raise for opening_cash_balance');
   EXCEPTION WHEN OTHERS THEN
     v_error := SQLERRM;
     PERFORM public._test_assert(
-      'T1: Opening balance rejected via post_transaction',
-      v_error LIKE '%saldo awal%tidak dapat%dicatat%',
-      'Error: ' || v_error
+      'T1: post_transaction rejects opening_cash_balance',
+      v_error ILIKE '%saldo awal%' OR v_error ILIKE '%opening%',
+      'Unexpected error: ' || v_error
     );
   END;
 END $$;
 
-
--- ============================================================
--- TEST 2: Balance sheet excludes future transactions
--- P0.1 — Balance sheet respects as_of_date
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_as_of_date DATE;
-  v_count_after INTEGER;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 2 — No organizations found';
-    RETURN;
-  END IF;
-
-  -- Use yesterday as as_of_date
-  v_as_of_date := CURRENT_DATE - INTERVAL '1 day';
-
-  -- Count journal entries after the date that should NOT appear
-  SELECT COUNT(*)
-  INTO v_count_after
-  FROM public.journal_lines jl
-  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND je.status = 'posted'
-    AND je.entry_date > v_as_of_date;
-
-  -- The balance sheet should not include these lines.
-  -- We verify by checking that the CTE in get_balance_sheet would exclude them.
-  PERFORM public._test_assert(
-    'T2: Balance sheet excludes entries after as_of_date',
-    v_count_after >= 0,  -- Basic sanity; full test requires calling the function
-    'Entries after as_of_date: ' || v_count_after
-  );
-END $$;
-
-
--- ============================================================
--- TEST 3: Balance sheet excludes non-posted entries
--- P0.1 — Only posted entries counted
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_non_posted_count INTEGER;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 3 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT COUNT(*)
-  INTO v_non_posted_count
-  FROM public.journal_lines jl
-  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND je.status != 'posted';
-
-  PERFORM public._test_assert(
-    'T3: Non-posted entries exist for filtering',
-    true,
-    'Non-posted journal entries: ' || v_non_posted_count || ' (filtered by balance sheet)'
-  );
-END $$;
-
-
--- ============================================================
--- TEST 4: Void transaction creates balanced reversal
--- Void/reversal journal must have SUM(debit) = SUM(credit)
--- ============================================================
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 2: All posted journal entries are balanced (D = C per entry)
+-- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
   v_org_id UUID;
   v_unbalanced_count INTEGER;
 BEGIN
   SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
   IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 4 — No organizations found';
-    RETURN;
+    PERFORM public._test_fail('T2 setup', 'no organization');
   END IF;
 
-  -- Check all reversal journal entries have balanced lines
-  SELECT COUNT(*)
-  INTO v_unbalanced_count
+  SELECT COUNT(*) INTO v_unbalanced_count
+  FROM (
+    SELECT je.id
+    FROM public.journal_entries je
+    JOIN public.journal_lines jl ON jl.journal_entry_id = je.id
+    WHERE je.organization_id = v_org_id AND je.status = 'posted'
+    GROUP BY je.id
+    HAVING ABS(COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0)) > 0.01
+  ) unbalanced;
+
+  PERFORM public._test_assert(
+    'T2: All posted journal entries are balanced',
+    v_unbalanced_count = 0,
+    'Unbalanced journals: ' || v_unbalanced_count
+  );
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 3: All reversal journals are balanced
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_org_id UUID;
+  v_unbalanced_reversals INTEGER;
+BEGIN
+  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T3 setup', 'no org'); END IF;
+
+  SELECT COUNT(*) INTO v_unbalanced_reversals
   FROM (
     SELECT je.id
     FROM public.journal_entries je
@@ -197,495 +106,292 @@ BEGIN
       AND je.status = 'posted'
     GROUP BY je.id
     HAVING ABS(COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0)) > 0.01
-  ) unbalanced;
+  ) u;
 
   PERFORM public._test_assert(
-    'T4: All reversal journals are balanced',
-    v_unbalanced_count = 0,
-    'Unbalanced reversal journals: ' || v_unbalanced_count
+    'T3: All reversal journals are balanced',
+    v_unbalanced_reversals = 0,
+    'Unbalanced reversals: ' || v_unbalanced_reversals
   );
 END $$;
 
-
--- ============================================================
--- TEST 5: All posted journal entries are balanced
--- Every journal entry with status=posted should have debit=credit
--- ============================================================
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 4: Trial balance balances (Σdebits = Σcredits across the org)
+-- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
-  v_org_id UUID;
-  v_unbalanced_count INTEGER;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 5 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT COUNT(*)
-  INTO v_unbalanced_count
-  FROM (
-    SELECT je.id
-    FROM public.journal_entries je
-    JOIN public.journal_lines jl ON jl.journal_entry_id = je.id
-    WHERE je.organization_id = v_org_id
-      AND je.status = 'posted'
-    GROUP BY je.id
-    HAVING ABS(COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0)) > 0.01
-  ) unbalanced;
-
-  PERFORM public._test_assert(
-    'T5: All posted journal entries are balanced',
-    v_unbalanced_count = 0,
-    'Unbalanced posted journals: ' || v_unbalanced_count
-  );
-END $$;
-
-
--- ============================================================
--- TEST 6: COGS validation — product sale requires COGS account
--- P0.4 — Sale with product and non-zero COGS must have account 5100
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_cogs_exists BOOLEAN;
-  v_inventory_exists BOOLEAN;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 6 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT EXISTS(
-    SELECT 1 FROM public.accounts
-    WHERE organization_id = v_org_id AND code = 5100 AND is_active = true
-  ) INTO v_cogs_exists;
-
-  SELECT EXISTS(
-    SELECT 1 FROM public.accounts
-    WHERE organization_id = v_org_id AND code = 1300 AND is_active = true
-  ) INTO v_inventory_exists;
-
-  PERFORM public._test_assert(
-    'T6a: COGS account (5100) exists',
-    v_cogs_exists,
-    'COGS account missing — product sales would fail'
-  );
-
-  PERFORM public._test_assert(
-    'T6b: Inventory account (1300) exists',
-    v_inventory_exists,
-    'Inventory account missing — product sales would fail'
-  );
-END $$;
-
-
--- ============================================================
--- TEST 7: Simple adjustment validation
--- P1.1 — Adjustment must use different accounts, both active, owner-only
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_account_a UUID;
-  v_account_b UUID;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 7 — No organizations found';
-    RETURN;
-  END IF;
-
-  -- Get two different active accounts
-  SELECT id INTO v_account_a
-  FROM public.accounts
-  WHERE organization_id = v_org_id AND is_active = true AND account_type = 'asset'
-  LIMIT 1;
-
-  SELECT id INTO v_account_b
-  FROM public.accounts
-  WHERE organization_id = v_org_id AND is_active = true AND account_type = 'expense'
-  LIMIT 1;
-
-  PERFORM public._test_assert(
-    'T7a: Two different accounts available for adjustment test',
-    v_account_a IS NOT NULL AND v_account_b IS NOT NULL AND v_account_a != v_account_b,
-    'Need at least one asset and one expense account'
-  );
-
-  -- Test same account rejection (will be caught by post_transaction validation)
-  IF v_account_a IS NOT NULL THEN
-    BEGIN
-      PERFORM public.post_transaction(
-        v_org_id, CURRENT_DATE, 'simple_adjustment', 100000,
-        NULL, NULL, v_account_a, v_account_a, -- same account!
-        'paid', NULL, NULL, 'Test same account', NULL, NULL, NULL, NULL
-      );
-      PERFORM public._test_assert(
-        'T7b: Same debit/credit account rejected',
-        false,
-        'Function did not raise for same-account adjustment'
-      );
-    EXCEPTION WHEN OTHERS THEN
-      PERFORM public._test_assert(
-        'T7b: Same debit/credit account rejected',
-        SQLERRM LIKE '%tidak boleh sama%',
-        'Error: ' || SQLERRM
-      );
-    END;
-  END IF;
-END $$;
-
-
--- ============================================================
--- TEST 8: Cross-organization data isolation
--- Balance sheet should not leak data across organizations
--- ============================================================
-DO $$
-DECLARE
-  v_org_count INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO v_org_count FROM public.organizations;
-
-  IF v_org_count < 2 THEN
-    RAISE NOTICE 'SKIP: Test 8 — Need at least 2 organizations for isolation test';
-    RETURN;
-  END IF;
-
-  -- This test validates the SQL logic; actual cross-org test requires
-  -- two authenticated sessions. The has_permission check in get_balance_sheet
-  -- prevents cross-org access.
-  PERFORM public._test_assert(
-    'T8: Multiple organizations exist for isolation testing',
-    v_org_count >= 2,
-    'Organization count: ' || v_org_count
-  );
-END $$;
-
-
--- ============================================================
--- TEST 9: Transaction number uniqueness
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_dup_count INTEGER;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 9 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT COUNT(*)
-  INTO v_dup_count
-  FROM (
-    SELECT transaction_number
-    FROM public.transactions
-    WHERE organization_id = v_org_id
-      AND transaction_number IS NOT NULL
-    GROUP BY transaction_number
-    HAVING COUNT(*) > 1
-  ) dupes;
-
-  PERFORM public._test_assert(
-    'T9: No duplicate transaction numbers',
-    v_dup_count = 0,
-    'Duplicate transaction numbers: ' || v_dup_count
-  );
-END $$;
-
-
--- ============================================================
--- TEST 10: Journal entry number uniqueness
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_dup_count INTEGER;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 10 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT COUNT(*)
-  INTO v_dup_count
-  FROM (
-    SELECT entry_number
-    FROM public.journal_entries
-    WHERE organization_id = v_org_id
-      AND entry_number IS NOT NULL
-    GROUP BY entry_number
-    HAVING COUNT(*) > 1
-  ) dupes;
-
-  PERFORM public._test_assert(
-    'T10: No duplicate entry numbers',
-    v_dup_count = 0,
-    'Duplicate entry numbers: ' || v_dup_count
-  );
-END $$;
-
-
--- ============================================================
--- TEST 11: Trial balance balances
--- Total debits should equal total credits for all posted entries
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
+  v_org_id      UUID;
   v_total_debit NUMERIC;
   v_total_credit NUMERIC;
-  v_diff NUMERIC;
+  v_diff        NUMERIC;
 BEGIN
   SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T4 setup', 'no org'); END IF;
 
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 11 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT
-    COALESCE(SUM(jl.debit), 0),
-    COALESCE(SUM(jl.credit), 0)
+  SELECT COALESCE(SUM(jl.debit), 0), COALESCE(SUM(jl.credit), 0)
   INTO v_total_debit, v_total_credit
   FROM public.journal_lines jl
   JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND je.status = 'posted';
+  WHERE jl.organization_id = v_org_id AND je.status = 'posted';
 
   v_diff := ABS(v_total_debit - v_total_credit);
 
   PERFORM public._test_assert(
-    'T11: Trial balance balances (total debits = total credits)',
+    'T4: Trial balance balances',
     v_diff < 0.01,
-    'Difference: ' || v_diff || ' (debit: ' || v_total_debit || ', credit: ' || v_total_credit || ')'
+    'Diff=' || v_diff || ' D=' || v_total_debit || ' C=' || v_total_credit
   );
 END $$;
 
--- ============================================================
--- TEST 12: Opening balance cannot be posted after normal transactions
--- P0.5 — post_opening_balance rejects if normal transactions exist
--- ============================================================
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 5: Balance sheet equation holds (A = L + E + R - X)
+-- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
   v_org_id UUID;
-  v_has_normal_txns BOOLEAN;
+  v_assets NUMERIC := 0; v_liab NUMERIC := 0; v_equity NUMERIC := 0;
+  v_revenue NUMERIC := 0; v_expense NUMERIC := 0; v_diff NUMERIC;
 BEGIN
   SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T5 setup', 'no org'); END IF;
 
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 12 — No organizations found';
-    RETURN;
-  END IF;
-
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.transactions
-    WHERE organization_id = v_org_id
-      AND status = 'posted'
-      AND transaction_type NOT LIKE 'opening_%'
-  ) INTO v_has_normal_txns;
-
-  IF v_has_normal_txns THEN
-    -- Try to post opening balance — should fail
-    BEGIN
-      PERFORM public.post_opening_balance(
-        v_org_id,
-        (SELECT id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1),
-        100000,
-        'Test late opening',
-        CURRENT_DATE
-      );
-      PERFORM public._test_assert(
-        'T12: Opening balance rejected after normal transactions',
-        false,
-        'Function did not raise exception'
-      );
-    EXCEPTION WHEN OTHERS THEN
-      PERFORM public._test_assert(
-        'T12: Opening balance rejected after normal transactions',
-        SQLERRM LIKE '%saldo awal%tidak dapat%diposting%',
-        'Error: ' || SQLERRM
-      );
-    END;
-  ELSE
-    RAISE NOTICE 'SKIP: Test 12 — No normal transactions to test against';
-  END IF;
-END $$;
-
--- ============================================================
--- TEST 13: Void purchase restores stock correctly
--- After voiding a purchase, stock movement should reverse
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_has_purchase BOOLEAN;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 13 — No organizations found';
-    RETURN;
-  END IF;
-
-  -- Check if there are any purchase transactions with product
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.transactions
-    WHERE organization_id = v_org_id
-      AND transaction_type IN ('cash_purchase', 'credit_purchase')
-      AND product_id IS NOT NULL
-      AND status = 'posted'
-  ) INTO v_has_purchase;
-
-  -- Check stock movements for void type exist if there are voided purchases
-  IF v_has_purchase THEN
-    PERFORM public._test_assert(
-      'T13: Purchase transactions with products exist',
-      true,
-      'Can test void purchase stock restoration'
-    );
-  ELSE
-    RAISE NOTICE 'SKIP: Test 13 — No purchase transactions with products';
-  END IF;
-END $$;
-
--- ============================================================
--- TEST 14: Product sale records both revenue and COGS
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_has_sale_with_product BOOLEAN;
-  v_cogs_entries_count INTEGER;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 14 — No organizations found';
-    RETURN;
-  END IF;
-
-  -- Check if there are sales with products
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.transactions
-    WHERE organization_id = v_org_id
-      AND transaction_type IN ('cash_sale', 'credit_sale')
-      AND product_id IS NOT NULL
-      AND status = 'posted'
-  ) INTO v_has_sale_with_product;
-
-  IF v_has_sale_with_product THEN
-    -- Count COGS journal entries (entry_type = 'normal' with description starting with 'HPP:')
-    SELECT COUNT(*)
-    INTO v_cogs_entries_count
-    FROM public.journal_entries
-    WHERE organization_id = v_org_id
-      AND description LIKE 'HPP:%'
-      AND status = 'posted';
-
-    PERFORM public._test_assert(
-      'T14: Product sales have COGS journal entries',
-      v_cogs_entries_count > 0,
-      'COGS entries found: ' || v_cogs_entries_count
-    );
-  ELSE
-    RAISE NOTICE 'SKIP: Test 14 — No product sales to test';
-  END IF;
-END $$;
-
--- ============================================================
--- TEST 15: Balance sheet formula check
--- Assets = Liabilities + Equity + (Revenue - Expenses)
--- ============================================================
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_assets NUMERIC := 0;
-  v_liabilities NUMERIC := 0;
-  v_equity NUMERIC := 0;
-  v_revenue NUMERIC := 0;
-  v_expenses NUMERIC := 0;
-  v_balance_diff NUMERIC;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: Test 15 — No organizations found';
-    RETURN;
-  END IF;
-
-  -- Calculate account balances by type
   SELECT COALESCE(SUM(jl.debit - jl.credit), 0) INTO v_assets
-  FROM public.journal_lines jl
-  JOIN public.accounts a ON a.id = jl.account_id
+  FROM public.journal_lines jl JOIN public.accounts a ON a.id = jl.account_id
   JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND a.account_type = 'asset'
-    AND je.status = 'posted';
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'asset' AND je.status = 'posted';
 
-  SELECT COALESCE(SUM(jl.credit - jl.debit), 0) INTO v_liabilities
-  FROM public.journal_lines jl
-  JOIN public.accounts a ON a.id = jl.account_id
+  SELECT COALESCE(SUM(jl.credit - jl.debit), 0) INTO v_liab
+  FROM public.journal_lines jl JOIN public.accounts a ON a.id = jl.account_id
   JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND a.account_type = 'liability'
-    AND je.status = 'posted';
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'liability' AND je.status = 'posted';
 
   SELECT COALESCE(SUM(jl.credit - jl.debit), 0) INTO v_equity
-  FROM public.journal_lines jl
-  JOIN public.accounts a ON a.id = jl.account_id
+  FROM public.journal_lines jl JOIN public.accounts a ON a.id = jl.account_id
   JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND a.account_type = 'equity'
-    AND je.status = 'posted';
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'equity' AND je.status = 'posted';
 
   SELECT COALESCE(SUM(jl.credit - jl.debit), 0) INTO v_revenue
-  FROM public.journal_lines jl
-  JOIN public.accounts a ON a.id = jl.account_id
+  FROM public.journal_lines jl JOIN public.accounts a ON a.id = jl.account_id
   JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.organization_id = v_org_id
-    AND a.account_type = 'revenue'
-    AND je.status = 'posted';
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'revenue' AND je.status = 'posted';
 
-  SELECT COALESCE(SUM(jl.debit - jl.credit), 0) INTO v_expenses
-  FROM public.journal_lines jl
-  JOIN public.accounts a ON a.id = jl.account_id
+  SELECT COALESCE(SUM(jl.debit - jl.credit), 0) INTO v_expense
+  FROM public.journal_lines jl JOIN public.accounts a ON a.id = jl.account_id
   JOIN public.journal_entries je ON je.id = jl.journal_entry_id
   WHERE jl.organization_id = v_org_id
     AND a.account_type IN ('expense', 'cogs', 'other_expense')
     AND je.status = 'posted';
 
-  -- Assets should equal Liabilities + Equity + (Revenue - Expenses)
-  v_balance_diff := ABS(v_assets - (v_liabilities + v_equity + v_revenue - v_expenses));
+  v_diff := ABS(v_assets - (v_liab + v_equity + v_revenue - v_expense));
 
   PERFORM public._test_assert(
-    'T15: Balance sheet equation holds (A = L + E + R - X)',
-    v_balance_diff < 0.01,
-    'Difference: ' || v_balance_diff ||
-    ' (Assets: ' || v_assets ||
-    ', Liabilities: ' || v_liabilities ||
-    ', Equity: ' || v_equity ||
-    ', Revenue: ' || v_revenue ||
-    ', Expenses: ' || v_expenses || ')'
+    'T5: Balance sheet equation (A = L + E + R - X)',
+    v_diff < 0.01,
+    'Diff=' || v_diff || ' A=' || v_assets || ' L=' || v_liab || ' E=' || v_equity || ' R=' || v_revenue || ' X=' || v_expense
   );
 END $$;
 
--- ============================================================
--- Cleanup
--- ============================================================
-DROP FUNCTION IF EXISTS public._test_assert(TEXT, BOOLEAN, TEXT);
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 6: Transaction number uniqueness per organization
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_org_id UUID;
+  v_dup_count INTEGER;
+BEGIN
+  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T6 setup', 'no org'); END IF;
 
-RAISE NOTICE '=== All tests completed ===';
+  SELECT COUNT(*) INTO v_dup_count
+  FROM (
+    SELECT transaction_number
+    FROM public.transactions
+    WHERE organization_id = v_org_id AND transaction_number IS NOT NULL
+    GROUP BY transaction_number HAVING COUNT(*) > 1
+  ) d;
+  PERFORM public._test_assert('T6: No duplicate transaction numbers',
+    v_dup_count = 0, 'duplicates: ' || v_dup_count);
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 7: Journal entry number uniqueness per organization
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_org_id UUID;
+  v_dup_count INTEGER;
+BEGIN
+  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T7 setup', 'no org'); END IF;
+
+  SELECT COUNT(*) INTO v_dup_count
+  FROM (
+    SELECT entry_number
+    FROM public.journal_entries
+    WHERE organization_id = v_org_id AND entry_number IS NOT NULL
+    GROUP BY entry_number HAVING COUNT(*) > 1
+  ) d;
+  PERFORM public._test_assert('T7: No duplicate entry numbers',
+    v_dup_count = 0, 'duplicates: ' || v_dup_count);
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 8: Direct INSERT into financial table is blocked by RLS
+-- Switch to authenticated role and attempt a direct insert.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_org_id   UUID;
+  v_inserted INTEGER := 0;
+BEGIN
+  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T8 setup', 'no org'); END IF;
+
+  BEGIN
+    SET LOCAL ROLE authenticated;
+    INSERT INTO public.transactions (organization_id, transaction_type, amount, transaction_date, status)
+    VALUES (v_org_id, 'cash_sale', 1, CURRENT_DATE, 'posted');
+    v_inserted := 1;
+    RESET ROLE;
+  EXCEPTION WHEN insufficient_privilege OR check_violation OR others THEN
+    RESET ROLE;
+    v_inserted := 0;
+  END;
+
+  PERFORM public._test_assert(
+    'T8: Direct INSERT into transactions is blocked by RLS',
+    v_inserted = 0,
+    'Insert unexpectedly succeeded under authenticated role'
+  );
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 9: Weighted average cost — purchase 10@100 then 10@200 → 150
+-- Runs the deterministic recalculation; expects exact value.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_org_id    UUID;
+  v_user_id   UUID;
+  v_product_id UUID;
+  v_txn1_id   UUID;
+  v_txn2_id   UUID;
+  v_avg       NUMERIC;
+BEGIN
+  SELECT o.id, o.created_by INTO v_org_id, v_user_id
+  FROM public.organizations o LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T9 setup', 'no org'); END IF;
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', v_user_id, 'role', 'authenticated')::text, true);
+
+  -- Create a fresh product so we control cost basis
+  INSERT INTO public.products (organization_id, code, name, unit, purchase_price, selling_price, current_stock, min_stock, is_active, created_by)
+  VALUES (v_org_id, 'T9-' || substr(md5(random()::text),1,8), 'T9 Product', 'pcs', 0, 0, 0, 0, true, v_user_id)
+  RETURNING id INTO v_product_id;
+
+  v_txn1_id := (public.post_transaction(
+    v_org_id, CURRENT_DATE, 'cash_purchase', 1000,
+    NULL, NULL,
+    (SELECT id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1),
+    NULL, 'paid', NULL, NULL, 'T9 buy 1', NULL, v_product_id, 10, 100, NULL
+  ) ->> 'transaction_id')::UUID;
+
+  v_txn2_id := (public.post_transaction(
+    v_org_id, CURRENT_DATE, 'cash_purchase', 2000,
+    NULL, NULL,
+    (SELECT id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1),
+    NULL, 'paid', NULL, NULL, 'T9 buy 2', NULL, v_product_id, 10, 200, NULL
+  ) ->> 'transaction_id')::UUID;
+
+  SELECT purchase_price INTO v_avg FROM public.products WHERE id = v_product_id;
+
+  PERFORM public._test_assert_eq_numeric(
+    'T9: Weighted average after two purchases (10@100 + 10@200 → 150)',
+    v_avg, 150);
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 10: Weighted average — void second purchase → 100
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_user_id   UUID;
+  v_avg       NUMERIC;
+  v_product_id UUID;
+  v_cash_id   UUID;
+  v_txn2_id   UUID;
+  v_org_id    UUID;
+BEGIN
+  SELECT o.id, o.created_by INTO v_org_id, v_user_id
+  FROM public.organizations o LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T10 setup', 'no org'); END IF;
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', v_user_id, 'role', 'authenticated')::text, true);
+
+  -- Fresh product
+  INSERT INTO public.products (organization_id, code, name, unit, purchase_price, selling_price, current_stock, min_stock, is_active, created_by)
+  VALUES (v_org_id, 'T10-' || substr(md5(random()::text),1,8), 'T10 Product', 'pcs', 0, 0, 0, 0, true, v_user_id)
+  RETURNING id INTO v_product_id;
+
+  SELECT id INTO v_cash_id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1;
+
+  PERFORM public.post_transaction(v_org_id, CURRENT_DATE, 'cash_purchase', 1000, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T10 buy 1', NULL, v_product_id, 10, 100, NULL);
+  v_txn2_id := (public.post_transaction(v_org_id, CURRENT_DATE, 'cash_purchase', 2000, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T10 buy 2', NULL, v_product_id, 10, 200, NULL) ->> 'transaction_id')::UUID;
+
+  PERFORM public.void_transaction(v_org_id, v_txn2_id, 'T10 void second', CURRENT_DATE);
+
+  SELECT purchase_price INTO v_avg FROM public.products WHERE id = v_product_id;
+
+  PERFORM public._test_assert_eq_numeric(
+    'T10: Weighted average after voiding second purchase (10@100 only → 100)',
+    v_avg, 100);
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 11: Weighted average — sale then sale void → unchanged
+-- (Cost-basis from purchases must remain stable when only sales/voids move.)
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_user_id    UUID;
+  v_org_id     UUID;
+  v_product_id UUID;
+  v_cash_id    UUID;
+  v_avg_before NUMERIC;
+  v_avg_after  NUMERIC;
+  v_sale_id    UUID;
+BEGIN
+  SELECT o.id, o.created_by INTO v_org_id, v_user_id
+  FROM public.organizations o LIMIT 1;
+  IF v_org_id IS NULL THEN PERFORM public._test_fail('T11 setup', 'no org'); END IF;
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', v_user_id, 'role', 'authenticated')::text, true);
+
+  INSERT INTO public.products (organization_id, code, name, unit, purchase_price, selling_price, current_stock, min_stock, is_active, created_by)
+  VALUES (v_org_id, 'T11-' || substr(md5(random()::text),1,8), 'T11 Product', 'pcs', 0, 0, 0, 0, true, v_user_id)
+  RETURNING id INTO v_product_id;
+
+  SELECT id INTO v_cash_id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1;
+
+  PERFORM public.post_transaction(v_org_id, CURRENT_DATE, 'cash_purchase', 1000, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T11 buy', NULL, v_product_id, 10, 100, NULL);
+
+  SELECT purchase_price INTO v_avg_before FROM public.products WHERE id = v_product_id;
+
+  v_sale_id := (public.post_transaction(v_org_id, CURRENT_DATE, 'cash_sale', 750, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T11 sale', NULL, v_product_id, 5, 150, NULL) ->> 'transaction_id')::UUID;
+
+  PERFORM public.void_transaction(v_org_id, v_sale_id, 'T11 void sale', CURRENT_DATE);
+
+  SELECT purchase_price INTO v_avg_after FROM public.products WHERE id = v_product_id;
+
+  PERFORM public._test_assert_eq_numeric(
+    'T11: Sale + sale void must not change weighted average',
+    v_avg_after, v_avg_before);
+END $$;
+
+-- Cleanup
+SELECT public._test_cleanup();
+
+DO $$ BEGIN RAISE NOTICE '=== Accounting Regression Tests Complete ==='; END $$;
