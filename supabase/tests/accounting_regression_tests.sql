@@ -236,32 +236,129 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- TEST 8: Direct INSERT into financial table is blocked by RLS
--- Switch to authenticated role and attempt a direct insert.
+-- TEST 8: Direct INSERT into financial tables is blocked by RLS
+-- Uses a fully-valid row shape and verifies the failure reason is RLS,
+-- not a NOT NULL / FK / check violation. This catches regressions where
+-- someone accidentally re-adds a permissive INSERT policy.
+--
+-- Run as authenticated user with request.jwt.claims set to a real org member.
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
-  v_org_id   UUID;
-  v_inserted INTEGER := 0;
+  v_user_id   UUID;
+  v_org_id    UUID;
+  v_cash_id   UUID;
+
+  v_inserted      BOOLEAN := false;
+  v_sqlstate      TEXT;
+  v_sqlerrm       TEXT;
+  v_txn_no        TEXT;
 BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+  SELECT o.id, o.created_by INTO v_org_id, v_user_id
+  FROM public.organizations o LIMIT 1;
   IF v_org_id IS NULL THEN PERFORM public._test_fail('T8 setup', 'no org'); END IF;
 
+  SELECT id INTO v_cash_id FROM public.accounts
+  WHERE organization_id = v_org_id AND code = 1110 AND is_active = true LIMIT 1;
+  IF v_cash_id IS NULL THEN PERFORM public._test_fail('T8 setup', 'cash account missing'); END IF;
+
+  v_txn_no := 'TX-DIRECT-' || substr(md5(random()::text), 1, 12);
+
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', v_user_id, 'role', 'authenticated')::text, true);
+
+  -- ── T8.1: direct INSERT into transactions — fully-valid row shape
   BEGIN
     SET LOCAL ROLE authenticated;
-    INSERT INTO public.transactions (organization_id, transaction_type, amount, transaction_date, status)
-    VALUES (v_org_id, 'cash_sale', 1, CURRENT_DATE, 'posted');
-    v_inserted := 1;
+    INSERT INTO public.transactions (
+      organization_id, transaction_number, transaction_date,
+      transaction_type, amount, description, status,
+      posted_at, posted_by, created_by
+    )
+    VALUES (
+      v_org_id, v_txn_no, CURRENT_DATE,
+      'cash_sale', 100, 'T8 direct insert (should fail with RLS)', 'posted',
+      now(), v_user_id, v_user_id
+    );
+    v_inserted := true;
     RESET ROLE;
-  EXCEPTION WHEN insufficient_privilege OR check_violation OR others THEN
+  EXCEPTION WHEN OTHERS THEN
+    v_sqlstate := SQLSTATE;
+    v_sqlerrm  := SQLERRM;
     RESET ROLE;
-    v_inserted := 0;
+    v_inserted := false;
   END;
 
   PERFORM public._test_assert(
-    'T8: Direct INSERT into transactions is blocked by RLS',
-    v_inserted = 0,
-    'Insert unexpectedly succeeded under authenticated role'
+    'T8.1: direct INSERT into transactions is blocked by RLS (not NOT NULL/FK)',
+    NOT v_inserted,
+    format('insert unexpectedly succeeded; SQLSTATE=%s, SQLERRM=%s',
+           COALESCE(v_sqlstate, 'NULL'), COALESCE(v_sqlerrm, 'NULL'))
+  );
+
+  PERFORM public._test_assert(
+    'T8.2: failure reason is RLS / permission, not NOT NULL or FK or check',
+    v_sqlstate IN ('42501', 'P0001')
+      OR v_sqlerrm ILIKE '%row-level security%'
+      OR v_sqlerrm ILIKE '%policy%',
+    format('unexpected SQLSTATE=%s SQLERRM=%s',
+           COALESCE(v_sqlstate, 'NULL'), COALESCE(v_sqlerrm, 'NULL'))
+  );
+
+  PERFORM public._test_assert(
+    'T8.3: no transaction row leaked from the failed direct insert',
+    NOT EXISTS (SELECT 1 FROM public.transactions WHERE transaction_number = v_txn_no),
+    'unexpected row with transaction_number=' || v_txn_no
+  );
+
+  -- ── T8.4: journal_entries direct insert — also blocked
+  v_inserted := false;
+  v_sqlstate := NULL;
+  v_sqlerrm  := NULL;
+  BEGIN
+    SET LOCAL ROLE authenticated;
+    INSERT INTO public.journal_entries (
+      organization_id, entry_number, entry_date, entry_type,
+      description, status, posted_at, posted_by
+    )
+    VALUES (
+      v_org_id, 'JE-DIRECT-' || substr(md5(random()::text),1,8),
+      CURRENT_DATE, 'normal', 'T8.4 direct', 'posted', now(), v_user_id
+    );
+    v_inserted := true;
+    RESET ROLE;
+  EXCEPTION WHEN OTHERS THEN
+    v_sqlstate := SQLSTATE;
+    v_sqlerrm  := SQLERRM;
+    RESET ROLE;
+  END;
+
+  PERFORM public._test_assert(
+    'T8.4: direct INSERT into journal_entries is blocked by RLS',
+    NOT v_inserted,
+    format('SQLSTATE=%s SQLERRM=%s', COALESCE(v_sqlstate,'NULL'), COALESCE(v_sqlerrm,'NULL'))
+  );
+
+  -- ── T8.5: audit_logs direct insert — also blocked
+  v_inserted := false;
+  BEGIN
+    SET LOCAL ROLE authenticated;
+    INSERT INTO public.audit_logs (
+      organization_id, actor_user_id, entity_type, entity_id, action
+    )
+    VALUES (v_org_id, v_user_id, 'transaction', gen_random_uuid(), 'create');
+    v_inserted := true;
+    RESET ROLE;
+  EXCEPTION WHEN OTHERS THEN
+    v_sqlstate := SQLSTATE;
+    v_sqlerrm  := SQLERRM;
+    RESET ROLE;
+  END;
+
+  PERFORM public._test_assert(
+    'T8.5: direct INSERT into audit_logs is blocked by RLS',
+    NOT v_inserted,
+    format('SQLSTATE=%s SQLERRM=%s', COALESCE(v_sqlstate,'NULL'), COALESCE(v_sqlerrm,'NULL'))
   );
 END $$;
 
