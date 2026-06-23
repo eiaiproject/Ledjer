@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   TRANSACTION_TYPE_LABELS,
+  GENERAL_TRANSACTION_TYPE_LABELS,
+  OPENING_TRANSACTION_TYPE_LABELS,
+  ALL_TRANSACTION_TYPE_LABELS,
+  labelForTransactionType,
   PAYMENT_STATUS_LABELS,
   CASH_ACCOUNT_TRANSACTION_TYPES,
   PARTY_TRANSACTION_TYPES,
@@ -31,12 +35,28 @@ describe('Transaction Type Labels', () => {
   it('does NOT include opening balance types in general UI labels', () => {
     // Opening balances should only be posted through dedicated onboarding flow
     // They should not appear in the general transaction type selector
-    // Note: The labels still exist for display purposes, but the UI should not show them
-    // This test verifies the labels exist (for backward compat) but the function
-    // rejection is handled in the backend
-    expect(TRANSACTION_TYPE_LABELS.opening_cash_balance).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.opening_receivable_balance).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.opening_payable_balance).toBeDefined();
+    expect(GENERAL_TRANSACTION_TYPE_LABELS).not.toHaveProperty('opening_cash_balance');
+    expect(GENERAL_TRANSACTION_TYPE_LABELS).not.toHaveProperty('opening_receivable_balance');
+    expect(GENERAL_TRANSACTION_TYPE_LABELS).not.toHaveProperty('opening_payable_balance');
+  });
+
+  it('OPENING labels contain the three opening types', () => {
+    expect(OPENING_TRANSACTION_TYPE_LABELS.opening_cash_balance).toBeDefined();
+    expect(OPENING_TRANSACTION_TYPE_LABELS.opening_receivable_balance).toBeDefined();
+    expect(OPENING_TRANSACTION_TYPE_LABELS.opening_payable_balance).toBeDefined();
+  });
+
+  it('ALL is a superset of GENERAL and OPENING', () => {
+    expect(Object.keys(ALL_TRANSACTION_TYPE_LABELS).sort()).toEqual(
+      [...Object.keys(GENERAL_TRANSACTION_TYPE_LABELS), ...Object.keys(OPENING_TRANSACTION_TYPE_LABELS)].sort()
+    );
+  });
+
+  it('labelForTransactionType falls back gracefully', () => {
+    expect(labelForTransactionType('cash_sale')).toBe('Penjualan Tunai');
+    expect(labelForTransactionType('opening_cash_balance')).toBe('Saldo Awal Kas');
+    expect(labelForTransactionType(undefined)).toBe('—');
+    expect(labelForTransactionType('unknown_type')).toBe('unknown_type');
   });
 });
 
