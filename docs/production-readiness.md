@@ -1,6 +1,6 @@
 # Ledjer — Production Readiness Checklist
 
-Last verified: 2026-07-27 against migrations up to and including `20260727_000000_fix_initial_product_stock_date.sql`.
+Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (no new migrations this iteration; latest is `20260727_000000_fix_initial_product_stock_date.sql`).
 
 ## Status Legend
 
@@ -110,6 +110,11 @@ Last verified: 2026-07-27 against migrations up to and including `20260727_00000
 | Mobile responsive | ✅ | Responsive layout tested |
 | **Transaction-type constants split** | ✅ | `GENERAL_TRANSACTION_TYPE_LABELS` for UI, `OPENING_…` and `ALL_…` for history |
 | **Auth callback covered by tests** | ✅ | `__tests__/auth-callback.test.tsx` (8 tests) |
+| **Auth recovery redirects to `/reset-password`** | ✅ | New `apps/web/src/pages/reset-password.tsx` page; recovery email links no longer land on unrelated team settings |
+| **Direct financial write tests not false-green** | ✅ | `accounting_regression_tests.sql` T8 inserts a fully-valid row and asserts failure is RLS, not NOT NULL/FK/check |
+| **`pay_payable` direction tested behaviourally** | ✅ | New `supabase/tests/payable_behavior_tests.sql` |
+| **Opening balance guard tested behaviourally** | ✅ | New `supabase/tests/opening_balance_guard_tests.sql` |
+| **Staff permissions + cross-org RLS tested behaviourally** | ✅ | New `supabase/tests/permission_matrix_tests.sql` |
 
 **Remaining risks:**
 - No automated E2E tests.
@@ -156,14 +161,21 @@ Last verified: 2026-07-27 against migrations up to and including `20260727_00000
 | SQL strict golden scenario | ✅ | `supabase/tests/golden_scenario_tests.sql` (explicit expected balances) |
 | SQL strict P0 fix tests | ✅ | `supabase/tests/p0_critical_fix_tests.sql` |
 | SQL strict security/RLS tests | ✅ | `supabase/tests/security_rls_tests.sql` |
-| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 63 tests across 4 files |
-| Auth-callback integration tests | ✅ | `auth-callback.test.tsx` covers code exchange, token_hash, invalid/expired, resend, redirects |
+| **SQL behavioural pay_payable direction** | ✅ | `supabase/tests/payable_behavior_tests.sql` (PB1–PB16) |
+| **SQL behavioural opening-balance guard** | ✅ | `supabase/tests/opening_balance_guard_tests.sql` (OG.A1–OG.D1, OG.C2) |
+| **SQL behavioural permission matrix + cross-org RLS** | ✅ | `supabase/tests/permission_matrix_tests.sql` (PM1.1–PM6.3) |
+| **SQL helper factories** | ✅ | `_test_impersonate`, `_test_create_org_with_users` in `_test_helpers.sql` |
+| **Direct INSERT test not false-green** | ✅ | T8 supplies every required column and asserts failure is RLS, not NOT NULL / FK |
+| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 69 tests across 5 files (auth-callback, reset-password, smoke, transaction-helpers, transactions) |
+| Auth-callback integration tests | ✅ | `auth-callback.test.tsx` covers code exchange, token_hash, invalid/expired, resend, recovery → `/reset-password` |
 | Migration CI guard | ✅ | `.github/workflows/ci.yml` fails if any migration references `_test_assert` |
+| **Packaging CI guard** | ✅ | `guard-package-clean` job runs `scripts/check-package-clean.sh` against `git archive` tarball and `git ls-files` zip |
+| **CI runs real Supabase local stack** | ✅ | `supabase start` + `supabase db reset` against the local Supabase Postgres (has `auth` schema, `auth.users`, `auth.uid()`, `anon` / `authenticated` / `service_role`) |
 | Integration tests | ❌ | Full integration requires running Supabase locally (out of scope here) |
 | E2E tests | ❌ | Not implemented |
 
 **Required before production:**
-- Run SQL tests against production-equivalent database in CI (workflow is in place; needs Supabase CLI in the runner).
+- Run SQL tests against production-equivalent database in CI (workflow is in place; runs on every push).
 
 ---
 
@@ -190,31 +202,49 @@ Last verified: 2026-07-27 against migrations up to and including `20260727_00000
 | Domain configured | ❌ | Not configured |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 
-**Most recent verification (2026-07-27):**
+**Most recent verification (2026-07-28, this session):**
+
+The following commands were actually executed:
 
 ```bash
-pnpm install --frozen-lockfile   # lockfile honored
-pnpm --filter web typecheck      # tsc -b clean, 0 errors
-pnpm --filter web lint           # eslint clean, 0 warnings
-pnpm --filter web test           # 63/63 tests passed
-pnpm --filter web build          # Vite production build succeeded
+pnpm install --frozen-lockfile       # ✅ already up to date; lockfile honored
+pnpm --filter web typecheck          # ✅ tsc -b clean, 0 errors
+pnpm --filter web lint               # ✅ eslint clean, 0 warnings
+pnpm --filter web test               # ✅ 69/69 tests passed (5 files)
+pnpm --filter web build              # ✅ vite production build in ~170ms; 12 chunks
+./scripts/check-package-clean.sh     # ✅ no forbidden paths in git ls-files
+grep -R "_test_assert" supabase/migrations/
+                                    # ✅ no matches (exit 1, no output)
 ```
+
+**Not run locally** (this environment has no Docker, no `psql` binary, no running Postgres):
+
+- `supabase db reset` against a local Supabase stack — requires Docker.
+- SQL test files in `supabase/tests/` — require a Postgres with the `auth` schema.
+
+These are run by the CI workflow on `ubuntu-latest` GitHub runners, which DO have Docker preinstalled. See `.github/workflows/ci.yml` `supabase` job.
 
 ---
 
 ## 11. Packaging & Distribution
 
-Use `git archive` to create the source tarball so the exclusions below are honored automatically. This is the recommended distribution method.
+Use `git archive` or `git ls-files` to create the source tarball/zip so the
+exclusions in `.gitignore` are honored automatically. **This is the recommended
+distribution method.**
 
 ```bash
-# Produce a clean source tarball
+# Produce a clean source tarball (recommended)
 git archive --format=tar.gz \
   --output=ledjer-src.tar.gz \
   --worktree-attributes \
   HEAD
+
+# Produce a clean source zip (alternative)
+git ls-files | zip -@ ledjer-src.zip
 ```
 
-The following paths are excluded from the archive by `.gitignore` (verified via `git archive`):
+The following paths are excluded from the archive by `.gitignore` (verified
+via `git ls-files` and `git archive`):
 
 | Path | Reason |
 |------|--------|
@@ -228,13 +258,22 @@ The following paths are excluded from the archive by `.gitignore` (verified via 
 | `.vscode`, `.idea` | IDE config |
 | `*.log` | Logs |
 
-For ZIP distribution (only if `git archive` is unavailable), use:
+### Local packaging guard
+
+Run `./scripts/check-package-clean.sh` (with or without a tarball/zip argument)
+before publishing. It inspects either the supplied archive or the current
+`git ls-files` output and fails if any forbidden path is present.
 
 ```bash
-git ls-files | zip -@ ledjer-src.zip
+./scripts/check-package-clean.sh                       # inspect git ls-files
+./scripts/check-package-clean.sh ledjer-src.tar.gz     # inspect a tarball
+./scripts/check-package-clean.sh ledjer-src.zip        # inspect a zip
 ```
 
-**DO NOT** commit a `.zip` containing `node_modules`, `.env.local`, or `dist`. Always regenerate the archive from a clean checkout.
+This same guard runs in CI as the `guard-package-clean` job.
+
+**DO NOT** commit a `.zip` containing `node_modules`, `.env.local`, or `dist`.
+Always regenerate the archive from a clean checkout.
 
 ---
 
