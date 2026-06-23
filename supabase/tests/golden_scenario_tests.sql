@@ -330,8 +330,5 @@ BEGIN
 END $$;
 
 -- Cleanup test helpers
-SELECT public._test_cleanup();
-DROP FUNCTION IF EXISTS public._test_create_owner_and_org(TEXT, DATE);
-DROP FUNCTION IF EXISTS public._test_impersonate(UUID);
 
 DO $$ BEGIN RAISE NOTICE '=== Golden Scenario Tests Complete ==='; END $$;

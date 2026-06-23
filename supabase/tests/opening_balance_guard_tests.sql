@@ -297,6 +297,5 @@ BEGIN
 END $$;
 
 -- Cleanup
-SELECT public._test_cleanup();
 
 DO $$ BEGIN RAISE NOTICE '=== Opening Balance Guard Tests Complete ==='; END $$;

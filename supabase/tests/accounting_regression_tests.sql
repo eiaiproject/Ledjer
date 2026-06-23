@@ -489,6 +489,5 @@ BEGIN
 END $$;
 
 -- Cleanup
-SELECT public._test_cleanup();
 
 DO $$ BEGIN RAISE NOTICE '=== Accounting Regression Tests Complete ==='; END $$;

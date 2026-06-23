@@ -229,6 +229,5 @@ BEGIN
 END $$;
 
 -- Cleanup
-SELECT public._test_cleanup();
 
 DO $$ BEGIN RAISE NOTICE '=== Payable Behavior Tests Complete ==='; END $$;

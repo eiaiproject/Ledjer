@@ -165,6 +165,5 @@ END $$;
 -- ═══════════════════════════════════════════════════════════════════
 -- Cleanup
 -- ═══════════════════════════════════════════════════════════════════
-SELECT public._test_cleanup();
 
 DO $$ BEGIN RAISE NOTICE '=== P0 Critical Fix Tests Complete ==='; END $$;
