@@ -14,7 +14,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Receipt, Search, Bookmark, BookmarkCheck, X } from "lucide-react";
-import { TRANSACTION_TYPE_LABELS } from "@/lib/transactions";
+import {
+  ALL_TRANSACTION_TYPE_LABELS,
+  GENERAL_TRANSACTION_TYPE_LABELS,
+  labelForTransactionType,
+} from "@/lib/transactions";
 
 interface Transaction {
   id: string;
@@ -170,7 +174,7 @@ export function TransactionListPage() {
               value={typeFilter}
               onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
               placeholder="Semua Jenis"
-              options={Object.entries(TRANSACTION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+              options={Object.entries(GENERAL_TRANSACTION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
             />
           </div>
           <div className="xl:col-span-2">
@@ -195,7 +199,7 @@ export function TransactionListPage() {
           {search && <Badge variant="neutral">Cari: {search}</Badge>}
           {typeFilter && (
             <Badge variant="info">
-              Jenis: {TRANSACTION_TYPE_LABELS[typeFilter as keyof typeof TRANSACTION_TYPE_LABELS] || typeFilter}
+              Jenis: {ALL_TRANSACTION_TYPE_LABELS[typeFilter as keyof typeof ALL_TRANSACTION_TYPE_LABELS] || typeFilter}
             </Badge>
           )}
           {statusFilter && <Badge variant={statusVariant(statusFilter)}>{statusLabel(statusFilter)}</Badge>}
@@ -318,7 +322,7 @@ export function TransactionListPage() {
                       </Link>
                       <p className="mt-1 line-clamp-2 break-words text-sm font-medium text-text-primary">{txn.description || "-"}</p>
                       <p className="mt-1 break-words text-xs text-text-tertiary">
-                        {formatShortDate(txn.transaction_date)} · {TRANSACTION_TYPE_LABELS[txn.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || txn.transaction_type}
+                        {formatShortDate(txn.transaction_date)} · {labelForTransactionType(txn.transaction_type)}
                       </p>
                     </div>
                     <Badge variant={statusVariant(txn.status)} className="shrink-0">{statusLabel(txn.status)}</Badge>
@@ -356,7 +360,7 @@ export function TransactionListPage() {
                       </Link>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-wood-700">
-                      {TRANSACTION_TYPE_LABELS[txn.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || txn.transaction_type}
+                      {labelForTransactionType(txn.transaction_type)}
                     </td>
                     <td className="max-w-[280px] px-4 py-3 text-wood-600">
                       <span className="line-clamp-2 break-words">{txn.description || "-"}</span>
