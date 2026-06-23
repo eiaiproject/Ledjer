@@ -227,6 +227,15 @@ export function LoginPage() {
                   autoComplete="current-password"
                 />
 
+                <div className="text-right">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-wood-600 hover:text-wood-800"
+                  >
+                    Lupa password?
+                  </Link>
+                </div>
+
                 <Button type="submit" fullWidth loading={loading} disabled={rateLimited || oauthLoading}>
                   Masuk
                 </Button>

@@ -27,6 +27,7 @@ const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/set
 const BillingSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/billing")).BillingSettingsPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
 const ResetPasswordPage = lazy(async () => ({ default: (await import("@/pages/reset-password")).ResetPasswordPage }));
+const ForgotPasswordPage = lazy(async () => ({ default: (await import("@/pages/forgot-password")).ForgotPasswordPage }));
 
 
 
@@ -56,6 +57,10 @@ const router = createBrowserRouter([
   // Password recovery destination — Supabase recovery email links land here
   // with a temporary session so the user can set a new password.
   { path: "/reset-password", element: <ResetPasswordPage /> },
+  // Forgot-password landing page — user enters their email to receive a
+  // recovery link. Public route (sits under PublicRoute so signed-in users
+  // are not redirected away).
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
   {
     path: "/onboarding",
     element: <ProtectedRoute />,
