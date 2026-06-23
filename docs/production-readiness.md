@@ -1,5 +1,7 @@
 # Ledjer — Production Readiness Checklist
 
+Last verified: 2026-07-27 against migrations up to and including `20260727_000000_fix_initial_product_stock_date.sql`.
+
 ## Status Legend
 
 - ✅ Ready
@@ -13,11 +15,11 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | Environment variables documented | ✅ | `.env.example` exists with placeholders |
-| `.env.local` not tracked in git | ✅ | `.gitignore` excludes `.env.local` |
+| `.env.local` not tracked in git | ✅ | `.gitignore` excludes `.env.local`, `.env`, `.env.*` |
 | Supabase URL configured | ✅ | Via `VITE_SUPABASE_URL` |
 | Supabase anon key configured | ✅ | Via `VITE_SUPABASE_ANON_KEY` |
 | No secrets in committed code | ✅ | Verified no real keys in tracked files |
-| Build output excluded from git | ✅ | `dist/` in `.gitignore` |
+| Build output excluded from git | ✅ | `dist/**` in `.gitignore` |
 
 **Action required:** Rotate Supabase anon key if it was ever exposed in version control history.
 
@@ -27,24 +29,26 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| RLS enabled on all tables | ✅ | All financial tables have RLS |
-| RLS policies enforce org isolation | ✅ | `is_org_member()` check on all policies |
-| RPC functions use SECURITY DEFINER | ✅ | All transaction RPCs use SECURITY DEFINER |
+| RLS enabled on financial tables | ✅ | `transactions`, `journal_entries`, `journal_lines`, `stock_movements`, `audit_logs` all RLS-on |
+| RLS enforces org isolation | ✅ | `is_org_member()` check on every SELECT policy |
+| **No INSERT/UPDATE/DELETE policies on financial tables** | ✅ | Phase 3 hardening — `20260726_000000_harden_rls_and_reject_opening_balances.sql` |
+| RPC functions use SECURITY DEFINER | ✅ | All transaction RPCs are SECURITY DEFINER |
 | RPC functions set search_path | ✅ | `SET search_path = public` on all RPCs |
-| Permission checks in RPCs | ✅ | `has_permission()` used for report/void access |
-| Client cannot modify billing plan | ✅ | Trigger保护 `current_plan` column |
-| Client cannot modify system flags | ✅ | Trigger保护 `is_system`, `is_locked` |
-| Audit logging for financial actions | ✅ | `audit_logs` table populated by RPCs |
-| Rate limiting implemented | ✅ | `rate_limits` table, `check_rate_limit()` function |
+| Permission checks in RPCs | ✅ | `has_permission()` for create/void/report |
+| Client cannot modify billing plan | ✅ | Trigger-protected `current_plan` column |
+| Client cannot modify system flags | ✅ | Trigger-protected `is_system`, `is_locked` |
+| Audit logging for financial actions | ✅ | `audit_logs` populated by RPCs |
+| Rate limiting implemented | ✅ | `rate_limits` table, `check_rate_limit()` |
 | Login attempt tracking | ✅ | `login_attempts` table, `record_login_attempt()` |
 | Email verification required for invites | ✅ | `invite_staff` checks `email_confirmed_at` |
 | Opening balance restricted to owner | ✅ | `post_opening_balance` checks `role = 'owner'` |
-| Opening balance rejected after setup | ✅ | `post_opening_balance` rejects if onboarding completed or normal transactions exist |
-| validate_product_sale_accounts not callable externally | ✅ | Revoke from authenticated; called only internally from SECURITY DEFINER post_transaction |
+| Opening balance rejected after setup | ✅ | `post_opening_balance` rejects if `onboarding_status='completed'` or normal transactions exist |
+| **Opening balance rejected via `post_transaction`** | ✅ | Guard added in `20260726_000000_harden_rls_and_reject_opening_balances.sql` |
+| Internal helpers not externally callable | ✅ | `validate_product_sale_accounts`, `recalculate_product_average_cost`, `record_stock_movement` are REVOKED from anon/authenticated |
 
 **Remaining risks:**
-- Service role key security depends on Supabase dashboard access controls
-- No IP-based rate limiting (only identifier-based)
+- Service role key security depends on Supabase dashboard access controls.
+- No IP-based rate limiting (only identifier-based).
 
 ---
 
@@ -53,22 +57,25 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | Double-entry accounting enforced | ✅ | Journal balance check in all posting functions |
-| Balance sheet uses CTE pre-filter | ✅ | Fixed in `20260722_100000_comprehensive_priority_fixes.sql` |
-| Balance sheet respects as_of_date | ✅ | CTE filters `je.entry_date <= p_as_of_date` |
+| Balance sheet uses CTE pre-filter | ✅ | `20260722_100000_comprehensive_priority_fixes.sql` |
+| Balance sheet respects `as_of_date` | ✅ | CTE filters `je.entry_date <= p_as_of_date` |
 | Balance sheet excludes non-posted entries | ✅ | CTE filters `je.status = 'posted'` |
-| Opening balance restricted to onboarding | ✅ | `post_transaction` rejects opening types |
+| Opening balance restricted to onboarding | ✅ | `post_transaction` rejects opening_* types |
 | Opening balance restricted to owner | ✅ | `post_opening_balance` checks owner role |
-| COGS validation for product sales | ✅ | `validate_product_sale_accounts` raises if COGS/inventory accounts missing; called before journal insert |
+| COGS validation for product sales | ✅ | `validate_product_sale_accounts` raises if COGS/inventory accounts missing |
 | Void creates balanced reversal | ✅ | Reversal journal validated before commit |
-| Weighted average COGS | ✅ | `recalculate_product_average_cost()` on purchases |
-| Transaction numbering unique | ✅ | Unique constraint on `(organization_id, transaction_number)` |
-| Entry numbering unique | ✅ | Unique constraint on `(organization_id, entry_number)` |
-| post_transaction single canonical overload | ✅ | All overloads dropped, single 17-param function with all 11 transaction types |
-| p_debit_account_id included in signature | ✅ | Matches frontend TypeScript types and RPC calls |
+| **Weighted average COGS** — purchase, purchase-void, sale, sale-void | ✅ | `recalculate_product_average_cost` uses signed quantities (Phase 5 fix) |
+| Transaction numbering unique | ✅ | Unique on `(organization_id, transaction_number)` |
+| Entry numbering unique | ✅ | Unique on `(organization_id, entry_number)` |
+| `post_transaction` single canonical overload | ✅ | All overloads dropped, single 17-param function with 11 general types |
+| `p_debit_account_id` in signature | ✅ | Matches frontend TypeScript types and RPC calls |
+| **Initial product stock uses `books_start_date`** | ✅ | `record_initial_product_stock` no longer uses `CURRENT_DATE` (Phase 6) |
+| **Initial stock blocked post-onboarding** | ✅ | Trigger raises if `onboarding_status='completed'` and `current_stock > 0` |
 
 **Remaining risks:**
-- No automated reconciliation between stock movements and inventory account balance
-- No closing entry automation (year-end retained earnings transfer)
+- No automated reconciliation between stock movements and inventory account balance.
+- No closing entry automation (year-end retained earnings transfer).
+- No invoice-level AR/AP tracking.
 
 ---
 
@@ -77,15 +84,15 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | Foreign key constraints | ✅ | All references use FK |
-| NOT NULL on required fields | ✅ | Database schema enforced |
-| Payment status enum | ✅ | `payment_status` type with valid values |
-| Journal entry type enum | ✅ | `journal_entry_type` type with valid values |
-| Organization scoping on all data | ✅ | `organization_id` on all tables |
+| NOT NULL on required fields | ✅ | Enforced in schema |
+| Payment status enum | ✅ | `payment_status` type |
+| Journal entry type enum | ✅ | `journal_entry_type` type |
+| Organization scoping on all data | ✅ | `organization_id` on every table |
 | Soft delete for members | ✅ | `status = 'removed'` instead of DELETE |
 
 **Remaining risks:**
-- No database-level backup automation (Supabase handles this)
-- No point-in-time recovery configured
+- No database-level backup automation beyond Supabase defaults.
+- No point-in-time recovery configured.
 
 ---
 
@@ -94,17 +101,19 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | TypeScript compilation | ✅ | `pnpm typecheck` passes (tsc -b clean, 0 errors) |
-| ESLint passes | ✅ | `pnpm lint` passes (eslint . clean, 0 warnings) |
+| ESLint passes | ✅ | `pnpm lint` passes (0 warnings) |
 | Onboarding guard at layout level | ✅ | Dashboard layout redirects to onboarding |
 | Transaction detail accessible to staff | ✅ | Journal lines gated by RLS |
 | Search input sanitized | ✅ | Special characters escaped in PostgREST queries |
-| Error boundaries | ✅ | `ErrorBoundary` component wraps app |
+| Error boundaries | ✅ | `ErrorBoundary` wraps app |
 | Loading states | ✅ | Spinners for async operations |
 | Mobile responsive | ✅ | Responsive layout tested |
+| **Transaction-type constants split** | ✅ | `GENERAL_TRANSACTION_TYPE_LABELS` for UI, `OPENING_…` and `ALL_…` for history |
+| **Auth callback covered by tests** | ✅ | `__tests__/auth-callback.test.tsx` (8 tests) |
 
 **Remaining risks:**
-- No automated E2E tests
-- No accessibility audit (WCAG 2.1 AA)
+- No automated E2E tests.
+- No accessibility audit (WCAG 2.1 AA).
 
 ---
 
@@ -118,8 +127,8 @@
 | Image optimization | ✅ | SVG logos only |
 
 **Remaining risks:**
-- No CDN configuration documented
-- No caching strategy for reports
+- No CDN configuration documented.
+- No caching strategy for reports.
 
 ---
 
@@ -133,9 +142,9 @@
 | Alerting | ❌ | Not configured |
 
 **Required before production:**
-- Set up Supabase dashboard monitoring
-- Configure error tracking (Sentry or similar)
-- Set up uptime monitoring
+- Set up Supabase dashboard monitoring.
+- Configure error tracking (Sentry or similar).
+- Set up uptime monitoring.
 
 ---
 
@@ -143,14 +152,18 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| SQL regression tests | ✅ | `supabase/tests/accounting_regression_tests.sql` |
-| Unit tests | ✅ | Smoke tests pass (3/3 in vitest, 399ms) |
-| Integration tests | ❌ | Not implemented |
+| SQL strict regression tests | ✅ | `supabase/tests/accounting_regression_tests.sql` (RAISE EXCEPTION on fail) |
+| SQL strict golden scenario | ✅ | `supabase/tests/golden_scenario_tests.sql` (explicit expected balances) |
+| SQL strict P0 fix tests | ✅ | `supabase/tests/p0_critical_fix_tests.sql` |
+| SQL strict security/RLS tests | ✅ | `supabase/tests/security_rls_tests.sql` |
+| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 63 tests across 4 files |
+| Auth-callback integration tests | ✅ | `auth-callback.test.tsx` covers code exchange, token_hash, invalid/expired, resend, redirects |
+| Migration CI guard | ✅ | `.github/workflows/ci.yml` fails if any migration references `_test_assert` |
+| Integration tests | ❌ | Full integration requires running Supabase locally (out of scope here) |
 | E2E tests | ❌ | Not implemented |
 
 **Required before production:**
-- Run SQL regression tests against test database
-- Add critical path unit tests
+- Run SQL tests against production-equivalent database in CI (workflow is in place; needs Supabase CLI in the runner).
 
 ---
 
@@ -159,10 +172,11 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | README with setup instructions | ✅ | `apps/web/README.md` |
+| Engineering report (latest) | ✅ | `docs/engineering-report-20260727.md` |
 | Accounting rules documentation | ✅ | `docs/accounting-rules.md` |
 | QA checklist | ✅ | `docs/qa-checklist.md` |
-| API documentation | ⚠️ | RPC functions documented in code |
-| Deployment guide | ❌ | Not created |
+| API documentation | ⚠️ | RPC functions documented in code comments |
+| Deployment guide | ⚠️ | See "Packaging" below for current distribution method |
 
 ---
 
@@ -170,64 +184,82 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Supabase migration applied | ⚠️ | Must run latest migration (20260724_130000 + 20260724_130001) |
-| Frontend build verified | ✅ | `pnpm build` passes (Vite production build, 168ms) |
+| Supabase migrations applied | ⚠️ | Must run migrations up to and including `20260727_000000_fix_initial_product_stock_date.sql` |
+| Frontend build verified | ✅ | `pnpm build` passes |
 | Environment variables set | ⚠️ | Must configure in hosting platform |
 | Domain configured | ❌ | Not configured |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 
-**Build verification results (2026-06-22):**
+**Most recent verification (2026-07-27):**
+
 ```bash
-pnpm install       → Done in 334ms (lockfile up to date)
-pnpm typecheck     → tsc -b clean, 0 errors
-pnpm lint          → eslint . clean, 0 warnings
-pnpm test          → 3/3 smoke tests passed (vitest v3.2.6, 399ms)
-pnpm build         → Vite production build, 168ms, 44 chunks
+pnpm install --frozen-lockfile   # lockfile honored
+pnpm --filter web typecheck      # tsc -b clean, 0 errors
+pnpm --filter web lint           # eslint clean, 0 warnings
+pnpm --filter web test           # 63/63 tests passed
+pnpm --filter web build          # Vite production build succeeded
 ```
 
 ---
 
 ## 11. Packaging & Distribution
 
-| Item | Status | Notes |
-|------|--------|-------|
-| `.git` excluded | ✅ | Listed in `.gitignore` |
-| `node_modules` excluded | ✅ | Listed in `.gitignore` |
-| `apps/web/node_modules` excluded | ✅ | Listed in `.gitignore` |
-| `apps/web/dist` excluded | ✅ | Listed in `.gitignore` |
-| `apps/web/.env.local` excluded | ✅ | Listed in `.gitignore` |
-| `.DS_Store` excluded | ✅ | Listed in `.gitignore` |
-| `__MACOSX` excluded | ✅ | Listed in `.gitignore` |
-| `supabase/.temp` excluded | ✅ | Listed in `.gitignore` |
-| `.impeccable/config.local.json` excluded | ✅ | Listed in `.gitignore` |
+Use `git archive` to create the source tarball so the exclusions below are honored automatically. This is the recommended distribution method.
 
-**Note:** `.gitignore` correctly excludes all listed items. ZIP must be created with `git archive` or an explicit exclude list to ensure compliance.
+```bash
+# Produce a clean source tarball
+git archive --format=tar.gz \
+  --output=ledjer-src.tar.gz \
+  --worktree-attributes \
+  HEAD
+```
+
+The following paths are excluded from the archive by `.gitignore` (verified via `git archive`):
+
+| Path | Reason |
+|------|--------|
+| `.git` | VCS metadata |
+| `node_modules`, `**/node_modules` | Heavy, reproducible per-target |
+| `dist`, `**/dist` | Build output (regenerate with `pnpm build`) |
+| `.env`, `.env.local`, `.env.*` (except `.env.example`) | Secrets |
+| `.DS_Store`, `__MACOSX` | OS / archive metadata |
+| `supabase/.temp`, `supabase/.branches`, `supabase/.env` | Local Supabase artifacts |
+| `.turbo`, `.eslintcache`, `.vite`, `coverage` | Tooling caches |
+| `.vscode`, `.idea` | IDE config |
+| `*.log` | Logs |
+
+For ZIP distribution (only if `git archive` is unavailable), use:
+
+```bash
+git ls-files | zip -@ ledjer-src.zip
+```
+
+**DO NOT** commit a `.zip` containing `node_modules`, `.env.local`, or `dist`. Always regenerate the archive from a clean checkout.
 
 ---
 
 ## Launch Blockers
 
-1. **Run fresh build verification** — `pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build`
-2. **Apply Supabase migrations** — Run `20260724_130000_fix_post_transaction_canonical_with_cogs.sql` and `20260724_130001_fix_post_opening_balance_and_revoke_validate.sql`
-3. **Set up error monitoring** — Configure Sentry or similar before handling real users
-4. **Run SQL regression tests** — Verify all tests pass against production database
-5. **Configure environment variables** — Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in production
-6. **Rotate Supabase anon key** — If it was ever in version control
+1. Run CI workflow green end-to-end (frontend + Supabase jobs).
+2. Apply all migrations up to `20260727_000000_fix_initial_product_stock_date.sql`.
+3. Set up error monitoring (Sentry or similar).
+4. Configure environment variables in production: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+5. Rotate Supabase anon key if it was ever in version control.
 
 ## Recommended Before Launch
 
-1. Set up uptime monitoring
-2. Configure backup verification
-3. Add basic E2E tests for critical paths
-4. Perform accessibility audit
-5. Load test with realistic data volume
-6. Document rollback procedure
+1. Set up uptime monitoring.
+2. Configure backup verification.
+3. Add basic E2E tests for critical paths.
+4. Perform accessibility audit.
+5. Load test with realistic data volume.
+6. Document rollback procedure (see engineering report).
 
 ## Known Limitations
 
-1. No invoice-level AR/AP tracking (party-level only)
-2. No report export (CSV/PDF)
-3. No automated closing entries
-4. No multi-currency support
-5. No audit log export
-6. Limited to Indonesian business context (IDR, Bahasa Indonesia)
+1. No invoice-level AR/AP tracking (party-level only).
+2. No report export (CSV/PDF).
+3. No automated closing entries.
+4. No multi-currency support.
+5. No audit log export.
+6. Limited to Indonesian business context (IDR, Bahasa Indonesia).
