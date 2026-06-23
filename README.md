@@ -35,6 +35,7 @@ Catat transaksi, kelola persediaan, hasilkan laporan keuangan — tanpa spreadsh
 - [Project Structure](#project-structure)
 - [Accounting Rules](#accounting-rules)
 - [Security](#security)
+- [Auth Flows](docs/auth-flow.md)
 - [Deployment](#deployment)
 - [Distribusi Source](#distribusi-source)
 - [Roadmap](#roadmap)
@@ -104,6 +105,7 @@ Setiap transaksi diposting melalui SECURITY DEFINER RPC dan otomatis menghasilka
 - **Rate limiting** per identifier (`rate_limits`) dan tracking percobaan login (`login_attempts`)
 - **Format Rupiah** (IDR) dengan input numerik lokal
 - **Onboarding wizard** untuk setup bisnis baru (chart of accounts + saldo awal)
+- **Password recovery flow** — "Lupa password?" di halaman login → email recovery → setel password baru di `/reset-password`. Dilindungi anti account-enumeration (respon sukses generik) dan rate-limit (3 percobaan per 15 menit per email).
 
 ---
 
@@ -476,6 +478,7 @@ Ledjer memisahkan lapisan keamanan agar setiap ancaman ditangani di level yang t
 | Input sanitization | Zod schema di frontend + server-side validation di setiap RPC |
 | No direct writes | Client tidak punya INSERT / UPDATE / DELETE policy di financial tables — semua mutasi via RPC |
 | Internal helpers | `validate_product_sale_accounts`, `recalculate_product_average_cost`, `record_stock_movement` di-REVOKE dari `anon` / `authenticated` — hanya callable dari SECURITY DEFINER function lain |
+| Password recovery | `resetPasswordForEmail` + dedicated `/reset-password` route; **same generic success message regardless of email validity** (anti account-enumeration); client rate limit 3/15min per email via `RATE_LIMITS.passwordReset`; Supabase auth rate limit on top |
 
 ### Yang TIDAK boleh dilakukan oleh client
 
@@ -484,6 +487,7 @@ Ledjer memisahkan lapisan keamanan agar setiap ancaman ditangani di level yang t
 - ❌ Lihat transaksi organisasi lain (RLS `is_org_member(org_id)` memblokir)
 - ❌ Post opening balance setelah onboarding selesai (`post_opening_balance` raise exception)
 - ❌ Void transaksi tanpa izin `can_void_transaction`
+- ❌ Probe apakah suatu email terdaftar via "Lupa password?" — server selalu merespons sama; tidak ada kebocoran informasi akun
 
 ---
 
@@ -521,6 +525,20 @@ supabase db push
 ```
 
 Atau via dashboard: SQL Editor → paste migration files satu per satu (urut berdasarkan timestamp di filename).
+
+**Penting — Auth redirect URLs.** Migration `20260618_000000_create_rls_policies.sql` (dan migration auth) menyiapkan `auth.additional_redirect_urls` di `supabase/config.toml`. Supabase hanya mengizinkan redirect ke URL yang ada di whitelist tersebut. Pastikan URL produksi dan path recovery tercantum:
+
+```
+[auth]
+additional_redirect_urls = [
+  "https://app.ledjer.id",
+  "https://app.ledjer.id/auth/callback",       # email confirmation + recovery
+  "http://localhost:5173",                     # dev
+  "http://localhost:5173/auth/callback",       # dev
+]
+```
+
+Path `/auth/callback` menerima semua tipe OTP Supabase (`signup`, `recovery`, `magiclink`, `email_change`) — query string `?type=recovery` membedakan recovery dari signup dan route ke `/reset-password`. Detail lengkap: lihat `auth-callback.tsx` dan `reset-password.tsx`.
 
 ---
 

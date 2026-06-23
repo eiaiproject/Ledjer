@@ -28,10 +28,29 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "http://localhost:5173"
+
+# additional_redirect_urls is the allowlist of URLs Supabase is allowed to
+# redirect users to after an auth flow (signup confirmation, magic link,
+# recovery, OAuth callback, etc.). The path `/auth/callback` is the single
+# entry point used by the Ledjer frontend — apps/web/src/pages/auth-callback.tsx
+# reads the `type` query param (signup | recovery | magiclink | email_change)
+# and routes the user to the appropriate page.
+#
+# For password recovery specifically, the frontend calls
+# supabase.auth.resetPasswordForEmail(email, { redirectTo: '<site>/auth/callback?type=recovery' })
+# which generates a recovery link that redirects back here. The frontend
+# then verifies the OTP via supabase.auth.verifyOtp({ token_hash, type: 'recovery' }),
+# establishes a temporary session, and pushes the user to /reset-password.
+#
+# When deploying to production, replace the localhost entries with your
+# real domain. Wildcards are NOT supported — every URL must be exact.
 additional_redirect_urls = [
   "https://localhost:5173",
   "http://localhost:5173/auth/callback",
   "https://localhost:5173/auth/callback",
+  # Production entries — uncomment and edit before launch:
+  # "https://app.ledjer.id",
+  # "https://app.ledjer.id/auth/callback",
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
