@@ -77,11 +77,13 @@ export function AuthCallbackPage() {
         // Brief delay so user sees the success state before redirect.
         setTimeout(() => {
           // Decide destination based on the OTP type.
+          // - recovery → password-reset page so the user can set a new password
+          //   (do NOT send them to /settings/team — that is unrelated).
+          // - signup / magiclink / email_change → onboarding so they can
+          //   create or resume their business.
           if (type === "recovery") {
-            navigate("/settings/team", { replace: true });
+            navigate("/reset-password", { replace: true });
           } else {
-            // Email confirmation (signup) → send user to onboarding so they can
-            // create their business right away.
             navigate("/onboarding", { replace: true });
           }
         }, 1200);

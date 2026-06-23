@@ -26,6 +26,7 @@ const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/rep
 const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/team")).TeamSettingsPage }));
 const BillingSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/billing")).BillingSettingsPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
+const ResetPasswordPage = lazy(async () => ({ default: (await import("@/pages/reset-password")).ResetPasswordPage }));
 
 
 
@@ -52,6 +53,9 @@ const router = createBrowserRouter([
   // verifyOtp sets a session the guards would redirect before our own
   // navigate("/onboarding") runs.
   { path: "/auth/callback", element: <AuthCallbackPage /> },
+  // Password recovery destination — Supabase recovery email links land here
+  // with a temporary session so the user can set a new password.
+  { path: "/reset-password", element: <ResetPasswordPage /> },
   {
     path: "/onboarding",
     element: <ProtectedRoute />,
