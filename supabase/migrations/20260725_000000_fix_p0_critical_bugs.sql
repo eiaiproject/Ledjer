@@ -966,109 +966,15 @@ GRANT EXECUTE ON FUNCTION public.create_organization_with_opening_balances(
   TEXT, public.business_type, DATE, TEXT, NUMERIC, JSONB
 ) TO authenticated;
 
-
 -- ═══════════════════════════════════════════════════════════════════
---  P0.1 REGRESSION TEST: pay_payable direction
+--  END OF P0 FIXES
+--  NOTE: Regression tests for pay_payable direction and onboarding flow
+--  live in supabase/tests/ (p0_critical_fix_tests.sql, golden_scenario_tests.sql).
+--  Test-only helper functions are intentionally NOT defined here so that
+--  a clean `supabase db reset` from an empty database succeeds.
 -- ═══════════════════════════════════════════════════════════════════
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_user_id UUID;
-  v_cash_account UUID;
-  v_payable_account UUID;
-  v_party_id UUID;
-  v_result JSONB;
-  v_je_id UUID;
-  v_debit_account_code INTEGER;
-  v_credit_account_code INTEGER;
-  v_debit_amount NUMERIC;
-  v_credit_amount NUMERIC;
-BEGIN
-  -- Setup: get org, user, accounts
-  SELECT o.id, o.created_by INTO v_org_id, v_user_id
-  FROM public.organizations o
-  LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: P0.1 test — no org';
-    RETURN;
-  END IF;
-
-  -- Get cash account (code 1110)
-  SELECT id INTO v_cash_account
-  FROM public.accounts
-  WHERE organization_id = v_org_id AND code = 1110 AND is_active = true;
-
-  -- Get payable account (code 2100)
-  SELECT id INTO v_payable_account
-  FROM public.accounts
-  WHERE organization_id = v_org_id AND code = 2100 AND is_active = true;
-
-  IF v_cash_account IS NULL OR v_payable_account IS NULL THEN
-    RAISE WARNING 'SKIP: P0.1 test — missing accounts';
-    RETURN;
-  END IF;
-
-  -- Create a test supplier party
-  INSERT INTO public.parties (organization_id, name, party_type, is_active)
-  VALUES (v_org_id, 'TEST SUPPLIER P0.1', 'supplier', true)
-  ON CONFLICT DO NOTHING
-  RETURNING id INTO v_party_id;
-
-  IF v_party_id IS NULL THEN
-    SELECT id INTO v_party_id
-    FROM public.parties
-    WHERE organization_id = v_org_id AND name = 'TEST SUPPLIER P0.1'
-    LIMIT 1;
-  END IF;
-
-  -- We can't easily call post_transaction from within a DO block with auth.uid()
-  -- But we can verify the account codes are correct by checking the function definition
-  -- and testing via the journal lines table after a real call.
-
-  -- Instead, verify the function definition has the correct direction
-  -- by checking the source code contains the fix
-  PERFORM public._test_assert(
-    'P0.1: pay_payable debit account should be code 2100 (Utang)',
-    TRUE,  -- Verified by code inspection above
-    'pay_payable branch: v_debit_account_id := code 2100, v_credit_account_id := p_cash_account_id'
-  );
-
-  PERFORM public._test_assert(
-    'P0.1: pay_payable credit account should be cash/bank',
-    TRUE,  -- Verified by code inspection above
-    'pay_payable branch: v_credit_account_id := p_cash_account_id'
-  );
-END $$;
-
-
--- ═══════════════════════════════════════════════════════════════════
---  P0.2 REGRESSION TEST: onboarding status flow
--- ═══════════════════════════════════════════════════════════════════
-DO $$
-DECLARE
-  v_org_id UUID;
-  v_onboarding TEXT;
-BEGIN
-  SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
-
-  IF v_org_id IS NULL THEN
-    RAISE WARNING 'SKIP: P0.2 test — no org';
-    RETURN;
-  END IF;
-
-  SELECT onboarding_status::TEXT INTO v_onboarding
-  FROM public.organizations WHERE id = v_org_id;
-
-  -- After onboarding completes, status should be 'completed'
-  PERFORM public._test_assert(
-    'P0.2: onboarding_status is completed after setup',
-    v_onboarding = 'completed',
-    'Actual status: ' || v_onboarding
-  );
-END $$;
-
 
 NOTIFY pgrst, 'reload schema';
+
 
 COMMIT;
