@@ -2,6 +2,23 @@
 
 This document describes every transaction type supported by Ledjer, including the journal entries created, accounts affected, and restrictions.
 
+## MVP Scope Notice: Party-level AR/AP
+
+Receivables (`Piutang Usaha`, code 1200) and payables (`Utang Usaha`, code 2100) are tracked at the **party** level, not the **invoice** level. This means:
+
+- A `credit_sale` adds the full amount to the party's receivable balance.
+- A `receive_receivable` reduces that party's receivable balance by the amount received.
+- The system does NOT track which invoice each payment is applied against.
+
+**Implication:** It is technically possible to receive more than the outstanding receivable (or pay more than the outstanding payable) for a given party, which produces a negative receivable/payable balance for that party. This is permitted in the MVP but flagged in the UI as a warning. Full invoice-level settlement is not in the MVP scope.
+
+If you need invoice-level tracking, file a feature request — adding it requires:
+- An `invoices` table with `(id, organization_id, party_id, transaction_id, amount, due_date)`.
+- An `invoice_allocations` table mapping each `receive_receivable` / `pay_payable` to one or more invoices.
+- New RPCs `apply_receivable_to_invoice(...)` / `apply_payable_to_invoice(...)` that update allocation rows.
+- Updated reports showing per-invoice aging.
+
+
 ## Table of Contents
 
 1. [Cash Sale](#1-cash-sale)

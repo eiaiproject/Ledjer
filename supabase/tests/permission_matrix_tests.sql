@@ -335,8 +335,11 @@ DECLARE
   v_a_rev      UUID;
 
   v_c_owner    UUID;
+  v_c_staff    UUID;
   v_c_org      UUID;
   v_c_cash     UUID;
+  v_c_pay      UUID;
+  v_c_rev      UUID;
 
   v_txn_no     TEXT := 'TX-XORG-' || substr(md5(random()::text), 1, 8);
   v_inserted   BOOLEAN := false;

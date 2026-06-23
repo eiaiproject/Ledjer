@@ -98,7 +98,7 @@ BEGIN
   END IF;
 
   -- Fetch the two posted lines
-  SELECT a.code, jl.debit, jl.credit
+  SELECT a.code, jl.account_id, jl.debit, jl.credit
     INTO v_debit_line
   FROM public.journal_lines jl
   JOIN public.accounts a ON a.id = jl.account_id
@@ -109,7 +109,7 @@ BEGIN
     PERFORM public._test_fail('PB3', 'no debit line in pay_payable journal');
   END IF;
 
-  SELECT a.code, jl.debit, jl.credit
+  SELECT a.code, jl.account_id, jl.debit, jl.credit
     INTO v_credit_line
   FROM public.journal_lines jl
   JOIN public.accounts a ON a.id = jl.account_id

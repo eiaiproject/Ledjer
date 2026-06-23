@@ -1,6 +1,6 @@
 # Ledjer — Production Readiness Checklist
 
-Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (no new migrations this iteration; latest is `20260727_000000_fix_initial_product_stock_date.sql`).
+Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (latest is `20260728_000000_p0_search_path_balance_sheet_cte.sql`).
 
 ## Status Legend
 
@@ -33,7 +33,7 @@ Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (n
 | RLS enforces org isolation | ✅ | `is_org_member()` check on every SELECT policy |
 | **No INSERT/UPDATE/DELETE policies on financial tables** | ✅ | Phase 3 hardening — `20260726_000000_harden_rls_and_reject_opening_balances.sql` |
 | RPC functions use SECURITY DEFINER | ✅ | All transaction RPCs are SECURITY DEFINER |
-| RPC functions set search_path | ✅ | `SET search_path = public` on all RPCs |
+| RPC functions set search_path | ✅ | `SET search_path = public` on all RPCs (CI test `security_rls_tests.sql` TEST 3b fails if any SECURITY DEFINER function is missing it) |
 | Permission checks in RPCs | ✅ | `has_permission()` for create/void/report |
 | Client cannot modify billing plan | ✅ | Trigger-protected `current_plan` column |
 | Client cannot modify system flags | ✅ | Trigger-protected `is_system`, `is_locked` |
@@ -109,6 +109,8 @@ Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (n
 | Loading states | ✅ | Spinners for async operations |
 | Mobile responsive | ✅ | Responsive layout tested |
 | **Transaction-type constants split** | ✅ | `GENERAL_TRANSACTION_TYPE_LABELS` for UI, `OPENING_…` and `ALL_…` for history |
+| **Database types canonical source** | ✅ | Single source of truth in `packages/database-types/index.ts`; legacy `apps/web/src/lib/database-types.ts` is a thin `@deprecated` re-export shim |
+| **Database types drift CI guard** | ✅ | `pnpm db-types:check` + CI `db-types-guard` job fails if shim or canonical package is missing/divergent |
 | **Auth callback covered by tests** | ✅ | `__tests__/auth-callback.test.tsx` (8 tests) |
 | **Auth recovery redirects to `/reset-password`** | ✅ | New `apps/web/src/pages/reset-password.tsx` page; recovery email links no longer land on unrelated team settings |
 | **Direct financial write tests not false-green** | ✅ | `accounting_regression_tests.sql` T8 inserts a fully-valid row and asserts failure is RLS, not NOT NULL/FK/check |
@@ -160,7 +162,8 @@ Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (n
 | SQL strict regression tests | ✅ | `supabase/tests/accounting_regression_tests.sql` (RAISE EXCEPTION on fail) |
 | SQL strict golden scenario | ✅ | `supabase/tests/golden_scenario_tests.sql` (explicit expected balances) |
 | SQL strict P0 fix tests | ✅ | `supabase/tests/p0_critical_fix_tests.sql` |
-| SQL strict security/RLS tests | ✅ | `supabase/tests/security_rls_tests.sql` |
+| SQL strict security/RLS tests | ✅ | `supabase/tests/security_rls_tests.sql` (now also asserts every SECURITY DEFINER function declares `SET search_path`) |
+| **SQL strict inventory golden scenario** | ✅ | `supabase/tests/inventory_golden_tests.sql` (weighted average + sale/void + oversell) |
 | **SQL behavioural pay_payable direction** | ✅ | `supabase/tests/payable_behavior_tests.sql` (PB1–PB16) |
 | **SQL behavioural opening-balance guard** | ✅ | `supabase/tests/opening_balance_guard_tests.sql` (OG.A1–OG.D1, OG.C2) |
 | **SQL behavioural permission matrix + cross-org RLS** | ✅ | `supabase/tests/permission_matrix_tests.sql` (PM1.1–PM6.3) |
@@ -196,7 +199,7 @@ Last verified: 2026-07-28 against the migration set in `supabase/migrations/` (n
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Supabase migrations applied | ⚠️ | Must run migrations up to and including `20260727_000000_fix_initial_product_stock_date.sql` |
+| Supabase migrations applied | ⚠️ | Must run migrations up to and including `20260728_000000_p0_search_path_balance_sheet_cte.sql` |
 | Frontend build verified | ✅ | `pnpm build` passes |
 | Environment variables set | ⚠️ | Must configure in hosting platform |
 | Domain configured | ❌ | Not configured |

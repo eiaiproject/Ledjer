@@ -203,6 +203,33 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
+-- TEST 3b: All SECURITY DEFINER functions have explicit SET search_path
+-- SECURITY DEFINER functions must hard-set search_path to prevent
+-- attacker-controlled search_path values (e.g., via CREATE SCHEMA)
+-- from redirecting unqualified name resolution to attacker tables.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_missing_count INTEGER;
+  v_missing_names TEXT;
+BEGIN
+  SELECT COUNT(*), COALESCE(string_agg(p.proname, ', ' ORDER BY p.proname), '')
+    INTO v_missing_count, v_missing_names
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.prosecdef = true
+    AND p.prokind = 'f'
+    AND COALESCE(p.proconfig::text, '') NOT LIKE '%search_path%';
+
+  PERFORM public._test_assert(
+    'All SECURITY DEFINER functions declare SET search_path',
+    v_missing_count = 0,
+    'Missing search_path on: ' || v_missing_names
+  );
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
 -- TEST 5: Org isolation in SELECT policies
 -- Accept either `is_org_member(...)` (membership check) or
 -- `has_permission(..., 'can_view_reports')` (permission-gated read).
