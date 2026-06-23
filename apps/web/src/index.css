@@ -324,6 +324,43 @@ p, li {
   animation: ledger-soft-float 6s ease-in-out infinite;
 }
 
+/* Right-side flow line draws from center outward (matches left line) so the
+   "Debet = Kredit" pill reads as two sides reconciling into one balance. */
+.ledger-flow-line--left {
+  transform-origin: right center;
+}
+.ledger-flow-line--right {
+  transform-origin: left center;
+  animation-delay: calc(260ms + var(--i, 0) * 120ms + 80ms);
+}
+
+/* Pill lands just after both lines complete the reconciliation. */
+.ledger-balance-pill {
+  animation: ledger-stamp-in 520ms var(--ease-out) both;
+  animation-delay: 900ms;
+}
+
+/* Animated underline for the hero secondary link. */
+.ledger-cta-link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 1px;
+  transition: background-size 240ms var(--ease-out), color 200ms var(--ease-out);
+}
+.ledger-cta-link:hover,
+.ledger-cta-link:focus-visible {
+  background-size: 100% 1px;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ledger-cta-link {
+    transition: none;
+    background-image: none;
+  }
+}
+
 /* Print styles */
 @media print {
   nav, .no-print { display: none !important; }

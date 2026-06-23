@@ -2,50 +2,242 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  FileText,
   Calculator,
   Package,
   BarChart3,
   Shield,
-  Lock,
   Eye,
   ChevronRight,
   CheckCircle2,
+  Users,
+  FileText,
+  Wallet,
+  Sparkles,
+  BookOpen,
+  Scale,
+  TrendingUp,
+  Building2,
+  Database,
+  ScrollText,
+  Lock,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const features = [
-  { icon: Calculator, title: "Jurnal otomatis", desc: "Debit-kredit seimbang tanpa input manual", tone: "leaf" },
-  { icon: FileText, title: "Transaksi lengkap", desc: "Kas, kredit, transfer, beban, modal", tone: "wood" },
-  { icon: Package, title: "Stok + HPP", desc: "Weighted average otomatis", tone: "honey" },
-  { icon: BarChart3, title: "4 laporan utama", desc: "Buku besar, neraca, laba rugi", tone: "sky" },
-] as const;
+type Tone = "leaf" | "wood" | "honey" | "sky" | "clay";
 
-const mockupMetrics = [
-  { label: "Saldo Kas", value: "Rp 45.200.000", tone: "leaf" },
-  { label: "Laba/Rugi", value: "Rp 95.750.000", tone: "honey" },
-] as const;
-
-const mockupTransactions = [
-  { desc: "Penjualan Toko Online", amount: "Rp 8.500.000", side: "Debet", tone: "leaf" },
-  { desc: "Pembelian Bahan Baku", amount: "Rp 3.200.000", side: "Kredit", tone: "clay" },
-] as const;
-
-const trustItems = [
-  { icon: Lock, label: "Enkripsi data end-to-end" },
-  { icon: Shield, label: "Row-level security" },
-  { icon: Eye, label: "Audit log lengkap" },
-] as const;
-
-const toneStyles = {
+const toneStyles: Record<Tone, string> = {
   leaf: "border-leaf-200 bg-leaf-50 text-leaf-700",
   wood: "border-wood-200 bg-wood-50 text-wood-700",
   honey: "border-honey-200 bg-honey-50 text-honey-700",
   sky: "border-sky-200 bg-sky-50 text-sky-700",
   clay: "border-clay-200 bg-clay-50 text-clay-700",
 };
+
+const features = [
+  {
+    icon: Calculator,
+    title: "Jurnal otomatis",
+    desc: "Debit-kredit seimbang dari setiap transaksi",
+    tone: "leaf" as Tone,
+  },
+  {
+    icon: FileText,
+    title: "Transaksi harian",
+    desc: "Penjualan, pembelian, transfer, beban, modal, dan prive",
+    tone: "wood" as Tone,
+  },
+  {
+    icon: Wallet,
+    title: "Piutang & utang",
+    desc: "Pantau pelanggan belum bayar dan tagihan supplier",
+    tone: "honey" as Tone,
+  },
+  {
+    icon: Package,
+    title: "Stok + HPP",
+    desc: "Stok bergerak otomatis dengan HPP weighted average",
+    tone: "sky" as Tone,
+  },
+  {
+    icon: BarChart3,
+    title: "Laporan keuangan",
+    desc: "Buku besar, neraca saldo, laba rugi, dan neraca",
+    tone: "clay" as Tone,
+  },
+  {
+    icon: Users,
+    title: "Akses owner & staff",
+    desc: "Atur siapa yang boleh mencatat, melihat laporan, atau mengelola data",
+    tone: "leaf" as Tone,
+  },
+  {
+    icon: ScrollText,
+    title: "Audit transaksi",
+    desc: "Perubahan penting tercatat agar pembukuan mudah ditelusuri",
+    tone: "wood" as Tone,
+  },
+  {
+    icon: Sparkles,
+    title: "Siap untuk UMKM",
+    desc: "Akun awal dan alur sederhana untuk mulai mencatat lebih cepat",
+    tone: "honey" as Tone,
+  },
+] as const;
+
+const workflowSteps = [
+  {
+    icon: Building2,
+    step: "01",
+    title: "Buat bisnis",
+    desc: "Isi nama usaha, tanggal mulai pembukuan, dan saldo awal kas/bank.",
+  },
+  {
+    icon: FileText,
+    step: "02",
+    title: "Catat transaksi",
+    desc: "Pilih jenis transaksi seperti penjualan, pembelian, piutang, utang, atau beban.",
+  },
+  {
+    icon: BarChart3,
+    step: "03",
+    title: "Laporan siap",
+    desc: "Ledjer membentuk jurnal, memperbarui stok, dan menyajikan laporan otomatis.",
+  },
+] as const;
+
+const reportCards = [
+  {
+    icon: BookOpen,
+    title: "Buku Besar",
+    desc: "Lihat mutasi dan saldo berjalan per akun.",
+    tone: "leaf" as Tone,
+  },
+  {
+    icon: Scale,
+    title: "Neraca Saldo",
+    desc: "Pastikan total debit dan kredit tetap seimbang.",
+    tone: "wood" as Tone,
+  },
+  {
+    icon: TrendingUp,
+    title: "Laba Rugi",
+    desc: "Pantau pendapatan, HPP, beban, dan laba usaha.",
+    tone: "honey" as Tone,
+  },
+  {
+    icon: Building2,
+    title: "Neraca",
+    desc: "Lihat aset, utang, modal, dan posisi keuangan.",
+    tone: "sky" as Tone,
+  },
+] as const;
+
+const securityItems = [
+  {
+    icon: Database,
+    label: "Data dipisah per bisnis",
+    desc: "Setiap organisasi hanya bisa melihat datanya sendiri melalui Row Level Security.",
+  },
+  {
+    icon: Shield,
+    label: "Akses berbasis peran",
+    desc: "Owner dan staff punya hak yang berbeda untuk mencatat dan mengelola.",
+  },
+  {
+    icon: Eye,
+    label: "Audit log transaksi",
+    desc: "Aksi finansial penting tercatat dan bisa ditelusuri.",
+  },
+  {
+    icon: Lock,
+    label: "Keamanan Supabase",
+    desc: "Koneksi dan penyimpanan data terlindungi dengan platform modern.",
+  },
+] as const;
+
+const pricingPlans = [
+  {
+    name: "Free",
+    price: "Rp 0",
+    period: "selamanya",
+    tagline: "Untuk mencoba Ledjer",
+    highlights: [
+      "Mulai gratis tanpa kartu",
+      "Hingga 50 transaksi per bulan",
+      "Akses laporan utama",
+      "Cocok untuk usaha pemula",
+    ],
+    cta: "Mulai Gratis",
+    ctaVariant: "primary" as const,
+    ctaTo: "/register",
+    tone: "leaf" as Tone,
+  },
+  {
+    name: "Solo",
+    price: "Hubungi kami",
+    period: "untuk UMKM",
+    tagline: "Untuk pemilik usaha yang butuh ruang lebih",
+    highlights: [
+      "Transaksi lebih banyak per bulan",
+      "Manajemen piutang & utang",
+      "Stok dan HPP tanpa batas praktis",
+      "Akses penuh ke 4 laporan utama",
+    ],
+    cta: "Minta Upgrade",
+    ctaVariant: "outline" as const,
+    ctaTo: "/register",
+    tone: "honey" as Tone,
+  },
+  {
+    name: "Business",
+    price: "Hubungi kami",
+    period: "untuk tim",
+    tagline: "Untuk usaha dengan staf atau admin",
+    highlights: [
+      "Multi-user dengan peran owner & staff",
+      "Audit log transaksi menyeluruh",
+      "Pengaturan tim & izin granular",
+      "Cocok untuk operasional harian tim",
+    ],
+    cta: "Minta Upgrade",
+    ctaVariant: "outline" as const,
+    ctaTo: "/register",
+    tone: "sky" as Tone,
+  },
+] as const;
+
+const mockupMetrics = [
+  { label: "Saldo Kas", value: "Rp 45.200.000", tone: "leaf" as Tone },
+  { label: "Piutang", value: "Rp 12.500.000", tone: "honey" as Tone },
+  { label: "Stok", value: "184 unit", tone: "wood" as Tone },
+  { label: "Laba bulan ini", value: "Rp 8.350.000", tone: "sky" as Tone },
+] as const;
+
+const mockupTransactions = [
+  { desc: "Penjualan", amount: "Rp 8.500.000", tone: "leaf" as Tone },
+  { desc: "Terima Piutang", amount: "Rp 2.300.000", tone: "honey" as Tone },
+  { desc: "Pembelian", amount: "Rp 3.200.000", tone: "clay" as Tone },
+  { desc: "Bayar Beban", amount: "Rp 750.000", tone: "wood" as Tone },
+] as const;
+
+const navLinks = [
+  { label: "Fitur", href: "#fitur" },
+  { label: "Cara kerja", href: "#cara-kerja" },
+  { label: "Laporan", href: "#laporan" },
+  { label: "Keamanan", href: "#keamanan" },
+  { label: "Harga", href: "#harga" },
+] as const;
+
+const footerLinks = [
+  { label: "Fitur", href: "#fitur" },
+  { label: "Laporan", href: "#laporan" },
+  { label: "Keamanan", href: "#keamanan" },
+  { label: "Harga", href: "#harga" },
+  { label: "Masuk", to: "/login" as const },
+  { label: "Mulai Gratis", to: "/register" as const },
+] as const;
 
 function stagger(index: number) {
   return { "--i": index } as CSSProperties;
@@ -62,20 +254,30 @@ export function LandingPage() {
       </a>
 
       <header className="sticky top-0 z-sticky border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm">
-        <nav aria-label="Navigasi utama" className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <Logo size="sm" variant="full" />
+        <nav
+          aria-label="Navigasi utama"
+          className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8"
+        >
+          <Link to="/" aria-label="Ledjer beranda">
+            <Logo size="sm" variant="full" />
+          </Link>
 
           <div className="hidden items-center gap-1 md:flex">
-            <Button as="a" variant="ghost" size="sm" href="#fitur">
-              Fitur
-            </Button>
-            <Button as="a" variant="ghost" size="sm" href="#keamanan">
-              Keamanan
-            </Button>
+            {navLinks.map((link) => (
+              <Button key={link.href} as="a" variant="ghost" size="sm" href={link.href}>
+                {link.label}
+              </Button>
+            ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button as={Link} to="/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+              as={Link}
+              to="/login"
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
               Masuk
             </Button>
             <Button as={Link} to="/register" variant="primary" size="sm">
@@ -84,10 +286,30 @@ export function LandingPage() {
             </Button>
           </div>
         </nav>
+
+        <div className="md:hidden border-t border-wood-100 bg-cream-50/95">
+          <nav
+            aria-label="Navigasi bagian"
+            className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 py-2 text-xs"
+          >
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="shrink-0 rounded-full px-3 py-1.5 font-medium text-wood-700 hover:bg-cream-100"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        </div>
       </header>
 
       <main id="main-content">
-        <section aria-labelledby="hero-heading" className="landing-ledger relative overflow-hidden border-b border-wood-100">
+        <section
+          aria-labelledby="hero-heading"
+          className="landing-ledger relative overflow-hidden border-b border-wood-100"
+        >
           <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
             <div className="grid min-w-0 grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(26rem,1.05fr)] lg:gap-16">
               <div className="ledger-hero-copy min-w-0">
@@ -101,34 +323,49 @@ export function LandingPage() {
 
                 <h1
                   id="hero-heading"
-                  className="max-w-[10ch] text-[clamp(2.75rem,10vw,5.25rem)] font-bold leading-[0.98] tracking-[-0.03em] text-wood-900 sm:max-w-[11ch]"
+                  className="max-w-[10ch] text-balance text-[clamp(2.75rem,10vw,5.25rem)] font-bold leading-[0.98] tracking-[-0.03em] text-wood-900 sm:max-w-[11ch]"
                   style={stagger(1)}
                 >
                   Uang masuk keluar jelas.
                 </h1>
                 <p
-                  className="mt-6 max-w-xl text-base leading-relaxed text-wood-700 sm:text-lg"
+                  className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-wood-700 sm:text-lg"
                   style={stagger(2)}
                 >
-                  Catat transaksi harian, biarkan Ledjer membentuk jurnal,
-                  stok, dan laporan real-time untuk operasional UMKM.
+                  Catat penjualan, pembelian, piutang, utang, stok, dan modal.
+                  Ledjer otomatis membentuk jurnal, HPP, dan laporan keuangan
+                  untuk UMKM.
                 </p>
 
                 <div
                   className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
                   style={stagger(3)}
                 >
-                  <Button as={Link} to="/register" variant="primary" size="lg" fullWidth className="sm:w-auto">
+                  <Button
+                    as={Link}
+                    to="/register"
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    className="group sm:w-auto"
+                  >
                     Mulai Gratis
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
                   </Button>
-                  <a href="#fitur" className="text-sm font-medium text-wood-700 underline-offset-4 transition-colors hover:text-wood-900 hover:underline">
-                    Lihat fitur utama
+                  <a
+                    href="#cara-kerja"
+                    className="ledger-cta-link text-sm font-medium text-wood-700 underline-offset-4 transition-colors hover:text-wood-900 hover:underline"
+                  >
+                    Lihat cara kerja
                   </a>
                 </div>
               </div>
 
-              <div className="relative min-w-0" role="img" aria-label="Contoh dashboard Ledjer yang menyeimbangkan jurnal otomatis">
+              <div
+                className="relative min-w-0"
+                role="img"
+                aria-label="Contoh dashboard Ledjer yang menyeimbangkan jurnal otomatis"
+              >
                 <div className="ledger-mockup w-full min-w-0 max-w-full overflow-hidden rounded-xl bg-wood-800 p-3 text-cream-50 shadow-lg sm:p-4">
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-wood-600 pb-3">
                     <div className="min-w-0">
@@ -141,24 +378,40 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 py-4 sm:grid-cols-2" role="group" aria-label="Metrik dashboard contoh">
+                  <div
+                    className="grid grid-cols-2 gap-3 py-4"
+                    role="group"
+                    aria-label="Metrik dashboard contoh"
+                  >
                     {mockupMetrics.map((metric, index) => (
-                        <div
-                          key={metric.label}
-                          className={cn("ledger-row min-w-0 rounded-lg border px-3 py-3", toneStyles[metric.tone])}
-                          style={stagger(index)}
-                        >
-                        <span className="block break-words text-[11px] font-semibold">{metric.label}</span>
-                        <div className="mt-1 break-words font-mono text-sm font-semibold text-wood-900">{metric.value}</div>
+                      <div
+                        key={metric.label}
+                        className={cn(
+                          "ledger-row min-w-0 rounded-lg border px-3 py-3 font-mono [font-feature-settings:\"tnum\",\"ss01\"]",
+                          toneStyles[metric.tone]
+                        )}
+                        style={stagger(index)}
+                      >
+                        <span className="block break-words text-[11px] font-semibold tracking-wide uppercase">
+                          {metric.label}
+                        </span>
+                        <div className="mt-1 break-words text-sm font-semibold tabular-nums text-wood-900">
+                          {metric.value}
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="min-w-0 rounded-lg bg-cream-50 p-4 text-wood-900" aria-hidden="true">
+                  <div
+                    className="min-w-0 rounded-lg bg-cream-50 p-4 text-wood-900"
+                    aria-hidden="true"
+                  >
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-wood-500" />
-                        <span className="text-xs font-semibold text-wood-700">Transaksi Terakhir</span>
+                        <span className="text-xs font-semibold text-wood-700">
+                          Transaksi Terakhir
+                        </span>
                       </div>
                       <span className="rounded-full bg-wood-100 px-2 py-0.5 text-[11px] font-medium text-wood-700">
                         Otomatis
@@ -172,23 +425,33 @@ export function LandingPage() {
                           className="ledger-row flex min-w-0 flex-col gap-1 rounded-md bg-cream-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                           style={stagger(index)}
                         >
-                          <span className="block min-w-0">
-                            <span className={cn("mr-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold", toneStyles[tx.tone])}>
-                              {tx.side}
-                            </span>
-                            <span className="break-words text-xs text-wood-700">{tx.desc}</span>
+                          <span
+                            className={cn(
+                              "mr-2 inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide",
+                              toneStyles[tx.tone]
+                            )}
+                          >
+                            {tx.desc}
                           </span>
-                          <span className="self-end break-all font-mono text-[11px] font-semibold text-wood-900 sm:self-auto sm:text-xs">{tx.amount}</span>
+                          <span className="break-all font-mono text-[11px] font-semibold tabular-nums text-wood-900 sm:text-xs">
+                            {tx.amount}
+                          </span>
                         </div>
                       ))}
                     </div>
 
                     <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                      <div className="ledger-flow-line h-px bg-leaf-300" style={stagger(0)} />
-                      <span className="rounded-full bg-leaf-100 px-3 py-1 text-[11px] font-semibold text-leaf-700">
+                      <div
+                        className="ledger-flow-line ledger-flow-line--left h-px bg-leaf-300"
+                        style={stagger(0)}
+                      />
+                      <span className="ledger-balance-pill rounded-full bg-leaf-100 px-3 py-1 text-[11px] font-semibold tracking-wide text-leaf-700">
                         Debet = Kredit
                       </span>
-                      <div className="ledger-flow-line h-px bg-leaf-300" style={stagger(1)} />
+                      <div
+                        className="ledger-flow-line ledger-flow-line--right h-px bg-leaf-300"
+                        style={stagger(1)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -197,66 +460,310 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="fitur" aria-labelledby="features-heading" className="bg-cream-50 py-16 sm:py-24">
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
-            <div>
-              <h2 id="features-heading" className="text-2xl font-bold text-wood-900 sm:text-3xl">
+        <section
+          id="fitur"
+          aria-labelledby="features-heading"
+          className="bg-cream-50 py-16 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <h2
+                id="features-heading"
+                className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
+              >
                 Yang dikerjakan manual, sekarang tersambung.
               </h2>
-              <p className="mt-4 max-w-md text-base leading-relaxed text-wood-600">
-                Satu transaksi menggerakkan jurnal, stok, dan laporan tanpa
-                membuat pemilik bisnis memeriksa rumus spreadsheet.
+              <p className="mt-4 max-w-[60ch] text-pretty text-base leading-relaxed text-wood-600">
+                Satu transaksi menggerakkan jurnal, stok, piutang, utang, dan
+                laporan tanpa membuat pemilik bisnis memeriksa rumus spreadsheet.
               </p>
             </div>
 
-            <div className="ledger-stagger overflow-hidden rounded-xl border border-wood-200 bg-surface-elevated">
+            <ul
+              role="list"
+              className="ledger-stagger mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            >
               {features.map((feature, index) => (
-                <div
+                <li
                   key={feature.title}
-                  className="grid gap-3 border-b border-wood-100 p-4 last:border-b-0 sm:grid-cols-[2.75rem_1fr_auto] sm:items-center sm:p-5"
+                  className="ledger-interactive group flex h-full flex-col gap-3 rounded-xl border border-wood-200 bg-surface-elevated p-5"
                   style={stagger(index)}
                 >
-                  <div className={cn("flex h-11 w-11 items-center justify-center rounded-lg border", toneStyles[feature.tone])}>
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 items-center justify-center rounded-lg border transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none",
+                      toneStyles[feature.tone]
+                    )}
+                    aria-hidden="true"
+                  >
                     <feature.icon className="h-5 w-5" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-semibold text-wood-900">{feature.title}</p>
-                    <p className="mt-1 break-words text-sm text-wood-600">{feature.desc}</p>
-                  </div>
-                  <CheckCircle2 className="hidden h-5 w-5 text-leaf-600 sm:block" aria-hidden="true" />
-                </div>
+                  <p className="break-words text-sm font-semibold tracking-[-0.005em] text-wood-900">
+                    {feature.title}
+                  </p>
+                  <p className="break-words text-sm leading-relaxed text-wood-600">
+                    {feature.desc}
+                  </p>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </section>
 
-        <section id="keamanan" aria-label="Keamanan data" className="border-y border-wood-200 bg-cream-100 py-10">
+        <section
+          id="cara-kerja"
+          aria-labelledby="how-heading"
+          className="border-y border-wood-200 bg-cream-100 py-16 sm:py-24"
+        >
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="ledger-stagger grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {trustItems.map((item, index) => (
-                <div key={item.label} className="flex items-center gap-3 rounded-lg bg-cream-50 px-4 py-3" style={stagger(index)}>
-                  <item.icon className="h-5 w-5 shrink-0 text-leaf-600" />
-                  <span className="break-words text-sm font-medium text-wood-700">{item.label}</span>
-                </div>
-              ))}
+            <div className="max-w-2xl">
+              <h2
+                id="how-heading"
+                className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
+              >
+                Cara kerja Ledjer.
+              </h2>
+              <p className="mt-4 max-w-[58ch] text-pretty text-base leading-relaxed text-wood-600">
+                Tiga langkah sederhana untuk mulai mencatat transaksi UMKM
+                tanpa rumus akuntansi.
+              </p>
             </div>
+
+            <ol
+              role="list"
+              className="ledger-stagger mt-10 grid grid-cols-1 gap-4 md:grid-cols-3"
+            >
+              {workflowSteps.map((step, index) => (
+                <li
+                  key={step.title}
+                  className="ledger-interactive flex h-full flex-col gap-4 rounded-xl border border-wood-200 bg-cream-50 p-6"
+                  style={stagger(index)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-wood-500 font-mono text-sm font-semibold tabular-nums tracking-tight text-cream-50"
+                      aria-hidden="true"
+                    >
+                      {step.step}
+                    </span>
+                    <step.icon
+                      className="h-6 w-6 text-wood-500"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p className="break-words text-base font-semibold tracking-[-0.01em] text-wood-900">
+                    {step.title}
+                  </p>
+                  <p className="break-words text-sm leading-relaxed text-wood-600">
+                    {step.desc}
+                  </p>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 
-        <section aria-label="Mulai gratis" className="bg-wood-800 py-16 sm:py-24">
+        <section
+          id="laporan"
+          aria-labelledby="reports-heading"
+          className="bg-cream-50 py-16 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <h2
+                id="reports-heading"
+                className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
+              >
+                4 laporan utama, otomatis.
+              </h2>
+              <p className="mt-4 max-w-[60ch] text-pretty text-base leading-relaxed text-wood-600">
+                Setiap transaksi yang dicatat akan langsung tersaji di laporan
+                yang umum dipakai UMKM.
+              </p>
+            </div>
+
+            <ul
+              role="list"
+              className="ledger-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              {reportCards.map((report, index) => (
+                <li
+                  key={report.title}
+                  className="ledger-interactive flex h-full flex-col gap-3 rounded-xl border border-wood-200 bg-surface-elevated p-5"
+                  style={stagger(index)}
+                >
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 items-center justify-center rounded-lg border",
+                      toneStyles[report.tone]
+                    )}
+                    aria-hidden="true"
+                  >
+                    <report.icon className="h-5 w-5" />
+                  </div>
+                  <p className="break-words text-sm font-semibold tracking-[-0.005em] text-wood-900">
+                    {report.title}
+                  </p>
+                  <p className="break-words text-sm leading-relaxed text-wood-600">
+                    {report.desc}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section
+          id="keamanan"
+          aria-labelledby="security-heading"
+          className="border-y border-wood-200 bg-cream-100 py-16 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <h2
+                id="security-heading"
+                className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
+              >
+                Data bisnis Anda aman.
+              </h2>
+              <p className="mt-4 max-w-[60ch] text-pretty text-base leading-relaxed text-wood-600">
+                Ledjer memisahkan data tiap usaha dan membatasi akses sesuai
+                peran, sehingga catatan keuangan tetap privat dan telusur.
+              </p>
+            </div>
+
+            <ul
+              role="list"
+              className="ledger-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2"
+            >
+              {securityItems.map((item, index) => (
+                <li
+                  key={item.label}
+                  className="ledger-interactive flex h-full items-start gap-3 rounded-xl border border-wood-200 bg-cream-50 p-5"
+                  style={stagger(index)}
+                >
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-leaf-50 text-leaf-600"
+                    aria-hidden="true"
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold tracking-[-0.005em] text-wood-900">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 break-words text-sm leading-relaxed text-wood-600">
+                      {item.desc}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section
+          id="harga"
+          aria-labelledby="pricing-heading"
+          className="bg-cream-50 py-16 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <h2
+                id="pricing-heading"
+                className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
+              >
+                Mulai gratis, naik sesuai kebutuhan.
+              </h2>
+              <p className="mt-4 max-w-[60ch] text-pretty text-base leading-relaxed text-wood-600">
+                Paket Ledjer dirancang untuk pemilik usaha pemula, pemilik
+                usaha solo, hingga UMKM dengan tim. Pembayaran belum tersedia
+                otomatis di aplikasi.
+              </p>
+            </div>
+
+            <ul
+              role="list"
+              className="ledger-stagger mt-10 grid grid-cols-1 gap-4 md:grid-cols-3"
+            >
+              {pricingPlans.map((plan, index) => (
+                <li
+                  key={plan.name}
+                  className="ledger-interactive flex h-full flex-col gap-5 rounded-xl border border-wood-200 bg-surface-elevated p-6"
+                  style={stagger(index)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                        toneStyles[plan.tone]
+                      )}
+                    >
+                      {plan.name}
+                    </span>
+                    <span className="text-xs text-wood-500">{plan.period}</span>
+                  </div>
+                  <div>
+                    <p className="break-words font-mono text-3xl font-bold tracking-[-0.03em] tabular-nums text-wood-900">
+                      {plan.price}
+                    </p>
+                    <p className="mt-1 break-words text-sm leading-relaxed text-wood-600">
+                      {plan.tagline}
+                    </p>
+                  </div>
+                  <ul role="list" className="space-y-2 text-sm leading-relaxed text-wood-700">
+                    {plan.highlights.map((point) => (
+                      <li key={point} className="flex items-start gap-2">
+                        <CheckCircle2
+                          className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600"
+                          aria-hidden="true"
+                        />
+                        <span className="break-words">{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto pt-2">
+                    <Button
+                      as={Link}
+                      to={plan.ctaTo}
+                      variant={plan.ctaVariant}
+                      size="md"
+                      fullWidth
+                    >
+                      {plan.cta}
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section aria-labelledby="cta-heading" className="bg-wood-800 py-16 sm:py-24">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
             <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full bg-leaf-100 px-3 py-1.5 text-xs font-semibold text-leaf-700">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Siap dari transaksi pertama
             </div>
-            <h2 className="text-2xl font-bold text-cream-50 sm:text-3xl">
-              Mulai dengan catatan yang bisa dipercaya.
+            <h2
+              id="cta-heading"
+              className="text-balance text-2xl font-bold tracking-[-0.02em] text-cream-50 sm:text-3xl"
+            >
+              Mulai rapikan pembukuan dari transaksi pertama.
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-wood-200">
-              Gratis. Tanpa kartu kredit. Bisa siap dalam 5 menit.
+            <p className="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-wood-200">
+              Tidak perlu rumus spreadsheet. Catat transaksi, Ledjer bantu
+              susun jurnal, stok, dan laporan.
             </p>
             <div className="mt-8 flex justify-center">
-              <Button as={Link} to="/register" variant="primary" size="lg" fullWidth className="sm:w-auto">
+              <Button
+                as={Link}
+                to="/register"
+                variant="primary"
+                size="lg"
+                fullWidth
+                className="sm:w-auto"
+              >
                 Mulai Gratis
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -266,13 +773,46 @@ export function LandingPage() {
       </main>
 
       <footer aria-label="Informasi footer" className="border-t border-wood-200 bg-cream-50">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <Logo size="sm" variant="full" />
-            <p className="break-words text-center text-xs text-wood-500 sm:text-right">
-              &copy; {new Date().getFullYear()} Ledjer. Pembukuan UMKM Indonesia.
-            </p>
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-[1fr_2fr]">
+            <div className="flex flex-col gap-3">
+              <Logo size="sm" variant="full" />
+              <p className="break-words text-sm text-wood-600">
+                Pembukuan UMKM Indonesia yang trustworthy, clear, dan grounded.
+              </p>
+            </div>
+            <nav aria-label="Tautan footer">
+              <ul
+                role="list"
+                className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"
+              >
+                {footerLinks.map((link) =>
+                  "to" in link ? (
+                    <li key={link.label}>
+                      <Link
+                        to={link.to}
+                        className="text-wood-700 underline-offset-4 transition-colors hover:text-wood-900 hover:underline"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ) : (
+                    <li key={link.label}>
+                      <a
+                        href={link.href}
+                        className="text-wood-700 underline-offset-4 transition-colors hover:text-wood-900 hover:underline"
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  )
+                )}
+              </ul>
+            </nav>
           </div>
+          <p className="mt-8 border-t border-wood-100 pt-6 text-center text-xs text-wood-500">
+            &copy; {new Date().getFullYear()} Ledjer. Pembukuan UMKM Indonesia.
+          </p>
         </div>
       </footer>
     </div>
