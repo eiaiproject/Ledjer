@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (typecheck, lint, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript typecheck
+        run: pnpm --filter web typecheck
+
+      - name: ESLint
+        run: pnpm --filter web lint
+
+      - name: Vitest unit tests
+        run: pnpm --filter web test
+
+      - name: Production build
+        run: pnpm --filter web build
+
+  supabase:
+    name: Supabase migrations & SQL tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 54322:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Used by supabase config.toml db.major_version / db.port.
+      SUPABASE_DB_URL: postgres://postgres:postgres@localhost:54322/postgres
+      SUPABASE_PGHOST: localhost
+      SUPABASE_PGPORT: 5432
+      SUPABASE_PGUSER: postgres
+      SUPABASE_PGPASSWORD: postgres
+      SUPABASE_PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # We don't strictly need pnpm for the SQL tests, but the project's
+      # root package.json declares pnpm-managed scripts. Install once so
+      # any pre-step that wants them works.
+      - name: Install (no scripts, no frozen)
+        run: pnpm install --ignore-scripts --no-frozen-lockfile
+        continue-on-error: true
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
+            -o /tmp/supabase.tar.gz
+          tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase
+          supabase --version
+
+      - name: Reset database from migrations
+        # We bypass `supabase db reset` (which spins up its own Docker container)
+        # and apply migrations directly against the service-postgres, then run
+        # the SQL tests against the same DB.
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          PSQL="psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1"
+
+          # Apply migrations in order
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            echo "Applying $f"
+            $PSQL -f "$f"
+          done
+
+          # Helper file (functions only, no DO blocks that mutate state)
+          $PSQL -f supabase/tests/_test_helpers.sql
+
+          # Run tests in order: security first (no data needed),
+          # then golden (creates its own org), then regression.
+          echo "=== security_rls_tests.sql ==="
+          $PSQL -f supabase/tests/security_rls_tests.sql
+
+          echo "=== golden_scenario_tests.sql ==="
+          $PSQL -f supabase/tests/golden_scenario_tests.sql
+
+          echo "=== accounting_regression_tests.sql ==="
+          $PSQL -f supabase/tests/accounting_regression_tests.sql
+
+          echo "=== p0_critical_fix_tests.sql ==="
+          $PSQL -f supabase/tests/p0_critical_fix_tests.sql
+
+  guard-no-test-assert-in-migrations:
+    name: Guard: no test code in migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if any migration references the test helper
+        run: |
+          if grep -RI "_test_assert" supabase/migrations/; then
+            echo "ERROR: _test_assert found in migrations" >&2
+            exit 1
+          fi
+          echo "OK: no _test_assert in migrations"
