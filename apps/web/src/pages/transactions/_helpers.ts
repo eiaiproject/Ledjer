@@ -105,7 +105,7 @@ export const PARTY_COPY: Record<string, { label: string; placeholder: string; he
   receive_receivable: {
     label: "Pelanggan yang membayar",
     placeholder: "Ketik nama pelanggan...",
-    helper: "Pilih pelanggan yang sedang melunasi piutang.",
+    helper: "Pilih pelanggan yang sedang melunasi piutang. Jika nominal melebihi piutang, saldo piutang pelanggan akan menjadi negatif (lihat catatan AR/AP).",
   },
   credit_purchase: {
     label: "Supplier",
@@ -115,7 +115,7 @@ export const PARTY_COPY: Record<string, { label: string; placeholder: string; he
   pay_payable: {
     label: "Supplier yang dibayar",
     placeholder: "Ketik nama supplier...",
-    helper: "Pilih supplier yang sedang dibayar utangnya.",
+    helper: "Pilih supplier yang sedang dibayar utangnya. Jika nominal melebihi utang, saldo utang supplier akan menjadi negatif (lihat catatan AR/AP).",
   },
 };
 

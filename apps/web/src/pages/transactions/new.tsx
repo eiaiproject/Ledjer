@@ -583,9 +583,19 @@ export function NewTransactionPage() {
         window.localStorage.setItem(getLastCashAccountKey(variables.transactionType), variables.cashAccountId);
       }
       setSuccessTransactionId(result.transaction_id);
+      // P1.5: invalidate every query key affected by a financial mutation so
+      // dashboard, reports, accounts, products, parties, and usage do not
+      // display stale data after a successful post.
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-usage"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["parties"] });
+      queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["profit-loss"] });
+      queryClient.invalidateQueries({ queryKey: ["balance-sheet"] });
+      queryClient.invalidateQueries({ queryKey: ["general-ledger"] });
     },
   });
 
