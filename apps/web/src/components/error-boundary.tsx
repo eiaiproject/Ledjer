@@ -33,7 +33,9 @@ export class ErrorBoundary extends Component<Props, State> {
             Terjadi kesalahan
           </h2>
           <p className="mt-1 max-w-sm break-words text-sm text-wood-500">
-            {this.state.error?.message || "Terjadi kesalahan yang tidak terduga"}
+            {import.meta.env.DEV
+              ? this.state.error?.message || "Terjadi kesalahan yang tidak terduga"
+              : "Terjadi kesalahan yang tidak terduga. Silakan muat ulang halaman atau hubungi admin."}
           </p>
           <button
             onClick={() => {
