@@ -51,13 +51,13 @@ const features = [
   {
     icon: Wallet,
     title: "Piutang & utang",
-    desc: "Pantau pelanggan belum bayar dan tagihan supplier",
+    desc: "Pantau pelanggan belum bayar dan tagihan pemasok",
     tone: "honey" as Tone,
   },
   {
     icon: Package,
     title: "Stok + HPP",
-    desc: "Stok bergerak otomatis dengan HPP weighted average",
+    desc: "Stok bergerak otomatis dengan HPP rata-rata tertimbang",
     tone: "sky" as Tone,
   },
   {
@@ -68,7 +68,7 @@ const features = [
   },
   {
     icon: Users,
-    title: "Akses owner & staff",
+    title: "Akses pemilik & staf",
     desc: "Atur siapa yang boleh mencatat, melihat laporan, atau mengelola data",
     tone: "leaf" as Tone,
   },
@@ -138,16 +138,16 @@ const securityItems = [
   {
     icon: Database,
     label: "Data dipisah per bisnis",
-    desc: "Setiap organisasi hanya bisa melihat datanya sendiri melalui Row Level Security.",
+    desc: "Setiap bisnis hanya bisa melihat datanya sendiri. Pemisahan ini dijaga di level database dengan Row Level Security.",
   },
   {
     icon: Shield,
     label: "Akses berbasis peran",
-    desc: "Owner dan staff punya hak yang berbeda untuk mencatat dan mengelola.",
+    desc: "Pemilik dan staf punya hak yang berbeda untuk mencatat dan mengelola.",
   },
   {
     icon: Eye,
-    label: "Audit log transaksi",
+    label: "Catatan audit transaksi",
     desc: "Aksi finansial penting tercatat dan bisa ditelusuri.",
   },
   {
@@ -159,7 +159,7 @@ const securityItems = [
 
 const pricingPlans = [
   {
-    name: "Free",
+    name: "Gratis",
     price: "Rp 0",
     period: "selamanya",
     tagline: "Untuk mencoba Ledjer",
@@ -176,32 +176,32 @@ const pricingPlans = [
   },
   {
     name: "Solo",
-    price: "Hubungi kami",
-    period: "untuk UMKM",
+    price: "Rp 39.000",
+    period: "/bulan",
     tagline: "Untuk pemilik usaha yang butuh ruang lebih",
     highlights: [
       "Transaksi lebih banyak per bulan",
       "Manajemen piutang & utang",
-      "Stok dan HPP tanpa batas praktis",
+      "Manajemen stok dan HPP rata-rata tertimbang",
       "Akses penuh ke 4 laporan utama",
     ],
-    cta: "Minta Upgrade",
+    cta: "Minta Peningkatan",
     ctaVariant: "outline" as const,
     ctaTo: "/register",
     tone: "honey" as Tone,
   },
   {
-    name: "Business",
-    price: "Hubungi kami",
-    period: "untuk tim",
+    name: "Bisnis",
+    price: "Rp 49.000",
+    period: "/bulan",
     tagline: "Untuk usaha dengan staf atau admin",
     highlights: [
-      "Multi-user dengan peran owner & staff",
-      "Audit log transaksi menyeluruh",
-      "Pengaturan tim & izin granular",
+      "Multi-pengguna dengan peran pemilik & staf",
+      "Audit log untuk aktivitas penting",
+      "Pengaturan tim & izin detail",
       "Cocok untuk operasional harian tim",
     ],
-    cta: "Minta Upgrade",
+    cta: "Minta Peningkatan",
     ctaVariant: "outline" as const,
     ctaTo: "/register",
     tone: "sky" as Tone,
@@ -775,10 +775,10 @@ export function LandingPage() {
       <footer aria-label="Informasi footer" className="border-t border-wood-200 bg-cream-50">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-[1fr_2fr]">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col items-start gap-3">
               <Logo size="sm" variant="full" />
               <p className="break-words text-sm text-wood-600">
-                Pembukuan UMKM Indonesia yang trustworthy, clear, dan grounded.
+                Pembukuan UMKM Indonesia yang sederhana, rapi, dan bisa dipercaya.
               </p>
             </div>
             <nav aria-label="Tautan footer">
