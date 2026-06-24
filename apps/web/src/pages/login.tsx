@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
@@ -29,6 +29,7 @@ export function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Email-not-confirmed state
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -68,6 +69,12 @@ export function LoginPage() {
       const resetSeconds = Math.ceil(resetMs / 1000);
       setRateLimited(true);
       setError(`Terlalu banyak percobaan. Coba lagi dalam ${resetSeconds} detik.`);
+      // Auto-recover after the rate limit window expires
+      if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
+      rateLimitTimerRef.current = setTimeout(() => {
+        setRateLimited(false);
+        setError(null);
+      }, resetMs + 500);
       return;
     }
 
@@ -84,7 +91,14 @@ export function LoginPage() {
 
       if (isLocked) {
         setRateLimited(true);
+        const lockoutMs = lockoutMinutes * 60_000;
         setError(`Terlalu banyak percobaan gagal. Coba lagi dalam ${lockoutMinutes} menit.`);
+        // Auto-recover after server lockout window
+        if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
+        rateLimitTimerRef.current = setTimeout(() => {
+          setRateLimited(false);
+          setError(null);
+        }, lockoutMs + 500);
         return;
       }
 
@@ -136,7 +150,10 @@ export function LoginPage() {
     setOauthLoading(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + "/auth/callback" },
+      });
       if (error) throw error;
     } catch (err) {
       setError(translateError(err));

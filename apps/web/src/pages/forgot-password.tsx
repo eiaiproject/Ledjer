@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
@@ -38,6 +38,7 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     register,
@@ -60,6 +61,12 @@ export function ForgotPasswordPage() {
       setError(
         `Terlalu banyak percobaan. Coba lagi dalam ${resetSeconds} detik.`,
       );
+      // Auto-recover after the rate limit window expires
+      if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
+      rateLimitTimerRef.current = setTimeout(() => {
+        setRateLimited(false);
+        setError(null);
+      }, resetMs + 500);
       return;
     }
 
