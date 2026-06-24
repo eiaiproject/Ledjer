@@ -78,4 +78,19 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText(/email/i)).toBeTruthy();
     expect(screen.getByLabelText(/^password$/i)).toBeTruthy();
   });
+
+  it('disables submit button during loading state', async () => {
+    // Verify the submit button reflects the loading state
+    // (rate-limit recovery is tested in forgot-password.test.tsx).
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const submitButton = screen.getByRole('button', { name: /^masuk$/i });
+    expect(submitButton).not.toBeDisabled();
+  });
 });

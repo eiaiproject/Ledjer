@@ -46,6 +46,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 
+REVOKE EXECUTE ON FUNCTION public.get_monthly_usage(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_monthly_usage(UUID) TO authenticated;
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

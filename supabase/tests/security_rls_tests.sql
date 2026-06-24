@@ -283,6 +283,47 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
+-- TEST 7: get_monthly_usage function privileges
+-- Must NOT be callable by anon or PUBLIC; only authenticated.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_granted_to_anon BOOLEAN;
+  v_granted_to_public BOOLEAN;
+  v_granted_to_auth BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.role_routine_grants
+    WHERE routine_schema = 'public'
+      AND routine_name = 'get_monthly_usage'
+      AND grantee = 'anon'
+  ) INTO v_granted_to_anon;
+  PERFORM public._test_assert(
+    'get_monthly_usage not granted to anon',
+    NOT v_granted_to_anon, 'anon must not call get_monthly_usage');
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.role_routine_grants
+    WHERE routine_schema = 'public'
+      AND routine_name = 'get_monthly_usage'
+      AND grantee = 'PUBLIC'
+  ) INTO v_granted_to_public;
+  PERFORM public._test_assert(
+    'get_monthly_usage not granted to PUBLIC',
+    NOT v_granted_to_public, 'PUBLIC must not call get_monthly_usage');
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.role_routine_grants
+    WHERE routine_schema = 'public'
+      AND routine_name = 'get_monthly_usage'
+      AND grantee = 'authenticated'
+  ) INTO v_granted_to_auth;
+  PERFORM public._test_assert(
+    'get_monthly_usage granted to authenticated',
+    v_granted_to_auth, 'authenticated must be able to call get_monthly_usage');
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
 -- Cleanup
 -- ═══════════════════════════════════════════════════════════════════
 

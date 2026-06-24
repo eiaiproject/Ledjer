@@ -100,9 +100,10 @@ describe('ForgotPasswordPage', () => {
     });
   });
 
-  it('shows the same success view regardless of whether the email exists (no enumeration)', async () => {
-    // Simulate "user not found" — Supabase returns an error, but we still
-    // show the generic "cek email Anda" view to prevent account enumeration.
+  it('shows success view for auth-level errors (no account enumeration)', async () => {
+    // Simulate "user not found" — Supabase returns an auth error that
+    // could reveal whether the email is registered. The page must suppress
+    // it and show the same generic "cek email Anda" success view.
     mocks.resetPasswordForEmail.mockResolvedValue({
       error: { message: 'User not found' },
     });
@@ -116,35 +117,20 @@ describe('ForgotPasswordPage', () => {
       screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
     );
 
-    // On failure, the error is surfaced in the form view, NOT promoted to
-    // the success view.
-    await waitFor(() => {
-      expect(screen.getByText(/user not found/i)).toBeTruthy();
-    });
-    expect(screen.queryByText(/cek email Anda$/i)).toBeNull();
-
-    // Now switch the mock to success and submit again with a fresh email
-    // (different rate-limit bucket) to assert the success view appears.
-    mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'real-user@example.com' },
-    });
-    fireEvent.click(
-      screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
-    );
-
+    // The auth error must NOT appear in the DOM — it would leak account
+    // existence. Instead, the success view appears.
     await waitFor(() => {
       expect(screen.getByText(/cek email Anda$/i)).toBeTruthy();
     });
-    expect(screen.getByText(/real-user@example\.com/i)).toBeTruthy();
+    expect(screen.queryByText(/user not found/i)).toBeNull();
+    expect(screen.getByText(/nobody@example\.com/i)).toBeTruthy();
   });
 
   it('blocks further submissions after exceeding the passwordReset rate limit', async () => {
-    // Mock returns an error so the form view stays visible across all
-    // submissions (otherwise a successful submit transitions us to the
-    // "check your inbox" success view where the form is gone).
+    // Use a non-auth error so the form stays visible for rate-limit testing.
+    // Auth errors like 'Email not found' now show the success view (no enumeration).
     mocks.resetPasswordForEmail.mockResolvedValue({
-      error: { message: 'Email not found' },
+      error: { message: 'Service unavailable' },
     });
 
     renderAt('/forgot-password');
@@ -182,6 +168,29 @@ describe('ForgotPasswordPage', () => {
       ).toBeTruthy();
     });
     expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows network/service errors to user (non-enumeration errors)', async () => {
+    // A genuine operational error (network failure) must NOT be swallowed.
+    mocks.resetPasswordForEmail.mockRejectedValue(
+      new Error('Service unavailable'),
+    );
+
+    renderAt('/forgot-password');
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
+    );
+
+    // 'Service unavailable' doesn't match auth enum leak patterns, so
+    // the error should be shown to the user via translateError.
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeTruthy();
+    });
+    expect(screen.queryByText(/cek email Anda$/i)).toBeNull();
   });
 
   it('offers a "back to login" link from the success view', async () => {

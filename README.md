@@ -274,7 +274,7 @@ supabase db reset --workdir supabase --no-seed
 #   opening_balance_guard_tests.sql
 #   payable_behavior_tests.sql
 #   permission_matrix_tests.sql
-#   auth_security_tests.sql
+#   inventory_golden_tests.sql
 for f in supabase/tests/*.sql; do
   PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
     -v ON_ERROR_STOP=1 -f "$f"
@@ -308,7 +308,7 @@ Ledjer/
 │   └── schemas/                          # Validation schemas (planned)
 ├── supabase/
 │   ├── migrations/                       # 50 migrasi SQL (applied in order)
-│   ├── tests/                            # 8 SQL test files (strict, RAISE EXCEPTION)
+│   ├── tests/                            # 9 SQL test files (strict, RAISE EXCEPTION)
 │   └── config.toml                       # Supabase CLI config
 ├── scripts/
 │   └── check-package-clean.sh            # Packaging guard untuk source archive

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
@@ -29,7 +29,23 @@ export function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
-  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rateLimitUntil, setRateLimitUntil] = useState(0);
+
+  useEffect(() => {
+    if (!rateLimitUntil) return;
+    const ms = rateLimitUntil - Date.now();
+    if (ms <= 0) {
+      queueMicrotask(() => {
+        setRateLimited(false);
+        setRateLimitUntil(0);
+      });
+    }
+    const id = setTimeout(() => {
+      setRateLimited(false);
+      setRateLimitUntil(0);
+    }, ms);
+    return () => clearTimeout(id);
+  }, [rateLimitUntil]);
 
   // Email-not-confirmed state
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -67,14 +83,11 @@ export function LoginPage() {
     if (!checkRateLimit(localRateLimitKey, RATE_LIMITS.login)) {
       const resetMs = getResetTime(localRateLimitKey, RATE_LIMITS.login);
       const resetSeconds = Math.ceil(resetMs / 1000);
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
+      const deadline = Date.now() + resetMs + 500;
       setRateLimited(true);
       setError(`Terlalu banyak percobaan. Coba lagi dalam ${resetSeconds} detik.`);
-      // Auto-recover after the rate limit window expires
-      if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
-      rateLimitTimerRef.current = setTimeout(() => {
-        setRateLimited(false);
-        setError(null);
-      }, resetMs + 500);
+      setRateLimitUntil(deadline);
       return;
     }
 
@@ -90,15 +103,12 @@ export function LoginPage() {
       });
 
       if (isLocked) {
-        setRateLimited(true);
         const lockoutMs = lockoutMinutes * 60_000;
+        // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
+        const deadline = Date.now() + lockoutMs + 500;
+        setRateLimited(true);
         setError(`Terlalu banyak percobaan gagal. Coba lagi dalam ${lockoutMinutes} menit.`);
-        // Auto-recover after server lockout window
-        if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
-        rateLimitTimerRef.current = setTimeout(() => {
-          setRateLimited(false);
-          setError(null);
-        }, lockoutMs + 500);
+        setRateLimitUntil(deadline);
         return;
       }
 

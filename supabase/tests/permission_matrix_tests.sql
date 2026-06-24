@@ -402,6 +402,64 @@ BEGIN
   );
 END $$;
 
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 7: get_monthly_usage cross-org isolation
+-- User C (org B owner) cannot read Org A's usage via get_monthly_usage.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_a_owner    UUID;
+  v_a_staff    UUID;
+  v_a_org      UUID;
+  v_a_cash     UUID;
+  v_a_pay      UUID;
+  v_a_rev      UUID;
+  v_c_owner    UUID;
+  v_c_staff    UUID;
+  v_c_org      UUID;
+  v_c_cash     UUID;
+  v_c_pay      UUID;
+  v_c_rev      UUID;
+  v_result     JSONB;
+  v_err        TEXT;
+BEGIN
+  SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
+         t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
+    INTO v_a_owner, v_a_staff, v_a_org, v_a_cash, v_a_pay, v_a_rev
+  FROM public._test_create_org_with_users('USAGE ISOLATION ORG A', CURRENT_DATE) AS t;
+
+  SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
+         t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
+    INTO v_c_owner, v_c_staff, v_c_org, v_c_cash, v_c_pay, v_c_rev
+  FROM public._test_create_org_with_users('USAGE ISOLATION ORG B', CURRENT_DATE) AS t;
+
+  -- Impersonate User C (only belongs to Org B)
+  PERFORM public._test_impersonate(v_c_owner);
+
+  -- User C calls get_monthly_usage for Org A — should fail (no membership)
+  BEGIN
+    v_result := public.get_monthly_usage(v_a_org);
+    PERFORM public._test_fail('PM7.1', 'cross-org get_monthly_usage succeeded');
+  EXCEPTION WHEN OTHERS THEN
+    v_err := SQLERRM;
+    PERFORM public._test_assert(
+      'PM7.1: get_monthly_usage rejected cross-org call',
+      v_err ILIKE '%bukan anggota%' OR v_err ILIKE '%not a member%' OR v_err ILIKE '%authentication%' OR v_err ILIKE '%autentikasi%',
+      format('expected membership error, got: %s', v_err)
+    );
+  END;
+
+  -- Verify Org A owner can still call get_monthly_usage for their own org
+  PERFORM public._test_impersonate(v_a_owner);
+  v_result := public.get_monthly_usage(v_a_org);
+  PERFORM public._test_assert(
+    'PM7.2: own-org get_monthly_usage returns valid JSONB',
+    v_result ? 'count' AND v_result ? 'limit' AND v_result ? 'remaining'
+      AND v_result ? 'period_start' AND v_result ? 'period_end',
+    format('unexpected shape: %s', v_result::text)
+  );
+END $$;
+
 -- Cleanup
 SELECT public._test_cleanup();
 

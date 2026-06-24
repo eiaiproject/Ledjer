@@ -563,7 +563,7 @@ export function NewTransactionPage() {
 
       const { data: result, error } = await supabase.rpc("post_transaction", rpcParams);
       if (error) {
-        console.error("post_transaction error:", error);
+        if (import.meta.env.DEV) console.error("post_transaction error:", error);
         const msg = error.message || error.details || JSON.stringify(error);
         // Friendly messages for common errors
         if (msg.includes("does not exist") || msg.includes("column")) {

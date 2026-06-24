@@ -32,7 +32,7 @@ export function BalanceSheetPage() {
         p_as_of_date: asOfDate,
       });
       if (error) {
-        console.error("get_balance_sheet error", { code: error.code, message: error.message, details: error.details, hint: error.hint });
+        if (import.meta.env.DEV) console.error("get_balance_sheet error", { code: error.code, message: error.message, details: error.details, hint: error.hint });
         throw error;
       }
       return data as BalanceSheetItem[];

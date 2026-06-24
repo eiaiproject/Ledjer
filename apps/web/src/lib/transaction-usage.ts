@@ -24,13 +24,17 @@ export async function fetchMonthlyTransactionUsage(
 
   if (error) throw error;
 
-  const row = data as unknown as {
-    count: number;
-    limit: number;
-    remaining: number;
-    period_start: string;
-    period_end: string;
-  };
+  const row = data as Record<string, unknown> | null;
+  if (
+    !row ||
+    typeof row.count !== 'number' ||
+    typeof row.limit !== 'number' ||
+    typeof row.remaining !== 'number' ||
+    typeof row.period_start !== 'string' ||
+    typeof row.period_end !== 'string'
+  ) {
+    throw new Error('Respons pemakaian bulanan tidak valid dari server. Silakan coba lagi.');
+  }
 
   return {
     count: row.count,

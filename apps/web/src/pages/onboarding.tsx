@@ -184,7 +184,7 @@ export function OnboardingPage() {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      console.error("Error creating organization:", err);
+      if (import.meta.env.DEV) console.error("Error creating organization:", err);
       setError(translateError(err));
       setLoading(false);
     }

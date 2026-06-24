@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v4";
@@ -38,7 +38,23 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
-  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rateLimitUntil, setRateLimitUntil] = useState(0);
+
+  useEffect(() => {
+    if (!rateLimitUntil) return;
+    const ms = rateLimitUntil - Date.now();
+    if (ms <= 0) {
+      queueMicrotask(() => {
+        setRateLimited(false);
+        setRateLimitUntil(0);
+      });
+    }
+    const id = setTimeout(() => {
+      setRateLimited(false);
+      setRateLimitUntil(0);
+    }, ms);
+    return () => clearTimeout(id);
+  }, [rateLimitUntil]);
 
   const {
     register,
@@ -57,16 +73,13 @@ export function ForgotPasswordPage() {
     if (!checkRateLimit(localRateLimitKey, RATE_LIMITS.passwordReset)) {
       const resetMs = getResetTime(localRateLimitKey, RATE_LIMITS.passwordReset);
       const resetSeconds = Math.ceil(resetMs / 1000);
+      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
+      const deadline = Date.now() + resetMs + 500;
       setRateLimited(true);
       setError(
         `Terlalu banyak percobaan. Coba lagi dalam ${resetSeconds} detik.`,
       );
-      // Auto-recover after the rate limit window expires
-      if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
-      rateLimitTimerRef.current = setTimeout(() => {
-        setRateLimited(false);
-        setError(null);
-      }, resetMs + 500);
+      setRateLimitUntil(deadline);
       return;
     }
 
@@ -83,7 +96,19 @@ export function ForgotPasswordPage() {
       // actually exists — prevents account enumeration.
       setSubmittedEmail(email);
     } catch (err) {
-      setError(translateError(err));
+      // Auth-level errors that could reveal account existence → show
+      // success view anyway to prevent account enumeration.
+      const msg = String((err as Error)?.message ?? '').toLowerCase();
+      const isAuthEnumLeak = [
+        'user not found', 'user_not_found', 'email not found',
+        'email_not_confirmed', 'not confirmed', 'signup disabled',
+        'signups not allowed', 'email address .* is invalid',
+      ].some((p) => msg.includes(p));
+      if (isAuthEnumLeak) {
+        setSubmittedEmail(email);
+      } else {
+        setError(translateError(err));
+      }
     } finally {
       setLoading(false);
     }
