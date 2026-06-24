@@ -1,5 +1,7 @@
 # Engineering Report — 2026-07-26
 
+> **Chronology note:** This report and subsequent reports (2026-07-27 through 2026-07-29) were authored during a continuous hardening session. The dates reflect the session timeline, not calendar dates. Migration filenames use the same dates for ordering consistency.
+
 ## Executive Summary
 
 Stabilized the Ledjer repository for production-readiness by fixing 4 critical issues:

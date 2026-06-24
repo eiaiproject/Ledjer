@@ -35,6 +35,8 @@ export function AuthCallbackPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Guard against React.StrictMode double-invoke (development).
   const verifiedRef = useRef(false);
+  // Persist the verified callback type for success CTA and resend flow.
+  const [callbackType, setCallbackType] = useState<string | null>(null);
 
   // Resend state (used for "error" / "invalid" recovery).
   const [resendEmail, setResendEmail] = useState("");
@@ -63,6 +65,7 @@ export function AuthCallbackPage() {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         } else if (tokenHash && type) {
+          setCallbackType(type);
           const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type,
@@ -115,13 +118,25 @@ export function AuthCallbackPage() {
     setResendMessage(null);
     setErrorMessage(null);
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: resendEmail.trim().toLowerCase(),
-      });
-      if (error) throw error;
+      const isRecovery = callbackType === "recovery";
+      if (isRecovery) {
+        const redirectTo = `${window.location.origin}/auth/callback?type=recovery`;
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          resendEmail.trim().toLowerCase(),
+          { redirectTo },
+        );
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.resend({
+          type: "signup",
+          email: resendEmail.trim().toLowerCase(),
+        });
+        if (error) throw error;
+      }
       setResendMessage(
-        "Email konfirmasi telah dikirim ulang. Cek kotak masuk (atau folder spam) Anda."
+        isRecovery
+          ? "Tautan pemulihan telah dikirim ulang. Cek kotak masuk (atau folder spam) Anda."
+          : "Email konfirmasi telah dikirim ulang. Cek kotak masuk (atau folder spam) Anda."
       );
       startResendCooldown(60);
     } catch (err) {
@@ -221,7 +236,21 @@ export function AuthCallbackPage() {
               </div>
             )}
 
-            {status === "success" && (
+            {status === "success" && callbackType === "recovery" && (
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  fullWidth
+                  variant="outline"
+                  onClick={() => navigate("/reset-password", { replace: true })}
+                  className="gap-2"
+                >
+                  Atur password baru
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {status === "success" && callbackType !== "recovery" && (
               <div className="mt-6">
                 <Button
                   type="button"

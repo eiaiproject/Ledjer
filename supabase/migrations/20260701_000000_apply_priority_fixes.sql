@@ -3,6 +3,11 @@
 -- Applies final overrides for accounting correctness, inventory
 -- tenant integrity, historical reporting, and internal RPC exposure.
 -- ============================================================
+-- Chronology note: This and subsequent migrations (20260701-20260729)
+-- were authored during a continuous hardening session. The dates in
+-- filenames reflect the session timeline for ordering consistency,
+-- not calendar dates. Migration ordering within the sequence is what
+-- matters; absolute dates have no effect on Supabase apply order.
 
 -- Count plan usage by when the transaction was created, not by the
 -- user-editable accounting transaction date.

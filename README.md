@@ -65,7 +65,7 @@ Setiap transaksi diposting melalui SECURITY DEFINER RPC dan otomatis menghasilka
 | Kategori | Jenis Transaksi |
 |----------|-----------------|
 | **Kas** | Penjualan Tunai, Pembelian Tunai, Terima Piutang, Bayar Utang, Bayar Beban, Modal Pemilik, Penarikan Tunai, Transfer Antar Rekening |
-| **Kredit** | Penjualan Kredit, Pembelian Kredit — lunas atau parsial |
+| **Kredit** | Penjualan Kredit, Pembelian Kredit — belum dibayar atau sebagian |
 | **Penyesuaian** | Penyesuaian Manual (owner only) |
 | **Saldo Awal** | Saldo Awal Kas / Piutang / Utang (hanya saat onboarding) |
 
@@ -302,10 +302,8 @@ Ledjer/
 │       │   ├── pages/                    # Dashboard, Transaksi, Akun, Produk, Laporan, Settings
 │       │   └── __tests__/                # Vitest unit + integration tests
 │       └── package.json
-├── packages/                             # Workspace packages (planned)
-│   ├── database-types/                   # TypeScript types generated from Supabase
-│   ├── accounting-core/                  # Logic akuntansi (planned)
-│   └── schemas/                          # Validation schemas (planned)
+├── packages/                             # Workspace packages
+│   └── database-types/                   # TypeScript types generated from Supabase
 ├── supabase/
 │   ├── migrations/                       # 50 migrasi SQL (applied in order)
 │   ├── tests/                            # 10 SQL files (1 helper + 9 executable test suites)

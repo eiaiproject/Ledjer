@@ -15,7 +15,7 @@ import {
   ChevronsLeft,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
+import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
@@ -55,6 +55,7 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
+  const { canCreateTransaction } = useOrgPermissions();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -288,13 +289,15 @@ export function DashboardLayout() {
           <Link to="/dashboard" className="flex items-center gap-2">
             <Logo size="sm" variant="full" className="h-7" />
           </Link>
-          <Link
-            to="/transactions/new"
-            className="p-2 -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
-            aria-label="Transaksi baru"
-          >
-            <Plus className="h-5 w-5" />
-          </Link>
+          {canCreateTransaction && (
+            <Link
+              to="/transactions/new"
+              className="p-2 -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+              aria-label="Transaksi baru"
+            >
+              <Plus className="h-5 w-5" />
+            </Link>
+          )}
         </div>
       </div>
 

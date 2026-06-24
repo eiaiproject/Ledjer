@@ -7,6 +7,7 @@ import {
   addRecentTransactionType,
   localDate,
 } from '@/pages/transactions/_helpers';
+import { PAYMENT_STATUS_LABELS } from '@/lib/transactions';
 
 describe('buildPreview', () => {
   const baseArgs = {
@@ -328,6 +329,49 @@ describe('localDate', () => {
     const expected = new Date();
     expected.setDate(expected.getDate() + 7);
     expect(dateStr).toContain(`${expected.getFullYear()}`);
+  });
+});
+
+describe('Credit type payment status contract', () => {
+  const creditBaseArgs = {
+    amount: 1000000,
+    partialAmount: 0,
+    paymentStatus: 'paid',
+    cashAccountLabel: '1110 - Kas',
+    destinationAccountLabel: '1120 - Bank BCA',
+    categoryName: 'Sewa',
+    productName: '',
+  };
+
+  it('PAYMENT_STATUS_LABELS does not include a credit-specific "lunas" label', () => {
+    // Per backend rule: paid credit_sale/credit_purchase is invalid;
+    // fully paid transactions use cash_sale/cash_purchase.
+    expect(PAYMENT_STATUS_LABELS.paid).toBe('Lunas');
+    expect(PAYMENT_STATUS_LABELS.unpaid).toBe('Belum dibayar');
+    expect(PAYMENT_STATUS_LABELS.partial).toBe('Sebagian dibayar');
+  });
+
+  it('buildPreview credit_sale paid is a defensive fallback (not offered by UI)', () => {
+    // The UI PaymentStatusSelector only offers unpaid/partial.
+    // This branch exists for legacy data safety.
+    const result = buildPreview({
+      ...creditBaseArgs,
+      transactionType: 'credit_sale',
+      paymentStatus: 'paid',
+    });
+    // When paid, debit goes to cash account (same as cash_sale)
+    expect(result.debit[0].account).toBe('1110 - Kas');
+    expect(result.debit[0].amount).toBe(1000000);
+  });
+
+  it('buildPreview credit_purchase paid is a defensive fallback', () => {
+    const result = buildPreview({
+      ...creditBaseArgs,
+      transactionType: 'credit_purchase',
+      paymentStatus: 'paid',
+    });
+    expect(result.credit[0].account).toBe('1110 - Kas');
+    expect(result.credit[0].amount).toBe(1000000);
   });
 });
 

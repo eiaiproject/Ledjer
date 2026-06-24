@@ -49,6 +49,7 @@ export function ProductsPage() {
   const { data: orgData } = useOrganization();
   const { canManageProducts } = useOrgPermissions();
   const queryClient = useQueryClient();
+  const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
 
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -102,7 +103,8 @@ export function ProductsPage() {
         const { error } = await supabase
           .from("products")
           .update(basePayload)
-          .eq("id", editingProduct.id);
+          .eq("id", editingProduct.id)
+          .eq("organization_id", orgData.organization.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -130,10 +132,12 @@ export function ProductsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (product: Product) => {
+      if (!orgData?.organization?.id) throw new Error("Organisasi tidak ditemukan");
       const { error } = await supabase
         .from("products")
         .update({ is_active: false })
-        .eq("id", product.id);
+        .eq("id", product.id)
+        .eq("organization_id", orgData.organization.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -399,8 +403,13 @@ export function ProductsPage() {
                 {formErrors.selling_price}
               </p>
             )}
-            {!editingProduct && (
+            {!editingProduct && !onboardingCompleted && (
               <Input label="Stok Awal" type="number" min={0} value={formData.current_stock || ""} onChange={(e) => updateFormField("current_stock", Number(e.target.value))} placeholder="0" error={formErrors.current_stock} disabled={formBusy} />
+            )}
+            {!editingProduct && onboardingCompleted && (
+              <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">
+                Stok ditambahkan otomatis melalui alur pembelian atau stok resmi.
+              </div>
             )}
             <Input label="Stok Minimum" type="number" min={0} value={formData.min_stock || ""} onChange={(e) => updateFormField("min_stock", Number(e.target.value))} placeholder="0" error={formErrors.min_stock} disabled={formBusy} />
           </div>

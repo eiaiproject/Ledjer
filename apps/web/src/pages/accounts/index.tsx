@@ -531,9 +531,10 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
 interface CashBankCardProps {
   account: Account;
   onEdit: (account: Account) => void;
+  canEdit: boolean;
 }
 
-function CashBankCard({ account, onEdit }: CashBankCardProps) {
+function CashBankCard({ account, onEdit, canEdit }: CashBankCardProps) {
   const kind = getCashBankKind(account);
   const meta = CASH_BANK_META[kind];
   const Icon = meta.icon;
@@ -553,16 +554,18 @@ function CashBankCard({ account, onEdit }: CashBankCardProps) {
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onEdit(account)}
-            aria-label={`Edit nama akun ${account.name}`}
-            className="h-9 w-9 shrink-0 text-wood-500 hover:text-wood-700"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
+          {canEdit && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(account)}
+              aria-label={`Edit nama akun ${account.name}`}
+              className="h-9 w-9 shrink-0 text-wood-500 hover:text-wood-700"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <div className="mt-3 flex items-center gap-2">
           <Badge variant={account.is_active ? "success" : "neutral"}>
@@ -822,7 +825,8 @@ export function AccountsPage() {
                     <CashBankCard
                       key={account.id}
                       account={account}
-                      onEdit={canManageAccounts ? handleEdit : () => {}}
+                      onEdit={handleEdit}
+                      canEdit={canManageAccounts}
                     />
                   ))}
                 </div>

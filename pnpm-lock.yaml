@@ -102,11 +102,11 @@ importers:
         specifier: ^3.1.0
         version: 3.2.6(@types/node@24.13.2)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)
 
-  packages/accounting-core: {}
-
-  packages/database-types: {}
-
-  packages/schemas: {}
+  packages/database-types:
+    devDependencies:
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
 
 packages:
 

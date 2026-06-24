@@ -272,6 +272,9 @@ export function buildPreview({
       credit.push({ account: "Pendapatan Usaha", amount, direction: "increase" });
       break;
     case "credit_sale":
+      // ponytail: paymentStatus === "paid" for credit_sale is invalid per
+      // backend rule (fully paid = cash_sale). Kept as defensive fallback
+      // for any legacy data; UI only offers unpaid/partial.
       if (paymentStatus === "paid") {
         debit.push({ account: cashAccountLabel, amount, direction: "increase" });
       } else if (paymentStatus === "partial") {
@@ -291,6 +294,8 @@ export function buildPreview({
       credit.push({ account: cashAccountLabel, amount, direction: "decrease" });
       break;
     case "credit_purchase":
+      // ponytail: paymentStatus === "paid" for credit_purchase is invalid per
+      // backend rule (fully paid = cash_purchase). Kept as defensive fallback.
       debit.push({ account: expenseAccount, amount, direction: "increase" });
       if (paymentStatus === "paid") {
         credit.push({ account: cashAccountLabel, amount, direction: "decrease" });

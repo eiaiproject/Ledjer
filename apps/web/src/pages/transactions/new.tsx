@@ -878,7 +878,7 @@ export function NewTransactionPage() {
                 {/* Payment status */}
                 {showPaymentStatus && (
                   <PaymentStatusSelector
-                    value={selectedPaymentStatus as "paid" | "unpaid" | "partial"}
+                    value={selectedPaymentStatus as "unpaid" | "partial"}
                     onChange={(status) => {
                       setValue("paymentStatus", status, { shouldDirty: true, shouldValidate: true });
                       if (status !== "partial") setValue("partialAmount", undefined);

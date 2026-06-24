@@ -351,8 +351,8 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
 /* ------------------------------------------------------------------ */
 
 interface PaymentStatusSelectorProps {
-  value: "paid" | "unpaid" | "partial";
-  onChange: (status: "paid" | "unpaid" | "partial") => void;
+  value: "unpaid" | "partial";
+  onChange: (status: "unpaid" | "partial") => void;
   showDueDate: boolean;
   dueDate: string;
   onDueDateChange: (date: string) => void;

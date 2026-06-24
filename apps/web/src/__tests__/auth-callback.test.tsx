@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   exchangeCodeForSession: vi.fn(),
   verifyOtp: vi.fn(),
   resend: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => ({
@@ -16,6 +17,7 @@ vi.mock('@/lib/supabase', () => ({
       exchangeCodeForSession: (...args: unknown[]) => mocks.exchangeCodeForSession(...args),
       verifyOtp: (...args: unknown[]) => mocks.verifyOtp(...args),
       resend: (...args: unknown[]) => mocks.resend(...args),
+      resetPasswordForEmail: (...args: unknown[]) => mocks.resetPasswordForEmail(...args),
     },
   },
 }));
@@ -51,6 +53,7 @@ describe('AuthCallbackPage', () => {
     mocks.exchangeCodeForSession.mockReset();
     mocks.verifyOtp.mockReset();
     mocks.resend.mockReset();
+    mocks.resetPasswordForEmail.mockReset();
   });
 
   afterEach(() => {
@@ -197,6 +200,81 @@ describe('AuthCallbackPage', () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it('recovery success CTA navigates to /reset-password (not /onboarding)', async () => {
+    mocks.verifyOtp.mockResolvedValue({ error: null });
+
+    renderWithSearchParams('?token_hash=rec&type=recovery');
+
+    await waitFor(() => {
+      expect(mocks.verifyOtp).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText(/email terkonfirmasi/i)).toBeTruthy();
+
+    // The success CTA must say 'Atur password baru' and link to /reset-password.
+    const ctaButton = screen.getByRole('button', { name: /atur password baru/i });
+    expect(ctaButton).toBeTruthy();
+
+    fireEvent.click(ctaButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reset-password')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('onboarding')).toBeNull();
+  });
+
+  it('expired recovery resend calls resetPasswordForEmail (not auth.resend)', async () => {
+    mocks.verifyOtp.mockResolvedValue({
+      error: { message: 'Token has expired' },
+    });
+    mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
+
+    renderWithSearchParams('?token_hash=expired&type=recovery');
+
+    expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
+
+    const emailInput = screen.getByPlaceholderText(/email@contoh\.com/i) as HTMLInputElement;
+    fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
+
+    const resendButton = screen.getByRole('button', { name: /kirim ulang email/i });
+    fireEvent.click(resendButton);
+
+    await waitFor(() => {
+      expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith(
+        'user@example.com',
+        { redirectTo: expect.stringMatching(/\/auth\/callback\?type=recovery$/) },
+      );
+    });
+    // Must NOT call the generic signup resend
+    expect(mocks.resend).not.toHaveBeenCalled();
+    expect(await screen.findByText(/tautan pemulihan telah dikirim ulang/i)).toBeTruthy();
+  });
+
+  it('expired signup resend calls auth.resend (not resetPasswordForEmail)', async () => {
+    mocks.verifyOtp.mockResolvedValue({
+      error: { message: 'Token has expired' },
+    });
+    mocks.resend.mockResolvedValue({ error: null });
+
+    renderWithSearchParams('?token_hash=expired&type=signup');
+
+    expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
+
+    const emailInput = screen.getByPlaceholderText(/email@contoh\.com/i) as HTMLInputElement;
+    fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
+
+    const resendButton = screen.getByRole('button', { name: /kirim ulang email/i });
+    fireEvent.click(resendButton);
+
+    await waitFor(() => {
+      expect(mocks.resend).toHaveBeenCalledWith({
+        type: 'signup',
+        email: 'user@example.com',
+      });
+    });
+    expect(mocks.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 });
 
