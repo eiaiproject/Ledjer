@@ -10,40 +10,33 @@ export interface MonthlyTransactionUsage {
   periodEnd: string;
 }
 
-export function getCurrentUsagePeriod(now = new Date()) {
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  return {
-    periodStart: periodStart.toISOString(),
-    periodEnd: periodEnd.toISOString(),
-  };
-}
-
+/**
+ * Fetch monthly usage from the server-owned RPC to avoid client timezone
+ * drift. The RPC uses `date_trunc('month', now())` consistently with
+ * backend enforcement.
+ */
 export async function fetchMonthlyTransactionUsage(
   organizationId: string
 ): Promise<MonthlyTransactionUsage> {
-  const { periodStart, periodEnd } = getCurrentUsagePeriod();
-
-  const { count, error } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .in("status", ["posted", "voided"])
-    .is("original_transaction_id", null)
-    .not("transaction_type", "like", "opening_%")
-    .gte("created_at", periodStart)
-    .lt("created_at", periodEnd);
+  const { data, error } = await supabase.rpc("get_monthly_usage", {
+    p_org_id: organizationId,
+  });
 
   if (error) throw error;
 
-  const usageCount = count ?? 0;
+  const row = data as unknown as {
+    count: number;
+    limit: number;
+    remaining: number;
+    period_start: string;
+    period_end: string;
+  };
 
   return {
-    count: usageCount,
-    limit: FREE_PLAN_TRANSACTION_LIMIT,
-    remaining: Math.max(FREE_PLAN_TRANSACTION_LIMIT - usageCount, 0),
-    periodStart,
-    periodEnd,
+    count: row.count,
+    limit: row.limit,
+    remaining: row.remaining,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
   };
 }

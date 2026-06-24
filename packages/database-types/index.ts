@@ -1252,6 +1252,10 @@ export type Database = {
         Args: { p_org_id: string }
         Returns: number
       }
+      get_monthly_usage: {
+        Args: { p_org_id: string }
+        Returns: Json
+      }
       get_next_counter: {
         Args: { p_counter_name: string; p_organization_id: string }
         Returns: number
