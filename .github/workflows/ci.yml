@@ -74,8 +74,8 @@ jobs:
         with:
           node-version: 24
 
-      - name: Install (no scripts, ignore errors)
-        run: pnpm install --ignore-scripts --no-frozen-lockfile || true
+      - name: Install (no scripts)
+        run: pnpm install --ignore-scripts --no-frozen-lockfile
 
       - name: Install Supabase CLI
         run: |
@@ -86,6 +86,9 @@ jobs:
             -o /tmp/supabase.tar.gz
           tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase
           supabase --version
+
+      - name: Validate migration filenames
+        run: bash scripts/check-migration-naming.sh
 
       - name: Start local Supabase stack
         run: supabase start --workdir supabase

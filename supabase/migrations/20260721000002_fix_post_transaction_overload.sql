@@ -21,19 +21,18 @@ RETURNS UUID AS $$
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Drop all overloaded versions of post_transaction
-DO $$
-DECLARE
-  func RECORD;
-BEGIN
-  FOR func IN
-    SELECT oid, proargtypes::text AS arg_types
-    FROM pg_proc
-    WHERE proname = 'post_transaction'
-      AND pronamespace = 'public'::regnamespace
-  LOOP
-    EXECUTE format('DROP FUNCTION IF EXISTS public.post_transaction(%s) CASCADE', func.arg_types);
-  END LOOP;
-END $$;
+DROP FUNCTION IF EXISTS public.post_transaction(
+  UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID,
+  TEXT, NUMERIC, DATE, TEXT, TEXT, UUID, NUMERIC, NUMERIC
+) CASCADE;
+DROP FUNCTION IF EXISTS public.post_transaction(
+  UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID,
+  TEXT, NUMERIC, DATE, TEXT, TEXT, UUID, NUMERIC, NUMERIC, UUID
+) CASCADE;
+DROP FUNCTION IF EXISTS public.post_transaction(
+  UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID,
+  TEXT, DATE, TEXT, TEXT
+) CASCADE;
 
 -- Create the single canonical post_transaction function
 CREATE OR REPLACE FUNCTION public.post_transaction(

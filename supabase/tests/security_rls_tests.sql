@@ -81,16 +81,21 @@ BEGIN
 
   -- stock_movements: must not allow INSERT/UPDATE/DELETE from authenticated clients.
   -- We accept either ZERO policies OR a single explicit deny-all (WITH CHECK (false)).
-  -- The harden migration chose Option A: no INSERT/UPDATE/DELETE policies at all.
   SELECT COUNT(*) INTO v_count
   FROM pg_policies
   WHERE schemaname = 'public'
     AND tablename = 'stock_movements'
     AND cmd = 'INSERT';
   PERFORM public._test_assert(
-    'stock_movements has no client INSERT policy (Option A)',
-    v_count = 0,
-    'Found ' || v_count || ' INSERT policies; expected 0. If you switch to Option B (explicit deny), update this test.'
+    'stock_movements has no client INSERT policy (Option A or B)',
+    v_count = 0 OR (v_count = 1 AND EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE schemaname = 'public'
+        AND tablename = 'stock_movements'
+        AND cmd = 'INSERT'
+        AND with_check = 'false'
+    )),
+    'Found ' || v_count || ' INSERT policies; expected 0 or 1 deny-all policy'
   );
 
   SELECT COUNT(*) INTO v_count

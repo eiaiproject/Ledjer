@@ -1333,29 +1333,12 @@ export type Database = {
         }
         Returns: Json
       }
-      post_transaction:
-        | {
+      post_transaction: {
             Args: {
               p_amount: number
               p_cash_account_id?: string
               p_category_name?: string
-              p_description?: string
-              p_destination_cash_account_id?: string
-              p_due_date?: string
-              p_notes?: string
-              p_organization_id: string
-              p_party_id?: string
-              p_payment_status?: string
-              p_transaction_date: string
-              p_transaction_type: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_cash_account_id?: string
-              p_category_name?: string
+              p_debit_account_id?: string
               p_description?: string
               p_destination_cash_account_id?: string
               p_due_date?: string
