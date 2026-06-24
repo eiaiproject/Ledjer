@@ -131,7 +131,7 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
     nextCode = code + 1;
   }
 
-  return nextCode <= maxCode ? nextCode : minCode; // fallback to minCode if full
+  return nextCode <= maxCode ? nextCode : -1; // -1 signals range exhausted
 }
 
 const CASH_BANK_META: Record<CashBankKind, { label: string; icon: typeof Wallet; bgClass: string; iconClass: string }> = {
@@ -169,6 +169,7 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
 
   const selectedMeta = CASH_BANK_KINDS.find((k) => k.kind === selectedKind);
   const nextCode = getNextAccountCode(accounts, selectedKind);
+  const isRangeExhausted = nextCode === -1;
 
   const createMutation = useMutation({
     mutationFn: async (data: { kind: CashBankKind; name: string }) => {
@@ -191,6 +192,9 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
       }
 
       const code = getNextAccountCode(accounts, data.kind);
+      if (code === -1) {
+        throw new Error("Kode akun untuk jenis ini sudah penuh. Hubungi admin.");
+      }
       // All cash/bank/qris/ewallet accounts are cash accounts for transaction purposes
       const isCash = true;
 
@@ -316,9 +320,12 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
             <label className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
             <input
               type="text"
-              value={`${nextCode} - ${selectedMeta?.label || selectedKind}`}
+              value={isRangeExhausted ? "Penuh — tidak ada kode tersedia" : `${nextCode} - ${selectedMeta?.label || selectedKind}`}
               readOnly
-              className="h-10 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-100 px-3 text-sm text-text-tertiary sm:min-h-0"
+              className={cn(
+                "h-10 min-h-[44px] w-full rounded-md border bg-cream-100 px-3 text-sm sm:min-h-0",
+                isRangeExhausted ? "border-error text-error" : "border-wood-200 text-text-tertiary"
+              )}
             />
           </div>
 
@@ -744,14 +751,14 @@ export function AccountsPage() {
             Kelola kas, bank, dan akun pembukuan bisnis Anda.
           </p>
         </div>
-        {canManageAccounts && (
+        {canManageAccounts && activeTab === "cashbank" && (
           <Button
             type="button"
             onClick={() => setAddModalOpen(true)}
             className="w-full sm:w-auto"
           >
             <Plus className="mr-2 h-4 w-4" />
-            {activeTab === "cashbank" ? "Tambah Kas/Bank" : "Tambah Akun"}
+            Tambah Kas/Bank
           </Button>
         )}
       </div>
