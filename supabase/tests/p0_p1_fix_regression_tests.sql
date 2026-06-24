@@ -253,6 +253,18 @@ BEGIN
     'T-4b: COGS(5100) = 0 for zero-cost sale',
     v_cogs_balance, 0, 0.01
   );
+
+  -- Stock movement should exist even for zero-cost (quantity tracking)
+  PERFORM public._test_assert(
+    'T-4c: stock movement recorded for zero-cost sale',
+    EXISTS (
+      SELECT 1 FROM public.stock_movements
+      WHERE organization_id = v_oid
+        AND product_id = v_product_id
+        AND movement_type = 'sale'
+    ),
+    'No stock movement found for zero-cost sale'
+  );
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
@@ -331,9 +343,9 @@ BEGIN
 
     -- Check if function is granted to anon or authenticated (non-service-role)
     SELECT COUNT(*) INTO v_grant_count
-    FROM information_schema.role_grants
-    WHERE object_schema = 'public'
-      AND object_name = v_fn.proname
+    FROM information_schema.role_routine_grants
+    WHERE routine_schema = 'public'
+      AND routine_name = v_fn.proname
       AND grantee IN ('anon', 'authenticated');
 
     v_is_service_role_only := (v_grant_count = 0);

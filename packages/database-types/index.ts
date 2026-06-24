@@ -1403,6 +1403,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_login_attempt_pre_auth: {
+        Args: {
+          p_email: string
+          p_error_message?: string
+          p_success: boolean
+          p_user_agent?: string
+        }
+        Returns: undefined
+      }
       record_stock_movement: {
         Args: {
           p_movement_date: string

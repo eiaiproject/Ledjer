@@ -104,9 +104,9 @@ Headline changes:
 | `pnpm install --frozen-lockfile` | ✅ Already up to date; lockfile honored |
 | `pnpm --filter web typecheck` | ✅ tsc -b clean, 0 errors |
 | `pnpm --filter web lint` | ✅ eslint clean, 0 warnings |
-| `pnpm --filter web test` | ✅ 81/81 tests passed (8 files) |
+| `pnpm --filter web test` | ✅ 88/88 tests passed (9 files) |
 | `pnpm --filter web build` | ✅ vite production build in ~170ms |
-| `pnpm db-types:check` | ✅ Shim and canonical package look consistent (canonical = 1666 lines) |
+| `pnpm db-types:check` | ✅ Shim and canonical package look consistent (canonical = 1670 lines) |
 | `bash scripts/check-package-clean.sh` | ✅ no forbidden paths in `git ls-files` |
 | `grep -RI "_test_assert" supabase/migrations/` | ✅ no matches (CI guard OK) |
 | `supabase start --workdir supabase` | ❌ BLOCKED — Docker not installed in this environment (CI runner has Docker; the GitHub Actions `supabase` job runs the full `supabase db reset` and the SQL test files against a real Supabase Postgres) |

@@ -1,5 +1,5 @@
 -- P0-3: Validate simple_adjustment accounts (org membership + active)
--- P0-5: Always post COGS/inventory-relief even when cost = 0
+-- P0-5: Record stock movement for zero-cost products; skip COGS journal (no economic event)
 -- Adds defense-in-depth: journal_lines trigger ensuring account belongs to org
 -- Also tightens balance check from > 0.01 to <> 0 (P3-18)
 
@@ -38,7 +38,7 @@ CREATE TRIGGER trg_enforce_journal_line_org_match
 -- ═══════════════════════════════════════════════════════════════════
 --  REDEFINE post_transaction with:
 --  - P0-3: simple_adjustment account validation
---  - P0-5: COGS always posted (remove v_cogs_amount > 0 gate)
+--  - P0-5: Stock movement always recorded; COGS journal only when cost > 0
 --  - P3-18: balance check <> 0 instead of > 0.01
 -- ═══════════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.post_transaction(
@@ -591,8 +591,8 @@ BEGIN
 
   -- ═══════════════════════════════════════════════════════════════════
   --  PRODUCT: STOCK MOVEMENTS + COGS
-  --  P0-5 FIX: Always post COGS entry (even when cost = 0) to keep
-  --  account 1300 balanced with stock decrements.
+  --  P0-5: Stock movement always recorded for quantity tracking.
+  --  COGS journal only when cost > 0 (zero-cost = no economic event).
   -- ═══════════════════════════════════════════════════════════════════
 
   IF p_product_id IS NOT NULL THEN
@@ -608,7 +608,7 @@ BEGIN
     ELSIF p_transaction_type IN ('cash_sale', 'credit_sale') THEN
       v_cogs_amount := COALESCE(v_product_purchase_price, 0) * p_quantity;
 
-      -- P0-5: Post COGS/inventory-relief entry (skip when zero to satisfy CHECK constraint)
+      -- P0-5: Post COGS journal only when cost > 0
       IF v_cogs_amount <> 0 THEN
         v_cogs_account_id    := public.get_account_by_code(p_organization_id, 5100);
         v_inventory_account_id := public.get_account_by_code(p_organization_id, 1300);

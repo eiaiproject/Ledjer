@@ -148,6 +148,9 @@ jobs:
           echo "=== p0_critical_fix_tests.sql ==="
           $PSQL -f supabase/tests/p0_critical_fix_tests.sql
 
+          echo "=== p0_p1_fix_regression_tests.sql ==="
+          $PSQL -f supabase/tests/p0_p1_fix_regression_tests.sql
+
           echo "=== opening_balance_guard_tests.sql ==="
           $PSQL -f supabase/tests/opening_balance_guard_tests.sql
 

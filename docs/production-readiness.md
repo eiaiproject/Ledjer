@@ -1,6 +1,6 @@
 # Ledjer — Production Readiness Checklist
 
-Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (latest is `20260729_000000_fix_handle_new_user_search_path.sql`).
+Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (latest is `20260729_000006_harden_protect_account_fields.sql`).
 
 ## Status Legend
 
@@ -169,7 +169,7 @@ Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (l
 | **SQL behavioural permission matrix + cross-org RLS** | ✅ | `supabase/tests/permission_matrix_tests.sql` (PM1.1–PM6.3) |
 | **SQL helper factories** | ✅ | `_test_impersonate`, `_test_create_org_with_users` in `_test_helpers.sql` |
 | **Direct INSERT test not false-green** | ✅ | T8 supplies every required column and asserts failure is RLS, not NOT NULL / FK |
-| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 81+ tests across 9 files (auth-callback, forgot-password, login, password-recovery-flow, reset-password, smoke, transaction-helpers, transactions, transaction-usage) |
+| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 88 tests across 9 files (auth-callback, forgot-password, login, password-recovery-flow, reset-password, smoke, transaction-helpers, transactions, transaction-usage) |
 | Auth-callback integration tests | ✅ | `auth-callback.test.tsx` covers code exchange, token_hash, invalid/expired, resend, recovery → `/reset-password` |
 | Migration CI guard | ✅ | `.github/workflows/ci.yml` fails if any migration references `_test_assert` |
 | **Packaging CI guard** | ✅ | `guard-package-clean` job runs `scripts/check-package-clean.sh` against `git archive` tarball and `git ls-files` zip |
@@ -200,13 +200,13 @@ Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (l
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Supabase migrations applied | ⚠️ | Must run migrations up to and including `20260728_000000_p0_search_path_balance_sheet_cte.sql` |
+| Supabase migrations applied | ⚠️ | Must run all migrations through `20260729_000006_harden_protect_account_fields.sql` |
 | Frontend build verified | ✅ | `pnpm build` passes |
 | Environment variables set | ⚠️ | Must configure in hosting platform |
 | Domain configured | ❌ | Not configured |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 
-**Most recent verification (2026-07-28, this session):**
+**Most recent verification (2026-06-24):**
 
 The following commands were actually executed:
 
@@ -214,7 +214,7 @@ The following commands were actually executed:
 pnpm install --frozen-lockfile       # ✅ already up to date; lockfile honored
 pnpm --filter web typecheck          # ✅ tsc -b clean, 0 errors
 pnpm --filter web lint               # ✅ eslint clean, 0 errors
-pnpm --filter web test               # ✅ 81+ tests passed (9 files)
+pnpm --filter web test               # ✅ 88 tests passed (9 files)
 pnpm --filter web build              # ✅ vite production build in ~170ms; 12 chunks
 ./scripts/check-package-clean.sh     # ✅ no forbidden paths in git ls-files
 grep -R "_test_assert" supabase/migrations/

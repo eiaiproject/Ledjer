@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
@@ -163,7 +163,7 @@ export function GeneralLedgerPage() {
                         groups[key].entries.push(entry);
                       }
                       return Object.values(groups).sort((a, b) => a.code - b.code).map((group) => (
-                        <>
+                        <Fragment key={group.code}>
                           <tr key={`hdr-${group.code}`} className="bg-cream-50">
                             <td colSpan={6} className="px-5 py-2 text-xs font-semibold text-wood-700">
                               {group.code} — {group.name}
@@ -179,7 +179,7 @@ export function GeneralLedgerPage() {
                               <td className="px-5 py-2 text-right tabular-nums text-wood-800">{entry.credit > 0 ? formatIDR(entry.credit) : ""}</td>
                             </tr>
                           ))}
-                        </>
+                        </Fragment>
                       ));
                     }
                     return ledger.map((entry, idx) => (

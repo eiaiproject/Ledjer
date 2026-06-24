@@ -147,7 +147,7 @@ Butuh backend lokal? Lihat [Supabase Local Stack](#supabase-local-stack-optional
 | State | TanStack React Query | 5 |
 | Forms | React Hook Form + Zod | 7 / 4 |
 | Type system | TypeScript | 6 |
-| Backend | Supabase (Postgres 15, Auth, RLS) | latest |
+| Backend | Supabase (Postgres 17, Auth, RLS) | latest |
 | RPC | PostgreSQL Functions (PL/pgSQL) | — |
 | Frontend testing | Vitest + Testing Library | 3 / 16 |
 | Package manager | pnpm | 10 (workspaces) |
@@ -255,7 +255,7 @@ Output `apps/web/dist/` siap di-deploy ke static hosting (Vercel, Netlify, Cloud
 ```bash
 pnpm --filter web typecheck   # TypeScript compilation
 pnpm --filter web lint        # ESLint
-pnpm --filter web test        # 81 unit tests across 8 files
+pnpm --filter web test        # 88 unit tests across 9 files
 pnpm --filter web build       # Production build
 ```
 
@@ -308,7 +308,7 @@ Ledjer/
 │   └── schemas/                          # Validation schemas (planned)
 ├── supabase/
 │   ├── migrations/                       # 50 migrasi SQL (applied in order)
-│   ├── tests/                            # 9 SQL test files (strict, RAISE EXCEPTION)
+│   ├── tests/                            # 10 SQL files (1 helper + 9 executable test suites)
 │   └── config.toml                       # Supabase CLI config
 ├── scripts/
 │   └── check-package-clean.sh            # Packaging guard untuk source archive
