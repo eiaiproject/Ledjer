@@ -111,15 +111,7 @@ Setiap transaksi diposting melalui SECURITY DEFINER RPC dan otomatis menghasilka
 
 ## Demo
 
-<!-- TODO: Ganti placeholder screenshot di bawah dengan path gambar asli di docs/screenshots/ -->
-
-| Dashboard | Transaksi |
-|-----------|-----------|
-| `![Dashboard](docs/screenshots/dashboard.png)` | `![Transaksi](docs/screenshots/transactions.png)` |
-
-| Laporan | CoA |
-|---------|-----|
-| `![Laporan](docs/screenshots/reports.png)` | `![CoA](docs/screenshots/coa.png)` |
+> Screenshot dan demo live belum tersedia. Lihat [Quick Start](#quick-start) untuk menjalankan aplikasi secara lokal.
 
 ---
 
@@ -263,7 +255,7 @@ Output `apps/web/dist/` siap di-deploy ke static hosting (Vercel, Netlify, Cloud
 ```bash
 pnpm --filter web typecheck   # TypeScript compilation
 pnpm --filter web lint        # ESLint
-pnpm --filter web test        # 69 unit tests across 5 files
+pnpm --filter web test        # 81 unit tests across 8 files
 pnpm --filter web build       # Production build
 ```
 
@@ -274,7 +266,7 @@ supabase start --workdir supabase
 supabase db reset --workdir supabase --no-seed
 
 # Test files dieksekusi berurutan:
-#   _test_helpers.sql
+#   _test_helpers.sql (shared utilities)
 #   security_rls_tests.sql
 #   golden_scenario_tests.sql
 #   accounting_regression_tests.sql
@@ -282,6 +274,7 @@ supabase db reset --workdir supabase --no-seed
 #   opening_balance_guard_tests.sql
 #   payable_behavior_tests.sql
 #   permission_matrix_tests.sql
+#   auth_security_tests.sql
 for f in supabase/tests/*.sql; do
   PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
     -v ON_ERROR_STOP=1 -f "$f"
@@ -314,7 +307,7 @@ Ledjer/
 │   ├── accounting-core/                  # Logic akuntansi (planned)
 │   └── schemas/                          # Validation schemas (planned)
 ├── supabase/
-│   ├── migrations/                       # 47 migrasi SQL (applied in order)
+│   ├── migrations/                       # 50 migrasi SQL (applied in order)
 │   ├── tests/                            # 8 SQL test files (strict, RAISE EXCEPTION)
 │   └── config.toml                       # Supabase CLI config
 ├── scripts/
