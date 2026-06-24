@@ -76,6 +76,7 @@ export function ProductsPage() {
         .from("products")
         .select("id, code, name, description, unit, purchase_price, selling_price, current_stock, min_stock, is_active")
         .eq("organization_id", orgData.organization.id)
+        .eq("is_active", true)
         .order("code");
       if (error) throw error;
       return data;
