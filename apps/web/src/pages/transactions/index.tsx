@@ -68,7 +68,7 @@ export function TransactionListPage() {
   const normalizedSearch = search.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ");
 
   const { data: transactions, isLoading, error, refetch } = useQuery({
-    queryKey: ["transactions", orgData?.organization?.id, search, typeFilter, statusFilter, fromDate, toDate, page],
+    queryKey: ["transactions", orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page],
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       let query = supabase

@@ -19,6 +19,7 @@ import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
+import { CommandPalette } from "@/components/command-palette";
 
 type NavItem =
   | { to: string; label: string; icon: LucideIcon; children?: never }
@@ -104,6 +105,7 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <CommandPalette />
       {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-drawer lg:flex lg:flex-col",
