@@ -16,13 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
@@ -46,11 +46,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
@@ -64,46 +64,48 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
-      - name: Install (no scripts, ignore errors)        # SQL tests don't need frontend deps, but `supabase` CLI itself is
-        # written in Go and doesn't need node_modules. Install is a no-op for
-        # the SQL job, kept for future tooling that may run `pnpm exec`.
+      - name: Install (no scripts, ignore errors)
         run: pnpm install --ignore-scripts --no-frozen-lockfile || true
 
       - name: Install Supabase CLI
         run: |
           set -euo pipefail
-          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
+          SUPABASE_VERSION="v2.107.0"
+          echo "Installing Supabase CLI ${SUPABASE_VERSION}..."
+          curl -fsSL "https://github.com/supabase/cli/releases/download/${SUPABASE_VERSION}/supabase_linux_amd64.tar.gz" \
             -o /tmp/supabase.tar.gz
           tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase
           supabase --version
 
       - name: Start local Supabase stack
-        # `supabase start` brings up the full stack: Postgres, GoTrue (auth),
-        # PostgREST, Realtime, Storage, Studio, Inbucket. The Postgres image
-        # already has the `auth` schema, `auth.users`, `auth.uid()`, and the
-        # `anon` / `authenticated` / `service_role` roles — exactly what our
-        # migrations require.
         run: supabase start --workdir supabase
 
-      - name: Apply migrations from empty DB and run SQL tests
-        # `supabase db reset` drops the public schema, reapplies every
-        # migration in supabase/migrations/ in sorted order, then runs the
-        # `supabase/tests/` scripts defined in `supabase/config.toml`.
-        # This is the canonical way to validate migrations + SQL tests
-        # against a production-like Supabase Postgres.
+      - name: Capture Supabase diagnostics (always)
+        if: always()
+        run: |
+          echo "=== Supabase status ==="
+          supabase status --workdir supabase || true
+          echo "=== Docker containers ==="
+          docker ps -a || true
+          echo "=== Supabase container logs ==="
+          docker logs $(docker ps -aq --filter "name=supabase-db" | head -1) 2>&1 | tail -50 || true
+          docker logs $(docker ps -aq --filter "name=supabase-auth" | head -1) 2>&1 | tail -20 || true
+
+      - name: Apply migrations from empty DB
         run: supabase db reset --workdir supabase --no-seed
 
       - name: Capture DB URL for diagnostic logging
+        if: success()
         run: |
           supabase status --workdir supabase --output env | tee /tmp/supabase.env
           echo "DB URL components:"
@@ -164,7 +166,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Fail if any migration references the test helper
         run: |
           if grep -RI "_test_assert" supabase/migrations/; then
@@ -178,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install unzip and tar (for archive inspection)
         run: sudo apt-get install -y -qq unzip tar >/dev/null
       - name: Create source tarball via git archive
