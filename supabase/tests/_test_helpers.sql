@@ -8,6 +8,16 @@
 -- This file is meant to be loaded by every test script that needs assertions.
 -- It is intentionally NOT loaded by migration files (see p0 critical fix
 -- migration for rationale).
+--
+-- SECURITY: All _test_* functions are created with EXECUTE revoked from
+-- PUBLIC, anon, and authenticated.  They are only callable by the postgres
+-- superuser (the role running the test suite).
+--
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║  WARNING: NEVER run this file against production or any persistent      ║
+-- ║  hosted database.  Tests create test users in auth.users, insert        ║
+-- ║  disposable organizations, and may revoke/grant privileges.             ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -84,7 +94,7 @@ DECLARE
   fn RECORD;
 BEGIN
   FOR fn IN
-    SELECT n.nspname || '.' || p.proname || '(' ||
+    SELECT p.proname || '(' ||
            pg_get_function_identity_arguments(p.oid) || ')' AS sig
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -99,8 +109,7 @@ BEGIN
       EXECUTE 'DROP FUNCTION IF EXISTS public.' || fn.sig || ' CASCADE';
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Cleanup warning for %: %', fn.sig, SQLERRM;
-    END;
-  END LOOP;
+    END; END LOOP;
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Cleanup warning: %', SQLERRM;
 END;
@@ -207,3 +216,22 @@ BEGIN
   RETURN QUERY SELECT v_owner, v_staff, v_oid, v_cash_id, v_pay_id, v_rev_id;
 END;
 $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SECURITY: Revoke EXECUTE from PUBLIC, anon, and authenticated for
+-- all _test_* functions.  Tests run as the postgres superuser.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  fn RECORD;
+BEGIN
+  FOR fn IN
+    SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname LIKE '_test_%'
+  LOOP
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.' || quote_ident(fn.proname) || '(' || fn.args || ') FROM PUBLIC, anon, authenticated';
+  END LOOP;
+END $$;

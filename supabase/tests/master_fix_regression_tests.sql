@@ -387,4 +387,3 @@ END $$;
 -- Cleanup
 -- ═══════════════════════════════════════════════════════════════════
 SELECT public._test_cleanup();
-SELECT public._test_cleanup();

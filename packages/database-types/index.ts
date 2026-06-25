@@ -927,6 +927,7 @@ export type Database = {
           amount: number
           cash_account_id: string | null
           category_name: string | null
+          client_token: string | null
           created_at: string
           created_by: string
           description: string
@@ -957,6 +958,7 @@ export type Database = {
           amount: number
           cash_account_id?: string | null
           category_name?: string | null
+          client_token?: string | null
           created_at?: string
           created_by: string
           description?: string
@@ -987,6 +989,7 @@ export type Database = {
           amount?: number
           cash_account_id?: string | null
           category_name?: string | null
+          client_token?: string | null
           created_at?: string
           created_by?: string
           description?: string
@@ -1408,32 +1411,19 @@ export type Database = {
         Args: { p_product_id: string; p_quantity_delta: number }
         Returns: number
       }
-      update_staff_permissions:
-        | {
-            Args: {
-              p_can_create_transaction?: boolean
-              p_can_manage_accounts?: boolean
-              p_can_manage_products?: boolean
-              p_can_view_audit_log?: boolean
-              p_can_view_reports?: boolean
-              p_can_void_transaction?: boolean
-              p_member_id: string
-              p_organization_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_can_create_transaction?: boolean
-              p_can_manage_accounts?: boolean
-              p_can_view_audit_log?: boolean
-              p_can_view_reports?: boolean
-              p_can_void_transaction?: boolean
-              p_member_id: string
-              p_organization_id: string
-            }
-            Returns: Json
-          }
+      update_staff_permissions: {
+        Args: {
+          p_can_create_transaction?: boolean
+          p_can_manage_accounts?: boolean
+          p_can_manage_products?: boolean
+          p_can_view_audit_log?: boolean
+          p_can_view_reports?: boolean
+          p_can_void_transaction?: boolean
+          p_member_id: string
+          p_organization_id: string
+        }
+        Returns: Json
+      }
       validate_product_sale_accounts: {
         Args: { p_organization_id: string; p_product_id: string }
         Returns: undefined
@@ -1632,3 +1622,4 @@ export const Constants = {
     },
   },
 } as const
+

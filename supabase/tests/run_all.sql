@@ -6,12 +6,22 @@
 --
 -- Paths are relative to the repository root (the directory you invoke psql
 -- from). Load the shared helpers first so this runner is authoritative even if
--- an individual suite stops self-loading helpers later. Current suites still
--- self-load helpers and call _test_cleanup() at the end, so this file also fixes
--- the canonical order and makes a failure abort the whole run (psql -v
--- ON_ERROR_STOP=1 turns any RAISE EXCEPTION into a non-zero exit).
+-- an individual suite stops self-loading helpers later. Some suites still
+-- self-load helpers and call _test_cleanup() at the end; others rely on the
+-- final cleanup assertion below. This file fixes the canonical order and makes
+-- a failure abort the whole run (psql -v ON_ERROR_STOP=1 turns any RAISE
+-- EXCEPTION into a non-zero exit).
 --
 -- CI and the README must reference THIS file rather than re-listing the suites.
+--
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║  WARNING: NEVER run this file against production or any persistent      ║
+-- ║  hosted database.  Tests create test users in auth.users, insert        ║
+-- ║  disposable organizations, and may revoke/grant privileges.  Run only   ║
+-- ║  against a disposable local Supabase stack created by:                  ║
+-- ║    supabase start --workdir .                                           ║
+-- ║    supabase db reset --workdir . --no-seed                              ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
 -- =============================================================================
 
 \echo '=== _test_helpers.sql ==='
@@ -49,6 +59,32 @@
 
 \echo '=== master_fix_regression_tests.sql ==='
 \i supabase/tests/master_fix_regression_tests.sql
+
+-- ═══════════════════════════════════════════════════════════════════
+-- FINAL CLEANUP: Drop all _test_* functions created during this run.
+-- If any remain, the test harness itself has leaked and the run
+-- should fail.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_remaining INTEGER;
+  v_names TEXT;
+BEGIN
+  SELECT COUNT(*), COALESCE(string_agg(p.proname, ', ' ORDER BY p.proname), '')
+    INTO v_remaining, v_names
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname LIKE '_test_%';
+
+  IF v_remaining > 0 THEN
+    RAISE EXCEPTION
+      'TEST HARNESS LEAK: % _test_* function(s) remain after run_all.sql: %',
+      v_remaining, v_names;
+  END IF;
+
+  RAISE NOTICE 'PASS: no _test_* functions remain after run_all.sql';
+END $$;
 
 \echo ''
 \echo '============================================'
