@@ -11,6 +11,7 @@
 --   I6. Try to sell 100 units (insufficient stock) → must fail
 --   I7. After all movement, stock_movements SUM(quantity) = current_stock
 --   I8. Balance sheet equity unchanged by inventory-only operations
+--   I9. Inventory GL value equals stock movement value after buy→sell→void
 --
 -- Every assertion uses _test_assert (RAISE EXCEPTION on FAIL).
 -- =============================================================================
@@ -95,6 +96,8 @@ DECLARE
   v_movement_sum NUMERIC;
   v_assets_before NUMERIC;
   v_assets_after  NUMERIC;
+  v_inventory_gl_value NUMERIC;
+  v_stock_movement_value NUMERIC;
   v_err        TEXT;
 
   v_today DATE := CURRENT_DATE;
@@ -223,6 +226,26 @@ BEGIN
   PERFORM public._test_assert_eq_numeric(
     'I8: total assets unchanged after sale+void round trip',
     v_assets_after, v_assets_before
+  );
+
+  -- ── I9: Inventory GL value matches stock movement value ─────────
+  SELECT COALESCE(SUM(jl.debit - jl.credit), 0)
+  INTO v_inventory_gl_value
+  FROM public.journal_lines jl
+  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
+  WHERE jl.organization_id = v_org_id
+    AND jl.account_id = v_inv_id
+    AND je.status = 'posted';
+
+  SELECT COALESCE(SUM(quantity * COALESCE(unit_cost, 0)), 0)
+  INTO v_stock_movement_value
+  FROM public.stock_movements
+  WHERE organization_id = v_org_id
+    AND product_id = v_product_id;
+
+  PERFORM public._test_assert_eq_numeric(
+    'I9: Inventory GL value equals stock movement value after buy→sell→void',
+    v_inventory_gl_value, v_stock_movement_value
   );
 
   RAISE NOTICE '=== INVENTORY GOLDEN SCENARIO PASSED ===';

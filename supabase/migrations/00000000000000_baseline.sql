@@ -2290,7 +2290,7 @@ BEGIN
 
       PERFORM public.record_stock_movement(
         p_organization_id, p_product_id, p_transaction_date,
-        'sale', -p_quantity, NULL,
+        'sale', -p_quantity, COALESCE(v_product_purchase_price, 0),
         v_transaction_id,
         p_description
       );
@@ -2859,7 +2859,7 @@ BEGIN
         p_transaction_date,
         'sale',
         -p_quantity,
-        NULL,
+        COALESCE(v_product_purchase_price, 0),
         v_txn_id,
         p_description
       );
@@ -3027,13 +3027,14 @@ BEGIN
   -- Include (cost-bearing movements only):
   --   - opening_balance: always has meaningful cost
   --   - purchase: always has meaningful cost
-  --   - void WHERE unit_cost IS NOT NULL AND unit_cost > 0: cost-bearing reversal
-  --     (e.g., voiding a purchase that originally had cost)
+  --   - void of a purchase WHERE unit_cost IS NOT NULL AND unit_cost > 0:
+  --     cost-bearing reversal that subtracts the original purchase layer
   --
   -- Exclude:
   --   - sale: reduces stock, no cost to average in
+  --   - void of a sale: restores quantity/value for stock movement
+  --     reconciliation but is not a purchase cost layer
   --   - void WHERE unit_cost IS NULL OR unit_cost <= 0: non-cost-bearing reversal
-  --     (e.g., voiding a sale that had no cost assigned)
   --   - adjustment: manual adjustments with no reliable cost basis
   SELECT
     COALESCE(SUM(sm.quantity * sm.unit_cost), 0),
@@ -3048,6 +3049,16 @@ BEGIN
         sm.movement_type = 'void'
         AND sm.unit_cost IS NOT NULL
         AND sm.unit_cost > 0
+        AND EXISTS (
+          SELECT 1
+          FROM public.transactions rt
+          JOIN public.transactions ot
+            ON ot.id = rt.original_transaction_id
+           AND ot.organization_id = rt.organization_id
+          WHERE rt.id = sm.transaction_id
+            AND rt.organization_id = sm.organization_id
+            AND ot.transaction_type IN ('cash_purchase', 'credit_purchase')
+        )
       )
     );
 
@@ -3788,6 +3799,7 @@ DECLARE
   v_reversed_count INTEGER := 0;
   v_reversal_journal_ids JSONB := '[]'::JSONB;
   v_stock_delta NUMERIC;
+  v_void_unit_cost NUMERIC;
   v_books_start_date DATE;
 BEGIN
   v_user_id := auth.uid();
@@ -3963,6 +3975,16 @@ BEGIN
     END;
 
     IF v_stock_delta IS NOT NULL AND v_stock_delta != 0 THEN
+      SELECT sm.unit_cost
+      INTO v_void_unit_cost
+      FROM public.stock_movements sm
+      WHERE sm.organization_id = p_organization_id
+        AND sm.product_id = v_txn.product_id
+        AND sm.transaction_id = p_transaction_id
+        AND sm.movement_type IN ('purchase', 'sale')
+      ORDER BY sm.created_at DESC, sm.id DESC
+      LIMIT 1;
+
       PERFORM public.record_stock_movement(
         p_organization_id,
         v_txn.product_id,
@@ -3970,7 +3992,8 @@ BEGIN
         'void',
         v_stock_delta,
         CASE
-          WHEN v_txn.transaction_type IN ('cash_purchase', 'credit_purchase') THEN v_txn.unit_price
+          WHEN v_txn.transaction_type IN ('cash_purchase', 'credit_purchase') THEN COALESCE(v_void_unit_cost, v_txn.unit_price)
+          WHEN v_txn.transaction_type IN ('cash_sale', 'credit_sale') THEN COALESCE(v_void_unit_cost, 0)
           ELSE NULL
         END,
         v_reversal_txn_id,
@@ -5470,7 +5493,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "service_role";
-
 
 
 

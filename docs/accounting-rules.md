@@ -33,6 +33,7 @@ If you need invoice-level tracking, file a feature request — adding it require
 10. [Cash Transfer](#10-cash-transfer)
 11. [Simple Adjustment](#11-simple-adjustment)
 12. [Opening Balances](#12-opening-balances)
+13. [Inventory Cost Policy](#13-inventory-cost-policy)
 
 ---
 
@@ -388,6 +389,26 @@ If you need invoice-level tracking, file a feature request — adding it require
 **Can be voided:** No (setup-only)
 
 **Permissions:** `can_create_transaction` (through onboarding flow)
+
+---
+
+## 13. Inventory Cost Policy
+
+Ledjer uses moving-average inventory cost. For product sales, the cost snapshot is the product's current `purchase_price` at posting time.
+
+**Product sale COGS:**
+- If the moving-average cost is greater than 0, Ledjer posts a separate COGS journal:
+  - Debit: COGS (5100)
+  - Credit: Inventory (1300)
+- If the moving-average cost is 0, Ledjer does not post a zero-value COGS journal. The sale is allowed, the stock movement is still recorded, and the movement value is 0.
+
+**Stock movement valuation:**
+- Purchases record `unit_cost = unit_price`.
+- Sales record `unit_cost = current moving-average cost`, including 0.
+- Voiding a sale records a reverse stock movement with the original sale movement's `unit_cost`.
+- Voiding a purchase records a reverse stock movement with the original purchase cost and recalculates moving average cost.
+
+**Invariant:** For a product lifecycle, the net Inventory GL movement for account 1300 must equal `SUM(stock_movements.quantity * stock_movements.unit_cost)` for the same product. This invariant must hold across buy, sell, and void sequences, including zero-cost sales where both sides have value 0.
 
 ---
 
