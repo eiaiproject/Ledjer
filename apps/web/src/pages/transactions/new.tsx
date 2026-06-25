@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import type { Database } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
 import {
   partyTypeForTransaction,
@@ -174,7 +175,7 @@ export function NewTransactionPage() {
     error: accountsError,
     refetch: refetchAccounts,
   } = useQuery({
-    queryKey: ["accounts", orgData?.organization?.id],
+    queryKey: queryKeys.accounts.activeTransactionOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -196,7 +197,7 @@ export function NewTransactionPage() {
     error: expenseAccountsError,
     refetch: refetchExpenseAccounts,
   } = useQuery({
-    queryKey: ["accounts", orgData?.organization?.id, "expense-cogs"],
+    queryKey: queryKeys.accounts.expenseCogsOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -219,7 +220,7 @@ export function NewTransactionPage() {
     error: partiesError,
     refetch: refetchParties,
   } = useQuery({
-    queryKey: ["parties", orgData?.organization?.id],
+    queryKey: queryKeys.parties.transactionOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -241,7 +242,7 @@ export function NewTransactionPage() {
     error: productsError,
     refetch: refetchProducts,
   } = useQuery({
-    queryKey: ["products", orgData?.organization?.id],
+    queryKey: queryKeys.products.transactionOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -262,7 +263,7 @@ export function NewTransactionPage() {
     error: usageError,
     refetch: refetchMonthlyUsage,
   } = useQuery({
-    queryKey: ["monthly-usage", orgData?.organization?.id],
+    queryKey: queryKeys.monthlyUsage(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return null;
       return fetchMonthlyTransactionUsage(orgData.organization.id);
@@ -571,10 +572,10 @@ export function NewTransactionPage() {
       // display stale data after a successful post.
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["monthly-usage"] });
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["parties"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.monthlyUsage(orgData?.organization?.id ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
       queryClient.invalidateQueries({ queryKey: ["profit-loss"] });
       queryClient.invalidateQueries({ queryKey: ["balance-sheet"] });

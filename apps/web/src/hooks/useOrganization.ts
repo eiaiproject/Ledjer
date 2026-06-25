@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface Organization {
   id: string;
@@ -31,7 +32,7 @@ export function useOrganization() {
   const { user, loading } = useAuth();
 
   return useQuery({
-    queryKey: ["organization", user?.id],
+    queryKey: queryKeys.organization(user?.id),
     queryFn: async () => {
       if (!user) throw new Error("Not authenticated");
 
@@ -47,8 +48,15 @@ export function useOrganization() {
         .limit(1)
         .maybeSingle();
 
-      if (memberError || !member) {
-        return { organization: null, member: null, needsOnboarding: true };
+      // Distinguish between network/RLS errors and "no membership" (onboarding needed)
+      if (memberError) {
+        // Real error: throw so React Query surfaces it as an error state
+        throw memberError;
+      }
+
+      if (!member) {
+        // No active membership → user needs onboarding
+        return { organization: null, member: null, needsOnboarding: true, error: null };
       }
 
       // Step 2: fetch the organization separately
@@ -58,14 +66,21 @@ export function useOrganization() {
         .eq("id", member.organization_id)
         .single();
 
-      if (orgError || !org) {
-        return { organization: null, member: null, needsOnboarding: true };
+      if (orgError) {
+        // Real error: throw so React Query surfaces it as an error state
+        throw orgError;
+      }
+
+      if (!org) {
+        // Org was deleted or RLS blocked access → treat as no membership
+        return { organization: null, member: null, needsOnboarding: true, error: null };
       }
 
       return {
         organization: org as unknown as Organization,
         member: member as unknown as OrgMember,
         needsOnboarding: org.onboarding_status !== "completed",
+        error: null,
       };
     },
     enabled: !loading && !!user,

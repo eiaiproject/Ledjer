@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { formatIDR, formatShortDate } from "@/lib/utils";
 import { fetchProfilesByUserIds } from "@/lib/profiles";
 import {
@@ -158,9 +159,9 @@ export function TransactionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-usage"] });
       // P1.5: void reverses stock, COGS, balances → invalidate everything
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["parties"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
       queryClient.invalidateQueries({ queryKey: ["profit-loss"] });
       queryClient.invalidateQueries({ queryKey: ["balance-sheet"] });

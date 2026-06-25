@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import type { Json } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -180,7 +181,7 @@ export function OnboardingPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["organization"] });
-      await queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId) });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       navigate("/dashboard", { replace: true });
     } catch (err) {

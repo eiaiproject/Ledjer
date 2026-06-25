@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -33,7 +34,7 @@ export function GeneralLedgerPage() {
   const dateRangeInvalid = fromDate > toDate;
 
   const { data: accounts, isLoading: accountsLoading, error: accountsError, refetch: refetchAccounts } = useQuery({
-    queryKey: ["accounts", orgData?.organization?.id],
+    queryKey: queryKeys.accounts.ledgerOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase

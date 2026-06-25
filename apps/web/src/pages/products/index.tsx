@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -70,7 +71,7 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(false);
 
   const { data: products, isLoading, error, refetch } = useQuery({
-    queryKey: ["products", orgData?.organization?.id],
+    queryKey: queryKeys.products.fullList(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -119,7 +120,7 @@ export function ProductsPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
       toast.success(editingProduct ? "Produk berhasil diperbarui" : "Produk berhasil ditambahkan");
       setModalOpen(false);
       setEditingProduct(null);
@@ -141,7 +142,7 @@ export function ProductsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
       toast.success("Produk dinonaktifkan");
       setDeleteDialogOpen(false);
       setSelectedProduct(null);

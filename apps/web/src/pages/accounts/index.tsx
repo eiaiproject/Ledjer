@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -223,7 +224,7 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
     },
     onSuccess: () => {
       toast.success("Akun berhasil ditambahkan");
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
       onSuccess();
       onClose();
     },
@@ -419,7 +420,7 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
       );
       toast.success("Nama akun berhasil diperbarui");
       // Also invalidate to ensure sync with server
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
       onSuccess();
       onClose();
     },
@@ -711,7 +712,7 @@ export function AccountsPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const { data: accounts, isLoading, error, refetch } = useQuery({
-    queryKey: ["accounts", orgData?.organization?.id],
+    queryKey: queryKeys.accounts.fullList(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
