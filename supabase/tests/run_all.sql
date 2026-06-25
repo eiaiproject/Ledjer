@@ -44,6 +44,9 @@
 \echo '=== permission_matrix_tests.sql ==='
 \i supabase/tests/permission_matrix_tests.sql
 
+\echo '=== privilege_hardening_tests.sql ==='
+\i supabase/tests/privilege_hardening_tests.sql
+
 \echo ''
 \echo '============================================'
 \echo 'ALL SQL TEST SUITES PASSED'
