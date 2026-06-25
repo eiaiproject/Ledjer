@@ -74,17 +74,19 @@ jobs:
         with:
           node-version: 24
 
-      - name: Install (no scripts)
-        run: pnpm install --ignore-scripts --no-frozen-lockfile
+      - name: Install (no scripts, frozen lockfile)
+        run: pnpm install --ignore-scripts --frozen-lockfile
 
-      - name: Install Supabase CLI
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.107.0
+          github-token: ${{ github.token }}
+
+      - name: Verify Supabase CLI
         run: |
           set -euo pipefail
-          SUPABASE_VERSION="v2.107.0"
-          echo "Installing Supabase CLI ${SUPABASE_VERSION}..."
-          curl -fsSL "https://github.com/supabase/cli/releases/download/${SUPABASE_VERSION}/supabase_linux_amd64.tar.gz" \
-            -o /tmp/supabase.tar.gz
-          tar -xzf /tmp/supabase.tar.gz -C /usr/local/bin supabase
+          command -v supabase
           supabase --version
 
       - name: Validate migration filenames
@@ -113,6 +115,13 @@ jobs:
           supabase status --workdir . --output env | tee /tmp/supabase.env
           echo "DB URL components:"
           grep -E '^(DB_URL|POSTGRES_HOST|POSTGRES_PORT|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=' /tmp/supabase.env || true
+
+      - name: Check database types drift
+        run: |
+          set -euo pipefail
+          supabase gen types typescript --local --schema public > /tmp/database-types.generated.ts
+          diff -u packages/database-types/index.ts /tmp/database-types.generated.ts
+          echo "✅ Database types match"
 
       - name: Run SQL tests explicitly via psql
         # Belt-and-suspenders: re-run the test files directly against the
