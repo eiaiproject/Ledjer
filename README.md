@@ -217,6 +217,10 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 brew install supabase/tap/supabase   # macOS
 # atau download dari https://github.com/supabase/cli/releases
 
+# ⚠️  Supabase CLI tarballs include TWO binaries: `supabase` and `supabase-go`.
+#    Do NOT extract only `supabase` — both must be in the same directory.
+#    In CI, prefer the official action: supabase/setup-cli@v2
+
 # Start local stack (Postgres + GoTrue + PostgREST + Storage)
 supabase start --workdir .
 
@@ -255,7 +259,7 @@ Output `apps/web/dist/` siap di-deploy ke static hosting (Vercel, Netlify, Cloud
 ```bash
 pnpm --filter web typecheck   # TypeScript compilation
 pnpm --filter web lint        # ESLint
-pnpm --filter web test        # 95 unit/integration tests across 10 files
+pnpm --filter web test        # unit/integration tests across 11 files
 pnpm --filter web build       # Production build
 ```
 

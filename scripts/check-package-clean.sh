@@ -2,15 +2,16 @@
 # =============================================================================
 # check-package-clean.sh — local packaging guard for source archives
 # =============================================================================
-# =============================================================================
 # Fails with a clear error if any forbidden path is present in a source
 # archive created with `git ls-files` or `git archive`.
 #
 # Usage:
 #   ./scripts/check-package-clean.sh [path-to-zip-or-tarball]
 #
-# If no argument is supplied, the script uses `git ls-files` to inspect
-# the current working tree (which mirrors what would be in a clean archive).
+# If no argument is supplied:
+#   - Git repo: inspects `git ls-files`
+#   - Non-git dir: falls back to `find` (excludes .git, node_modules, dist, etc.)
+#   - Not a directory: exits with usage error
 #
 # Forbidden paths:
 #   - .env, .env.local, .env.*  EXCEPT .env.example (which is committed intentionally)
@@ -53,9 +54,27 @@ if [ "$#" -gt 0 ]; then
       exit 2
       ;;
   esac
-else
+elif [ -d ".git" ]; then
   echo "Inspecting git ls-files in: $(pwd)"
   FILES=$(git ls-files)
+elif [ -d "." ]; then
+  # Non-git directory: fall back to find, excluding common build/vendored dirs
+  echo "Warning: not a git repo. Falling back to find in: $(pwd)" >&2
+  FILES=$(find . -type f \
+    -not -path './.git/*' \
+    -not -path '*/node_modules/*' \
+    -not -path '*/dist/*' \
+    -not -path '*/.turbo/*' \
+    -not -path '*/.next/*' \
+    -not -path '*/coverage/*' \
+    -not -path '*/.DS_Store' \
+    -not -name '*.log' \
+    -not -path '*/supabase/.temp/*' \
+    -not -path '*/supabase/.branches/*' \
+    | sed 's|^\./||')
+else
+  echo "ERROR: not in a directory. Provide an archive argument or run from a project directory." >&2
+  exit 2
 fi
 
 fail=0

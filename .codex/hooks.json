@@ -1,18 +1,3 @@
 {
-  "description": "Impeccable design detector: runs after Edit/Write/apply_patch on UI files and surfaces findings as system reminders.",
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|apply_patch",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"/Users/irawananggie/.agents/skills/impeccable/scripts/hook.mjs\"",
-            "timeout": 5,
-            "statusMessage": "Checking UI changes"
-          }
-        ]
-      }
-    ]
-  }
+  "description": "Local-only hook config (not shared via git). Add this file to .gitignore if you use absolute local paths."
 }

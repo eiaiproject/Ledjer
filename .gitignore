@@ -41,6 +41,9 @@ coverage
 # Pi agent config (local only)
 .impeccable/config.local.json
 
+# Codex hooks (local paths, not portable)
+.codex/hooks.json
+
 # Local-only credential / scratch files (NEVER commit)
 temporary.md
 *.local.md

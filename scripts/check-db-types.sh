@@ -5,16 +5,16 @@
 # Fails CI if the generated Supabase database types drift from the canonical
 # workspace package.
 #
+# Usage:
+#   ./scripts/check-db-types.sh          # shim + size check (fast, no DB)
+#   ./scripts/check-db-types.sh --live   # real generation diff (needs Supabase local stack)
+#
 # Canonical source of truth:
 #   packages/database-types/index.ts   (regenerated from supabase/migrations
-#                                      by `pnpm db-types:generate`)
+#                                      by `supabase gen types typescript`)
 #
 # Legacy/compat file (must remain a thin re-export shim):
 #   apps/web/src/lib/database-types.ts
-#
-# This script enforces that the legacy file ONLY contains a `@deprecated`
-# re-export — nothing else. If somebody pastes a regenerated copy into the
-# apps/web/ tree, this guard fails the build.
 # =============================================================================
 set -euo pipefail
 
@@ -22,6 +22,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SHIM_FILE="$ROOT/apps/web/src/lib/database-types.ts"
 CANONICAL_FILE="$ROOT/packages/database-types/index.ts"
 
+MODE="${1:-}"
+
+# ─── Shim validation (always runs) ──────────────────────────────────────────
 if [[ ! -f "$SHIM_FILE" ]]; then
   echo "❌ Missing legacy shim: $SHIM_FILE" >&2
   exit 1
@@ -59,3 +62,27 @@ if (( LINES < 500 )); then
 fi
 
 echo "✅ Database types: shim and canonical package look consistent (canonical = $LINES lines)."
+
+# ─── Live generation check (optional, requires Supabase local stack) ────────
+if [[ "$MODE" == "--live" ]]; then
+  if ! command -v supabase >/dev/null 2>&1; then
+    echo "❌ --live mode requires supabase CLI. Install from https://supabase.com/docs/guides/cli" >&2
+    exit 1
+  fi
+
+  echo "🔄 Regenerating database types from local Supabase stack..."
+  GENERATED_FILE=$(mktemp /tmp/database-types.generated.XXXXXX.ts)
+  trap 'rm -f "$GENERATED_FILE"' EXIT
+
+  supabase gen types typescript --local --schema public > "$GENERATED_FILE" 2>/dev/null
+
+  if ! diff -u "$CANONICAL_FILE" "$GENERATED_FILE" >/dev/null 2>&1; then
+    echo "" >&2
+    echo "❌ Database types have DRIFTED from the canonical file." >&2
+    echo "   To fix: run 'supabase gen types typescript --local --schema public > packages/database-types/index.ts'" >&2
+    diff -u "$CANONICAL_FILE" "$GENERATED_FILE" >&2 || true
+    exit 1
+  fi
+
+  echo "✅ Generated types match canonical file (no drift)."
+fi
