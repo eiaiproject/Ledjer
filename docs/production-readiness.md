@@ -187,6 +187,8 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 4. Configure Sentry alerts in Sentry project dashboard.
 5. Configure uptime monitoring (e.g., UptimeRobot, Checkly).
 6. Perform backup restore verification on target Supabase project.
+7. Rotate Supabase anon key if it was ever exposed in git history.
+8. Confirm domain, HTTPS, CSP, HSTS headers on deployed host.
 
 **Most recent verification (2026-06-25):**
 
@@ -198,9 +200,12 @@ bash scripts/check-migration-naming.sh  # ✅ 6 migrations, canonical
 pnpm --filter web lint               # ✅ eslint clean
 pnpm --filter web test               # ✅ 113 tests passed
 pnpm --filter web build              # ✅ vite build passed
+pnpm --filter web test:e2e            # ✅ 8 smoke tests passed (needs E2E_SUPABASE_URL + E2E_SUPABASE_ANON_KEY)
 pnpm audit --prod --audit-level moderate  # ⚠️ 1 low (esbuild dev-server Windows-only, not production)
 # SQL tests via docker exec psql     # ✅ all suites passed + final cleanup assertion + view coverage
 ```
+
+**CI runs E2E as a separate job** (`needs: frontend`). It builds with anon-only test secrets, then runs Playwright against the preview server. Report uploaded only on failure.
 
 ---
 
@@ -226,7 +231,7 @@ No moderate/high/critical production vulnerabilities.
 
 ## Launch Blockers
 
-1. Run CI workflow green end-to-end (frontend + Supabase jobs).
+1. Run CI workflow green end-to-end (frontend + Supabase + E2E jobs).
 2. Apply all 6 active migrations (baseline + 5 dated).
 3. Error monitoring wired (Sentry behind `VITE_SENTRY_DSN`) — set the DSN and configure alerts.
 4. Configure environment variables in production.
@@ -239,6 +244,91 @@ No moderate/high/critical production vulnerabilities.
 3. Expand E2E tests with auth flow (requires test user seeding).
 4. Perform full WCAG 2.1 AA accessibility audit.
 5. Load test with realistic data volume.
+
+## Production Launch Runbook
+
+Pre-launch operational checklist. Each step must be verified before go-live.
+
+### 1. Apply Database Migrations
+
+```bash
+supabase login
+supabase link --project-ref <your-project-id>
+supabase db push
+```
+
+Verify: all 6 migrations applied (baseline + 5 dated). Check via Supabase dashboard → Database → Migrations.
+
+### 2. Configure Frontend Environment Variables
+
+Set in hosting platform (Vercel / Netlify / Cloudflare Pages / nginx):
+
+| Variable | Source |
+|----------|--------|
+| `VITE_SUPABASE_URL` | Supabase dashboard → Settings → API → URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase dashboard → Settings → API → anon public key |
+| `VITE_SENTRY_DSN` | Sentry project → Settings → Client Keys → DSN |
+
+**Never** set `SUPABASE_SERVICE_ROLE_KEY` in frontend hosting. Service role bypasses RLS.
+
+### 3. Configure Sentry Alerts
+
+1. Sentry dashboard → Alerts → Create Alert Rule
+2. Recommended: error spike detection (≥10 errors in 5 min)
+3. Recommended: new error type notification
+4. Recommended: performance regression (P95 latency > 2s)
+
+### 4. Configure Uptime Monitoring
+
+Recommended: UptimeRobot, Checkly, or equivalent.
+
+- Monitor `https://app.ledjer.id` (HTTP 200 check, 5-min interval)
+- Alert on: downtime, SSL certificate expiry, response time > 5s
+
+### 5. Verify Backup Restore
+
+1. Supabase dashboard → Database → Backups
+2. Trigger a manual backup
+3. Restore to a temporary project or branch
+4. Verify data integrity (row counts, foreign keys)
+
+### 6. Rotate Supabase Anon Key (if exposed)
+
+If the anon key was ever committed to git history:
+1. Supabase dashboard → Settings → API → Regenerate anon key
+2. Update all hosting environment variables with new key
+3. Old key is immediately invalidated
+
+### 7. Verify Security Headers
+
+On deployed host, confirm:
+- **HTTPS**: all traffic redirected from HTTP
+- **HSTS**: `Strict-Transport-Security` header present (set by hosting platform or `_headers` / `vercel.json`)
+- **CSP**: Content-Security-Policy header present, Sentry ingest allowed
+- **X-Frame-Options**: `DENY` or `SAMEORIGIN`
+
+### 8. Run Full CI Gate
+
+```bash
+# Push to main and verify all CI jobs pass:
+# - Frontend (typecheck, lint, test, build)
+# - E2E (Playwright smoke tests)
+# - db-types-guard
+# - supabase (migrations + SQL tests)
+# - guard-no-test-assert-in-migrations
+# - guard-package-clean
+```
+
+### 9. Smoke Test Production
+
+1. Open `https://app.ledjer.id`
+2. Verify login page loads (title: Ledjer)
+3. Verify register page loads
+4. Verify forgot password page loads
+5. Verify unauthenticated dashboard redirect → login
+6. Create test organization, add one transaction, verify reports render
+
+---
 
 ## Known Limitations
 

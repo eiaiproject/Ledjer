@@ -597,7 +597,7 @@ Legend: 🚧 In progress · 📋 Planned · 💭 Considering
 6. **Tidak ada automatic tax** — PPN / PPh harus dihitung dan dicatat manual via `expense_payment` atau `simple_adjustment`.
 7. **Indonesian business context only** — chart of accounts dan terminologi spesifik Indonesia; belum support English / multi-region.
 8. **No mobile app** — web responsive, tapi belum native iOS / Android.
-9. **No automated E2E tests** — saat ini unit + integration only; Playwright / Cypress belum di-setup.
+9. **Full authenticated E2E flow tests** — Playwright smoke tests exist (page loads, route guards, a11y basics). Authenticated flows require seeded test users.
 
 ---
 

@@ -38,6 +38,10 @@ supabase/.env
 .vite
 coverage
 
+# Playwright
+apps/web/playwright-report/
+apps/web/test-results/
+
 # Pi agent config (local only)
 .impeccable/config.local.json
 
