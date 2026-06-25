@@ -255,7 +255,7 @@ Output `apps/web/dist/` siap di-deploy ke static hosting (Vercel, Netlify, Cloud
 ```bash
 pnpm --filter web typecheck   # TypeScript compilation
 pnpm --filter web lint        # ESLint
-pnpm --filter web test        # 88 unit tests across 9 files
+pnpm --filter web test        # 95 unit/integration tests across 10 files
 pnpm --filter web build       # Production build
 ```
 
@@ -296,8 +296,8 @@ Ledjer/
 ├── packages/                             # Workspace packages
 │   └── database-types/                   # TypeScript types generated from Supabase
 ├── supabase/
-│   ├── migrations/                       # 57 migrasi SQL (applied in order)
-│   ├── tests/                            # 1 helper + 9 suite + run_all.sql (runner)
+│   ├── migrations/                       # 1 active baseline migration + archive/ historical migrations
+│   ├── tests/                            # 1 helper + 9 suites + run_all.sql (11 SQL files)
 │   └── config.toml                       # Supabase CLI config
 ├── scripts/
 │   └── check-package-clean.sh            # Packaging guard untuk source archive
