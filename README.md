@@ -265,20 +265,11 @@ pnpm --filter web build       # Production build
 supabase start --workdir supabase
 supabase db reset --workdir supabase --no-seed
 
-# Test files dieksekusi berurutan:
-#   _test_helpers.sql (shared utilities)
-#   security_rls_tests.sql
-#   golden_scenario_tests.sql
-#   accounting_regression_tests.sql
-#   p0_critical_fix_tests.sql
-#   opening_balance_guard_tests.sql
-#   payable_behavior_tests.sql
-#   permission_matrix_tests.sql
-#   inventory_golden_tests.sql
-for f in supabase/tests/*.sql; do
-  PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
-    -v ON_ERROR_STOP=1 -f "$f"
-done
+# Urutan suite didefinisikan sekali di supabase/tests/run_all.sql.
+# ON_ERROR_STOP=1 membuat setiap RAISE EXCEPTION (test gagal) langsung exit non-zero.
+# Jalankan dari root repo agar path \i di run_all.sql resolve dengan benar.
+PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
 ```
 
 Test SQL menggunakan `RAISE EXCEPTION` (bukan `RAISE WARNING`) sehingga setiap kegagalan langsung membuat `psql` exit non-zero. Cocok untuk CI gating.
@@ -305,8 +296,8 @@ Ledjer/
 ├── packages/                             # Workspace packages
 │   └── database-types/                   # TypeScript types generated from Supabase
 ├── supabase/
-│   ├── migrations/                       # 50 migrasi SQL (applied in order)
-│   ├── tests/                            # 10 SQL files (1 helper + 9 executable test suites)
+│   ├── migrations/                       # 57 migrasi SQL (applied in order)
+│   ├── tests/                            # 1 helper + 9 suite + run_all.sql (runner)
 │   └── config.toml                       # Supabase CLI config
 ├── scripts/
 │   └── check-package-clean.sh            # Packaging guard untuk source archive
@@ -630,10 +621,8 @@ pnpm --filter web build
 # SQL tests (perlu Supabase lokal)
 supabase start --workdir supabase
 supabase db reset --workdir supabase --no-seed
-for f in supabase/tests/*.sql; do
-  PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
-    -v ON_ERROR_STOP=1 -f "$f"
-done
+PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
+  -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
 ```
 
 ### Commit convention

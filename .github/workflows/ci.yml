@@ -91,7 +91,7 @@ jobs:
         run: bash scripts/check-migration-naming.sh
 
       - name: Start local Supabase stack
-        run: supabase start --workdir supabase
+        run: supabase start --workdir supabase --debug
 
       - name: Capture Supabase diagnostics (always)
         if: always()
@@ -105,7 +105,7 @@ jobs:
           docker logs $(docker ps -aq --filter "name=supabase-auth" | head -1) 2>&1 | tail -20 || true
 
       - name: Apply migrations from empty DB
-        run: supabase db reset --workdir supabase --no-seed
+        run: supabase db reset --workdir supabase --no-seed --debug
 
       - name: Capture DB URL for diagnostic logging
         if: success()
@@ -131,37 +131,11 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y -qq postgresql-client >/dev/null
           fi
-          PSQL="psql -h localhost -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1"
-
-          echo "=== _test_helpers.sql ==="
-          $PSQL -f supabase/tests/_test_helpers.sql
-
-          echo "=== security_rls_tests.sql ==="
-          $PSQL -f supabase/tests/security_rls_tests.sql
-
-          echo "=== golden_scenario_tests.sql ==="
-          $PSQL -f supabase/tests/golden_scenario_tests.sql
-
-          echo "=== inventory_golden_tests.sql ==="
-          $PSQL -f supabase/tests/inventory_golden_tests.sql
-
-          echo "=== accounting_regression_tests.sql ==="
-          $PSQL -f supabase/tests/accounting_regression_tests.sql
-
-          echo "=== p0_critical_fix_tests.sql ==="
-          $PSQL -f supabase/tests/p0_critical_fix_tests.sql
-
-          echo "=== p0_p1_fix_regression_tests.sql ==="
-          $PSQL -f supabase/tests/p0_p1_fix_regression_tests.sql
-
-          echo "=== opening_balance_guard_tests.sql ==="
-          $PSQL -f supabase/tests/opening_balance_guard_tests.sql
-
-          echo "=== payable_behavior_tests.sql ==="
-          $PSQL -f supabase/tests/payable_behavior_tests.sql
-
-          echo "=== permission_matrix_tests.sql ==="
-          $PSQL -f supabase/tests/permission_matrix_tests.sql
+          # Single source of truth for suite ordering lives in run_all.sql.
+          # ON_ERROR_STOP=1 turns any RAISE EXCEPTION (test failure) into a
+          # non-zero exit. Run from repo root so the \i relative paths resolve.
+          psql -h localhost -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
 
       - name: Stop local Supabase stack
         if: always()
