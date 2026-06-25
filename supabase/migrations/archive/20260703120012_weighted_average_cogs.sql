@@ -187,7 +187,7 @@ BEGIN
         AND account_type = 'revenue'
         AND is_active = true
         AND (
-          (p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%')
+          (p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\')
           OR code = 4100
         )
       LIMIT 1;
@@ -209,7 +209,7 @@ BEGIN
         AND account_type = 'revenue'
         AND is_active = true
         AND (
-          (p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%')
+          (p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\')
           OR code = 4100
         )
       LIMIT 1;
@@ -235,7 +235,7 @@ BEGIN
           AND account_type IN ('expense', 'cogs', 'asset')
           AND is_active = true
           AND (
-            (p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%')
+            (p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\')
             OR code = 5100
           )
         LIMIT 1;
@@ -256,7 +256,7 @@ BEGIN
           AND account_type IN ('expense', 'cogs', 'asset')
           AND is_active = true
           AND (
-            (p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%')
+            (p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\')
             OR code = 5100
           )
         LIMIT 1;
@@ -285,7 +285,7 @@ BEGIN
         AND account_type = 'expense'
         AND is_active = true
         AND (
-          (p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%')
+          (p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\')
           OR code = 6190
         )
       LIMIT 1;

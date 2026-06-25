@@ -332,8 +332,8 @@ BEGIN
       WHERE organization_id = p_organization_id
         AND account_type = 'revenue'
         AND is_active = true
-        AND ((p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%') OR code = 4100)
-      ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%' THEN 0 ELSE 1 END, code
+        AND ((p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\') OR code = 4100)
+      ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\' THEN 0 ELSE 1 END, code
       LIMIT 1;
 
     WHEN 'credit_sale' THEN
@@ -354,8 +354,8 @@ BEGIN
       WHERE organization_id = p_organization_id
         AND account_type = 'revenue'
         AND is_active = true
-        AND ((p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%') OR code = 4100)
-      ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%' THEN 0 ELSE 1 END, code
+        AND ((p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\') OR code = 4100)
+      ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\' THEN 0 ELSE 1 END, code
       LIMIT 1;
 
     WHEN 'receive_receivable' THEN
@@ -384,8 +384,8 @@ BEGIN
         WHERE organization_id = p_organization_id
           AND account_type IN ('expense', 'cogs', 'asset')
           AND is_active = true
-          AND ((p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%') OR code = 5100)
-        ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%' THEN 0 ELSE 1 END, code
+          AND ((p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\') OR code = 5100)
+        ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\' THEN 0 ELSE 1 END, code
         LIMIT 1;
       END IF;
       v_credit_account_id   := p_cash_account_id;
@@ -409,8 +409,8 @@ BEGIN
         WHERE organization_id = p_organization_id
           AND account_type IN ('expense', 'cogs', 'asset')
           AND is_active = true
-          AND ((p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%') OR code = 5100)
-        ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%' THEN 0 ELSE 1 END, code
+          AND ((p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\') OR code = 5100)
+        ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\' THEN 0 ELSE 1 END, code
         LIMIT 1;
       END IF;
 
@@ -448,8 +448,8 @@ BEGIN
         WHERE organization_id = p_organization_id
           AND account_type = 'expense'
           AND is_active = true
-          AND ((p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%') OR code = 6190)
-        ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || p_category_name || '%' THEN 0 ELSE 1 END, code
+          AND ((p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\') OR code = 6190)
+        ORDER BY CASE WHEN p_category_name IS NOT NULL AND name ILIKE '%' || replace(replace(replace(p_category_name, '\', '\\'), '%', '\%'), '_', '\_') || '%' ESCAPE '\' THEN 0 ELSE 1 END, code
         LIMIT 1;
       END IF;
       v_credit_account_id   := p_cash_account_id;

@@ -488,6 +488,71 @@ BEGIN
     v_avg_after, v_avg_before);
 END $$;
 
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 12: Category LIKE metacharacters are escaped before account matching
+-- p_category_name='%' must not wildcard-match every revenue account.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_owner_user_id UUID;
+  v_staff_user_id UUID;
+  v_org_id        UUID;
+  v_cash_id       UUID;
+  v_payable_id    UUID;
+  v_default_rev_id UUID;
+  v_decoy_rev_id  UUID;
+  v_txn_id        UUID;
+  v_posted_rev_id UUID;
+BEGIN
+  SELECT out_owner_user_id, out_staff_user_id, out_organization_id,
+         out_cash_account_id, out_payable_account_id, out_revenue_account_id
+  INTO v_owner_user_id, v_staff_user_id, v_org_id,
+       v_cash_id, v_payable_id, v_default_rev_id
+  FROM public._test_create_org_with_users(
+    'P1 LIKE Escape Test ' || substr(md5(random()::text), 1, 8),
+    CURRENT_DATE
+  );
+
+  INSERT INTO public.accounts (
+    organization_id, code, name, account_type, normal_balance,
+    is_system, is_locked, report_group, is_cash_account
+  )
+  VALUES (
+    v_org_id, 4000, 'Arbitrary Revenue Decoy', 'revenue', 'credit',
+    false, false, 'Pendapatan', false
+  )
+  RETURNING id INTO v_decoy_rev_id;
+
+  PERFORM public._test_impersonate(v_owner_user_id);
+
+  v_txn_id := (
+    public.post_transaction(
+      v_org_id, CURRENT_DATE, 'cash_sale', 12345,
+      NULL, '%', v_cash_id, NULL, 'paid', NULL, NULL,
+      'T12 wildcard category sale', NULL, NULL, NULL, NULL, NULL
+    ) ->> 'transaction_id'
+  )::UUID;
+
+  SELECT jl.account_id INTO v_posted_rev_id
+  FROM public.journal_lines jl
+  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
+  JOIN public.accounts a ON a.id = jl.account_id
+  WHERE je.transaction_id = v_txn_id
+    AND jl.organization_id = v_org_id
+    AND a.account_type = 'revenue'
+    AND jl.credit = 12345
+  LIMIT 1;
+
+  PERFORM public._test_assert(
+    'T12: p_category_name=% resolves to default revenue account 4100',
+    v_posted_rev_id = v_default_rev_id AND v_posted_rev_id != v_decoy_rev_id,
+    format('posted_rev=%s default_rev=%s decoy_rev=%s',
+      COALESCE(v_posted_rev_id::TEXT, 'NULL'),
+      COALESCE(v_default_rev_id::TEXT, 'NULL'),
+      COALESCE(v_decoy_rev_id::TEXT, 'NULL'))
+  );
+END $$;
+
 -- Cleanup
 
 DO $$ BEGIN RAISE NOTICE '=== Accounting Regression Tests Complete ==='; END $$;
