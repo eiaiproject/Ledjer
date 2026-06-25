@@ -45,6 +45,8 @@ Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (l
 | Opening balance rejected after setup | ✅ | `post_opening_balance` rejects if `onboarding_status='completed'` or normal transactions exist |
 | **Opening balance rejected via `post_transaction`** | ✅ | Guard added in `20260726_000000_harden_rls_and_reject_opening_balances.sql` |
 | Internal helpers not externally callable | ✅ | `validate_product_sale_accounts`, `recalculate_product_average_cost`, `record_stock_movement` are REVOKED from anon/authenticated |
+| HSTS configured | ✅ | `apps/web/public/_headers` and `apps/web/vercel.json` both emit `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` |
+| CSP scoped consistently | ✅ | `apps/web/public/_headers` and `apps/web/vercel.json` must mirror the exact same CSP value; update both in the same commit |
 
 **Remaining risks:**
 - Service role key security depends on Supabase dashboard access controls.
