@@ -13,7 +13,7 @@
 
 -- ═══════════════════════════════════════════════════════════════════
 -- TEST 1: anon must NOT have TRUNCATE/TRIGGER/REFERENCES/MAINTAIN
---         on any public relation (tables, views, partitioned tables).
+--         on any public relation (tables, views, partitioned tables, materialized views).
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -27,7 +27,7 @@ BEGIN
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
-      AND c.relkind IN ('r', 'p')  -- regular tables and partitioned tables
+      AND c.relkind IN ('r', 'p', 'v', 'm')  -- regular tables, partitioned tables, views, materialized views
   LOOP
     FOREACH v_priv IN ARRAY ARRAY['TRUNCATE', 'TRIGGER', 'REFERENCES', 'MAINTAIN'] LOOP
       BEGIN
@@ -46,12 +46,12 @@ BEGIN
       array_to_string(v_failing, ', ');
   END IF;
 
-  RAISE NOTICE 'PASS: anon has no TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on any public table';
+  RAISE NOTICE 'PASS: anon has no TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on any public relation';
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
 -- TEST 2: authenticated must NOT have TRUNCATE/TRIGGER/REFERENCES/MAINTAIN
---         on any public relation.
+--         on any public relation (tables, views, partitioned tables, materialized views).
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -65,7 +65,7 @@ BEGIN
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
-      AND c.relkind IN ('r', 'p')
+      AND c.relkind IN ('r', 'p', 'v', 'm')  -- regular tables, partitioned tables, views, materialized views
   LOOP
     FOREACH v_priv IN ARRAY ARRAY['TRUNCATE', 'TRIGGER', 'REFERENCES', 'MAINTAIN'] LOOP
       BEGIN
@@ -84,12 +84,12 @@ BEGIN
       array_to_string(v_failing, ', ');
   END IF;
 
-  RAISE NOTICE 'PASS: authenticated has no TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on any public table';
+  RAISE NOTICE 'PASS: authenticated has no TRUNCATE/TRIGGER/REFERENCES/MAINTAIN on any public relation';
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
 -- TEST 3: anon must NOT have any DML (INSERT/UPDATE/DELETE) on
---         financial/business tables.
+--         financial/business tables and views.
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -103,10 +103,11 @@ BEGIN
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname = 'public'
-      AND c.relkind IN ('r', 'p')
+      AND c.relkind IN ('r', 'p', 'v', 'm')  -- tables, partitioned tables, views, materialized views
       AND c.relname IN (
         'transactions', 'journal_entries', 'journal_lines',
-        'stock_movements', 'audit_logs', 'rate_limits', 'login_attempts'
+        'stock_movements', 'audit_logs', 'rate_limits', 'login_attempts',
+        'general_ledger'
       )
   LOOP
     FOREACH v_priv IN ARRAY ARRAY['INSERT', 'UPDATE', 'DELETE'] LOOP
@@ -126,7 +127,7 @@ BEGIN
       array_to_string(v_failing, ', ');
   END IF;
 
-  RAISE NOTICE 'PASS: anon has no DML on financial/business tables';
+  RAISE NOTICE 'PASS: anon has no DML on financial/business tables and views';
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
@@ -335,6 +336,93 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS: financial RPCs callable by authenticated, revoked from anon';
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 8: authenticated must NOT have INSERT/UPDATE/DELETE on
+--         general_ledger view (SELECT-only, mutations via RPCs).
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_priv  TEXT;
+  v_has   BOOLEAN;
+  v_failing TEXT[] := ARRAY[]::TEXT[];
+BEGIN
+  FOREACH v_priv IN ARRAY ARRAY['INSERT', 'UPDATE', 'DELETE'] LOOP
+    BEGIN
+      SELECT has_table_privilege('authenticated', 'public.general_ledger', v_priv) INTO v_has;
+      IF v_has THEN
+        v_failing := array_append(v_failing, 'authenticated.' || v_priv || ' ON public.general_ledger');
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END LOOP;
+
+  IF array_length(v_failing, 1) > 0 THEN
+    RAISE EXCEPTION 'PRIVILEGE VIOLATION: %', array_to_string(v_failing, ', ');
+  END IF;
+
+  RAISE NOTICE 'PASS: authenticated has no DML on general_ledger view (SELECT-only)';
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TEST 9: _test_* helper functions are NOT callable by PUBLIC,
+--         anon, or authenticated (test harness isolation).
+-- First revoke any _test_* functions created by test suites after
+-- the initial revocation in _test_helpers.sql.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  fn2 RECORD;
+BEGIN
+  FOR fn2 IN
+    SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname LIKE '_test_%'
+  LOOP
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.' || quote_ident(fn2.proname) || '(' || fn2.args || ') FROM PUBLIC, anon, authenticated';
+  END LOOP;
+END $$;
+
+DO $$
+DECLARE
+  v_fn     TEXT;
+  v_failing TEXT[] := ARRAY[]::TEXT[];
+BEGIN
+  FOR v_fn IN
+    SELECT p.proname
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname LIKE '_test_%'
+  LOOP
+    IF EXISTS (
+      SELECT 1 FROM pg_proc p2
+      JOIN pg_namespace n2 ON n2.oid = p2.pronamespace
+      WHERE n2.nspname = 'public' AND p2.proname = v_fn
+        AND has_function_privilege('anon', p2.oid, 'EXECUTE')
+    ) THEN
+      v_failing := array_append(v_failing, 'anon can EXECUTE ' || v_fn);
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM pg_proc p2
+      JOIN pg_namespace n2 ON n2.oid = p2.pronamespace
+      WHERE n2.nspname = 'public' AND p2.proname = v_fn
+        AND has_function_privilege('authenticated', p2.oid, 'EXECUTE')
+    ) THEN
+      v_failing := array_append(v_failing, 'authenticated can EXECUTE ' || v_fn);
+    END IF;
+  END LOOP;
+
+  IF array_length(v_failing, 1) > 0 THEN
+    RAISE EXCEPTION 'TEST HARNESS LEAK: _test_* functions exposed: %',
+      array_to_string(v_failing, ', ');
+  END IF;
+
+  RAISE NOTICE 'PASS: _test_* helper functions are not callable by anon/authenticated';
 END $$;
 
 -- Cleanup test helpers

@@ -48,10 +48,12 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | Zero-cost sale blocked | ✅ | `post_transaction` raises if `purchase_price = 0` on sale |
 | Idempotency via client_token | ✅ | `transactions.client_token` column + partial unique index |
 | Internal helpers not externally callable | ✅ | All `_test_*` and internal functions REVOKED from PUBLIC/anon/authenticated |
-| HSTS configured | ✅ | `_headers`, `vercel.json`, and `index.html` all emit HSTS |
+| HSTS configured | ✅ | `_headers`, `vercel.json` emit HSTS header (not index.html meta, which is ineffective for HSTS) |
 | CSP synchronized | ✅ | `index.html`, `public/_headers`, and `vercel.json` all have identical CSP including Sentry ingest |
 | **DB privileges least-privilege** | ✅ | `20260625200000_revoke_anon_auth_privileges.sql`: anon has zero DML on business tables; authenticated has SELECT + explicit RPC EXECUTE only |
-| **Test helpers not callable** | ✅ | `_test_*` functions EXECUTE revoked from PUBLIC/anon/authenticated immediately after creation |
+| **Views covered in privilege tests** | ✅ | Tests check `relkind IN ('r','p','v','m')` covering tables, partitioned tables, views, materialized views |
+| **general_ledger view protected** | ✅ | Explicit assertion: authenticated has no INSERT/UPDATE/DELETE on `general_ledger` (SELECT-only via RPC) |
+| **Test helpers not callable** | ✅ | `_test_*` functions EXECUTE revoked from PUBLIC/anon/authenticated immediately after creation; verified by Test 9 |
 | **Default privileges revoked** | ✅ | Future objects no longer auto-grant to anon/authenticated (postgres defaults) |
 
 **Remaining risks:**
@@ -110,10 +112,11 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | Database types drift CI guard | ✅ | `pnpm db-types:check --live` verifies no drift |
 | Auth callback covered by tests | ✅ | `__tests__/auth-callback.test.tsx` |
 | Frontend unit tests | ✅ | 113 tests across 13 files |
+| **E2E smoke tests** | ✅ | Playwright smoke tests: login page loads, route guards redirect, landing page, basic a11y checks |
 
 **Remaining risks:**
-- No automated E2E tests.
-- No accessibility audit (WCAG 2.1 AA).
+- No full E2E auth flow tests (requires test user seeding in CI).
+- No comprehensive WCAG 2.1 AA audit.
 
 ---
 
@@ -122,7 +125,7 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | Item | Status | Notes |
 |------|--------|-------|
 | Error logging | ✅ | Sentry error tracking wired behind `VITE_SENTRY_DSN` |
-| Performance monitoring | ✅ | Sentry performance monitoring configured |
+| Performance monitoring | ✅ | Sentry traces at 10% sampling (production-tuned) |
 | CSP allows Sentry ingest | ✅ | `connect-src` includes `https://*.ingest.sentry.io` in all three CSP sources |
 | Uptime monitoring | ❌ | Not configured |
 | Alerting | ⚠️ | Requires configuration in Sentry Dashboard |
@@ -141,12 +144,13 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | SQL strict regression tests | ✅ | RAISE EXCEPTION on fail |
 | SQL strict golden scenario | ✅ | Explicit expected balances |
 | SQL strict security/RLS tests | ✅ | RLS enabled, SECURITY DEFINER, search_path, org isolation |
-| SQL privilege hardening tests | ✅ | Uses `pg_class`/`pg_namespace` + `has_*_privilege`; tests anon DML block, RPC access, default ACLs |
+| SQL privilege hardening tests | ✅ | Uses `pg_class`/`pg_namespace` + `has_*_privilege`; covers tables, views, materialized views; tests anon/authenticated DML on `general_ledger` view; Test 9 verifies `_test_*` isolation |
 | SQL behavioural permission matrix | ✅ | Staff permissions + cross-org RLS |
 | SQL inventory golden scenario | ✅ | Weighted average + zero-cost block + GL invariant |
 | SQL helper factories | ✅ | `_test_impersonate`, `_test_create_org_with_users` |
 | SQL test harness hardened | ✅ | Production warning, final `_test_*` cleanup assertion, EXECUTE revoked from PUBLIC/anon/authenticated |
 | Frontend unit tests | ✅ | 113 tests across 13 files |
+| **E2E smoke tests** | ✅ | Playwright: login/register/forgot-password load, route guards redirect, a11y basics |
 | Migration CI guard | ✅ | No `_test_assert` in migrations |
 | Packaging CI guard | ✅ | No secrets in archives |
 | CI runs real Supabase local stack | ✅ | `supabase start` + `supabase db reset` |
@@ -174,18 +178,28 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | Environment variables set | ⚠️ | Must configure in hosting platform |
 | Domain configured | ✅ | `site_url = "https://app.ledjer.id"` |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
+| **service_role key isolation** | ⚠️ | Must never be in frontend hosting; only in server-side/Edge Functions |
+
+**Operational requirements (must be completed before launch):**
+1. Apply all 6 active migrations (baseline + 5 dated) to target Supabase project.
+2. Configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SENTRY_DSN` in hosting platform.
+3. Never deploy `SUPABASE_SERVICE_ROLE_KEY` to frontend hosting.
+4. Configure Sentry alerts in Sentry project dashboard.
+5. Configure uptime monitoring (e.g., UptimeRobot, Checkly).
+6. Perform backup restore verification on target Supabase project.
 
 **Most recent verification (2026-06-25):**
 
 ```bash
 pnpm --filter web typecheck          # ✅ tsc -b clean
-pnpm db-types:check --live           # ✅ no drift (1625 lines)
+pnpm --filter @ledjer/database-types typecheck  # ✅ tsc clean
+bash scripts/check-db-types.sh       # ✅ canonical = 1625 lines
 bash scripts/check-migration-naming.sh  # ✅ 6 migrations, canonical
 pnpm --filter web lint               # ✅ eslint clean
 pnpm --filter web test               # ✅ 113 tests passed
 pnpm --filter web build              # ✅ vite build passed
-pnpm audit                           # ⚠️ 1 low (esbuild dev-server Windows-only)
-# SQL tests via docker exec psql     # ✅ all suites passed + final cleanup assertion
+pnpm audit --prod --audit-level moderate  # ⚠️ 1 low (esbuild dev-server Windows-only, not production)
+# SQL tests via docker exec psql     # ✅ all suites passed + final cleanup assertion + view coverage
 ```
 
 ---
@@ -197,6 +211,16 @@ git archive --format=tar.gz --output=ledjer-src.tar.gz --worktree-attributes HEA
 ```
 
 The `guard-package-clean` job runs in CI against both tarball and zip.
+
+---
+
+## Dependency Audit
+
+| Package | Severity | Status | Notes |
+|---------|----------|--------|-------|
+| esbuild (via @tailwindcss/vite > vite) | Low | Accepted | Arbitrary file read on Windows dev server only. Does not affect production Linux builds. |
+
+No moderate/high/critical production vulnerabilities.
 
 ---
 
@@ -212,8 +236,8 @@ The `guard-package-clean` job runs in CI against both tarball and zip.
 
 1. Set up uptime monitoring.
 2. Configure backup verification.
-3. Add basic E2E tests for critical paths.
-4. Perform accessibility audit.
+3. Expand E2E tests with auth flow (requires test user seeding).
+4. Perform full WCAG 2.1 AA accessibility audit.
 5. Load test with realistic data volume.
 
 ## Known Limitations

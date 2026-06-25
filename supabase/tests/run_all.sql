@@ -61,6 +61,25 @@
 \i supabase/tests/master_fix_regression_tests.sql
 
 -- ═══════════════════════════════════════════════════════════════════
+-- FINAL REVOKE: Ensure no _test_* functions leak to anon/authenticated.
+-- Test files may CREATE functions after _test_helpers.sql revocation.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  fn RECORD;
+BEGIN
+  FOR fn IN
+    SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname LIKE '_test_%'
+  LOOP
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION public.' || quote_ident(fn.proname) || '(' || fn.args || ') FROM PUBLIC, anon, authenticated';
+  END LOOP;
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
 -- FINAL CLEANUP: Drop all _test_* functions created during this run.
 -- If any remain, the test harness itself has leaked and the run
 -- should fail.

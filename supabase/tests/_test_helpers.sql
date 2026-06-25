@@ -218,9 +218,12 @@ END;
 $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- SECURITY: Revoke EXECUTE from PUBLIC, anon, and authenticated for
--- all _test_* functions.  Tests run as the postgres superuser.
+-- SECURITY: Drop legacy test functions that may predate this harness,
+-- then revoke EXECUTE from PUBLIC, anon, and authenticated for all
+-- remaining _test_* functions.  Tests run as the postgres superuser.
 -- ═══════════════════════════════════════════════════════════════════
+DROP FUNCTION IF EXISTS public._test_create_owner_and_org(text, date);
+
 DO $$
 DECLARE
   fn RECORD;

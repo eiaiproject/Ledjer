@@ -13,8 +13,8 @@ if (import.meta.env.VITE_SENTRY_DSN) {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
     ],
-    tracesSampleRate: 1.0,
-    replaysSessionSampleRate: 0.1,
+    tracesSampleRate: 0.1,  // ponytail: raise to 1.0 for initial launch debugging, then lower
+    replaysSessionSampleRate: 0.05,
     replaysOnErrorSampleRate: 1.0,
   });
 }
