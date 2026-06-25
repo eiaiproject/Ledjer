@@ -218,10 +218,10 @@ brew install supabase/tap/supabase   # macOS
 # atau download dari https://github.com/supabase/cli/releases
 
 # Start local stack (Postgres + GoTrue + PostgREST + Storage)
-supabase start --workdir supabase
+supabase start --workdir .
 
 # Apply migrations
-supabase db reset --workdir supabase --no-seed
+supabase db reset --workdir . --no-seed
 ```
 
 URL lokal default: `http://localhost:54321`. Password Postgres: `postgres`.
@@ -262,8 +262,8 @@ pnpm --filter web build       # Production build
 ### SQL tests (perlu Supabase lokal)
 
 ```bash
-supabase start --workdir supabase
-supabase db reset --workdir supabase --no-seed
+supabase start --workdir .
+supabase db reset --workdir . --no-seed
 
 # Urutan suite didefinisikan sekali di supabase/tests/run_all.sql.
 # ON_ERROR_STOP=1 membuat setiap RAISE EXCEPTION (test gagal) langsung exit non-zero.
@@ -619,8 +619,8 @@ pnpm --filter web test
 pnpm --filter web build
 
 # SQL tests (perlu Supabase lokal)
-supabase start --workdir supabase
-supabase db reset --workdir supabase --no-seed
+supabase start --workdir .
+supabase db reset --workdir . --no-seed
 PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres \
   -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
 ```

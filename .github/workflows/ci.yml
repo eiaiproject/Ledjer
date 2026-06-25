@@ -91,13 +91,13 @@ jobs:
         run: bash scripts/check-migration-naming.sh
 
       - name: Start local Supabase stack
-        run: supabase start --workdir supabase --debug
+        run: supabase start --workdir . --debug
 
       - name: Capture Supabase diagnostics (always)
         if: always()
         run: |
           echo "=== Supabase status ==="
-          supabase status --workdir supabase || true
+          supabase status --workdir . || true
           echo "=== Docker containers ==="
           docker ps -a || true
           echo "=== Supabase container logs ==="
@@ -105,12 +105,12 @@ jobs:
           docker logs $(docker ps -aq --filter "name=supabase-auth" | head -1) 2>&1 | tail -20 || true
 
       - name: Apply migrations from empty DB
-        run: supabase db reset --workdir supabase --no-seed --debug
+        run: supabase db reset --workdir . --no-seed --debug
 
       - name: Capture DB URL for diagnostic logging
         if: success()
         run: |
-          supabase status --workdir supabase --output env | tee /tmp/supabase.env
+          supabase status --workdir . --output env | tee /tmp/supabase.env
           echo "DB URL components:"
           grep -E '^(DB_URL|POSTGRES_HOST|POSTGRES_PORT|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=' /tmp/supabase.env || true
 
@@ -139,7 +139,7 @@ jobs:
 
       - name: Stop local Supabase stack
         if: always()
-        run: supabase stop --workdir supabase --no-backup || true
+        run: supabase stop --workdir . --no-backup || true
 
   guard-no-test-assert-in-migrations:
     name: "Guard: no test code in migrations"
