@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
@@ -74,25 +75,7 @@ const transactionSchema = z.object({
 
 type TransactionForm = z.infer<typeof transactionSchema>;
 
-type PostTransactionArgs = {
-  p_organization_id: string;
-  p_transaction_date: string;
-  p_transaction_type: string;
-  p_amount: number;
-  p_party_id?: string;
-  p_category_name?: string;
-  p_cash_account_id?: string;
-  p_destination_cash_account_id?: string;
-  p_payment_status?: string;
-  p_partial_amount: number;
-  p_due_date?: string;
-  p_description?: string;
-  p_notes?: string;
-  p_product_id?: string;
-  p_quantity?: number;
-  p_unit_price?: number;
-  p_debit_account_id?: string;
-};
+type PostTransactionArgs = Database["public"]["Functions"]["post_transaction"]["Args"];
 
 interface ImpactSummary {
   debit_account: string;

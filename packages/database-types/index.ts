@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       account_mappings: {
@@ -1173,22 +1168,22 @@ export type Database = {
         Args: { p_org_id: string; p_org_name: string }
         Returns: number
       }
-      create_organization_with_template: {
-        Args: {
-          p_books_start_date: string
-          p_business_type: Database["public"]["Enums"]["business_type"]
-          p_default_cash_account_name?: string
-          p_opening_cash_balance?: number
-          p_organization_name: string
-        }
-        Returns: Json
-      }
       create_organization_with_opening_balances: {
         Args: {
           p_books_start_date: string
           p_business_type: Database["public"]["Enums"]["business_type"]
           p_default_cash_account_name?: string
           p_extra_opening_balances?: Json
+          p_opening_cash_balance?: number
+          p_organization_name: string
+        }
+        Returns: Json
+      }
+      create_organization_with_template: {
+        Args: {
+          p_books_start_date: string
+          p_business_type: Database["public"]["Enums"]["business_type"]
+          p_default_cash_account_name?: string
           p_opening_cash_balance?: number
           p_organization_name: string
         }
@@ -1207,6 +1202,10 @@ export type Database = {
       get_account_balance: {
         Args: { p_account_id: string; p_as_of_date?: string }
         Returns: number
+      }
+      get_account_by_code: {
+        Args: { p_code: number; p_org_id: string }
+        Returns: string
       }
       get_balance_sheet: {
         Args: { p_as_of_date: string; p_organization_id: string }
@@ -1248,14 +1247,15 @@ export type Database = {
           transaction_number: string
         }[]
       }
+      get_monthly_summary: {
+        Args: { p_month?: string; p_organization_id: string }
+        Returns: Json
+      }
       get_monthly_transaction_count: {
         Args: { p_org_id: string }
         Returns: number
       }
-      get_monthly_usage: {
-        Args: { p_org_id: string }
-        Returns: Json
-      }
+      get_monthly_usage: { Args: { p_org_id: string }; Returns: Json }
       get_next_counter: {
         Args: { p_counter_name: string; p_organization_id: string }
         Returns: number
@@ -1319,10 +1319,6 @@ export type Database = {
         }
         Returns: string
       }
-      rename_account: {
-        Args: { p_account_id: string; p_new_name: string }
-        Returns: { id: string; name: string; code: number }
-      }
       post_opening_balance: {
         Args: {
           p_account_id: string
@@ -1334,27 +1330,27 @@ export type Database = {
         Returns: Json
       }
       post_transaction: {
-            Args: {
-              p_amount: number
-              p_cash_account_id?: string
-              p_category_name?: string
-              p_debit_account_id?: string
-              p_description?: string
-              p_destination_cash_account_id?: string
-              p_due_date?: string
-              p_notes?: string
-              p_organization_id: string
-              p_partial_amount?: number
-              p_party_id?: string
-              p_payment_status?: string
-              p_product_id?: string
-              p_quantity?: number
-              p_transaction_date: string
-              p_transaction_type: string
-              p_unit_price?: number
-            }
-            Returns: Json
-          }
+        Args: {
+          p_amount: number
+          p_cash_account_id?: string
+          p_category_name?: string
+          p_debit_account_id?: string
+          p_description?: string
+          p_destination_cash_account_id?: string
+          p_due_date?: string
+          p_notes?: string
+          p_organization_id: string
+          p_partial_amount?: number
+          p_party_id?: string
+          p_payment_status?: string
+          p_product_id?: string
+          p_quantity?: number
+          p_transaction_date: string
+          p_transaction_type: string
+          p_unit_price?: number
+        }
+        Returns: Json
+      }
       post_transaction_impl_20260702: {
         Args: {
           p_amount: number
@@ -1375,6 +1371,10 @@ export type Database = {
           p_unit_price?: number
         }
         Returns: Json
+      }
+      recalculate_product_average_cost: {
+        Args: { p_product_id: string }
+        Returns: number
       }
       record_login_attempt: {
         Args: {
@@ -1410,6 +1410,10 @@ export type Database = {
       }
       remove_staff: {
         Args: { p_member_id: string; p_organization_id: string }
+        Returns: Json
+      }
+      rename_account: {
+        Args: { p_account_id: string; p_new_name: string }
         Returns: Json
       }
       update_organization_settings: {
@@ -1452,6 +1456,10 @@ export type Database = {
             }
             Returns: Json
           }
+      validate_product_sale_accounts: {
+        Args: { p_organization_id: string; p_product_id: string }
+        Returns: undefined
+      }
       void_transaction: {
         Args: {
           p_organization_id: string

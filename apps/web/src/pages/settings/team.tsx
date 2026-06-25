@@ -54,6 +54,16 @@ type StaffPermissionKey =
   | "can_manage_products"
   | "can_view_audit_log";
 
+type UpdateStaffPermissionsFunction = Extract<
+  Database["public"]["Functions"]["update_staff_permissions"],
+  { Args: { p_can_manage_products?: boolean } }
+>;
+type UpdateStaffPermissionsArgs = UpdateStaffPermissionsFunction["Args"];
+type StaffPermissionRpcArgKey = Extract<
+  keyof UpdateStaffPermissionsArgs,
+  `p_${StaffPermissionKey}`
+>;
+
 const PERMISSION_LABELS: Record<
   StaffPermissionKey,
   { label: string; icon?: string }
@@ -65,6 +75,15 @@ const PERMISSION_LABELS: Record<
   can_manage_products: { label: "Kelola produk" },
   can_view_audit_log: { label: "Lihat audit log" },
 };
+
+const STAFF_PERMISSION_RPC_ARGS = {
+  can_create_transaction: "p_can_create_transaction",
+  can_view_reports: "p_can_view_reports",
+  can_manage_accounts: "p_can_manage_accounts",
+  can_void_transaction: "p_can_void_transaction",
+  can_manage_products: "p_can_manage_products",
+  can_view_audit_log: "p_can_view_audit_log",
+} satisfies Record<StaffPermissionKey, StaffPermissionRpcArgKey>;
 
 const ALL_PERMISSION_KEYS = Object.keys(PERMISSION_LABELS) as StaffPermissionKey[];
 
@@ -282,11 +301,11 @@ export function TeamSettingsPage() {
     }) => {
       const organizationId = orgData?.organization?.id;
       if (!organizationId) throw new Error("Organisasi tidak ditemukan");
-      const rpcArgs = {
+      const rpcArgs: UpdateStaffPermissionsArgs = {
         p_organization_id: organizationId,
         p_member_id: memberId,
-        [`p_${permission}`]: value,
-      } as Database["public"]["Functions"]["update_staff_permissions"]["Args"];
+        [STAFF_PERMISSION_RPC_ARGS[permission]]: value,
+      };
       const { error } = await supabase.rpc(
         "update_staff_permissions",
         rpcArgs
