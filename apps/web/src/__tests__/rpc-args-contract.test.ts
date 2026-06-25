@@ -83,7 +83,6 @@ const rpcArgsByName = {
 
   record_login_attempt_pre_auth: {
     p_email: "owner@example.test",
-    p_success: false,
     p_user_agent: "vitest",
     p_error_message: "typed smoke failure",
   } satisfies RpcArgs<"record_login_attempt_pre_auth">,

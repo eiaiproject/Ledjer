@@ -1390,7 +1390,6 @@ export type Database = {
         Args: {
           p_email: string
           p_error_message?: string
-          p_success: boolean
           p_user_agent?: string
         }
         Returns: undefined
@@ -1654,17 +1653,3 @@ export const Constants = {
   },
 } as const
 
-// Compatibility aliases used by the app. Supabase generated types keep enums under Database["public"]["Enums"].
-export type business_type = Database["public"]["Enums"]["business_type"]
-export type account_type = Database["public"]["Enums"]["account_type"]
-export type normal_balance = Database["public"]["Enums"]["normal_balance"]
-export type org_plan = Database["public"]["Enums"]["org_plan"]
-export type onboarding_status = Database["public"]["Enums"]["onboarding_status"]
-export type member_role = Database["public"]["Enums"]["member_role"]
-export type member_status = Database["public"]["Enums"]["member_status"]
-export type payment_status = Database["public"]["Enums"]["payment_status"]
-export type transaction_status = Database["public"]["Enums"]["transaction_status"]
-export type journal_entry_type = Database["public"]["Enums"]["journal_entry_type"]
-export type journal_entry_status = Database["public"]["Enums"]["journal_entry_status"]
-export type party_type = Database["public"]["Enums"]["party_type"]
-export type reporting_period = Database["public"]["Enums"]["reporting_period"]

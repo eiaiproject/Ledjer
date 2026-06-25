@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { transaction_status } from "@ledjer/database-types";
+import type { Enums } from "@ledjer/database-types";
+type TransactionStatus = Enums<"transaction_status">;
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { useFilterPresets } from "@/hooks/useFilterPresets";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
@@ -58,7 +59,7 @@ export function TransactionListPage() {
   const { canCreateTransaction } = useOrgPermissions();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<transaction_status | "">("");
+  const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
   const [fromDate, setFromDate] = useState(() => localDate(-30));
   const [toDate, setToDate] = useState(() => localDate());
   const [page, setPage] = useState(0);
@@ -110,7 +111,7 @@ export function TransactionListPage() {
 
   const applyPreset = (preset: { typeFilter: string; statusFilter: string; fromDate: string; toDate: string }) => {
     setTypeFilter(preset.typeFilter);
-    setStatusFilter(preset.statusFilter as transaction_status | "");
+    setStatusFilter(preset.statusFilter as TransactionStatus | "");
     setFromDate(preset.fromDate);
     setToDate(preset.toDate);
     setPage(0);
@@ -183,7 +184,7 @@ export function TransactionListPage() {
               id="status-filter"
               aria-label="Filter status transaksi"
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as transaction_status | ""); setPage(0); }}
+              onChange={(e) => { setStatusFilter(e.target.value as TransactionStatus | ""); setPage(0); }}
               placeholder="Semua Status"
               options={[
                 { value: "posted", label: "Posted" },

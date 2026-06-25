@@ -124,7 +124,6 @@ export function LoginPage() {
       const message = translateError(err);
       void supabase.rpc("record_login_attempt_pre_auth", {
         p_email: email,
-        p_success: false,
         p_user_agent: navigator.userAgent,
         p_error_message: message,
       });
