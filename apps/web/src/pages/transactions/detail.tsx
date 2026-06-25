@@ -1,1 +1,0 @@
-export { TransactionDetailPage } from "./[id]";
