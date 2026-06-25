@@ -1,7 +1,6 @@
 -- Harden post_opening_balance function
 -- P0.5: Only owner can call, reject if normal transactions exist
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.post_opening_balance(
   p_organization_id UUID,
@@ -165,5 +164,3 @@ REVOKE EXECUTE ON FUNCTION public.post_opening_balance(
 GRANT EXECUTE ON FUNCTION public.post_opening_balance(
   UUID, UUID, NUMERIC, TEXT, DATE
 ) TO authenticated;
-
-COMMIT;

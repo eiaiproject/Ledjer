@@ -18,7 +18,6 @@
 -- Constraints: Additive/replace only (C1). No data migration needed.
 -- =============================================================================
 
-BEGIN;
 
 -- =============================================================================
 -- P0.1 + P0.2: Fix balance sheet with CTE and security
@@ -902,5 +901,3 @@ CREATE POLICY "Members can update parties"
 -- NOTIFY PostgREST to reload schema
 -- =============================================================================
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

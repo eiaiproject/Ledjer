@@ -11,7 +11,6 @@
 --   - void WHERE unit_cost IS NOT NULL AND unit_cost > 0
 -- =============================================================================
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.recalculate_product_average_cost(
   p_product_id UUID
@@ -96,5 +95,3 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.recalculate_product_average_cost(UUID) FROM PUBLIC, anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

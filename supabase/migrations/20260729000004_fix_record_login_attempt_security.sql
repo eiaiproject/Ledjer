@@ -1,7 +1,6 @@
 -- P1-1: record_login_attempt — remove anon grant, add IP + email rate limiting
 -- Also tighten is_email_rate_limited to include IP in the window
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.record_login_attempt(
   p_email TEXT,
@@ -26,5 +25,3 @@ REVOKE EXECUTE ON FUNCTION public.record_login_attempt(TEXT, BOOLEAN, INET, TEXT
 GRANT EXECUTE ON FUNCTION public.record_login_attempt(TEXT, BOOLEAN, INET, TEXT, TEXT) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

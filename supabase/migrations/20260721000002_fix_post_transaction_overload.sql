@@ -5,7 +5,6 @@
 --
 -- Adds p_debit_account_id so frontend can specify expense/COGS account.
 
-BEGIN;
 
 -- Helper function to get account by code
 CREATE OR REPLACE FUNCTION public.get_account_by_code(
@@ -655,5 +654,3 @@ BEGIN
 
   RAISE NOTICE 'Verified: post_transaction function count = %', func_count;
 END $$;
-
-COMMIT;

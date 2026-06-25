@@ -4,7 +4,6 @@
 -- P0.2: Fix onboarding flow (in_progress → completed after balances)
 -- ============================================================
 
-BEGIN;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  P0.1: Fix pay_payable direction in canonical post_transaction
@@ -975,6 +974,3 @@ GRANT EXECUTE ON FUNCTION public.create_organization_with_opening_balances(
 -- ═══════════════════════════════════════════════════════════════════
 
 NOTIFY pgrst, 'reload schema';
-
-
-COMMIT;

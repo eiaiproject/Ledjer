@@ -10,7 +10,6 @@
 --
 -- Constraints: Additive only (C1). CREATE OR REPLACE FUNCTION.
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.update_staff_permissions(
   p_organization_id UUID,
@@ -97,5 +96,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 GRANT EXECUTE ON FUNCTION public.update_staff_permissions(
   UUID, UUID, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN
 ) TO authenticated;
-
-COMMIT;

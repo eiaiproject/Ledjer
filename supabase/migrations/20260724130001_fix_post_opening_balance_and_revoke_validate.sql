@@ -1,7 +1,6 @@
 -- P0.2: Fix post_opening_balance boolean/integer type mismatch + onboarding check
 -- P0.3: Revoke validate_product_sale_accounts from authenticated (internal only)
 
-BEGIN;
 
 -- ═══════════════════════════════════════════════════════════════════════
 --  P0.2: Fix post_opening_balance
@@ -180,5 +179,3 @@ REVOKE EXECUTE ON FUNCTION public.validate_product_sale_accounts(UUID, UUID)
   FROM authenticated, anon, PUBLIC;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

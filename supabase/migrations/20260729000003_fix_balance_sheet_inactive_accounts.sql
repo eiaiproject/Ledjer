@@ -2,7 +2,6 @@
 -- Ensures Assets = Liabilities + Equity even when accounts are deactivated
 -- (e.g. after migration 20260720_000000 removed E-Wallet/QRIS account 1130)
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.get_balance_sheet(
   p_organization_id UUID,
@@ -106,5 +105,3 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public;
 GRANT EXECUTE ON FUNCTION public.get_balance_sheet(UUID, DATE) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

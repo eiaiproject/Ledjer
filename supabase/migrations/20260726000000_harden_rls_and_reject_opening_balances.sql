@@ -5,7 +5,6 @@
 -- Phase 4: Reject opening_* transaction types from post_transaction
 -- =============================================================================
 
-BEGIN;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  PHASE 3: HARDEN RLS ON FINANCIAL TABLES
@@ -694,5 +693,3 @@ GRANT EXECUTE ON FUNCTION public.post_transaction(
 ) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

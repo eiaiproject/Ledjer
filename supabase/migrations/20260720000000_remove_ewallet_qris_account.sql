@@ -8,7 +8,6 @@
 -- Note: Existing organizations may have transactions linked to this account.
 -- We deactivate rather than delete to preserve data integrity.
 
-BEGIN;
 
 -- 1. Deactivate E-Wallet / QRIS account for all organizations
 --    (set is_active = false, is_cash_account = false)
@@ -152,5 +151,3 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_monthly_summary(UUID, DATE) TO authenticated;
-
-COMMIT;

@@ -11,7 +11,6 @@
 --        - OtherExpense (debit-normal): positive raw balance → -balance = negative (subtracts)
 --      Simplified: v_net_income = -SUM(balance) for all P&L accounts
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.get_balance_sheet(
   p_organization_id UUID,
@@ -125,5 +124,3 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION public.get_balance_sheet(UUID, DATE) TO authenticated;
-
-COMMIT;

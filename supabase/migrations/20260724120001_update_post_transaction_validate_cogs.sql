@@ -1,7 +1,6 @@
 -- P1.8: Update post_transaction to always validate COGS/inventory accounts for product sales
 -- This migration updates the product sales section to validate accounts even when COGS amount is 0
 
-BEGIN;
 
 -- Drop the existing post_transaction function first
 DROP FUNCTION IF EXISTS public.post_transaction(
@@ -500,5 +499,3 @@ GRANT EXECUTE ON FUNCTION public.post_transaction(
   UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID,
   TEXT, NUMERIC, DATE, TEXT, TEXT, UUID, NUMERIC, NUMERIC
 ) TO authenticated;
-
-COMMIT;

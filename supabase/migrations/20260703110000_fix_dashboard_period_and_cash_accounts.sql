@@ -13,7 +13,6 @@
 --
 -- Constraints: Additive only (C1). No destructive changes.
 
-BEGIN;
 
 -- 1. Add is_cash_account column to accounts
 ALTER TABLE public.accounts
@@ -184,5 +183,3 @@ BEGIN
   RETURN v_count;
 END;
 $$ LANGUAGE plpgsql;
-
-COMMIT;

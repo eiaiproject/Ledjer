@@ -14,7 +14,6 @@
 --         DELETE on parties; ensure only OWNER can soft-disable via update.
 -- =============================================================================
 
-BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- P0.A: rename_account search_path
@@ -227,5 +226,3 @@ BEGIN
 END $$;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

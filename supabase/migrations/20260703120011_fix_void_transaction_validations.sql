@@ -11,7 +11,6 @@
 --
 -- Constraints: Additive only (C1).
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.void_transaction(
   p_organization_id UUID,
@@ -273,5 +272,3 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.void_transaction(UUID, UUID, TEXT, DATE) TO authenticated;
-
-COMMIT;

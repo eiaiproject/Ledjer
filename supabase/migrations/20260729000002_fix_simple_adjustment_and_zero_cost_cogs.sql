@@ -3,7 +3,6 @@
 -- Adds defense-in-depth: journal_lines trigger ensuring account belongs to org
 -- Also tightens balance check from > 0.01 to <> 0 (P3-18)
 
-BEGIN;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  P0-3 DEFENSE: Trigger ensuring journal_lines.account_id belongs
@@ -701,5 +700,3 @@ GRANT EXECUTE ON FUNCTION public.post_transaction(
 ) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

@@ -12,7 +12,6 @@
 --
 --   Backwards compatible: if p_debit_account_id is NULL, falls back to old behavior.
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.post_transaction(
   p_organization_id UUID,
@@ -628,5 +627,3 @@ GRANT EXECUTE ON FUNCTION public.post_transaction(
   UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID,
   TEXT, NUMERIC, DATE, TEXT, TEXT, UUID, NUMERIC, NUMERIC, UUID
 ) TO authenticated;
-
-COMMIT;

@@ -7,7 +7,6 @@
 -- because of this. Add SET search_path = public to harden it.
 -- =============================================================================
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -23,5 +22,3 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

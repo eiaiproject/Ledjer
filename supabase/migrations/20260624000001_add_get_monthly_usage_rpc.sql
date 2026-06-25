@@ -7,7 +7,6 @@
 -- enforcement.
 -- =============================================================================
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.get_monthly_usage(
   p_org_id UUID
@@ -50,5 +49,3 @@ REVOKE EXECUTE ON FUNCTION public.get_monthly_usage(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_monthly_usage(UUID) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

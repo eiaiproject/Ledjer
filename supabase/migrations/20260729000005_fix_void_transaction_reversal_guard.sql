@@ -1,7 +1,6 @@
 -- P1-2: void_transaction — block voiding reversal rows
 -- A reversal row itself is posted; voiding it would re-apply the original effects
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.void_transaction(
   p_organization_id UUID,
@@ -252,5 +251,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 GRANT EXECUTE ON FUNCTION public.void_transaction(UUID, UUID, TEXT, DATE) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

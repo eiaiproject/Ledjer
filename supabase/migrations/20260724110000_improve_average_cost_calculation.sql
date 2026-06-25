@@ -1,7 +1,6 @@
 -- Improve recalculate_product_average_cost for void purchases
 -- P1.7: Ensure voided purchases correctly reduce cost basis
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.recalculate_product_average_cost(
   p_product_id UUID
@@ -48,5 +47,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Only system can execute (called by post_transaction and void_transaction)
 REVOKE EXECUTE ON FUNCTION public.recalculate_product_average_cost(UUID) FROM PUBLIC, anon, authenticated;
-
-COMMIT;

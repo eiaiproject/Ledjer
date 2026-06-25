@@ -2,7 +2,6 @@
 -- Allows display-name rename (the 20260721 intent) but blocks is_system/is_locked changes
 -- from non-service_role callers
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.protect_account_fields()
 RETURNS TRIGGER AS $$
@@ -58,5 +57,3 @@ CREATE TRIGGER protect_account_fields_trigger
   EXECUTE FUNCTION public.protect_account_fields();
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

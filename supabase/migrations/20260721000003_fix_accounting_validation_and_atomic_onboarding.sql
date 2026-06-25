@@ -1,6 +1,5 @@
 -- Final hardening for transaction validation, opening-balance numbering, and atomic onboarding.
 
-BEGIN;
 
 ALTER FUNCTION public.create_organization_with_template(
   TEXT, public.business_type, DATE, TEXT, NUMERIC
@@ -436,5 +435,3 @@ REVOKE EXECUTE ON FUNCTION public.create_organization_with_opening_balances(
 GRANT EXECUTE ON FUNCTION public.create_organization_with_opening_balances(
   TEXT, public.business_type, DATE, TEXT, NUMERIC, JSONB
 ) TO authenticated;
-
-COMMIT;

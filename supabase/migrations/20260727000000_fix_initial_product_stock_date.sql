@@ -9,7 +9,6 @@
 --      adjustment / purchase flow instead of an implicit opening-balance JE).
 -- =============================================================================
 
-BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- 1. record_initial_product_stock: use books_start_date
@@ -116,5 +115,3 @@ CREATE TRIGGER record_initial_product_stock_trigger
   EXECUTE FUNCTION public.record_initial_product_stock();
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

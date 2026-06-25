@@ -1,7 +1,6 @@
 -- P1.8: Always validate COGS and inventory accounts for product sales
 -- Even when purchase_price is zero, the accounts must exist for accounting integrity
 
-BEGIN;
 
 -- We need to modify the post_transaction function to validate COGS/inventory accounts
 -- whenever product_id is present for sales, regardless of COGS amount
@@ -42,5 +41,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Grant execute to authenticated (called by post_transaction)
 GRANT EXECUTE ON FUNCTION public.validate_product_sale_accounts(UUID, UUID) TO authenticated;
-
-COMMIT;

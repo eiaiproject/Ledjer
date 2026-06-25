@@ -11,7 +11,6 @@
 --   5. SECURITY DEFINER SET search_path = public.
 --   6. Grants execute to authenticated.
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.get_balance_sheet(
   p_organization_id UUID,
@@ -125,5 +124,3 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION public.get_balance_sheet(UUID, DATE) TO authenticated;
-
-COMMIT;

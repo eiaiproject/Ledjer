@@ -12,7 +12,6 @@
 --
 -- Constraints: Additive only (C1). Preserves per-type IF/ELSE structure (C2).
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.post_transaction(
   p_organization_id UUID,
@@ -603,5 +602,3 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.post_transaction(UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID, TEXT, NUMERIC, DATE, TEXT, TEXT, UUID, NUMERIC, NUMERIC) TO authenticated;
-
-COMMIT;

@@ -12,7 +12,6 @@
 --
 -- Constraints: Additive only (C1).
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.get_balance_sheet(
   p_organization_id UUID,
@@ -116,5 +115,3 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 GRANT EXECUTE ON FUNCTION public.get_balance_sheet(UUID, DATE) TO authenticated;
-
-COMMIT;

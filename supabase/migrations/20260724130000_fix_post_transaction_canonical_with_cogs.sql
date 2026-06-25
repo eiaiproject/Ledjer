@@ -2,7 +2,6 @@
 -- Fixes: missing p_debit_account_id, v_txn_id bug, missing transaction types,
 -- COGS validation for product sales, journal balance check, atomic failure handling.
 
-BEGIN;
 
 -- ── 1. Drop every overload ──────────────────────────────────────────
 DROP FUNCTION IF EXISTS public.post_transaction(
@@ -694,5 +693,3 @@ GRANT EXECUTE ON FUNCTION public.post_transaction(
 ) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

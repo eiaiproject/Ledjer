@@ -2,7 +2,6 @@
 -- The previous replacement regressed column names, account codes, inventory
 -- writes, and the p_debit_account_id contract used by the frontend.
 
-BEGIN;
 
 DROP FUNCTION IF EXISTS public.post_transaction(
   UUID, DATE, TEXT, NUMERIC, UUID, TEXT, UUID, UUID,
@@ -758,5 +757,3 @@ GRANT EXECUTE ON FUNCTION public.post_transaction(
 ) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

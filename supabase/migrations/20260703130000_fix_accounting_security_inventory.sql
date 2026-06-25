@@ -6,7 +6,6 @@
 --   3. Preserve product metadata and reverse stock movements when voiding transactions.
 --   4. Harden SECURITY DEFINER functions with explicit search_path.
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.recalculate_product_average_cost(
   p_product_id UUID
@@ -658,5 +657,3 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION public.invite_staff(UUID, TEXT) TO authenticated;
-
-COMMIT;

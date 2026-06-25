@@ -7,7 +7,6 @@
 --
 -- Constraints: Additive only (C1).
 
-BEGIN;
 
 -- 1. Rate limiting table (for server-side enforcement)
 CREATE TABLE IF NOT EXISTS rate_limits (
@@ -167,5 +166,3 @@ CREATE POLICY "user_own_login_attempts" ON login_attempts
   FOR SELECT USING (
     email = (SELECT email FROM auth.users WHERE id = auth.uid())
   );
-
-COMMIT;

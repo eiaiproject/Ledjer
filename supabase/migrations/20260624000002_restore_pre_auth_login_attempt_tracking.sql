@@ -9,7 +9,6 @@
 -- callable by anon with strict input validation. The original
 -- record_login_attempt stays authenticated-only for post-login audit.
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.record_login_attempt_pre_auth(
   p_email TEXT,
@@ -43,5 +42,3 @@ GRANT EXECUTE ON FUNCTION public.record_login_attempt_pre_auth(
 ) TO anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;

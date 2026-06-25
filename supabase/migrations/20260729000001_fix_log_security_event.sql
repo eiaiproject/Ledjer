@@ -1,7 +1,6 @@
 -- P0-2: Fix log_security_event cross-tenant audit-log injection
 -- Derive actor from auth.uid(), require org membership, revoke public/anon/authenticated access
 
-BEGIN;
 
 CREATE OR REPLACE FUNCTION public.log_security_event(
   p_organization_id UUID,
@@ -57,5 +56,3 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 REVOKE EXECUTE ON FUNCTION public.log_security_event(UUID, UUID, TEXT, TEXT, TEXT, JSONB, INET, TEXT) FROM PUBLIC, anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';
-
-COMMIT;
