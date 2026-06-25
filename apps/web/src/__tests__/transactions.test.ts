@@ -47,9 +47,13 @@ describe('Transaction Type Labels', () => {
   });
 
   it('ALL is a superset of GENERAL and OPENING', () => {
-    expect(Object.keys(ALL_TRANSACTION_TYPE_LABELS).sort()).toEqual(
-      [...Object.keys(GENERAL_TRANSACTION_TYPE_LABELS), ...Object.keys(OPENING_TRANSACTION_TYPE_LABELS)].sort()
-    );
+    const allKeys = Object.keys(ALL_TRANSACTION_TYPE_LABELS);
+    const generalKeys = Object.keys(GENERAL_TRANSACTION_TYPE_LABELS);
+    const openingKeys = Object.keys(OPENING_TRANSACTION_TYPE_LABELS);
+    // ALL should contain all GENERAL and OPENING keys
+    expect(allKeys).toEqual(expect.arrayContaining(generalKeys));
+    expect(allKeys).toEqual(expect.arrayContaining(openingKeys));
+    // ALL may contain additional backend-only types (e.g., simple_adjustment)
   });
 
   it('labelForTransactionType falls back gracefully', () => {

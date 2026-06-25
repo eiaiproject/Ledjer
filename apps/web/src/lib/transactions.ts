@@ -18,6 +18,8 @@
 // to avoid breaking existing imports; new code should prefer the explicit names.
 // ============================================================================
 
+// ponytail: simple_adjustment is backend-only/historical — not creatable from UI,
+// kept in ALL_TRANSACTION_TYPE_LABELS for display of historical records.
 export const GENERAL_TRANSACTION_TYPE_LABELS = {
   cash_sale: "Penjualan Tunai",
   credit_sale: "Penjualan Kredit",
@@ -29,7 +31,6 @@ export const GENERAL_TRANSACTION_TYPE_LABELS = {
   owner_capital: "Modal Pemilik",
   owner_draw: "Penarikan Tunai",
   cash_transfer: "Transfer Antar Rekening Bank",
-  simple_adjustment: "Penyesuaian",
 } as const;
 
 export const OPENING_TRANSACTION_TYPE_LABELS = {
@@ -41,6 +42,7 @@ export const OPENING_TRANSACTION_TYPE_LABELS = {
 export const ALL_TRANSACTION_TYPE_LABELS = {
   ...GENERAL_TRANSACTION_TYPE_LABELS,
   ...OPENING_TRANSACTION_TYPE_LABELS,
+  simple_adjustment: "Penyesuaian",
 } as const;
 
 /**
