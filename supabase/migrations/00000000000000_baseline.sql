@@ -2952,6 +2952,7 @@ $$;
 
 
 ALTER FUNCTION "public"."protect_account_fields"() OWNER TO "postgres";
+REVOKE EXECUTE ON FUNCTION "public"."protect_account_fields"() FROM anon, authenticated;
 
 
 CREATE OR REPLACE FUNCTION "public"."protect_organization_billing_columns"() RETURNS "trigger"
@@ -3666,6 +3667,7 @@ $$;
 
 
 ALTER FUNCTION "public"."update_staff_permissions"("p_organization_id" "uuid", "p_member_id" "uuid", "p_can_create_transaction" boolean, "p_can_view_reports" boolean, "p_can_manage_accounts" boolean, "p_can_void_transaction" boolean, "p_can_view_audit_log" boolean) OWNER TO "postgres";
+REVOKE EXECUTE ON FUNCTION "public"."update_staff_permissions"("p_organization_id" "uuid", "p_member_id" "uuid", "p_can_create_transaction" boolean, "p_can_view_reports" boolean, "p_can_manage_accounts" boolean, "p_can_void_transaction" boolean, "p_can_view_audit_log" boolean) FROM anon;
 
 
 CREATE OR REPLACE FUNCTION "public"."update_staff_permissions"("p_organization_id" "uuid", "p_member_id" "uuid", "p_can_create_transaction" boolean DEFAULT NULL::boolean, "p_can_view_reports" boolean DEFAULT NULL::boolean, "p_can_manage_accounts" boolean DEFAULT NULL::boolean, "p_can_void_transaction" boolean DEFAULT NULL::boolean, "p_can_manage_products" boolean DEFAULT NULL::boolean, "p_can_view_audit_log" boolean DEFAULT NULL::boolean) RETURNS "jsonb"
@@ -5222,42 +5224,52 @@ GRANT ALL ON FUNCTION "public"."check_rate_limit"("p_identifier" "text", "p_acti
 
 
 REVOKE ALL ON FUNCTION "public"."create_default_accounts"("p_org_id" "uuid", "p_org_name" "text") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."create_default_accounts"("p_org_id" "uuid", "p_org_name" "text") FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."create_organization_with_opening_balances"("p_organization_name" "text", "p_business_type" "public"."business_type", "p_books_start_date" "date", "p_default_cash_account_name" "text", "p_opening_cash_balance" numeric, "p_extra_opening_balances" "jsonb") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."create_organization_with_opening_balances"("p_organization_name" "text", "p_business_type" "public"."business_type", "p_books_start_date" "date", "p_default_cash_account_name" "text", "p_opening_cash_balance" numeric, "p_extra_opening_balances" "jsonb") FROM anon;
 GRANT ALL ON FUNCTION "public"."create_organization_with_opening_balances"("p_organization_name" "text", "p_business_type" "public"."business_type", "p_books_start_date" "date", "p_default_cash_account_name" "text", "p_opening_cash_balance" numeric, "p_extra_opening_balances" "jsonb") TO "authenticated";
 
 
 
 REVOKE ALL ON FUNCTION "public"."generate_entry_number"("p_organization_id" "uuid") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."generate_entry_number"("p_organization_id" "uuid") FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."generate_transaction_number"("p_organization_id" "uuid") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."generate_transaction_number"("p_organization_id" "uuid") FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."generate_transaction_number"("p_organization_id" "uuid", "p_transaction_date" "date") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."generate_transaction_number"("p_organization_id" "uuid", "p_transaction_date" "date") FROM anon, authenticated;
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."get_account_balance"("p_account_id" "uuid", "p_as_of_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_account_balance"("p_account_id" "uuid", "p_as_of_date" "date") TO "authenticated";
 
 
 
 REVOKE ALL ON FUNCTION "public"."get_account_by_code"("p_org_id" "uuid", "p_code" integer) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."get_account_by_code"("p_org_id" "uuid", "p_code" integer) FROM anon, authenticated;
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."get_balance_sheet"("p_organization_id" "uuid", "p_as_of_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_balance_sheet"("p_organization_id" "uuid", "p_as_of_date" "date") TO "authenticated";
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."get_dashboard_summary"("p_organization_id" "uuid", "p_from_date" "date", "p_to_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_dashboard_summary"("p_organization_id" "uuid", "p_from_date" "date", "p_to_date" "date") TO "authenticated";
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."get_monthly_summary"("p_organization_id" "uuid", "p_month" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_monthly_summary"("p_organization_id" "uuid", "p_month" "date") TO "authenticated";
 
 
@@ -5267,11 +5279,13 @@ GRANT ALL ON FUNCTION "public"."get_monthly_transaction_count"("p_org_id" "uuid"
 
 
 REVOKE ALL ON FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") TO "authenticated";
 
 
 
 REVOKE ALL ON FUNCTION "public"."get_next_counter"("p_organization_id" "uuid", "p_counter_name" "text") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."get_next_counter"("p_organization_id" "uuid", "p_counter_name" "text") FROM anon, authenticated;
 
 
 
@@ -5279,14 +5293,17 @@ GRANT ALL ON FUNCTION "public"."get_product_info"("p_product_id" "uuid") TO "aut
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."get_profit_loss"("p_organization_id" "uuid", "p_from_date" "date", "p_to_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_profit_loss"("p_organization_id" "uuid", "p_from_date" "date", "p_to_date" "date") TO "authenticated";
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."get_trial_balance"("p_organization_id" "uuid", "p_as_of_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."get_trial_balance"("p_organization_id" "uuid", "p_as_of_date" "date") TO "authenticated";
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."invite_staff"("p_organization_id" "uuid", "p_email" "text") FROM anon;
 GRANT ALL ON FUNCTION "public"."invite_staff"("p_organization_id" "uuid", "p_email" "text") TO "authenticated";
 
 
@@ -5297,33 +5314,40 @@ GRANT ALL ON FUNCTION "public"."is_email_rate_limited"("p_email" "text", "p_max_
 
 
 REVOKE ALL ON FUNCTION "public"."log_security_event"("p_organization_id" "uuid", "p_user_id" "uuid", "p_action" "text", "p_resource_type" "text", "p_resource_id" "text", "p_details" "jsonb", "p_ip_address" "inet", "p_user_agent" "text") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."log_security_event"("p_organization_id" "uuid", "p_user_id" "uuid", "p_action" "text", "p_resource_type" "text", "p_resource_id" "text", "p_details" "jsonb", "p_ip_address" "inet", "p_user_agent" "text") FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."post_opening_balance"("p_organization_id" "uuid", "p_account_id" "uuid", "p_amount" numeric, "p_description" "text", "p_entry_date" "date") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."post_opening_balance"("p_organization_id" "uuid", "p_account_id" "uuid", "p_amount" numeric, "p_description" "text", "p_entry_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."post_opening_balance"("p_organization_id" "uuid", "p_account_id" "uuid", "p_amount" numeric, "p_description" "text", "p_entry_date" "date") TO "authenticated";
 
 
 
 REVOKE ALL ON FUNCTION "public"."post_transaction"("p_organization_id" "uuid", "p_transaction_date" "date", "p_transaction_type" "text", "p_amount" numeric, "p_party_id" "uuid", "p_category_name" "text", "p_cash_account_id" "uuid", "p_destination_cash_account_id" "uuid", "p_payment_status" "text", "p_partial_amount" numeric, "p_due_date" "date", "p_description" "text", "p_notes" "text", "p_product_id" "uuid", "p_quantity" numeric, "p_unit_price" numeric, "p_debit_account_id" "uuid") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."post_transaction"("p_organization_id" "uuid", "p_transaction_date" "date", "p_transaction_type" "text", "p_amount" numeric, "p_party_id" "uuid", "p_category_name" "text", "p_cash_account_id" "uuid", "p_destination_cash_account_id" "uuid", "p_payment_status" "text", "p_partial_amount" numeric, "p_due_date" "date", "p_description" "text", "p_notes" "text", "p_product_id" "uuid", "p_quantity" numeric, "p_unit_price" numeric, "p_debit_account_id" "uuid") FROM anon;
 GRANT ALL ON FUNCTION "public"."post_transaction"("p_organization_id" "uuid", "p_transaction_date" "date", "p_transaction_type" "text", "p_amount" numeric, "p_party_id" "uuid", "p_category_name" "text", "p_cash_account_id" "uuid", "p_destination_cash_account_id" "uuid", "p_payment_status" "text", "p_partial_amount" numeric, "p_due_date" "date", "p_description" "text", "p_notes" "text", "p_product_id" "uuid", "p_quantity" numeric, "p_unit_price" numeric, "p_debit_account_id" "uuid") TO "authenticated";
 
 
 
-REVOKE ALL ON FUNCTION "public"."post_transaction_impl_20260702"("p_organization_id" "uuid", "p_transaction_date" "date", "p_transaction_type" "text", "p_amount" numeric, "p_party_id" "uuid", "p_category_name" "text", "p_cash_account_id" "uuid", "p_destination_cash_account_id" "uuid", "p_payment_status" "text", "p_partial_amount" numeric, "p_due_date" "date", "p_description" "text", "p_notes" "text", "p_product_id" "uuid", "p_quantity" numeric, "p_unit_price" numeric) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."post_transaction_impl_20260702"("p_organization_id" "uuid", "p_transaction_date" "date", "p_transaction_type" "text", "p_amount" "numeric", "p_party_id" "uuid", "p_category_name" "text", "p_cash_account_id" "uuid", "p_destination_cash_account_id" "uuid", "p_payment_status" "text", "p_partial_amount" "numeric", "p_due_date" "date", "p_description" "text", "p_notes" "text", "p_product_id" "uuid", "p_quantity" "numeric", "p_unit_price" "numeric") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."post_transaction_impl_20260702"("p_organization_id" "uuid", "p_transaction_date" "date", "p_transaction_type" "text", "p_amount" "numeric", "p_party_id" "uuid", "p_category_name" "text", "p_cash_account_id" "uuid", "p_destination_cash_account_id" "uuid", "p_payment_status" "text", "p_partial_amount" "numeric", "p_due_date" "date", "p_description" "text", "p_notes" "text", "p_product_id" "uuid", "p_quantity" "numeric", "p_unit_price" "numeric") FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."protect_product_stock_update"() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."protect_product_stock_update"() FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."recalculate_product_average_cost"("p_product_id" "uuid") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."recalculate_product_average_cost"("p_product_id" "uuid") FROM anon, authenticated;
 GRANT ALL ON FUNCTION "public"."recalculate_product_average_cost"("p_product_id" "uuid") TO "service_role";
 
 
 
 REVOKE ALL ON FUNCTION "public"."record_initial_product_stock"() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."record_initial_product_stock"() FROM anon, authenticated;
 
 
 
@@ -5339,9 +5363,11 @@ GRANT ALL ON FUNCTION "public"."record_login_attempt_pre_auth"("p_email" "text",
 
 
 REVOKE ALL ON FUNCTION "public"."record_stock_movement"("p_organization_id" "uuid", "p_product_id" "uuid", "p_movement_date" "date", "p_movement_type" "text", "p_quantity" numeric, "p_unit_cost" numeric, "p_transaction_id" "uuid", "p_notes" "text") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."record_stock_movement"("p_organization_id" "uuid", "p_product_id" "uuid", "p_movement_date" "date", "p_movement_type" "text", "p_quantity" numeric, "p_unit_cost" numeric, "p_transaction_id" "uuid", "p_notes" "text") FROM anon, authenticated;
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."remove_staff"("p_organization_id" "uuid", "p_member_id" "uuid") FROM anon;
 GRANT ALL ON FUNCTION "public"."remove_staff"("p_organization_id" "uuid", "p_member_id" "uuid") TO "authenticated";
 
 
@@ -5351,123 +5377,98 @@ GRANT ALL ON FUNCTION "public"."rename_account"("p_account_id" "uuid", "p_new_na
 
 
 REVOKE ALL ON FUNCTION "public"."standardize_transaction_number"() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."standardize_transaction_number"() FROM anon, authenticated;
 
 
 
 REVOKE ALL ON FUNCTION "public"."update_product_stock"("p_product_id" "uuid", "p_quantity_delta" numeric) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."update_product_stock"("p_product_id" "uuid", "p_quantity_delta" numeric) FROM anon, authenticated;
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."update_staff_permissions"("p_organization_id" "uuid", "p_member_id" "uuid", "p_can_create_transaction" boolean, "p_can_view_reports" boolean, "p_can_manage_accounts" boolean, "p_can_void_transaction" boolean, "p_can_manage_products" boolean, "p_can_view_audit_log" boolean) FROM anon;
 GRANT ALL ON FUNCTION "public"."update_staff_permissions"("p_organization_id" "uuid", "p_member_id" "uuid", "p_can_create_transaction" boolean, "p_can_view_reports" boolean, "p_can_manage_accounts" boolean, "p_can_void_transaction" boolean, "p_can_manage_products" boolean, "p_can_view_audit_log" boolean) TO "authenticated";
 
 
 
 REVOKE ALL ON FUNCTION "public"."validate_product_sale_accounts"("p_organization_id" "uuid", "p_product_id" "uuid") FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION "public"."validate_product_sale_accounts"("p_organization_id" "uuid", "p_product_id" "uuid") FROM anon, authenticated;
 
 
 
+REVOKE EXECUTE ON FUNCTION "public"."void_transaction"("p_organization_id" "uuid", "p_transaction_id" "uuid", "p_void_reason" "text", "p_void_date" "date") FROM anon;
 GRANT ALL ON FUNCTION "public"."void_transaction"("p_organization_id" "uuid", "p_transaction_id" "uuid", "p_void_reason" "text", "p_void_date" "date") TO "authenticated";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."account_mappings" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."account_mappings" TO "authenticated";
+-- anon/authenticated: no dangerous table privileges (REFERENCES, TRIGGER, TRUNCATE, MAINTAIN).
+-- These roles operate via SECURITY DEFINER RPCs and RLS policies.
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."account_mappings" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."accounts" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."accounts" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."accounts" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."attachments" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."attachments" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."attachments" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."audit_logs" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."audit_logs" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."audit_logs" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."journal_entries" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."journal_entries" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."journal_entries" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."journal_lines" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."journal_lines" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."journal_lines" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."parties" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."parties" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."parties" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."transactions" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."transactions" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."transactions" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."general_ledger" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."general_ledger" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."general_ledger" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."login_attempts" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."login_attempts" TO "authenticated";
+GRANT SELECT ON TABLE "public"."login_attempts" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."login_attempts" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organization_document_counters" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organization_document_counters" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organization_document_counters" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organization_members" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organization_members" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organization_members" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organizations" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organizations" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."organizations" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."products" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."products" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."products" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."profiles" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."profiles" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."profiles" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."rate_limits" TO "anon";
-GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."rate_limits" TO "authenticated";
+GRANT SELECT ON TABLE "public"."rate_limits" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."rate_limits" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."stock_movements" TO "anon";
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."stock_movements" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."stock_movements" TO "service_role";
 
 
@@ -5490,9 +5491,31 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "authenticated";
+-- Future tables: only service_role gets dangerous privileges.
+-- anon and authenticated operate through SECURITY DEFINER RPCs.
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLES TO "service_role";
+
+-- ═══════════════════════════════════════════════════════════════════
+-- Security hardening: explicitly REVOKE dangerous privileges that
+-- Supabase may auto-grant during db reset / stack start.
+-- These statements ensure anon and authenticated NEVER have
+-- TRUNCATE, TRIGGER, REFERENCES, or MAINTAIN on any public table.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  t RECORD;
+BEGIN
+  FOR t IN
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format(
+      'REVOKE TRUNCATE, TRIGGER, REFERENCES, MAINTAIN ON TABLE public.%I FROM anon, authenticated',
+      t.tablename
+    );
+  END LOOP;
+END $$;
 
 
 
