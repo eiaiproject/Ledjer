@@ -25,14 +25,17 @@ type NavItem =
   | { to: string; label: string; icon: LucideIcon; children?: never }
   | { label: string; icon: LucideIcon; children: { to: string; label: string }[]; to?: never };
 
-const NAV_ITEMS: NavItem[] = [
+type NavItemWithPerm = NavItem & { requires?: string };
+
+const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/dashboard", label: "Dashboard", icon: Home },
-  { to: "/transactions", label: "Transaksi", icon: Receipt },
-  { to: "/accounts", label: "Akun", icon: BookOpen },
-  { to: "/products", label: "Produk", icon: Package },
+  { to: "/transactions", label: "Transaksi", icon: Receipt, requires: "canCreateTransaction" },
+  { to: "/accounts", label: "Akun", icon: BookOpen, requires: "canManageAccounts" },
+  { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
   {
     label: "Laporan",
     icon: BarChart3,
+    requires: "canViewReports",
     children: [
       { to: "/reports/general-ledger", label: "Buku Besar" },
       { to: "/reports/trial-balance", label: "Neraca Saldo" },
@@ -56,6 +59,7 @@ export function DashboardLayout() {
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
   const { canCreateTransaction } = useOrgPermissions();
+  const navPermissions = useOrgPermissions();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -86,6 +90,12 @@ export function DashboardLayout() {
       </div>
     );
   }
+
+  // Filter nav items based on permissions
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!item.requires) return true;
+    return (navPermissions as Record<string, boolean>)[item.requires] === true;
+  });
 
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -143,11 +153,11 @@ export function DashboardLayout() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-2">
           <ul className="space-y-1">
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const children = item.children;
               const isExpanded = expandedMenus.includes(item.label);
-              const active = children ? isParentActive(children) : isActive(item.to);
+              const active = children ? isParentActive(children) : isActive(item.to!);
               const menuId = `desktop-nav-${item.label.toLowerCase()}`;
 
               if (children) {
@@ -324,12 +334,12 @@ export function DashboardLayout() {
             </div>
             <nav className="py-4 px-3 overflow-y-auto">
               <ul className="space-y-1">
-                {NAV_ITEMS.map((item) => {
+                {visibleNavItems.map((item) => {
                   const Icon = item.icon;
                   const children = item.children;
                   const active = children
                     ? isParentActive(children)
-                    : isActive(item.to);
+                    : isActive(item.to!);
                   const menuId = `mobile-nav-${item.label.toLowerCase()}`;
 
                   if (children) {

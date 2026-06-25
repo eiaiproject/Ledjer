@@ -14,6 +14,7 @@ const LoginPage = lazy(async () => ({ default: (await import("@/pages/login")).L
 const RegisterPage = lazy(async () => ({ default: (await import("@/pages/register")).RegisterPage }));
 const AuthCallbackPage = lazy(async () => ({ default: (await import("@/pages/auth-callback")).AuthCallbackPage }));
 const OnboardingPage = lazy(async () => ({ default: (await import("@/pages/onboarding")).OnboardingPage }));
+const OnboardingGuard = lazy(async () => ({ default: (await import("@/components/onboarding-guard")).OnboardingGuard }));
 const DashboardPage = lazy(async () => ({ default: (await import("@/pages/dashboard")).DashboardPage }));
 const TransactionListPage = lazy(async () => ({ default: (await import("@/pages/transactions/index")).TransactionListPage }));
 const NewTransactionPage = lazy(async () => ({ default: (await import("@/pages/transactions/new")).NewTransactionPage }));
@@ -65,7 +66,7 @@ const router = createBrowserRouter([
     path: "/onboarding",
     element: <ProtectedRoute />,
     children: [
-      { index: true, element: <OnboardingPage /> },
+      { index: true, element: <OnboardingGuard><OnboardingPage /></OnboardingGuard> },
     ],
   },
   {
