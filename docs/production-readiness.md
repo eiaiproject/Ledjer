@@ -1,6 +1,6 @@
 # Ledjer — Production Readiness Checklist
 
-Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (latest is `20260729_000006_harden_protect_account_fields.sql`).
+Last verified: 2026-06-25 against the active baseline migration `supabase/migrations/00000000000000_baseline.sql` plus archived historical migrations in `supabase/migrations/archive/`.
 
 ## Status Legend
 
@@ -75,7 +75,7 @@ Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (l
 | **Initial stock blocked post-onboarding** | ✅ | Trigger raises if `onboarding_status='completed'` and `current_stock > 0` |
 
 **Remaining risks:**
-- No automated reconciliation between stock movements and inventory account balance.
+- Inventory-vs-stock movement reconciliation is covered by SQL tests; it is not enforced by a runtime constraint/trigger.
 - No closing entry automation (year-end retained earnings transfer).
 - No invoice-level AR/AP tracking.
 
@@ -165,13 +165,13 @@ Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (l
 | SQL strict golden scenario | ✅ | `supabase/tests/golden_scenario_tests.sql` (explicit expected balances) |
 | SQL strict P0 fix tests | ✅ | `supabase/tests/p0_critical_fix_tests.sql` |
 | SQL strict security/RLS tests | ✅ | `supabase/tests/security_rls_tests.sql` (now also asserts every SECURITY DEFINER function declares `SET search_path`) |
-| **SQL strict inventory golden scenario** | ✅ | `supabase/tests/inventory_golden_tests.sql` (weighted average + sale/void + oversell) |
+| **SQL strict inventory golden scenario** | ✅ | `supabase/tests/inventory_golden_tests.sql` (weighted average + sale/void + oversell + inventory GL/stock movement value invariant) |
 | **SQL behavioural pay_payable direction** | ✅ | `supabase/tests/payable_behavior_tests.sql` (PB1–PB16) |
 | **SQL behavioural opening-balance guard** | ✅ | `supabase/tests/opening_balance_guard_tests.sql` (OG.A1–OG.D1, OG.C2) |
 | **SQL behavioural permission matrix + cross-org RLS** | ✅ | `supabase/tests/permission_matrix_tests.sql` (PM1.1–PM6.3) |
 | **SQL helper factories** | ✅ | `_test_impersonate`, `_test_create_org_with_users` in `_test_helpers.sql` |
 | **Direct INSERT test not false-green** | ✅ | T8 supplies every required column and asserts failure is RLS, not NOT NULL / FK |
-| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 88 tests across 9 files (auth-callback, forgot-password, login, password-recovery-flow, reset-password, smoke, transaction-helpers, transactions, transaction-usage) |
+| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 95 tests across 10 files (auth-callback, forgot-password, login, password-recovery-flow, reset-password, rpc-args-contract, smoke, transaction-helpers, transactions, transaction-usage) |
 | Auth-callback integration tests | ✅ | `auth-callback.test.tsx` covers code exchange, token_hash, invalid/expired, resend, recovery → `/reset-password` |
 | Migration CI guard | ✅ | `.github/workflows/ci.yml` fails if any migration references `_test_assert` |
 | **Packaging CI guard** | ✅ | `guard-package-clean` job runs `scripts/check-package-clean.sh` against `git archive` tarball and `git ls-files` zip |
@@ -202,33 +202,35 @@ Last verified: 2026-06-24 against the migration set in `supabase/migrations/` (l
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Supabase migrations applied | ⚠️ | Must run all migrations through `20260729_000006_harden_protect_account_fields.sql` |
-| Frontend build verified | ✅ | `pnpm build` passes |
+| Supabase migrations applied | ⚠️ | Must apply active baseline `00000000000000_baseline.sql` to the target database |
+| Frontend build verified | ✅ | `pnpm --filter web build` passes |
 | Environment variables set | ⚠️ | Must configure in hosting platform |
 | Domain configured | ❌ | Not configured |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 
-**Most recent verification (2026-06-24):**
+**Most recent verification (2026-06-25):**
 
 The following commands were actually executed:
 
 ```bash
-pnpm install --frozen-lockfile       # ✅ already up to date; lockfile honored
 pnpm --filter web typecheck          # ✅ tsc -b clean, 0 errors
 pnpm --filter web lint               # ✅ eslint clean, 0 errors
-pnpm --filter web test               # ✅ 88 tests passed (9 files)
-pnpm --filter web build              # ✅ vite production build in ~170ms; 12 chunks
-./scripts/check-package-clean.sh     # ✅ no forbidden paths in git ls-files
-grep -R "_test_assert" supabase/migrations/
-                                    # ✅ no matches (exit 1, no output)
+pnpm --filter web test               # ✅ 95 tests passed (10 files)
+pnpm --filter web build              # ✅ vite production build passed
+bash scripts/check-migration-naming.sh
+                                    # ✅ 1 active migration, canonical, strictly increasing
+pnpm db-types:check                  # ✅ canonical DB types + shim guard passed
+grep -RI "_test_assert" supabase/migrations/ && exit 1 || true
+                                    # ✅ no test helper leak in migrations
+/tmp/supabase-cli-2.107.0/bin/supabase start --workdir .
+/tmp/supabase-cli-2.107.0/bin/supabase db reset --workdir . --no-seed
+docker exec -w /tmp/ledjer supabase_db_Ledjer \
+  psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  -f supabase/tests/run_all.sql      # ✅ all SQL suites passed
+/tmp/supabase-cli-2.107.0/bin/supabase stop --workdir . --no-backup
 ```
 
-**Not run locally** (this environment has no Docker, no `psql` binary, no running Postgres):
-
-- `supabase db reset` against a local Supabase stack — requires Docker.
-- SQL test files in `supabase/tests/` — require a Postgres with the `auth` schema.
-
-These are run by the CI workflow on `ubuntu-latest` GitHub runners, which DO have Docker preinstalled. See `.github/workflows/ci.yml` `supabase` job.
+The host machine did not have a native `psql` binary, so the SQL runner was executed with `psql` inside the local Supabase Postgres container after copying `supabase/tests` into `/tmp/ledjer`.
 
 ---
 
