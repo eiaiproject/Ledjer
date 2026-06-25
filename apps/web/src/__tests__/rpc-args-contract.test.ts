@@ -73,11 +73,11 @@ const rpcArgsByName = {
     p_partial_amount: 0,
     p_description: "typed smoke transaction",
     p_cash_account_id: uuid,
+    p_party_name: "Pelanggan Test",
   } satisfies RpcArgs<"post_transaction">,
 
   record_login_attempt: {
     p_email: "owner@example.test",
-    p_success: true,
     p_user_agent: "vitest",
   } satisfies RpcArgs<"record_login_attempt">,
 

@@ -13,45 +13,26 @@
 \i supabase/tests/_test_helpers.sql
 
 -- ═══════════════════════════════════════════════════════════════════
--- P0.1: pay_payable direction (source-code assertion only as fallback)
--- The real direction check requires an authenticated RPC call which is
--- covered by the golden scenario; here we guard the function signature
--- and the source order to catch regressions early.
+-- P0.1: pay_payable direction
+-- Behavioral test is in master_fix_regression_tests.sql M-5.
+-- Here we only verify the canonical function signature exists.
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
-  v_func_source TEXT;
+  v_arg_count INTEGER;
 BEGIN
-  SELECT pg_get_functiondef(p.oid) INTO v_func_source
+  SELECT p.pronargs INTO v_arg_count
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE p.proname = 'post_transaction'
     AND n.nspname = 'public'
-    AND p.pronargs = 17
+    AND p.prosecdef = true
   LIMIT 1;
 
-  IF v_func_source IS NULL THEN
-    PERFORM public._test_fail('P0.1.0', 'canonical post_transaction (17 args) not found');
-  END IF;
-
-  -- Pay_payable must set debit to account code 2100 (Utang) BEFORE setting credit to cash.
-  -- This is the order-sensitive shape introduced by the P0.1 fix.
   PERFORM public._test_assert(
-    'P0.1.1: pay_payable branch debits account code 2100 (Utang Usaha)',
-    v_func_source LIKE '%pay_payable%code = 2100%v_debit_account_id%'
-      AND v_func_source LIKE '%pay_payable%v_credit_account_id%:=%p_cash_account_id%',
-    'pay_payable should debit Utang (2100) and credit cash. Verify function body.'
-  );
-
-  -- Guard against the old wrong direction ever returning.
-  -- Use position() with literal substring (no LIKE wildcard ambiguity).
-  -- The wrong direction was `v_debit_account_id := p_cash_account_id`
-  -- (with exact := separator). Check it does NOT appear anywhere in
-  -- the function body.
-  PERFORM public._test_assert(
-    'P0.1.2: pay_payable branch does NOT assign cash to debit',
-    position('v_debit_account_id := p_cash_account_id' IN v_func_source) = 0,
-    'Old wrong direction (debit := cash) detected in post_transaction body.'
+    'P0.1.0: canonical post_transaction exists with 19 args',
+    v_arg_count = 19,
+    'Expected 19 args, got ' || COALESCE(v_arg_count::TEXT, 'NULL')
   );
 END $$;
 
@@ -105,11 +86,11 @@ BEGIN
   SELECT pg_get_functiondef(p.oid) INTO v_source
   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE p.proname = 'post_transaction'
-    AND n.nspname = 'public' AND p.pronargs = 17
+    AND n.nspname = 'public' AND p.pronargs = 19
   LIMIT 1;
 
   IF v_source IS NULL THEN
-    PERFORM public._test_fail('P0.4.0', 'canonical post_transaction missing');
+    PERFORM public._test_fail('P0.4.0', 'canonical post_transaction missing (19 args)');
   END IF;
 
   PERFORM public._test_assert(

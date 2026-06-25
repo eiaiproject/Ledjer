@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import {
   fetchMonthlyTransactionUsage,
@@ -88,7 +89,7 @@ export function BillingSettingsPage() {
   const isYearly = billingPeriod === "yearly";
 
   const { data: usage, error: usageError, refetch: refetchUsage } = useQuery({
-    queryKey: ["monthly-usage", orgData?.organization?.id],
+    queryKey: queryKeys.monthlyUsage(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return null;
       return fetchMonthlyTransactionUsage(orgData.organization.id);

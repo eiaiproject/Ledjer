@@ -9,6 +9,29 @@
 
 export const queryKeys = {
   organization: (userId: string | undefined) => ["organization", userId] as const,
+  allOrganization: () => ["organization"] as const,
+
+  dashboard: (orgId: string | undefined) => ["dashboard", orgId] as const,
+  allDashboard: () => ["dashboard"] as const,
+
+  profile: (userId: string | undefined) => ["profile", userId] as const,
+
+  orgMembers: {
+    list: (orgId: string | undefined) => ["org-members", orgId] as const,
+    all: () => ["org-members"] as const,
+  },
+
+  reports: {
+    balanceSheet: (orgId: string | undefined, asOfDate: string) => ["balance-sheet", orgId, asOfDate] as const,
+    generalLedger: (orgId: string | undefined, accountId: string | undefined, fromDate: string, toDate: string) =>
+      ["general-ledger", orgId, accountId, fromDate, toDate] as const,
+    profitLoss: (orgId: string | undefined, fromDate: string, toDate: string) => ["profit-loss", orgId, fromDate, toDate] as const,
+    trialBalance: (orgId: string | undefined, toDate: string) => ["trial-balance", orgId, toDate] as const,
+    allBalanceSheet: () => ["balance-sheet"] as const,
+    allProfitLoss: () => ["profit-loss"] as const,
+    allTrialBalance: () => ["trial-balance"] as const,
+    allGeneralLedger: () => ["general-ledger"] as const,
+  },
 
   accounts: {
     /** Full account list (accounts page, CoA). */
@@ -40,9 +63,18 @@ export const queryKeys = {
   },
 
   transactions: {
-    list: (orgId: string, filters: Record<string, unknown>) =>
-      ["transactions", orgId, filters] as const,
+    all: () => ["transactions"] as const,
+    list: (orgId: string | undefined, ...filters: unknown[]) =>
+      ["transactions", orgId, ...filters] as const,
+    detail: (id: string) => ["transaction", id] as const,
+    allDetails: () => ["transaction"] as const,
+  },
+
+  journalEntries: {
+    detail: (id: string) => ["journal-entries", id] as const,
+    all: () => ["journal-entries"] as const,
   },
 
   monthlyUsage: (orgId: string) => ["monthly-usage", orgId] as const,
+  allMonthlyUsage: () => ["monthly-usage"] as const,
 } as const;

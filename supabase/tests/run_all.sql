@@ -47,6 +47,9 @@
 \echo '=== privilege_hardening_tests.sql ==='
 \i supabase/tests/privilege_hardening_tests.sql
 
+\echo '=== master_fix_regression_tests.sql ==='
+\i supabase/tests/master_fix_regression_tests.sql
+
 \echo ''
 \echo '============================================'
 \echo 'ALL SQL TEST SUITES PASSED'

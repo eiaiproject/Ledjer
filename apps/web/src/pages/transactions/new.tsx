@@ -11,7 +11,6 @@ import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
 import {
-  partyTypeForTransaction,
   usesCashAccount,
   usesCategory,
   usesDestinationAccount,
@@ -75,6 +74,7 @@ const transactionSchema = z.object({
 });
 
 type TransactionForm = z.infer<typeof transactionSchema>;
+type TransactionSubmission = TransactionForm & { clientToken: string };
 
 type PostTransactionArgs = Database["public"]["Functions"]["post_transaction"]["Args"];
 
@@ -465,7 +465,7 @@ export function NewTransactionPage() {
 
   /* -- Mutation -- */
   const postMutation = useMutation({
-    mutationFn: async (data: TransactionForm) => {
+    mutationFn: async (data: TransactionSubmission) => {
       const organizationId = orgData?.organization?.id;
       if (!organizationId) throw new Error("Organisasi tidak ditemukan");
 
@@ -476,35 +476,6 @@ export function NewTransactionPage() {
       const shouldUsePaymentStatus = usesPaymentStatus(data.transactionType);
       const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
       const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
-      let partyId: string | null = null;
-
-      if (shouldUseParty && data.partyName && data.partyName.trim()) {
-        const partyName = data.partyName.trim();
-        const { data: existingParties, error: partyLookupError } = await supabase
-          .from("parties")
-          .select("id")
-          .eq("organization_id", organizationId)
-          .ilike("name", partyName)
-          .limit(1);
-        if (partyLookupError) throw partyLookupError;
-
-        if (existingParties && existingParties.length > 0) {
-          partyId = existingParties[0].id;
-        } else {
-          const { data: newParty, error: partyError } = await supabase
-            .from("parties")
-            .insert({
-              organization_id: organizationId,
-              name: partyName,
-              party_type: partyTypeForTransaction(data.transactionType),
-              is_active: true,
-            })
-            .select("id")
-            .single();
-          if (partyError) throw partyError;
-          partyId = newParty.id;
-        }
-      }
 
       const rpcParams: PostTransactionArgs = {
         p_organization_id: organizationId,
@@ -514,9 +485,10 @@ export function NewTransactionPage() {
         p_payment_status: paymentStatus,
         p_partial_amount: data.partialAmount ?? 0,
         p_description: data.description,
+        p_client_token: data.clientToken,
       };
 
-      if (shouldUseParty && partyId) rpcParams.p_party_id = partyId;
+      if (shouldUseParty && data.partyName?.trim()) rpcParams.p_party_name = data.partyName.trim();
 
       // CoA account ID for debit account (expense/cogs purchases)
       if (shouldUseCategory && data.debitAccountId) {
@@ -570,16 +542,16 @@ export function NewTransactionPage() {
       // P1.5: invalidate every query key affected by a financial mutation so
       // dashboard, reports, accounts, products, parties, and usage do not
       // display stale data after a successful post.
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
       queryClient.invalidateQueries({ queryKey: queryKeys.monthlyUsage(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["profit-loss"] });
-      queryClient.invalidateQueries({ queryKey: ["balance-sheet"] });
-      queryClient.invalidateQueries({ queryKey: ["general-ledger"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allTrialBalance() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allProfitLoss() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allBalanceSheet() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allGeneralLedger() });
     },
   });
 
@@ -643,7 +615,7 @@ export function NewTransactionPage() {
       }
     }
 
-    postMutation.mutate(data);
+    postMutation.mutate({ ...data, clientToken: crypto.randomUUID() });
   };
 
   const scrollToError = () => {

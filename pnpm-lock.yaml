@@ -16,6 +16,9 @@ importers:
       '@ledjer/database-types':
         specifier: workspace:*
         version: link:../../packages/database-types
+      '@sentry/react':
+        specifier: ^10.61.0
+        version: 10.61.0(react@19.2.7)
       '@supabase/supabase-js':
         specifier: ^2.108.2
         version: 2.108.2
@@ -704,6 +707,36 @@ packages:
     resolution: {integrity: sha512-5L+T1fMX4RIEBoZzT0+sQ0PhTS36NULFmMXtl1TZo44TMAROIMHbZufSOjVWt/Y622BtxgxtaNOokbTDvfsrZA==}
     cpu: [x64]
     os: [win32]
+
+  '@sentry/browser-utils@10.61.0':
+    resolution: {integrity: sha512-kj/Qs5hz/VQPOLesgv9wq8O1z3aKSHSkyFiCSzaOthb8ARISchk8Eiukbvw9GxX2gmgsCd0L35gD6gxnhlE9ag==}
+    engines: {node: '>=18'}
+
+  '@sentry/browser@10.61.0':
+    resolution: {integrity: sha512-I02k3/tpCbQ+Dm3d1eA+JHVS452gY4fCTh+fT3FcfZkovB/WaeJcwc+ywQN1jpTYBRKZ1HbXXZQhEhXYvb8MkA==}
+    engines: {node: '>=18'}
+
+  '@sentry/core@10.61.0':
+    resolution: {integrity: sha512-Edg8t2w45qEKiFnjeA6zRmU47R6la5FEMG+maZEOB2oTyJ+ujmh8LGaZ3G8aC0VdkKn8CXhHtDesze6oDc1oTA==}
+    engines: {node: '>=18'}
+
+  '@sentry/feedback@10.61.0':
+    resolution: {integrity: sha512-DvG5pc2BibQjdvFC75u1S5DzghcFZ/juCDb2UnRKjiWnNhiUUAweAkUv4mMednrbuOeGOgO2R3CaiqIvDrAUAw==}
+    engines: {node: '>=18'}
+
+  '@sentry/react@10.61.0':
+    resolution: {integrity: sha512-p1Ay3ZfDONSxU2rnX5sMxvxJ9TUi9XzczTN87lVQ29V/PColaRzmRoYVRfrBjffG17ksxYoYhbqipurJk+45cg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^16.14.0 || 17.x || 18.x || 19.x
+
+  '@sentry/replay-canvas@10.61.0':
+    resolution: {integrity: sha512-n6QUN+qylEdKLcijpJsJ58ekY58kg0nG0dKxkD2wecKubl7B1mj/gwP35NmJOZ35vJTk/KbJeWB//finspJqYg==}
+    engines: {node: '>=18'}
+
+  '@sentry/replay@10.61.0':
+    resolution: {integrity: sha512-EkLaPR7A89mRGucZY9WxKLGeiRKMuNeGfIthLrs9cumUP8Smc80qxSAsF3NggRHSQEeYHDAifY/1q1qW16yvJg==}
+    engines: {node: '>=18'}
 
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
@@ -2354,6 +2387,40 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.0':
     optional: true
+
+  '@sentry/browser-utils@10.61.0':
+    dependencies:
+      '@sentry/core': 10.61.0
+
+  '@sentry/browser@10.61.0':
+    dependencies:
+      '@sentry/browser-utils': 10.61.0
+      '@sentry/core': 10.61.0
+      '@sentry/feedback': 10.61.0
+      '@sentry/replay': 10.61.0
+      '@sentry/replay-canvas': 10.61.0
+
+  '@sentry/core@10.61.0': {}
+
+  '@sentry/feedback@10.61.0':
+    dependencies:
+      '@sentry/core': 10.61.0
+
+  '@sentry/react@10.61.0(react@19.2.7)':
+    dependencies:
+      '@sentry/browser': 10.61.0
+      '@sentry/core': 10.61.0
+      react: 19.2.7
+
+  '@sentry/replay-canvas@10.61.0':
+    dependencies:
+      '@sentry/core': 10.61.0
+      '@sentry/replay': 10.61.0
+
+  '@sentry/replay@10.61.0':
+    dependencies:
+      '@sentry/browser-utils': 10.61.0
+      '@sentry/core': 10.61.0
 
   '@standard-schema/utils@0.3.0': {}
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { supabase } from "@/lib/supabase";
 import type { Enums } from "@ledjer/database-types";
 type TransactionStatus = Enums<"transaction_status">;
@@ -69,7 +70,7 @@ export function TransactionListPage() {
   const normalizedSearch = search.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ");
 
   const { data: transactions, isLoading, error, refetch } = useQuery({
-    queryKey: ["transactions", orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page],
+    queryKey: queryKeys.transactions.list(orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       let query = supabase

@@ -84,7 +84,7 @@ export function TransactionDetailPage() {
   // P1.3: Allow any member with transaction access to view business details.
   // Journal lines are separately gated by RLS (can_view_reports policy).
   const { data: transaction, isLoading, error, refetch } = useQuery({
-    queryKey: ["transaction", id],
+    queryKey: queryKeys.transactions.detail(id!),
     queryFn: async () => {
       if (!id || !orgData?.organization?.id) return null;
       const { data, error } = await supabase
@@ -103,7 +103,7 @@ export function TransactionDetailPage() {
   });
 
   const { data: createdByProfile } = useQuery({
-    queryKey: ["profile", transaction?.created_by],
+    queryKey: queryKeys.profile(transaction?.created_by),
     queryFn: async () => {
       if (!transaction?.created_by) return null;
       const profiles = await fetchProfilesByUserIds([transaction.created_by]);
@@ -113,7 +113,7 @@ export function TransactionDetailPage() {
   });
 
   const { data: journalEntries, error: journalError, refetch: refetchJournal } = useQuery({
-    queryKey: ["journal-entries", id],
+    queryKey: queryKeys.journalEntries.detail(id!),
     queryFn: async () => {
       if (!id || !orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -153,19 +153,19 @@ export function TransactionDetailPage() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transaction", id] });
-      queryClient.invalidateQueries({ queryKey: ["journal-entries", id] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["monthly-usage"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.journalEntries.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allMonthlyUsage() });
       // P1.5: void reverses stock, COGS, balances → invalidate everything
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
       queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: ["trial-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["profit-loss"] });
-      queryClient.invalidateQueries({ queryKey: ["balance-sheet"] });
-      queryClient.invalidateQueries({ queryKey: ["general-ledger"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allTrialBalance() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allProfitLoss() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allBalanceSheet() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allGeneralLedger() });
       setShowVoidForm(false);
     },
     onError: (err) => toast.error(translateError(err)),

@@ -375,8 +375,14 @@ If you need invoice-level tracking, file a feature request — adding it require
 
 **Transaction types:**
 - `opening_cash_balance`: Debit Cash/Bank, Credit Saldo Awal
-- `opening_receivable_balance`: Debit Piutang Usaha, Credit Saldo Awal
-- `opening_payable_balance`: Debit Saldo Awal, Credit Utang Usaha
+- `opening_receivable_balance`: Debit Piutang Usaha (1200), Credit Saldo Awal
+- `opening_payable_balance`: Debit Saldo Awal, Credit Utang Usaha (2100)
+- `opening_equity_balance`: Debit Saldo Awal, Credit the equity account (e.g. Modal Pemilik 3100)
+
+`post_opening_balance` accepts an active cash/bank account, Accounts Receivable
+(1200), Accounts Payable (2100), or any equity account, and chooses the debit/credit
+direction from the account's normal balance. The onboarding flow surfaces optional
+inputs for opening receivables, payables, and owner capital in addition to cash/bank.
 
 **Important:** Opening balances cannot be posted through the general `post_transaction` function. They must be created through:
 1. The onboarding flow (`create_organization_with_opening_balances`)
@@ -394,21 +400,45 @@ If you need invoice-level tracking, file a feature request — adding it require
 
 ## 13. Inventory Cost Policy
 
-Ledjer uses moving-average inventory cost. For product sales, the cost snapshot is the product's current `purchase_price` at posting time.
+Ledjer uses a **true moving weighted-average** inventory cost. For product sales, the cost snapshot is the product's current `purchase_price` (the moving average) at posting time.
+
+**Moving weighted-average model (`recalculate_product_average_cost`):**
+The average is recomputed by replaying every stock movement for the product in
+chronological order (`movement_date`, then `created_at`), maintaining a running
+on-hand quantity and a running on-hand value:
+- A purchase (or opening balance, or a voided sale that returns stock) adds
+  `quantity × unit_cost` to the running value and recomputes
+  `average = running_value / running_quantity`.
+- A sale (or a voided purchase that removes stock) reduces the running quantity
+  and rescales the running value to `running_quantity × average` — the average
+  itself is unchanged by a sale.
+- When on-hand quantity reaches 0 the running value resets to 0, but the last
+  average is preserved as the cost basis for the next purchase.
+
+This is a genuine moving average, **not** a cumulative-lifetime average over all
+purchases. Worked example — buy 10@100, sell all 10, then rebuy 10@200:
+- After buy: avg = 100.
+- After sell-all: on-hand 0, running value 0, avg basis preserved at 100.
+- After rebuy: avg = 200 (a cumulative-lifetime model would wrongly yield
+  `(1000 + 2000) / 20 = 150`, understating COGS and overstating inventory).
 
 **Product sale COGS:**
-- If the moving-average cost is greater than 0, Ledjer posts a separate COGS journal:
+- A product sale **requires** a moving-average cost greater than 0. If the cost
+  is 0 (e.g. `purchase_price` was never set), the sale is **rejected** with
+  `Harga pokok produk belum diatur…` so the Inventory ledger can never drift
+  away from physical stock by silently skipping COGS.
+- For an allowed sale, Ledjer posts a separate COGS journal:
   - Debit: COGS (5100)
   - Credit: Inventory (1300)
-- If the moving-average cost is 0, Ledjer does not post a zero-value COGS journal. The sale is allowed, the stock movement is still recorded, and the movement value is 0.
 
 **Stock movement valuation:**
 - Purchases record `unit_cost = unit_price`.
-- Sales record `unit_cost = current moving-average cost`, including 0.
-- Voiding a sale records a reverse stock movement with the original sale movement's `unit_cost`.
+- Sales record `unit_cost = current moving-average cost` (always > 0, since
+  zero-cost sales are blocked).
+- Voiding a sale records a reverse stock movement with the original sale movement's `unit_cost` and recalculates moving average cost.
 - Voiding a purchase records a reverse stock movement with the original purchase cost and recalculates moving average cost.
 
-**Invariant:** For a product lifecycle, the net Inventory GL movement for account 1300 must equal `SUM(stock_movements.quantity * stock_movements.unit_cost)` for the same product. This invariant must hold across buy, sell, and void sequences, including zero-cost sales where both sides have value 0.
+**Invariant:** For a product lifecycle, the net Inventory GL movement for account 1300 must equal `SUM(stock_movements.quantity * stock_movements.unit_cost)` for the same product, and equals on-hand `quantity × moving-average cost`. This invariant must hold across buy, sell, sell-then-rebuy, and void sequences (validated by `inventory_golden_tests.sql`).
 
 ---
 

@@ -153,8 +153,8 @@ BEGIN
 
     PERFORM public.post_transaction(
       v_oid, CURRENT_DATE, 'simple_adjustment', 100000,
-      NULL, NULL, v_cash_id, v_custom_acct, 'paid', NULL, NULL,
-      'T3 adjustment', NULL, NULL, NULL, NULL
+      NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL,
+      'T3 adjustment', NULL, NULL, NULL, NULL, v_custom_acct
     );
 
     -- Deactivate the custom account
@@ -183,7 +183,7 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- T-4: Zero-cost product sale — Inventory(1300) nets to 0 (P0-5)
+-- T-4: Zero-cost product sale — BLOCKED by P1-2a (harga pokok check)
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -191,10 +191,7 @@ DECLARE
   v_oid UUID;
   v_cash_id UUID;
   v_product_id UUID;
-  v_inventory_acct UUID;
-  v_cogs_acct UUID;
-  v_inv_balance NUMERIC;
-  v_cogs_balance NUMERIC;
+  v_error TEXT;
 BEGIN
   SELECT out_owner_user_id, out_organization_id, out_cash_account_id
   INTO v_owner, v_oid, v_cash_id
@@ -214,56 +211,33 @@ BEGIN
     NULL, 'T4 opening stock'
   );
 
-  -- Sell all 10 units
-  PERFORM public.post_transaction(
-    v_oid, CURRENT_DATE, 'cash_sale', 100000,
-    NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL,
-    'T4 zero cost sale', NULL, v_product_id, 10, 10000
-  );
+  -- Attempt to sell — should be blocked because purchase_price = 0
+  BEGIN
+    PERFORM public.post_transaction(
+      v_oid, CURRENT_DATE, 'cash_sale', 100000,
+      NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL,
+      'T4 zero cost sale attempt', NULL, v_product_id, 10, 10000
+    );
+    PERFORM public._test_fail('T-4', 'Zero-cost sale should have been blocked by harga pokok check');
+  EXCEPTION WHEN OTHERS THEN
+    v_error := SQLERRM;
+    PERFORM public._test_assert(
+      'T-4: zero-cost product sale is blocked',
+      v_error ILIKE '%harga pokok%' OR v_error ILIKE '%purchase_price%' OR v_error ILIKE '%belum diatur%',
+      'Unexpected: ' || v_error
+    );
+  END;
 
-  -- Check Inventory account (1300) balance
-  SELECT id INTO v_inventory_acct FROM public.accounts
-  WHERE organization_id = v_oid AND code = 1300 LIMIT 1;
-
-  SELECT id INTO v_cogs_acct FROM public.accounts
-  WHERE organization_id = v_oid AND code = 5100 LIMIT 1;
-
-  -- Inventory should be 0 after selling all units (was debited on purchase, credited on sale)
-  SELECT COALESCE(SUM(debit - credit), 0) INTO v_inv_balance
-  FROM public.journal_lines jl
-  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.account_id = v_inventory_acct
-    AND je.organization_id = v_oid
-    AND je.status = 'posted';
-
-  PERFORM public._test_assert_eq_numeric(
-    'T-4a: Inventory(1300) net = 0 after zero-cost sale',
-    v_inv_balance, 0, 0.01
-  );
-
-  -- COGS should also be 0 (zero cost × 10 = 0)
-  SELECT COALESCE(SUM(debit - credit), 0) INTO v_cogs_balance
-  FROM public.journal_lines jl
-  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
-  WHERE jl.account_id = v_cogs_acct
-    AND je.organization_id = v_oid
-    AND je.status = 'posted';
-
-  PERFORM public._test_assert_eq_numeric(
-    'T-4b: COGS(5100) = 0 for zero-cost sale',
-    v_cogs_balance, 0, 0.01
-  );
-
-  -- Stock movement should exist even for zero-cost (quantity tracking)
+  -- Verify no journal was created for the failed sale
   PERFORM public._test_assert(
-    'T-4c: stock movement recorded for zero-cost sale',
-    EXISTS (
-      SELECT 1 FROM public.stock_movements
+    'T-4b: no journal entries created for blocked zero-cost sale',
+    NOT EXISTS (
+      SELECT 1 FROM public.journal_entries
       WHERE organization_id = v_oid
-        AND product_id = v_product_id
-        AND movement_type = 'sale'
+        AND description ILIKE '%T4 zero cost sale%'
+        AND status = 'posted'
     ),
-    'No stock movement found for zero-cost sale'
+    'Journal entries should not exist for a blocked sale'
   );
 END $$;
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ export function BalanceSheetPage() {
   const [asOfDate, setAsOfDate] = useState(formatDateInputValue());
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["balance-sheet", orgData?.organization?.id, asOfDate],
+    queryKey: queryKeys.reports.balanceSheet(orgData?.organization?.id, asOfDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase.rpc("get_balance_sheet", {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ export function ProfitLossPage() {
   const dateRangeInvalid = fromDate > toDate;
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["profit-loss", orgData?.organization?.id, fromDate, toDate],
+    queryKey: queryKeys.reports.profitLoss(orgData?.organization?.id, fromDate, toDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase.rpc("get_profit_loss", {

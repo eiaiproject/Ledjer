@@ -9,12 +9,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setLoading(false);
+      });
 
     const {
       data: { subscription },
@@ -27,6 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [queryClient]);
+
+  const retryLoadSession = () => {
+    setLoading(true);
+    setError(null);
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setLoading(false);
+      });
+  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -75,6 +95,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
   };
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-cream-100 px-4 py-12 text-center" role="alert">
+        <div className="w-full max-w-sm rounded-lg border border-wood-200 bg-surface p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-wood-900">Gagal memuat sesi</h2>
+          <p className="mt-2 text-sm text-wood-500">
+            Terjadi kesalahan koneksi saat memverifikasi sesi Anda. Silakan coba lagi.
+          </p>
+          <button
+            onClick={retryLoadSession}
+            className="mt-4 w-full rounded-md bg-wood-500 py-2 text-sm font-medium text-white hover:bg-wood-600 active:bg-wood-700 cursor-pointer"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider

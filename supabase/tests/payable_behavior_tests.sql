@@ -25,6 +25,7 @@ DECLARE
   v_rev_id     UUID;
 
   v_supplier_id UUID;
+  v_expense_id  UUID;
 
   v_credit_purchase_id UUID;
   v_pay_payable_id     UUID;
@@ -49,6 +50,11 @@ BEGIN
   IF v_cash_id IS NULL THEN PERFORM public._test_fail('SETUP', 'cash account missing'); END IF;
   IF v_pay_id IS NULL THEN PERFORM public._test_fail('SETUP', 'payable account missing'); END IF;
 
+  -- Get an expense account for non-product credit purchases
+  SELECT id INTO v_expense_id FROM public.accounts
+  WHERE organization_id = v_org_id AND code = 6190 AND is_active = true LIMIT 1;
+  IF v_expense_id IS NULL THEN PERFORM public._test_fail('SETUP', 'expense account 6190 missing'); END IF;
+
   PERFORM public._test_impersonate(v_owner_id);
 
   -- Create a supplier party
@@ -62,9 +68,9 @@ BEGIN
 
   -- Step 1: post a credit_purchase (unpaid) to create a payable of 500,000
   v_credit_purchase_id := (public.post_transaction(
-    v_org_id, CURRENT_DATE, 'credit_purchase', 500000,
+    v_org_id, CURRENT_DATE, 'credit_purchase', 500000::numeric,
     v_supplier_id, NULL, NULL, NULL, 'unpaid', NULL, NULL,
-    'Pembelian kredit ke supplier', NULL, NULL, NULL, NULL, NULL
+    'Pembelian kredit ke supplier', NULL, NULL, NULL, NULL, v_expense_id, NULL
   ) ->> 'transaction_id')::UUID;
 
   -- Payable should now be 500,000 (credit balance, displayed as positive)
@@ -186,9 +192,9 @@ BEGIN
 
   -- Create another unpaid credit_purchase of 200,000
   v_credit_purchase_id := (public.post_transaction(
-    v_org_id, CURRENT_DATE, 'credit_purchase', 200000,
+    v_org_id, CURRENT_DATE, 'credit_purchase', 200000::numeric,
     v_supplier_id, NULL, NULL, NULL, 'unpaid', NULL, NULL,
-    'Pembelian kredit ke-2', NULL, NULL, NULL, NULL, NULL
+    'Pembelian kredit ke-2', NULL, NULL, NULL, NULL, v_expense_id, NULL
   ) ->> 'transaction_id')::UUID;
 
   v_pay_payable_id := (public.post_transaction(

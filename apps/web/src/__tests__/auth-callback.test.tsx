@@ -144,7 +144,7 @@ describe('AuthCallbackPage', () => {
     });
 
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
-    expect(screen.getByText(/token has expired or is invalid/i)).toBeTruthy();
+    expect(screen.getByText(/Token telah kedaluwarsa/i)).toBeTruthy();
   });
 
   it('shows error state on code exchange failure', async () => {
@@ -159,7 +159,7 @@ describe('AuthCallbackPage', () => {
     });
 
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
-    expect(screen.getByText(/invalid grant/i)).toBeTruthy();
+    expect(screen.getByText(/Kode verifikasi tidak valid/i)).toBeTruthy();
   });
 
   it('resends confirmation email successfully', async () => {

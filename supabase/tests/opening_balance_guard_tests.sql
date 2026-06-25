@@ -296,6 +296,110 @@ BEGIN
   END;
 END $$;
 
+-- ═══════════════════════════════════════════════════════════════════
+-- PART E: post_opening_balance supports AR (1200), AP (2100) and equity
+--         (Modal 3100), each balanced against Saldo Awal (3200), and the
+--         resulting balance sheet ties out (P2-1).
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_owner_id   UUID;
+  v_staff_id   UUID;
+  v_org_id     UUID;
+  v_cash_id    UUID;
+  v_pay_id     UUID;
+  v_rev_id     UUID;
+
+  v_ar_id      UUID;
+  v_ap_id      UUID;
+  v_modal_id   UUID;
+
+  v_total_assets      NUMERIC;
+  v_total_liabilities NUMERIC;
+  v_total_equity      NUMERIC;
+  v_unbalanced        INTEGER;
+BEGIN
+  SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
+         t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
+    INTO v_owner_id, v_staff_id, v_org_id, v_cash_id, v_pay_id, v_rev_id
+  FROM public._test_create_org_with_users('OPENING AR-AP-EQUITY ORG', CURRENT_DATE) AS t;
+
+  PERFORM public._test_impersonate(v_owner_id);
+
+  SELECT id INTO v_ar_id    FROM public.accounts WHERE organization_id = v_org_id AND code = 1200 AND is_active = true;
+  SELECT id INTO v_ap_id    FROM public.accounts WHERE organization_id = v_org_id AND code = 2100 AND is_active = true;
+  SELECT id INTO v_modal_id FROM public.accounts WHERE organization_id = v_org_id AND code = 3100 AND is_active = true;
+
+  IF v_ar_id IS NULL OR v_ap_id IS NULL OR v_modal_id IS NULL THEN
+    PERFORM public._test_fail('SETUP.E', 'default AR(1200)/AP(2100)/Modal(3100) accounts missing');
+  END IF;
+
+  -- Opening cash, AR, AP and equity, all while org is still in_progress.
+  PERFORM public.post_opening_balance(v_org_id, v_cash_id,  1000000, 'Saldo awal kas',     CURRENT_DATE);
+
+  -- E1: opening AR posts a balanced journal
+  PERFORM public.post_opening_balance(v_org_id, v_ar_id,     500000, 'Saldo awal piutang', CURRENT_DATE);
+  PERFORM public._test_assert_eq_numeric(
+    'OG.E1: AR (1200) balance = 500,000 after opening receivable',
+    public.get_account_balance(v_ar_id, NULL), 500000);
+
+  -- E2: opening AP posts a balanced journal (liability, normal credit)
+  PERFORM public.post_opening_balance(v_org_id, v_ap_id,     300000, 'Saldo awal utang',   CURRENT_DATE);
+  PERFORM public._test_assert_eq_numeric(
+    'OG.E2: AP (2100) balance = 300,000 after opening payable',
+    public.get_account_balance(v_ap_id, NULL), 300000);
+
+  -- E3: opening equity (Modal 3100) posts a balanced journal
+  PERFORM public.post_opening_balance(v_org_id, v_modal_id,  200000, 'Saldo awal modal',   CURRENT_DATE);
+  PERFORM public._test_assert_eq_numeric(
+    'OG.E3: Modal (3100) balance = 200,000 after opening equity',
+    public.get_account_balance(v_modal_id, NULL), 200000);
+
+  -- E4: every opening journal entry balances (Σdebit = Σcredit, penny-exact)
+  SELECT COUNT(*) INTO v_unbalanced
+  FROM (
+    SELECT jl.journal_entry_id
+    FROM public.journal_lines jl
+    JOIN public.journal_entries je ON je.id = jl.journal_entry_id
+    WHERE jl.organization_id = v_org_id AND je.status = 'posted'
+    GROUP BY jl.journal_entry_id
+    HAVING ABS(COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0)) <> 0
+  ) unbalanced_entries;
+
+  PERFORM public._test_assert(
+    'OG.E4: all opening journal entries balance',
+    v_unbalanced = 0,
+    format('%s unbalanced journal entries found', v_unbalanced)
+  );
+
+  -- E5: balance sheet ties out — assets = liabilities + equity
+  SELECT COALESCE(SUM(jl.debit - jl.credit), 0) INTO v_total_assets
+  FROM public.journal_lines jl
+  JOIN public.accounts a ON a.id = jl.account_id
+  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'asset' AND je.status = 'posted';
+
+  SELECT COALESCE(SUM(jl.credit - jl.debit), 0) INTO v_total_liabilities
+  FROM public.journal_lines jl
+  JOIN public.accounts a ON a.id = jl.account_id
+  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'liability' AND je.status = 'posted';
+
+  SELECT COALESCE(SUM(jl.credit - jl.debit), 0) INTO v_total_equity
+  FROM public.journal_lines jl
+  JOIN public.accounts a ON a.id = jl.account_id
+  JOIN public.journal_entries je ON je.id = jl.journal_entry_id
+  WHERE jl.organization_id = v_org_id AND a.account_type = 'equity' AND je.status = 'posted';
+
+  PERFORM public._test_assert_eq_numeric(
+    'OG.E5: balance sheet ties out (assets = liabilities + equity)',
+    v_total_assets, v_total_liabilities + v_total_equity);
+
+  -- Sanity: assets = 1,000,000 cash + 500,000 AR = 1,500,000
+  PERFORM public._test_assert_eq_numeric(
+    'OG.E6: total assets = 1,500,000', v_total_assets, 1500000);
+END $$;
+
 -- Cleanup
 
 DO $$ BEGIN RAISE NOTICE '=== Opening Balance Guard Tests Complete ==='; END $$;

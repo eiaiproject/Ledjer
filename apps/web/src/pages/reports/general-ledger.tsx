@@ -50,7 +50,7 @@ export function GeneralLedgerPage() {
   });
 
   const { data: ledger, isLoading, error, refetch } = useQuery({
-    queryKey: ["general-ledger", orgData?.organization?.id, accountId, fromDate, toDate],
+    queryKey: queryKeys.reports.generalLedger(orgData?.organization?.id, accountId, fromDate, toDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
 

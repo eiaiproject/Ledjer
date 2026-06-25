@@ -1,6 +1,6 @@
 # Ledjer — Production Readiness Checklist
 
-Last verified: 2026-06-25 against the active baseline migration `supabase/migrations/00000000000000_baseline.sql` plus archived historical migrations in `supabase/migrations/archive/`.
+Last verified: 2026-06-25 against the active baseline migration `supabase/migrations/00000000000000_baseline.sql` plus 4 active dated migrations.
 
 ## Status Legend
 
@@ -44,6 +44,10 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | Opening balance restricted to owner | ✅ | `post_opening_balance` checks `role = 'owner'` |
 | Opening balance rejected after setup | ✅ | `post_opening_balance` rejects if `onboarding_status='completed'` or normal transactions exist |
 | **Opening balance rejected via `post_transaction`** | ✅ | Guard added in `20260726_000000_harden_rls_and_reject_opening_balances.sql` |
+| **login_attempts INSERT locked down** | ✅ | `20260625184100_master_induk_fixes.sql`: policy dropped, REVOKE from anon/authenticated |
+| **Zero-cost sale blocked** | ✅ | `post_transaction` raises if `purchase_price = 0` on sale |
+| **Idempotency via client_token** | ✅ | `transactions.client_token` column + partial unique index; RPC returns existing result on duplicate token |
+| **Dead `post_transaction_impl_20260702` removed** | ✅ | DROP FUNCTION in `20260625184100_master_induk_fixes.sql` |
 | Internal helpers not externally callable | ✅ | `validate_product_sale_accounts`, `recalculate_product_average_cost`, `record_stock_movement` are REVOKED from anon/authenticated |
 | HSTS configured | ✅ | `apps/web/public/_headers` and `apps/web/vercel.json` both emit `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` |
 | CSP scoped consistently | ✅ | `apps/web/public/_headers` and `apps/web/vercel.json` must mirror the exact same CSP value; update both in the same commit |
@@ -69,7 +73,7 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | **Weighted average COGS** — purchase, purchase-void, sale, sale-void | ✅ | `recalculate_product_average_cost` uses signed quantities (Phase 5 fix) |
 | Transaction numbering unique | ✅ | Unique on `(organization_id, transaction_number)` |
 | Entry numbering unique | ✅ | Unique on `(organization_id, entry_number)` |
-| `post_transaction` single canonical overload | ✅ | All overloads dropped, single 17-param function with 11 general types |
+| `post_transaction` single canonical overload | ✅ | All overloads dropped, single 19-param function with `p_client_token` and server-side `p_party_name` resolution |
 | `p_debit_account_id` in signature | ✅ | Matches frontend TypeScript types and RPC calls |
 | **Initial product stock uses `books_start_date`** | ✅ | `record_initial_product_stock` no longer uses `CURRENT_DATE` (Phase 6) |
 | **Initial stock blocked post-onboarding** | ✅ | Trigger raises if `onboarding_status='completed'` and `current_stock > 0` |
@@ -117,7 +121,9 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | **Auth recovery redirects to `/reset-password`** | ✅ | New `apps/web/src/pages/reset-password.tsx` page; recovery email links no longer land on unrelated team settings |
 | **Direct financial write tests not false-green** | ✅ | `accounting_regression_tests.sql` T8 inserts a fully-valid row and asserts failure is RLS, not NOT NULL/FK/check |
 | **`pay_payable` direction tested behaviourally** | ✅ | New `supabase/tests/payable_behavior_tests.sql` |
-| **Opening balance guard tested behaviourally** | ✅ | New `supabase/tests/opening_balance_guard_tests.sql` |
+| **Opening balance guard tested behaviourally** | ✅ | `supabase/tests/opening_balance_guard_tests.sql` — incl. PART E: opening AR/AP/equity post balanced journals and balance sheet ties out |
+| **Master fix regression tests** | ✅ | `supabase/tests/master_fix_regression_tests.sql` — login_attempts INSERT blocked, zero-cost sale blocked, post/void idempotency dedup, pay_payable direction |
+| **Moving-average + zero-cost inventory tested** | ✅ | `supabase/tests/inventory_golden_tests.sql` — sell→rebuy moving avg = 200 (not cumulative 150), zero-cost sale blocked, Inventory-GL invariant |
 | **Staff permissions + cross-org RLS tested behaviourally** | ✅ | New `supabase/tests/permission_matrix_tests.sql` |
 
 **Remaining risks:**
@@ -145,15 +151,15 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Error logging | ⚠️ | Console errors only |
-| Performance monitoring | ❌ | Not implemented |
+| Error logging | ✅ | Console errors & Sentry error tracking wired behind `VITE_SENTRY_DSN` |
+| Performance monitoring | ✅ | Sentry performance monitoring configured |
 | Uptime monitoring | ❌ | Not configured |
-| Alerting | ❌ | Not configured |
+| Alerting | ⚠️ | Enabled through Sentry alerting (needs configuration in Sentry Dashboard) |
 
 **Required before production:**
 - Set up Supabase dashboard monitoring.
-- Configure error tracking (Sentry or similar).
 - Set up uptime monitoring.
+- Configure Sentry alerts in Sentry project dashboard.
 
 ---
 
@@ -171,7 +177,7 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 | **SQL behavioural permission matrix + cross-org RLS** | ✅ | `supabase/tests/permission_matrix_tests.sql` (PM1.1–PM6.3) |
 | **SQL helper factories** | ✅ | `_test_impersonate`, `_test_create_org_with_users` in `_test_helpers.sql` |
 | **Direct INSERT test not false-green** | ✅ | T8 supplies every required column and asserts failure is RLS, not NOT NULL / FK |
-| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 95 tests across 10 files (auth-callback, forgot-password, login, password-recovery-flow, reset-password, rpc-args-contract, smoke, transaction-helpers, transactions, transaction-usage) |
+| Frontend unit tests | ✅ | `apps/web/src/__tests__/` — 113 tests across 13 files (auth-callback, auth-provider, forgot-password, login, password-recovery-flow, reset-password, rpc-args-contract, smoke, transaction-helpers, transactions, transaction-usage, query-keys, errors) |
 | Auth-callback integration tests | ✅ | `auth-callback.test.tsx` covers code exchange, token_hash, invalid/expired, resend, recovery → `/reset-password` |
 | Migration CI guard | ✅ | `.github/workflows/ci.yml` fails if any migration references `_test_assert` |
 | **Packaging CI guard** | ✅ | `guard-package-clean` job runs `scripts/check-package-clean.sh` against `git archive` tarball and `git ls-files` zip |
@@ -204,8 +210,8 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 |------|--------|-------|
 | Supabase migrations applied | ⚠️ | Must apply active baseline `00000000000000_baseline.sql` to the target database |
 | Frontend build verified | ✅ | `pnpm --filter web build` passes |
-| Environment variables set | ⚠️ | Must configure in hosting platform |
-| Domain configured | ❌ | Not configured |
+| Environment variables set | ⚠️ | Must configure in hosting platform (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, optional `VITE_SENTRY_DSN`) |
+| Domain configured | ✅ | `supabase/config.toml` uses `site_url = "https://app.ledjer.id"` and whitelists `https://app.ledjer.id/auth/callback`; local dev URLs remain whitelisted |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 
 **Most recent verification (2026-06-25):**
@@ -214,20 +220,18 @@ The following commands were actually executed:
 
 ```bash
 pnpm --filter web typecheck          # ✅ tsc -b clean, 0 errors
-pnpm --filter web lint               # ✅ eslint clean, 0 errors
-pnpm --filter web test               # ✅ 95 tests passed (10 files)
-pnpm --filter web build              # ✅ vite production build passed
+pnpm db-types:check                  # ✅ canonical DB types + shim guard passed (1634 lines)
 bash scripts/check-migration-naming.sh
-                                    # ✅ 1 active migration, canonical, strictly increasing
-pnpm db-types:check                  # ✅ canonical DB types + shim guard passed
-grep -RI "_test_assert" supabase/migrations/ && exit 1 || true
+                                    # ✅ 5 active migrations, canonical, strictly increasing
+pnpm --filter web lint               # ✅ eslint clean, 0 errors
+pnpm --filter web test               # ✅ 113 tests passed (13 files)
+pnpm --filter web build              # ✅ vite production build passed
+if rg -n "_test_assert|_test_fail|_test_impersonate|_test_cleanup|_test_create" supabase/migrations --glob '!archive/**'; then exit 1; else true; fi
                                     # ✅ no test helper leak in migrations
-/tmp/supabase-cli-2.107.0/bin/supabase start --workdir .
-/tmp/supabase-cli-2.107.0/bin/supabase db reset --workdir . --no-seed
+supabase db reset --workdir . --no-seed
 docker exec -w /tmp/ledjer supabase_db_Ledjer \
   psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
   -f supabase/tests/run_all.sql      # ✅ all SQL suites passed
-/tmp/supabase-cli-2.107.0/bin/supabase stop --workdir . --no-backup
 ```
 
 The host machine did not have a native `psql` binary, so the SQL runner was executed with `psql` inside the local Supabase Postgres container after copying `supabase/tests` into `/tmp/ledjer`.
@@ -288,9 +292,9 @@ Always regenerate the archive from a clean checkout.
 ## Launch Blockers
 
 1. Run CI workflow green end-to-end (frontend + Supabase jobs).
-2. Apply all migrations up to `20260727_000000_fix_initial_product_stock_date.sql`.
-3. Set up error monitoring (Sentry or similar).
-4. Configure environment variables in production: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+2. Apply all active migrations (baseline + the 4 dated migrations, ending with `20260625184100_master_induk_fixes.sql`).
+3. Error monitoring wired (Sentry behind `VITE_SENTRY_DSN`) — set the DSN and configure alerts in the Sentry dashboard.
+4. Configure environment variables in production: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optional `VITE_SENTRY_DSN`. Confirm Supabase Auth URL Configuration has Site URL `https://app.ledjer.id` and Redirect URL `https://app.ledjer.id/auth/callback`.
 5. Rotate Supabase anon key if it was ever in version control.
 
 ## Recommended Before Launch

@@ -116,7 +116,6 @@ export function LoginPage() {
       resetRateLimit(localRateLimitKey);
       void supabase.rpc("record_login_attempt", {
         p_email: email,
-        p_success: true,
         p_user_agent: navigator.userAgent,
       });
       navigate("/dashboard");

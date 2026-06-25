@@ -31,6 +31,9 @@ const accountSchema = z.object({
 
 const cashSetupSchema = z.object({
   accounts: z.array(accountSchema).min(1, "Minimal satu akun"),
+  openingReceivable: z.number().min(0, "Saldo tidak boleh negatif"),
+  openingPayable: z.number().min(0, "Saldo tidak boleh negatif"),
+  openingEquity: z.number().min(0, "Saldo tidak boleh negatif"),
 });
 
 type BusinessForm = z.infer<typeof businessSchema>;
@@ -94,6 +97,9 @@ export function OnboardingPage() {
         { accountCode: "1110", openingBalance: 0 },
         { accountCode: "1120", openingBalance: 0 },
       ],
+      openingReceivable: 0,
+      openingPayable: 0,
+      openingEquity: 0,
     },
   });
 
@@ -156,6 +162,31 @@ export function OnboardingPage() {
         extraBankNumber += 1;
       }
 
+      // Optional non-cash opening balances for migrating businesses. Each is
+      // posted by create_organization_with_opening_balances → post_opening_balance,
+      // balanced against Saldo Awal (3200). Only positive amounts are sent.
+      if (data.openingReceivable > 0) {
+        extraOpeningBalances.push({
+          accountCode: "1200",
+          openingBalance: data.openingReceivable,
+          description: "Saldo awal piutang usaha",
+        });
+      }
+      if (data.openingPayable > 0) {
+        extraOpeningBalances.push({
+          accountCode: "2100",
+          openingBalance: data.openingPayable,
+          description: "Saldo awal utang usaha",
+        });
+      }
+      if (data.openingEquity > 0) {
+        extraOpeningBalances.push({
+          accountCode: "3100",
+          openingBalance: data.openingEquity,
+          description: "Saldo awal modal pemilik",
+        });
+      }
+
       const { data: orgResponse, error: orgError } = await supabase.rpc("create_organization_with_opening_balances", {
         p_organization_name: businessData.organizationName,
         p_business_type: businessData.businessType,
@@ -180,9 +211,9 @@ export function OnboardingPage() {
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["organization"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.allOrganization() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId) });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(orgId) });
       navigate("/dashboard", { replace: true });
     } catch (err) {
       if (import.meta.env.DEV) console.error("Error creating organization:", err);
@@ -383,6 +414,67 @@ export function OnboardingPage() {
                 >
                   Tambah rekening bank lain
                 </Button>
+
+                {/* Optional non-cash opening balances for migrating businesses */}
+                <div className="space-y-3 rounded-lg border border-wood-200 bg-cream-50 p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-wood-700">Saldo awal lainnya</p>
+                    <p className="text-xs text-text-tertiary">
+                      Opsional. Untuk bisnis yang sudah berjalan: isi piutang, utang, atau modal awal.
+                    </p>
+                  </div>
+
+                  <Controller
+                    control={cashForm.control}
+                    name="openingReceivable"
+                    render={({ field }) => (
+                      <Input
+                        label="Piutang Usaha (belum tertagih dari pelanggan)"
+                        type="text"
+                        inputMode="numeric"
+                        value={formatAmountInput(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
+                        placeholder="0"
+                        error={cashForm.formState.errors.openingReceivable?.message}
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={cashForm.control}
+                    name="openingPayable"
+                    render={({ field }) => (
+                      <Input
+                        label="Utang Usaha (belum dibayar ke pemasok)"
+                        type="text"
+                        inputMode="numeric"
+                        value={formatAmountInput(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
+                        placeholder="0"
+                        error={cashForm.formState.errors.openingPayable?.message}
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={cashForm.control}
+                    name="openingEquity"
+                    render={({ field }) => (
+                      <Input
+                        label="Modal Pemilik"
+                        type="text"
+                        inputMode="numeric"
+                        value={formatAmountInput(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
+                        placeholder="0"
+                        error={cashForm.formState.errors.openingEquity?.message}
+                      />
+                    )}
+                  />
+                </div>
 
                 <div className="flex gap-3">
                   <Button type="button" variant="outline" fullWidth onClick={() => setStep(1)} disabled={loading}>

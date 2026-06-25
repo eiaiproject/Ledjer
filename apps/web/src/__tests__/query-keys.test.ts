@@ -91,4 +91,37 @@ describe("queryKeys", () => {
       expect(queryKeys.products.fullList(org1)).not.toEqual(queryKeys.products.fullList(org2));
     });
   });
+
+  describe("transactions", () => {
+    it("all() prefix matches list and detail query keys", () => {
+      const allPrefix = queryKeys.transactions.all();
+      const listKey = queryKeys.transactions.list(ORG_ID, "search");
+      const detailKey = queryKeys.transactions.detail("id-123");
+
+      expect(listKey[0]).toBe(allPrefix[0]);
+      expect(detailKey[0]).toBe("transaction"); // Detail doesn't use prefix, it uses "transaction" key directly
+    });
+  });
+
+  describe("journalEntries", () => {
+    it("all() prefix matches detail query keys", () => {
+      const allPrefix = queryKeys.journalEntries.all();
+      const detailKey = queryKeys.journalEntries.detail("id-123");
+
+      expect(detailKey[0]).toBe(allPrefix[0]);
+    });
+  });
+
+  describe("newly consolidated keys", () => {
+    it("allDashboard, profile, and allOrganization return correct static/dynamic keys", () => {
+      expect(queryKeys.allDashboard()).toEqual(["dashboard"]);
+      expect(queryKeys.profile("user-123")).toEqual(["profile", "user-123"]);
+      expect(queryKeys.allOrganization()).toEqual(["organization"]);
+    });
+
+    it("monthlyUsage and allMonthlyUsage return correct keys", () => {
+      expect(queryKeys.monthlyUsage(ORG_ID)).toEqual(["monthly-usage", ORG_ID]);
+      expect(queryKeys.allMonthlyUsage()).toEqual(["monthly-usage"]);
+    });
+  });
 });

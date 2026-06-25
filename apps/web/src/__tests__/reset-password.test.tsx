@@ -165,7 +165,7 @@ describe('ResetPasswordPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /perbarui password/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/password should be different/i)).toBeTruthy();
+      expect(screen.getByText(/Password baru harus berbeda/i)).toBeTruthy();
     });
     expect(mocks.signOut).not.toHaveBeenCalled();
   });

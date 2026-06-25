@@ -19,18 +19,51 @@ const AUTH_MESSAGES: Record<string, string> = {
   user_not_found: 'Email tidak terdaftar.',
   weak_password: 'Password terlalu lemah. Gunakan minimal 8 karakter.',
   email_not_confirmed: 'Silakan verifikasi email Anda terlebih dahulu.',
+  token_expired: 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
+  'Token has expired': 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
+  'Invalid grant': 'Kode verifikasi tidak valid. Silakan coba lagi.',
+  'Password should be different': 'Password baru harus berbeda dari password lama.',
+  same_password: 'Password baru harus berbeda dari password lama.',
 };
 
 export function translateError(error: unknown): string {
   if (!error) return 'Terjadi kesalahan. Silakan coba lagi.';
 
+  // Handle Supabase error objects with code property (e.g. PostgrestError)
+  const errorObj = error as Record<string, unknown>;
+  if (errorObj && typeof errorObj === 'object') {
+    const code = errorObj.code as string | undefined;
+    const message = errorObj.message as string | undefined;
+
+    // P0001 is user-defined exception (RAISE EXCEPTION) in Postgres
+    if (code === 'P0001' && message) {
+      return message;
+    }
+
+    if (code && ERROR_MAP[code]) return ERROR_MAP[code];
+
+    // Supabase Auth errors come as plain objects {message: '...'} without error codes
+    if (message) {
+      for (const [key, msg] of Object.entries(AUTH_MESSAGES)) {
+        if (message.toLowerCase().includes(key.toLowerCase())) return msg;
+      }
+      if (message.includes('JWT')) return AUTH_MESSAGES.JWT_INVALID;
+    }
+  }
+
   // Handle Error objects
   if (error instanceof Error) {
     const message = error.message;
+    const code = (error as unknown as Record<string, unknown>).code as string | undefined;
+
+    // Check if Postgres SQLSTATE is P0001
+    if (code === 'P0001') {
+      return message;
+    }
 
     // Check for known Postgres error codes embedded in message
-    for (const [code, msg] of Object.entries(ERROR_MAP)) {
-      if (message.includes(code)) return msg;
+    for (const [c, msg] of Object.entries(ERROR_MAP)) {
+      if (message.includes(c)) return msg;
     }
 
     // Auth errors
@@ -41,27 +74,9 @@ export function translateError(error: unknown): string {
     // JWT errors
     if (message.includes('JWT')) return AUTH_MESSAGES.JWT_INVALID;
 
-    // RPC exceptions (Postgres RAISE EXCEPTION) — already in Indonesian from backend
-    if (/^[A-Z]/.test(message) && message.length > 10) {
-      return message;
-    }
-
     // Network errors
     if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
       return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
-    }
-  }
-
-  // Handle Supabase error objects with code property
-  const errorObj = error as Record<string, unknown>;
-  if (errorObj && typeof errorObj === 'object') {
-    const code = errorObj.code as string | undefined;
-    if (code && ERROR_MAP[code]) return ERROR_MAP[code];
-
-    const message = errorObj.message as string | undefined;
-    if (message) {
-      // RPC exceptions (Postgres RAISE EXCEPTION) — already in Indonesian
-      if (/^[A-Z][a-z]/.test(message)) return message;
     }
   }
 

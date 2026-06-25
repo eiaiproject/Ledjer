@@ -129,7 +129,7 @@ BEGIN
   FROM pg_proc
   WHERE proname = 'post_transaction'
     AND pronamespace = 'public'::regnamespace
-    AND pronargs = 17
+    AND pronargs = 19
   LIMIT 1;
   PERFORM public._test_assert('post_transaction is SECURITY DEFINER',
     v_secdef = true, 'prosecdef=' || COALESCE(v_secdef::TEXT, 'NULL'));

@@ -147,7 +147,7 @@ Supabase mengirim email dengan template default-nya. Untuk customize branding (l
 
 ### 3. Site URL
 
-`site_url` di `config.toml` adalah default redirect ketika tidak ada `redirectTo` parameter. Set ke production URL setelah launch:
+`site_url` di `config.toml` adalah default redirect ketika tidak ada `redirectTo` parameter. Nilai yang dikomit harus menunjuk ke domain produksi:
 
 ```toml
 [auth]

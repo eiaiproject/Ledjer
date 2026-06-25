@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
@@ -42,7 +43,7 @@ export function DashboardPage() {
   }, [orgData, orgLoading, navigate]);
 
   const { data: summary, isLoading, error, refetch } = useQuery({
-    queryKey: ["dashboard", orgData?.organization?.id],
+    queryKey: queryKeys.dashboard(orgData?.organization?.id),
     queryFn: async () => {
       if (!orgData?.organization?.id) return null;
       const { data, error } = await supabase.rpc("get_dashboard_summary", {

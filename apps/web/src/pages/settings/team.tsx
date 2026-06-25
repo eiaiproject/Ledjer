@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Database } from "@ledjer/database-types";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { fetchProfilesByUserIds } from "@/lib/profiles";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -239,7 +240,7 @@ export function TeamSettingsPage() {
   /* ── Queries ── */
 
   const { data: members, isLoading, error: membersError, refetch: refetchMembers } = useQuery({
-    queryKey: ["org-members", orgData?.organization?.id],
+    queryKey: queryKeys.orgMembers.list(orgData?.organization?.id),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
       const { data, error } = await supabase
@@ -282,7 +283,7 @@ export function TeamSettingsPage() {
       setInviteEmail("");
       setInviteError(null);
       toast.success("Undangan berhasil dikirim");
-      queryClient.invalidateQueries({ queryKey: ["org-members"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orgMembers.all() });
     },
     onError: (err) => {
       setInviteError(translateError(err));
@@ -313,7 +314,7 @@ export function TeamSettingsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-members"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orgMembers.all() });
       toast.success("Izin berhasil diupdate");
     },
     onError: (err) => toast.error(translateError(err)),
@@ -330,7 +331,7 @@ export function TeamSettingsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-members"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orgMembers.all() });
       toast.success("Staf berhasil dihapus");
       setRemoveDialogOpen(false);
       setSelectedMember(null);

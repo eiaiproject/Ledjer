@@ -27,7 +27,9 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "http://localhost:5173"
+site_url = "https://app.ledjer.id"
+# Local development still works because the frontend passes explicit redirectTo
+# values and localhost URLs are listed in additional_redirect_urls below.
 
 # additional_redirect_urls is the allowlist of URLs Supabase is allowed to
 # redirect users to after an auth flow (signup confirmation, magic link,
@@ -45,12 +47,12 @@ site_url = "http://localhost:5173"
 # When deploying to production, replace the localhost entries with your
 # real domain. Wildcards are NOT supported — every URL must be exact.
 additional_redirect_urls = [
+  "http://localhost:5173",
   "https://localhost:5173",
   "http://localhost:5173/auth/callback",
   "https://localhost:5173/auth/callback",
-  # Production entries — uncomment and edit before launch:
-  # "https://app.ledjer.id",
-  # "https://app.ledjer.id/auth/callback",
+  "https://app.ledjer.id",
+  "https://app.ledjer.id/auth/callback",
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true

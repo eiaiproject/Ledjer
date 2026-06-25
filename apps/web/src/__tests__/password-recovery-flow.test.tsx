@@ -227,7 +227,7 @@ describe('Password recovery flow (integration)', () => {
       expect(screen.getByText(/verifikasi gagal/i)).toBeTruthy();
     });
     expect(
-      screen.getByText(/token has expired or is invalid/i),
+      screen.getByText(/Token telah kedaluwarsa/i),
     ).toBeTruthy();
     // No navigation happens on error.
     expect(mocks.updateUser).not.toHaveBeenCalled();
