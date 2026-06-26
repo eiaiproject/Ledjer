@@ -1,6 +1,6 @@
 # Ledjer — Production Readiness Checklist
 
-Last verified: 2026-06-25 against the active baseline migration `supabase/migrations/00000000000000_baseline.sql` plus 5 active dated migrations (ending with `20260625200000_revoke_anon_auth_privileges.sql`).
+Last verified: 2026-06-26 against the active baseline migration `supabase/migrations/00000000000000_baseline.sql` plus 5 active dated migrations (ending with `20260625200000_revoke_anon_auth_privileges.sql`).
 
 ## Status Legend
 
@@ -190,7 +190,7 @@ Last verified: 2026-06-25 against the active baseline migration `supabase/migrat
 7. Rotate Supabase anon key if it was ever exposed in git history.
 8. Confirm domain, HTTPS, CSP, HSTS headers on deployed host.
 
-**Most recent verification (2026-06-25):**
+**Most recent verification (2026-06-26):**
 
 ```bash
 pnpm --filter web typecheck          # ✅ tsc -b clean
@@ -202,7 +202,9 @@ pnpm --filter web test               # ✅ 113 tests passed
 pnpm --filter web build              # ✅ vite build passed
 pnpm --filter web test:e2e            # ✅ 8 smoke tests passed (needs E2E_SUPABASE_URL + E2E_SUPABASE_ANON_KEY)
 pnpm audit --prod --audit-level moderate  # ⚠️ 1 low (esbuild dev-server Windows-only, not production)
-# SQL tests via docker exec psql     # ✅ all suites passed + final cleanup assertion + view coverage
+# supabase start + db reset          # ✅ 6 migrations applied locally
+# SQL tests via run_all.sql           # ✅ all suites passed + final cleanup assertion + view coverage
+# supabase gen types + diff           # ✅ DB types match canonical
 ```
 
 **CI runs E2E as a separate job** (`needs: frontend`). It builds with anon-only test secrets, then runs Playwright against the preview server. Report uploaded only on failure.
