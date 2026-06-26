@@ -29,6 +29,12 @@ const BillingSettingsPage = lazy(async () => ({ default: (await import("@/pages/
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
 const ResetPasswordPage = lazy(async () => ({ default: (await import("@/pages/reset-password")).ResetPasswordPage }));
 const ForgotPasswordPage = lazy(async () => ({ default: (await import("@/pages/forgot-password")).ForgotPasswordPage }));
+const TermsOfServicePage = lazy(async () => ({ default: (await import("@/pages/legal/terms")).TermsOfServicePage }));
+const PrivacyPolicyPage = lazy(async () => ({ default: (await import("@/pages/legal/privacy")).PrivacyPolicyPage }));
+const RefundPolicyPage = lazy(async () => ({ default: (await import("@/pages/legal/refund")).RefundPolicyPage }));
+const SecurityPage = lazy(async () => ({ default: (await import("@/pages/legal/security")).SecurityPage }));
+const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/contact")).ContactPage }));
+const AdminPage = lazy(async () => ({ default: (await import("@/pages/admin")).AdminPage }));
 
 
 
@@ -62,6 +68,20 @@ const router = createBrowserRouter([
   // recovery link. Public route (sits under PublicRoute so signed-in users
   // are not redirected away).
   { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  // Legal & policy pages (public — accessible to everyone)
+  { path: "/terms", element: <TermsOfServicePage /> },
+  { path: "/privacy", element: <PrivacyPolicyPage /> },
+  { path: "/refund", element: <RefundPolicyPage /> },
+  { path: "/security", element: <SecurityPage /> },
+  { path: "/contact", element: <ContactPage /> },
+  // Admin (protected)
+  {
+    path: "/admin",
+    element: <ProtectedRoute />,
+    children: [
+      { index: true, element: <AdminPage /> },
+    ],
+  },
   {
     path: "/onboarding",
     element: <ProtectedRoute />,

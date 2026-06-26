@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
+import { exportTrialBalanceCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 export function TrialBalancePage() {
   const { data: orgData } = useOrganization();
@@ -62,6 +64,15 @@ export function TrialBalancePage() {
             <Input label="Per Tanggal" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => orgData?.organization?.id && exportTrialBalanceCsv(orgData.organization.id, toDate).catch(() => {})}
+              disabled={!data?.length}
+            >
+              <Download className="h-4 w-4" />
+              CSV
             </Button>
           </div>
         </CardContent>

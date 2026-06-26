@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
+import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 interface ProfitLossItem {
   section: string;
@@ -125,6 +127,15 @@ export function ProfitLossPage() {
             />
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => orgData?.organization?.id && exportProfitLossCsv(orgData.organization.id, fromDate, toDate).catch(() => {})}
+              disabled={!data?.length || dateRangeInvalid}
+            >
+              <Download className="h-4 w-4" />
+              CSV
             </Button>
           </div>
         </CardContent>

@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { exportAccountsCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast-api";
+import { Download } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Constants                                                  */
@@ -763,6 +765,17 @@ export function AccountsPage() {
           >
             <Plus className="mr-2 h-4 w-4" />
             Tambah Kas/Bank
+          </Button>
+        )}
+        {canManageAccounts && activeTab === "all" && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => orgData?.organization?.id && exportAccountsCsv(orgData.organization.id).catch(() => {})}
+            className="w-full sm:w-auto"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
           </Button>
         )}
       </div>

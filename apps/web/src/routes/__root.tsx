@@ -36,3 +36,8 @@ export function PublicRoute() {
 
   return <Outlet />;
 }
+
+/** Public route wrapper that does NOT redirect logged-in users. */
+export function PublicRouteWrapper({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}

@@ -3,12 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
+import { exportGeneralLedgerCsv } from "@/lib/csv-export";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 interface LedgerEntry {
   account_id: string;
@@ -120,6 +123,15 @@ export function GeneralLedgerPage() {
               onChange={(e) => setToDate(e.target.value)}
               error={dateRangeInvalid ? "Tanggal akhir harus sama atau setelah tanggal awal." : undefined}
             />
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => orgData?.organization?.id && exportGeneralLedgerCsv(orgData.organization.id, accountId === 'all' ? undefined : accountId, fromDate, toDate).catch(() => {})}
+              disabled={!ledger?.length || dateRangeInvalid}
+            >
+              <Download className="h-4 w-4" />
+              CSV
+            </Button>
           </div>
         </CardContent>
       </Card>

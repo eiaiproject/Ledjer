@@ -60,6 +60,9 @@
 \echo '=== master_fix_regression_tests.sql ==='
 \i supabase/tests/master_fix_regression_tests.sql
 
+\echo '=== stage4_production_tests.sql ==='
+\i supabase/tests/stage4_production_tests.sql
+
 -- ═══════════════════════════════════════════════════════════════════
 -- FINAL REVOKE: Ensure no _test_* functions leak to anon/authenticated.
 -- Test files may CREATE functions after _test_helpers.sql revocation.

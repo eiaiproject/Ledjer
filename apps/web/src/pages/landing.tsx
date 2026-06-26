@@ -239,6 +239,14 @@ const footerLinks = [
   { label: "Mulai Gratis", to: "/register" as const },
 ] as const;
 
+const legalLinks = [
+  { label: "Syarat & Ketentuan", to: "/terms" as const },
+  { label: "Kebijakan Privasi", to: "/privacy" as const },
+  { label: "Kebijakan Pengembalian", to: "/refund" as const },
+  { label: "Keamanan", to: "/security" as const },
+  { label: "Hubungi Kami", to: "/contact" as const },
+] as const;
+
 function stagger(index: number) {
   return { "--i": index } as CSSProperties;
 }
@@ -813,6 +821,20 @@ export function LandingPage() {
           <p className="mt-8 border-t border-wood-100 pt-6 text-center text-xs text-wood-500">
             &copy; {new Date().getFullYear()} Ledjer. Pembukuan UMKM Indonesia.
           </p>
+          <nav aria-label="Tautan legal" className="mt-4">
+            <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-wood-500">
+              {legalLinks.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    to={link.to}
+                    className="text-wood-500 underline-offset-4 transition-colors hover:text-wood-700 hover:underline"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
       </footer>
     </div>
