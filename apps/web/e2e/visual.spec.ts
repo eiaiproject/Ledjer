@@ -4,22 +4,22 @@ import { E2E_OWNER } from "./fixtures/users";
 /**
  * Visual regression E2E tests.
  *
- * Uses snapshot names without OS suffix for cross-platform compatibility.
- * To generate baselines:
- *   pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
+ * CI runs with --update-snapshots to generate Linux baselines.
+ * After baselines are committed, CI can switch to comparison mode.
  *
- * CI generates Linux baselines. Local generates Darwin baselines.
- * Snapshots are per-OS — use CI-committed baselines for CI validation.
+ * Generate baselines locally:
+ *   pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
  */
 
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
   await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /masuk/i }).first().click();
-  await page.waitForURL((url) =>
-    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-    { timeout: 15_000 },
+  // Exact-match to avoid clicking "Masuk dengan Google"
+  await page.getByRole("button", { name: /^Masuk$/ }).click();
+  await page.waitForURL(
+    (url) => url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
+    { timeout: 20_000 },
   );
 }
 
@@ -50,8 +50,10 @@ test.describe("Dashboard visual", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
-      test.skip(true, "Owner redirected to onboarding — dashboard visual test not applicable");
-      return;
+      throw new Error(
+        `Dashboard visual test: seeded owner did not reach dashboard. ` +
+        `Current URL: ${page.url()}. Ensure seed completed successfully.`,
+      );
     }
 
     await page.waitForLoadState("networkidle");
@@ -69,8 +71,10 @@ test.describe("Transaction form visual", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
-      test.skip(true, "Owner redirected to onboarding — transaction form visual test not applicable");
-      return;
+      throw new Error(
+        `Transaction form visual test: seeded owner did not reach dashboard. ` +
+        `Current URL: ${page.url()}. Ensure seed completed successfully.`,
+      );
     }
 
     await page.goto("/transactions/new");
@@ -89,8 +93,10 @@ test.describe("Mobile sidebar visual", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
-      test.skip(true, "Owner redirected to onboarding — mobile sidebar visual test not applicable");
-      return;
+      throw new Error(
+        `Mobile sidebar visual test: seeded owner did not reach dashboard. ` +
+        `Current URL: ${page.url()}. Ensure seed completed successfully.`,
+      );
     }
 
     const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();

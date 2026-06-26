@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Controller, useForm, useFieldArray } from "react-hook-form";
-import { z } from "zod/v4";
+import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -19,7 +19,7 @@ import { CheckCircle, Info, Trash2 } from "lucide-react";
 const businessSchema = z.object({
   organizationName: z.string().min(2, "Nama bisnis harus minimal 2 karakter"),
   businessType: z.enum(["service", "simple_trading"], {
-    error: "Pilih jenis bisnis",
+    message: "Pilih jenis bisnis",
   }),
   booksStartDate: z.string().min(1, "Tanggal wajib diisi"),
 });

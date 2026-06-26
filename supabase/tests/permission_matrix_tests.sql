@@ -460,7 +460,6 @@ BEGIN
   );
 END $$;
 
--- Cleanup
-SELECT public._test_cleanup();
+-- Cleanup deferred to run_all.sql
 
 DO $$ BEGIN RAISE NOTICE '=== Permission Matrix Tests Complete ==='; END $$;

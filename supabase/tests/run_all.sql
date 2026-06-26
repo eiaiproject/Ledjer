@@ -80,6 +80,26 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
+-- DROP: Remove all _test_* helper functions.
+-- Individual suites no longer self-clean; run_all.sql owns cleanup.
+-- ═══════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  fn RECORD;
+BEGIN
+  FOR fn IN
+    SELECT p.proname || '(' ||
+           pg_get_function_identity_arguments(p.oid) || ')' AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname LIKE '_test_%'
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS public.' || fn.sig || ' CASCADE';
+  END LOOP;
+END $$;
+
+-- ═══════════════════════════════════════════════════════════════════
 -- FINAL CLEANUP: Drop all _test_* functions created during this run.
 -- If any remain, the test harness itself has leaked and the run
 -- should fail.

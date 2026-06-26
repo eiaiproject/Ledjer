@@ -64,14 +64,19 @@ export default defineConfig({
         ]
       : []),
   ],
-  // Only start local webServer when not targeting a remote URL
-  webServer: process.env.E2E_BASE_URL
-    ? undefined
-    : {
-        command: "pnpm preview",
-        port: 4173,
-        reuseExistingServer: !process.env.CI,
-      },
+  webServer: (() => {
+    // If E2E_BASE_URL is a non-localhost URL (deploy smoke), skip server startup entirely
+    if (process.env.E2E_BASE_URL && !process.env.E2E_BASE_URL.includes('localhost')) {
+      return undefined;
+    }
+    // For localhost targets (explicit or default), always start preview
+    // reuseExistingServer: true only when NO explicit E2E_BASE_URL (local dev may have vite dev running)
+    return {
+      command: "pnpm preview",
+      port: 4173,
+      reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
+    };
+  })(),
   expect: {
     toHaveScreenshot: {
       maxDiffPixelRatio: 0.01,

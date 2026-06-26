@@ -425,5 +425,4 @@ BEGIN
   RAISE NOTICE 'PASS: _test_* helper functions are not callable by anon/authenticated';
 END $$;
 
--- Cleanup test helpers
-SELECT public._test_cleanup();
+-- Cleanup deferred to run_all.sql

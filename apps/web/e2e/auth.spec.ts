@@ -1,21 +1,23 @@
 import { test, expect } from "@playwright/test";
 import { E2E_OWNER, freshRegisterEmail } from "./fixtures/users";
 
-
 /**
  * Auth flow E2E tests.
  * Uses deployed app (Mode B) with seeded owner user.
  * Registration email tests use Inbucket (Mode A only).
  */
 
+const LOGIN_TIMEOUT = 20_000;
+
 test.describe("Login", () => {
   test("successful login navigates to dashboard", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
     await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    // Exact-match "Masuk" to avoid clicking "Masuk dengan Google"
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => url.pathname.includes("/dashboard"), {
-      timeout: 15_000,
+      timeout: LOGIN_TIMEOUT,
     });
     await expect(page).toHaveURL(/\/dashboard/);
   });
@@ -24,21 +26,21 @@ test.describe("Login", () => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
     await page.getByRole("textbox", { name: /password/i }).fill("WrongPassword999!");
-    await page.getByRole("button", { name: /masuk/i }).first().click();
-    await expect(page.locator("[role='alert']")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
+    await expect(page.locator("[role='alert']")).toBeVisible({ timeout: LOGIN_TIMEOUT });
   });
 
   test("login with invalid email shows error", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill("nonexistent@test.com");
     await page.getByRole("textbox", { name: /password/i }).fill("SomePassword1!");
-    await page.getByRole("button", { name: /masuk/i }).first().click();
-    await expect(page.locator("[role='alert']")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
+    await expect(page.locator("[role='alert']")).toBeVisible({ timeout: LOGIN_TIMEOUT });
   });
 
   test("login with empty fields shows validation error", async ({ page }) => {
     await page.goto("/login");
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
     // Form validation should prevent submission or show errors
     await page.waitForTimeout(500);
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
@@ -49,9 +51,9 @@ test.describe("Login", () => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
     await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => url.pathname.includes("/dashboard"), {
-      timeout: 15_000,
+      timeout: LOGIN_TIMEOUT,
     });
 
     // Navigate to /login — should redirect back
@@ -150,19 +152,14 @@ test.describe("Logout", () => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
     await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => url.pathname.includes("/dashboard"), {
-      timeout: 15_000,
+      timeout: LOGIN_TIMEOUT,
     });
 
-    // Find and click logout
-    // Try user menu button first
-    const userMenu = page.getByRole("button", { name: /menu|profil|akun|keluar/i }).first();
-    if (await userMenu.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await userMenu.click();
-    }
-    const logoutBtn = page.getByRole("button", { name: /keluar|logout|sign.?out/i }).first();
-    await logoutBtn.click({ timeout: 5_000 });
+    // Click the logout button (aria-label="Keluar")
+    const logoutBtn = page.getByRole("button", { name: /keluar/i });
+    await logoutBtn.first().click({ timeout: 5_000 });
     await page.waitForURL((url) => url.pathname.includes("/login"), { timeout: 10_000 });
     await expect(page).toHaveURL(/\/login/);
   });

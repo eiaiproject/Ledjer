@@ -11,7 +11,7 @@ export async function loginViaUI(
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(user.email);
   await page.getByRole("textbox", { name: /password/i }).fill(user.password);
-  await page.getByRole("button", { name: /masuk/i }).first().click();
+  await page.getByRole("button", { name: /^Masuk$/ }).click();
   // Wait for navigation away from /login
   await page.waitForURL((url) => !url.pathname.includes("/login"), {
     timeout: 15_000,

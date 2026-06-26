@@ -224,14 +224,26 @@ jobs:
       - name: Capture Supabase env vars
         run: |
           supabase status --workdir . --output env | tee /tmp/supabase.env
+          echo '--- Captured env ---'
+          cat /tmp/supabase.env
 
       - name: Export Supabase keys
         run: |
           set -euo pipefail
           source /tmp/supabase.env
-          echo "SUPABASE_URL=${SUPABASE_URL:-http://localhost:54321}" >> $GITHUB_ENV
-          echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}" >> $GITHUB_ENV
-          echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}" >> $GITHUB_ENV
+          # supabase status --output env may use API_URL or SUPABASE_URL
+          echo "SUPABASE_URL=${API_URL:-${SUPABASE_URL:-http://localhost:54321}}" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=${ANON_KEY:-${SUPABASE_ANON_KEY:-}}" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}" >> $GITHUB_ENV
+          # Fail-fast: verify required keys are non-empty
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo '::error::SUPABASE_ANON_KEY is empty after export. Check supabase status output.'
+            exit 1
+          fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo '::error::SUPABASE_SERVICE_ROLE_KEY is empty after export. Check supabase status output.'
+            exit 1
+          fi
 
       - name: Build app for preview
         env:
@@ -246,7 +258,6 @@ jobs:
           E2E_SUPABASE_URL: http://localhost:54321
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
-          VITE_SUPABASE_URL: http://localhost:4173
           CI: true
         run: pnpm --filter web exec playwright test --project=chromium
 
@@ -344,8 +355,8 @@ jobs:
 
       - name: Build for preview server
         env:
-          VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: http://localhost:54321
+          VITE_SUPABASE_ANON_KEY: placeholder
         run: pnpm --filter web build
 
       - name: Run smoke on Firefox
@@ -415,8 +426,12 @@ jobs:
         run: |
           set -euo pipefail
           source /tmp/supabase.env
-          echo "SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}" >> $GITHUB_ENV
-          echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=${ANON_KEY:-${SUPABASE_ANON_KEY:-}}" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}" >> $GITHUB_ENV
+          if [ -z "${ANON_KEY:-${SUPABASE_ANON_KEY:-}}" ]; then
+            echo '::error::ANON_KEY empty — cannot run visual tests'
+            exit 1
+          fi
 
       - name: Build app
         env:
@@ -426,7 +441,9 @@ jobs:
 
       # First run: use --update-snapshots to generate Linux baselines.
       # After committing baselines, remove --update-snapshots for comparison mode.
-      - name: Run visual regression tests
+      # First run generates baselines via --update-snapshots.
+      # After baselines are committed, switch to comparison mode (remove --update-snapshots).
+      - name: Run visual regression tests (generate/update baselines)
         env:
           E2E_MODE: full-local
           E2E_BASE_URL: http://localhost:4173
@@ -434,7 +451,15 @@ jobs:
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
-        run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium
+        run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
+
+      - name: Upload updated baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines-linux
+          path: apps/web/e2e/visual.spec.ts-snapshots/*.png
+          retention-days: 30
 
       - name: Upload visual regression report
         if: failure()
