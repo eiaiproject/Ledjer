@@ -69,7 +69,10 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(
-      page.locator("main").getByText(/E2E|Cash Sale|Penjualan|150.?000/i).first(),
+      page
+        .getByRole("row", { name: /\[E2E\] Cash Sale Test/i })
+        .filter({ hasText: /Rp\s*150\.000/i })
+        .first(),
     ).toBeVisible({ timeout: 10_000 });
 
     // Step 6: Check reports
@@ -139,7 +142,10 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(
-      page.locator("main").getByText(/E2E|Pembelian|75.?000/i).first(),
+      page
+        .getByRole("row", { name: /\[E2E\] Purchase Test/i })
+        .filter({ hasText: /Rp\s*75\.000/i })
+        .first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 

@@ -329,7 +329,7 @@ BEGIN
   END IF;
 
   -- Generate secure token (32 bytes hex = 64 chars)
-  v_token := encode(gen_random_bytes(32), 'hex');
+  v_token := encode(extensions.gen_random_bytes(32), 'hex');
 
   INSERT INTO public.organization_invitations (
     organization_id, email, token, role, invited_by, expires_at
@@ -369,6 +369,7 @@ DECLARE
   v_invitation RECORD;
   v_member_id UUID;
   v_staff_count INTEGER;
+  v_current_plan TEXT;
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
@@ -398,8 +399,12 @@ BEGIN
   END IF;
 
   -- Check plan limit
-  SELECT current_plan::TEXT INTO v_invitation
+  SELECT current_plan::TEXT INTO v_current_plan
   FROM public.organizations WHERE id = v_invitation.organization_id;
+
+  IF v_current_plan != 'business' THEN
+    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
+  END IF;
 
   SELECT COUNT(*) INTO v_staff_count
   FROM public.organization_members

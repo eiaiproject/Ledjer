@@ -11,21 +11,36 @@ DO $$
 DECLARE
   v_org_id UUID;
   v_owner_id UUID;
+  v_staff_user_id UUID;
   v_other_org_id UUID;
   v_other_owner_id UUID;
+  v_invitee_id UUID;
+  v_invitee_email TEXT;
+  v_invitation JSONB;
+  v_token TEXT;
+  v_accept_result JSONB;
   v_test_count INTEGER := 0;
   v_pass_count INTEGER := 0;
   v_fail_count INTEGER := 0;
 BEGIN
   -- ═══════ SETUP ═══════
   -- Use the existing helper to create orgs with users
-  SELECT out_owner_user_id, out_organization_id
-  INTO v_owner_id, v_org_id
+  SELECT out_owner_user_id, out_staff_user_id, out_organization_id
+  INTO v_owner_id, v_staff_user_id, v_org_id
   FROM public._test_create_org_with_users('Stage4 Test Org', CURRENT_DATE);
 
   SELECT out_owner_user_id, out_organization_id
   INTO v_other_owner_id, v_other_org_id
   FROM public._test_create_org_with_users('Stage4 Other Org', CURRENT_DATE);
+
+  UPDATE public.organizations
+  SET current_plan = 'business'::public.org_plan
+  WHERE id = v_org_id;
+
+  UPDATE public.organization_members
+  SET status = 'removed'
+  WHERE organization_id = v_org_id
+    AND user_id = v_staff_user_id;
 
   -- ═══════ TEST 1: Period lock fields exist ═══════
   v_test_count := v_test_count + 1;
@@ -283,6 +298,59 @@ BEGIN
     ELSE
       v_fail_count := v_fail_count + 1;
       RAISE EXCEPTION 'TEST 16 FAIL: invitation token index missing';
+    END IF;
+  END;
+
+  -- ═══════ TEST 17: invitation create + accept flow works ═══════
+  v_test_count := v_test_count + 1;
+  BEGIN
+    v_invitee_id := gen_random_uuid();
+    v_invitee_email := 'invitee-' || v_invitee_id::TEXT || '@test.local';
+
+    INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password,
+                            email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+                            created_at, updated_at, confirmation_token,
+                            email_change, email_change_token_new, recovery_token)
+    VALUES (v_invitee_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+            v_invitee_email, '', now(),
+            '{"provider":"email","providers":["email"]}'::jsonb,
+            '{"full_name":"Invitee"}'::jsonb,
+            now(), now(), '', '', '', '')
+    ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO public.profiles (user_id, full_name, email)
+    VALUES (v_invitee_id, 'Invitee', v_invitee_email)
+    ON CONFLICT (user_id) DO NOTHING;
+
+    PERFORM public._test_impersonate(v_owner_id);
+    v_invitation := public.create_invitation(v_org_id, v_invitee_email);
+    v_token := v_invitation->>'token';
+
+    PERFORM public._test_impersonate(v_invitee_id);
+    v_accept_result := public.accept_invitation(v_token);
+
+    IF (v_invitation->>'email') = lower(v_invitee_email)
+       AND length(v_token) = 64
+       AND (v_accept_result->>'organization_id')::UUID = v_org_id
+       AND EXISTS (
+         SELECT 1 FROM public.organization_members
+         WHERE organization_id = v_org_id
+           AND user_id = v_invitee_id
+           AND role = 'staff'
+           AND status = 'active'
+       )
+       AND EXISTS (
+         SELECT 1 FROM public.organization_invitations
+         WHERE token = v_token
+           AND status = 'accepted'
+           AND accepted_by = v_invitee_id
+       )
+    THEN
+      v_pass_count := v_pass_count + 1;
+      RAISE NOTICE 'TEST 17 PASS: invitation create + accept flow works';
+    ELSE
+      v_fail_count := v_fail_count + 1;
+      RAISE EXCEPTION 'TEST 17 FAIL: invitation create + accept flow did not complete';
     END IF;
   END;
 
