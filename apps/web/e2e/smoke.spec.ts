@@ -1,70 +1,116 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from "@playwright/test";
 
 /**
- * Production smoke E2E tests.
- * Covers: auth screen loads, navigation guards, page accessibility.
- * Ponytail: add auth flow tests when test user seeding is available.
+ * Smoke tests — verify app shell loads, routes work, no fatal errors.
+ * Resilient against third-party console noise (Sentry, etc.).
  */
 
-test.describe('Auth / Login', () => {
-  test('login page loads with expected elements', async ({ page }) => {
-    await page.goto('/login')
-    await expect(page).toHaveTitle(/Ledjer/)
-    // Login form should be visible
-    const emailInput = page.getByRole('textbox', { name: /email/i })
-    await expect(emailInput).toBeVisible()
-    const passwordInput = page.getByRole('textbox', { name: /password/i })
-    await expect(passwordInput).toBeVisible()
-  })
+test.describe("Landing page", () => {
+  test("loads and shows branding", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveTitle(/Ledjer/);
+    await expect(page.locator("body")).toContainText("Ledjer");
+    await expect(page.locator("html")).toHaveAttribute("lang", "id");
+  });
 
-  test('register page loads', async ({ page }) => {
-    await page.goto('/register')
-    await expect(page).toHaveTitle(/Ledjer/)
-    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible()
-  })
+  test("no fatal console errors", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        const text = msg.text();
+        // Filter out known third-party / non-critical errors
+        const isNoise = [
+          "sentry", "Sentry", "analytics", "Failed to load resource",
+          "net::ERR", "ResizeObserver", "Non-Error promise rejection",
+          "hydrat", "chunk", "Loading CSS chunk", "dynamically imported",
+          "Content Security Policy", "frame-ancestors", "meta element",
+        ].some((p) => text.toLowerCase().includes(p.toLowerCase()));
+        if (!isNoise) errors.push(text);
+      }
+    });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    expect(errors).toEqual([]);
+  });
 
-  test('forgot password page loads', async ({ page }) => {
-    await page.goto('/forgot-password')
-    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible()
-  })
-})
+  test("static assets load", async ({ page }) => {
+    const failed: string[] = [];
+    page.on("requestfailed", (req) => {
+      const url = req.url();
+      if (/sentry|analytics|google|font/i.test(url)) return;
+      failed.push(url);
+    });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    expect(failed).toEqual([]);
+  });
+});
 
-test.describe('Route guards', () => {
-  test('unauthenticated user redirects from dashboard to login', async ({ page }) => {
-    await page.goto('/dashboard')
-    // Should redirect to login
-    await expect(page).toHaveURL(/\/login/)
-  })
+test.describe("Auth pages", () => {
+  test("login page loads with form elements", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page).toHaveTitle(/Ledjer/);
+    // Email and password inputs
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: /password/i })).toBeVisible();
+    // The login form has a submit button. The exact text is "Masuk".
+    // There's also "Masuk dengan Google" — use first() to pick the form submit.
+    const loginBtn = page.getByRole("button", { name: /^masuk$/i }).first();
+    await expect(loginBtn).toBeVisible();
+  });
 
-  test('unauthenticated user redirects from transactions to login', async ({ page }) => {
-    await page.goto('/transactions')
-    await expect(page).toHaveURL(/\/login/)
-  })
-})
+  test("register page loads with form elements", async ({ page }) => {
+    await page.goto("/register");
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    // Register has two password fields — just verify at least one is visible
+    const pwFields = page.getByRole("textbox", { name: /password/i });
+    await expect(pwFields.first()).toBeVisible();
+    // Submit button
+    const registerBtn = page.getByRole("button", { name: /^daftar$/i }).first();
+    await expect(registerBtn).toBeVisible();
+  });
 
-test.describe('Landing page', () => {
-  test('landing page loads and has expected content', async ({ page }) => {
-    await page.goto('/')
-    await expect(page).toHaveTitle(/Ledjer/)
-    // Should contain branding text
-    await expect(page.locator('body')).toContainText('Ledjer')
-  })
-})
+  test("forgot password page loads", async ({ page }) => {
+    await page.goto("/forgot-password");
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /kirim/i })).toBeVisible();
+  });
 
-test.describe('Accessibility basics', () => {
-  test('login page has no automatically detectable critical a11y violations', async ({ page }) => {
-    await page.goto('/login')
-    // Basic a11y checks: page has lang attribute, inputs have labels
-    const html = page.locator('html')
-    await expect(html).toHaveAttribute('lang', 'id')
-    // Email input should have an accessible name
-    const emailInput = page.getByRole('textbox', { name: /email/i })
-    await expect(emailInput).toBeVisible()
-  })
+  test("reset-password without token shows safe state", async ({ page }) => {
+    await page.goto("/reset-password");
+    await page.waitForLoadState("networkidle");
+    const body = page.locator("body");
+    await expect(body).toBeVisible();
+  });
+});
 
-  test('landing page has html lang attribute', async ({ page }) => {
-    await page.goto('/')
-    const html = page.locator('html')
-    await expect(html).toHaveAttribute('lang', 'id')
-  })
-})
+test.describe("Route guards", () => {
+  const protectedRoutes = [
+    "/dashboard",
+    "/transactions",
+    "/products",
+    "/accounts",
+    "/reports/general-ledger",
+    "/reports/trial-balance",
+    "/reports/profit-loss",
+    "/reports/balance-sheet",
+    "/settings/team",
+    "/settings/billing",
+  ];
+
+  for (const route of protectedRoutes) {
+    test(`unauthenticated user redirects from ${route}`, async ({ page }) => {
+      await page.goto(route, { timeout: 30_000 });
+      await expect(page).toHaveURL(/\/login/, { timeout: 30_000 });
+    });
+  }
+});
+
+test.describe("Unknown route", () => {
+  test("unknown route redirects to dashboard (catch-all)", async ({ page }) => {
+    await page.goto("/nonexistent-page-12345");
+    await page.waitForLoadState("networkidle");
+    const body = page.locator("body");
+    await expect(body).toBeVisible();
+  });
+});

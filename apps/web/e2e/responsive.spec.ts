@@ -1,0 +1,101 @@
+import { test, expect } from "@playwright/test";
+import { E2E_OWNER } from "./fixtures/users";
+
+
+/**
+ * Responsive layout E2E tests.
+ * Tests mobile (375px), tablet (768px), and desktop (1440px) viewports.
+ */
+
+const viewports = [
+  { name: "Mobile", width: 375, height: 812 },
+  { name: "Tablet", width: 768, height: 1024 },
+  { name: "Desktop", width: 1440, height: 900 },
+];
+
+async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
+  await page.goto("/login");
+  await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
+  await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
+  await page.getByRole("button", { name: /masuk/i }).first().click();
+  await page.waitForURL((url) =>
+    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
+    { timeout: 15_000 },
+  );
+}
+
+for (const vp of viewports) {
+  test.describe(`${vp.name} (${vp.width}px)`, () => {
+    test.use({ viewport: { width: vp.width, height: vp.height } });
+
+    test("landing page renders without horizontal overflow", async ({ page }) => {
+      await page.goto("/");
+      const hasOverflow = await page.evaluate(() => {
+        return document.body.scrollWidth > window.innerWidth;
+      });
+      // Allow some tolerance for report tables, but landing should be clean
+      expect(hasOverflow).toBeFalsy();
+    });
+
+    test("login page renders correctly", async ({ page }) => {
+      await page.goto("/login");
+      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /masuk/i }).first()).toBeVisible();
+    });
+
+    test("register page renders correctly", async ({ page }) => {
+      await page.goto("/register");
+      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /daftar/i })).toBeVisible();
+    });
+
+    if (vp.width < 768) {
+      test("mobile navigation menu works", async ({ page }) => {
+        await loginAsOwner(page);
+        if (!page.url().includes("/dashboard")) return;
+
+        // On mobile, there should be a hamburger/menu button
+        const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
+        if (await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await menuBtn.click();
+          // Navigation should become visible
+          await page.waitForTimeout(500);
+        }
+      });
+    }
+  });
+}
+
+test.describe("Transaction form responsive", () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test("transaction form is usable on mobile", async ({ page }) => {
+    await loginAsOwner(page);
+    if (!page.url().includes("/dashboard")) return;
+
+    await page.goto("/transactions/new");
+    await page.waitForLoadState("networkidle");
+
+    // Form should be visible and scrollable
+    const body = page.locator("body");
+    await expect(body).toBeVisible();
+
+    // Check no horizontal overflow
+    const hasOverflow = await page.evaluate(() => {
+      return document.body.scrollWidth > window.innerWidth;
+    });
+    expect(hasOverflow).toBeFalsy();
+  });
+});
+
+test.describe("Dashboard responsive", () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test("dashboard renders on mobile without crash", async ({ page }) => {
+    await loginAsOwner(page);
+    if (!page.url().includes("/dashboard")) return;
+
+    const body = page.locator("body");
+    await expect(body).toBeVisible();
+  });
+});

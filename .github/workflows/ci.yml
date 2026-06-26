@@ -42,10 +42,10 @@ jobs:
         run: pnpm --filter web build
 
   e2e:
-    name: Playwright E2E smoke tests
+    name: Playwright E2E (chromium)
     needs: frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -75,13 +75,72 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
           CI: true
-        run: pnpm --filter web test:e2e
+        run: pnpm --filter web test:e2e --project=chromium
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-chromium
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-chromium
+          path: apps/web/test-results/
+          retention-days: 7
+
+  e2e-cross-browser:
+    name: Playwright E2E (cross-browser)
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps
+
+      - name: Build for preview server
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+        run: pnpm --filter web build
+
+      - name: Run E2E on Firefox
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          CI: true
+        run: pnpm --filter web test:e2e --project=firefox
+
+      - name: Run E2E on WebKit
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          CI: true
+        run: pnpm --filter web test:e2e --project=webkit
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-cross-browser
           path: apps/web/playwright-report/
           retention-days: 7
 
@@ -168,9 +227,6 @@ jobs:
           echo "✅ Database types match"
 
       - name: Run SQL tests explicitly via psql
-        # Belt-and-suspenders: re-run the test files directly against the
-        # Supabase Postgres so the CI log makes test PASS/FAIL explicit
-        # regardless of config.toml test ordering.
         env:
           PGPASSWORD: postgres
           PGHOST: localhost
@@ -184,9 +240,6 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y -qq postgresql-client >/dev/null
           fi
-          # Single source of truth for suite ordering lives in run_all.sql.
-          # ON_ERROR_STOP=1 turns any RAISE EXCEPTION (test failure) into a
-          # non-zero exit. Run from repo root so the \i relative paths resolve.
           psql -h localhost -p 54322 -U postgres -d postgres \
             -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
 
@@ -228,3 +281,41 @@ jobs:
           chmod +x scripts/check-package-clean.sh
           ./scripts/check-package-clean.sh /tmp/ledjer-src.tar.gz
           ./scripts/check-package-clean.sh /tmp/ledjer-src.zip
+
+  deploy-smoke:
+    name: Deploy smoke test (production)
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install chromium --with-deps
+
+      - name: Run deploy smoke tests
+        env:
+          E2E_BASE_URL: https://ledjer-ahk.pages.dev/
+          CI: true
+        run: pnpm --filter web test:e2e --project=chromium --grep "smoke|route guard|landing"
+
+      - name: Upload deploy smoke report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-smoke-report
+          path: apps/web/playwright-report/
+          retention-days: 7

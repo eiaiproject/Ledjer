@@ -1,0 +1,147 @@
+/**
+ * Test data seeding via Supabase Admin API or SQL.
+ *
+ * Only usable in local mode (service-role key required).
+ * All data is E2E-prefixed for safe cleanup.
+ */
+import { E2E, e2eName } from "./env";
+import { ALL_TEST_USERS, E2E_OWNER, type TestUser } from "./users";
+
+const SR_HEADERS = {
+  apikey: E2E.serviceRoleKey,
+  Authorization: `Bearer ${E2E.serviceRoleKey}`,
+  "Content-Type": "application/json",
+};
+
+/**
+ * Create a confirmed auth user via Supabase Admin API.
+ * Idempotent: if user already exists, returns the existing user ID.
+ */
+export async function ensureTestUser(user: TestUser): Promise<string> {
+  // Try to create user
+  const res = await fetch(`${E2E.supabaseUrl}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: SR_HEADERS,
+    body: JSON.stringify({
+      email: user.email,
+      password: user.password,
+      email_confirm: true,
+      user_metadata: { full_name: user.fullName },
+    }),
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    return data.id;
+  }
+
+  // If duplicate, fetch existing
+  if (res.status === 422 || res.status === 409) {
+    const listRes = await fetch(
+      `${E2E.supabaseUrl}/auth/v1/admin/users?page=1&per_page=100`,
+      { headers: SR_HEADERS },
+    );
+    const listData = await listRes.json();
+    const existing = listData.users?.find(
+      (u: { email: string }) => u.email === user.email,
+    );
+    if (existing) return existing.id;
+  }
+
+  throw new Error(`Failed to ensure test user ${user.email}: ${res.status} ${await res.text()}`);
+}
+
+/**
+ * Seed all test users.
+ */
+export async function seedAllUsers(): Promise<void> {
+  for (const user of ALL_TEST_USERS) {
+    await ensureTestUser(user);
+  }
+}
+
+/**
+ * Create an organization for the owner user with completed onboarding.
+ * Uses the post_onboarding RPC.
+ */
+export async function seedOrganization(
+  _userId: string,
+  orgName: string = e2eName("Toko Otomatis"),
+): Promise<string> {
+  const res = await fetch(
+    `${E2E.supabaseUrl}/rest/v1/rpc/create_organization_with_opening_balances`,
+    {
+      method: "POST",
+      headers: SR_HEADERS,
+      body: JSON.stringify({
+        p_organization_name: orgName,
+        p_business_type: "simple_trading",
+        p_books_start_date: new Date().toISOString().split("T")[0],
+        p_default_cash_account_name: "Kas Utama",
+        p_opening_cash_balance: 10_000_000,
+        p_extra_opening_balances: [],
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to seed organization: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return data.organization_id as string;
+}
+
+/**
+ * Add staff member to organization.
+ */
+export async function seedStaffMember(
+  orgId: string,
+  staffUserId: string,
+  permissions: {
+    can_create_transaction?: boolean;
+    can_view_reports?: boolean;
+    can_manage_accounts?: boolean;
+    can_void_transaction?: boolean;
+    can_manage_products?: boolean;
+  } = {},
+): Promise<void> {
+  const res = await fetch(`${E2E.supabaseUrl}/rest/v1/organization_members`, {
+    method: "POST",
+    headers: SR_HEADERS,
+    body: JSON.stringify({
+      organization_id: orgId,
+      user_id: staffUserId,
+      role: "staff",
+      status: "active",
+      can_create_transaction: permissions.can_create_transaction ?? false,
+      can_view_reports: permissions.can_view_reports ?? false,
+      can_manage_accounts: permissions.can_manage_accounts ?? false,
+      can_void_transaction: permissions.can_void_transaction ?? false,
+      can_manage_products: permissions.can_manage_products ?? false,
+      can_view_audit_log: false,
+      invited_by: staffUserId,
+      joined_at: new Date().toISOString(),
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to seed staff member: ${res.status} ${await res.text()}`);
+  }
+}
+
+/**
+ * Full seed: users + org + staff. Returns orgId.
+ */
+export async function fullSeed(): Promise<string> {
+  const ownerId = await ensureTestUser(E2E_OWNER);
+  const staffId = await ensureTestUser(ALL_TEST_USERS[1]);
+  const orgId = await seedOrganization(ownerId);
+  await seedStaffMember(orgId, staffId, {
+    can_create_transaction: true,
+    can_view_reports: true,
+    can_manage_products: true,
+  });
+  return orgId;
+}

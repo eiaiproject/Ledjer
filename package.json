@@ -10,7 +10,17 @@
     "test": "pnpm --filter web test",
     "test:watch": "pnpm --filter web test:watch",
     "typecheck": "pnpm --filter web typecheck && pnpm --filter @ledjer/database-types typecheck",
-    "db-types:check": "bash scripts/check-db-types.sh"
+    "db-types:check": "bash scripts/check-db-types.sh",
+    "test:all": "pnpm --filter web typecheck && pnpm --filter web lint && pnpm --filter web test && pnpm --filter web build && pnpm db-types:check && pnpm test:sql",
+    "test:sql": "PGPASSWORD=postgres PGHOST=localhost PGPORT=54322 PGUSER=postgres PGDATABASE=postgres psql -h localhost -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql",
+    "test:e2e": "pnpm --filter web test:e2e",
+    "test:e2e:local": "E2E_BASE_URL=http://localhost:4173 pnpm --filter web test:e2e",
+    "test:e2e:deploy": "E2E_BASE_URL=https://ledjer-ahk.pages.dev/ pnpm --filter web test:e2e",
+    "test:a11y": "pnpm --filter web test:e2e -- --grep accessibility",
+    "test:visual": "pnpm --filter web test:e2e -- --grep visual",
+    "test:perf": "pnpm --filter web test:e2e -- --grep performance",
+    "test:lighthouse": "lhci autorun",
+    "test:a11y:axe": "pnpm --filter web test:e2e -- --grep accessibility"
   },
   "keywords": [],
   "author": "",
@@ -20,5 +30,9 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@lhci/cli": "^0.15.1"
   }
 }
