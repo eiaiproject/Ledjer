@@ -1,19 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { E2E_OWNER } from "./fixtures/users";
 
-
 /**
  * Visual regression E2E tests.
- * Uses Playwright screenshot comparison.
  *
- * Ponytail: add @playwright/test snapshot matching for pixel-perfect comparison.
- * These tests capture screenshots for manual baseline creation.
- *
+ * Uses snapshot names without OS suffix for cross-platform compatibility.
  * To generate baselines:
- *   npx playwright test visual --update-snapshots
+ *   pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
  *
- * To compare:
- *   npx playwright test visual
+ * CI generates Linux baselines. Local generates Darwin baselines.
+ * Snapshots are per-OS — use CI-committed baselines for CI validation.
  */
 
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
@@ -40,7 +36,7 @@ for (const vp of visualPages) {
     await page.setViewportSize(vp.viewport);
     await page.goto(vp.url);
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000); // Allow animations to settle
+    await page.waitForTimeout(1000);
 
     await expect(page).toHaveScreenshot(`${vp.name}.png`, {
       maxDiffPixelRatio: 0.01,
@@ -53,7 +49,10 @@ test.describe("Dashboard visual", () => {
   test("dashboard screenshot", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — dashboard visual test not applicable");
+      return;
+    }
 
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1000);
@@ -69,7 +68,10 @@ test.describe("Transaction form visual", () => {
   test("transaction form screenshot", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — transaction form visual test not applicable");
+      return;
+    }
 
     await page.goto("/transactions/new");
     await page.waitForLoadState("networkidle");
@@ -86,18 +88,19 @@ test.describe("Mobile sidebar visual", () => {
   test("mobile sidebar screenshot", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
-
-    // Open mobile menu
-    const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
-    if (await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await menuBtn.click();
-      await page.waitForTimeout(500);
-
-      await expect(page).toHaveScreenshot("mobile-sidebar.png", {
-        maxDiffPixelRatio: 0.01,
-        fullPage: false,
-      });
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — mobile sidebar visual test not applicable");
+      return;
     }
+
+    const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
+    await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+    await menuBtn.click();
+    await page.waitForTimeout(500);
+
+    await expect(page).toHaveScreenshot("mobile-sidebar.png", {
+      maxDiffPixelRatio: 0.01,
+      fullPage: false,
+    });
   });
 });

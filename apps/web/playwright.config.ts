@@ -3,16 +3,17 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * Playwright E2E configuration for Ledjer.
  *
- * Modes:
- *   - Default: runs against pnpm preview (port 4173)
- *   - With E2E_BASE_URL: runs against specified URL (deployed or custom)
- *   - With E2E_SUPABASE_URL + service role: enables full local test mode
+ * Modes (controlled via E2E_MODE env):
+ *   deploy-smoke — production public-only smoke
+ *   full-local   — full E2E with local Supabase + seeded data
+ *   local-smoke  — local smoke without seed
  */
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // Deploy smoke: no retries needed (deterministic). Full local: retry once in CI.
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ["html", { open: "never" }],
@@ -26,13 +27,18 @@ export default defineConfig({
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
   },
+  // Only run globalSetup for full-local mode (needs Supabase seed)
+  globalSetup:
+    process.env.E2E_MODE === "full-local"
+      ? "./e2e/global-setup.ts"
+      : undefined,
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
-    // Enable additional browsers in CI or when --project is specified
-    ...(process.env.CI
+    // Cross-browser only when explicitly enabled (not in deploy smoke)
+    ...(process.env.E2E_CROSS_BROWSER
       ? [
           {
             name: "firefox",
@@ -44,7 +50,7 @@ export default defineConfig({
           },
         ]
       : []),
-    // Mobile viewports
+    // Mobile viewports (opt-in)
     ...(process.env.E2E_FULL
       ? [
           {
@@ -58,6 +64,7 @@ export default defineConfig({
         ]
       : []),
   ],
+  // Only start local webServer when not targeting a remote URL
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {

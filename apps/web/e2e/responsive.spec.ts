@@ -52,15 +52,15 @@ for (const vp of viewports) {
     if (vp.width < 768) {
       test("mobile navigation menu works", async ({ page }) => {
         await loginAsOwner(page);
-        if (!page.url().includes("/dashboard")) return;
-
-        // On mobile, there should be a hamburger/menu button
-        const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
-        if (await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await menuBtn.click();
-          // Navigation should become visible
-          await page.waitForTimeout(500);
+        if (!page.url().includes("/dashboard")) {
+          test.skip(true, "Owner redirected to onboarding — mobile nav test not applicable");
+          return;
         }
+
+        const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
+        await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+        await menuBtn.click();
+        await page.waitForTimeout(500);
       });
     }
   });
@@ -71,16 +71,16 @@ test.describe("Transaction form responsive", () => {
 
   test("transaction form is usable on mobile", async ({ page }) => {
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — transaction form test not applicable");
+      return;
+    }
 
     await page.goto("/transactions/new");
     await page.waitForLoadState("networkidle");
 
-    // Form should be visible and scrollable
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
+    await expect(page.locator("body")).toBeVisible();
 
-    // Check no horizontal overflow
     const hasOverflow = await page.evaluate(() => {
       return document.body.scrollWidth > window.innerWidth;
     });
@@ -93,9 +93,11 @@ test.describe("Dashboard responsive", () => {
 
   test("dashboard renders on mobile without crash", async ({ page }) => {
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — dashboard responsive test not applicable");
+      return;
+    }
 
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
+    await expect(page.locator("body")).toBeVisible();
   });
 });

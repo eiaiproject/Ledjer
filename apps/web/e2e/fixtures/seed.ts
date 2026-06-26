@@ -61,18 +61,50 @@ export async function seedAllUsers(): Promise<void> {
 }
 
 /**
+ * Login as a user and return the access token.
+ * Uses Supabase Auth /auth/v1/token?grant_type=password.
+ */
+export async function loginUser(user: TestUser): Promise<string> {
+  const res = await fetch(
+    `${E2E.supabaseUrl}/auth/v1/token?grant_type=password`,
+    {
+      method: "POST",
+      headers: {
+        apikey: E2E.supabaseAnonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: user.email, password: user.password }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to login ${user.email}: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  return data.access_token;
+}
+
+/**
  * Create an organization for the owner user with completed onboarding.
- * Uses the post_onboarding RPC.
+ * Uses the create_organization_with_opening_balances RPC.
+ * Requires user JWT (auth.uid() must be set).
  */
 export async function seedOrganization(
   _userId: string,
   orgName: string = e2eName("Toko Otomatis"),
 ): Promise<string> {
+  // RPC needs auth.uid() — login as owner to get user JWT
+  const userToken = await loginUser(E2E_OWNER);
+  const userHeaders = {
+    apikey: E2E.supabaseAnonKey,
+    Authorization: `Bearer ${userToken}`,
+    "Content-Type": "application/json",
+  };
+
   const res = await fetch(
     `${E2E.supabaseUrl}/rest/v1/rpc/create_organization_with_opening_balances`,
     {
       method: "POST",
-      headers: SR_HEADERS,
+      headers: userHeaders,
       body: JSON.stringify({
         p_organization_name: orgName,
         p_business_type: "simple_trading",
@@ -132,7 +164,64 @@ export async function seedStaffMember(
 }
 
 /**
- * Full seed: users + org + staff. Returns orgId.
+ * Seed a cash sale transaction for the org.
+ * Uses the post_transaction RPC (requires user JWT).
+ */
+export async function seedTransaction(
+  orgId: string,
+  params: {
+    type?: string;
+    amount?: number;
+    description?: string;
+    date?: string;
+    paymentStatus?: string;
+  } = {},
+): Promise<string> {
+  const userToken = await loginUser(E2E_OWNER);
+  const userHeaders = {
+    apikey: E2E.supabaseAnonKey,
+    Authorization: `Bearer ${userToken}`,
+    "Content-Type": "application/json",
+  };
+
+  // Find the cash account for this org
+  const acctRes = await fetch(
+    `${E2E.supabaseUrl}/rest/v1/accounts?organization_id=eq.${orgId}&is_cash_account=eq.true&select=id&limit=1`,
+    { headers: { ...userHeaders, Prefer: "return=representation" } },
+  );
+  const accts = await acctRes.json();
+  const cashAccountId = accts?.[0]?.id;
+
+  const res = await fetch(
+    `${E2E.supabaseUrl}/rest/v1/rpc/post_transaction`,
+    {
+      method: "POST",
+      headers: userHeaders,
+      body: JSON.stringify({
+        p_organization_id: orgId,
+        p_transaction_date: params.date || new Date().toISOString().split("T")[0],
+        p_transaction_type: params.type || "cash_sale",
+        p_amount: params.amount || 50_000,
+        p_payment_status: params.paymentStatus || "paid",
+        p_partial_amount: 0,
+        p_description: params.description || e2eName("Penjualan tunai test"),
+        p_cash_account_id: cashAccountId,
+        p_client_token: crypto.randomUUID(),
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to seed transaction: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  return data.transaction_id as string;
+}
+
+/**
+ * Full seed: users + org + staff + transaction. Returns orgId.
  */
 export async function fullSeed(): Promise<string> {
   const ownerId = await ensureTestUser(E2E_OWNER);
@@ -143,5 +232,6 @@ export async function fullSeed(): Promise<string> {
     can_view_reports: true,
     can_manage_products: true,
   });
+  await seedTransaction(orgId);
   return orgId;
 }

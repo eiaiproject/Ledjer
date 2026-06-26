@@ -1,10 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { E2E_OWNER } from "./fixtures/users";
 
-
 /**
  * Transaction creation E2E tests.
- * Tests successful creation for all supported transaction types.
  */
 
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
@@ -21,107 +19,76 @@ async function loginAsOwner(page: import("@playwright/test").Page): Promise<void
 test.describe("Transaction creation", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsOwner(page);
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });
 
   test("navigate to new transaction page", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return; // Skip if not onboarded
-
     await page.goto("/transactions/new");
     await expect(page.locator("text=/transaksi baru/i").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("transaction type selector is visible", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions/new");
-    // Type selector should show various options
     await expect(page.locator("text=/penjualan|pembelian|modal|transfer/i").first()).toBeVisible({
       timeout: 10_000,
     });
   });
 
   test("cash sale type shows correct fields", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions/new");
-    // Select cash sale type
-    const cashSaleBtn = page.getByRole("button", { name: /penjualan tunai/i });
-    if (await cashSaleBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await cashSaleBtn.click();
-      // Should show amount field
-      await expect(page.locator("text=/total penjualan|nominal/i").first()).toBeVisible({ timeout: 5_000 });
-      // Should show party field
-      await expect(page.locator("text=/pelanggan|pihak/i").first()).toBeVisible({ timeout: 5_000 });
-    }
+    const cashSaleBtn = page.getByRole("button", { name: /Penjualan Tunai/i });
+    await expect(cashSaleBtn).toBeVisible({ timeout: 5_000 });
+    await cashSaleBtn.click();
+    // Amount field labeled "Total Penjualan" for sale types
+    await expect(page.locator("text=/Total Penjualan|Nominal/i").first()).toBeVisible({ timeout: 5_000 });
+    // Cash account field labeled "Diterima di"
+    await expect(page.locator("text=/Diterima di|Akun kas/i").first()).toBeVisible({ timeout: 5_000 });
   });
 
   test("credit sale type shows payment status field", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions/new");
-    const creditSaleBtn = page.getByRole("button", { name: /penjualan kredit/i });
-    if (await creditSaleBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await creditSaleBtn.click();
-      // Should show payment status
-      await expect(page.locator("text=/status bayar|belum bayar/i").first()).toBeVisible({ timeout: 5_000 });
-    }
+    const creditSaleBtn = page.getByRole("button", { name: /Penjualan Kredit/i });
+    await expect(creditSaleBtn).toBeVisible({ timeout: 5_000 });
+    await creditSaleBtn.click();
+    await expect(page.locator("text=/Status Bayar|pelanggan|Pembayaran/i").first()).toBeVisible({ timeout: 5_000 });
   });
 
   test("owner capital type shows correct fields", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions/new");
-    const capitalBtn = page.getByRole("button", { name: /modal pemilik/i });
-    if (await capitalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await capitalBtn.click();
-      // Should show cash account selector
-      await expect(page.locator("text=/kas|bank|akun kas/i").first()).toBeVisible({ timeout: 5_000 });
-    }
+    const capitalBtn = page.getByRole("button", { name: /Modal Pemilik/i });
+    await expect(capitalBtn).toBeVisible({ timeout: 5_000 });
+    await capitalBtn.click();
+    await expect(page.locator("text=/Masuk ke|Akun kas/i").first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test("empty transaction date is rejected", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
+  test("empty amount is rejected", async ({ page }) => {
     await page.goto("/transactions/new");
-    const cashSaleBtn = page.getByRole("button", { name: /penjualan tunai/i });
-    if (await cashSaleBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await cashSaleBtn.click();
+    const cashSaleBtn = page.getByRole("button", { name: /Penjualan Tunai/i });
+    await expect(cashSaleBtn).toBeVisible({ timeout: 5_000 });
+    await cashSaleBtn.click();
 
-      // Clear the date field and try to submit
-      const dateInput = page.locator("input[type='date'], [name='transactionDate']").first();
-      if (await dateInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await dateInput.fill("");
-      }
-
-      const submitBtn = page.getByRole("button", { name: /simpan|catat transaksi/i }).first();
-      if (await submitBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await submitBtn.click();
-        await expect(page.locator("text=/wajib diisi/i").first()).toBeVisible({ timeout: 5_000 });
-      }
-    }
+    const submitBtn = page.getByRole("button", { name: /Catat Penjualan|Catat Transaksi/i }).first();
+    await expect(submitBtn).toBeVisible({ timeout: 3_000 });
+    await submitBtn.click();
+    await expect(page.locator("text=/lebih dari 0|wajib/i").first()).toBeVisible({ timeout: 5_000 });
   });
 });
 
 test.describe("Transaction list", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsOwner(page);
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });
 
   test("transaction list page loads", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions");
     await expect(page.locator("text=/transaksi/i").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("search input is present", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions");
     const searchInput = page.getByRole("textbox", { name: /cari|search/i });
-    if (await searchInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await expect(searchInput).toBeVisible();
-    }
+    await expect(searchInput).toBeVisible({ timeout: 5_000 });
   });
 });
 
@@ -129,9 +96,7 @@ test.describe("Transaction detail", () => {
   test("transaction detail page shows error for invalid ID", async ({ page }) => {
     await loginAsOwner(page);
     await page.goto("/transactions/00000000-0000-0000-0000-000000000000");
-    // Should not crash, should show error state or empty state
     await page.waitForLoadState("networkidle");
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
+    await expect(page.locator("body")).toBeVisible();
   });
 });

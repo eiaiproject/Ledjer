@@ -4,7 +4,6 @@ import { E2E } from "./fixtures/env";
 
 /**
  * Team and permission E2E tests.
- * Tests staff access, permission matrix, and cross-org isolation.
  */
 
 async function loginAs(
@@ -25,79 +24,75 @@ async function loginAs(
 test.describe("Team settings", () => {
   test("owner can access team settings", async ({ page }) => {
     await loginAs(page, E2E_OWNER.email, E2E_OWNER.password);
-    if (!page.url().includes("/dashboard")) return;
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
 
     await page.goto("/settings/team");
     await page.waitForLoadState("networkidle");
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
-    // Should show team content or not redirect
-    const hasTeamContent =
-      (await page.locator("text=/tim|anggota|staff|role/i").first().isVisible({ timeout: 5_000 }).catch(() => false));
+
+    const hasTeamContent = await page
+      .locator("text=/tim|anggota|staff|role/i")
+      .first()
+      .isVisible({ timeout: 5_000 })
+      .catch(() => false);
     expect(hasTeamContent).toBeTruthy();
   });
 
   test("billing settings page loads for owner", async ({ page }) => {
     await loginAs(page, E2E_OWNER.email, E2E_OWNER.password);
-    if (!page.url().includes("/dashboard")) return;
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
 
     await page.goto("/settings/billing");
     await page.waitForLoadState("networkidle");
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
+    await expect(page.locator("body")).toBeVisible();
   });
 });
 
 test.describe("Staff permissions", () => {
   test("staff can login and access dashboard", async ({ page }) => {
     await loginAs(page, E2E_STAFF.email, E2E_STAFF.password);
-    // Staff should be able to reach dashboard (if permissions allow)
     const currentUrl = page.url();
     expect(
       currentUrl.includes("/dashboard") ||
-      currentUrl.includes("/login") || // If not seeded
+      currentUrl.includes("/login") ||
       currentUrl.includes("/onboarding"),
     ).toBeTruthy();
   });
 
   test("staff without permission sees restricted state", async ({ page }) => {
-    // This test verifies that the UI properly handles permission restrictions
-    // Staff with limited permissions should see appropriate messages
     await loginAs(page, E2E_STAFF.email, E2E_STAFF.password);
-    if (!page.url().includes("/dashboard")) return;
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
 
-    // Try to access transaction creation
     await page.goto("/transactions/new");
     await page.waitForLoadState("networkidle");
 
-    // Either form loads (has permission) or restricted state shows
-    const hasAccess =
-      (await page.locator("text=/transaksi baru/i").first().isVisible({ timeout: 5_000 }).catch(() => false)) ||
-      (await page.locator("text=/tidak ada akses|izin/i").first().isVisible({ timeout: 3_000 }).catch(() => false));
-    expect(hasAccess).toBeTruthy();
+    const hasAccess = await page
+      .locator("text=/transaksi baru/i")
+      .first()
+      .isVisible({ timeout: 5_000 })
+      .catch(() => false);
+    const hasRestricted = await page
+      .locator("text=/tidak ada akses|izin/i")
+      .first()
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false);
+    expect(hasAccess || hasRestricted).toBeTruthy();
   });
 });
 
 test.describe("Cross-org isolation", () => {
-  test("unauthenticated user cannot access API directly", async ({ page }) => {
-    // Try to access Supabase REST API without auth
-    const response = await page.request.get(
+  test("unauthenticated user cannot access API directly", async ({ request }) => {
+    const response = await request.get(
       `${E2E.supabaseUrl}/rest/v1/organizations?select=*`,
-      {
-        headers: {
-          apikey: E2E.supabaseAnonKey,
-        },
-      },
+      { headers: { apikey: E2E.supabaseAnonKey } },
     );
-    // RLS should block unauthorized access: either 401/403 or 200 with empty array
+
     const status = response.status();
-    const isSuccess = status === 200 || status === 401 || status === 403;
-    expect(isSuccess).toBeTruthy();
+    const isBlocked = status === 401 || status === 403;
     if (status === 200) {
       const data = await response.json();
-      expect(Array.isArray(data)).toBeTruthy();
-      // Should not return other orgs' data
       expect(data.length).toBe(0);
+    } else {
+      expect(isBlocked).toBeTruthy();
     }
   });
 });

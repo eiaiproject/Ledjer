@@ -10,102 +10,70 @@ import { loginViaUI } from "./fixtures/auth";
 
 test.describe("Transaction → Report flow (cash sale)", () => {
   test("create cash sale and verify in reports", async ({ page }) => {
-    // Login as owner
     await loginViaUI(page);
     await page.waitForURL(
       (url) => url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
       { timeout: 15_000 },
     );
 
-    // ── Step 1: Navigate to transaction form ──
+    // Step 1: Navigate to transaction form
     await page.goto("/transactions/new");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
 
-    // Select "Penjualan" (sale) type if selector exists
-    const typeBtn = page.getByRole("button", { name: /penjualan|sale/i }).first();
-    if (await typeBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await typeBtn.click();
-    }
+    // Click "Penjualan Tunai" type button
+    const typeBtn = page.getByRole("button", { name: /Penjualan Tunai/i });
+    await expect(typeBtn).toBeVisible({ timeout: 5_000 });
+    await typeBtn.click();
 
-    // ── Step 2: Fill in the cash sale form ──
-    // Date field — if it's a date input or text field
-    const dateInput = page.locator('input[type="date"], input[name*="date"]').first();
-    if (await dateInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await dateInput.fill(new Date().toISOString().split("T")[0]);
-    }
+    // Step 2: Fill in the cash sale form
+    // Amount field (labeled "Total Penjualan" for sale types)
+    const amountField = page.locator('input[name="amount"], input[name*="amount"]').first();
+    await expect(amountField).toBeVisible({ timeout: 3_000 });
+    await amountField.click();
+    await amountField.fill("150000");
+    await amountField.press("Tab");
 
-    // Description / reference
-    const descField = page.locator('input[name*="desc"], input[name*="ref"], textarea[name*="desc"]').first();
-    if (await descField.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await descField.fill("E2E Cash Sale Test");
-    }
+    // Description field (labeled "Keterangan")
+    const descField = page.locator('input[name="description"], textarea[name="description"]').first();
+    await expect(descField).toBeVisible({ timeout: 3_000 });
+    await descField.fill("[E2E] Cash Sale Test");
 
-    // Amount / total
-    const amountField = page
-      .locator('input[name*="amount"], input[name*="total"], input[name*="nominal"]')
-      .first();
-    if (await amountField.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await amountField.fill("150000");
-      await amountField.press("Tab");
-    }
+    // Step 3: Submit (button labeled "Catat Penjualan" + amount)
+    const submitBtn = page.getByRole("button", { name: /Catat Penjualan|Catat Transaksi/i }).first();
+    await expect(submitBtn).toBeVisible({ timeout: 3_000 });
+    await submitBtn.click();
+    await page.waitForTimeout(2_000);
 
-    // Party / customer
-    const partyField = page
-      .locator('input[name*="party"], input[name*="customer"], input[name*="pelanggan"]')
-      .first();
-    if (await partyField.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await partyField.fill("E2E Customer");
-    }
-
-    // ── Step 3: Submit ──
-    const submitBtn = page.getByRole("button", { name: /simpan|save|submit|buat/i }).first();
-    if (await submitBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await submitBtn.click();
-      // Wait for success or redirect
-      await page.waitForTimeout(2_000);
-    }
-
-    // ── Step 4: Verify transaction appears in list ──
+    // Step 4: Verify transaction appears in list
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
 
-    // Check for the transaction or empty state
     const hasTransaction = await page
       .locator("text=/E2E Cash Sale|150.?000|penjualan/i")
       .first()
       .isVisible({ timeout: 5_000 })
       .catch(() => false);
-
     const hasEmptyState = await page
       .locator("text=/belum ada|tidak ada|empty|kosong/i")
       .first()
       .isVisible({ timeout: 3_000 })
       .catch(() => false);
-
-    // Either the transaction shows or there's a reasonable empty state
     expect(hasTransaction || hasEmptyState).toBeTruthy();
 
-    // ── Step 5: Check reports ──
-    // Profit & Loss
+    // Step 5: Check reports
     await page.goto("/reports/profit-loss");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
-
-    const plVisible = await page.locator("main").isVisible({ timeout: 5_000 });
-    expect(plVisible).toBeTruthy();
-    // Should have some content (heading or data)
+    await expect(page.locator("main")).toBeVisible({ timeout: 5_000 });
     const plContent = await page.locator("main").textContent();
     expect(plContent?.length).toBeGreaterThan(10);
 
-    // Balance Sheet
     await page.goto("/reports/balance-sheet");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
-
-    const bsVisible = await page.locator("main").isVisible({ timeout: 5_000 });
-    expect(bsVisible).toBeTruthy();
+    await expect(page.locator("main")).toBeVisible({ timeout: 5_000 });
     const bsContent = await page.locator("main").textContent();
     expect(bsContent?.length).toBeGreaterThan(10);
   });
@@ -117,42 +85,33 @@ test.describe("Transaction → Report flow (cash sale)", () => {
       { timeout: 15_000 },
     );
 
-    // Navigate to new transaction
     await page.goto("/transactions/new");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
 
-    // Select "Pembelian" (purchase) if visible
-    const purchaseBtn = page.getByRole("button", { name: /pembelian|purchase/i }).first();
-    if (await purchaseBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await purchaseBtn.click();
-    }
+    // Click "Pembelian Tunai" type button
+    const purchaseBtn = page.getByRole("button", { name: /Pembelian Tunai/i });
+    await expect(purchaseBtn).toBeVisible({ timeout: 5_000 });
+    await purchaseBtn.click();
 
-    // Fill amount
-    const amountField = page
-      .locator('input[name*="amount"], input[name*="total"], input[name*="nominal"]')
-      .first();
-    if (await amountField.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await amountField.fill("75000");
-      await amountField.press("Tab");
-    }
+    // Amount field (labeled "Total Pembelian" for purchase types)
+    const amountField = page.locator('input[name="amount"], input[name*="amount"]').first();
+    await expect(amountField).toBeVisible({ timeout: 3_000 });
+    await amountField.click();
+    await amountField.fill("75000");
+    await amountField.press("Tab");
 
-    // Fill party / supplier
-    const partyField = page
-      .locator('input[name*="party"], input[name*="supplier"]')
-      .first();
-    if (await partyField.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await partyField.fill("E2E Supplier");
-    }
+    // Description field
+    const descField = page.locator('input[name="description"], textarea[name="description"]').first();
+    await expect(descField).toBeVisible({ timeout: 3_000 });
+    await descField.fill("[E2E] Purchase Test");
 
-    // Submit
-    const submitBtn = page.getByRole("button", { name: /simpan|save|submit|buat/i }).first();
-    if (await submitBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await submitBtn.click();
-      await page.waitForTimeout(2_000);
-    }
+    // Submit (button labeled "Catat Pembelian" + amount)
+    const submitBtn = page.getByRole("button", { name: /Catat Pembelian|Catat Transaksi/i }).first();
+    await expect(submitBtn).toBeVisible({ timeout: 3_000 });
+    await submitBtn.click();
+    await page.waitForTimeout(2_000);
 
-    // Verify in list
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
@@ -172,17 +131,13 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
 
-    // No JS errors
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
-    const visible = await page.locator("main").isVisible({ timeout: 5_000 });
-    expect(visible).toBeTruthy();
-
+    await expect(page.locator("main")).toBeVisible({ timeout: 5_000 });
     const content = await page.locator("main").textContent();
     expect(content?.length).toBeGreaterThan(10);
 
-    // Check no critical JS errors
     const criticalErrors = errors.filter(
       (e) => !e.includes("CSP") && !e.includes("Sentry") && !e.includes("ResizeObserver"),
     );
@@ -200,9 +155,7 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1_000);
 
-    const visible = await page.locator("main").isVisible({ timeout: 5_000 });
-    expect(visible).toBeTruthy();
-
+    await expect(page.locator("main")).toBeVisible({ timeout: 5_000 });
     const content = await page.locator("main").textContent();
     expect(content?.length).toBeGreaterThan(10);
   });

@@ -1,10 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { E2E_OWNER } from "./fixtures/users";
 
-
 /**
  * Billing and plan limit E2E tests.
- * NO live payment testing. Only UI and plan state verification.
+ * NO live payment testing.
  */
 
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
@@ -21,41 +20,35 @@ async function loginAsOwner(page: import("@playwright/test").Page): Promise<void
 test.describe("Billing page", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
     await page.goto("/settings/billing");
+    await expect(page).toHaveURL(/\/settings\/billing/);
   });
 
   test("billing page loads for owner", async ({ page }) => {
-    if (!page.url().includes("/billing")) return;
     await page.waitForLoadState("networkidle");
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
+    await expect(page.locator("body")).toBeVisible();
   });
 
   test("plan information is displayed", async ({ page }) => {
-    if (!page.url().includes("/billing")) return;
     await page.waitForLoadState("networkidle");
 
-    // Should show plan name or usage info
-    const hasPlanInfo =
-      (await page.locator("text=/paket|plan|gratis|free|pro|basic/i").first().isVisible({ timeout: 5_000 }).catch(() => false));
+    const hasPlanInfo = await page
+      .locator("text=/paket|plan|gratis|free|pro|basic/i")
+      .first()
+      .isVisible({ timeout: 5_000 })
+      .catch(() => false);
     expect(hasPlanInfo).toBeTruthy();
   });
 
   test("no live payment buttons trigger real payment", async ({ page }) => {
-    if (!page.url().includes("/billing")) return;
     await page.waitForLoadState("networkidle");
 
-    // Check that no Stripe/Payment redirect happens
-    // All upgrade buttons should either be mocked or show "coming soon"
     const paymentBtns = page.getByRole("button", { name: /bayar|pay|upgrade|subscribe/i });
     const count = await paymentBtns.count();
-    // If upgrade buttons exist, clicking should NOT redirect to Stripe
     for (let i = 0; i < count; i++) {
       const btn = paymentBtns.nth(i);
       if (await btn.isVisible().catch(() => false)) {
-        // Button should be disabled or show non-payment action
-        // Just verify it exists - don't click to avoid payment
         expect(await btn.textContent()).toBeTruthy();
       }
     }
@@ -63,17 +56,12 @@ test.describe("Billing page", () => {
 });
 
 test.describe("Plan usage on transaction form", () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
-    await page.goto("/transactions/new");
-  });
-
   test("usage banner is visible on free plan", async ({ page }) => {
-    if (!page.url().includes("/transactions/new")) return;
-
-    // Check for usage banner or limit indicator
-    // This is optional - only shows on free plan
-    // Verify no crash (presence check only)
+    await loginAsOwner(page);
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
+    await page.goto("/transactions/new");
+    await expect(page).toHaveURL(/\/transactions\/new/);
+    // Verify no crash on transaction form
+    await expect(page.locator("body")).toBeVisible();
   });
 });

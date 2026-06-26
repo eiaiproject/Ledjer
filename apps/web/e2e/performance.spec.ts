@@ -1,12 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { E2E_OWNER } from "./fixtures/users";
 
-
 /**
  * Performance smoke E2E tests.
- * Simple timing and bundle size checks.
- *
- * Ponytail: add Lighthouse CI for full audit.
  */
 
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
@@ -34,7 +30,6 @@ test.describe("Page load performance", () => {
       await page.goto(p.url);
       await page.waitForLoadState("networkidle");
       const duration = Date.now() - start;
-
       expect(duration).toBeLessThan(p.budgetMs);
     });
   }
@@ -43,13 +38,15 @@ test.describe("Page load performance", () => {
 test.describe("Dashboard load performance", () => {
   test("dashboard loads within 8 seconds", async ({ page }) => {
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — dashboard perf test not applicable");
+      return;
+    }
 
     const start = Date.now();
     await page.reload();
     await page.waitForLoadState("networkidle");
     const duration = Date.now() - start;
-
     expect(duration).toBeLessThan(8000);
   });
 });
@@ -61,8 +58,6 @@ test.describe("Static asset performance", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-
-    // Should not have excessive requests (budget: 50)
     expect(requests.length).toBeLessThan(50);
   });
 
@@ -104,7 +99,6 @@ test.describe("Bundle size", () => {
       (s) => s.url.includes("index") || s.url.includes("main"),
     );
     if (mainBundle) {
-      // 500KB budget (uncompressed)
       expect(mainBundle.size).toBeLessThan(500 * 1024);
     }
   });
@@ -113,13 +107,15 @@ test.describe("Bundle size", () => {
 test.describe("Transaction list performance", () => {
   test("transaction list loads within 5 seconds", async ({ page }) => {
     await loginAsOwner(page);
-    if (!page.url().includes("/dashboard")) return;
+    if (!page.url().includes("/dashboard")) {
+      test.skip(true, "Owner redirected to onboarding — transaction list perf test not applicable");
+      return;
+    }
 
     const start = Date.now();
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
     const duration = Date.now() - start;
-
     expect(duration).toBeLessThan(5000);
   });
 });
@@ -135,13 +131,15 @@ test.describe("Report performance", () => {
   for (const route of reportRoutes) {
     test(`${route} loads within 8 seconds`, async ({ page }) => {
       await loginAsOwner(page);
-      if (!page.url().includes("/dashboard")) return;
+      if (!page.url().includes("/dashboard")) {
+        test.skip(true, `Owner redirected to onboarding — ${route} perf test not applicable`);
+        return;
+      }
 
       const start = Date.now();
       await page.goto(route);
       await page.waitForLoadState("networkidle");
       const duration = Date.now() - start;
-
       expect(duration).toBeLessThan(8000);
     });
   }

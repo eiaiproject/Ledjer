@@ -1,10 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { E2E_OWNER } from "./fixtures/users";
 
-
 /**
  * Void/reversal transaction E2E tests.
- * Tests the void flow on transaction detail page.
  */
 
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
@@ -21,52 +19,52 @@ async function loginAsOwner(page: import("@playwright/test").Page): Promise<void
 test.describe("Void transaction", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsOwner(page);
+    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });
 
   test("void button is visible on posted transaction detail", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
-    // Navigate to transaction list and find a posted transaction
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(1000);
 
-    // Click first transaction link if available
-    const txLink = page.locator("a[href*='/transactions/']").first();
-    if (await txLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await txLink.click();
-      await page.waitForLoadState("networkidle");
-
-      // Check for void button
-      const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
-      if (await voidBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await expect(voidBtn).toBeVisible();
-      }
+    // Find a transaction row link (not the "new" button)
+    const txLink = page.locator("a[href*='/transactions/']").filter({ hasNotText: /baru|new/i }).first();
+    const hasTx = await txLink.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (!hasTx) {
+      // No transactions yet — test passes vacuously (seed should create one)
+      test.skip();
+      return;
     }
+    await txLink.click();
+    await page.waitForLoadState("networkidle");
+
+    const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
+    await expect(voidBtn).toBeVisible({ timeout: 5_000 });
   });
 
   test("void requires reason", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) return;
-
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(1000);
 
-    const txLink = page.locator("a[href*='/transactions/']").first();
-    if (await txLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await txLink.click();
-      await page.waitForLoadState("networkidle");
-
-      const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
-      if (await voidBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await voidBtn.click();
-
-        // Try to confirm without reason
-        const confirmBtn = page.getByRole("button", { name: /ya|konfirmasi|batalkan transaksi/i });
-        if (await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await confirmBtn.click();
-          // Should require void reason
-          await page.waitForTimeout(500);
-        }
-      }
+    const txLink = page.locator("a[href*='/transactions/']").filter({ hasNotText: /baru|new/i }).first();
+    const hasTx = await txLink.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (!hasTx) {
+      test.skip();
+      return;
     }
+    await txLink.click();
+    await page.waitForLoadState("networkidle");
+
+    const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
+    await expect(voidBtn).toBeVisible({ timeout: 5_000 });
+    await voidBtn.click();
+
+    const confirmBtn = page.getByRole("button", { name: /ya|konfirmasi|batalkan transaksi/i });
+    await expect(confirmBtn).toBeVisible({ timeout: 3_000 });
+    await confirmBtn.click();
+    await page.waitForTimeout(500);
+    // Should show reason requirement or stay on page
+    await expect(page.locator("body")).toBeVisible();
   });
 });
