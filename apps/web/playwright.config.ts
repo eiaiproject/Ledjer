@@ -10,6 +10,10 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore:
+    process.env.E2E_MODE === "full-local" && !process.env.E2E_VISUAL
+      ? ["**/visual.spec.ts"]
+      : [],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // Deploy smoke: no retries needed (deterministic). Full local: retry once in CI.

@@ -474,6 +474,7 @@ jobs:
       - name: Run visual regression tests (generate/update baselines)
         env:
           E2E_MODE: full-local
+          E2E_VISUAL: "1"
           E2E_BASE_URL: http://localhost:4173
           E2E_SUPABASE_URL: http://localhost:54321
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}

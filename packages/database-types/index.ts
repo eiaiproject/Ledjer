@@ -262,6 +262,59 @@ export type Database = {
           },
         ]
       }
+      billing_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          from_plan: string | null
+          from_status: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          payment_provider: string | null
+          provider_event_id: string | null
+          to_plan: string | null
+          to_status: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          from_plan?: string | null
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          payment_provider?: string | null
+          provider_event_id?: string | null
+          to_plan?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          from_plan?: string | null
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          payment_provider?: string | null
+          provider_event_id?: string | null
+          to_plan?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -508,6 +561,59 @@ export type Database = {
           },
         ]
       }
+      organization_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          organization_id: string
+          role: string
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          organization_id: string
+          role?: string
+          status?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          organization_id?: string
+          role?: string
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           can_create_transaction: boolean
@@ -575,39 +681,75 @@ export type Database = {
           base_currency: string
           books_start_date: string
           business_type: Database["public"]["Enums"]["business_type"]
+          cancel_at: string | null
+          canceled_at: string | null
           created_at: string
           created_by: string
+          current_period_end: string | null
+          current_period_start: string | null
           current_plan: Database["public"]["Enums"]["org_plan"]
           default_reporting_period: Database["public"]["Enums"]["reporting_period"]
           id: string
+          locked_through_date: string | null
           name: string
           onboarding_status: Database["public"]["Enums"]["onboarding_status"]
+          payment_provider: string | null
+          payment_provider_customer_id: string | null
+          payment_provider_subscription_id: string | null
+          subscription_status: string | null
+          suspended_at: string | null
+          suspension_reason: string | null
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
           base_currency?: string
           books_start_date?: string
           business_type: Database["public"]["Enums"]["business_type"]
+          cancel_at?: string | null
+          canceled_at?: string | null
           created_at?: string
           created_by: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           current_plan?: Database["public"]["Enums"]["org_plan"]
           default_reporting_period?: Database["public"]["Enums"]["reporting_period"]
           id?: string
+          locked_through_date?: string | null
           name: string
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
+          payment_provider?: string | null
+          payment_provider_customer_id?: string | null
+          payment_provider_subscription_id?: string | null
+          subscription_status?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
           base_currency?: string
           books_start_date?: string
           business_type?: Database["public"]["Enums"]["business_type"]
+          cancel_at?: string | null
+          canceled_at?: string | null
           created_at?: string
           created_by?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           current_plan?: Database["public"]["Enums"]["org_plan"]
           default_reporting_period?: Database["public"]["Enums"]["reporting_period"]
           id?: string
+          locked_through_date?: string | null
           name?: string
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
+          payment_provider?: string | null
+          payment_provider_customer_id?: string | null
+          payment_provider_subscription_id?: string | null
+          subscription_status?: string | null
+          suspended_at?: string | null
+          suspension_reason?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1158,6 +1300,24 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invitation: { Args: { p_token: string }; Returns: Json }
+      admin_get_organization: {
+        Args: { p_organization_id: string }
+        Returns: Json
+      }
+      admin_list_organizations: { Args: { p_search?: string }; Returns: Json }
+      admin_set_suspension: {
+        Args: {
+          p_organization_id: string
+          p_reason?: string
+          p_suspended: boolean
+        }
+        Returns: Json
+      }
+      admin_update_plan: {
+        Args: { p_new_plan: string; p_organization_id: string }
+        Returns: Json
+      }
       check_rate_limit: {
         Args: {
           p_action: string
@@ -1170,6 +1330,10 @@ export type Database = {
       create_default_accounts: {
         Args: { p_org_id: string; p_org_name: string }
         Returns: number
+      }
+      create_invitation: {
+        Args: { p_email: string; p_organization_id: string }
+        Returns: Json
       }
       create_organization_with_opening_balances: {
         Args: {
@@ -1191,6 +1355,47 @@ export type Database = {
           p_organization_name: string
         }
         Returns: Json
+      }
+      export_accounts_csv: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
+      export_balance_sheet_csv: {
+        Args: { p_as_of_date?: string; p_organization_id: string }
+        Returns: string
+      }
+      export_general_ledger_csv: {
+        Args: {
+          p_account_id?: string
+          p_from_date?: string
+          p_organization_id: string
+          p_to_date?: string
+        }
+        Returns: string
+      }
+      export_products_csv: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
+      export_profit_loss_csv: {
+        Args: {
+          p_from_date?: string
+          p_organization_id: string
+          p_to_date?: string
+        }
+        Returns: string
+      }
+      export_transactions_csv: {
+        Args: {
+          p_from_date?: string
+          p_organization_id: string
+          p_to_date?: string
+        }
+        Returns: string
+      }
+      export_trial_balance_csv: {
+        Args: { p_as_of_date?: string; p_organization_id: string }
+        Returns: string
       }
       generate_entry_number: {
         Args: { p_organization_id: string }
@@ -1250,6 +1455,7 @@ export type Database = {
           transaction_number: string
         }[]
       }
+      get_invitations: { Args: { p_organization_id: string }; Returns: Json }
       get_monthly_summary: {
         Args: { p_month?: string; p_organization_id: string }
         Returns: Json
@@ -1397,6 +1603,15 @@ export type Database = {
         Args: { p_account_id: string; p_new_name: string }
         Returns: Json
       }
+      revoke_invitation: {
+        Args: { p_invitation_id: string; p_organization_id: string }
+        Returns: Json
+      }
+      set_period_lock: {
+        Args: { p_locked_through_date: string; p_organization_id: string }
+        Returns: Json
+      }
+      unlock_period_lock: { Args: { p_organization_id: string }; Returns: Json }
       update_organization_settings: {
         Args: {
           p_books_start_date?: string
@@ -1460,7 +1675,14 @@ export type Database = {
       member_status: "invited" | "active" | "removed"
       normal_balance: "debit" | "credit"
       onboarding_status: "not_started" | "in_progress" | "completed"
-      org_plan: "free" | "solo" | "business"
+      org_plan:
+        | "free"
+        | "solo"
+        | "business"
+        | "trial"
+        | "past_due"
+        | "canceled"
+        | "expired"
       party_type: "customer" | "supplier" | "employee" | "owner" | "other"
       payment_status: "paid" | "unpaid" | "partial"
       reporting_period: "monthly"
@@ -1614,7 +1836,15 @@ export const Constants = {
       member_status: ["invited", "active", "removed"],
       normal_balance: ["debit", "credit"],
       onboarding_status: ["not_started", "in_progress", "completed"],
-      org_plan: ["free", "solo", "business"],
+      org_plan: [
+        "free",
+        "solo",
+        "business",
+        "trial",
+        "past_due",
+        "canceled",
+        "expired",
+      ],
       party_type: ["customer", "supplier", "employee", "owner", "other"],
       payment_status: ["paid", "unpaid", "partial"],
       reporting_period: ["monthly"],
