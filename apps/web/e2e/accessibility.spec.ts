@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { E2E } from "./fixtures/env";
 import { E2E_OWNER } from "./fixtures/users";
 
 /**
@@ -139,6 +140,10 @@ test.describe("Error announcements", () => {
 
 test.describe("Dashboard accessibility (logged in)", () => {
   test.beforeEach(async ({ page }) => {
+    if (E2E.isDeploySmoke) {
+      test.skip(true, "Dashboard tests require seeded Supabase — skipped in deploy-smoke mode");
+      return;
+    }
     await loginAsOwner(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });

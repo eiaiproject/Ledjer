@@ -14,7 +14,7 @@ Catat transaksi, kelola persediaan, hasilkan laporan keuangan — tanpa spreadsh
 [![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3FCF8E)](https://supabase.com)
 
-[Demo](#demo) · [Quick Start](#quick-start) · [Dokumentasi](#dokumentasi) · [Berkontribusi](#berkontribusi)
+[Demo](#demo) · [Quick Start](#quick-start) · [Dokumentasi](#dokumentasi) · [Private Beta](docs/private-beta/) · [Berkontribusi](#berkontribusi)
 
 </div>
 

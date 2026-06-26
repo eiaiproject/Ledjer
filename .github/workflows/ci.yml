@@ -117,7 +117,7 @@ jobs:
       - name: Capture DB URL for diagnostic logging
         if: success()
         run: |
-          supabase status --workdir . --output env | tee /tmp/supabase.env
+          supabase status --workdir . --output env > /tmp/supabase.env
           echo "DB URL components:"
           grep -E '^(DB_URL|POSTGRES_HOST|POSTGRES_PORT|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=' /tmp/supabase.env || true
 
@@ -222,28 +222,37 @@ jobs:
         run: supabase db reset --workdir . --no-seed
 
       - name: Capture Supabase env vars
-        run: |
-          supabase status --workdir . --output env | tee /tmp/supabase.env
-          echo '--- Captured env ---'
-          cat /tmp/supabase.env
+        run: supabase status --workdir . --output env > /tmp/supabase.env
 
       - name: Export Supabase keys
         run: |
           set -euo pipefail
           source /tmp/supabase.env
-          # supabase status --output env may use API_URL or SUPABASE_URL
-          echo "SUPABASE_URL=${API_URL:-${SUPABASE_URL:-http://localhost:54321}}" >> $GITHUB_ENV
-          echo "SUPABASE_ANON_KEY=${ANON_KEY:-${SUPABASE_ANON_KEY:-}}" >> $GITHUB_ENV
-          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}" >> $GITHUB_ENV
-          # Fail-fast: verify required keys are non-empty
-          if [ -z "$SUPABASE_ANON_KEY" ]; then
+
+          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
+          supabase_anon_key="${ANON_KEY:-}"
+          supabase_service_role_key="${SERVICE_ROLE_KEY:-}"
+
+          if [ -z "$supabase_anon_key" ]; then
             echo '::error::SUPABASE_ANON_KEY is empty after export. Check supabase status output.'
             exit 1
           fi
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+
+          if [ -z "$supabase_service_role_key" ]; then
             echo '::error::SUPABASE_SERVICE_ROLE_KEY is empty after export. Check supabase status output.'
             exit 1
           fi
+
+          echo "::add-mask::$supabase_anon_key"
+          echo "::add-mask::$supabase_service_role_key"
+
+          {
+            echo "SUPABASE_URL=$supabase_url"
+            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_service_role_key"
+            echo "VITE_SUPABASE_URL=$supabase_url"
+            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
+          } >> "$GITHUB_ENV"
 
       - name: Build app for preview
         env:
@@ -267,6 +276,7 @@ jobs:
         with:
           name: playwright-report-full-local
           path: apps/web/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload test results
@@ -275,6 +285,7 @@ jobs:
         with:
           name: test-results-full-local
           path: apps/web/test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload traces
@@ -283,6 +294,7 @@ jobs:
         with:
           name: playwright-traces-full-local
           path: apps/web/test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Stop Supabase
@@ -327,6 +339,7 @@ jobs:
         with:
           name: deploy-smoke-report
           path: apps/web/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
   # ─── Job G: Cross-Browser Smoke ─────────────────────────────
@@ -356,7 +369,7 @@ jobs:
       - name: Build for preview server
         env:
           VITE_SUPABASE_URL: http://localhost:54321
-          VITE_SUPABASE_ANON_KEY: placeholder
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.signature
         run: pnpm --filter web build
 
       - name: Run smoke on Firefox
@@ -381,6 +394,7 @@ jobs:
         with:
           name: playwright-report-cross-browser
           path: apps/web/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
   # ─── Job H: Visual Regression ───────────────────────────────
@@ -420,18 +434,32 @@ jobs:
         run: supabase db reset --workdir . --no-seed
 
       - name: Capture Supabase keys
-        run: supabase status --workdir . --output env | tee /tmp/supabase.env
+        run: supabase status --workdir . --output env > /tmp/supabase.env
 
       - name: Export Supabase keys
         run: |
           set -euo pipefail
           source /tmp/supabase.env
-          echo "SUPABASE_ANON_KEY=${ANON_KEY:-${SUPABASE_ANON_KEY:-}}" >> $GITHUB_ENV
-          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}" >> $GITHUB_ENV
-          if [ -z "${ANON_KEY:-${SUPABASE_ANON_KEY:-}}" ]; then
+
+          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
+          supabase_anon_key="${ANON_KEY:-}"
+          supabase_service_role_key="${SERVICE_ROLE_KEY:-}"
+
+          if [ -z "$supabase_anon_key" ]; then
             echo '::error::ANON_KEY empty — cannot run visual tests'
             exit 1
           fi
+
+          echo "::add-mask::$supabase_anon_key"
+          echo "::add-mask::$supabase_service_role_key"
+
+          {
+            echo "SUPABASE_URL=$supabase_url"
+            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_service_role_key"
+            echo "VITE_SUPABASE_URL=$supabase_url"
+            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
+          } >> "$GITHUB_ENV"
 
       - name: Build app
         env:
@@ -467,6 +495,7 @@ jobs:
         with:
           name: visual-regression-report
           path: apps/web/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Stop Supabase

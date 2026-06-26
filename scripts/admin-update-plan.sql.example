@@ -1,0 +1,29 @@
+-- scripts/admin-update-plan.sql.example
+-- Admin helper: change an organization's billing plan.
+--
+-- ⚠️  Run ONLY from Supabase SQL Console (service_role context).
+-- ⚠️  Never run from frontend code or CI with authenticated role.
+--
+-- Usage:
+--   1. Replace '<ORG_UUID>' with the target organization's UUID.
+--   2. Replace '<NEW_PLAN>' with one of: 'free', 'solo', 'business'.
+--   3. Run in Supabase Dashboard → SQL Editor.
+--
+-- Example:
+--   UPDATE organizations SET current_plan = 'solo' WHERE id = '123e4567-e89b-12d3-a456-426614174000';
+
+-- Step 1: Find the organization (run first)
+SELECT id, name, current_plan, created_by, created_at
+FROM organizations
+WHERE name ILIKE '%toko%'
+   OR id = '123e4567-e89b-12d3-a456-426614174000';
+
+-- Step 2: Update the plan (uncomment and fill in values)
+-- UPDATE organizations
+-- SET current_plan = '<NEW_PLAN>'
+-- WHERE id = '<ORG_UUID>';
+
+-- Step 3: Verify (run after update)
+-- SELECT id, name, current_plan
+-- FROM organizations
+-- WHERE id = '<ORG_UUID>';

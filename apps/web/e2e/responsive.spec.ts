@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { E2E } from "./fixtures/env";
 import { E2E_OWNER } from "./fixtures/users";
 
 
@@ -51,6 +52,10 @@ for (const vp of viewports) {
 
     if (vp.width < 768) {
       test("mobile navigation menu works", async ({ page }) => {
+        if (E2E.isDeploySmoke) {
+          test.skip(true, "Mobile nav test requires seeded Supabase — skipped in deploy-smoke mode");
+          return;
+        }
         await loginAsOwner(page);
         if (!page.url().includes("/dashboard")) {
           test.skip(true, "Owner redirected to onboarding — mobile nav test not applicable");
@@ -70,6 +75,10 @@ test.describe("Transaction form responsive", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("transaction form is usable on mobile", async ({ page }) => {
+    if (E2E.isDeploySmoke) {
+      test.skip(true, "Transaction form test requires seeded Supabase — skipped in deploy-smoke mode");
+      return;
+    }
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
       test.skip(true, "Owner redirected to onboarding — transaction form test not applicable");
@@ -92,6 +101,10 @@ test.describe("Dashboard responsive", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("dashboard renders on mobile without crash", async ({ page }) => {
+    if (E2E.isDeploySmoke) {
+      test.skip(true, "Dashboard responsive test requires seeded Supabase — skipped in deploy-smoke mode");
+      return;
+    }
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
       test.skip(true, "Owner redirected to onboarding — dashboard responsive test not applicable");

@@ -370,13 +370,17 @@ DO $$
 DECLARE
   v_org_id    UUID;
   v_user_id   UUID;
+  v_staff_id  UUID;
+  v_cash_id   UUID;
   v_product_id UUID;
   v_txn1_id   UUID;
   v_txn2_id   UUID;
   v_avg       NUMERIC;
 BEGIN
-  SELECT o.id, o.created_by INTO v_org_id, v_user_id
-  FROM public.organizations o LIMIT 1;
+  SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
+         t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
+  INTO v_user_id, v_staff_id, v_org_id, v_cash_id
+  FROM public._test_create_org_with_users('T9 WAC ORG', CURRENT_DATE) AS t;
   IF v_org_id IS NULL THEN PERFORM public._test_fail('T9 setup', 'no org'); END IF;
 
   PERFORM set_config('request.jwt.claims',
@@ -390,14 +394,14 @@ BEGIN
   v_txn1_id := (public.post_transaction(
     v_org_id, CURRENT_DATE, 'cash_purchase', 1000,
     NULL, NULL,
-    (SELECT id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1),
+    v_cash_id,
     NULL, 'paid', NULL, NULL, 'T9 buy 1', NULL, v_product_id, 10, 100, NULL
   ) ->> 'transaction_id')::UUID;
 
   v_txn2_id := (public.post_transaction(
     v_org_id, CURRENT_DATE, 'cash_purchase', 2000,
     NULL, NULL,
-    (SELECT id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1),
+    v_cash_id,
     NULL, 'paid', NULL, NULL, 'T9 buy 2', NULL, v_product_id, 10, 200, NULL
   ) ->> 'transaction_id')::UUID;
 
@@ -414,14 +418,17 @@ END $$;
 DO $$
 DECLARE
   v_user_id   UUID;
+  v_staff_id  UUID;
   v_avg       NUMERIC;
   v_product_id UUID;
   v_cash_id   UUID;
   v_txn2_id   UUID;
   v_org_id    UUID;
 BEGIN
-  SELECT o.id, o.created_by INTO v_org_id, v_user_id
-  FROM public.organizations o LIMIT 1;
+  SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
+         t.out_cash_account_id
+  INTO v_user_id, v_staff_id, v_org_id, v_cash_id
+  FROM public._test_create_org_with_users('T10 VOID ORG', CURRENT_DATE) AS t;
   IF v_org_id IS NULL THEN PERFORM public._test_fail('T10 setup', 'no org'); END IF;
 
   PERFORM set_config('request.jwt.claims',
@@ -431,8 +438,6 @@ BEGIN
   INSERT INTO public.products (organization_id, code, name, unit, purchase_price, selling_price, current_stock, min_stock, is_active, created_by)
   VALUES (v_org_id, 'T10-' || substr(md5(random()::text),1,8), 'T10 Product', 'pcs', 0, 0, 0, 0, true, v_user_id)
   RETURNING id INTO v_product_id;
-
-  SELECT id INTO v_cash_id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1;
 
   PERFORM public.post_transaction(v_org_id, CURRENT_DATE, 'cash_purchase', 1000, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T10 buy 1', NULL, v_product_id, 10, 100, NULL);
   v_txn2_id := (public.post_transaction(v_org_id, CURRENT_DATE, 'cash_purchase', 2000, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T10 buy 2', NULL, v_product_id, 10, 200, NULL) ->> 'transaction_id')::UUID;
@@ -453,6 +458,7 @@ END $$;
 DO $$
 DECLARE
   v_user_id    UUID;
+  v_staff_id   UUID;
   v_org_id     UUID;
   v_product_id UUID;
   v_cash_id    UUID;
@@ -460,8 +466,10 @@ DECLARE
   v_avg_after  NUMERIC;
   v_sale_id    UUID;
 BEGIN
-  SELECT o.id, o.created_by INTO v_org_id, v_user_id
-  FROM public.organizations o LIMIT 1;
+  SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
+         t.out_cash_account_id
+  INTO v_user_id, v_staff_id, v_org_id, v_cash_id
+  FROM public._test_create_org_with_users('T11 SALE VOID ORG', CURRENT_DATE) AS t;
   IF v_org_id IS NULL THEN PERFORM public._test_fail('T11 setup', 'no org'); END IF;
 
   PERFORM set_config('request.jwt.claims',
@@ -470,8 +478,6 @@ BEGIN
   INSERT INTO public.products (organization_id, code, name, unit, purchase_price, selling_price, current_stock, min_stock, is_active, created_by)
   VALUES (v_org_id, 'T11-' || substr(md5(random()::text),1,8), 'T11 Product', 'pcs', 0, 0, 0, 0, true, v_user_id)
   RETURNING id INTO v_product_id;
-
-  SELECT id INTO v_cash_id FROM public.accounts WHERE organization_id = v_org_id AND code = 1110 LIMIT 1;
 
   PERFORM public.post_transaction(v_org_id, CURRENT_DATE, 'cash_purchase', 1000, NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL, 'T11 buy', NULL, v_product_id, 10, 100, NULL);
 
