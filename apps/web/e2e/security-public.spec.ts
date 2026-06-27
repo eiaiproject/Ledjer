@@ -69,6 +69,14 @@ test.describe("Secrets exposure", () => {
   });
 });
 
+test.describe("Admin surface", () => {
+  test("admin dashboard is not exposed in the public client router", async ({ page }) => {
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { name: /halaman tidak ditemukan/i })).toBeVisible();
+    await expect(page.getByText(/admin dashboard/i)).toHaveCount(0);
+  });
+});
+
 test.describe("Security headers", () => {
   test("app returns security headers or meta CSP", async ({ page }) => {
     const resp = await page.goto("/");

@@ -149,29 +149,6 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test("cash flow report loads without error", async ({ page }) => {
-    await loginViaUI(page);
-    await page.waitForURL(
-      (url) => url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-      { timeout: 15_000 },
-    );
-
-    await page.goto("/reports/cash-flow");
-    await page.waitForLoadState("networkidle");
-
-    const errors: string[] = [];
-    page.on("pageerror", (err) => errors.push(err.message));
-
-    await expect(page.locator("main")).toBeVisible({ timeout: 5_000 });
-    const content = await page.locator("main").textContent();
-    expect(content?.length).toBeGreaterThan(10);
-
-    const criticalErrors = errors.filter(
-      (e) => !e.includes("CSP") && !e.includes("Sentry") && !e.includes("ResizeObserver"),
-    );
-    expect(criticalErrors).toHaveLength(0);
-  });
-
   test("trial balance report loads without error", async ({ page }) => {
     await loginViaUI(page);
     await page.waitForURL(

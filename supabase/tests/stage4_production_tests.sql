@@ -17,6 +17,8 @@ DECLARE
   v_invitee_id UUID;
   v_invitee_email TEXT;
   v_invitation JSONB;
+  v_resend_invitation JSONB;
+  v_pending_invitations JSONB;
   v_token TEXT;
   v_accept_result JSONB;
   v_test_count INTEGER := 0;
@@ -325,12 +327,18 @@ BEGIN
     PERFORM public._test_impersonate(v_owner_id);
     v_invitation := public.create_invitation(v_org_id, v_invitee_email);
     v_token := v_invitation->>'token';
+    v_resend_invitation := public.create_invitation(v_org_id, v_invitee_email);
+    v_pending_invitations := public.get_invitations(v_org_id);
 
     PERFORM public._test_impersonate(v_invitee_id);
     v_accept_result := public.accept_invitation(v_token);
 
     IF (v_invitation->>'email') = lower(v_invitee_email)
        AND length(v_token) = 64
+       AND (v_resend_invitation->>'resent')::BOOLEAN = true
+       AND (v_resend_invitation->>'token') = v_token
+       AND jsonb_array_length(v_pending_invitations) = 1
+       AND (v_pending_invitations->0->>'token') = v_token
        AND (v_accept_result->>'organization_id')::UUID = v_org_id
        AND EXISTS (
          SELECT 1 FROM public.organization_members

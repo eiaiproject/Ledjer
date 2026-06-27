@@ -7,6 +7,8 @@ import type { Enums } from "@ledjer/database-types";
 type TransactionStatus = Enums<"transaction_status">;
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { useFilterPresets } from "@/hooks/useFilterPresets";
+import { exportTransactionsCsv } from "@/lib/csv-export";
+import { translateError } from "@/lib/errors";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
@@ -15,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Receipt, Search, Bookmark, BookmarkCheck, X } from "lucide-react";
+import { toast } from "@/components/ui/toast-api";
+import { Receipt, Search, Bookmark, BookmarkCheck, Download, X } from "lucide-react";
 import {
   ALL_TRANSACTION_TYPE_LABELS,
   GENERAL_TRANSACTION_TYPE_LABELS,
@@ -68,6 +71,7 @@ export function TransactionListPage() {
   const limit = 20;
 
   const normalizedSearch = search.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ");
+  const dateRangeInvalid = fromDate > toDate;
 
   const { data: transactions, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.transactions.list(orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page),
@@ -110,6 +114,17 @@ export function TransactionListPage() {
     savePreset({ typeFilter, statusFilter, fromDate, toDate });
   };
 
+  const handleExport = () => {
+    if (!orgData?.organization?.id || dateRangeInvalid) return;
+    exportTransactionsCsv(orgData.organization.id, {
+      fromDate,
+      search: normalizedSearch,
+      status: statusFilter,
+      toDate,
+      transactionType: typeFilter,
+    }).catch((err) => toast.error(translateError(err)));
+  };
+
   const applyPreset = (preset: { typeFilter: string; statusFilter: string; fromDate: string; toDate: string }) => {
     setTypeFilter(preset.typeFilter);
     setStatusFilter(preset.statusFilter as TransactionStatus | "");
@@ -125,14 +140,25 @@ export function TransactionListPage() {
           <h1 className="text-2xl font-bold text-text-primary">Transaksi</h1>
           <p className="mt-1 text-sm text-text-secondary">Daftar transaksi posted dan pembatalan</p>
         </div>
-        {canCreateTransaction && (
-          <Link
-            to="/transactions/new"
-            className="ledger-pressable inline-flex min-h-[44px] h-10 items-center justify-center rounded-md bg-wood-500 px-4 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600 sm:min-h-0"
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExport}
+            disabled={dateRangeInvalid || !transactions?.length}
           >
-            Transaksi Baru
-          </Link>
-        )}
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+          {canCreateTransaction && (
+            <Link
+              to="/transactions/new"
+              className="ledger-pressable inline-flex min-h-[44px] h-10 items-center justify-center rounded-md bg-wood-500 px-4 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600 sm:min-h-0"
+            >
+              Transaksi Baru
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -195,6 +221,12 @@ export function TransactionListPage() {
           </div>
         </div>
       </section>
+
+      {dateRangeInvalid && (
+        <p className="text-sm text-error" role="alert">
+          Tanggal awal tidak boleh melewati tanggal akhir.
+        </p>
+      )}
 
       {(search || typeFilter || statusFilter) && (
         <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { translateError } from "@/lib/errors";
+import { buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
 import { Lock, Mail, User } from "lucide-react";
 
 const registerSchema = z.object({
@@ -30,7 +31,12 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signUp, resendConfirmationEmail } = useAuth();
+  const redirectPath = getSafeRedirectPath(searchParams.get("redirect"), "/onboarding");
+  const loginPath = redirectPath === "/onboarding"
+    ? "/login"
+    : `/login?${buildRedirectSearch(redirectPath)}`;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,14 +73,19 @@ export function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await signUp(data.email.trim().toLowerCase(), data.password, data.fullName);
+      const result = await signUp(
+        data.email.trim().toLowerCase(),
+        data.password,
+        data.fullName,
+        redirectPath
+      );
       if (result.needsEmailConfirmation) {
         // Show "check your email" view instead of redirecting.
         setPendingEmail(data.email.trim().toLowerCase());
         startResendCooldown(60);
       } else {
         // Confirmations disabled: proceed straight to onboarding.
-        navigate("/onboarding");
+        navigate(redirectPath);
       }
     } catch (err) {
       setError(translateError(err));
@@ -189,7 +200,7 @@ export function RegisterPage() {
                 <p className="mt-4 text-center text-sm text-wood-500">
                   Sudah konfirmasi?{" "}
                   <Link
-                    to="/login"
+                    to={loginPath}
                     className="font-medium text-wood-600 hover:text-wood-800"
                   >
                     Masuk
@@ -286,7 +297,7 @@ export function RegisterPage() {
 
               <p className="mt-4 text-center text-sm text-wood-500">
                 Sudah punya akun?{" "}
-                <Link to="/login" className="font-medium text-wood-600 hover:text-wood-800">
+                <Link to={loginPath} className="font-medium text-wood-600 hover:text-wood-800">
                   Masuk
                 </Link>
               </p>

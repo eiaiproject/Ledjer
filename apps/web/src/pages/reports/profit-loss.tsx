@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
+import { translateError } from "@/lib/errors";
+import { toast } from "@/components/ui/toast-api";
 import { Download } from "lucide-react";
 
 interface ProfitLossItem {
@@ -131,7 +133,7 @@ export function ProfitLossPage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => orgData?.organization?.id && exportProfitLossCsv(orgData.organization.id, fromDate, toDate).catch(() => {})}
+              onClick={() => orgData?.organization?.id && exportProfitLossCsv(orgData.organization.id, fromDate, toDate).catch((err) => toast.error(translateError(err)))}
               disabled={!data?.length || dateRangeInvalid}
             >
               <Download className="h-4 w-4" />

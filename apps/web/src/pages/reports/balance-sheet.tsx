@@ -11,6 +11,8 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
+import { translateError } from "@/lib/errors";
+import { toast } from "@/components/ui/toast-api";
 import { Download } from "lucide-react";
 
 interface BalanceSheetItem {
@@ -86,7 +88,7 @@ export function BalanceSheetPage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => orgData?.organization?.id && exportBalanceSheetCsv(orgData.organization.id, asOfDate).catch(() => {})}
+              onClick={() => orgData?.organization?.id && exportBalanceSheetCsv(orgData.organization.id, asOfDate).catch((err) => toast.error(translateError(err)))}
               disabled={!data?.length}
             >
               <Download className="h-4 w-4" />

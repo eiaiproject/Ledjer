@@ -11,6 +11,8 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
+import { translateError } from "@/lib/errors";
+import { toast } from "@/components/ui/toast-api";
 import { Download } from "lucide-react";
 
 export function TrialBalancePage() {
@@ -68,7 +70,7 @@ export function TrialBalancePage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => orgData?.organization?.id && exportTrialBalanceCsv(orgData.organization.id, toDate).catch(() => {})}
+              onClick={() => orgData?.organization?.id && exportTrialBalanceCsv(orgData.organization.id, toDate).catch((err) => toast.error(translateError(err)))}
               disabled={!data?.length}
             >
               <Download className="h-4 w-4" />

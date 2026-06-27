@@ -1,4 +1,15 @@
 import { supabase } from "@/lib/supabase";
+import type { Enums } from "@ledjer/database-types";
+
+type TransactionStatus = Enums<"transaction_status">;
+
+interface TransactionExportFilters {
+  fromDate?: string;
+  search?: string;
+  status?: TransactionStatus | "";
+  toDate?: string;
+  transactionType?: string;
+}
 
 /**
  * Download CSV data as a file.
@@ -23,19 +34,17 @@ function todayFilename(prefix: string): string {
   return `${prefix}_${date}.csv`;
 }
 
-// ponytail: RPC names are cast to `any` because the new export RPCs are not
-// yet in the generated database types. After `supabase gen types`, remove casts.
-const rpc = supabase.rpc as (name: string, params?: Record<string, unknown>) => ReturnType<typeof supabase.rpc>;
-
 export async function exportTransactionsCsv(
   organizationId: string,
-  fromDate?: string,
-  toDate?: string
+  filters: TransactionExportFilters = {}
 ): Promise<void> {
-  const { data, error } = await rpc("export_transactions_csv", {
+  const { data, error } = await supabase.rpc("export_transactions_csv", {
     p_organization_id: organizationId,
-    p_from_date: fromDate || null,
-    p_to_date: toDate || null,
+    p_from_date: filters.fromDate || undefined,
+    p_search: filters.search || undefined,
+    p_status: filters.status || undefined,
+    p_to_date: filters.toDate || undefined,
+    p_transaction_type: filters.transactionType || undefined,
   });
   if (error) throw error;
   downloadCsv((data as string) || "", todayFilename("transaksi"));
@@ -44,7 +53,7 @@ export async function exportTransactionsCsv(
 export async function exportAccountsCsv(
   organizationId: string
 ): Promise<void> {
-  const { data, error } = await rpc("export_accounts_csv", {
+  const { data, error } = await supabase.rpc("export_accounts_csv", {
     p_organization_id: organizationId,
   });
   if (error) throw error;
@@ -54,7 +63,7 @@ export async function exportAccountsCsv(
 export async function exportProductsCsv(
   organizationId: string
 ): Promise<void> {
-  const { data, error } = await rpc("export_products_csv", {
+  const { data, error } = await supabase.rpc("export_products_csv", {
     p_organization_id: organizationId,
   });
   if (error) throw error;
@@ -65,9 +74,9 @@ export async function exportTrialBalanceCsv(
   organizationId: string,
   asOfDate?: string
 ): Promise<void> {
-  const { data, error } = await rpc("export_trial_balance_csv", {
+  const { data, error } = await supabase.rpc("export_trial_balance_csv", {
     p_organization_id: organizationId,
-    p_as_of_date: asOfDate || null,
+    p_as_of_date: asOfDate || undefined,
   });
   if (error) throw error;
   downloadCsv((data as string) || "", todayFilename("neraca_saldo"));
@@ -78,10 +87,10 @@ export async function exportProfitLossCsv(
   fromDate?: string,
   toDate?: string
 ): Promise<void> {
-  const { data, error } = await rpc("export_profit_loss_csv", {
+  const { data, error } = await supabase.rpc("export_profit_loss_csv", {
     p_organization_id: organizationId,
-    p_from_date: fromDate || null,
-    p_to_date: toDate || null,
+    p_from_date: fromDate || undefined,
+    p_to_date: toDate || undefined,
   });
   if (error) throw error;
   downloadCsv((data as string) || "", todayFilename("laba_rugi"));
@@ -91,9 +100,9 @@ export async function exportBalanceSheetCsv(
   organizationId: string,
   asOfDate?: string
 ): Promise<void> {
-  const { data, error } = await rpc("export_balance_sheet_csv", {
+  const { data, error } = await supabase.rpc("export_balance_sheet_csv", {
     p_organization_id: organizationId,
-    p_as_of_date: asOfDate || null,
+    p_as_of_date: asOfDate || undefined,
   });
   if (error) throw error;
   downloadCsv((data as string) || "", todayFilename("neraca"));
@@ -105,11 +114,11 @@ export async function exportGeneralLedgerCsv(
   fromDate?: string,
   toDate?: string
 ): Promise<void> {
-  const { data, error } = await rpc("export_general_ledger_csv", {
+  const { data, error } = await supabase.rpc("export_general_ledger_csv", {
     p_organization_id: organizationId,
-    p_account_id: accountId || null,
-    p_from_date: fromDate || null,
-    p_to_date: toDate || null,
+    p_account_id: accountId || undefined,
+    p_from_date: fromDate || undefined,
+    p_to_date: toDate || undefined,
   });
   if (error) throw error;
   downloadCsv((data as string) || "", todayFilename("buku_besar"));

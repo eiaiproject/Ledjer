@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { translateError } from "@/lib/errors";
 import { checkRateLimit, getResetTime, resetRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { supabase } from "@/lib/supabase";
+import { getSafeRedirectPath } from "@/lib/redirect";
 import { isAuthError } from "@supabase/supabase-js";
 import { Lock, Mail } from "lucide-react";
 
@@ -24,6 +25,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn, resendConfirmationEmail } = useAuth();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
@@ -118,7 +120,7 @@ export function LoginPage() {
         p_email: email,
         p_user_agent: navigator.userAgent,
       });
-      navigate("/dashboard");
+      navigate(getSafeRedirectPath(searchParams.get("redirect"), "/dashboard"));
     } catch (err) {
       const message = translateError(err);
       void supabase.rpc("record_login_attempt_pre_auth", {

@@ -272,7 +272,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-full-local
           path: apps/web/playwright-report/
@@ -281,7 +281,7 @@ jobs:
 
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-results-full-local
           path: apps/web/test-results/
@@ -290,7 +290,7 @@ jobs:
 
       - name: Upload traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-traces-full-local
           path: apps/web/test-results/
@@ -335,7 +335,7 @@ jobs:
 
       - name: Upload deploy smoke report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: deploy-smoke-report
           path: apps/web/playwright-report/
@@ -390,7 +390,7 @@ jobs:
 
       - name: Upload cross-browser report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-cross-browser
           path: apps/web/playwright-report/
@@ -484,7 +484,7 @@ jobs:
 
       - name: Upload updated baselines
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: visual-baselines-linux
           path: apps/web/e2e/visual.spec.ts-snapshots/*.png
@@ -492,7 +492,7 @@ jobs:
 
       - name: Upload visual regression report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: visual-regression-report
           path: apps/web/playwright-report/

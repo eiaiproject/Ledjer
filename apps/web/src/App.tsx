@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -29,12 +29,13 @@ const BillingSettingsPage = lazy(async () => ({ default: (await import("@/pages/
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
 const ResetPasswordPage = lazy(async () => ({ default: (await import("@/pages/reset-password")).ResetPasswordPage }));
 const ForgotPasswordPage = lazy(async () => ({ default: (await import("@/pages/forgot-password")).ForgotPasswordPage }));
+const AcceptInvitationPage = lazy(async () => ({ default: (await import("@/pages/invitations/accept")).AcceptInvitationPage }));
 const TermsOfServicePage = lazy(async () => ({ default: (await import("@/pages/legal/terms")).TermsOfServicePage }));
 const PrivacyPolicyPage = lazy(async () => ({ default: (await import("@/pages/legal/privacy")).PrivacyPolicyPage }));
 const RefundPolicyPage = lazy(async () => ({ default: (await import("@/pages/legal/refund")).RefundPolicyPage }));
 const SecurityPage = lazy(async () => ({ default: (await import("@/pages/legal/security")).SecurityPage }));
 const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/contact")).ContactPage }));
-const AdminPage = lazy(async () => ({ default: (await import("@/pages/admin")).AdminPage }));
+const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 
 
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
   // Password recovery destination — Supabase recovery email links land here
   // with a temporary session so the user can set a new password.
   { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/invitations/accept", element: <AcceptInvitationPage /> },
   // Forgot-password landing page — user enters their email to receive a
   // recovery link. Public route (sits under PublicRoute so signed-in users
   // are not redirected away).
@@ -74,14 +76,6 @@ const router = createBrowserRouter([
   { path: "/refund", element: <RefundPolicyPage /> },
   { path: "/security", element: <SecurityPage /> },
   { path: "/contact", element: <ContactPage /> },
-  // Admin (protected)
-  {
-    path: "/admin",
-    element: <ProtectedRoute />,
-    children: [
-      { index: true, element: <AdminPage /> },
-    ],
-  },
   {
     path: "/onboarding",
     element: <ProtectedRoute />,
@@ -111,7 +105,7 @@ const router = createBrowserRouter([
       },
     ],
   },
-  { path: "*", element: <Navigate to="/dashboard" replace /> },
+  { path: "*", element: <NotFoundPage /> },
 ]);
 
 function App() {

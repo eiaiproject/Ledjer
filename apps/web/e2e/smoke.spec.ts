@@ -107,10 +107,9 @@ test.describe("Route guards", () => {
 });
 
 test.describe("Unknown route", () => {
-  test("unknown route redirects to dashboard (catch-all)", async ({ page }) => {
+  test("unknown route shows not found page", async ({ page }) => {
     await page.goto("/nonexistent-page-12345");
     await page.waitForLoadState("networkidle");
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
+    await expect(page.getByRole("heading", { name: /halaman tidak ditemukan/i })).toBeVisible();
   });
 });

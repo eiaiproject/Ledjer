@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { translateError } from "@/lib/errors";
 import { exportAccountsCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -771,7 +772,7 @@ export function AccountsPage() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => orgData?.organization?.id && exportAccountsCsv(orgData.organization.id).catch(() => {})}
+            onClick={() => orgData?.organization?.id && exportAccountsCsv(orgData.organization.id).catch((err) => toast.error(translateError(err)))}
             className="w-full sm:w-auto"
           >
             <Download className="mr-2 h-4 w-4" />

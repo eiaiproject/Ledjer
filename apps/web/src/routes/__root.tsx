@@ -1,5 +1,6 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
+import { getSafeRedirectPath } from "@/lib/redirect";
 
 export function ProtectedRoute() {
   const { session, loading } = useAuth();
@@ -21,6 +22,7 @@ export function ProtectedRoute() {
 
 export function PublicRoute() {
   const { session, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -31,7 +33,13 @@ export function PublicRoute() {
   }
 
   if (session) {
-    return <Navigate to="/dashboard" replace />;
+    const searchParams = new URLSearchParams(location.search);
+    return (
+      <Navigate
+        to={getSafeRedirectPath(searchParams.get("redirect"), "/dashboard")}
+        replace
+      />
+    );
   }
 
   return <Outlet />;

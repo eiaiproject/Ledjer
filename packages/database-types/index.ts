@@ -1389,7 +1389,10 @@ export type Database = {
         Args: {
           p_from_date?: string
           p_organization_id: string
+          p_search?: string
+          p_status?: Database["public"]["Enums"]["transaction_status"]
           p_to_date?: string
+          p_transaction_type?: string
         }
         Returns: string
       }
@@ -1852,4 +1855,3 @@ export const Constants = {
     },
   },
 } as const
-

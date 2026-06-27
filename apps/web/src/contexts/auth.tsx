@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthContext, type SignUpResult } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
+import { getSafeRedirectPath } from "@/lib/redirect";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -64,8 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (
     email: string,
     password: string,
-    fullName: string
+    fullName: string,
+    redirectTo?: string
   ): Promise<SignUpResult> => {
+    const safeRedirect = getSafeRedirectPath(redirectTo, "/onboarding");
+    const callbackUrl = new URL("/auth/callback", window.location.origin);
+    if (safeRedirect !== "/onboarding") {
+      callbackUrl.searchParams.set("redirect", safeRedirect);
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -75,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         // Pin the verification link to our callback page so we can show a
         // branded success state and route the user to onboarding.
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl.toString(),
       },
     });
     if (error) throw error;

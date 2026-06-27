@@ -91,9 +91,10 @@ export async function loginUser(user: TestUser): Promise<string> {
 export async function seedOrganization(
   _userId: string,
   orgName: string = e2eName("Toko Otomatis"),
+  owner: TestUser = E2E_OWNER,
 ): Promise<string> {
   // RPC needs auth.uid() — login as owner to get user JWT
-  const userToken = await loginUser(E2E_OWNER);
+  const userToken = await loginUser(owner);
   const userHeaders = {
     apikey: E2E.supabaseAnonKey,
     Authorization: `Bearer ${userToken}`,

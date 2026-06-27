@@ -22,6 +22,15 @@ const rpcArgsByName = {
     p_extra_opening_balances: [] satisfies Json,
   } satisfies RpcArgs<"create_organization_with_opening_balances">,
 
+  accept_invitation: {
+    p_token: "invite-token",
+  } satisfies RpcArgs<"accept_invitation">,
+
+  create_invitation: {
+    p_organization_id: uuid,
+    p_email: "staff@example.test",
+  } satisfies RpcArgs<"create_invitation">,
+
   get_balance_sheet: {
     p_organization_id: uuid,
     p_as_of_date: isoDate,
@@ -53,10 +62,9 @@ const rpcArgsByName = {
     p_as_of_date: isoDate,
   } satisfies RpcArgs<"get_trial_balance">,
 
-  invite_staff: {
+  get_invitations: {
     p_organization_id: uuid,
-    p_email: "staff@example.test",
-  } satisfies RpcArgs<"invite_staff">,
+  } satisfies RpcArgs<"get_invitations">,
 
   is_email_rate_limited: {
     p_email: "owner@example.test",
@@ -92,6 +100,11 @@ const rpcArgsByName = {
     p_member_id: uuid,
   } satisfies RpcArgs<"remove_staff">,
 
+  revoke_invitation: {
+    p_organization_id: uuid,
+    p_invitation_id: uuid,
+  } satisfies RpcArgs<"revoke_invitation">,
+
   rename_account: {
     p_account_id: uuid,
     p_new_name: "Kas Operasional",
@@ -119,20 +132,23 @@ const rpcArgsByName = {
 describe("frontend RPC argument contracts", () => {
   it("covers every RPC called from apps/web/src", () => {
     expect(Object.keys(rpcArgsByName).sort()).toEqual([
+      "accept_invitation",
+      "create_invitation",
       "create_organization_with_opening_balances",
       "get_balance_sheet",
       "get_dashboard_summary",
       "get_general_ledger",
+      "get_invitations",
       "get_monthly_usage",
       "get_profit_loss",
       "get_trial_balance",
-      "invite_staff",
       "is_email_rate_limited",
       "post_transaction",
       "record_login_attempt",
       "record_login_attempt_pre_auth",
       "remove_staff",
       "rename_account",
+      "revoke_invitation",
       "update_staff_permissions",
       "void_transaction",
     ]);

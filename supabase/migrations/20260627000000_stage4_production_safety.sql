@@ -262,8 +262,10 @@ DECLARE
   v_inviter_role TEXT;
   v_current_plan TEXT;
   v_staff_count INTEGER;
+  v_pending_invitation_count INTEGER;
   v_invitation_id UUID;
   v_token TEXT;
+  v_expires_at TIMESTAMPTZ;
   v_existing_invitation RECORD;
 BEGIN
   v_inviter_id := auth.uid();
@@ -303,7 +305,7 @@ BEGIN
   END IF;
 
   -- Check for existing pending invitation for this email
-  SELECT id, status INTO v_existing_invitation
+  SELECT id, status, token INTO v_existing_invitation
   FROM public.organization_invitations
   WHERE organization_id = p_organization_id
     AND lower(email) = lower(p_email)
@@ -315,7 +317,8 @@ BEGIN
     UPDATE public.organization_invitations
     SET expires_at = now() + INTERVAL '7 days',
         updated_at = now()
-    WHERE id = v_existing_invitation.id;
+    WHERE id = v_existing_invitation.id
+    RETURNING expires_at INTO v_expires_at;
 
     INSERT INTO public.audit_logs (organization_id, actor_user_id, entity_type, entity_id, action, after_data)
     VALUES (p_organization_id, v_inviter_id, 'invitation', v_existing_invitation.id, 'invitation_resent',
@@ -324,8 +327,20 @@ BEGIN
     RETURN jsonb_build_object(
       'invitation_id', v_existing_invitation.id,
       'email', lower(p_email),
+      'token', v_existing_invitation.token,
+      'expires_at', v_expires_at,
       'resent', true
     );
+  END IF;
+
+  SELECT COUNT(*) INTO v_pending_invitation_count
+  FROM public.organization_invitations
+  WHERE organization_id = p_organization_id
+    AND status = 'pending'
+    AND expires_at > now();
+
+  IF v_pending_invitation_count >= 1 THEN
+    RAISE EXCEPTION 'Slot undangan staf sudah terpakai. Batalkan undangan aktif sebelum membuat undangan baru.';
   END IF;
 
   -- Generate secure token (32 bytes hex = 64 chars)
@@ -509,26 +524,38 @@ CREATE OR REPLACE FUNCTION public.get_invitations(
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public
 AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
-  IF NOT public.is_org_member(p_organization_id) THEN
-    RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Autentikasi diperlukan';
+  END IF;
+
+  SELECT role::TEXT INTO v_role
+  FROM public.organization_members
+  WHERE organization_id = p_organization_id
+    AND user_id = auth.uid()
+    AND status = 'active';
+
+  IF v_role IS NULL OR v_role != 'owner' THEN
+    RAISE EXCEPTION 'Hanya owner yang dapat melihat undangan';
   END IF;
 
   RETURN (
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
       'id', oi.id,
       'email', oi.email,
+      'token', oi.token,
       'role', oi.role,
       'status', oi.status,
       'expires_at', oi.expires_at,
       'created_at', oi.created_at,
       'invited_by_name', p.full_name
-    )), '[]'::jsonb)
+    ) ORDER BY oi.created_at DESC), '[]'::jsonb)
     FROM public.organization_invitations oi
     LEFT JOIN public.profiles p ON p.user_id = oi.invited_by
     WHERE oi.organization_id = p_organization_id
       AND oi.status = 'pending'
-    ORDER BY oi.created_at DESC
   );
 END;
 $$;
@@ -719,18 +746,24 @@ REVOKE EXECUTE ON FUNCTION public.admin_set_suspension(UUID, BOOLEAN, TEXT) FROM
 -- 8. CSV EXPORT RPCs
 -- ═══════════════════════════════════════════════════════════════════
 
+DROP FUNCTION IF EXISTS public.export_transactions_csv(UUID, DATE, DATE);
+
 -- Export transactions as CSV text
 CREATE OR REPLACE FUNCTION public.export_transactions_csv(
   p_organization_id UUID,
   p_from_date DATE DEFAULT NULL,
-  p_to_date DATE DEFAULT NULL
+  p_to_date DATE DEFAULT NULL,
+  p_search TEXT DEFAULT NULL,
+  p_transaction_type TEXT DEFAULT NULL,
+  p_status public.transaction_status DEFAULT NULL
 ) RETURNS TEXT
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path = public
 AS $$
 DECLARE
   v_result TEXT;
-  v_header TEXT := 'Tanggal,No Transaksi,Jenis,Partai,Deskripsi,Debit,Kredit,Status';
+  v_header TEXT := 'Tanggal,No Transaksi,Jenis,Partai,Deskripsi,Nominal,Status';
+  v_search TEXT := NULLIF(regexp_replace(trim(COALESCE(p_search, '')), '[,%()]', ' ', 'g'), '');
 BEGIN
   IF NOT public.is_org_member(p_organization_id) THEN
     RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
@@ -747,7 +780,6 @@ BEGIN
     COALESCE(replace(party_name, ',', ';'), '') || ',' ||
     COALESCE(replace(t.description, ',', ';'), '') || ',' ||
     COALESCE(t.amount::TEXT, '0') || ',' ||
-    COALESCE(t.amount::TEXT, '0') || ',' ||
     t.status,
     E'\n'
   ) INTO v_result
@@ -762,6 +794,13 @@ BEGIN
       AND te.status IN ('posted', 'voided')
       AND (p_from_date IS NULL OR te.transaction_date >= p_from_date)
       AND (p_to_date IS NULL OR te.transaction_date <= p_to_date)
+      AND (p_transaction_type IS NULL OR te.transaction_type = p_transaction_type)
+      AND (p_status IS NULL OR te.status = p_status)
+      AND (
+        v_search IS NULL
+        OR te.description ILIKE '%' || v_search || '%'
+        OR te.transaction_number ILIKE '%' || v_search || '%'
+      )
     ORDER BY te.transaction_date, te.transaction_number
   ) t;
 
@@ -769,9 +808,9 @@ BEGIN
 END;
 $$;
 
-ALTER FUNCTION public.export_transactions_csv(UUID, DATE, DATE) OWNER TO postgres;
-REVOKE EXECUTE ON FUNCTION public.export_transactions_csv(UUID, DATE, DATE) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.export_transactions_csv(UUID, DATE, DATE) TO authenticated;
+ALTER FUNCTION public.export_transactions_csv(UUID, DATE, DATE, TEXT, TEXT, public.transaction_status) OWNER TO postgres;
+REVOKE EXECUTE ON FUNCTION public.export_transactions_csv(UUID, DATE, DATE, TEXT, TEXT, public.transaction_status) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.export_transactions_csv(UUID, DATE, DATE, TEXT, TEXT, public.transaction_status) TO authenticated;
 
 -- Export accounts (chart of accounts) as CSV
 CREATE OR REPLACE FUNCTION public.export_accounts_csv(

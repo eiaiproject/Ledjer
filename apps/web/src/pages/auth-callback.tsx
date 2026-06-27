@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
+import { getSafeRedirectPath } from "@/lib/redirect";
 import { AlertTriangle, ArrowRight, CheckCircle2, Mail } from "lucide-react";
 
 type Status = "verifying" | "success" | "error" | "invalid";
@@ -59,6 +60,7 @@ export function AuthCallbackPage() {
         | "recovery"
         | "email_change"
         | null;
+      const redirectPath = getSafeRedirectPath(searchParams.get("redirect"), "/onboarding");
 
       try {
         if (code) {
@@ -87,7 +89,7 @@ export function AuthCallbackPage() {
           if (type === "recovery") {
             navigate("/reset-password", { replace: true });
           } else {
-            navigate("/onboarding", { replace: true });
+            navigate(redirectPath, { replace: true });
           }
         }, 1200);
       } catch (err) {

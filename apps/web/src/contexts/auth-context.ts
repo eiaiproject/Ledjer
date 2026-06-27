@@ -12,7 +12,7 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, fullName: string, redirectTo?: string) => Promise<SignUpResult>;
   resendConfirmationEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }

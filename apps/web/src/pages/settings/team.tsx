@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
+import { formatShortDate } from "@/lib/utils";
 import {
   UserPlus,
   Shield,
@@ -28,6 +29,11 @@ import {
   X,
   Sparkles,
   ArrowRight,
+  Copy,
+  Link2,
+  MailCheck,
+  Ban,
+  Info,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -45,6 +51,25 @@ interface StaffMember {
   can_view_audit_log: boolean;
   joined_at: string | null;
   profiles?: { full_name: string; email: string };
+}
+
+interface PendingInvitation {
+  id: string;
+  email: string;
+  token: string;
+  role: string;
+  status: string;
+  expires_at: string;
+  created_at: string;
+  invited_by_name: string | null;
+}
+
+interface CreateInvitationResult {
+  invitation_id: string;
+  email: string;
+  token?: string;
+  expires_at?: string;
+  resent?: boolean;
 }
 
 type StaffPermissionKey =
@@ -121,6 +146,62 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+function parseInvitations(value: unknown): PendingInvitation[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> =>
+      !!item && typeof item === "object"
+    )
+    .map((item) => ({
+      id: String(item.id || ""),
+      email: String(item.email || ""),
+      token: String(item.token || ""),
+      role: String(item.role || "staff"),
+      status: String(item.status || "pending"),
+      expires_at: String(item.expires_at || ""),
+      created_at: String(item.created_at || ""),
+      invited_by_name:
+        typeof item.invited_by_name === "string" ? item.invited_by_name : null,
+    }))
+    .filter((item) => item.id && item.email);
+}
+
+function parseCreateInvitationResult(value: unknown): CreateInvitationResult {
+  const result = value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+  return {
+    invitation_id: String(result.invitation_id || ""),
+    email: String(result.email || ""),
+    token: typeof result.token === "string" ? result.token : undefined,
+    expires_at: typeof result.expires_at === "string" ? result.expires_at : undefined,
+    resent: result.resent === true,
+  };
+}
+
+function buildInvitationLink(token: string): string {
+  const url = new URL("/invitations/accept", window.location.origin);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+async function copyText(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 /* ─── Plan Info Card ────────────────────────────────────── */
 
 function PlanInfoCard({
@@ -150,7 +231,7 @@ function PlanInfoCard({
             <div className="mt-2 flex items-center gap-2">
               <Users className="h-4 w-4 text-wood-500" />
               <span className="text-sm text-wood-600">
-                Staf digunakan:{" "}
+                Slot staf digunakan:{" "}
                 <span className="font-semibold text-wood-800">
                   {isBusiness ? `${staffUsed} / ${staffLimit}` : staffUsed}
                 </span>
@@ -186,6 +267,62 @@ function PermissionPreview() {
             <span>{PERMISSION_LABELS[key].label}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function PendingInvitationCard({
+  invitation,
+  onCopy,
+  onRevoke,
+  revokePending,
+}: {
+  invitation: PendingInvitation;
+  onCopy: () => void;
+  onRevoke: () => void;
+  revokePending: boolean;
+}) {
+  const expiresAt = formatShortDate(invitation.expires_at);
+
+  return (
+    <div className="min-w-0 rounded-lg border border-sky-200 bg-sky-50 p-4">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+            <MailCheck className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="break-words text-sm font-semibold text-wood-800">
+                {invitation.email}
+              </p>
+              <Badge variant="info" size="sm">Menunggu</Badge>
+            </div>
+            <p className="mt-1 break-words text-xs text-wood-500">
+              Link berlaku sampai {expiresAt}. Kirim link ini ke staf melalui kanal yang Anda percaya.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+          <Button type="button" variant="secondary" size="sm" onClick={onCopy}>
+            <Copy className="h-4 w-4" />
+            Salin link
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRevoke}
+            loading={revokePending}
+            disabled={revokePending}
+            className="text-error hover:bg-error/10 hover:text-error"
+          >
+            <Ban className="h-4 w-4" />
+            Batalkan
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -234,6 +371,7 @@ export function TeamSettingsPage() {
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [latestInviteLink, setLatestInviteLink] = useState<string | null>(null);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<StaffMember | null>(null);
 
@@ -266,28 +404,70 @@ export function TeamSettingsPage() {
     enabled: !!orgData?.organization?.id,
   });
 
+  const {
+    data: invitations = [],
+    isLoading: invitationsLoading,
+    error: invitationsError,
+    refetch: refetchInvitations,
+  } = useQuery({
+    queryKey: queryKeys.invitations.list(orgData?.organization?.id),
+    queryFn: async () => {
+      if (!orgData?.organization?.id) return [];
+      const { data, error } = await supabase.rpc("get_invitations", {
+        p_organization_id: orgData.organization.id,
+      });
+      if (error) throw error;
+      return parseInvitations(data);
+    },
+    enabled: !!orgData?.organization?.id && isOwner && isBusinessPlan,
+  });
+
   /* ── Mutations ── */
 
   const inviteMutation = useMutation({
     mutationFn: async (email: string) => {
       const organizationId = orgData?.organization?.id;
       if (!organizationId) throw new Error("Organisasi tidak ditemukan");
-      const { data, error } = await supabase.rpc("invite_staff", {
+      const { data, error } = await supabase.rpc("create_invitation", {
         p_organization_id: organizationId,
         p_email: email.trim(),
       });
       if (error) throw error;
-      return data;
+      return parseCreateInvitationResult(data);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setInviteEmail("");
       setInviteError(null);
-      toast.success("Undangan berhasil dikirim");
+      setLatestInviteLink(result.token ? buildInvitationLink(result.token) : null);
+      toast.success(
+        result.resent
+          ? "Link undangan diperbarui. Salin link untuk dikirim ke staf."
+          : "Link undangan dibuat. Salin link untuk dikirim ke staf."
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.orgMembers.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.invitations.all() });
     },
     onError: (err) => {
       setInviteError(translateError(err));
     },
+  });
+
+  const revokeInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const organizationId = orgData?.organization?.id;
+      if (!organizationId) throw new Error("Organisasi tidak ditemukan");
+      const { error } = await supabase.rpc("revoke_invitation", {
+        p_organization_id: organizationId,
+        p_invitation_id: invitationId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setLatestInviteLink(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.invitations.all() });
+      toast.success("Undangan dibatalkan");
+    },
+    onError: (err) => toast.error(translateError(err)),
   });
 
   const permissionMutation = useMutation({
@@ -350,7 +530,14 @@ export function TeamSettingsPage() {
     [members]
   );
   const staffSlotFull = isBusinessPlan && staffMembers.length >= 1;
-  const canInvite = isOwner && isBusinessPlan && !staffSlotFull;
+  const pendingInviteSlotUsed = invitations.length >= 1;
+  const staffSlotsUsed = staffMembers.length + invitations.length;
+  const canInvite =
+    isOwner &&
+    isBusinessPlan &&
+    !staffSlotFull &&
+    !pendingInviteSlotUsed &&
+    !invitationsLoading;
 
   const handleInvite = () => {
     if (inviteMutation.isPending) return;
@@ -360,6 +547,18 @@ export function TeamSettingsPage() {
       return;
     }
     inviteMutation.mutate(trimmed);
+  };
+
+  const handleCopyInviteLink = async (tokenOrLink: string) => {
+    try {
+      const link = tokenOrLink.startsWith("http")
+        ? tokenOrLink
+        : buildInvitationLink(tokenOrLink);
+      await copyText(link);
+      toast.success("Link undangan disalin");
+    } catch {
+      toast.error("Link belum bisa disalin. Salin manual dari field link.");
+    }
   };
 
   const handleRemoveClick = (member: StaffMember) => {
@@ -391,10 +590,10 @@ export function TeamSettingsPage() {
         {/* Plan Info */}
         {members && (
           <PlanInfoCard
-            currentPlan={currentPlan}
-            staffCount={staffMembers.length}
-            isOwner={isOwner}
-          />
+              currentPlan={currentPlan}
+              staffCount={staffSlotsUsed}
+              isOwner={isOwner}
+            />
         )}
 
         {/* Owner Section */}
@@ -435,7 +634,7 @@ export function TeamSettingsPage() {
                 </h2>
                 {isBusinessPlan && (
                   <Badge variant="neutral" size="sm">
-                    {staffMembers.length}/1 slot terpakai
+                    {staffSlotsUsed}/1 slot terpakai
                   </Badge>
                 )}
               </div>
@@ -561,15 +760,61 @@ export function TeamSettingsPage() {
                   <PermissionPreview />
 
                   {/* Invite form */}
+                  {invitationsError && (
+                    <div className="mt-4">
+                      <ErrorState
+                        error={invitationsError}
+                        onRetry={refetchInvitations}
+                        className="rounded-lg border border-error/20 bg-error/5 py-6"
+                      />
+                    </div>
+                  )}
+
+                  {latestInviteLink && (
+                    <div className="mt-4 rounded-lg border border-leaf-200 bg-leaf-50 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-leaf-100 text-leaf-700">
+                          <Link2 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-leaf-800">
+                            Link undangan siap dikirim
+                          </p>
+                          <p className="mt-1 text-xs text-leaf-800/80">
+                            Salin link ini dan kirim ke staf melalui WhatsApp, email, atau kanal internal Anda.
+                          </p>
+                          <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row">
+                            <input
+                              readOnly
+                              value={latestInviteLink}
+                              className="min-h-[44px] min-w-0 flex-1 rounded-md border border-leaf-200 bg-white px-3 py-2 text-xs text-wood-700 sm:min-h-0"
+                              aria-label="Link undangan terbaru"
+                              onFocus={(e) => e.currentTarget.select()}
+                            />
+                            <Button
+                              type="button"
+                              variant="success"
+                              size="sm"
+                              onClick={() => handleCopyInviteLink(latestInviteLink)}
+                            >
+                              <Copy className="h-4 w-4" />
+                              Salin link
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {canInvite ? (
                     <div className="mt-4 rounded-lg border border-dashed border-leaf-300 bg-leaf-50/50 p-4">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="mb-2 flex items-center gap-2">
                         <UserPlus className="h-4 w-4 text-leaf-600" />
                         <p className="text-sm font-medium text-leaf-800">
-                          Undang staf baru
+                          Buat link undangan staf
                         </p>
                       </div>
-                      <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
                         <Input
                           label="Email staf"
                           type="email"
@@ -583,8 +828,10 @@ export function TeamSettingsPage() {
                           }}
                           placeholder="email@contoh.com"
                           error={inviteError ?? undefined}
+                          helperText="Staf harus masuk atau daftar dengan email ini untuk menerima undangan."
                           autoComplete="email"
                           disabled={inviteMutation.isPending}
+                          containerClassName="min-w-0 flex-1"
                         />
                         <Button
                           type="button"
@@ -595,16 +842,45 @@ export function TeamSettingsPage() {
                             !isValidEmail(inviteEmail) ||
                             inviteMutation.isPending
                           }
+                          className="sm:mt-7"
                         >
-                          Undang
+                          <Link2 className="h-4 w-4" />
+                          Buat link
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    /* Slot full message */
-                    <div className="mt-4 flex items-center gap-2 rounded-lg border border-wood-200 bg-cream-100 px-4 py-3 text-sm text-wood-600">
-                      <Info className="h-4 w-4 shrink-0 text-wood-500" />
-                      Slot staf sudah terpakai. Hapus staf saat ini untuk mengundang yang baru.
+                    <div className="mt-4 flex items-start gap-2 rounded-lg border border-wood-200 bg-cream-100 px-4 py-3 text-sm text-wood-600">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-wood-500" />
+                      <span className="min-w-0 break-words">
+                        {staffSlotFull
+                          ? "Slot staf sudah terpakai. Hapus staf saat ini untuk mengundang yang baru."
+                          : pendingInviteSlotUsed
+                            ? "Satu undangan sedang menunggu diterima. Batalkan undangan tersebut jika ingin membuat link untuk email lain."
+                            : "Memuat status undangan..."}
+                      </span>
+                    </div>
+                  )}
+
+                  {invitations.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-semibold text-wood-700">
+                          Undangan aktif
+                        </h3>
+                        <Badge variant="info" size="sm">
+                          {invitations.length} pending
+                        </Badge>
+                      </div>
+                      {invitations.map((invitation) => (
+                        <PendingInvitationCard
+                          key={invitation.id}
+                          invitation={invitation}
+                          onCopy={() => handleCopyInviteLink(invitation.token)}
+                          onRevoke={() => revokeInvitationMutation.mutate(invitation.id)}
+                          revokePending={revokeInvitationMutation.isPending}
+                        />
+                      ))}
                     </div>
                   )}
 
@@ -613,25 +889,29 @@ export function TeamSettingsPage() {
                     <div className="mt-4 rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
                       <Users className="mx-auto h-10 w-10 text-wood-300" />
                       <h3 className="mt-3 text-sm font-medium text-wood-700">
-                        Belum ada staf
+                        {pendingInviteSlotUsed ? "Menunggu staf menerima undangan" : "Belum ada staf"}
                       </h3>
                       <p className="mt-1 text-xs text-wood-500 max-w-sm mx-auto">
-                        Undang staf untuk membantu mencatat transaksi. Anda dapat mengatur hak akses mereka sesuai kebutuhan.
+                        {pendingInviteSlotUsed
+                          ? "Setelah staf menerima link undangan, mereka akan muncul di daftar ini dan izinnya bisa Anda atur."
+                          : "Undang staf untuk membantu mencatat transaksi. Anda dapat mengatur hak akses mereka sesuai kebutuhan."}
                       </p>
-                      <ul className="mt-3 space-y-1 text-xs text-wood-500 max-w-sm mx-auto text-left">
-                        <li className="flex items-center gap-2">
-                          <Check className="h-3 w-3 text-leaf-500 shrink-0" />
-                          Staf dapat membantu mencatat transaksi harian
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="h-3 w-3 text-leaf-500 shrink-0" />
-                          Anda mengontrol izin setiap staf
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="h-3 w-3 text-leaf-500 shrink-0" />
-                          Semua aktivitas staf tercatat di audit log
-                        </li>
-                      </ul>
+                      {!pendingInviteSlotUsed && (
+                        <ul className="mt-3 space-y-1 text-xs text-wood-500 max-w-sm mx-auto text-left">
+                          <li className="flex items-center gap-2">
+                            <Check className="h-3 w-3 text-leaf-500 shrink-0" />
+                            Staf dapat membantu mencatat transaksi harian
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="h-3 w-3 text-leaf-500 shrink-0" />
+                            Anda mengontrol izin setiap staf
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="h-3 w-3 text-leaf-500 shrink-0" />
+                            Semua aktivitas staf tercatat di audit log
+                          </li>
+                        </ul>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-4 space-y-3">
@@ -836,28 +1116,5 @@ function StaffCard({
         </div>
       )}
     </div>
-  );
-}
-
-/* ─── Info icon (imported above but not in lucide-react exports) ─── */
-
-function Info({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4" />
-      <path d="M12 8h.01" />
-    </svg>
   );
 }

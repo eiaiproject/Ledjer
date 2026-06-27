@@ -21,6 +21,11 @@ export const queryKeys = {
     all: () => ["org-members"] as const,
   },
 
+  invitations: {
+    list: (orgId: string | undefined) => ["invitations", orgId] as const,
+    all: () => ["invitations"] as const,
+  },
+
   reports: {
     balanceSheet: (orgId: string | undefined, asOfDate: string) => ["balance-sheet", orgId, asOfDate] as const,
     generalLedger: (orgId: string | undefined, accountId: string | undefined, fromDate: string, toDate: string) =>

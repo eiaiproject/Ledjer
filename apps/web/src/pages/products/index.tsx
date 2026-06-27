@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Package, Edit2, Trash2, Search } from "lucide-react";
+import { Plus, Package, Edit2, Trash2, Search, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
+import { exportProductsCsv } from "@/lib/csv-export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -223,6 +224,11 @@ export function ProductsPage() {
     saveMutation.mutate(formData);
   };
 
+  const handleExport = () => {
+    if (!orgData?.organization?.id) return;
+    exportProductsCsv(orgData.organization.id).catch((err) => toast.error(translateError(err)));
+  };
+
   const filteredProducts = (products || []).filter((p) =>
     !search ||
     p.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -240,10 +246,16 @@ export function ProductsPage() {
           <p className="text-sm text-text-secondary mt-1">Kelola produk dan stok</p>
         </div>
         {canManageProducts && (
-          <Button onClick={openCreateModal}>
-            <Plus className="h-4 w-4" />
-            Tambah Produk
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button type="button" variant="outline" onClick={handleExport} disabled={!products?.length}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button onClick={openCreateModal}>
+              <Plus className="h-4 w-4" />
+              Tambah Produk
+            </Button>
+          </div>
         )}
       </div>
 

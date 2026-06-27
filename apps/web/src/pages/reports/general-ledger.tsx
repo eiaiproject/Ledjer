@@ -11,6 +11,8 @@ import { Select } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
+import { translateError } from "@/lib/errors";
+import { toast } from "@/components/ui/toast-api";
 import { Download } from "lucide-react";
 
 interface LedgerEntry {
@@ -126,7 +128,7 @@ export function GeneralLedgerPage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => orgData?.organization?.id && exportGeneralLedgerCsv(orgData.organization.id, accountId === 'all' ? undefined : accountId, fromDate, toDate).catch(() => {})}
+              onClick={() => orgData?.organization?.id && exportGeneralLedgerCsv(orgData.organization.id, accountId === 'all' ? undefined : accountId, fromDate, toDate).catch((err) => toast.error(translateError(err)))}
               disabled={!ledger?.length || dateRangeInvalid}
             >
               <Download className="h-4 w-4" />
