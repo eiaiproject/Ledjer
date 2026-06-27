@@ -125,7 +125,9 @@ jobs:
         run: |
           set -euo pipefail
           supabase gen types typescript --local --schema public > /tmp/database-types.generated.ts
-          diff -u packages/database-types/index.ts /tmp/database-types.generated.ts
+          cp packages/database-types/index.ts /tmp/database-types.expected.ts
+          perl -0pi -e 's/\n+\z/\n/' /tmp/database-types.expected.ts /tmp/database-types.generated.ts
+          diff -u /tmp/database-types.expected.ts /tmp/database-types.generated.ts
           echo "✅ Database types match"
 
       - name: Run SQL tests explicitly via psql

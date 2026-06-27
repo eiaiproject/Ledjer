@@ -72,15 +72,18 @@ if [[ "$MODE" == "--live" ]]; then
 
   echo "🔄 Regenerating database types from local Supabase stack..."
   GENERATED_FILE=$(mktemp /tmp/database-types.generated.XXXXXX.ts)
-  trap 'rm -f "$GENERATED_FILE"' EXIT
+  EXPECTED_FILE=$(mktemp /tmp/database-types.expected.XXXXXX.ts)
+  trap 'rm -f "$GENERATED_FILE" "$EXPECTED_FILE"' EXIT
 
   supabase gen types typescript --local --schema public > "$GENERATED_FILE" 2>/dev/null
+  cp "$CANONICAL_FILE" "$EXPECTED_FILE"
+  perl -0pi -e 's/\n+\z/\n/' "$EXPECTED_FILE" "$GENERATED_FILE"
 
-  if ! diff -u "$CANONICAL_FILE" "$GENERATED_FILE" >/dev/null 2>&1; then
+  if ! diff -u "$EXPECTED_FILE" "$GENERATED_FILE" >/dev/null 2>&1; then
     echo "" >&2
     echo "❌ Database types have DRIFTED from the canonical file." >&2
     echo "   To fix: run 'supabase gen types typescript --local --schema public > packages/database-types/index.ts'" >&2
-    diff -u "$CANONICAL_FILE" "$GENERATED_FILE" >&2 || true
+    diff -u "$EXPECTED_FILE" "$GENERATED_FILE" >&2 || true
     exit 1
   fi
 
