@@ -1,0 +1,140 @@
+name: Deploy
+
+# Trigger after CI workflow succeeds on main/master only.
+# This ensures deployment ONLY happens after all CI checks are green.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+      - master
+
+# Only one deploy at a time — cancel stale in-flight deploys for the same branch.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Deploy to Cloudflare Pages ─────────────────────────────
+  deploy:
+    name: "Deploy to Cloudflare Pages"
+    # Only deploy if the triggering CI workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://app.ledjer.id
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Checkout the exact commit that CI validated
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build production
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: pnpm --filter web build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/web/dist --project-name=ledjer --branch=production
+        id: deploy
+
+      - name: Summary
+        run: |
+          echo "### ✅ Deployed to Cloudflare Pages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.event.workflow_run.head_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ github.event.workflow_run.head_branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://app.ledjer.id" >> $GITHUB_STEP_SUMMARY
+
+  # ─── Post-Deploy Smoke Test ─────────────────────────────────
+  post-deploy-smoke:
+    name: "Post-Deploy Smoke (Production)"
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install chromium --with-deps
+
+      - name: Wait for deployment to propagate
+        run: sleep 15
+
+      - name: Run post-deploy smoke tests
+        env:
+          E2E_MODE: deploy-smoke
+          E2E_BASE_URL: https://app.ledjer.id
+          CI: true
+        run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts --project=chromium
+
+      - name: Upload smoke report
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: post-deploy-smoke-report
+          path: apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ─── Post-Deploy Failure Report ──────────────────────────────
+  post-deploy-failure-report:
+    name: "Post-Deploy Failure Report"
+    needs: [deploy, post-deploy-smoke]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: List recent deployments for manual rollback
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deployment list --project-name=ledjer --limit=3
+
+      - name: Summary
+        run: |
+          echo "### ⚠️ Post-deploy smoke FAILED — manual rollback may be needed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the [post-deploy-smoke](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) job for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Manual rollback:** Go to Cloudflare Dashboard → Pages → ledjer → Deployments → promote the previous successful deployment." >> $GITHUB_STEP_SUMMARY
