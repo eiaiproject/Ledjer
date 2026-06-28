@@ -182,48 +182,18 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
       if (!trimmed) throw new Error("Nama akun wajib diisi");
       if (trimmed.length > 60) throw new Error("Nama akun maksimal 60 karakter");
 
-      // Check for duplicate name
-      const { data: existing, error: checkError } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("organization_id", orgData.organization.id)
-        .ilike("name", trimmed)
-        .limit(1);
+      // Use server-side RPC for atomic account creation
+      const { data: result, error: rpcError } = await supabase
+        .rpc("create_cash_bank_account", {
+          p_organization_id: orgData.organization.id,
+          p_account_name: trimmed,
+          p_kind: data.kind,
+        });
 
-      if (checkError) throw checkError;
-      if (existing && existing.length > 0) {
-        throw new Error("Nama akun sudah digunakan");
-      }
+      if (rpcError) throw rpcError;
+      if (!result) throw new Error("Gagal membuat akun");
 
-      const code = getNextAccountCode(accounts, data.kind);
-      if (code === -1) {
-        throw new Error("Kode akun untuk jenis ini sudah penuh. Hubungi admin.");
-      }
-      // All cash/bank/qris/ewallet accounts are cash accounts for transaction purposes
-      const isCash = true;
-
-      // Insert new account
-      const { data: newAccount, error: insertError } = await supabase
-        .from("accounts")
-        .insert({
-          organization_id: orgData.organization.id,
-          code,
-          name: trimmed,
-          account_type: "asset",
-          normal_balance: "debit",
-          is_active: true,
-          is_cash_account: isCash,
-          is_locked: false,
-          is_system: false,
-          report_group: isCash ? "Kas" : "Bank",
-        })
-        .select("id, code, name")
-        .single();
-
-      if (insertError) throw insertError;
-      if (!newAccount) throw new Error("Gagal membuat akun");
-
-      return newAccount;
+      return result as { id: string; code: number; name: string };
     },
     onSuccess: () => {
       toast.success("Akun berhasil ditambahkan");
