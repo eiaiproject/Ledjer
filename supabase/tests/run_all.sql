@@ -14,7 +14,7 @@
 --
 -- CI and the README must reference THIS file rather than re-listing the suites.
 --
--- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════════════╗
 -- ║  WARNING: NEVER run this file against production or any persistent      ║
 -- ║  hosted database.  Tests create test users in auth.users, insert        ║
 -- ║  disposable organizations, and may revoke/grant privileges.  Run only   ║
@@ -50,6 +50,9 @@
 
 \echo '=== payable_behavior_tests.sql ==='
 \i supabase/tests/payable_behavior_tests.sql
+
+\echo '=== partial_payment_regression_tests.sql ==='
+\i supabase/tests/partial_payment_regression_tests.sql
 
 \echo '=== permission_matrix_tests.sql ==='
 \i supabase/tests/permission_matrix_tests.sql
@@ -116,7 +119,6 @@ BEGIN
     INTO v_remaining, v_names
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public'
     AND p.proname LIKE '_test_%';
 
   IF v_remaining > 0 THEN

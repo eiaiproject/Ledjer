@@ -1327,6 +1327,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      create_cash_bank_account: {
+        Args: { p_organization_id: string; p_account_name: string; p_kind: string }
+        Returns: Json
+      }
       create_default_accounts: {
         Args: { p_org_id: string; p_org_name: string }
         Returns: number
