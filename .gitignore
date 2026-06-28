@@ -42,8 +42,8 @@ coverage
 apps/web/playwright-report/
 apps/web/test-results/
 
-# Pi agent config (local only)
-.impeccable/config.local.json
+# Pi agent / Impeccable (local-only design artifacts)
+.impeccable
 
 # Codex hooks (local paths, not portable)
 .codex/hooks.json

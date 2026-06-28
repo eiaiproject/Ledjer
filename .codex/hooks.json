@@ -1,3 +1,0 @@
-{
-  "description": "Local-only hook config (not shared via git). Add this file to .gitignore if you use absolute local paths."
-}
