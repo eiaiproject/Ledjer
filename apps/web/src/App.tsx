@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -48,7 +49,7 @@ function RouteFallback() {
   );
 }
 
-const router = createBrowserRouter([
+const routerConfig = [
   {
     path: "/",
     element: <PublicRoute />,
@@ -106,7 +107,10 @@ const router = createBrowserRouter([
     ],
   },
   { path: "*", element: <NotFoundPage /> },
-]);
+];
+
+const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouterV7(createBrowserRouter);
+const sentryRouter = sentryCreateBrowserRouter(routerConfig);
 
 function App() {
   return (
@@ -115,7 +119,7 @@ function App() {
         <ToastProvider>
           <AuthProvider>
             <Suspense fallback={<RouteFallback />}>
-              <RouterProvider router={router} />
+              <RouterProvider router={sentryRouter} />
             </Suspense>
           </AuthProvider>
         </ToastProvider>
