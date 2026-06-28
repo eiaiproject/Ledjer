@@ -71,7 +71,7 @@ export function SectionCard({ title, step, helperText, id, children }: SectionCa
 /*  ErrorSummary                                                       */
 /* ------------------------------------------------------------------ */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- generic error display component */
 interface ErrorSummaryProps {
   errors: FieldErrors<any>;
   formErrorMessage?: string;
