@@ -11,11 +11,41 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+        maskAllInputs: true,
+      }),
     ],
-    tracesSampleRate: 0.1,  // ponytail: raise to 1.0 for initial launch debugging, then lower
+    tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0.05,
     replaysOnErrorSampleRate: 1.0,
+    // Strip sensitive data from error reports
+    beforeSend(event) {
+      // Remove any PII from URLs (tokens, IDs in query params)
+      if (event.request?.url) {
+        try {
+          const url = new URL(event.request.url);
+          url.search = '';
+          url.hash = '';
+          event.request.url = url.toString();
+        } catch { /* ignore */ }
+      }
+      // Scrub sensitive request headers (Authorization, Cookie)
+      if (event.request?.headers) {
+        const headers = event.request.headers;
+        if (typeof headers === 'object' && headers !== null) {
+          const sensitiveHeaders = ['authorization', 'cookie', 'set-cookie', 'x-auth-token', 'api-key'];
+          for (const key of Object.keys(headers)) {
+            const lower = key.toLowerCase();
+            if (sensitiveHeaders.includes(lower)) {
+              (headers as Record<string, string>)[key] = '[scrubbed]';
+            }
+          }
+        }
+      }
+      return event;
+    },
   });
 }
 

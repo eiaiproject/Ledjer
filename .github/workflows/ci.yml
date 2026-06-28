@@ -469,11 +469,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
         run: pnpm --filter web build
 
-      # First run: use --update-snapshots to generate Linux baselines.
-      # After committing baselines, remove --update-snapshots for comparison mode.
-      # First run generates baselines via --update-snapshots.
-      # After baselines are committed, switch to comparison mode (remove --update-snapshots).
-      - name: Run visual regression tests (generate/update baselines)
+      # CI compares snapshots against committed baselines. To update baselines
+      # locally, run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
+      # Do NOT use --update-snapshots in CI — it masks visual regressions.
+      - name: Run visual regression tests (compare against baselines)
         env:
           E2E_MODE: full-local
           E2E_VISUAL: "1"
@@ -482,7 +481,7 @@ jobs:
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
-        run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
+        run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium
 
       - name: Upload updated baselines
         if: always()

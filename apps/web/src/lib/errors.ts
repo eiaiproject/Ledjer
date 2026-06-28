@@ -16,7 +16,8 @@ const AUTH_MESSAGES: Record<string, string> = {
   JWT_INVALID: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
   JWT_EXPIRED: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
   invalid_credentials: 'Email atau password salah.',
-  user_not_found: 'Email tidak terdaftar.',
+  // PHASE 8 FIX: Generic message prevents user enumeration
+  user_not_found: 'Email atau password salah.',
   weak_password: 'Password terlalu lemah. Gunakan minimal 8 karakter.',
   email_not_confirmed: 'Silakan verifikasi email Anda terlebih dahulu.',
   token_expired: 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
