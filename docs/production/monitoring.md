@@ -1,6 +1,6 @@
 # Production Monitoring & Observability
 
-Last updated: 2026-06-27
+Last updated: 2026-07-31
 
 ## Error Tracking — Sentry
 
@@ -9,6 +9,8 @@ Last updated: 2026-06-27
 - Frontend errors tracked via `@sentry/react`
 - Performance traces at 10% sampling
 - CSP allows Sentry ingest (`connect-src: https://*.ingest.sentry.io`)
+- Replay integration: `maskAllText: true`, `blockAllMedia: true`, `maskAllInputs: true` — PII masked
+- `beforeSend` sanitization: URL query params/hash stripped; `request.headers` scrubbed (Authorization, Cookie, Set-Cookie, x-auth-token, api-key)
 
 ### Required Setup
 1. Create Sentry project at sentry.io

@@ -1,6 +1,6 @@
 # Public Launch Checklist — Release Gate
 
-Last updated: 2026-06-27
+Last updated: 2026-07-31
 
 ⚠️ **This checklist must be fully completed before public launch.**
 Each item must be verified and signed off by the launch owner.
@@ -53,8 +53,8 @@ Each item must be verified and signed off by the launch owner.
 
 ## Staff Invitations
 
-- [ ] `create_invitation` RPC tested
-- [ ] `accept_invitation` RPC tested
+- [ ] `create_invitation` RPC tested (token_hash auto-computed by trigger)
+- [ ] `accept_invitation` RPC tested (hash-only lookup, no plaintext token comparison)
 - [ ] `revoke_invitation` RPC tested
 - [ ] Invitation expiry enforced
 - [ ] Cross-org invite prevention verified
@@ -72,7 +72,7 @@ Each item must be verified and signed off by the launch owner.
 
 ## Data Export
 
-- [ ] Transaction CSV export working
+- [ ] Transaction CSV export working (uses `csv_escape()` for formula injection protection)
 - [ ] Accounts CSV export working
 - [ ] Products CSV export working
 - [ ] Trial Balance CSV export working
@@ -81,6 +81,7 @@ Each item must be verified and signed off by the launch owner.
 - [ ] General Ledger CSV export working
 - [ ] Export respects org isolation
 - [ ] Export requires appropriate permissions
+- [ ] CSV cells with leading `=`, `+`, `-`, `@` are safely prefixed with `'`
 
 ## Legal & Policy
 
@@ -99,9 +100,13 @@ Each item must be verified and signed off by the launch owner.
 - [ ] No service role key in frontend code
 - [ ] No secrets in repository
 - [ ] RLS enabled on all new tables (`billing_events`, `organization_invitations`)
-- [ ] Admin RPCs revoked from anon/authenticated
+- [ ] Admin RPCs revoked from anon/authenticated (verified by inline privilege tests)
 - [ ] Billing trigger protection working
-- [ ] CSP/security headers production-safe
+- [ ] CSP/security headers production-safe (no localhost in production CSP)
+- [ ] Sentry Replay privacy enabled (maskAllText, blockAllMedia, maskAllInputs)
+- [ ] Auth error enumeration prevented (generic error messages for user_not_found)
+- [ ] Invitation tokens hashed at rest (SHA-256 via BEFORE INSERT trigger)
+- [ ] CSV formula injection protected (`csv_escape()` prefixes `'` on `=`, `+`, `-`, `@`)
 
 ## Operational
 
