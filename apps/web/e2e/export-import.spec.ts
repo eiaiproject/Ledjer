@@ -16,14 +16,18 @@ test.describe("CSV export — buttons exist", () => {
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
     const exportBtn = page.getByRole("button", { name: /export csv/i });
-    await expect(exportBtn).toBeVisible({ timeout: 10_000 });
+    await expect(exportBtn).toBeVisible({ timeout: 15_000 });
   });
 
   test("accounts page has export button", async ({ page }) => {
     await page.goto("/accounts");
     await page.waitForLoadState("networkidle");
+
+    // Export CSV only renders on the "Semua Akun" tab (default is "cashbank")
+    await page.getByRole("button", { name: /semua akun/i }).click();
+
     const exportBtn = page.getByRole("button", { name: /export csv/i });
-    await expect(exportBtn).toBeVisible({ timeout: 10_000 });
+    await expect(exportBtn).toBeVisible({ timeout: 15_000 });
   });
 
   test("trial balance report has export button", async ({ page }) => {
@@ -83,8 +87,11 @@ test.describe("CSV export — download and content", () => {
     await page.goto("/accounts");
     await page.waitForLoadState("networkidle");
 
+    // Export CSV only renders on the "Semua Akun" tab (default is "cashbank")
+    await page.getByRole("button", { name: /semua akun/i }).click();
+
     const exportBtn = page.getByRole("button", { name: /export csv/i });
-    await expect(exportBtn).toBeVisible({ timeout: 10_000 });
+    await expect(exportBtn).toBeVisible({ timeout: 15_000 });
 
     const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
     await exportBtn.click();

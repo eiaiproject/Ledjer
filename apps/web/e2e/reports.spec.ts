@@ -222,15 +222,21 @@ test.describe("Reports — golden numbers (seeded data)", () => {
   });
 
   test("journal entries from API are balanced", async () => {
-    // Verify double-entry at the database level
     const orgId = await getOrgId();
     const entries = await getJournalEntries(orgId);
+
     expect(Array.isArray(entries)).toBeTruthy();
     expect(entries.length).toBeGreaterThan(0);
 
-    // Every journal entry should have amount > 0
+    let totalAmount = 0;
+
     for (const entry of entries) {
-      expect(Number(entry.amount)).toBeGreaterThan(0);
+      const amount = Number(entry.amount);
+      expect(Number.isFinite(amount)).toBeTruthy();
+      totalAmount += amount;
     }
+
+    // Signed double-entry rows should net to zero.
+    expect(totalAmount).toBe(0);
   });
 });

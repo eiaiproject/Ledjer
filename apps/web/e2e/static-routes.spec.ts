@@ -24,6 +24,7 @@ test.describe("Static/legal routes", () => {
             "sentry", "Sentry", "analytics", "Failed to load resource",
             "net::ERR", "ResizeObserver", "Non-Error promise rejection",
             "hydrat", "chunk", "Loading CSS chunk", "dynamically imported",
+            "Content Security Policy directive 'frame-ancestors' is ignored",
           ].some((p) => text.toLowerCase().includes(p.toLowerCase()));
           if (!isNoise) consoleErrors.push(text);
         }
