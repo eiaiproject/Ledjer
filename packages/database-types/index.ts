@@ -1303,42 +1303,6 @@ export type Database = {
       }
     }
     Functions: {
-      _test_assert: {
-        Args: { p_condition: boolean; p_detail?: string; p_test_name: string }
-        Returns: undefined
-      }
-      _test_assert_eq_numeric: {
-        Args: {
-          p_actual: number
-          p_expected: number
-          p_test_name: string
-          p_tolerance?: number
-        }
-        Returns: undefined
-      }
-      _test_cleanup: { Args: never; Returns: undefined }
-      _test_create_org_with_users: {
-        Args: {
-          p_books_start: string
-          p_org_name: string
-          p_staff_perm_create?: boolean
-          p_staff_perm_reports?: boolean
-          p_staff_perm_void?: boolean
-        }
-        Returns: {
-          out_cash_account_id: string
-          out_organization_id: string
-          out_owner_user_id: string
-          out_payable_account_id: string
-          out_revenue_account_id: string
-          out_staff_user_id: string
-        }[]
-      }
-      _test_fail: {
-        Args: { p_detail: string; p_test_name: string }
-        Returns: undefined
-      }
-      _test_impersonate: { Args: { p_user_id: string }; Returns: undefined }
       accept_invitation: { Args: { p_token: string }; Returns: Json }
       admin_get_organization: {
         Args: { p_organization_id: string }
