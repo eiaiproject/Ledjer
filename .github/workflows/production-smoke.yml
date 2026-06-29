@@ -1,0 +1,53 @@
+name: Production Smoke Test
+
+# Manual smoke test for production after Cloudflare auto deploy.
+# Does NOT deploy anything — only validates https://app.ledjer.id.
+
+on:
+  workflow_dispatch:
+  # Uncomment for scheduled smoke:
+  # schedule:
+  #   - cron: "0 */6 * * *"
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: "Production Smoke (app.ledjer.id)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install chromium --with-deps
+
+      - name: Run production smoke tests
+        env:
+          E2E_MODE: deploy-smoke
+          E2E_BASE_URL: https://app.ledjer.id
+          CI: true
+        run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
+
+      - name: Upload smoke report
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-smoke-report
+          path: apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

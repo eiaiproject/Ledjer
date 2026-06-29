@@ -17,7 +17,7 @@ function detectMode(): "deploy-smoke" | "full-local" | "local-smoke" {
     return explicit;
   }
   // Auto-detect
-  if (baseUrl.includes("ledjer-ahk.pages.dev") || baseUrl.includes("pages.dev")) {
+  if (!baseUrl.includes("localhost")) {
     return "deploy-smoke";
   }
   if (baseUrl.includes("localhost") && process.env.E2E_SUPABASE_SERVICE_ROLE_KEY) {
