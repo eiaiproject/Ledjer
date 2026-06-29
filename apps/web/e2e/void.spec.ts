@@ -1,31 +1,48 @@
 import { test, expect } from "@playwright/test";
+import { E2E } from "./fixtures/env";
 import { loginViaUI } from "./fixtures/auth";
+import { seedTransaction } from "./fixtures/seed";
 
 /**
  * Void/reversal transaction E2E tests.
- * Verifies: void requires reason, void succeeds, voided tx cannot be double-voided.
+ * Verifies: void controls are visible, void requires reason, and void succeeds.
  */
+
+const SR_HEADERS = {
+  apikey: E2E.serviceRoleKey,
+  Authorization: `Bearer ${E2E.serviceRoleKey}`,
+  "Content-Type": "application/json",
+};
+
+async function getOrgId(): Promise<string> {
+  const res = await fetch(
+    `${E2E.supabaseUrl}/rest/v1/organizations?name=like.${encodeURIComponent("[E2E]*")}&select=id&limit=1`,
+    { headers: SR_HEADERS },
+  );
+  if (!res.ok) throw new Error(`Failed to fetch seeded organization: ${res.status}`);
+  const data = await res.json();
+  return data[0]?.id || "";
+}
+
+async function createPostedTransaction(description: string): Promise<string> {
+  const orgId = await getOrgId();
+  if (!orgId) throw new Error("Seeded organization not found for void E2E test.");
+  return seedTransaction(orgId, { description });
+}
 
 test.describe("Void transaction", () => {
   test.beforeEach(async ({ page }) => {
+    if (!E2E.hasServiceRole) {
+      test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY to create isolated posted transactions.");
+    }
     await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });
 
   test("void button is visible on posted transaction detail", async ({ page }) => {
-    await page.goto("/transactions");
-    await page.waitForLoadState("networkidle");
+    const transactionId = await createPostedTransaction("[E2E] Void button visibility");
 
-    const txLink = page
-      .locator("a[href*='/transactions/']")
-      .filter({ hasNotText: /baru|new/i })
-      .first();
-    const hasTx = await txLink.isVisible({ timeout: 10_000 }).catch(() => false);
-    if (!hasTx) {
-      test.skip();
-      return;
-    }
-    await txLink.click();
+    await page.goto(`/transactions/${transactionId}`);
     await page.waitForLoadState("networkidle");
 
     const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
@@ -33,69 +50,46 @@ test.describe("Void transaction", () => {
   });
 
   test("void requires reason — empty reason is rejected", async ({ page }) => {
-    await page.goto("/transactions");
-    await page.waitForLoadState("networkidle");
+    const transactionId = await createPostedTransaction("[E2E] Void reason validation");
 
-    const txLink = page
-      .locator("a[href*='/transactions/']")
-      .filter({ hasNotText: /baru|new/i })
-      .first();
-    const hasTx = await txLink.isVisible({ timeout: 10_000 }).catch(() => false);
-    if (!hasTx) {
-      test.skip();
-      return;
-    }
-    await txLink.click();
+    await page.goto(`/transactions/${transactionId}`);
     await page.waitForLoadState("networkidle");
 
     const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
     await expect(voidBtn).toBeVisible({ timeout: 10_000 });
     await voidBtn.click();
 
-    // Confirm dialog should appear
-    const confirmBtn = page.getByRole("button", { name: /ya|konfirmasi|batalkan transaksi/i });
-    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
-    await confirmBtn.click();
+    const reasonInput = page.getByLabel(/alasan pembatalan/i);
+    await expect(reasonInput).toBeVisible({ timeout: 5_000 });
 
-    // Should NOT navigate away — void needs a reason
-    await page.waitForTimeout(1000);
-    const stillOnPage = page.url().includes("/transactions/");
-    expect(stillOnPage).toBeTruthy();
+    const confirmBtn = page.getByRole("button", { name: /^Batalkan$/i });
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await expect(confirmBtn).toBeDisabled();
+
+    await expect(page).toHaveURL(new RegExp(`/transactions/${transactionId}`));
   });
 
   test("void with valid reason succeeds", async ({ page }) => {
-    await page.goto("/transactions");
-    await page.waitForLoadState("networkidle");
+    const transactionId = await createPostedTransaction("[E2E] Void success");
 
-    const txLink = page
-      .locator("a[href*='/transactions/']")
-      .filter({ hasNotText: /baru|new/i })
-      .first();
-    const hasTx = await txLink.isVisible({ timeout: 10_000 }).catch(() => false);
-    if (!hasTx) {
-      test.skip();
-      return;
-    }
-    await txLink.click();
+    await page.goto(`/transactions/${transactionId}`);
     await page.waitForLoadState("networkidle");
 
     const voidBtn = page.getByRole("button", { name: /batalkan|void/i });
     await expect(voidBtn).toBeVisible({ timeout: 10_000 });
     await voidBtn.click();
 
-    // Look for reason textarea/input
-    const reasonInput = page.locator('textarea[name*="reason"], input[name*="reason"], textarea[placeholder*="alasan" i], textarea[placeholder*="reason" i]').first();
-    if (await reasonInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await reasonInput.fill("[E2E] Test void reason");
-    }
+    const reasonInput = page.getByLabel(/alasan pembatalan/i);
+    await expect(reasonInput).toBeVisible({ timeout: 5_000 });
+    await reasonInput.fill("[E2E] Test void reason");
 
-    const confirmBtn = page.getByRole("button", { name: /ya|konfirmasi|batalkan transaksi/i });
+    const confirmBtn = page.getByRole("button", { name: /^Batalkan$/i });
     await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await expect(confirmBtn).toBeEnabled();
     await confirmBtn.click();
 
-    // Should show success or navigate to list
     await expect(
-      page.getByText(/berhasil|dibatalkan|voided/i).first(),
+      page.getByText(/dibatalkan|voided/i).first(),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

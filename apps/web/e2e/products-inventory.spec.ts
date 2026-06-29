@@ -75,7 +75,9 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
   const productName = `[E2E] Inv ${Date.now()}`;
 
   test("create product → purchase → verify stock → sell → verify stock & COGS", async ({ page }) => {
-    test.skip(!E2E.hasServiceRole, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY");
+    if (!E2E.hasServiceRole) {
+      test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY for Supabase API stock verification.");
+    }
 
     await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);

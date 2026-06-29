@@ -82,7 +82,9 @@ test.describe("Reports — smoke", () => {
 });
 
 test.describe("Reports — golden numbers (seeded data)", () => {
-  test.skip(!E2E.hasServiceRole, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY");
+  if (!E2E.hasServiceRole) {
+    test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY to verify seeded report data via Supabase API.");
+  }
 
   // Seeded data: 10M opening cash + 1 cash_sale (50k) = 10,050,000 total.
   // Cash account (code 1101) should have 10,050,000 debit balance.
