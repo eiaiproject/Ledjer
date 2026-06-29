@@ -12,7 +12,7 @@ const SR_HEADERS = {
 async function loginAs(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(email);
-  await page.getByRole("textbox", { name: /password/i }).fill(password);
+  await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: /^Masuk$/ }).click();
   await page.waitForURL((url) =>
     url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
@@ -85,7 +85,7 @@ test.describe("Invitation flow", () => {
       ).toBeVisible();
       await inviteePage.getByRole("link", { name: /^Masuk$/ }).click();
       await inviteePage.getByRole("textbox", { name: /email/i }).fill(E2E_STAFF.email);
-      await inviteePage.getByRole("textbox", { name: /password/i }).fill(E2E_STAFF.password);
+      await inviteePage.locator('input[type="password"]').fill(E2E_STAFF.password);
       await inviteePage.getByRole("button", { name: /^Masuk$/ }).click();
       await inviteePage.waitForURL(/\/invitations\/accept\?token=/, { timeout: 15_000 });
       await inviteePage.getByRole("button", { name: /terima undangan/i }).click();

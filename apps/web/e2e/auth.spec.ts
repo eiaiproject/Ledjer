@@ -13,7 +13,7 @@ test.describe("Login", () => {
   test("successful login navigates to dashboard", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-    await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
+    await page.locator('input[type="password"]').fill(E2E_OWNER.password);
     // Exact-match "Masuk" to avoid clicking "Masuk dengan Google"
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => url.pathname.includes("/dashboard"), {
@@ -25,7 +25,7 @@ test.describe("Login", () => {
   test("login with wrong password shows error", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-    await page.getByRole("textbox", { name: /password/i }).fill("WrongPassword999!");
+    await page.locator('input[type="password"]').fill("WrongPassword999!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await expect(page.locator("[role='alert']")).toBeVisible({ timeout: LOGIN_TIMEOUT });
   });
@@ -33,7 +33,7 @@ test.describe("Login", () => {
   test("login with invalid email shows error", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill("nonexistent@test.com");
-    await page.getByRole("textbox", { name: /password/i }).fill("SomePassword1!");
+    await page.locator('input[type="password"]').fill("SomePassword1!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await expect(page.locator("[role='alert']")).toBeVisible({ timeout: LOGIN_TIMEOUT });
   });
@@ -50,7 +50,7 @@ test.describe("Login", () => {
     // First log in
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-    await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
+    await page.locator('input[type="password"]').fill(E2E_OWNER.password);
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => url.pathname.includes("/dashboard"), {
       timeout: LOGIN_TIMEOUT,
@@ -69,17 +69,17 @@ test.describe("Register", () => {
     await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible();
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
     // Password fields
-    const passwordFields = page.getByRole("textbox", { name: /password/i });
+    const passwordFields = page.locator('input[type="password"]');
     await expect(passwordFields).toHaveCount(2);
-    await expect(page.getByRole("button", { name: /daftar/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Daftar$/ })).toBeVisible();
   });
 
   test("register with invalid email shows validation error", async ({ page }) => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
     await page.getByRole("textbox", { name: /email/i }).fill("not-an-email");
-    await page.getByRole("textbox", { name: /password/i }).first().fill("Password1!");
-    await page.getByRole("textbox", { name: /konfirmasi password/i }).fill("Password1!");
+    await page.locator('input[type="password"]').first().fill("Password1!");
+    await page.getByLabel(/konfirmasi password/i).fill("Password1!");
     // HTML5 type=email blocks native submit; check form wasn't submitted
     await page.waitForTimeout(500);
     await expect(page).toHaveURL(/\/register/);
@@ -89,9 +89,9 @@ test.describe("Register", () => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
     await page.getByRole("textbox", { name: /email/i }).fill(freshRegisterEmail());
-    await page.getByRole("textbox", { name: /password/i }).first().fill("weak");
-    await page.getByRole("textbox", { name: /konfirmasi password/i }).fill("weak");
-    await page.getByRole("button", { name: /daftar/i }).click();
+    await page.locator('input[type="password"]').first().fill("weak");
+    await page.getByLabel(/konfirmasi password/i).fill("weak");
+    await page.getByRole("button", { name: /^Daftar$/ }).click();
     await expect(page.locator("text=/8 karakter/i")).toBeVisible({ timeout: 5_000 });
   });
 
@@ -99,9 +99,9 @@ test.describe("Register", () => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
     await page.getByRole("textbox", { name: /email/i }).fill(freshRegisterEmail());
-    await page.getByRole("textbox", { name: /password/i }).first().fill("Password1!");
-    await page.getByRole("textbox", { name: /konfirmasi password/i }).fill("Different1!");
-    await page.getByRole("button", { name: /daftar/i }).click();
+    await page.locator('input[type="password"]').first().fill("Password1!");
+    await page.getByLabel(/konfirmasi password/i).fill("Different1!");
+    await page.getByRole("button", { name: /^Daftar$/ }).click();
     await expect(page.locator("text=/tidak cocok/i")).toBeVisible({ timeout: 5_000 });
   });
 
@@ -110,9 +110,9 @@ test.describe("Register", () => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("E2E Register Test");
     await page.getByRole("textbox", { name: /email/i }).fill(email);
-    await page.getByRole("textbox", { name: /password/i }).first().fill("Password1!");
-    await page.getByRole("textbox", { name: /konfirmasi password/i }).fill("Password1!");
-    await page.getByRole("button", { name: /daftar/i }).click();
+    await page.locator('input[type="password"]').first().fill("Password1!");
+    await page.getByLabel(/konfirmasi password/i).fill("Password1!");
+    await page.getByRole("button", { name: /^Daftar$/ }).click();
     // Should navigate away from /register (either email confirmation, onboarding, or dashboard)
     await page.waitForURL((url) => !url.pathname.includes("/register"), {
       timeout: 15_000,
@@ -151,7 +151,7 @@ test.describe("Logout", () => {
     // Log in first
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-    await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
+    await page.locator('input[type="password"]').fill(E2E_OWNER.password);
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => url.pathname.includes("/dashboard"), {
       timeout: LOGIN_TIMEOUT,

@@ -52,7 +52,7 @@ test.describe("Auth pages", () => {
     await expect(page).toHaveTitle(/Ledjer/);
     // Email and password inputs
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-    await expect(page.getByRole("textbox", { name: /password/i })).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
     // The login form has a submit button. The exact text is "Masuk".
     // There's also "Masuk dengan Google" — use first() to pick the form submit.
     const loginBtn = page.getByRole("button", { name: /^masuk$/i }).first();
@@ -63,7 +63,7 @@ test.describe("Auth pages", () => {
     await page.goto("/register");
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
     // Register has two password fields — just verify at least one is visible
-    const pwFields = page.getByRole("textbox", { name: /password/i });
+    const pwFields = page.locator('input[type="password"]');
     await expect(pwFields.first()).toBeVisible();
     // Submit button
     const registerBtn = page.getByRole("button", { name: /^daftar$/i }).first();

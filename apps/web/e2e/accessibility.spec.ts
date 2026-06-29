@@ -11,8 +11,8 @@ import { E2E_OWNER } from "./fixtures/users";
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /masuk/i }).first().click();
+  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
+  await page.getByRole("button", { name: /^Masuk$/ }).click();
   await page.waitForURL((url) =>
     url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
     { timeout: 15_000 },
@@ -84,7 +84,7 @@ test.describe("Form accessibility", () => {
     await page.goto("/login");
     const emailInput = page.getByRole("textbox", { name: /email/i });
     await expect(emailInput).toBeVisible();
-    const passwordInput = page.getByRole("textbox", { name: /password/i });
+    const passwordInput = page.locator('input[type="password"]');
     await expect(passwordInput).toBeVisible();
   });
 
@@ -92,7 +92,7 @@ test.describe("Form accessibility", () => {
     await page.goto("/register");
     await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible();
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-    const passwordInputs = page.getByRole("textbox", { name: /password/i });
+    const passwordInputs = page.locator('input[type="password"]');
     expect(await passwordInputs.count()).toBe(2);
   });
 
@@ -117,7 +117,7 @@ test.describe("Keyboard navigation", () => {
 
   test("buttons are keyboard accessible", async ({ page }) => {
     await page.goto("/login");
-    const submitBtn = page.getByRole("button", { name: /masuk/i }).first();
+    const submitBtn = page.getByRole("button", { name: /^Masuk$/ });
     await submitBtn.focus();
     const isFocused = await page.evaluate(
       () => document.activeElement?.tagName === "BUTTON",
@@ -130,8 +130,8 @@ test.describe("Error announcements", () => {
   test("login error has role='alert'", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill("test@test.com");
-    await page.getByRole("textbox", { name: /password/i }).fill("Wrong1!");
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.locator('input[type="password"]').fill("Wrong1!");
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
 
     const alert = page.locator("[role='alert']");
     await expect(alert).toBeVisible({ timeout: 15_000 });

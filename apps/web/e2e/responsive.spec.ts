@@ -17,8 +17,8 @@ const viewports = [
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /masuk/i }).first().click();
+  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
+  await page.getByRole("button", { name: /^Masuk$/ }).click();
   await page.waitForURL((url) =>
     url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
     { timeout: 15_000 },
@@ -41,13 +41,13 @@ for (const vp of viewports) {
     test("login page renders correctly", async ({ page }) => {
       await page.goto("/login");
       await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /masuk/i }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Masuk$/ })).toBeVisible();
     });
 
     test("register page renders correctly", async ({ page }) => {
       await page.goto("/register");
       await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /daftar/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Daftar$/ })).toBeVisible();
     });
 
     if (vp.width < 768) {

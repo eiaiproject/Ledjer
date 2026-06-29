@@ -14,9 +14,9 @@ test.describe("Onboarding", () => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("E2E Onboard User");
     await page.getByRole("textbox", { name: /email/i }).fill(email);
-    await page.getByRole("textbox", { name: /password/i }).first().fill(password);
-    await page.getByRole("textbox", { name: /konfirmasi password/i }).fill(password);
-    await page.getByRole("button", { name: /daftar/i }).click();
+    await page.locator('input[type="password"]').first().fill(password);
+    await page.getByLabel(/konfirmasi password/i).fill(password);
+    await page.getByRole("button", { name: /^Daftar$/ }).click();
 
     if (E2E.isLocal) {
       await page.waitForURL((url) => url.pathname.includes("/onboarding"), {
@@ -31,8 +31,8 @@ test.describe("Onboarding", () => {
   test("onboarding form has required fields", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-    await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.locator('input[type="password"]').fill(E2E_OWNER.password);
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) =>
       url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
       { timeout: 15_000 },
@@ -58,9 +58,9 @@ test.describe("Onboarding", () => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("E2E Empty Name");
     await page.getByRole("textbox", { name: /email/i }).fill(email);
-    await page.getByRole("textbox", { name: /password/i }).first().fill(password);
-    await page.getByRole("textbox", { name: /konfirmasi password/i }).fill(password);
-    await page.getByRole("button", { name: /daftar/i }).click();
+    await page.locator('input[type="password"]').first().fill(password);
+    await page.getByLabel(/konfirmasi password/i).fill(password);
+    await page.getByRole("button", { name: /^Daftar$/ }).click();
 
     await page.waitForURL((url) => url.pathname.includes("/onboarding"), {
       timeout: 15_000,
@@ -77,8 +77,8 @@ test.describe("Dashboard after onboarding", () => {
   test("owner can access dashboard", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-    await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.locator('input[type="password"]').fill(E2E_OWNER.password);
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) =>
       url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
       { timeout: 15_000 },

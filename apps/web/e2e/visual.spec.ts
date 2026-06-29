@@ -12,7 +12,7 @@ import { E2E_OWNER } from "./fixtures/users";
 async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.getByRole("textbox", { name: /password/i }).fill(E2E_OWNER.password);
+  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
   // Exact-match to avoid clicking "Masuk dengan Google"
   await page.getByRole("button", { name: /^Masuk$/ }).click();
   await page.waitForURL(

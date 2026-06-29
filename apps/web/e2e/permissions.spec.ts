@@ -13,8 +13,8 @@ async function loginAs(
 ): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: /email/i }).fill(email);
-  await page.getByRole("textbox", { name: /password/i }).fill(password);
-  await page.getByRole("button", { name: /masuk/i }).first().click();
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole("button", { name: /^Masuk$/ }).click();
   await page.waitForURL((url) =>
     url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
     { timeout: 15_000 },

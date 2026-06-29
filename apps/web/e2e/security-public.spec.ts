@@ -103,8 +103,8 @@ test.describe("Error message safety", () => {
   test("login error does not leak internal details", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill("nonexistent@test.com");
-    await page.getByRole("textbox", { name: /password/i }).fill("WrongPass1!");
-    await page.getByRole("button", { name: /masuk/i }).first().click();
+    await page.locator('input[type="password"]').fill("WrongPass1!");
+    await page.getByRole("button", { name: /^Masuk$/ }).click();
 
     const errorAlert = page.locator("[role='alert']");
     await expect(errorAlert).toBeVisible({ timeout: 10_000 });
