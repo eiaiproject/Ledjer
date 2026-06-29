@@ -208,13 +208,23 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
 
     const createProductResponse = await createProductResponsePromise;
     const responseBody = await createProductResponse.text();
-    const bodyText = await page.locator("body").innerText();
     expect(
       createProductResponse.status(),
-      `Product creation failed (HTTP ${createProductResponse.status()}). Response: ${responseBody}\nPage text:\n${bodyText}`,
+      `Product creation failed (HTTP ${createProductResponse.status()}). Response: ${responseBody}`,
     ).toBeLessThan(300);
 
-    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    // If dialog stays open after a 2xx response, the mutation likely failed
+    // client-side (onError handler). Expose the real failure with full context.
+    try {
+      await expect(dialog).toBeHidden({ timeout: 10_000 });
+    } catch {
+      const pageText = await page.locator("body").innerText();
+      throw new Error(
+        `Product creation returned HTTP ${createProductResponse.status()} but dialog stayed open.\n` +
+          `Response body: ${responseBody}\n` +
+          `Page text:\n${pageText}`,
+      );
+    }
 
     // Step 2: Verify product exists in DB with stock = 0
     const productBefore = await waitForProduct(
