@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import { cn } from "@/lib/utils";
 import { formatAmountInput, parseAmountInput } from "@/lib/utils";
 
@@ -42,6 +42,9 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
     },
     ref
   ) => {
+    const generatedId = useId();
+    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-") || generatedId;
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const parsed = parseAmountInput(e.target.value, 0);
       onValueChange(parsed ?? 0);
@@ -52,7 +55,7 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
     return (
       <div>
         {label && (
-          <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-text-secondary">
+          <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-text-secondary">
             {label}
           </label>
         )}
@@ -64,7 +67,7 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           )}
           <input
             ref={ref}
-            id={id}
+            id={inputId}
             type="text"
             inputMode="numeric"
             value={displayValue}

@@ -164,7 +164,9 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
       test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY for Supabase API stock verification.");
     }
 
-    const productName = `[E2E] Inv ${Date.now()}-${testInfo.retry}`;
+    const suffix = `${Date.now()}-${testInfo.retry}-${testInfo.workerIndex}`;
+    const productCode = `E2E-INV-${suffix}`;
+    const productName = `[E2E] Inv ${suffix}`;
     const orgId = await getOrgId();
     expect(orgId).toBeTruthy();
 
@@ -182,22 +184,35 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     const dialog = page.getByRole("dialog", { name: /tambah produk/i });
     await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-    await dialog.getByRole("textbox", { name: /kode produk/i }).fill(`E2E-${Date.now()}`);
-    await dialog.getByRole("textbox", { name: /nama produk/i }).fill(productName);
+    await dialog.getByLabel(/kode produk/i).fill(productCode);
+    await dialog.getByLabel(/nama produk/i).fill(productName);
 
-    const priceInput = dialog.locator('label:has-text("Harga Jual") + div input').first();
+    const priceInput = dialog.getByLabel(/harga jual/i);
     if (await priceInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await priceInput.fill("50000");
     }
 
-    const purchasePriceInput = dialog.locator('label:has-text("Harga Beli") + div input').first();
+    const purchasePriceInput = dialog.getByLabel(/harga beli/i);
     if (await purchasePriceInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await purchasePriceInput.fill("25000");
     }
 
+    // Listen for product creation API response before submitting
+    const createProductResponsePromise = page.waitForResponse(
+      (res) => res.url().includes("/rest/v1/products") && res.request().method() === "POST",
+    );
+
     const submitBtn = dialog.getByRole("button", { name: /^Tambah$/i });
     await expect(submitBtn).toBeVisible({ timeout: 3_000 });
     await submitBtn.click();
+
+    const createProductResponse = await createProductResponsePromise;
+    const responseBody = await createProductResponse.text();
+    const bodyText = await page.locator("body").innerText();
+    expect(
+      createProductResponse.status(),
+      `Product creation failed (HTTP ${createProductResponse.status()}). Response: ${responseBody}\nPage text:\n${bodyText}`,
+    ).toBeLessThan(300);
 
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
