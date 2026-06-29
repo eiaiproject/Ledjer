@@ -132,7 +132,7 @@ export function GeneralLedgerPage() {
               disabled={!ledger?.length || dateRangeInvalid}
             >
               <Download className="h-4 w-4" />
-              CSV
+              Export CSV
             </Button>
           </div>
         </CardContent>

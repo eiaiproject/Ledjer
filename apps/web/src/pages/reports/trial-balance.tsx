@@ -74,7 +74,7 @@ export function TrialBalancePage() {
               disabled={!data?.length}
             >
               <Download className="h-4 w-4" />
-              CSV
+              Export CSV
             </Button>
           </div>
         </CardContent>
