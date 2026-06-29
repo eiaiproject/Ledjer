@@ -1,18 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { translateError } from "@/lib/errors";
-
-// Global toast function — set by the app after provider mounts
-let globalToastFn: ((message: string, variant: "error" | "success" | "warning" | "info") => void) | null = null;
-
-export function setGlobalToast(fn: typeof globalToastFn) {
-  globalToastFn = fn;
-}
-
-function showToast(message: string, variant: "error" | "success" | "warning" | "info") {
-  if (globalToastFn) {
-    globalToastFn(message, variant);
-  }
-}
+import { toast } from "@/components/ui/toast-api";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,8 +17,7 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       onError: (error) => {
-        const message = translateError(error);
-        showToast(message, "error");
+        toast.error(translateError(error));
       },
     },
   },

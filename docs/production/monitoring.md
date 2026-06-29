@@ -78,8 +78,7 @@ When payment provider is integrated:
 ## Frontend Performance
 
 - Sentry traces capture page load, navigation, and API call timing
-- Lighthouse CI configured (`pnpm test:lighthouse`)
-- Performance E2E tests exist (`e2e/performance.spec.ts`)
+- Performance E2E tests cover Web Vitals (`e2e/performance.spec.ts`, `pnpm test:perf`)
 
 ## Log Aggregation
 

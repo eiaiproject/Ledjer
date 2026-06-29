@@ -178,7 +178,7 @@ Last verified: 2026-07-31 against the active baseline migration `supabase/migrat
 | Accounting rules documentation | ✅ | `docs/accounting-rules.md` |
 | QA checklist | ✅ | `docs/qa-checklist.md` |
 | Production readiness (this file) | ✅ | Reflects actual verified status |
-| **Security checklists updated** | ✅ | `docs/production/security-checklist.md`, `docs/release-readiness/security-checklist.md` updated with recent fixes |
+| **Security checklists updated** | ✅ | `docs/production/security-checklist.md` updated with recent fixes |
 | **Monitoring docs updated** | ✅ | `docs/production/monitoring.md` updated with Sentry Replay config |
 | **Launch checklist updated** | ✅ | `docs/production/launch-checklist.md` updated with CSV formula protection, token hashing, admin RPC tests |
 

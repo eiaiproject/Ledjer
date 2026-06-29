@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import type { Database } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { queryKeys } from "@/lib/query-keys";
+import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
 import {
   usesCashAccount,
@@ -542,16 +542,7 @@ export function NewTransactionPage() {
       // P1.5: invalidate every query key affected by a financial mutation so
       // dashboard, reports, accounts, products, parties, and usage do not
       // display stale data after a successful post.
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.monthlyUsage(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allTrialBalance() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allProfitLoss() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allBalanceSheet() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allGeneralLedger() });
+      invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
     },
   });
 

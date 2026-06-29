@@ -4,10 +4,8 @@ import { E2E_OWNER } from "./fixtures/users";
 /**
  * Visual regression E2E tests.
  *
- * CI runs with --update-snapshots to generate Linux baselines.
- * After baselines are committed, CI can switch to comparison mode.
- *
- * Generate baselines locally:
+ * CI runs in comparison mode against committed Linux baselines.
+ * To refresh baselines after an intentional UI change:
  *   pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
  */
 

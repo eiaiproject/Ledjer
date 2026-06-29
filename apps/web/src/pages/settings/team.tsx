@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@ledjer/database-types";
-import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
+import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import { fetchProfilesByUserIds } from "@/lib/profiles";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
@@ -138,8 +138,13 @@ function formatJoinedDate(iso: string | null): string | null {
   });
 }
 
+function memberHasPermission(member: { role: string } & Record<StaffPermissionKey, boolean>, key: StaffPermissionKey): boolean {
+  if (member.role === "owner") return true;
+  return Boolean(member[key]);
+}
+
 function countActivePermissions(member: StaffMember): number {
-  return ALL_PERMISSION_KEYS.filter((k) => Boolean(member[k])).length;
+  return ALL_PERMISSION_KEYS.filter((k) => memberHasPermission(member, k)).length;
 }
 
 function isValidEmail(email: string): boolean {
@@ -186,20 +191,7 @@ function buildInvitationLink(token: string): string {
 }
 
 async function copyText(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = text;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
+  await navigator.clipboard.writeText(text);
 }
 
 /* ─── Plan Info Card ────────────────────────────────────── */
@@ -365,7 +357,6 @@ export function TeamSettingsPage() {
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
-  const permissions = useOrgPermissions();
   const currentPlan = orgData?.organization?.current_plan || "free";
   const isBusinessPlan = currentPlan === "business";
 
@@ -521,14 +512,8 @@ export function TeamSettingsPage() {
 
   /* ── Derived ── */
 
-  const staffMembers = useMemo(
-    () => members?.filter((m) => m.role === "staff") || [],
-    [members]
-  );
-  const ownerMembers = useMemo(
-    () => members?.filter((m) => m.role === "owner") || [],
-    [members]
-  );
+  const staffMembers = members?.filter((m) => m.role === "staff") || [];
+  const ownerMembers = members?.filter((m) => m.role === "owner") || [];
   const staffSlotFull = isBusinessPlan && staffMembers.length >= 1;
   const pendingInviteSlotUsed = invitations.length >= 1;
   const staffSlotsUsed = staffMembers.length + invitations.length;
@@ -655,19 +640,7 @@ export function TeamSettingsPage() {
                       <h4 className="mb-3 text-sm font-medium text-wood-700">Hak akses Anda:</h4>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {ALL_PERMISSION_KEYS.map((key) => {
-                          const hasPermission = permissions[
-                            key === "can_create_transaction"
-                              ? "canCreateTransaction"
-                              : key === "can_view_reports"
-                                ? "canViewReports"
-                                : key === "can_manage_accounts"
-                                  ? "canManageAccounts"
-                                  : key === "can_void_transaction"
-                                    ? "canVoidTransaction"
-                                    : key === "can_manage_products"
-                                      ? "canManageProducts"
-                                      : "canViewAuditLog"
-                          ];
+                          const hasPermission = memberHasPermission(orgData.member, key);
                           return (
                             <div key={key} className="flex items-center gap-2 text-sm">
                               {hasPermission ? (

@@ -11,25 +11,20 @@ export interface FilterPreset {
   toDate: string;
 }
 
-interface UseFilterPresetsOptions {
-  storageKey?: string;
-  maxPresets?: number;
-}
+const STORAGE_KEY = "ledjer:transaction-filter-presets";
+const MAX_PRESETS = 5;
 
-const DEFAULT_STORAGE_KEY = "ledjer:transaction-filter-presets";
-const DEFAULT_MAX_PRESETS = 5;
-
-function loadPresets(key: string): FilterPreset[] {
+function loadPresets(): FilterPreset[] {
   try {
-    return JSON.parse(localStorage.getItem(key) || "[]");
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
   } catch {
     return [];
   }
 }
 
-function savePresetsToStorage(key: string, presets: FilterPreset[]) {
+function savePresetsToStorage(presets: FilterPreset[]) {
   try {
-    localStorage.setItem(key, JSON.stringify(presets));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
   } catch {
     // Ignore storage errors
   }
@@ -39,15 +34,14 @@ function savePresetsToStorage(key: string, presets: FilterPreset[]) {
  * Hook for managing saved filter presets in localStorage.
  * Supports save, apply, and delete operations.
  */
-export function useFilterPresets(options: UseFilterPresetsOptions = {}) {
-  const { storageKey = DEFAULT_STORAGE_KEY, maxPresets = DEFAULT_MAX_PRESETS } = options;
-  const [presets, setPresets] = useState<FilterPreset[]>(() => loadPresets(storageKey));
+export function useFilterPresets() {
+  const [presets, setPresets] = useState<FilterPreset[]>(loadPresets);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
 
   const save = useCallback(
     (filters: Omit<FilterPreset, "id" | "name">) => {
-      if (!name.trim() || presets.length >= maxPresets) return false;
+      if (!name.trim() || presets.length >= MAX_PRESETS) return false;
       const preset: FilterPreset = {
         id: Date.now().toString(36),
         name: name.trim(),
@@ -55,21 +49,21 @@ export function useFilterPresets(options: UseFilterPresetsOptions = {}) {
       };
       const next = [...presets, preset];
       setPresets(next);
-      savePresetsToStorage(storageKey, next);
+      savePresetsToStorage(next);
       setName("");
       setSaving(false);
       return true;
     },
-    [name, presets, maxPresets, storageKey]
+    [name, presets]
   );
 
   const remove = useCallback(
     (id: string) => {
       const next = presets.filter((p) => p.id !== id);
       setPresets(next);
-      savePresetsToStorage(storageKey, next);
+      savePresetsToStorage(next);
     },
-    [presets, storageKey]
+    [presets]
   );
 
   return {
@@ -80,6 +74,6 @@ export function useFilterPresets(options: UseFilterPresetsOptions = {}) {
     setName,
     save,
     remove,
-    canSave: presets.length < maxPresets,
+    canSave: presets.length < MAX_PRESETS,
   };
 }

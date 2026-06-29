@@ -11,7 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { formatDateInputValue, formatIDR } from "@/lib/utils";
-import { TRANSACTION_TYPE_LABELS } from "@/lib/transactions";
+import { GENERAL_TRANSACTION_TYPE_LABELS } from "@/lib/transactions";
 
 export interface PreviewLine {
   account: string;
@@ -28,61 +28,61 @@ export interface TransactionTypeMeta {
 
 export const TRANSACTION_META: Record<string, TransactionTypeMeta> = {
   cash_sale: {
-    label: TRANSACTION_TYPE_LABELS.cash_sale,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.cash_sale,
     description: "Pelanggan bayar langsung saat itu juga.",
     icon: DollarSign,
     hint: "Cocok untuk penjualan kas/tunai.",
   },
   credit_sale: {
-    label: TRANSACTION_TYPE_LABELS.credit_sale,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.credit_sale,
     description: "Barang dikirim, bayar nanti (piutang).",
     icon: FileText,
     hint: "Pembeli belum membayar.",
   },
   receive_receivable: {
-    label: TRANSACTION_TYPE_LABELS.receive_receivable,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.receive_receivable,
     description: "Pelanggan membayar tagihan/piutang.",
     icon: Download,
     hint: "Mencatat penerimaan pembayaran.",
   },
   cash_purchase: {
-    label: TRANSACTION_TYPE_LABELS.cash_purchase,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.cash_purchase,
     description: "Pembelian dibayar langsung.",
     icon: ShoppingCart,
     hint: "Bayar langsung saat beli.",
   },
   credit_purchase: {
-    label: TRANSACTION_TYPE_LABELS.credit_purchase,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.credit_purchase,
     description: "Pembelian dengan utang (hutang).",
     icon: ClipboardList,
     hint: "Bayar nanti ke supplier.",
   },
   pay_payable: {
-    label: TRANSACTION_TYPE_LABELS.pay_payable,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.pay_payable,
     description: "Melunasi utang ke supplier.",
     icon: CreditCard,
     hint: "Mencatat pembayaran utang.",
   },
   expense_payment: {
-    label: TRANSACTION_TYPE_LABELS.expense_payment,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.expense_payment,
     description: "Mencatat beban operasional.",
     icon: Receipt,
     hint: "Gaji, listrik, sewa, dll.",
   },
   owner_capital: {
-    label: TRANSACTION_TYPE_LABELS.owner_capital,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.owner_capital,
     description: "Setoran modal dari pemilik.",
     icon: Landmark,
     hint: "Modal masuk ke usaha.",
   },
   owner_draw: {
-    label: TRANSACTION_TYPE_LABELS.owner_draw,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.owner_draw,
     description: "Prive atau tarik tunai pemilik.",
     icon: Wallet,
     hint: "Uang diambil dari usaha.",
   },
   cash_transfer: {
-    label: TRANSACTION_TYPE_LABELS.cash_transfer,
+    label: GENERAL_TRANSACTION_TYPE_LABELS.cash_transfer,
     description: "Pindah saldo antar rekening.",
     icon: ArrowRightLeft,
     hint: "Misal: dari Kas ke Bank BCA.",

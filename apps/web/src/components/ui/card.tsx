@@ -55,11 +55,4 @@ export function CardContent({ children, className }: { children: React.ReactNode
   );
 }
 
-export function CardFooter({ children, className }: { children: React.ReactNode; className?: string }) {
-  const padding = useContext(CardPaddingContext);
-  return (
-    <div className={cn(paddingStyles[padding], "border-t border-wood-100", className)}>
-      {children}
-    </div>
-  );
-}
+

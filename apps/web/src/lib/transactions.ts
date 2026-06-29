@@ -45,13 +45,6 @@ export const ALL_TRANSACTION_TYPE_LABELS = {
   simple_adjustment: "Penyesuaian",
 } as const;
 
-/**
- * @deprecated Use GENERAL_TRANSACTION_TYPE_LABELS for general UI, or
- * OPENING_TRANSACTION_TYPE_LABELS / ALL_TRANSACTION_TYPE_LABELS as appropriate.
- * Kept temporarily for backward compatibility.
- */
-export const TRANSACTION_TYPE_LABELS = ALL_TRANSACTION_TYPE_LABELS;
-
 // Type derived from the explicit general-UI set.
 export type GeneralTransactionType = keyof typeof GENERAL_TRANSACTION_TYPE_LABELS;
 export type OpeningTransactionType = keyof typeof OPENING_TRANSACTION_TYPE_LABELS;

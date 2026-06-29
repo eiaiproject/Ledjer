@@ -53,17 +53,7 @@ export function formatDate(date: string | Date | null | undefined): string {
   }).format(d);
 }
 
-/** Format date with month name (e.g., "15 Juni 2026") */
-export function formatDateLong(date: string | Date | null | undefined): string {
-  if (!date) return "-";
-  const d = parseDateValue(date);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(d);
-}
+
 
 /** Format short date (e.g., "15 Jun 2026") */
 export function formatShortDate(date: string | Date | null | undefined): string {
@@ -77,20 +67,7 @@ export function formatShortDate(date: string | Date | null | undefined): string 
   }).format(d);
 }
 
-/** Format relative time (e.g., "2 jam lalu") */
-export function formatRelativeTime(date: string | Date | null | undefined): string {
-  if (!date) return "";
-  const d = parseDateValue(date);
-  const diff = Date.now() - d.getTime();
-  const rtf = new Intl.RelativeTimeFormat("id-ID", { numeric: "auto" });
-  const minutes = Math.round(diff / 60000);
-  const hours = Math.round(diff / 3600000);
-  const days = Math.round(diff / 86400000);
-  if (Math.abs(minutes) < 60) return rtf.format(-minutes, "minute");
-  if (Math.abs(hours) < 24) return rtf.format(-hours, "hour");
-  if (Math.abs(days) < 30) return rtf.format(-days, "day");
-  return formatDate(d);
-}
+
 
 export function parseAmountInput(
   value: unknown,
@@ -112,15 +89,4 @@ export function formatAmountInput(value: unknown, blankWhenZero = false) {
   }).format(amount);
 }
 
-export function parseDecimalInput(
-  value: unknown,
-  emptyValue: number | undefined = undefined
-) {
-  const rawValue = String(value ?? "").trim();
-  if (!rawValue) return emptyValue;
-  const normalized = rawValue.replace(/\s/g, "").replace(",", ".").replace(/[^\d.]/g, "");
-  const [wholePart, ...fractionParts] = normalized.split(".");
-  const numericText = `${wholePart || "0"}${fractionParts.length ? `.${fractionParts.join("")}` : ""}`;
-  const amount = Number(numericText);
-  return Number.isFinite(amount) ? amount : emptyValue;
-}
+

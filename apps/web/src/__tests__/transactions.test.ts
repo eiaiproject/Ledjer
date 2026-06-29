@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  TRANSACTION_TYPE_LABELS,
   GENERAL_TRANSACTION_TYPE_LABELS,
   OPENING_TRANSACTION_TYPE_LABELS,
   ALL_TRANSACTION_TYPE_LABELS,
@@ -20,16 +19,16 @@ import {
 
 describe('Transaction Type Labels', () => {
   it('has labels for all standard transaction types', () => {
-    expect(TRANSACTION_TYPE_LABELS.cash_sale).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.credit_sale).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.cash_purchase).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.credit_purchase).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.expense_payment).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.owner_capital).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.owner_draw).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.receive_receivable).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.pay_payable).toBeDefined();
-    expect(TRANSACTION_TYPE_LABELS.cash_transfer).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.cash_sale).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.credit_sale).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.cash_purchase).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.credit_purchase).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.expense_payment).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.owner_capital).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.owner_draw).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.receive_receivable).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.pay_payable).toBeDefined();
+    expect(ALL_TRANSACTION_TYPE_LABELS.cash_transfer).toBeDefined();
   });
 
   it('does NOT include opening balance types in general UI labels', () => {

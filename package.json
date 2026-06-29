@@ -20,7 +20,6 @@
     "test:e2e:cross-browser-smoke": "E2E_CROSS_BROWSER=1 pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts e2e/responsive.spec.ts --project=firefox --project=webkit",
     "test:visual": "pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium",
     "test:perf": "pnpm --filter web exec playwright test e2e/performance.spec.ts --project=chromium",
-    "test:lighthouse": "lhci autorun",
     "test:a11y": "pnpm --filter web exec playwright test e2e/accessibility.spec.ts --project=chromium"
   },
   "keywords": [],
@@ -33,7 +32,6 @@
     ]
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "@lhci/cli": "^0.15.1"
+    "@axe-core/playwright": "^4.12.1"
   }
 }

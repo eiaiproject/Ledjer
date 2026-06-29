@@ -918,49 +918,4 @@ export function UnsavedChangesDialog({ open, onConfirm, onCancel, loading }: Uns
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  EmptyComboboxMessage                                               */
-/* ------------------------------------------------------------------ */
 
-interface EmptyComboboxMessageProps {
-  type: "accounts" | "parties" | "products";
-}
-
-export function EmptyComboboxMessage({ type }: EmptyComboboxMessageProps) {
-  const messages = {
-    accounts: {
-      title: "Belum ada akun kas/bank",
-      description: "Anda perlu membuat akun kas atau bank terlebih dahulu sebelum mencatat transaksi.",
-    },
-    parties: {
-      title: "Belum ada data pihak",
-      description: "Ketik nama pelanggan atau supplier untuk membuat data baru secara otomatis.",
-    },
-    products: {
-      title: "Belum ada produk",
-      description: "Ketik kode atau nama produk. Produk dapat ditambahkan dari menu Produk.",
-    },
-  };
-
-  const msg = messages[type];
-
-  return (
-    <div className="px-3 py-4 text-center">
-      <p className="text-sm font-medium text-text-primary">{msg.title}</p>
-      <p className="mt-1 text-xs text-text-tertiary">{msg.description}</p>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  LoadingSkeleton for comboboxes                                     */
-/* ------------------------------------------------------------------ */
-
-export function ComboboxLoadingSkeleton() {
-  return (
-    <div className="space-y-1.5">
-      <div className="h-4 w-20 animate-pulse rounded bg-cream-200" />
-      <div className="h-10 w-full animate-pulse rounded-md bg-cream-200" />
-    </div>
-  );
-}

@@ -3,12 +3,12 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { queryKeys } from "@/lib/query-keys";
+import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { formatIDR, formatShortDate } from "@/lib/utils";
 import { fetchProfilesByUserIds } from "@/lib/profiles";
 import {
   PAYMENT_STATUS_LABELS,
-  TRANSACTION_TYPE_LABELS,
+  ALL_TRANSACTION_TYPE_LABELS,
   usesCategory,
 } from "@/lib/transactions";
 import { Badge } from "@/components/ui/badge";
@@ -155,17 +155,8 @@ export function TransactionDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.journalEntries.detail(id!) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allMonthlyUsage() });
       // P1.5: void reverses stock, COGS, balances → invalidate everything
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgData?.organization?.id ?? "") });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allTrialBalance() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allProfitLoss() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allBalanceSheet() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.reports.allGeneralLedger() });
+      invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
       setShowVoidForm(false);
     },
     onError: (err) => toast.error(translateError(err)),
@@ -200,7 +191,7 @@ export function TransactionDetailPage() {
       <div className="mb-6 flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-bold text-text-primary">
-            {TRANSACTION_TYPE_LABELS[transaction.transaction_type as keyof typeof TRANSACTION_TYPE_LABELS] || transaction.transaction_type}
+            {ALL_TRANSACTION_TYPE_LABELS[transaction.transaction_type as keyof typeof ALL_TRANSACTION_TYPE_LABELS] || transaction.transaction_type}
           </h1>
           <p className="mt-1 break-words font-mono text-sm text-wood-500">{transaction.transaction_number}</p>
         </div>

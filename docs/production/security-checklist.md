@@ -37,7 +37,7 @@ Last verified: 2026-07-31
 | HSTS configured | ✅ | Via hosting platform headers |
 | X-Frame-Options set | ✅ | `DENY` or `SAMEORIGIN` |
 | No localhost in production CSP | ✅ | CSP allows only production origins |
-| Input sanitization | ✅ | `sanitize.ts` utility |
+| Input sanitization | ✅ | Zod schema validation + Supabase parameter binding |
 | Error boundaries | ✅ | `ErrorBoundary` component |
 
 ## Billing Security
@@ -45,7 +45,7 @@ Last verified: 2026-07-31
 | Item | Status | Notes |
 |------|--------|-------|
 | Webhook signature verification | ⚠️ | Scaffold only — implement when provider selected |
-| Provider secrets server-side only | ✅ | Documented in `billing-provider.ts` |
+| Provider secrets server-side only | ✅ | Edge Functions only; client never sees provider keys |
 | Users cannot self-modify plan | ✅ | Trigger protection + RPC-only changes |
 | Billing events audited | ✅ | `billing_events` table with RLS |
 
