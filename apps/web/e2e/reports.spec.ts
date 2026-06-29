@@ -15,8 +15,9 @@ const SR_HEADERS = {
 };
 
 async function getOrgId(): Promise<string> {
+  const seedOrgName = encodeURIComponent("[E2E] Toko Otomatis");
   const res = await fetch(
-    `${E2E.supabaseUrl}/rest/v1/organizations?select=id&limit=1`,
+    `${E2E.supabaseUrl}/rest/v1/organizations?select=id&name=eq.${seedOrgName}&limit=1`,
     { headers: SR_HEADERS },
   );
   const data = await res.json();
@@ -31,11 +32,14 @@ async function getOrgTransactions(orgId: string) {
   return res.json();
 }
 
-async function getJournalEntries(orgId: string) {
+async function getJournalLines(orgId: string) {
   const res = await fetch(
-    `${E2E.supabaseUrl}/rest/v1/journal_entries?organization_id=eq.${orgId}&select=entry_type,amount`,
+    `${E2E.supabaseUrl}/rest/v1/journal_lines?organization_id=eq.${orgId}&select=debit,credit,accounts!journal_lines_account_same_org_fkey!inner(account_type)`,
     { headers: SR_HEADERS },
   );
+  if (!res.ok) {
+    throw new Error(`Failed to fetch journal lines: ${res.status} ${await res.text()}`);
+  }
   return res.json();
 }
 
@@ -173,14 +177,15 @@ test.describe("Reports — golden numbers (seeded data)", () => {
 
     // Verify seeded journal entries have revenue
     const orgId = await getOrgId();
-    const entries = await getJournalEntries(orgId);
-    expect(Array.isArray(entries)).toBeTruthy();
+    const lines = await getJournalLines(orgId);
+    expect(Array.isArray(lines)).toBeTruthy();
 
-    const revenueEntries = entries.filter(
-      (e: { entry_type: string }) => e.entry_type === "revenue" || e.entry_type === "sale",
+    const revenueLines = lines.filter(
+      (line: { credit: number; accounts?: { account_type?: string } }) =>
+        line.accounts?.account_type === "revenue" && Number(line.credit) > 0,
     );
     // Should have at least 1 revenue entry from the seeded cash sale
-    expect(revenueEntries.length).toBeGreaterThanOrEqual(1);
+    expect(revenueLines.length).toBeGreaterThanOrEqual(1);
 
     // Report should mention revenue/income
     const hasRevenue = /pendapatan|revenue|income/i.test(mainContent || "");
@@ -223,20 +228,24 @@ test.describe("Reports — golden numbers (seeded data)", () => {
 
   test("journal entries from API are balanced", async () => {
     const orgId = await getOrgId();
-    const entries = await getJournalEntries(orgId);
+    const lines = await getJournalLines(orgId);
 
-    expect(Array.isArray(entries)).toBeTruthy();
-    expect(entries.length).toBeGreaterThan(0);
+    expect(Array.isArray(lines)).toBeTruthy();
+    expect(lines.length).toBeGreaterThan(0);
 
-    let totalAmount = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
 
-    for (const entry of entries) {
-      const amount = Number(entry.amount);
-      expect(Number.isFinite(amount)).toBeTruthy();
-      totalAmount += amount;
+    for (const line of lines) {
+      const debit = Number(line.debit);
+      const credit = Number(line.credit);
+      expect(Number.isFinite(debit)).toBeTruthy();
+      expect(Number.isFinite(credit)).toBeTruthy();
+      totalDebit += debit;
+      totalCredit += credit;
     }
 
-    // Signed double-entry rows should net to zero.
-    expect(totalAmount).toBe(0);
+    expect(totalDebit).toBeGreaterThan(0);
+    expect(totalDebit).toBe(totalCredit);
   });
 });

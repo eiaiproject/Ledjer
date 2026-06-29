@@ -1,12 +1,12 @@
 # Billing Setup Guide
 
-Last updated: 2026-06-27
+Last updated: 2026-06-29
 
 ## Current Status
 
-**⚠️ Self-serve billing is NOT implemented.** Manual billing via admin SQL console is the current method.
+**Mayar self-serve checkout is implemented as a server-side integration scaffold.**
 
-The billing scaffold (provider abstraction, billing events table, admin RPCs) is in place for Stage 4. Actual payment provider integration requires selecting and implementing a provider.
+The app creates Mayar invoices through Supabase Edge Functions and updates plans from the Mayar webhook after verifying invoice status through Mayar's API. Manual billing via admin SQL console remains the fallback procedure.
 
 ## Plan Structure
 
@@ -93,16 +93,37 @@ Key tables and columns:
 - `organizations.payment_provider_subscription_id` — text
 - `billing_events` — audit trail for all plan/status changes
 
-## When Adding a Payment Provider
+## Mayar Setup
 
-1. **Choose provider**: Midtrans (Indonesia), Stripe, Xendit, etc.
-2. **Implement `BillingProvider` interface** in `apps/web/src/lib/billing-providers/<provider>.ts`
-3. **Create Edge Function** for webhook handling (server-side only)
-4. **Add webhook signature verification**
-5. **Wire checkout flow** in billing settings page
-6. **Update landing page** CTAs to link to checkout
-7. **Test full lifecycle**: checkout → active → renewal → cancellation
-8. **Never expose provider API keys to frontend**
+1. Deploy the Edge Functions:
+
+```bash
+supabase functions deploy mayar-create-checkout
+supabase functions deploy mayar-webhook
+```
+
+2. Set server-side secrets:
+
+```bash
+supabase secrets set MAYAR_API_KEY='<mayar-api-key>'
+supabase secrets set MAYAR_ENV='sandbox'              # or production
+supabase secrets set MAYAR_WEBHOOK_TOKEN='<random-token>'
+supabase secrets set APP_URL='https://app.ledjer.id'
+```
+
+3. Register the Mayar webhook URL:
+
+```text
+https://<project-ref>.functions.supabase.co/mayar-webhook?token=<MAYAR_WEBHOOK_TOKEN>
+```
+
+4. Test lifecycle: billing page checkout → Mayar paid invoice → webhook → `organizations.current_plan` changes to `solo`/`business`.
+
+Security notes:
+
+- Never expose `MAYAR_API_KEY` in Vite/frontend env.
+- Public Mayar docs do not show webhook HMAC verification. The webhook URL token is required, and the function verifies invoice status through Mayar before changing a plan.
+- `billing_checkout_sessions` is the idempotency record for invoice/webhook processing.
 
 ## Audit Trail
 

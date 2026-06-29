@@ -15,8 +15,9 @@ const SR_HEADERS = {
 };
 
 async function getOrgId(): Promise<string> {
+  const seedOrgName = encodeURIComponent("[E2E] Toko Otomatis");
   const res = await fetch(
-    `${E2E.supabaseUrl}/rest/v1/organizations?name=like.${encodeURIComponent("[E2E]*")}&select=id&limit=1`,
+    `${E2E.supabaseUrl}/rest/v1/organizations?name=eq.${seedOrgName}&select=id&limit=1`,
     { headers: SR_HEADERS },
   );
   if (!res.ok) throw new Error(`Failed to fetch seeded organization: ${res.status}`);

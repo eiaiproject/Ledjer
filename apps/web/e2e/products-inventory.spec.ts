@@ -26,12 +26,31 @@ async function getProductByName(orgId: string, name: string) {
 
 /** Get org ID from authenticated user's context */
 async function getOrgId(): Promise<string> {
+  const seedOrgName = encodeURIComponent("[E2E] Toko Otomatis");
   const res = await fetch(
-    `${E2E.supabaseUrl}/rest/v1/organizations?select=id&limit=1`,
+    `${E2E.supabaseUrl}/rest/v1/organizations?select=id&name=eq.${seedOrgName}&limit=1`,
     { headers: SR_HEADERS },
   );
   const data = await res.json();
   return data[0]?.id || "";
+}
+
+async function selectProductForTransaction(
+  page: import("@playwright/test").Page,
+  productName: string,
+) {
+  const productCombobox = page.locator('input[role="combobox"][name="productId"]');
+  if (!(await productCombobox.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return false;
+  }
+
+  await productCombobox.click();
+  const listbox = page.locator('[role="listbox"]');
+  await expect(listbox).toBeVisible({ timeout: 3_000 });
+  const productOption = listbox.locator(`[role="option"]:has-text("${productName}")`);
+  await expect(productOption).toBeVisible({ timeout: 3_000 });
+  await productOption.click();
+  return true;
 }
 
 test.describe("Products page — smoke", () => {
@@ -90,21 +109,23 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     await expect(addBtn).toBeVisible({ timeout: 10_000 });
     await addBtn.click();
 
-    const nameInput = page.locator('input[name="name"], input[name="product_name"], input[placeholder*="nama" i]').first();
-    await expect(nameInput).toBeVisible({ timeout: 5_000 });
-    await nameInput.fill(productName);
+    const dialog = page.getByRole("dialog", { name: /tambah produk/i });
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-    const priceInput = page.locator('input[name="selling_price"], input[name="price"], input[placeholder*="harga jual" i]').first();
+    await dialog.getByRole("textbox", { name: /kode produk/i }).fill(`E2E-${Date.now()}`);
+    await dialog.getByRole("textbox", { name: /nama produk/i }).fill(productName);
+
+    const priceInput = dialog.locator('label:has-text("Harga Jual") + div input').first();
     if (await priceInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await priceInput.fill("50000");
     }
 
-    const purchasePriceInput = page.locator('input[name="purchase_price"], input[placeholder*="harga beli" i]').first();
+    const purchasePriceInput = dialog.locator('label:has-text("Harga Beli") + div input').first();
     if (await purchasePriceInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await purchasePriceInput.fill("25000");
     }
 
-    const submitBtn = page.getByRole("button", { name: /^Tambah$/i }).first();
+    const submitBtn = dialog.getByRole("button", { name: /^Tambah$/i });
     await expect(submitBtn).toBeVisible({ timeout: 3_000 });
     await submitBtn.click();
 
@@ -136,22 +157,10 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
       await descField.fill(`[E2E] Purchase stock: ${productName}`);
     }
 
-    // Select product if product field is visible
-    const productCombobox = page.locator('input[role="combobox"][name="productId"]');
-    if (await productCombobox.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await productCombobox.click();
-      const listbox = page.locator('[role="listbox"]');
-      await expect(listbox).toBeVisible({ timeout: 3_000 });
-      // Find the product by name in the listbox
-      const productOption = listbox.locator(`[role="option"]:has-text("${productName}")`);
-      if (await productOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await productOption.click();
-        // Fill quantity if visible
-        const qtyInput = page.locator('input[name="quantity"], input[placeholder*="qty" i], input[placeholder*="kuantitas" i]').first();
-        if (await qtyInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
-          await qtyInput.fill("10");
-        }
-      }
+    if (await selectProductForTransaction(page, productName)) {
+      const qtyInput = page.locator("#product-quantity");
+      await expect(qtyInput).toBeVisible({ timeout: 2_000 });
+      await qtyInput.fill("10");
     }
 
     const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
@@ -194,6 +203,8 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     if (await saleDescField.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await saleDescField.fill(`[E2E] Sale: ${productName}`);
     }
+
+    await selectProductForTransaction(page, productName);
 
     const saleCashAccount = page.locator('input[role="combobox"][name="cashAccountId"]');
     if (await saleCashAccount.isVisible({ timeout: 3_000 }).catch(() => false)) {

@@ -19,8 +19,9 @@ export async function cleanupE2EOrganizations(): Promise<void> {
   if (!E2E.hasServiceRole) return;
 
   // Delete E2E organizations (cascades to members, transactions, journals, etc.)
+  const nameFilter = encodeURIComponent("[E2E]*");
   await fetch(
-    `${E2E.supabaseUrl}/rest/v1/organizations?name=like.[E2E]*&name=not=is.null`,
+    `${E2E.supabaseUrl}/rest/v1/organizations?name=like.${nameFilter}`,
     { method: "DELETE", headers: SR_HEADERS },
   ).catch(() => {});
 }

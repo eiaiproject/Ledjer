@@ -18,6 +18,17 @@ type TxnType = {
   extra?: (page: import("@playwright/test").Page) => Promise<void>;
 };
 
+async function fillPartyName(
+  page: import("@playwright/test").Page,
+  name: string,
+) {
+  const partyCombobox = page.locator('input[role="combobox"][name="partyName"]');
+  await expect(partyCombobox).toBeVisible({ timeout: 3_000 });
+  await partyCombobox.click();
+  await partyCombobox.fill(name);
+  await partyCombobox.press("Enter");
+}
+
 const TXN_TYPES: TxnType[] = [
   {
     type: "cash_sale",
@@ -29,11 +40,7 @@ const TXN_TYPES: TxnType[] = [
     label: "Penjualan Kredit",
     submitBtn: /Catat Penjualan|Catat Transaksi/,
     extra: async (page) => {
-      // Credit sale requires party name
-      const partyInput = page.locator('input[placeholder*="pelanggan" i]').first();
-      if (await partyInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await partyInput.fill("[E2E] Customer");
-      }
+      await fillPartyName(page, "[E2E] Customer");
     },
   },
   {
@@ -41,10 +48,7 @@ const TXN_TYPES: TxnType[] = [
     label: "Terima Piutang",
     submitBtn: /Catat Penerimaan|Catat Transaksi/,
     extra: async (page) => {
-      const partyInput = page.locator('input[placeholder*="pelanggan" i]').first();
-      if (await partyInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await partyInput.fill("[E2E] Customer");
-      }
+      await fillPartyName(page, "[E2E] Customer");
     },
   },
   {
@@ -57,10 +61,7 @@ const TXN_TYPES: TxnType[] = [
     label: "Pembelian Kredit",
     submitBtn: /Catat Pembelian|Catat Transaksi/,
     extra: async (page) => {
-      const partyInput = page.locator('input[placeholder*="supplier" i]').first();
-      if (await partyInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await partyInput.fill("[E2E] Supplier");
-      }
+      await fillPartyName(page, "[E2E] Supplier");
     },
   },
   {
@@ -68,10 +69,7 @@ const TXN_TYPES: TxnType[] = [
     label: "Bayar Utang",
     submitBtn: /Catat Pembayaran|Catat Transaksi/,
     extra: async (page) => {
-      const partyInput = page.locator('input[placeholder*="supplier" i]').first();
-      if (await partyInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await partyInput.fill("[E2E] Supplier");
-      }
+      await fillPartyName(page, "[E2E] Supplier");
     },
   },
   {
@@ -171,7 +169,9 @@ for (const txn of TXN_TYPES) {
       await page.goto("/transactions");
       await page.waitForLoadState("networkidle");
       await expect(
-        page.getByText(new RegExp(`\\[E2E\\] ${txn.label}`, "i")).first(),
+        page.locator("table tbody tr").filter({
+          hasText: new RegExp(`\\[E2E\\] ${txn.label}`, "i"),
+        }).first(),
       ).toBeVisible({ timeout: 10_000 });
     });
   });

@@ -43,20 +43,18 @@ test.describe("Billing page", () => {
     expect(hasUpgradePrompt).toBeTruthy();
   });
 
-  test("no live payment buttons trigger real payment", async ({ page }) => {
+  test("Mayar checkout requires a WhatsApp number before payment", async ({ page }) => {
     await page.waitForLoadState("networkidle");
 
-    const paymentBtns = page.getByRole("button", { name: /bayar|pay|subscribe/i });
-    const count = await paymentBtns.count();
-    for (let i = 0; i < count; i++) {
-      const btn = paymentBtns.nth(i);
-      if (await btn.isVisible().catch(() => false)) {
-        // Button should not have a real payment URL
-        const href = await btn.getAttribute("href");
-        expect(href).not.toContain("stripe.com");
-        expect(href).not.toContain("midtrans.com");
-      }
-    }
+    await expect(page.getByLabel(/nomor whatsapp pembayaran/i)).toBeVisible();
+
+    const mayarButtons = page.getByRole("button", { name: /bayar dengan mayar/i });
+    await expect(mayarButtons.first()).toBeVisible();
+
+    await mayarButtons.first().click();
+
+    await expect(page.getByText(/nomor whatsapp yang valid/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/settings\/billing/);
   });
 });
 

@@ -262,6 +262,86 @@ export type Database = {
           },
         ]
       }
+      billing_checkout_sessions: {
+        Row: {
+          amount: number
+          billing_period: string
+          checkout_url: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          customer_email: string | null
+          customer_mobile: string | null
+          expires_at: string | null
+          id: string
+          mayar_invoice_id: string | null
+          mayar_transaction_id: string | null
+          metadata: Json | null
+          organization_id: string
+          paid_at: string | null
+          payment_provider: string
+          plan: Database["public"]["Enums"]["org_plan"]
+          provider_response: Json | null
+          status: string
+          updated_at: string
+          webhook_payload: Json | null
+        }
+        Insert: {
+          amount: number
+          billing_period: string
+          checkout_url?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          customer_email?: string | null
+          customer_mobile?: string | null
+          expires_at?: string | null
+          id?: string
+          mayar_invoice_id?: string | null
+          mayar_transaction_id?: string | null
+          metadata?: Json | null
+          organization_id: string
+          paid_at?: string | null
+          payment_provider?: string
+          plan: Database["public"]["Enums"]["org_plan"]
+          provider_response?: Json | null
+          status?: string
+          updated_at?: string
+          webhook_payload?: Json | null
+        }
+        Update: {
+          amount?: number
+          billing_period?: string
+          checkout_url?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_email?: string | null
+          customer_mobile?: string | null
+          expires_at?: string | null
+          id?: string
+          mayar_invoice_id?: string | null
+          mayar_transaction_id?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          paid_at?: string | null
+          payment_provider?: string
+          plan?: Database["public"]["Enums"]["org_plan"]
+          provider_response?: Json | null
+          status?: string
+          updated_at?: string
+          webhook_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_checkout_sessions_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_events: {
         Row: {
           actor_user_id: string | null
