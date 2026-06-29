@@ -13,8 +13,18 @@ const SR_HEADERS = {
   "Content-Type": "application/json",
 };
 
+type ProductRecord = {
+  id: string;
+  name: string;
+  current_stock: number | string | null;
+};
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** Get product by name via Supabase API */
-async function getProductByName(orgId: string, name: string) {
+async function getProductByName(orgId: string, name: string): Promise<ProductRecord | null> {
   const res = await fetch(
     `${E2E.supabaseUrl}/rest/v1/products?organization_id=eq.${orgId}&name=eq.${encodeURIComponent(name)}&select=*`,
     { headers: SR_HEADERS },
@@ -22,6 +32,27 @@ async function getProductByName(orgId: string, name: string) {
   if (!res.ok) return null;
   const data = await res.json();
   return data[0] || null;
+}
+
+async function waitForProduct(
+  orgId: string,
+  name: string,
+  predicate: (product: ProductRecord) => boolean = () => true,
+  label = "product",
+  timeoutMs = 15_000,
+): Promise<ProductRecord> {
+  const deadline = Date.now() + timeoutMs;
+  let lastProduct: ProductRecord | null = null;
+
+  while (Date.now() < deadline) {
+    lastProduct = await getProductByName(orgId, name);
+    if (lastProduct && predicate(lastProduct)) return lastProduct;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
+  throw new Error(
+    `Timed out waiting for ${label}: ${name}. Last product state: ${JSON.stringify(lastProduct)}`,
+  );
 }
 
 /** Get org ID from authenticated user's context */
@@ -40,17 +71,54 @@ async function selectProductForTransaction(
   productName: string,
 ) {
   const productCombobox = page.locator('input[role="combobox"][name="productId"]');
-  if (!(await productCombobox.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    return false;
+  await expect(productCombobox).toBeVisible({ timeout: 10_000 });
+
+  const listbox = page.locator("#productId-listbox");
+  const productOptionName = new RegExp(escapeRegExp(productName), "i");
+  const deadline = Date.now() + 15_000;
+  let lastListboxText = "";
+
+  while (Date.now() < deadline) {
+    await productCombobox.click();
+    await productCombobox.fill(productName);
+    await expect(listbox).toBeVisible({ timeout: 3_000 });
+
+    const productOption = listbox
+      .getByRole("option", { name: productOptionName })
+      .first();
+
+    if (await productOption.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await productOption.click();
+      await expect(productCombobox).toHaveValue(productOptionName, { timeout: 3_000 });
+      return;
+    }
+
+    lastListboxText = (await listbox.textContent().catch(() => "")) || "";
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
   }
 
-  await productCombobox.click();
-  const listbox = page.locator('[role="listbox"]');
-  await expect(listbox).toBeVisible({ timeout: 3_000 });
-  const productOption = listbox.locator(`[role="option"]:has-text("${productName}")`);
-  await expect(productOption).toBeVisible({ timeout: 3_000 });
-  await productOption.click();
-  return true;
+  throw new Error(
+    `Product option "${productName}" was not available in transaction combobox. Last listbox: ${lastListboxText}`,
+  );
+}
+
+async function selectFirstComboboxOption(
+  page: import("@playwright/test").Page,
+  name: string,
+) {
+  const combobox = page.locator(`input[role="combobox"][name="${name}"]`);
+  if (!(await combobox.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return;
+  }
+
+  await combobox.click();
+  const listbox = page.locator(`#${name}-listbox`);
+  await expect(listbox).toBeVisible({ timeout: 5_000 });
+  const firstOption = listbox.getByRole("option").first();
+  await expect(firstOption).toBeVisible({ timeout: 5_000 });
+  await firstOption.click();
+  await expect(combobox).not.toHaveValue("", { timeout: 3_000 });
 }
 
 test.describe("Products page — smoke", () => {
@@ -91,12 +159,14 @@ test.describe("Products page — smoke", () => {
 });
 
 test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
-  const productName = `[E2E] Inv ${Date.now()}`;
-
-  test("create product → purchase → verify stock → sell → verify stock & COGS", async ({ page }) => {
+  test("create product → purchase → verify stock → sell → verify stock & COGS", async ({ page }, testInfo) => {
     if (!E2E.hasServiceRole) {
       test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY for Supabase API stock verification.");
     }
+
+    const productName = `[E2E] Inv ${Date.now()}-${testInfo.retry}`;
+    const orgId = await getOrgId();
+    expect(orgId).toBeTruthy();
 
     await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
@@ -129,14 +199,15 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     await expect(submitBtn).toBeVisible({ timeout: 3_000 });
     await submitBtn.click();
 
-    await expect(
-      page.getByText(/berhasil|tersimpan| Produk /i).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(dialog).toBeHidden({ timeout: 10_000 });
 
     // Step 2: Verify product exists in DB with stock = 0
-    const orgId = await getOrgId();
-    const productBefore = await getProductByName(orgId, productName);
-    expect(productBefore).toBeTruthy();
+    const productBefore = await waitForProduct(
+      orgId,
+      productName,
+      (product) => Number(product.current_stock) === 0,
+      "created product with zero stock",
+    );
     expect(Number(productBefore.current_stock)).toBe(0);
 
     // Step 3: Purchase stock via cash purchase
@@ -157,20 +228,12 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
       await descField.fill(`[E2E] Purchase stock: ${productName}`);
     }
 
-    if (await selectProductForTransaction(page, productName)) {
-      const qtyInput = page.locator("#product-quantity");
-      await expect(qtyInput).toBeVisible({ timeout: 2_000 });
-      await qtyInput.fill("10");
-    }
+    await selectProductForTransaction(page, productName);
+    const qtyInput = page.locator("#product-quantity");
+    await expect(qtyInput).toBeVisible({ timeout: 5_000 });
+    await qtyInput.fill("10");
 
-    const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
-    if (await cashAccountCombobox.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await cashAccountCombobox.click();
-      const listbox = page.locator('[role="listbox"]');
-      await expect(listbox).toBeVisible({ timeout: 3_000 });
-      const firstOption = listbox.locator('[role="option"]').first();
-      await firstOption.click();
-    }
+    await selectFirstComboboxOption(page, "cashAccountId");
 
     const txSubmitBtn = page.getByRole("button", { name: /Catat Pembelian|Catat Transaksi/i }).first();
     await expect(txSubmitBtn).toBeVisible({ timeout: 5_000 });
@@ -181,10 +244,13 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     // Step 4: Verify stock increased via API (if product was attached)
-    const productAfterPurchase = await getProductByName(orgId, productName);
-    if (productAfterPurchase && Number(productAfterPurchase.current_stock) > 0) {
-      expect(Number(productAfterPurchase.current_stock)).toBeGreaterThan(0);
-    }
+    const productAfterPurchase = await waitForProduct(
+      orgId,
+      productName,
+      (product) => Number(product.current_stock) === 10,
+      "purchase stock update",
+    );
+    expect(Number(productAfterPurchase.current_stock)).toBe(10);
 
     // Step 5: Sell via cash sale
     await page.goto("/transactions/new");
@@ -205,15 +271,11 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     }
 
     await selectProductForTransaction(page, productName);
+    const saleQtyInput = page.locator("#product-quantity");
+    await expect(saleQtyInput).toBeVisible({ timeout: 5_000 });
+    await saleQtyInput.fill("2");
 
-    const saleCashAccount = page.locator('input[role="combobox"][name="cashAccountId"]');
-    if (await saleCashAccount.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await saleCashAccount.click();
-      const listbox = page.locator('[role="listbox"]');
-      await expect(listbox).toBeVisible({ timeout: 3_000 });
-      const firstOption = listbox.locator('[role="option"]').first();
-      await firstOption.click();
-    }
+    await selectFirstComboboxOption(page, "cashAccountId");
 
     const saleSubmit = page.getByRole("button", { name: /Catat Penjualan|Catat Transaksi/i }).first();
     await expect(saleSubmit).toBeVisible({ timeout: 5_000 });
@@ -224,11 +286,12 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     // Step 6: Verify stock decreased via API
-    const productAfterSale = await getProductByName(orgId, productName);
-    if (productAfterSale && Number(productAfterPurchase?.current_stock ?? 0) > 0) {
-      expect(Number(productAfterSale.current_stock)).toBeLessThan(
-        Number(productAfterPurchase.current_stock),
-      );
-    }
+    const productAfterSale = await waitForProduct(
+      orgId,
+      productName,
+      (product) => Number(product.current_stock) === 8,
+      "sale stock update",
+    );
+    expect(Number(productAfterSale.current_stock)).toBe(8);
   });
 });
