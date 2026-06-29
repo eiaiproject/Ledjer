@@ -442,6 +442,13 @@ BEGIN
 
   PERFORM public._test_impersonate(v_owner_id);
 
+  -- v_cash_id and v_customer_id were clobbered by PP8 (isolation org).
+  -- Re-fetch from original org so PP12 operates on the right tenant.
+  SELECT id INTO v_cash_id FROM public.accounts
+  WHERE organization_id = v_org_id AND code = 1110 AND is_active = true;
+  SELECT id INTO v_customer_id FROM public.parties
+  WHERE organization_id = v_org_id AND party_type = 'customer' AND is_active = true LIMIT 1;
+
   -- ══════════════════════════════════════════════════════════════════
   -- PP12: Idempotency via client_token works with partial payments
   -- ══════════════════════════════════════════════════════════════════
