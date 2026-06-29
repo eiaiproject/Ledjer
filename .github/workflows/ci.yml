@@ -43,9 +43,13 @@ jobs:
       - name: Production build
         run: pnpm --filter web build
 
-  # ─── Job B: Database Types Guard ────────────────────────────
+  # ─── Job B: Database Types Guard (canonical-file sanity only) ────────────
+  # This job is a FAST CANONICAL-FILE SANITY CHECK, not a live drift check.
+  # It catches accidentally truncated/empty database-types/index.ts in CI
+  # without spinning up the full Supabase stack. Real drift detection lives
+  # in the `supabase` job, which runs `scripts/check-db-types.sh --live`.
   db-types-guard:
-    name: "Guard: database types in sync"
+    name: "Guard: database types canonical file sanity"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -63,8 +67,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify database types are in sync
+      - name: Verify database types canonical file is healthy
         run: pnpm db-types:check
+        # Default mode = sanity check (size heuristic). Does NOT prove drift.
+        # Live drift is verified separately in the Supabase job.
 
   # ─── Job C: SQL / Supabase Tests ────────────────────────────
   supabase:
@@ -121,15 +127,9 @@ jobs:
           echo "DB URL components:"
           grep -E '^(DB_URL|POSTGRES_HOST|POSTGRES_PORT|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=' /tmp/supabase.env || true
 
-      - name: Check database types drift
-        run: |
-          set -euo pipefail
-          supabase gen types typescript --local --schema public > /tmp/database-types.generated.ts
-          cp packages/database-types/index.ts /tmp/database-types.expected.ts
-          perl -0pi -e 's/\n+\z/\n/' /tmp/database-types.expected.ts /tmp/database-types.generated.ts
-          diff -u /tmp/database-types.expected.ts /tmp/database-types.generated.ts
-          echo "✅ Database types match"
-
+      # SQL tests run BEFORE type generation. Even if `supabase gen types`
+      # later hits transient ECR rate limits, the SQL test suite still runs
+      # and guards schema/RLS correctness.
       - name: Run SQL tests explicitly via psql
         env:
           PGPASSWORD: postgres
@@ -147,6 +147,32 @@ jobs:
           psql -h localhost -p 54322 -U postgres -d postgres \
             -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
 
+      # Cache postgres-meta to defeat ECR anonymous rate limits. Keyed by OS +
+      # Supabase CLI version + image tag, no secrets. The pre-pull step saves
+      # the image to a tarball the gen-types script can reuse.
+      - name: Cache postgres-meta image (deterministic ECR rate-limit guard)
+        id: cache-meta-image
+        uses: actions/cache@v5
+        with:
+          path: /tmp/supabase-pg-meta-image.tar
+          key: pgmeta-${{ runner.os }}-${{ env.SUPABASE_VERSION }}-${{ env.PG_META_TAG }}
+          restore-keys: |
+            pgmeta-${{ runner.os }}-${{ env.SUPABASE_VERSION }}-
+
+      - name: Pre-pull postgres-meta
+        env:
+          SUPABASE_VERSION: 2.107.0
+          PG_META_TAG: v0.96.1
+        run: |
+          set -euo pipefail
+          docker pull public.ecr.aws/supabase/postgres-meta:v0.96.1 >/dev/null
+          docker save public.ecr.aws/supabase/postgres-meta:v0.96.1 -o /tmp/supabase-pg-meta-image.tar
+
+      - name: Check database types drift (live, retry-safe)
+        # Real drift detection. Wraps supabase gen types in retry+backoff
+        # for transient ECR rate limits; non-transient failures fail fast.
+        run: bash scripts/check-db-types.sh --live
+
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --workdir . --no-backup || true
@@ -161,13 +187,21 @@ jobs:
       - name: Fail if any migration references the test helper (executable code only)
         run: |
           set -euo pipefail
-          # Strip SQL comments first: single-line (--) and block (/* */).
-          # Only forbid executable references; documentation in comments is fine.
-          if find supabase/migrations -type f -name '*.sql' -print0 \
-              | xargs -0 perl -0777 -pe 's{/\*.*?\*/}{}gs; s/(?m)^[ \t]*--.*$//g' \
-              | grep -RIn '_test_assert' >/tmp/migration-assert-hits.txt; then
+          # The previous pipeline could emit "Broken pipe" warnings when grep
+          # closed stdin early. Write each file's stripped contents into a
+          # stream-safe temp file, then grep that file directly.
+          tmp=$(mktemp)
+          hits=$(mktemp)
+          trap 'rm -f "$tmp" "$hits"' EXIT
+          : > "$tmp"
+          for f in supabase/migrations/*.sql; do
+            [ -f "$f" ] || continue
+            perl -0777 -pe 's{/\*.*?\*/}{}gs; s/(?m)^[ \t]*--.*$//g' "$f" \
+              | awk -v file="$f" '{ print file ":" NR ":" $0 }'
+          done > "$tmp"
+          if grep -n '_test_assert' "$tmp" > "$hits"; then
             echo 'ERROR: _test_assert referenced in executable migration code:' >&2
-            cat /tmp/migration-assert-hits.txt >&2
+            cat "$hits" >&2
             exit 1
           fi
           echo 'OK: no _test_assert in executable migration code'
@@ -436,13 +470,12 @@ jobs:
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
-      # CI compares snapshots against committed baselines. To update baselines
-      # locally, run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
-      # Do NOT use --update-snapshots in CI — it masks visual regressions.
-      # Until committed Linux baselines exist, this job is non-blocking:
-      # a failure indicates snapshots need to be generated, not a regression.
-      - name: Run visual regression tests (compare against baselines)
-        continue-on-error: true
+      # CI compares snapshots against committed Linux baselines. To refresh
+      # baselines after an intentional UI change, run the
+      # `Generate visual baselines (manual workflow)` workflow or locally:
+      #   pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
+      # Do NOT use --update-snapshots in the normal CI comparison run.
+      - name: Run visual regression tests (compare against committed baselines)
         env:
           E2E_MODE: full-local
           E2E_VISUAL: "1"
@@ -453,20 +486,26 @@ jobs:
           CI: true
         run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium
 
-      - name: Upload updated baselines
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: visual-baselines-linux
-          path: apps/web/e2e/visual.spec.ts-snapshots/*.png
-          retention-days: 30
-
+      # Artifacts on comparison failure only:
+      #   visual-regression-report   - HTML report
+      #   visual-regression-diffs    - diff PNGs from apps/web/test-results/
+      # The canonical baselines live in git, so we do not upload the snapshot
+      # directory here.
       - name: Upload visual regression report
         if: failure()
         uses: actions/upload-artifact@v6
         with:
           name: visual-regression-report
           path: apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload visual regression diffs
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-regression-diffs
+          path: apps/web/test-results/
           if-no-files-found: ignore
           retention-days: 7
 
