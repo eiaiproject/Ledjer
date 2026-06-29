@@ -204,6 +204,7 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
 
     const submitBtn = dialog.getByRole("button", { name: /^Tambah$/i });
     await expect(submitBtn).toBeVisible({ timeout: 3_000 });
+    await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
     const createProductResponse = await createProductResponsePromise;
