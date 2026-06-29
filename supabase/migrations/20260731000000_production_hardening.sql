@@ -755,7 +755,7 @@ END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
 -- Verification: CSV Escape Function Tests
--- Uses plain RAISE EXCEPTION (not _test_assert) since this runs at
+-- Uses plain RAISE EXCEPTION since this runs at
 -- migration time, not test suite time.
 -- ═══════════════════════════════════════════════════════════════════
 DO $$

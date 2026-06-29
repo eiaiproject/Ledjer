@@ -445,7 +445,7 @@ GRANT EXECUTE ON FUNCTION public.accept_invitation(TEXT) TO authenticated;
 -- ═══════════════════════════════════════════════════════════════════
 -- Verification: Server-Side Account Creation RPC Tests
 -- ═══════════════════════════════════════════════════════════════════
--- These run at migration time (not using _test_assert, which is in tests dir)
+-- These run at migration time (test helpers live in supabase/tests/)
 DO $$
 DECLARE
   v_user_id UUID;
