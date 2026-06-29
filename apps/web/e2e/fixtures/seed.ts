@@ -16,6 +16,14 @@ const SR_HEADERS = {
 /**
  * Create a confirmed auth user via Supabase Admin API.
  * Idempotent: if user already exists, returns the existing user ID.
+ *
+ * NOTE on pagination: GoTrue's `/auth/v1/admin/users?page=&per_page=` returns
+ * the most recent users first, capped at `per_page` per page. When the auth
+ * schema has hundreds of leftover users (very common in long-running local
+ * stacks), page 1 does NOT contain the user we just searched for and the
+ * fallback would throw. We instead paginate until we find the email or
+ * exhaust all pages. ponytail: ceiling is fine at small N; if the table ever
+ * holds >5k users, switch to a GoTrue SQL helper or a server-side FILTER.
  */
 export async function ensureTestUser(user: TestUser): Promise<string> {
   // Try to create user
@@ -35,20 +43,27 @@ export async function ensureTestUser(user: TestUser): Promise<string> {
     return data.id;
   }
 
-  // If duplicate, fetch existing
-  if (res.status === 422 || res.status === 409) {
+  if (res.status !== 422 && res.status !== 409) {
+    throw new Error(`Failed to ensure test user ${user.email}: ${res.status} ${await res.text()}`);
+  }
+
+  // Idempotency path: paginate through all admin users until we find this email.
+  const PER_PAGE = 200;
+  for (let page = 1; page <= 20; page++) {
     const listRes = await fetch(
-      `${E2E.supabaseUrl}/auth/v1/admin/users?page=1&per_page=100`,
+      `${E2E.supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${PER_PAGE}`,
       { headers: SR_HEADERS },
     );
+    if (!listRes.ok) break;
     const listData = await listRes.json();
-    const existing = listData.users?.find(
+    const users = listData.users ?? [];
+    const existing = users.find(
       (u: { email: string }) => u.email === user.email,
     );
     if (existing) return existing.id;
+    if (users.length < PER_PAGE) break; // last page
   }
-
-  throw new Error(`Failed to ensure test user ${user.email}: ${res.status} ${await res.text()}`);
+  throw new Error(`User ${user.email} reported as duplicate but not found via admin API.`);
 }
 
 /**
