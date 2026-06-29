@@ -127,8 +127,29 @@ See `.github/workflows/ci.yml` for full CI configuration.
 
 Key jobs:
 - `frontend`: typecheck + lint + vitest + build
-- `supabase`: Docker Supabase + SQL tests
+- `supabase`: Docker Supabase + apply migrations + SQL tests + live database-types drift check
+- `db-types-guard`: fast CANONICAL-FILE sanity check on `packages/database-types/index.ts` (does NOT prove drift)
 - `e2e-full-local`: Full E2E with seeded data
 - `deploy-smoke`: Production smoke (main only)
 - `e2e-cross-browser`: Firefox + WebKit smoke subset
-- `visual-regression`: Linux Chromium visual baselines
+- `visual-regression`: Linux Chromium visual baselines (comparison only, requires committed baselines)
+
+### Database Types: SANITY vs LIVE
+
+`scripts/check-db-types.sh` has two modes:
+
+| Mode | Command | What it checks | Speed | Needs Supabase? |
+|------|---------|----------------|-------|-----------------|
+| SANITY (default) | `pnpm db-types:check` | `packages/database-types/index.ts` exists and looks like regenerated content (size heuristic). Does NOT prove drift. | <1s | No |
+| LIVE | `bash scripts/check-db-types.sh --live` | Regenerates `supabase gen types typescript --local --schema public` and diffs against the canonical file. Catches real drift. Includes retry+backoff for ECR rate limits on `postgres-meta`. | tens of seconds | Yes |
+
+CI runs both: `db-types-guard` runs the fast sanity check on every PR.
+The `supabase` job runs `--live` after migrations apply.
+
+### Visual Baselines Workflow
+
+1. Commit Linux Chromium baselines by running the manual **`Generate visual baselines`** workflow (or locally: `pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots`).
+2. Commit the resulting PNGs under `apps/web/e2e/visual.spec.ts-snapshots/`.
+3. The normal `visual-regression` CI job runs comparison only (no `--update-snapshots`); failures are real regressions.
+
+Visual tests use a reduced-motion stylesheet injected via `page.addStyleTag` to disable animations and transitions for deterministic screenshots.

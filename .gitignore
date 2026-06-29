@@ -37,6 +37,7 @@ supabase/.env
 .parcel-cache
 .vite
 coverage
+.pnpm-store/
 
 # Playwright
 apps/web/playwright-report/
