@@ -22,8 +22,9 @@
 // =============================================================================
 
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 
-const PORT = parseInt(process.env.FAKE_MAYAR_PORT || "4567", 10);
+const PORT = Number.parseInt(process.env.FAKE_MAYAR_PORT || "4567", 10);
 const defaultStatus = process.env.FAKE_MAYAR_STATUS || "paid";
 
 // In-memory store of created invoices (keyed by ID)
@@ -38,7 +39,7 @@ function jsonResponse(body, status = 200) {
 }
 
 function generateId(prefix = "inv") {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}_${Date.now()}_${randomUUID().slice(0, 8)}`;
 }
 
 /**
@@ -132,7 +133,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET /hl/v1/invoice/:invoiceId ─────────────────────────────────────────
-  const invoiceMatch = path.match(/^\/hl\/v1\/invoice\/(.+)$/);
+  const invoiceMatch = /^\/hl\/v1\/invoice\/(.+)$/.exec(path);
   if (invoiceMatch && method === "GET") {
     const invoiceId = invoiceMatch[1];
     const invoice = invoices.get(invoiceId);

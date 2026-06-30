@@ -22,7 +22,7 @@ export function buildAuthCallbackUrl(
   redirectPath?: string,
   defaultRedirect = "/dashboard",
 ): URL {
-  const url = new URL("/auth/callback", window.location.origin);
+  const url = new URL("/auth/callback", globalThis.location.origin);
   if (redirectPath && redirectPath !== defaultRedirect) {
     url.searchParams.set("redirect", redirectPath);
   }

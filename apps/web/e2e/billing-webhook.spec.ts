@@ -7,7 +7,7 @@ import { ensureOwnerOrg } from "./fixtures/organizations";
 /**
  * Webhook E2E tests.
  * Bypasses the UI and calls the webhook endpoint directly via HTTP.
- * Skip if not in full-local mode (requires local Supabase).
+ * Requires local Supabase plus billing-mode Edge Function env.
  */
 
 const WEBHOOK_TOKEN = process.env.E2E_MAYAR_WEBHOOK_TOKEN || "test_webhook_token";
@@ -35,7 +35,6 @@ function uniqueMayarIds(testInfo: TestInfo, prefix = "paid") {
     `w${testInfo.workerIndex}`,
     `r${testInfo.retry}`,
     Date.now().toString(36),
-    Math.random().toString(36).slice(2, 8),
   ].join("_");
 
   return {
@@ -123,22 +122,14 @@ async function sendWebhook(payload: Record<string, unknown>, token: string = WEB
   }
 }
 
+if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
 test.describe("Mayar Webhook", () => {
   let orgId: string;
 
   test.beforeAll(async () => {
-    if (!E2E.isFullLocal || process.env.E2E_BILLING !== "1") {
-      console.log("Skipping webhook tests: billing E2E mode is not enabled");
-      return;
-    }
     const org = await ensureOwnerOrg();
     orgId = org.id;
   });
-
-  test.skip(
-    !E2E.isFullLocal || process.env.E2E_BILLING !== "1",
-    "Requires E2E_BILLING=1 (fake Mayar + local Edge Function env)",
-  );
 
   // ── Unauthorized ──────────────────────────────────────────────
 
@@ -305,7 +296,7 @@ test.describe("Mayar Webhook", () => {
     const filteredEvents = paidEvents.filter(
       (e: {provider_event_id?: string}) => e.provider_event_id === transactionId
     );
-    expect(filteredEvents.length).toBe(1);
+    expect(filteredEvents).toHaveLength(1);
 
     // Verify only one audit log for plan change
     const auditLogs = await getAuditLogs(orgId);
@@ -428,3 +419,4 @@ test.describe("Mayar Webhook", () => {
     expect(orgAfter.current_plan).toBe(orgBefore.current_plan);
   });
 });
+}

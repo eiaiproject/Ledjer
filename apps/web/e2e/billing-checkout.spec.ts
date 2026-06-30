@@ -7,7 +7,7 @@ import { ensureOwnerOrg } from "./fixtures/organizations";
 
 /**
  * Billing checkout E2E tests.
- * Tests depend on fake Mayar server; skip if not running locally.
+ * Tests depend on local Supabase seed data.
  */
 const SR_HEADERS = {
   apikey: E2E.serviceRoleKey,
@@ -22,13 +22,9 @@ async function deletePendingSessions(orgId: string) {
   ).catch(() => {});
 }
 
+if (E2E.isFullLocal) {
 test.describe("Mayar Checkout", () => {
   test.beforeAll(async () => {
-    // Check if we're in full-local mode with service role
-    if (!E2E.isFullLocal) {
-      console.log("Skipping billing checkout tests: not in full-local mode");
-      return;
-    }
     // Ensure the owner user exists
     await ensureTestUser(E2E_OWNER);
     await ensureTestUser(E2E_STAFF);
@@ -36,14 +32,10 @@ test.describe("Mayar Checkout", () => {
     await ensureOwnerOrg();
   });
 
-  test.skip(!E2E.isFullLocal, "Requires local Supabase + seed");
-
   test.beforeEach(async ({ page }) => {
     // Clean up any previous pending sessions
-    if (E2E.isFullLocal) {
-      const org = await ensureOwnerOrg();
-      await deletePendingSessions(org.id);
-    }
+    const org = await ensureOwnerOrg();
+    await deletePendingSessions(org.id);
     await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
     await page.goto("/settings/billing");
@@ -73,53 +65,51 @@ test.describe("Mayar Checkout", () => {
     await expect(page).toHaveURL(/\/settings\/billing/);
   });
 
-  test("Owner checkout creates pending session with correct details", async ({ page }) => {
-    // This test requires the fake Mayar server to be running (E2E_BILLING=1).
-    // It's marked as skip since the regular E2E mode doesn't set up Edge Functions.
-    test.skip(!process.env.E2E_BILLING, "Requires E2E_BILLING=1 (fake Mayar + served Edge Functions)");
+  if (process.env.E2E_BILLING === "1") {
+    test("Owner checkout creates pending session with correct details", async ({ page }) => {
+      await page.waitForLoadState("networkidle");
 
-    await page.waitForLoadState("networkidle");
+      // Enter valid WhatsApp number
+      const mobileInput = page.getByLabel(/nomor whatsapp pembayaran/i);
+      await mobileInput.fill("081234567890");
 
-    // Enter valid WhatsApp number
-    const mobileInput = page.getByLabel(/nomor whatsapp pembayaran/i);
-    await mobileInput.fill("081234567890");
+      // Get org info before clicking checkout
+      const org = await ensureOwnerOrg();
 
-    // Get org info before clicking checkout
-    const org = await ensureOwnerOrg();
+      // Click checkout on Solo plan
+      const soloButton = page.getByRole("button", { name: /bayar dengan mayar/i }).first();
+      await soloButton.click();
 
-    // Click checkout on Solo plan
-    const soloButton = page.getByRole("button", { name: /bayar dengan mayar/i }).first();
-    await soloButton.click();
+      // Should redirect to the Mayar checkout URL
+      await page.waitForURL((url) => url.href.includes("checkout.mayar.test") || url.pathname.includes("/settings/billing"), {
+        timeout: 15_000,
+      });
 
-    // Should redirect to the Mayar checkout URL
-    await page.waitForURL((url) => url.href.includes("checkout.mayar.test") || url.pathname.includes("/settings/billing"), {
-      timeout: 15_000,
+      // Verify a pending session was created in the DB
+      const sessionsRes = await fetch(
+        `${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions` +
+        `?organization_id=eq.${org.id}&status=eq.pending&select=*`,
+        { headers: SR_HEADERS },
+      );
+      const sessions = await sessionsRes.json();
+      const pendingSessions = Array.isArray(sessions) ? sessions : [];
+
+      expect(pendingSessions.length).toBeGreaterThanOrEqual(1);
+      const session = pendingSessions[0];
+
+      // Verify session has correct details
+      expect(session.plan).toBe("solo");
+      expect(session.billing_period).toBe("monthly");
+      expect(session.amount).toBe(39000);
+      expect(session.currency).toBe("IDR");
+      expect(session.payment_provider).toBe("mayar");
+      expect(session.checkout_url).toBeTruthy();
+      expect(session.checkout_url).toContain("https://");
+      expect(session.mayar_invoice_id).toBeTruthy();
+      expect(session.mayar_transaction_id).toBeTruthy();
+      expect(session.customer_mobile).toBe("6281234567890");
     });
-
-    // Verify a pending session was created in the DB
-    const sessionsRes = await fetch(
-      `${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions` +
-      `?organization_id=eq.${org.id}&status=eq.pending&select=*`,
-      { headers: SR_HEADERS },
-    );
-    const sessions = await sessionsRes.json();
-    const pendingSessions = Array.isArray(sessions) ? sessions : [];
-
-    expect(pendingSessions.length).toBeGreaterThanOrEqual(1);
-    const session = pendingSessions[0];
-
-    // Verify session has correct details
-    expect(session.plan).toBe("solo");
-    expect(session.billing_period).toBe("monthly");
-    expect(session.amount).toBe(39000);
-    expect(session.currency).toBe("IDR");
-    expect(session.payment_provider).toBe("mayar");
-    expect(session.checkout_url).toBeTruthy();
-    expect(session.checkout_url).toContain("https://");
-    expect(session.mayar_invoice_id).toBeTruthy();
-    expect(session.mayar_transaction_id).toBeTruthy();
-    expect(session.customer_mobile).toBe("6281234567890");
-  });
+  }
 
   test("Invalid mobile number is rejected", async ({ page }) => {
     await page.waitForLoadState("networkidle");
@@ -185,6 +175,7 @@ test.describe("Mayar Checkout", () => {
 
     // Checkout buttons should be disabled or not show "Bayar dengan Mayar"
     const mayarButtons = page.getByRole("button", { name: /bayar dengan mayar/i });
-    await expect(await mayarButtons.count()).toBe(0);
+    await expect(mayarButtons).toHaveCount(0);
   });
 });
+}

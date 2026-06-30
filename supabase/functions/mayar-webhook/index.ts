@@ -8,7 +8,7 @@ function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let result = 0;
   for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    result |= (a.codePointAt(i) ?? 0) ^ (b.codePointAt(i) ?? 0);
   }
   return result === 0;
 }
@@ -23,8 +23,26 @@ function addPeriod(start: Date, period: "monthly" | "yearly") {
   return end;
 }
 
+function stringValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+function nullableStringValue(value: unknown): string | null {
+  const text = stringValue(value).trim();
+  return text || null;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
 function paidStatus(value: unknown) {
-  const status = String(value ?? "").toLowerCase();
+  const status = stringValue(value).toLowerCase();
   return status === "paid" || status === "success" || status === "settled";
 }
 
@@ -33,8 +51,9 @@ function paidStatus(value: unknown) {
  * Handles both `data.status` and nested structure.
  */
 function extractInvoiceStatus(verifyJson: Record<string, unknown>): string {
-  const data = verifyJson.data as Record<string, unknown> | undefined;
-  return String(data?.status ?? verifyJson.status ?? "").toLowerCase();
+  const data = recordValue(verifyJson.data);
+  const status = stringValue(data?.status) || stringValue(verifyJson.status);
+  return status.toLowerCase();
 }
 
 /**
@@ -42,7 +61,7 @@ function extractInvoiceStatus(verifyJson: Record<string, unknown>): string {
  * Handles both `data.amount` and nested structures.
  */
 function extractInvoiceAmount(verifyJson: Record<string, unknown>): number {
-  const data = verifyJson.data as Record<string, unknown> | undefined;
+  const data = recordValue(verifyJson.data);
   const raw = data?.amount ?? verifyJson.amount ?? 0;
   const amount = Number(raw);
   return Number.isFinite(amount) ? amount : 0;
@@ -84,10 +103,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Bad request" }, 400);
     }
 
-    const event = String(payload.event ?? payload.type ?? "mayar.webhook");
-    const data = payload.data ?? payload;
-    const transactionId = String(data?.transactionId ?? data?.id ?? "").trim() || null;
-    const invoiceId = String(data?.paymentLinkId ?? data?.productId ?? data?.invoiceId ?? "").trim() || null;
+    const event = stringValue(payload.event) || stringValue(payload.type) || "mayar.webhook";
+    const data = recordValue(payload.data) ?? payload;
+    const transactionId = nullableStringValue(data.transactionId) ?? nullableStringValue(data.id);
+    const invoiceId =
+      nullableStringValue(data.paymentLinkId) ??
+      nullableStringValue(data.productId) ??
+      nullableStringValue(data.invoiceId);
 
     console.log(`Webhook received: event=${event} transactionId=${transactionId} invoiceId=${invoiceId}`);
 
@@ -133,14 +155,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, ignored: true });
     }
 
-    const sessionId = String(session.id);
-    const orgId = String(session.organization_id);
-    const createdBy = String(session.created_by);
-    const sessionPlan = String(session.plan);
-    const sessionBillingPeriod = String(session.billing_period);
+    const sessionId = stringValue(session.id);
+    const orgId = stringValue(session.organization_id);
+    const createdBy = stringValue(session.created_by);
+    const sessionPlan = stringValue(session.plan);
+    const sessionBillingPeriod = stringValue(session.billing_period);
     const sessionAmount = Number(session.amount);
-    const sessionStatus = String(session.status ?? "pending");
-    const sessionInvoiceId = session.mayar_invoice_id ? String(session.mayar_invoice_id) : null;
+    const sessionStatus = stringValue(session.status) || "pending";
+    const sessionInvoiceId = nullableStringValue(session.mayar_invoice_id);
 
     // ── Step 5: Log webhook received event ─────────────────────────────────
     await admin.from("billing_events").insert({
@@ -237,9 +259,9 @@ Deno.serve(async (req) => {
     const periodStart = new Date();
     const periodEnd = addPeriod(periodStart, sessionBillingPeriod as "monthly" | "yearly");
     const providerTransactionId = transactionId ?? sessionInvoiceId;
-    const providerCustomerId = verifyJson.data
-      ? String((verifyJson.data as Record<string, unknown>).customerId ?? (verifyJson.data as Record<string, unknown>).customer?.id ?? "")
-      : "";
+    const verifyData = recordValue(verifyJson.data);
+    const verifyCustomer = recordValue(verifyData?.customer);
+    const providerCustomerId = stringValue(verifyData?.customerId) || stringValue(verifyCustomer?.id);
 
     // Atomic update: mark session as paid only if currently pending
     const { data: updatedSession, error: updateError } = await admin.rpc("finalize_mayar_payment", {

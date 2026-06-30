@@ -39,6 +39,8 @@ APP_URL="${APP_URL:-https://app.ledjer.id}"
 
 PASS=0
 FAIL=0
+THIN_RULE="───────────────────────────────────────────────────────────────"
+THICK_RULE="═══════════════════════════════════════════════════════════════"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +62,7 @@ check_json_field() {
   local json="$3"
   local expected="$4"
   local actual; actual=$(echo "$json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('$field', 'MISSING'))" 2>/dev/null || echo "MISSING")
-  if [ "$actual" = "$expected" ]; then
+  if [[ "$actual" == "$expected" ]]; then
     echo "  ✅ $label (expected: $expected, got: $actual)"
     PASS=$((PASS + 1))
   else
@@ -74,7 +76,7 @@ check_non_empty() {
   local field="$2"
   local json="$3"
   local actual; actual=$(echo "$json" | python3 -c "import sys,json; v=json.load(sys.stdin).get('$field', ''); print(v if v else 'EMPTY')" 2>/dev/null || echo "PARSE_ERROR")
-  if [ -n "$actual" ] && [ "$actual" != "EMPTY" ] && [ "$actual" != "PARSE_ERROR" ]; then
+  if [[ -n "$actual" && "$actual" != "EMPTY" && "$actual" != "PARSE_ERROR" ]]; then
     echo "  ✅ $label (value: ${actual:0:80})"
     PASS=$((PASS + 1))
   else
@@ -85,15 +87,15 @@ check_non_empty() {
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 echo ""
-echo "═══════════════════════════════════════════════════════════════"
+echo "$THICK_RULE"
 echo "  Mayar Sandbox Smoke Test"
 echo "  Environment: ${MAYAR_ENV}"
 echo "  API Base URL: ${MAYAR_API_BASE_URL}"
-echo "═══════════════════════════════════════════════════════════════"
+echo "$THICK_RULE"
 echo ""
 
 # Check API key
-if [ -z "$MAYAR_API_KEY" ]; then
+if [[ -z "$MAYAR_API_KEY" ]]; then
   echo "❌ MAYAR_API_KEY is not set."
   echo ""
   echo "To run this test:"
@@ -105,9 +107,9 @@ if [ -z "$MAYAR_API_KEY" ]; then
 fi
 
 # ── Test 1: Invoice Creation ─────────────────────────────────────────────────
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 echo "  1. Create Invoice"
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 
 TIMESTAMP=$(date +%s)
 INVOICE_PAYLOAD=$(cat <<EOF
@@ -144,7 +146,7 @@ CREATE_BODY=$(echo "$CREATE_RESPONSE" | sed '$d')
 
 echo "  HTTP Status: $CREATE_HTTP_CODE"
 
-if [ "$CREATE_HTTP_CODE" = "200" ]; then
+if [[ "$CREATE_HTTP_CODE" == "200" ]]; then
   echo "  ✅ Create invoice request succeeded (HTTP 200)"
   PASS=$((PASS + 1))
 else
@@ -197,9 +199,9 @@ echo "  Checkout URL: ${CHECKOUT_URL:-N/A}"
 
 # ── Test 2: Verify Response Shape ────────────────────────────────────────────
 echo ""
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 echo "  2. Verify Response Shape"
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 
 check_non_empty "Invoice ID is returned" "id" "$(echo "$CREATE_BODY" | python3 -c "
 import sys, json
@@ -227,15 +229,15 @@ if items and isinstance(items, list) and len(items) > 0:
     print('  data[0].paymentUrl:', item.get('paymentUrl'))
     print('  data[0].status:', item.get('status'))
     print('  data[0].amount:', item.get('amount'))
-" 2>/dev/null || echo "  (parse error)"
+" 2>/dev/null || echo "  (parse error)" >&2
 
 # ── Test 3: Invoice Detail ──────────────────────────────────────────────────
 echo ""
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 echo "  3. Get Invoice Detail"
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 
-if [ -n "$INVOICE_ID" ]; then
+if [[ -n "$INVOICE_ID" ]]; then
   DETAIL_RESPONSE=$(curl -s -w "\n%{http_code}" \
     -X GET "${MAYAR_API_BASE_URL}/hl/v1/invoice/${INVOICE_ID}" \
     -H "Authorization: Bearer ${MAYAR_API_KEY}" \
@@ -246,7 +248,7 @@ if [ -n "$INVOICE_ID" ]; then
 
   echo "  HTTP Status: $DETAIL_HTTP_CODE"
 
-  if [ "$DETAIL_HTTP_CODE" = "200" ]; then
+  if [[ "$DETAIL_HTTP_CODE" == "200" ]]; then
     echo "  ✅ Get invoice detail succeeded"
     PASS=$((PASS + 1))
   else
@@ -259,16 +261,16 @@ fi
 
 # ── Test 4: Checkout URL Format ─────────────────────────────────────────────
 echo ""
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 echo "  4. Checkout URL Format"
-echo "───────────────────────────────────────────────────────────────"
+echo "$THIN_RULE"
 
-if [ -n "$CHECKOUT_URL" ]; then
+if [[ -n "$CHECKOUT_URL" ]]; then
   # Check if URL is a mayar.club link (sandbox) or mayar.id (production)
-  if echo "$CHECKOUT_URL" | grep -qE "^https://(checkout\.mayar\.club|web\.mayar\.club)"; then
+  if [[ "$CHECKOUT_URL" =~ ^https://(checkout\.mayar\.club|web\.mayar\.club) ]]; then
     echo "  ✅ Checkout URL points to Mayar Club sandbox"
     PASS=$((PASS + 1))
-  elif echo "$CHECKOUT_URL" | grep -qE "^https://"; then
+  elif [[ "$CHECKOUT_URL" =~ ^https:// ]]; then
     echo "  ⚠️ Checkout URL is valid HTTPS but may not be sandbox: ${CHECKOUT_URL}"
     # Still passes — just informational
     PASS=$((PASS + 1))
@@ -284,12 +286,12 @@ fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
-echo "═══════════════════════════════════════════════════════════════"
+echo "$THICK_RULE"
 echo "  Results: ${PASS} passed, ${FAIL} failed"
-echo "═══════════════════════════════════════════════════════════════"
+echo "$THICK_RULE"
 echo ""
 
-if [ "$FAIL" -gt 0 ]; then
+if [[ "$FAIL" -gt 0 ]]; then
   echo "⚠️  Some tests failed. Check the output above for details."
   exit 1
 else

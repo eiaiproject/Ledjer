@@ -43,6 +43,8 @@ DECLARE
   v_session       RECORD;
   v_org_before    RECORD;
   v_result        JSONB;
+  v_active_status CONSTANT TEXT := 'active';
+  v_mayar_provider CONSTANT TEXT := 'mayar';
 BEGIN
   -- Lock the session row to prevent concurrent webhook processing
   SELECT id, status, plan, billing_period, amount, organization_id, created_by
@@ -94,10 +96,10 @@ BEGIN
   UPDATE public.organizations
   SET
     current_plan                  = p_plan::public.org_plan,
-    subscription_status           = 'active',
+    subscription_status           = v_active_status,
     current_period_start          = p_period_start,
     current_period_end            = p_period_end,
-    payment_provider              = 'mayar',
+    payment_provider              = v_mayar_provider,
     payment_provider_customer_id  = COALESCE(NULLIF(p_provider_customer_id, ''), payment_provider_customer_id),
     payment_provider_subscription_id = COALESCE(NULLIF(p_provider_transaction_id, ''), payment_provider_subscription_id),
     updated_at                    = now()
@@ -133,8 +135,8 @@ BEGIN
     v_org_before.current_plan,
     p_plan,
     v_org_before.subscription_status,
-    'active',
-    'mayar',
+    v_active_status,
+    v_mayar_provider,
     p_provider_transaction_id,
     jsonb_build_object(
       'checkout_session_id', p_session_id,
@@ -167,8 +169,8 @@ BEGIN
     ),
     jsonb_build_object(
       'plan', p_plan,
-      'subscription_status', 'active',
-      'payment_provider', 'mayar'
+      'subscription_status', v_active_status,
+      'payment_provider', v_mayar_provider
     ),
     'mayar_payment_succeeded'
   );
