@@ -51,3 +51,70 @@ jobs:
           path: apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+  # ─── Job B: Production CSP Check ─────────────────────────────
+  csp-check:
+    name: "Production CSP Check (no localhost)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production page CSP header for localhost
+        run: |
+          csp=$(curl -sI https://app.ledjer.id | grep -i content-security-policy || true)
+          if echo "$csp" | grep -qE 'localhost|127\.0\.0\.1'; then
+            echo "❌ Production CSP contains localhost origins"
+            echo "$csp"
+            exit 1
+          fi
+          echo "✅ Production CSP is clean (no localhost)"
+
+      - name: Check production page CSP meta tag for localhost
+        run: |
+          meta=$(curl -s https://app.ledjer.id | grep -i 'http-equiv="Content-Security-Policy"' || true)
+          if echo "$meta" | grep -qE 'localhost|127\.0\.0\.1'; then
+            echo "❌ Production CSP meta tag contains localhost origins"
+            echo "$meta"
+            exit 1
+          fi
+          echo "✅ Production CSP meta tag is clean (no localhost)"
+
+  # ─── Job C: Supabase Edge Function Smoke ────────────────────
+  edge-functions:
+    name: "Edge Function Auth Smoke (Supabase)"
+    needs: [smoke, csp-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only runs if SUPABASE_REF is provided as a secret/variable
+    if: always() && vars.SUPABASE_REF != '' && needs.smoke.result == 'success' && needs.csp-check.result == 'success'
+    env:
+      SUPABASE_REF: ${{ vars.SUPABASE_REF }}
+    steps:
+      - name: Check mayar-create-checkout returns 401 without auth
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://${SUPABASE_REF}.supabase.co/functions/v1/mayar-create-checkout")
+          if [ "$status" != "401" ]; then
+            echo "❌ mayar-create-checkout returned $status (expected 401)"
+            exit 1
+          fi
+          echo "✅ mayar-create-checkout returns 401 without auth"
+
+      - name: Check mayar-webhook returns 401 without token
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://${SUPABASE_REF}.supabase.co/functions/v1/mayar-webhook")
+          if [ "$status" != "401" ]; then
+            echo "❌ mayar-webhook returned $status (expected 401)"
+            exit 1
+          fi
+          echo "✅ mayar-webhook returns 401 without token"
+
+      - name: Check mayar-webhook returns 401 with wrong token
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://${SUPABASE_REF}.supabase.co/functions/v1/mayar-webhook?token=wrong")
+          if [ "$status" != "401" ]; then
+            echo "❌ mayar-webhook returned $status with wrong token (expected 401)"
+            exit 1
+          fi
+          echo "✅ mayar-webhook returns 401 with wrong token"

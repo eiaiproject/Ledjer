@@ -48,7 +48,16 @@ Each item must be verified and signed off by the launch owner.
 - [ ] Upgrade/downgrade/cancel UX is truthful
 - [ ] Billing events audit trail working
 - [ ] Admin plan override tested (`admin_update_plan`)
-- [ ] ⚠️ Self-serve payment checkout NOT claimed as complete
+- [ ] Mayar self-serve checkout working (sandbox)
+- [ ] Mayar webhook token verification working
+- [ ] Mayar webhook idempotent (duplicate webhook safe)
+- [ ] Duplicate checkout prevented (same session reused)
+- [ ] Owner-only checkout enforced server-side
+- [ ] Invalid mobile number rejected
+- [ ] Unpaid/pending/failed webhooks do not upgrade plan
+- [ ] Amount mismatch webhook rejected
+- [ ] Unknown invoice webhook safely ignored
+- [ ] Edge Functions deployed with correct config (`verify_jwt`)
 - [ ] Manual billing runbook reviewed (`docs/private-beta/manual-billing-runbook.md`)
 
 ## Staff Invitations
@@ -147,9 +156,8 @@ Each item must be verified and signed off by the launch owner.
 
 ## Known Limitations Accepted at Launch
 
-1. **Self-serve billing not implemented** — manual billing via admin SQL console
-2. **Payment webhook verification not implemented** — scaffold only
-3. **Email delivery for invitations not implemented** — token generated, email sending is provider setup
+1. **Mayar self-serve billing implemented for private beta** — sandbox tested, production requires API key change
+2. **Email delivery for invitations not implemented** — token generated, email sending is provider setup
 4. **Admin dashboard requires server-side auth** — current page is a placeholder
 5. **No PDF/Excel export** — CSV only
 6. **No automated closing entries** — manual process

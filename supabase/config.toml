@@ -66,3 +66,11 @@ enable_confirmations = false
 
 [analytics]
 enabled = false
+
+# ─── Edge Functions ───────────────────────────────────────────
+
+[functions.mayar-create-checkout]
+verify_jwt = true
+
+[functions.mayar-webhook]
+verify_jwt = false

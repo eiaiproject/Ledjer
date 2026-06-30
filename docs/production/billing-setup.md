@@ -4,7 +4,7 @@ Last updated: 2026-06-29
 
 ## Current Status
 
-**Mayar self-serve checkout is implemented as a server-side integration scaffold.**
+**Mayar self-serve checkout is implemented and active for private beta.**
 
 The app creates Mayar invoices through Supabase Edge Functions and updates plans from the Mayar webhook after verifying invoice status through Mayar's API. Manual billing via admin SQL console remains the fallback procedure.
 
@@ -114,16 +114,47 @@ supabase secrets set APP_URL='https://app.ledjer.id'
 3. Register the Mayar webhook URL:
 
 ```text
-https://<project-ref>.functions.supabase.co/mayar-webhook?token=<MAYAR_WEBHOOK_TOKEN>
+https://<project-ref>.supabase.co/functions/v1/mayar-webhook?token=<MAYAR_WEBHOOK_TOKEN>
 ```
+
+> ⚠️ **Correct URL format:** `https://<project-ref>.supabase.co/functions/v1/<function-name>`
+> The legacy format `https://<project-ref>.functions.supabase.co/<function-name>` is deprecated and should not be used.
+
 
 4. Test lifecycle: billing page checkout → Mayar paid invoice → webhook → `organizations.current_plan` changes to `solo`/`business`.
 
 Security notes:
 
 - Never expose `MAYAR_API_KEY` in Vite/frontend env.
-- Public Mayar docs do not show webhook HMAC verification. The webhook URL token is required, and the function verifies invoice status through Mayar before changing a plan.
-- `billing_checkout_sessions` is the idempotency record for invoice/webhook processing.
+- Public Mayar docs do not show webhook HMAC verification. The webhook URL token is required, and the function verifies invoice status through Mayar before changing a plan.    - `billing_checkout_sessions` is the idempotency record for invoice/webhook processing.
+
+## Edge Function Auth Configuration
+
+In `supabase/config.toml`:
+
+```toml
+[functions.mayar-create-checkout]
+verify_jwt = true
+
+[functions.mayar-webhook]
+verify_jwt = false
+```
+
+- `mayar-create-checkout` requires a valid Supabase JWT (user must be authenticated).
+- `mayar-webhook` does NOT require a JWT (external webhook from Mayar).
+- Instead, `mayar-webhook` uses a mandatory `MAYAR_WEBHOOK_TOKEN` passed as a query parameter.
+
+## Webhook Security
+
+`MAYAR_WEBHOOK_TOKEN` is **mandatory**. The webhook will return 500 if the token is not configured, and 401 if the token is missing or wrong. Token comparison uses constant-time comparison to prevent timing attacks.
+
+## Duplicate Checkout Prevention
+
+The Edge Function checks for an existing pending checkout session for the same organization, plan, billing period, and user. If a valid pending session exists (not expired), the existing checkout URL is returned instead of creating a duplicate Mayar invoice. A partial unique index prevents duplicate pending sessions at the database level.
+
+## Webhook Idempotency
+
+The `finalize_mayar_payment` RPC uses row-level locking (`FOR UPDATE`) and conditional update semantics. If a checkout session is already marked as `paid`, the RPC returns an idempotent success result without inserting duplicate billing events or audit log entries.
 
 ## Audit Trail
 

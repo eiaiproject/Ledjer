@@ -74,13 +74,35 @@ export default defineConfig({
     if (process.env.E2E_BASE_URL && !process.env.E2E_BASE_URL.includes('localhost')) {
       return undefined;
     }
-    // For localhost targets (explicit or default), always start preview
-    // reuseExistingServer: true only when NO explicit E2E_BASE_URL (local dev may have vite dev running)
-    return {
-      command: "pnpm preview",
-      port: 4173,
-      reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
-    };
+
+    // Build the webServer config(s) as an array (Playwright supports both single and array)
+    const servers: Array<{
+      command: string;
+      port: number;
+      reuseExistingServer?: boolean;
+    }> = [
+      // Primary: Vite preview server for the frontend app
+      {
+        command: "pnpm preview",
+        port: 4173,
+        reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
+      },
+    ];
+
+    // Additional: fake Mayar server for billing E2E tests
+    // Activated by setting E2E_BILLING=1
+    if (process.env.E2E_BILLING === "1") {
+      servers.push({
+        command:
+          `FAKE_MAYAR_PORT=4567 FAKE_MAYAR_STATUS=paid ` +
+          `deno run --allow-net --allow-env ` +
+          `supabase/functions/_shared/fake-mayar-server.ts`,
+        port: 4567,
+        reuseExistingServer: false,
+      });
+    }
+
+    return servers;
   })(),
   expect: {
     toHaveScreenshot: {
