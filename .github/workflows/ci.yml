@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: ["**"]
   pull_request:
     branches: [main, master]
 
@@ -77,6 +77,9 @@ jobs:
     name: Supabase migrations & SQL tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SUPABASE_VERSION: 2.107.0
+      PG_META_TAG: v0.96.1
     steps:
       - uses: actions/checkout@v6
 
@@ -94,7 +97,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: 2.107.0
+          version: ${{ env.SUPABASE_VERSION }}
           github-token: ${{ github.token }}
 
       - name: Verify Supabase CLI
@@ -160,13 +163,27 @@ jobs:
             pgmeta-${{ runner.os }}-${{ env.SUPABASE_VERSION }}-
 
       - name: Pre-pull postgres-meta
-        env:
-          SUPABASE_VERSION: 2.107.0
-          PG_META_TAG: v0.96.1
+        if: steps.cache-meta-image.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          docker pull public.ecr.aws/supabase/postgres-meta:v0.96.1 >/dev/null
-          docker save public.ecr.aws/supabase/postgres-meta:v0.96.1 -o /tmp/supabase-pg-meta-image.tar
+          image="public.ecr.aws/supabase/postgres-meta:${PG_META_TAG}"
+          for attempt in 1 2 3 4; do
+            if docker pull "$image" >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 4 ]; then
+              echo "Failed to pull $image after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep $((attempt * 20))
+          done
+          docker save "$image" -o /tmp/supabase-pg-meta-image.tar
+
+      - name: Load cached postgres-meta
+        if: steps.cache-meta-image.outputs.cache-hit == 'true'
+        run: |
+          set -euo pipefail
+          docker load -i /tmp/supabase-pg-meta-image.tar >/dev/null
 
       - name: Check database types drift (live, retry-safe)
         # Real drift detection. Wraps supabase gen types in retry+backoff

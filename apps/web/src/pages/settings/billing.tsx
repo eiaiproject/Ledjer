@@ -1,18 +1,24 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import {
   fetchMonthlyTransactionUsage,
   FREE_PLAN_TRANSACTION_LIMIT,
 } from "@/lib/transaction-usage";
+import {
+  createMayarCheckout,
+  type BillingPeriod,
+  type PaidPlan,
+} from "@/lib/billing";
+import { translateError } from "@/lib/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
-import { Check, ArrowRight, MessageCircle, RefreshCw } from "lucide-react";
-
-type BillingPeriod = "monthly" | "yearly";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast-api";
+import { Check, ArrowRight, CreditCard, RefreshCw } from "lucide-react";
 
 const PLAN_DETAILS = {
   free: {
@@ -81,6 +87,9 @@ function formatPrice(price: number): string {
 
 export function BillingSettingsPage() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [customerMobile, setCustomerMobile] = useState("");
+  const [mobileError, setMobileError] = useState("");
+  const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
   const plan = (orgData?.organization?.current_plan as PlanKey) || "free";
@@ -107,6 +116,36 @@ export function BillingSettingsPage() {
     ? (usage?.remaining ?? usageLimit)
     : 0;
   const isNearLimit = isFreePlan && usagePercent >= 80;
+
+  const checkoutMutation = useMutation({
+    mutationFn: createMayarCheckout,
+    onSuccess: (checkout) => {
+      window.location.assign(checkout.checkoutUrl);
+    },
+    onError: (error) => {
+      toast.error(translateError(error));
+    },
+    onSettled: () => {
+      setPendingPlan(null);
+    },
+  });
+
+  const handleCheckout = (targetPlan: PaidPlan) => {
+    if (!orgData?.organization?.id) return;
+    const digits = customerMobile.replace(/\D/g, "");
+    if (digits.length < 8 || digits.length > 16) {
+      setMobileError("Isi nomor WhatsApp yang valid untuk invoice Mayar.");
+      return;
+    }
+    setMobileError("");
+    setPendingPlan(targetPlan);
+    checkoutMutation.mutate({
+      organizationId: orgData.organization.id,
+      plan: targetPlan,
+      billingPeriod,
+      customerMobile,
+    });
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
@@ -311,6 +350,25 @@ export function BillingSettingsPage() {
           </div>
         </div>
 
+        {isOwner && (
+          <Card className="mb-4">
+            <CardContent className="p-4">
+              <Input
+                label="Nomor WhatsApp pembayaran"
+                value={customerMobile}
+                onChange={(event) => {
+                  setCustomerMobile(event.target.value);
+                  if (mobileError) setMobileError("");
+                }}
+                placeholder="08xxxxxxxxxx"
+                error={mobileError}
+                helperText="Dipakai Mayar untuk membuat invoice pembayaran."
+                inputMode="tel"
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Plan Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-stretch">
           {(Object.keys(PLAN_DETAILS) as PlanKey[]).map((key) => {
@@ -426,12 +484,14 @@ export function BillingSettingsPage() {
                           type="button"
                           variant={isRecommended ? "primary" : "secondary"}
                           fullWidth
-                          disabled={!isOwner}
+                          loading={pendingPlan === key && checkoutMutation.isPending}
+                          disabled={!isOwner || checkoutMutation.isPending}
+                          onClick={() => handleCheckout(key as PaidPlan)}
                         >
                           {isOwner ? (
                             <>
-                              <MessageCircle className="h-4 w-4" />
-                              Minta Upgrade
+                              <CreditCard className="h-4 w-4" />
+                              Bayar dengan Mayar
                               <ArrowRight className="h-4 w-4" />
                             </>
                           ) : (
@@ -460,7 +520,7 @@ export function BillingSettingsPage() {
                     Ingin upgrade sekarang?
                   </p>
                   <p className="mt-0.5 text-xs text-wood-600">
-                    Pembayaran online sedang disiapkan. Untuk upgrade sekarang, hubungi admin Ledjer melalui WhatsApp atau email.
+                    Pembayaran diproses melalui Mayar. Paket aktif otomatis setelah pembayaran terkonfirmasi.
                   </p>
                 </div>
               </div>

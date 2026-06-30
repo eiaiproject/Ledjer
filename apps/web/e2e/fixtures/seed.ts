@@ -244,7 +244,6 @@ export async function fullSeed(): Promise<string> {
   const staffId = await ensureTestUser(ALL_TEST_USERS[1]);
   const orgId = await seedOrganization(ownerId);
   await seedStaffMember(orgId, staffId, {
-    can_create_transaction: true,
     can_view_reports: true,
     can_manage_products: true,
   });

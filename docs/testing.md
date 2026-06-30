@@ -9,7 +9,7 @@
 | `local-smoke` | localhost | Local smoke without seed |
 
 Auto-detected from `E2E_BASE_URL`:
-- `ledjer-ahk.pages.dev` → deploy-smoke
+- Any non-localhost URL → deploy-smoke
 - `localhost` + `E2E_SUPABASE_SERVICE_ROLE_KEY` → full-local
 - `localhost` without service role → local-smoke
 
@@ -19,7 +19,7 @@ Auto-detected from `E2E_BASE_URL`:
 ```bash
 pnpm test:e2e:deploy
 ```
-Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://ledjer-ahk.pages.dev/`
+Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://app.ledjer.id`
 
 ### Full Local E2E
 ```bash
@@ -61,6 +61,7 @@ pnpm test:e2e:cross-browser-smoke
 |------|-------|-------------|
 | `smoke.spec.ts` | 18 | Landing, auth pages, route guards |
 | `security-public.spec.ts` | 8 | XSS, secrets, headers, error safety |
+| `static-routes.spec.ts` | 5 | /terms, /privacy, /refund, /security, /contact |
 
 ### Authenticated (require seeded user)
 | File | Tests | Description |
@@ -72,12 +73,13 @@ pnpm test:e2e:cross-browser-smoke
 | `transaction-negative.spec.ts` | 4 | Validation, empty fields |
 | `transaction-list.spec.ts` | 4 | Search, special chars, detail |
 | `transaction-report-flow.spec.ts` | 4 | Cash sale → report E2E flow |
-| `void.spec.ts` | 2 | Void button, void reason |
-| `products-inventory.spec.ts` | 4 | Products, add form |
-| `reports.spec.ts` | 6 | All 4 reports, date filter |
+| `void.spec.ts` | 3 | Void reason, void success, double-void prevention |
+| `products-inventory.spec.ts` | 5 | Products, purchase-to-sale flow |
+| `reports.spec.ts` | 8 | Reports smoke + golden number assertions |
 | `accounts.spec.ts` | 4 | CoA, add form |
-| `permissions.spec.ts` | 4 | Team, staff, cross-org |
-| `billing.spec.ts` | 3 | Billing, plan, no payment |
+| `permissions.spec.ts` | 8 | Owner full access, staff restrictions, cross-org |
+| `billing.spec.ts` | 5 | Billing, plan info, upgrade prompts, payment safety |
+| `export-import.spec.ts` | 5 | CSV export buttons, download verification |
 
 ### UI Quality
 | File | Tests | Description |
@@ -119,7 +121,7 @@ All test data is prefixed with `[E2E]` or `e2e-`:
 - Users: `e2e-owner@ledjer.test`, `e2e-staff@ledjer.test`, `e2e-owner2@ledjer.test`
 - Passwords: `Password123!`
 - Organizations: `[E2E] Toko Otomatis`
-- Products: `[E2E] Produk Test`
+- Products: `[E2E] Product <timestamp>`
 
 ## CI Pipeline
 
@@ -130,9 +132,15 @@ Key jobs:
 - `supabase`: Docker Supabase + apply migrations + SQL tests + live database-types drift check
 - `db-types-guard`: fast CANONICAL-FILE sanity check on `packages/database-types/index.ts` (does NOT prove drift)
 - `e2e-full-local`: Full E2E with seeded data
-- `deploy-smoke`: Production smoke (main only)
 - `e2e-cross-browser`: Firefox + WebKit smoke subset
 - `visual-regression`: Linux Chromium visual baselines (comparison only, requires committed baselines)
+
+## Deployment
+
+Cloudflare Pages Git integration auto-deploys `main` to production (`https://app.ledjer.id`).
+GitHub Actions CI runs on all branch pushes and PRs to main/master.
+
+Manual deployment available via `Deploy to Cloudflare Pages` workflow (workflow_dispatch only).
 
 ### Database Types: SANITY vs LIVE
 

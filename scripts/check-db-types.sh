@@ -76,17 +76,16 @@ while (( ATTEMPT < MAX_ATTEMPTS )); do
   echo "🔄 Regenerating database types (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
   # Stream stderr to a separate file so we can show it on failure without
   # polluting the generated TypeScript output (which we read as the body).
-  if GEN_STDERR=$(
-        supabase gen types typescript --local --schema public \
-          > "$GENERATED_FILE" 2> /tmp/gen-types.stderr.$$ ; echo $?
-      ); then
+  stderr_file="/tmp/gen-types.stderr.$$"
+  if supabase gen types typescript --local --schema public \
+      > "$GENERATED_FILE" 2> "$stderr_file"; then
     GEN_RC=0
     GEN_STDERR=""
   else
     GEN_RC=$?
-    GEN_STDERR="$(cat /tmp/gen-types.stderr.$$ 2>/dev/null || true)"
+    GEN_STDERR="$(cat "$stderr_file" 2>/dev/null || true)"
   fi
-  rm -f /tmp/gen-types.stderr.$$
+  rm -f "$stderr_file"
 
   if (( GEN_RC == 0 )); then
     break
