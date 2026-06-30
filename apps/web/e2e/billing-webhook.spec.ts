@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { E2E } from "./fixtures/env";
 import { E2E_OWNER } from "./fixtures/users";
-import { ensureTestUser, ensureOwnerOrg } from "./fixtures/seed";
+import { ensureTestUser } from "./fixtures/seed";
+import { ensureOwnerOrg } from "./fixtures/organizations";
 
 /**
  * Webhook E2E tests.

@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 import { loginViaUI } from "./fixtures/auth";
 import { E2E } from "./fixtures/env";
 import { E2E_OWNER, E2E_STAFF } from "./fixtures/users";
-import { ensureTestUser, ensureOwnerOrg } from "./fixtures/seed";
+import { ensureTestUser } from "./fixtures/seed";
+import { ensureOwnerOrg } from "./fixtures/organizations";
 
 /**
  * Billing checkout E2E tests.
