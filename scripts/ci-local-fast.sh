@@ -15,6 +15,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+readonly SEPARATOR='═══════════════════════════════════════════════════════════════'
+
 PASS=0
 FAIL=0
 
@@ -22,10 +24,11 @@ pass()  { PASS=$((PASS + 1)); }
 fail()  { FAIL=$((FAIL + 1)); }
 
 section() {
+  local msg="$1"
   echo ""
-  echo "═══════════════════════════════════════════════════════════════"
-  echo "  $1"
-  echo "═══════════════════════════════════════════════════════════════"
+  echo "$SEPARATOR"
+  echo "  $msg"
+  echo "$SEPARATOR"
 }
 
 # ── 1. Corepack / pnpm install ──────────────────────────────────────────────
@@ -78,7 +81,7 @@ trap 'rm -f "$tmp" "$hits"' EXIT
 : > "$tmp"
 
 for f in supabase/migrations/*.sql; do
-  [ -f "$f" ] || continue
+  [[ -f "$f" ]] || continue
   perl -0777 -pe 's{/\*.*?\*/}{}gs; s/(?m)^[ \t]*--.*$//g' "$f" \
     | awk -v file="$f" '{ print file ":" NR ":" $0 }'
 done > "$tmp"
@@ -94,9 +97,9 @@ fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
-echo "═══════════════════════════════════════════════════════════════"
+echo "$SEPARATOR"
 echo "  RESULTS: $PASS passed, $FAIL failed"
-echo "═══════════════════════════════════════════════════════════════"
-if [ "$FAIL" -gt 0 ]; then
+echo "$SEPARATOR"
+if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi

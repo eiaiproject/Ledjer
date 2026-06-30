@@ -20,6 +20,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+readonly SEPARATOR='═══════════════════════════════════════════════════════════════'
+
 PASS=0
 FAIL=0
 TMPFILES=()
@@ -45,10 +47,11 @@ cleanup() {
 trap cleanup EXIT
 
 section() {
+  local msg="$1"
   echo ""
-  echo "═══════════════════════════════════════════════════════════════"
-  echo "  $1"
-  echo "═══════════════════════════════════════════════════════════════"
+  echo "$SEPARATOR"
+  echo "  $msg"
+  echo "$SEPARATOR"
 }
 
 # ── 0. Preflight: Docker + supabase CLI ─────────────────────────────────────
@@ -120,13 +123,13 @@ SUPABASE_URL="${API_URL:-http://localhost:54321}"
 SUPABASE_ANON_KEY="${ANON_KEY:-}"
 SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
 
-if [ -z "$SUPABASE_ANON_KEY" ]; then
+if [[ -z "$SUPABASE_ANON_KEY" ]]; then
   echo "❌  Failed to extract Supabase anon key"
   fail
 else
   # ── Start fake Mayar as Docker container on Supabase network ──────────
   SUPABASE_NETWORK=$(docker network ls --filter name=supabase -q | head -1)
-  if [ -n "$SUPABASE_NETWORK" ]; then
+  if [[ -n "$SUPABASE_NETWORK" ]]; then
     docker rm -f fake-mayar 2>/dev/null || true
     docker run -d \
       --name fake-mayar \
@@ -203,7 +206,7 @@ TMP_HITS=$(mktemp)
 TMPFILES+=("$TMP_GUARD" "$TMP_HITS")
 : > "$TMP_GUARD"
 for f in supabase/migrations/*.sql; do
-  [ -f "$f" ] || continue
+  [[ -f "$f" ]] || continue
   perl -0777 -pe 's{/\*.*?\*/}{}gs; s/(?m)^[ \t]*--.*$//g' "$f" \
     | awk -v file="$f" '{ print file ":" NR ":" $0 }'
 done > "$TMP_GUARD"
@@ -218,9 +221,9 @@ fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
-echo "═══════════════════════════════════════════════════════════════"
+echo "$SEPARATOR"
 echo "  RESULTS: $PASS passed, $FAIL failed"
-echo "═══════════════════════════════════════════════════════════════"
-if [ "$FAIL" -gt 0 ]; then
+echo "$SEPARATOR"
+if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi

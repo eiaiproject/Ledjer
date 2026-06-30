@@ -14,7 +14,7 @@ function isValidJwtStructure(token: string): boolean {
   if (parts.length !== 3) return false;
   try {
     const payload = JSON.parse(
-      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+      atob(parts[1].replaceAll("-", "+").replaceAll("_", "/")),
     );
     return typeof payload === "object" && payload !== null && "role" in payload;
   } catch {
