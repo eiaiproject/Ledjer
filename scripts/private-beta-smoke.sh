@@ -4,12 +4,12 @@
 # Checks that the app loads, auth pages work, and CSP headers are present.
 #
 # Usage:
-#   SMOKE_URL=https://app.ledjer.id bash scripts/private-beta-smoke.sh
+#   SMOKE_URL=https://ledjer-ahk.pages.dev bash scripts/private-beta-smoke.sh
 #
 # Requires: curl, jq (optional)
 set -euo pipefail
 
-SMOKE_URL="${SMOKE_URL:-https://app.ledjer.id}"
+SMOKE_URL="${SMOKE_URL:-https://ledjer-ahk.pages.dev}"
 FAILURES=0
 
 check() {

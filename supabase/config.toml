@@ -27,7 +27,7 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "https://app.ledjer.id"
+site_url = "https://ledjer-ahk.pages.dev"  # change to https://ledjer.id after Cloudflare custom domain is active
 # Local development still works because the frontend passes explicit redirectTo
 # values and localhost URLs are listed in additional_redirect_urls below.
 
@@ -51,8 +51,10 @@ additional_redirect_urls = [
   "https://localhost:5173",
   "http://localhost:5173/auth/callback",
   "https://localhost:5173/auth/callback",
-  "https://app.ledjer.id",
-  "https://app.ledjer.id/auth/callback",
+  "https://ledjer-ahk.pages.dev",
+  "https://ledjer-ahk.pages.dev/auth/callback",
+  "https://ledjer.id",
+  "https://ledjer.id/auth/callback",
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true

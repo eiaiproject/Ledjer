@@ -108,7 +108,7 @@ supabase functions deploy mayar-webhook
 supabase secrets set MAYAR_API_KEY='<mayar-api-key>'
 supabase secrets set MAYAR_ENV='sandbox'              # or production
 supabase secrets set MAYAR_WEBHOOK_TOKEN='<random-token>'
-supabase secrets set APP_URL='https://app.ledjer.id'
+supabase secrets set APP_URL='https://ledjer-ahk.pages.dev'  # change to https://ledjer.id after custom domain is active
 ```
 
 3. Register the Mayar webhook URL:

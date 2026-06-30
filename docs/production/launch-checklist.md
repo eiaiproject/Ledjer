@@ -125,7 +125,7 @@ Each item must be verified and signed off by the launch owner.
 
 ## Deployment
 
-- [ ] Domain configured (`app.ledjer.id`)
+- [ ] Domain configured (`https://ledjer-ahk.pages.dev` currently; `https://ledjer.id` after Cloudflare custom domain is active)
 - [ ] HTTPS enabled
 - [ ] Auth redirect URLs configured in Supabase
 - [ ] Production environment variables set
@@ -187,7 +187,7 @@ pnpm --filter web build
 # For Vercel: vercel --prod
 
 # 5. Verify production
-curl -I https://app.ledjer.id/login
+curl -I https://ledjer-ahk.pages.dev/login
 
 # 6. Run deploy smoke tests
 pnpm test:e2e:deploy

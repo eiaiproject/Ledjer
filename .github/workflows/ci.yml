@@ -274,21 +274,53 @@ jobs:
           version: 2.107.0
           github-token: ${{ github.token }}
 
-      - name: Create Supabase local env file for Mayar Edge Function secrets
-        run: |
-          cat > supabase/.env.local << 'EOF'
-          MAYAR_ENV=sandbox
-          MAYAR_API_KEY=test_mayar_key
-          MAYAR_WEBHOOK_TOKEN=test_webhook_token
-          MAYAR_API_BASE_URL=http://127.0.0.1:4567
-          APP_URL=http://localhost:4173
-          EOF
-
       - name: Start local Supabase stack
         run: supabase start --workdir . --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
+
+      - name: Start fake Mayar server on Supabase Docker network (with host port mapping)
+        run: |
+          set -euo pipefail
+          SUPABASE_NETWORK=$(docker network ls --filter name=supabase -q | head -1)
+          if [ -z "$SUPABASE_NETWORK" ]; then
+            echo '::error::Could not find Supabase Docker network'
+            exit 1
+          fi
+          echo "Supabase network: $SUPABASE_NETWORK"
+          docker rm -f fake-mayar 2>/dev/null || true
+          # -p 4567:4567 maps the port to the host so Playwright tests can reach it
+          # --network puts it on the same network as Supabase so Edge Functions can reach it
+          docker run -d \
+            --name fake-mayar \
+            --network "$SUPABASE_NETWORK" \
+            -p 4567:4567 \
+            -e FAKE_MAYAR_PORT=4567 \
+            -e FAKE_MAYAR_STATUS=paid \
+            -v "${{ github.workspace }}/scripts/fake-mayar-server.mjs:/app/server.mjs:ro" \
+            node:22-alpine \
+            node /app/server.mjs
+          echo "Fake Mayar started: http://fake-mayar:4567 (Docker) / http://127.0.0.1:4567 (host)"
+          # Health check with retry (from host via port mapping)
+          for i in 1 2 3 4 5; do
+            if curl -s http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
+              echo "Fake Mayar health check passed (host reachable)"
+              break
+            fi
+            echo "Waiting for fake Mayar… ($i/5)"
+            sleep 2
+          done
+
+      - name: Inject Mayar secrets into local Supabase Edge Functions
+        run: |
+          supabase secrets set --workdir . --env-file /dev/stdin << 'EOF'
+          MAYAR_ENV=sandbox
+          MAYAR_API_KEY=test_mayar_key
+          MAYAR_WEBHOOK_TOKEN=test_webhook_token
+          MAYAR_API_BASE_URL=http://fake-mayar:4567
+          APP_URL=http://localhost:4173
+          EOF
 
       - name: Capture Supabase env vars
         run: supabase status --workdir . --output env > /tmp/supabase.env
@@ -337,14 +369,22 @@ jobs:
           E2E_SUPABASE_URL: http://localhost:54321
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          # E2E_BILLING enables the billing tests AND triggers Playwright's webServer
+          # to start a host-side fake Mayar. Since we already have the fake Mayar
+          # running as a Docker container (port-mapped to host), we tell Playwright
+          # to skip its own webServer via E2E_FAKE_MAYAR_CONTAINER=1.
           E2E_BILLING: 1
+          E2E_FAKE_MAYAR_CONTAINER: 1
+          # Host-facing URL for Playwright test runner (fake-mayar is Docker DNS,
+          # unreachable from host). The Docker container has -p 4567:4567.
           MAYAR_API_BASE_URL: http://127.0.0.1:4567
-          MAYAR_ENV: sandbox
-          MAYAR_API_KEY: test_mayar_key
-          MAYAR_WEBHOOK_TOKEN: test_webhook_token
           E2E_MAYAR_WEBHOOK_TOKEN: test_webhook_token
           CI: true
         run: pnpm --filter web exec playwright test --project=chromium
+
+      - name: Clean up fake Mayar container
+        if: always()
+        run: docker rm -f fake-mayar 2>/dev/null || true
 
       - name: Upload Playwright report
         if: failure()
@@ -378,11 +418,13 @@ jobs:
         run: supabase stop --workdir . --no-backup || true
 
   # ─── Job F: Cross-Browser Smoke ─────────────────────────────
+  # Builds the app with VALID local Supabase config (not a dummy key) so the
+  # app renders real pages instead of a "Konfigurasi Belum Lengkap" error.
   e2e-cross-browser:
     name: "E2E Cross-Browser Smoke (Firefox + WebKit)"
     needs: frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
@@ -401,26 +443,92 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter web exec playwright install --with-deps
 
-      - name: Build for preview server
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.107.0
+          github-token: ${{ github.token }}
+
+      - name: Start local Supabase stack
+        run: supabase start --workdir . --debug
+
+      - name: Apply migrations
+        run: supabase db reset --workdir . --no-seed
+
+      - name: Capture Supabase env vars
+        run: supabase status --workdir . --output env > /tmp/supabase.env
+
+      - name: Export Supabase keys
+        run: |
+          set -euo pipefail
+          source /tmp/supabase.env
+
+          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
+          supabase_anon_key="${ANON_KEY:-}"
+
+          if [ -z "$supabase_anon_key" ]; then
+            echo '::error::SUPABASE_ANON_KEY is empty. Check supabase status output.'
+            exit 1
+          fi
+
+          echo "::add-mask::$supabase_anon_key"
+
+          {
+            echo "SUPABASE_URL=$supabase_url"
+            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
+            echo "VITE_SUPABASE_URL=$supabase_url"
+            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Build app with valid local Supabase config
         env:
           VITE_SUPABASE_URL: http://localhost:54321
-          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.signature
+          VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
+      - name: Preflight — auth forms render (not config error page)
+        env:
+          E2E_BASE_URL: http://localhost:4173
+        run: |
+          # Start preview server in background using project's vite preview
+          cd apps/web && pnpm preview &
+          SERVER_PID=$!
+          cd "${{ github.workspace }}"
+          # Retry loop: vite preview can be slow on cold cache
+          for i in 1 2 3 4 5; do
+            page=$(curl -s http://localhost:4173/login --max-time 5 2>/dev/null || true)
+            if echo "$page" | grep -qv 'Konfigurasi' && echo "$page" | grep -qi 'email'; then
+              echo "✅ Auth forms render correctly (not config error)"
+              break
+            fi
+            if echo "$page" | grep -q 'Konfigurasi'; then
+              echo "❌ App rendered config error page instead of login form"
+              kill "$SERVER_PID" 2>/dev/null || true
+              exit 1
+            fi
+            echo "Waiting for preview server... ($i/5)"
+            sleep 2
+          done
+          kill "$SERVER_PID" 2>/dev/null || true
+
       - name: Run smoke on Firefox
         env:
-          E2E_MODE: deploy-smoke
+          E2E_MODE: local-smoke
           E2E_BASE_URL: http://localhost:4173
           E2E_CROSS_BROWSER: 1
+          E2E_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts e2e/responsive.spec.ts --project=firefox
 
       - name: Run smoke on WebKit
         env:
-          E2E_MODE: deploy-smoke
+          E2E_MODE: local-smoke
           E2E_BASE_URL: http://localhost:4173
           E2E_CROSS_BROWSER: 1
+          E2E_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts e2e/responsive.spec.ts --project=webkit
 
@@ -432,6 +540,10 @@ jobs:
           path: apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --workdir . --no-backup || true
 
   # ─── Job H: Visual Regression ───────────────────────────────
   visual-regression:

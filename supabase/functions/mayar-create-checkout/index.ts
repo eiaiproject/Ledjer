@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Create Mayar invoice ──────────────────────────────────────────────
-    const appUrl = (Deno.env.get("APP_URL") || "https://app.ledjer.id").replace(/\/$/, "");
+    const appUrl = (Deno.env.get("APP_URL") || "https://ledjer.id").replace(/\/$/, "");
     const redirectUrl = `${appUrl}/settings/billing?checkout=mayar`;
     const customerName =
       String(userData.user.user_metadata?.full_name ?? "").trim() ||

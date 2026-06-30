@@ -21,7 +21,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 | A3 | Login | Enter credentials on `/login` | Redirect to `/dashboard` |
 | A4 | Logout | Click logout in sidebar | Redirect to `/login`, session cleared |
 | A5 | Password reset | Click "Lupa password?", enter email, click link | Redirect to `/reset-password`, set new password, login works |
-| A6 | Auth redirect domain | After reset, verify redirect goes to `app.ledjer.id` | No "redirect mismatch" error |
+| A6 | Auth redirect domain | After reset, verify redirect goes to production URL | No "redirect mismatch" error |
 | A7 | Session persistence | Close browser, reopen, navigate to app | Session persists, no re-login required |
 | A8 | Invalid login | Enter wrong password | Error message shown, no redirect |
 | A9 | Expired session | Wait for JWT expiry (1 hour) or revoke session | Redirect to `/login` |
@@ -128,7 +128,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 
 | # | Scenario | Steps | Expected |
 |---|----------|-------|----------|
-| I1 | Home page loads | Open `https://app.ledjer.id` | Landing page renders |
+| I1 | Home page loads | Open production URL (`https://ledjer-ahk.pages.dev`) | Landing page renders |
 | I2 | Login page loads | Navigate to `/login` | Login form visible |
 | I3 | Register page loads | Navigate to `/register` | Register form visible |
 | I4 | Supabase connection | Submit login form | Auth request succeeds (check network tab) |

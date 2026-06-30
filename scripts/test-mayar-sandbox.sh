@@ -35,7 +35,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MAYAR_API_KEY="${MAYAR_API_KEY:-}"
 MAYAR_API_BASE_URL="${MAYAR_API_BASE_URL:-https://api.mayar.club}"
 MAYAR_ENV="${MAYAR_ENV:-sandbox}"
-APP_URL="${APP_URL:-https://app.ledjer.id}"
+APP_URL="${APP_URL:-https://ledjer.id}"
 
 PASS=0
 FAIL=0

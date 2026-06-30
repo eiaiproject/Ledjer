@@ -27,7 +27,7 @@ Go to Supabase dashboard → Project Settings → Authentication.
 ### Site URL
 
 ```
-https://app.ledjer.id
+https://ledjer-ahk.pages.dev
 ```
 
 ### Redirect URLs
@@ -35,9 +35,9 @@ https://app.ledjer.id
 Add every URL Supabase may redirect to after auth flows:
 
 ```
-https://app.ledjer.id
-https://app.ledjer.id/auth/callback
-https://app.ledjer.id/auth/callback?type=recovery
+https://ledjer-ahk.pages.dev
+https://ledjer-ahk.pages.dev/auth/callback
+https://ledjer-ahk.pages.dev/auth/callback?type=recovery
 http://localhost:5173
 http://localhost:5173/auth/callback
 ```
@@ -94,7 +94,7 @@ From `supabase/config.toml` — these are local defaults. For hosted Supabase, c
 Before inviting the first beta user:
 
 - [ ] Email confirmation enabled in Supabase dashboard
-- [ ] Site URL set to `https://app.ledjer.id`
+- [ ] Site URL set to `https://ledjer-ahk.pages.dev`
 - [ ] Redirect URLs include production domain + `/auth/callback`
 - [ ] SMTP configured and tested (send a test email from dashboard)
 - [ ] Password reset flow tested end-to-end
@@ -107,7 +107,7 @@ Before inviting the first beta user:
 |---------|----------------------|----------------------|
 | Email confirmations | `false` | **ON** |
 | SMTP | Inbucket (port 54324) | Real SMTP provider |
-| Site URL | `https://app.ledjer.id` | `https://app.ledjer.id` |
+| Site URL | `https://ledjer-ahk.pages.dev` | `https://ledjer-ahk.pages.dev` |
 | Redirect URLs | Includes `localhost:5173` | Production domain only (+ dev for debugging) |
 | JWT expiry | 3600 | 3600 |
 

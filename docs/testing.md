@@ -19,7 +19,7 @@ Auto-detected from `E2E_BASE_URL`:
 ```bash
 pnpm test:e2e:deploy
 ```
-Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://app.ledjer.id`
+Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://ledjer-ahk.pages.dev`
 
 ### Full Local E2E
 ```bash
@@ -138,7 +138,7 @@ Key jobs:
 
 ## Deployment
 
-Cloudflare Pages Git integration auto-deploys `main` to production (`https://app.ledjer.id`).
+Cloudflare Pages Git integration auto-deploys `main` to production (`https://ledjer-ahk.pages.dev`; future custom domain: `https://ledjer.id`).
 GitHub Actions CI runs on all branch pushes and PRs to main/master.
 
 Manual deployment available via `Deploy to Cloudflare Pages` workflow (workflow_dispatch only).

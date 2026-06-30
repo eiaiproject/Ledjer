@@ -20,8 +20,8 @@
 
 | Setting | Location | Value |
 |---------|----------|-------|
-| Site URL | Dashboard → Auth → Settings | `https://app.ledjer.id` |
-| Redirect URLs | Dashboard → Auth → Settings | `https://app.ledjer.id`, `https://app.ledjer.id/auth/callback` |
+| Site URL | Dashboard → Auth → Settings | `https://ledjer.id` (future); currently `https://ledjer-ahk.pages.dev` |
+| Redirect URLs | Dashboard → Auth → Settings | `https://ledjer-ahk.pages.dev`, `https://ledjer-ahk.pages.dev/auth/callback`, `https://ledjer.id`, `https://ledjer.id/auth/callback` (future) |
 | SMTP | Dashboard → Auth → SMTP | Configured for email confirmation |
 
 ### Supabase Edge Functions
@@ -35,7 +35,8 @@
 
 | Domain | Purpose | DNS |
 |--------|---------|-----|
-| `app.ledjer.id` | Frontend hosting | CNAME to hosting platform |
+| `ledjer-ahk.pages.dev` | Cloudflare Pages default domain | Managed by Cloudflare |
+| `ledjer.id` (future) | Frontend hosting custom domain | CNAME to Cloudflare Pages |
 | `<project>.supabase.co` | Supabase backend | Managed by Supabase |
 
 ## Pre-Deploy Checks
@@ -66,7 +67,7 @@ All must pass before merging to `main`.
 
 After deploy completes:
 
-1. [ ] Open `https://app.ledjer.id` — landing page loads.
+1. [ ] Open `https://ledjer-ahk.pages.dev` (or `https://ledjer.id` after Cloudflare setup) — landing page loads.
 2. [ ] Navigate to `/login` — login form visible.
 3. [ ] Navigate to `/register` — register form visible.
 4. [ ] Submit login with valid credentials — redirects to `/dashboard`.

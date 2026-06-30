@@ -191,7 +191,7 @@ Last verified: 2026-07-31 against the active baseline migration `supabase/migrat
 | Supabase migrations applied | ⚠️ | Must apply all active migrations to target database |
 | Frontend build verified | ✅ | `pnpm --filter web build` passes |
 | Environment variables set | ⚠️ | Must configure in hosting platform |
-| Domain configured | ✅ | `site_url = "https://app.ledjer.id"` |
+| Domain configured | ✅ | `site_url = "https://ledjer.id"` (custom domain pending Cloudflare setup; current deploy: `https://ledjer-ahk.pages.dev`) |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 | service_role key isolation | ⚠️ | Must never be in frontend hosting; only in server-side/Edge Functions |
 
@@ -300,7 +300,7 @@ Set in hosting platform (Vercel / Netlify / Cloudflare Pages / nginx):
 
 Recommended: UptimeRobot, Checkly, or equivalent.
 
-- Monitor `https://app.ledjer.id` (HTTP 200 check, 5-min interval)
+- Monitor `https://ledjer-ahk.pages.dev` (HTTP 200 check, 5-min interval; `https://ledjer.id` after Cloudflare custom domain is active)
 - Alert on: downtime, SSL certificate expiry, response time > 5s
 
 ### 5. Verify Backup Restore
@@ -339,7 +339,7 @@ On deployed host, confirm:
 
 ### 9. Smoke Test Production
 
-1. Open `https://app.ledjer.id`
+1. Open `https://ledjer-ahk.pages.dev` (or `https://ledjer.id` after custom domain is active)
 2. Verify login page loads (title: Ledjer)
 3. Verify register page loads
 4. Verify forgot password page loads

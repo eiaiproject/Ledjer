@@ -31,8 +31,9 @@ Last updated: 2026-07-31
 ### What to Monitor
 | URL | Check Type | Interval |
 |-----|-----------|----------|
-| `https://app.ledjer.id` | HTTP 200 | 5 min |
-| `https://app.ledjer.id/login` | Page load | 15 min |
+| `https://ledjer-ahk.pages.dev` | HTTP 200 | 5 min |
+| `https://ledjer-ahk.pages.dev/login` | Page load | 15 min |
+| `https://ledjer.id` (future) | HTTP 200 | 5 min (after custom domain active) |
 
 ### Alert Contacts
 - Primary: [owner email]
