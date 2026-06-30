@@ -6,9 +6,7 @@
 --   CREDIT Kas/Bank   (the supplied cash account)
 -- and the resulting balances: payable decreases, cash decreases.
 --
--- This catches the P0.1 bug class (debit/credit reversed) at runtime, not by
--- grepping the function body. The function-level source check in
--- p0_critical_fix_tests.sql remains as a smoke guard.
+-- This catches the P0.1 bug class (debit/credit reversed) at runtime.
 --
 -- STRICT MODE: every assertion uses _test_assert (RAISE EXCEPTION on FAIL).
 -- ============================================================================

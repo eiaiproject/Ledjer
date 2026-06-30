@@ -1492,6 +1492,23 @@ export type Database = {
         Args: { p_as_of_date?: string; p_organization_id: string }
         Returns: string
       }
+      finalize_mayar_payment: {
+        Args: {
+          p_actor_user_id: string
+          p_amount: number
+          p_billing_period: string
+          p_organization_id: string
+          p_period_end: string
+          p_period_start: string
+          p_plan: string
+          p_provider_customer_id?: string
+          p_provider_response?: Json
+          p_provider_transaction_id?: string
+          p_session_id: string
+          p_webhook_payload?: Json
+        }
+        Returns: Json
+      }
       generate_entry_number: {
         Args: { p_organization_id: string }
         Returns: string

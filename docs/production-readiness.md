@@ -50,7 +50,7 @@ Last verified: 2026-07-31 against the active baseline migration `supabase/migrat
 | Idempotency via client_token | ✅ | `transactions.client_token` column + partial unique index |
 | Internal helpers not externally callable | ✅ | All `_test_*` and internal functions REVOKED from PUBLIC/anon/authenticated |
 | HSTS configured | ✅ | `_headers`, `vercel.json` emit HSTS header (not index.html meta, which is ineffective for HSTS) |
-| CSP synchronized — no localhost in production | ✅ | `index.html`, `public/_headers`, and `vercel.json` all have identical CSP; `http://localhost:*` removed from production meta tag |
+| CSP synchronized — no localhost in production | ✅ | `index.html`, `public/_headers`, and `vercel.json` all have identical CSP; `http://localhost:*` removed from production CSP. Dev CSP uses `LEDJER_CSP_LOCAL=1` build env var to add localhost via Vite plugin. |
 | **Sentry Replay privacy** | ✅ | `maskAllText`, `blockAllMedia`, `maskAllInputs` enabled; `beforeSend` strips URL query params, hash, and sensitive `request.headers` (Authorization, Cookie, etc.) |
 | **Auth error enumeration prevented** | ✅ | `user_not_found` mapped to generic `'Email atau password salah.'` — same message as invalid credentials |
 | **CSV formula injection protected** | ✅ | `csv_escape()` function prefixes `'` on cells starting with `=`, `+`, `-`, `@`; all CSV export RPCs use it |
@@ -191,7 +191,7 @@ Last verified: 2026-07-31 against the active baseline migration `supabase/migrat
 | Supabase migrations applied | ⚠️ | Must apply all active migrations to target database |
 | Frontend build verified | ✅ | `pnpm --filter web build` passes |
 | Environment variables set | ⚠️ | Must configure in hosting platform |
-| Domain configured | ✅ | `site_url = "https://app.ledjer.id"` |
+| Domain configured | ✅ | `site_url = "https://ledjer.id"` (custom domain pending Cloudflare setup; current deploy: `https://ledjer-ahk.pages.dev`) |
 | SSL/HTTPS | ⚠️ | Depends on hosting platform |
 | service_role key isolation | ⚠️ | Must never be in frontend hosting; only in server-side/Edge Functions |
 
@@ -300,7 +300,7 @@ Set in hosting platform (Vercel / Netlify / Cloudflare Pages / nginx):
 
 Recommended: UptimeRobot, Checkly, or equivalent.
 
-- Monitor `https://app.ledjer.id` (HTTP 200 check, 5-min interval)
+- Monitor `https://ledjer-ahk.pages.dev` (HTTP 200 check, 5-min interval; `https://ledjer.id` after Cloudflare custom domain is active)
 - Alert on: downtime, SSL certificate expiry, response time > 5s
 
 ### 5. Verify Backup Restore
@@ -339,7 +339,7 @@ On deployed host, confirm:
 
 ### 9. Smoke Test Production
 
-1. Open `https://app.ledjer.id`
+1. Open `https://ledjer-ahk.pages.dev` (or `https://ledjer.id` after custom domain is active)
 2. Verify login page loads (title: Ledjer)
 3. Verify register page loads
 4. Verify forgot password page loads
@@ -355,6 +355,8 @@ On deployed host, confirm:
 3. No automated closing entries.
 4. No multi-currency support.
 5. Limited to Indonesian business context (IDR, Bahasa Indonesia).
-6. **Self-serve billing not implemented** — manual billing via admin SQL console only.
+6. **Mayar self-serve billing implemented for private beta** — manual billing via admin SQL console remains fallback. See `docs/production/billing-setup.md` for deployment steps.
 7. **Email delivery for invitations requires SMTP configuration** — token generated but provider setup needed.
 8. **Uptime monitoring not configured** — requires external tool setup.
+9. **Mayar webhook requires production API key** — sandbox testing uses `web.mayar.club`, production uses `web.mayar.id`. Change `MAYAR_ENV` and `MAYAR_API_KEY` for production.
+10. **Webhook failure alerting not configured** — monitor `billing_events` for failed webhooks manually during initial rollout.

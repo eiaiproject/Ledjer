@@ -21,17 +21,15 @@ export function ProtectedRoute() {
 }
 
 export function PublicRoute() {
-  const { session, loading } = useAuth();
+  const { session } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
+  // PublicRoute does NOT wait for loading — public pages (login, register,
+  // forgot-password, landing, legal, etc.) render immediately to avoid
+  // blocking on auth resolution. This is critical for cross-browser smoke
+  // tests where no Supabase instance is running.
+  //
+  // Only redirect if we already have a session (user is logged in).
   if (session) {
     const searchParams = new URLSearchParams(location.search);
     return (

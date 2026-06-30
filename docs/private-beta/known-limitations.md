@@ -4,9 +4,9 @@ These items do not block private beta but must be understood before public launc
 
 ## Billing & Payments
 
-- **Manual billing only.** No payment gateway (Stripe, Xendit, Midtrans). Plan changes are done by the operator via Supabase SQL Console. See [Manual Billing Runbook](manual-billing-runbook.md).
-- **No invoice generation.** Users cannot generate invoices from the app.
-- **No payment receipts.** No automated receipt generation for manual payments.
+- **Mayar-only checkout.** Other gateways are not supported.
+- **No custom invoice generation.** Subscription invoices are created by Mayar only.
+- **No payment receipts in app.** Payment confirmation happens through Mayar/webhook state.
 - **No subscription management UI.** Users cannot view payment history or manage subscription within the app.
 
 ## Staff & Team

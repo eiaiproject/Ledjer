@@ -21,7 +21,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 | A3 | Login | Enter credentials on `/login` | Redirect to `/dashboard` |
 | A4 | Logout | Click logout in sidebar | Redirect to `/login`, session cleared |
 | A5 | Password reset | Click "Lupa password?", enter email, click link | Redirect to `/reset-password`, set new password, login works |
-| A6 | Auth redirect domain | After reset, verify redirect goes to `app.ledjer.id` | No "redirect mismatch" error |
+| A6 | Auth redirect domain | After reset, verify redirect goes to production URL | No "redirect mismatch" error |
 | A7 | Session persistence | Close browser, reopen, navigate to app | Session persists, no re-login required |
 | A8 | Invalid login | Enter wrong password | Error message shown, no redirect |
 | A9 | Expired session | Wait for JWT expiry (1 hour) or revoke session | Redirect to `/login` |
@@ -88,9 +88,9 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 |---|----------|-------|----------|
 | F1 | Free plan display | View Settings → Billing | "Gratis" plan shown, 50 transaction limit displayed |
 | F2 | Free plan limit | Create 50 transactions on free plan | 51st blocked |
-| F3 | Upgrade request (owner) | Click "Minta Upgrade" as owner | Contact info shown (WhatsApp/email) |
-| F4 | Upgrade request (staff) | View billing as staff | "Hanya pemilik" notice, no upgrade button |
-| F5 | Operator plan change | Operator runs SQL to change plan | Next page load shows new plan |
+| F3 | Mayar checkout (owner) | Enter WhatsApp, click "Bayar dengan Mayar" | Redirects to checkout and creates pending session |
+| F4 | Upgrade request (staff) | View billing as staff | "Hanya pemilik" notice, no checkout button |
+| F5 | Webhook plan change | Paid Mayar webhook received | Next page load shows new plan |
 | F6 | Post-upgrade behavior | After upgrade to solo/business | Transaction limit removed, features unlocked |
 
 ---
@@ -128,7 +128,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 
 | # | Scenario | Steps | Expected |
 |---|----------|-------|----------|
-| I1 | Home page loads | Open `https://app.ledjer.id` | Landing page renders |
+| I1 | Home page loads | Open production URL (`https://ledjer-ahk.pages.dev`) | Landing page renders |
 | I2 | Login page loads | Navigate to `/login` | Login form visible |
 | I3 | Register page loads | Navigate to `/register` | Register form visible |
 | I4 | Supabase connection | Submit login form | Auth request succeeds (check network tab) |

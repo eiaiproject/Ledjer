@@ -48,8 +48,7 @@ Browser                              Supabase
 ```
 
 **Catatan operasional:**
-- Rate limit: 5 attempts per 5 menit per email (lihat `RATE_LIMITS.login` di `apps/web/src/lib/rate-limit.ts`).
-- Server-side: Supabase `login_attempts` table + `record_login_attempt` RPC untuk brute-force detection.
+- Rate limit: Supabase `login_attempts` table + `record_login_attempt` RPC untuk brute-force detection.
 - Email-not-confirmed: tampilkan UI khusus dengan tombol "Kirim ulang email".
 
 ---
@@ -89,18 +88,17 @@ Browser                              Supabase                  Email
 | File | Peran |
 |------|-------|
 | `apps/web/src/pages/login.tsx` | Tambah link "Lupa password?" |
-| `apps/web/src/pages/forgot-password.tsx` | Form email + `resetPasswordForEmail({ redirectTo })` + rate-limit |
+| `apps/web/src/pages/forgot-password.tsx` | Form email + `resetPasswordForEmail({ redirectTo })` |
 | `apps/web/src/pages/auth-callback.tsx` | Handle `type=recovery` → navigate ke `/reset-password` |
 | `apps/web/src/pages/reset-password.tsx` | Validasi password baru + `updateUser({ password })` + signOut |
 
 **Pertahanan berlapis (defense in depth):**
 
 1. **Anti account-enumeration.** `resetPasswordForEmail` selalu menampilkan UI sukses yang sama regardless of apakah email tersebut terdaftar. Attacker tidak bisa menebak daftar user via endpoint ini.
-2. **Rate limit client-side.** 3 attempts per 15 menit per email (`RATE_LIMITS.passwordReset` di `apps/web/src/lib/rate-limit.ts`).
-3. **Rate limit server-side.** Supabase auth endpoints punya rate limiting built-in.
-4. **Session force-revoke.** Setelah `updateUser({ password })`, frontend secara eksplisit memanggil `signOut()` agar session lama invalidated dan user harus login ulang dengan password baru.
-5. **Token expiry.** Supabase recovery token berlaku ~1 jam; setelah itu `verifyOtp` mengembalikan error dan flow berhenti di halaman error `/auth/callback`.
-6. **Password policy.** Min 8 karakter, max 72 karakter (bcrypt limit). Validasi client-side via Zod; Supabase juga enforce minimum di server-side.
+2. **Rate limit server-side.** Supabase auth endpoints punya rate limiting built-in.
+3. **Session force-revoke.** Setelah `updateUser({ password })`, frontend secara eksplisit memanggil `signOut()` agar session lama invalidated dan user harus login ulang dengan password baru.
+4. **Token expiry.** Supabase recovery token berlaku ~1 jam; setelah itu `verifyOtp` mengembalikan error dan flow berhenti di halaman error `/auth/callback`.
+5. **Password policy.** Min 8 karakter, max 72 karakter (bcrypt limit). Validasi client-side via Zod; Supabase juga enforce minimum di server-side.
 
 **Failure modes:**
 
@@ -123,8 +121,10 @@ Di `supabase/config.toml` section `[auth]`:
 ```toml
 [auth]
 additional_redirect_urls = [
-  "https://app.ledjer.id",
-  "https://app.ledjer.id/auth/callback",  # ← WAJIB ADA untuk recovery
+  "https://ledjer-ahk.pages.dev",
+  "https://ledjer-ahk.pages.dev/auth/callback",  # ← WAJIB ADA untuk recovery
+  "https://ledjer.id",
+  "https://ledjer.id/auth/callback",  # future custom domain
   "http://localhost:5173",                # dev
   "http://localhost:5173/auth/callback",  # dev
 ]
@@ -151,7 +151,7 @@ Supabase mengirim email dengan template default-nya. Untuk customize branding (l
 
 ```toml
 [auth]
-site_url = "https://app.ledjer.id"
+site_url = "https://ledjer.id"  # future custom domain; current deploy: https://ledjer-ahk.pages.dev
 ```
 
 ### 4. JWT expiry

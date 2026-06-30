@@ -11,9 +11,8 @@ import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
-import { buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
+import { buildAuthCallbackUrl, buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
 import { supabase } from "@/lib/supabase";
-import { buildAuthCallbackUrl } from "@/lib/auth-callback-url";
 import { useCooldown } from "@/hooks/useCooldown";
 import { Lock, Mail, User } from "lucide-react";
 

@@ -14,6 +14,8 @@ const PLAN_LABELS: Record<PaidPlan, string> = {
   business: "Business",
 };
 
+const PENDING_EXPIRY_HOURS = 24;
+
 function isPaidPlan(value: unknown): value is PaidPlan {
   return value === "solo" || value === "business";
 }
@@ -22,13 +24,49 @@ function isBillingPeriod(value: unknown): value is BillingPeriod {
   return value === "monthly" || value === "yearly";
 }
 
-function normalizeMobile(value: unknown) {
+// ─── Indonesian phone number normalization ──────────────────────────────
+//
+// Accepts:
+//   081234567890      -> 6281234567890
+//   +6281234567890    -> 6281234567890
+//   6281234567890     -> 6281234567890
+//   08-1234-5678-90   -> 6281234567890
+//   0812-3456-7890    -> 6281234567890
+//   0812345678        -> error (too short — must be 10+ digits after normalization)
+//   08123456789012345 -> error (too long)
+//   abcdef            -> error (no digits)
+//
+function normalizeMobile(value: unknown): string {
   const raw = String(value ?? "").trim();
-  const normalized = raw.replace(/[^\d+]/g, "");
-  const digits = normalized.replace(/\D/g, "");
-  if (digits.length < 8 || digits.length > 16) {
-    throw new Error("Nomor WhatsApp pembayaran tidak valid.");
+  // Strip everything except digits and leading +
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  // Remove leading +
+  const withPlus = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+  const digits = withPlus.replace(/\D/g, "");
+
+  // Minimum valid Indonesian mobile number: 10 digits after normalization
+  if (digits.length < 10) {
+    if (digits.length === 0) {
+      throw new Error("Nomor WhatsApp harus diisi.");
+    }
+    throw new Error("Nomor WhatsApp minimal 10 digit setelah kode negara.");
   }
+
+  // Compute the normalized form to check final length
+  let normalized: string;
+  if (digits.startsWith("0")) {
+    normalized = "62" + digits.slice(1);
+  } else if (digits.startsWith("62")) {
+    normalized = digits;
+  } else {
+    normalized = "62" + digits;
+  }
+
+  // Maximum reasonable length (country code + subscriber: 62 + max 13 = 15)
+  if (normalized.length > 15) {
+    throw new Error("Nomor WhatsApp terlalu panjang.");
+  }
+
   return normalized;
 }
 
@@ -66,14 +104,31 @@ Deno.serve(async (req) => {
     const plan = body.plan;
     const billingPeriod = body.billingPeriod;
 
-    if (!organizationId) throw new Error("Organisasi tidak ditemukan.");
-    if (!isPaidPlan(plan)) throw new Error("Paket tidak valid.");
-    if (!isBillingPeriod(billingPeriod)) throw new Error("Periode billing tidak valid.");
+    if (!organizationId) {
+      return jsonResponse({ error: "Organisasi tidak ditemukan." }, 400);
+    }
+    if (!isPaidPlan(plan)) {
+      return jsonResponse({ error: "Paket tidak valid." }, 400);
+    }
+    if (!isBillingPeriod(billingPeriod)) {
+      return jsonResponse({ error: "Periode billing tidak valid." }, 400);
+    }
 
-    const customerMobile = normalizeMobile(body.customerMobile);
+    // Validate mobile before any DB writes
+    let customerMobile: string;
+    try {
+      customerMobile = normalizeMobile(body.customerMobile);
+    } catch (validationError) {
+      const message = validationError instanceof Error ? validationError.message : "Nomor WhatsApp tidak valid.";
+      return jsonResponse({ error: message }, 400);
+    }
+
     const customerEmail = userData.user.email;
-    if (!customerEmail) throw new Error("Email akun tidak ditemukan.");
+    if (!customerEmail) {
+      return jsonResponse({ error: "Email akun tidak ditemukan." }, 400);
+    }
 
+    // ── Enforce owner-only billing changes (server-side) ──────────────────
     const { data: member, error: memberError } = await admin
       .from("organization_members")
       .select("role,status")
@@ -81,7 +136,10 @@ Deno.serve(async (req) => {
       .eq("user_id", userData.user.id)
       .eq("status", "active")
       .maybeSingle();
-    if (memberError) throw memberError;
+    if (memberError) {
+      console.error("Member lookup error:", memberError);
+      return jsonResponse({ error: "Terjadi kesalahan." }, 500);
+    }
     if (member?.role !== "owner") {
       return jsonResponse({ error: "Hanya owner yang dapat mengubah paket." }, 403);
     }
@@ -91,12 +149,32 @@ Deno.serve(async (req) => {
       .select("id,name,current_plan")
       .eq("id", organizationId)
       .single();
-    if (orgError) throw orgError;
+    if (orgError) {
+      console.error("Organization lookup error:", orgError);
+      return jsonResponse({ error: "Organisasi tidak ditemukan." }, 404);
+    }
 
     const amount = PLAN_PRICES[plan][billingPeriod];
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(now.getTime() + PENDING_EXPIRY_HOURS * 60 * 60 * 1000);
 
+    // ── Cancel existing pending sessions ────────────────────────────────────
+    // Before creating a new checkout, cancel ALL pending sessions for this org
+    // regardless of plan/period. This ensures only one active pending session
+    // per organization at a time, and prevents unique constraint violations
+    // when the user switches plans or billing periods.
+    // Old sessions remain in the database with status='canceled' for audit.
+    const { error: cancelError } = await admin
+      .from("billing_checkout_sessions")
+      .update({ status: "canceled", updated_at: new Date().toISOString() })
+      .eq("organization_id", organizationId)
+      .eq("status", "pending");
+    if (cancelError) {
+      console.error("Failed to cancel existing pending sessions:", cancelError);
+      // Non-fatal — proceed to create new session
+    }
+
+    // ── Create checkout session ────────────────────────────────────────────
     const { data: checkoutSession, error: sessionError } = await admin
       .from("billing_checkout_sessions")
       .insert({
@@ -118,9 +196,13 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
-    if (sessionError) throw sessionError;
+    if (sessionError) {
+      console.error("Session creation error:", sessionError);
+      return jsonResponse({ error: "Gagal membuat sesi checkout." }, 500);
+    }
 
-    const appUrl = (Deno.env.get("APP_URL") || "https://app.ledjer.id").replace(/\/$/, "");
+    // ── Create Mayar invoice ──────────────────────────────────────────────
+    const appUrl = (Deno.env.get("APP_URL") || "https://ledjer.id").replace(/\/$/, "");
     const redirectUrl = `${appUrl}/settings/billing?checkout=mayar`;
     const customerName =
       String(userData.user.user_metadata?.full_name ?? "").trim() ||
@@ -149,17 +231,51 @@ Deno.serve(async (req) => {
       },
     };
 
-    const mayarResponse = await fetch(`${mayarBaseUrl()}/hl/v1/invoice/create`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${mayarApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(invoicePayload),
-    });
-    const mayarJson = await mayarResponse.json().catch(() => ({}));
+    let mayarResponse: Response;
+    let mayarJson: Record<string, unknown>;
+    try {
+      mayarResponse = await fetch(`${mayarBaseUrl()}/hl/v1/invoice/create`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${mayarApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(invoicePayload),
+      });
+      mayarJson = await mayarResponse.json().catch(() => ({}));
+    } catch (fetchError) {
+      console.error("Mayar API create invoice fetch error:", fetchError);
+      // Mark session as failed without leaking Mayar error details
+      await admin
+        .from("billing_checkout_sessions")
+        .update({
+          status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", checkoutSession.id);
+      return jsonResponse({ error: "Gagal terhubung ke penyedia pembayaran." }, 502);
+    }
 
-    if (!mayarResponse.ok || mayarJson.statusCode >= 400) {
+    if (!mayarResponse.ok) {
+      const statusCode = Number(mayarJson.statusCode ?? mayarResponse.status);
+      if (statusCode >= 400) {
+        console.error(`Mayar invoice creation failed: status=${mayarResponse.status} body=${JSON.stringify(mayarJson)}`);
+        await admin
+          .from("billing_checkout_sessions")
+          .update({
+            status: "failed",
+            provider_response: mayarJson,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", checkoutSession.id);
+        return jsonResponse({ error: "Gagal membuat invoice pembayaran." }, 502);
+      }
+    }
+
+    const invoice = Array.isArray(mayarJson.data) ? mayarJson.data[0] : mayarJson.data;
+    const checkoutUrl = invoice?.link || invoice?.paymentUrl;
+    if (!checkoutUrl) {
+      console.error("Mayar returned no checkout URL in response:", JSON.stringify(mayarJson));
       await admin
         .from("billing_checkout_sessions")
         .update({
@@ -168,12 +284,8 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", checkoutSession.id);
-      return jsonResponse({ error: "Gagal membuat invoice Mayar." }, 502);
+      return jsonResponse({ error: "Gagal mendapatkan link pembayaran." }, 502);
     }
-
-    const invoice = Array.isArray(mayarJson.data) ? mayarJson.data[0] : mayarJson.data;
-    const checkoutUrl = invoice?.link || invoice?.paymentUrl;
-    if (!checkoutUrl) throw new Error("Mayar tidak mengembalikan checkout URL.");
 
     await admin
       .from("billing_checkout_sessions")
@@ -186,6 +298,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", checkoutSession.id);
 
+    // Log checkout created event (non-critical — fire and forget)
     await admin.from("billing_events").insert({
       organization_id: organizationId,
       actor_user_id: userData.user.id,
@@ -199,7 +312,7 @@ Deno.serve(async (req) => {
         billing_period: billingPeriod,
         amount,
       },
-    });
+    }).throwOnError();
 
     return jsonResponse({
       checkoutUrl,
@@ -208,7 +321,7 @@ Deno.serve(async (req) => {
       transactionId: invoice.transactionId ?? null,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Terjadi kesalahan.";
-    return jsonResponse({ error: message }, 400);
+    console.error("Checkout creation error:", error);
+    return jsonResponse({ error: "Terjadi kesalahan internal." }, 500);
   }
 });

@@ -19,7 +19,7 @@ Auto-detected from `E2E_BASE_URL`:
 ```bash
 pnpm test:e2e:deploy
 ```
-Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://app.ledjer.id`
+Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://ledjer-ahk.pages.dev`
 
 ### Full Local E2E
 ```bash
@@ -78,7 +78,8 @@ pnpm test:e2e:cross-browser-smoke
 | `reports.spec.ts` | 8 | Reports smoke + golden number assertions |
 | `accounts.spec.ts` | 4 | CoA, add form |
 | `permissions.spec.ts` | 8 | Owner full access, staff restrictions, cross-org |
-| `billing.spec.ts` | 5 | Billing, plan info, upgrade prompts, payment safety |
+| `billing-checkout.spec.ts` | 6 | Mayar checkout UI, owner-only checkout, pending sessions |
+| `billing-webhook.spec.ts` | 8 | Mayar webhook auth, idempotency, payment state handling |
 | `export-import.spec.ts` | 5 | CSV export buttons, download verification |
 
 ### UI Quality
@@ -137,7 +138,7 @@ Key jobs:
 
 ## Deployment
 
-Cloudflare Pages Git integration auto-deploys `main` to production (`https://app.ledjer.id`).
+Cloudflare Pages Git integration auto-deploys `main` to production (`https://ledjer-ahk.pages.dev`; future custom domain: `https://ledjer.id`).
 GitHub Actions CI runs on all branch pushes and PRs to main/master.
 
 Manual deployment available via `Deploy to Cloudflare Pages` workflow (workflow_dispatch only).

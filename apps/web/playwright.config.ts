@@ -74,15 +74,42 @@ export default defineConfig({
     if (process.env.E2E_BASE_URL && !process.env.E2E_BASE_URL.includes('localhost')) {
       return undefined;
     }
-    // For localhost targets (explicit or default), always start preview
-    // reuseExistingServer: true only when NO explicit E2E_BASE_URL (local dev may have vite dev running)
-    return {
-      command: "pnpm preview",
-      port: 4173,
-      reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
-    };
+
+    // Build the webServer config(s) as an array (Playwright supports both single and array)
+    const servers: Array<{
+      command: string;
+      port: number;
+      reuseExistingServer?: boolean;
+    }> = [
+      // Primary: Vite preview server for the frontend app
+      {
+        command:
+          "LEDJER_CSP_LOCAL=1 " +
+          "VITE_SUPABASE_URL=${E2E_SUPABASE_URL:-$VITE_SUPABASE_URL} " +
+          "VITE_SUPABASE_ANON_KEY=${E2E_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY} " +
+          "pnpm build && pnpm preview",
+        port: 4173,
+        reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
+      },
+    ];
+
+    // Additional: fake Mayar server for billing E2E tests
+    // Activated by setting E2E_BILLING=1
+    // Skipped when E2E_FAKE_MAYAR_CONTAINER=1 (Docker-based fake Mayar running)
+    if (process.env.E2E_BILLING === "1" && !process.env.E2E_FAKE_MAYAR_CONTAINER) {
+      servers.push({
+        command:
+          `FAKE_MAYAR_PORT=4567 FAKE_MAYAR_STATUS=paid ` +
+          `node ../../scripts/fake-mayar-server.mjs`,
+        port: 4567,
+        reuseExistingServer: false,
+      });
+    }
+
+    return servers;
   })(),
   expect: {
+    timeout: 10_000,
     toHaveScreenshot: {
       maxDiffPixelRatio: 0.01,
     },

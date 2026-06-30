@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider } from '@/contexts/auth';
 import { useAuth } from '@/contexts/auth-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -19,8 +19,9 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 function Consumer() {
-  const { session, loading } = useAuth();
+  const { session, loading, error } = useAuth();
   if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
   return <div>Session: {session ? 'active' : 'none'}</div>;
 }
 
@@ -56,9 +57,8 @@ describe('AuthProvider', () => {
     });
   });
 
-  it('renders error screen when getSession rejects, and clicking retry runs getSession again', async () => {
+  it('exposes error via context instead of blocking render when getSession rejects', async () => {
     mocks.getSession.mockRejectedValueOnce(new Error('Network failure'));
-    mocks.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -68,15 +68,23 @@ describe('AuthProvider', () => {
       </QueryClientProvider>
     );
 
-    // Should show error state
+    // Children should still render — error is exposed via context, not blocking
     await waitFor(() => {
-      expect(screen.getByText('Gagal memuat sesi')).toBeTruthy();
+      expect(screen.getByText('Error: Network failure')).toBeTruthy();
     });
+  });
 
-    const retryButton = screen.getByRole('button', { name: /coba lagi/i });
-    fireEvent.click(retryButton);
+  it('loading resolves to guest session when getSession succeeds with null', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    // After retry it should succeed
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </QueryClientProvider>
+    );
+
     await waitFor(() => {
       expect(screen.getByText('Session: none')).toBeTruthy();
     });

@@ -16,7 +16,10 @@ export function jsonResponse(body: unknown, status = 200) {
 
 export function requireEnv(name: string) {
   const value = Deno.env.get(name);
-  if (!value) throw new Error(`Missing ${name}`);
+  if (!value) {
+    console.error(`[requireEnv] Missing env var: ${name}`);
+    throw new Error(`Missing ${name}`);
+  }
   return value;
 }
 

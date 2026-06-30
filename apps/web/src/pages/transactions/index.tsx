@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import type { Enums } from "@ledjer/database-types";
 type TransactionStatus = Enums<"transaction_status">;
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { useFilterPresets } from "@/hooks/useFilterPresets";
 import { exportTransactionsCsv } from "@/lib/csv-export";
 import { translateError } from "@/lib/errors";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
@@ -18,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast-api";
-import { Receipt, Search, Bookmark, BookmarkCheck, Download, X } from "lucide-react";
+import { Receipt, Search, Download } from "lucide-react";
 import {
   ALL_TRANSACTION_TYPE_LABELS,
   GENERAL_TRANSACTION_TYPE_LABELS,
@@ -67,7 +66,6 @@ export function TransactionListPage() {
   const [fromDate, setFromDate] = useState(() => localDate(-30));
   const [toDate, setToDate] = useState(() => localDate());
   const [page, setPage] = useState(0);
-  const { presets, saving: savingPreset, setSaving: setSavingPreset, name: presetName, setName: setPresetName, save: savePreset, remove: deletePreset, canSave } = useFilterPresets();
   const limit = 20;
 
   const normalizedSearch = search.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ");
@@ -106,14 +104,6 @@ export function TransactionListPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  /* ── Preset handlers ── */
-
-  const hasActiveFilters = Boolean(typeFilter || statusFilter);
-
-  const handleSavePreset = () => {
-    savePreset({ typeFilter, statusFilter, fromDate, toDate });
-  };
-
   const handleExport = () => {
     if (!orgData?.organization?.id || dateRangeInvalid) return;
     exportTransactionsCsv(orgData.organization.id, {
@@ -123,14 +113,6 @@ export function TransactionListPage() {
       toDate,
       transactionType: typeFilter,
     }).catch((err) => toast.error(translateError(err)));
-  };
-
-  const applyPreset = (preset: { typeFilter: string; statusFilter: string; fromDate: string; toDate: string }) => {
-    setTypeFilter(preset.typeFilter);
-    setStatusFilter(preset.statusFilter as TransactionStatus | "");
-    setFromDate(preset.fromDate);
-    setToDate(preset.toDate);
-    setPage(0);
   };
 
   return (
@@ -252,68 +234,6 @@ export function TransactionListPage() {
           </Button>
         </div>
       )}
-
-      {/* Saved filter presets */}
-      <div className="flex flex-wrap items-center gap-2">
-        {presets.map((preset) => (
-          <div key={preset.id} className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="secondary"
-              size="xs"
-              onClick={() => applyPreset(preset)}
-              className="gap-1"
-            >
-              <BookmarkCheck className="h-3 w-3" />
-              {preset.name}
-            </Button>
-            <button
-              type="button"
-              onClick={() => deletePreset(preset.id)}
-              className="inline-flex h-7 w-7 min-h-[28px] min-w-[28px] items-center justify-center rounded-md text-wood-400 hover:text-error hover:bg-error/10 sm:min-h-0 sm:min-w-0"
-              aria-label={`Hapus preset ${preset.name}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-        {savingPreset ? (
-          <div className="flex items-center gap-1.5">
-            <Input
-              aria-label="Nama preset filter"
-              placeholder="Nama preset..."
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSavePreset();
-                if (e.key === "Escape") setSavingPreset(false);
-              }}
-              className="h-8 w-40 min-h-0 text-xs"
-              containerClassName="!mt-0"
-              autoFocus
-            />
-            <Button type="button" size="xs" onClick={handleSavePreset} disabled={!presetName.trim()}>
-              Simpan
-            </Button>
-            <Button type="button" size="xs" variant="ghost" onClick={() => setSavingPreset(false)}>
-              Batal
-            </Button>
-          </div>
-        ) : (
-          hasActiveFilters && canSave && (
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              onClick={() => setSavingPreset(true)}
-              className="gap-1"
-            >
-              <Bookmark className="h-3 w-3" />
-              Simpan filter ini
-            </Button>
-          )
-        )}
-      </div>
 
       {/* Table */}
       <section className="rounded-xl border border-wood-200 bg-surface-elevated">

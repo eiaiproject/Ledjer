@@ -16,12 +16,11 @@ import {
   Package,
 } from "lucide-react";
 import type { FieldErrors } from "react-hook-form";
-import { cn, formatIDR, formatNumber } from "@/lib/utils";
+import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { Field } from "@/components/ui/field";
 import {
   addRecentTransactionType,
@@ -493,14 +492,24 @@ export function ProductDetailFields({
         </Field>
 
         <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
-          <CurrencyInput
-            id="product-unit-price"
-            value={unitPrice}
-            onValueChange={onUnitPriceChange}
-            error={!!unitPriceError}
-            aria-invalid={unitPriceError ? true : undefined}
-            aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-400">
+              Rp
+            </span>
+            <input
+              id="product-unit-price"
+              type="text"
+              inputMode="numeric"
+              value={formatAmountInput(unitPrice)}
+              onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+              className={cn(
+                "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
+                unitPriceError ? "border-error" : "border-wood-200"
+              )}
+              aria-invalid={unitPriceError ? true : undefined}
+              aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
+            />
+          </div>
         </Field>
       </div>
 
@@ -917,5 +926,3 @@ export function UnsavedChangesDialog({ open, onConfirm, onCancel, loading }: Uns
     />
   );
 }
-
-

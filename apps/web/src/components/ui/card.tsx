@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type CardVariant = "default" | "elevated" | "outline" | "filled";
@@ -19,40 +19,34 @@ const variantStyles: Record<CardVariant, string> = {
 };
 
 const paddingStyles: Record<CardPadding, string> = {
-  none: "",
-  sm: "p-4",
-  md: "p-5",
-  lg: "p-6",
+  none: "0",
+  sm: "1rem",
+  md: "1.25rem",
+  lg: "1.5rem",
 };
 
-const CardPaddingContext = createContext<CardPadding>("md");
-
 export function Card({ children, className, variant = "default", padding = "md" }: CardProps) {
+  const style = { "--card-padding": paddingStyles[padding] } as CSSProperties;
   return (
-    <CardPaddingContext.Provider value={padding}>
-      <div className={cn("rounded-lg", variantStyles[variant], className)}>
-        {children}
-      </div>
-    </CardPaddingContext.Provider>
+    <div className={cn("rounded-lg", variantStyles[variant], className)} style={style}>
+      {children}
+    </div>
   );
 }
 
 export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
-  const padding = useContext(CardPaddingContext);
   return (
-    <div className={cn(paddingStyles[padding], "border-b border-wood-100", className)}>
+    <div className={cn("border-b border-wood-100 p-[var(--card-padding)]", className)}>
       {children}
     </div>
   );
 }
 
 export function CardContent({ children, className }: { children: React.ReactNode; className?: string }) {
-  const padding = useContext(CardPaddingContext);
   return (
-    <div className={cn(paddingStyles[padding], className)}>
+    <div className={cn("p-[var(--card-padding)]", className)}>
       {children}
     </div>
   );
 }
-
 

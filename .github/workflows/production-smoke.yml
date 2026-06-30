@@ -1,7 +1,9 @@
 name: Production Smoke Test
 
-# Manual smoke test for production after Cloudflare auto deploy.
-# Does NOT deploy anything — only validates https://app.ledjer.id.
+# Manual/scheduled smoke test for the Cloudflare Pages production deployment.
+# Does NOT deploy anything — only validates the current production URL.
+# Current production URL: https://ledjer-ahk.pages.dev
+# Future custom domain: https://ledjer.id (optional check, not required)
 
 on:
   workflow_dispatch:
@@ -9,13 +11,17 @@ on:
   # schedule:
   #   - cron: "0 */6 * * *"
 
+env:
+  PRODUCTION_URL: https://ledjer-ahk.pages.dev
+  CUSTOM_DOMAIN_URL: https://ledjer.id
+
 concurrency:
   group: production-smoke
   cancel-in-progress: true
 
 jobs:
   smoke:
-    name: "Production Smoke (app.ledjer.id)"
+    name: "Production Smoke (ledjer-ahk.pages.dev)"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -36,12 +42,28 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
+      - name: Preflight — production URL is reachable (HTTP 200)
+        run: |
+          echo "Checking production URL: ${{ env.PRODUCTION_URL }}"
+          curl -fsS "${{ env.PRODUCTION_URL }}" -o /dev/null --max-time 15
+          echo "✅ Production URL is reachable"
+
       - name: Run production smoke tests
         env:
           E2E_MODE: deploy-smoke
-          E2E_BASE_URL: https://app.ledjer.id
+          E2E_BASE_URL: ${{ env.PRODUCTION_URL }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
+
+      - name: Optional — custom domain smoke (may fail if DNS not active)
+        continue-on-error: true
+        run: |
+          echo "Checking custom domain: ${{ env.CUSTOM_DOMAIN_URL }}"
+          if curl -fsS "${{ env.CUSTOM_DOMAIN_URL }}" -o /dev/null --max-time 10; then
+            echo "✅ Custom domain ${{ env.CUSTOM_DOMAIN_URL }} is active"
+          else
+            echo "⚠️  Custom domain ${{ env.CUSTOM_DOMAIN_URL }} not active yet — skipping"
+          fi
 
       - name: Upload smoke report
         if: failure()
@@ -51,3 +73,70 @@ jobs:
           path: apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+  # ─── Job B: Production CSP Check ─────────────────────────────
+  csp-check:
+    name: "Production CSP Check (no localhost)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production page CSP header for localhost
+        run: |
+          csp=$(curl -sI ${{ env.PRODUCTION_URL }} | grep -i content-security-policy || true)
+          if echo "$csp" | grep -qE 'localhost|127\.0\.0\.1'; then
+            echo "❌ Production CSP contains localhost origins"
+            echo "$csp"
+            exit 1
+          fi
+          echo "✅ Production CSP is clean (no localhost)"
+
+      - name: Check production page CSP meta tag for localhost
+        run: |
+          meta=$(curl -s ${{ env.PRODUCTION_URL }} | grep -i 'http-equiv="Content-Security-Policy"' || true)
+          if echo "$meta" | grep -qE 'localhost|127\.0\.0\.1'; then
+            echo "❌ Production CSP meta tag contains localhost origins"
+            echo "$meta"
+            exit 1
+          fi
+          echo "✅ Production CSP meta tag is clean (no localhost)"
+
+  # ─── Job C: Supabase Edge Function Smoke ────────────────────
+  edge-functions:
+    name: "Edge Function Auth Smoke (Supabase)"
+    needs: [smoke, csp-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only runs if SUPABASE_REF is provided as a secret/variable
+    if: always() && vars.SUPABASE_REF != '' && needs.smoke.result == 'success' && needs.csp-check.result == 'success'
+    env:
+      SUPABASE_REF: ${{ vars.SUPABASE_REF }}
+    steps:
+      - name: Check mayar-create-checkout returns 401 without auth
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://${SUPABASE_REF}.supabase.co/functions/v1/mayar-create-checkout")
+          if [ "$status" != "401" ]; then
+            echo "❌ mayar-create-checkout returned $status (expected 401)"
+            exit 1
+          fi
+          echo "✅ mayar-create-checkout returns 401 without auth"
+
+      - name: Check mayar-webhook returns 401 without token
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://${SUPABASE_REF}.supabase.co/functions/v1/mayar-webhook")
+          if [ "$status" != "401" ]; then
+            echo "❌ mayar-webhook returned $status (expected 401)"
+            exit 1
+          fi
+          echo "✅ mayar-webhook returns 401 without token"
+
+      - name: Check mayar-webhook returns 401 with wrong token
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://${SUPABASE_REF}.supabase.co/functions/v1/mayar-webhook?token=wrong")
+          if [ "$status" != "401" ]; then
+            echo "❌ mayar-webhook returned $status with wrong token (expected 401)"
+            exit 1
+          fi
+          echo "✅ mayar-webhook returns 401 with wrong token"

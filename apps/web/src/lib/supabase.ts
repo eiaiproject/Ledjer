@@ -9,10 +9,23 @@ const isPlaceholderUrl =
   supabaseUrl.includes("your-project") ||
   supabaseUrl.includes("example");
 
+function isValidJwtStructure(token: string): boolean {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const payload = JSON.parse(
+      atob(parts[1].replaceAll("-", "+").replaceAll("_", "/")),
+    );
+    return typeof payload === "object" && payload !== null && "role" in payload;
+  } catch {
+    return false;
+  }
+}
+
 const isPlaceholderAnonKey =
   !supabaseAnonKey ||
   supabaseAnonKey.includes("your-anon-key") ||
-  supabaseAnonKey.split(".").length !== 3;
+  !isValidJwtStructure(supabaseAnonKey);
 
 /**
  * Validates environment configuration. Call BEFORE creating the client.

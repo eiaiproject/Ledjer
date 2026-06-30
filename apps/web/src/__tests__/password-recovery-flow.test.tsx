@@ -11,7 +11,6 @@ import {
 import { ForgotPasswordPage } from '@/pages/forgot-password';
 import { AuthCallbackPage } from '@/pages/auth-callback';
 import { ResetPasswordPage } from '@/pages/reset-password';
-import { clearAllRateLimits } from '@/lib/rate-limit';
 
 /**
  * End-to-end integration test for the password recovery flow.
@@ -98,7 +97,6 @@ describe('Password recovery flow (integration)', () => {
     mocks.updateUser.mockReset();
     mocks.signOut.mockReset();
     mocks.sessionRef.current = null;
-    clearAllRateLimits();
     // AuthCallbackPage uses setTimeout before navigating — make them
     // resolve instantly so we don't have to wait the 1.2s in tests.
     vi.useFakeTimers({ shouldAdvanceTime: true });

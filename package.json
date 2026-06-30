@@ -11,12 +11,15 @@
     "test:watch": "pnpm --filter web test:watch",
     "typecheck": "pnpm --filter web typecheck && pnpm --filter @ledjer/database-types typecheck",
     "db-types:check": "bash scripts/check-db-types.sh",
+    "ci:local": "bash scripts/ci-local-fast.sh",
+    "ci:local:fast": "bash scripts/ci-local-fast.sh",
+    "ci:local:full": "bash scripts/ci-local-full.sh",
     "test:all": "pnpm test:quality && pnpm test:sql && pnpm test:e2e:local",
     "test:quality": "pnpm --filter web typecheck && pnpm --filter web lint && pnpm --filter web test && pnpm --filter web build && pnpm db-types:check",
     "test:sql": "PGPASSWORD=postgres PGHOST=localhost PGPORT=54322 PGUSER=postgres PGDATABASE=postgres psql -h localhost -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql",
     "test:e2e": "pnpm --filter web test:e2e",
     "test:e2e:local": "E2E_MODE=full-local E2E_BASE_URL=http://localhost:4173 pnpm --filter web exec playwright test --project=chromium",
-    "test:e2e:deploy": "E2E_MODE=deploy-smoke E2E_BASE_URL=https://app.ledjer.id pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium",
+    "test:e2e:deploy": "E2E_MODE=deploy-smoke E2E_BASE_URL=https://ledjer-ahk.pages.dev pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium",
     "test:e2e:cross-browser-smoke": "E2E_CROSS_BROWSER=1 pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts e2e/responsive.spec.ts --project=firefox --project=webkit",
     "test:visual": "pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium",
     "test:perf": "pnpm --filter web exec playwright test e2e/performance.spec.ts --project=chromium",
@@ -32,7 +35,6 @@
     ]
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "wrangler": "^3.0.0"
+    "@axe-core/playwright": "^4.12.1"
   }
 }

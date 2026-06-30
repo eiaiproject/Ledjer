@@ -44,10 +44,13 @@ Last verified: 2026-07-31
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Webhook signature verification | ⚠️ | Scaffold only — implement when provider selected |
+| Webhook token verification (mandatory) | ✅ | Constant-time comparison; returns 401 if missing/wrong, 500 if env not set |
+| Invoice status verified via Mayar API | ✅ | Webhook verifies with Mayar before changing plan; does not trust payload alone |
 | Provider secrets server-side only | ✅ | Edge Functions only; client never sees provider keys |
-| Users cannot self-modify plan | ✅ | Trigger protection + RPC-only changes |
+| Users cannot self-modify plan | ✅ | Trigger protection + RPC-only changes + owner-only Edge Function checks |
 | Billing events audited | ✅ | `billing_events` table with RLS |
+| Webhook idempotent & race-safe | ✅ | `finalize_mayar_payment` RPC with row-level locking and conditional updates |
+| Duplicate checkout prevention | ✅ | Pending session reuse + partial unique index on `(org, plan, billing_period, user)` |
 
 ## Period Lock Security
 
@@ -82,9 +85,8 @@ Last verified: 2026-07-31
 2. **No IP-based rate limiting** — only identifier-based
 3. **No automated closing entries** — manual process
 4. **Backup retention** depends on Supabase plan (7 days on Pro)
-5. **Payment webhook verification** not yet implemented (scaffold only)
-6. **Admin dashboard** requires server-side auth implementation
-7. **Email delivery** for invitations not yet implemented (token generated, email sending is provider setup)
+5. **Admin dashboard** requires server-side auth implementation
+6. **Email delivery** for invitations not yet implemented (token generated, email sending is provider setup)
 
 ## Pre-Launch Security Actions
 
@@ -96,3 +98,6 @@ Last verified: 2026-07-31
 - [ ] Verify billing trigger protection works
 - [ ] Verify period lock trigger works
 - [ ] Test invitation token generation and acceptance flow
+- [ ] Verify Mayar webhook URL is correctly registered in Mayar dashboard
+- [ ] Verify `MAYAR_WEBHOOK_TOKEN` is set as Supabase secret
+- [ ] Verify fake Mayar E2E tests pass in CI

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { translateError } from "@/lib/errors";
-import { checkRateLimit, getResetTime, RATE_LIMITS } from "@/lib/rate-limit";
 
 const forgotSchema = z.object({
   email: z.string().email("Email tidak valid"),
@@ -29,32 +28,12 @@ type ForgotForm = z.infer<typeof forgotSchema>;
  * Security notes:
  *  - Always shows the same success message regardless of whether the
  *    email exists. Prevents account enumeration.
- *  - Client-side rate limit (RATE_LIMITS.passwordReset, 3 per 15 min)
- *    is enforced via the same utility the login and register pages use.
  *  - Server-side rate limiting on auth endpoints is handled by Supabase.
  */
 export function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
-  const [rateLimited, setRateLimited] = useState(false);
-  const [rateLimitUntil, setRateLimitUntil] = useState(0);
-
-  useEffect(() => {
-    if (!rateLimitUntil) return;
-    const ms = rateLimitUntil - Date.now();
-    if (ms <= 0) {
-      queueMicrotask(() => {
-        setRateLimited(false);
-        setRateLimitUntil(0);
-      });
-    }
-    const id = setTimeout(() => {
-      setRateLimited(false);
-      setRateLimitUntil(0);
-    }, ms);
-    return () => clearTimeout(id);
-  }, [rateLimitUntil]);
 
   const {
     register,
@@ -67,21 +46,6 @@ export function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotForm) => {
     if (loading) return;
     const email = data.email.trim().toLowerCase();
-    const localRateLimitKey = `forgot:${email}`;
-
-    // Client-side rate limit (per email).
-    if (!checkRateLimit(localRateLimitKey, RATE_LIMITS.passwordReset)) {
-      const resetMs = getResetTime(localRateLimitKey, RATE_LIMITS.passwordReset);
-      const resetSeconds = Math.ceil(resetMs / 1000);
-      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
-      const deadline = Date.now() + resetMs + 500;
-      setRateLimited(true);
-      setError(
-        `Terlalu banyak percobaan. Coba lagi dalam ${resetSeconds} detik.`,
-      );
-      setRateLimitUntil(deadline);
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -226,7 +190,7 @@ export function ForgotPasswordPage() {
                   placeholder="email@contoh.com"
                   prefix={<Mail className="h-4 w-4 text-wood-400" />}
                   error={errors.email?.message}
-                  disabled={loading || rateLimited}
+                  disabled={loading}
                   autoComplete="email"
                 />
 
@@ -234,7 +198,7 @@ export function ForgotPasswordPage() {
                   type="submit"
                   fullWidth
                   loading={loading}
-                  disabled={loading || rateLimited}
+                  disabled={loading}
                 >
                   Kirim tautan pemulihan
                 </Button>

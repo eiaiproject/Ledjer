@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: production
-      url: https://app.ledjer.id
+      url: https://ledjer-ahk.pages.dev
     steps:
       - uses: actions/checkout@v6
         with:
@@ -62,4 +62,4 @@ jobs:
           echo "### ✅ Manual deploy to Cloudflare Pages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** \`${{ inputs.branch || 'main' }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL:** https://app.ledjer.id" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://ledjer-ahk.pages.dev" >> $GITHUB_STEP_SUMMARY

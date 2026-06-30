@@ -40,20 +40,22 @@ for (const vp of viewports) {
 
     test("login page renders correctly", async ({ page }) => {
       await page.goto("/login");
-      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Masuk$/ })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("button", { name: /^Masuk$/ })).toBeVisible({ timeout: 15_000 });
     });
 
     test("register page renders correctly", async ({ page }) => {
       await page.goto("/register");
-      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Daftar$/ })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("button", { name: /^Daftar$/ })).toBeVisible({ timeout: 15_000 });
     });
 
     if (vp.width < 768) {
       test("mobile navigation menu works", async ({ page }) => {
-        if (E2E.isDeploySmoke) {
-          test.skip(true, "Mobile nav test requires seeded Supabase — skipped in deploy-smoke mode");
+        if (!E2E.isFullLocal) {
+          test.skip(true, "Mobile nav test requires seeded Supabase — skipped outside full-local mode");
           return;
         }
         await loginAsOwner(page);
@@ -75,8 +77,8 @@ test.describe("Transaction form responsive", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("transaction form is usable on mobile", async ({ page }) => {
-    if (E2E.isDeploySmoke) {
-      test.skip(true, "Transaction form test requires seeded Supabase — skipped in deploy-smoke mode");
+    if (!E2E.isFullLocal) {
+      test.skip(true, "Transaction form test requires seeded Supabase — skipped outside full-local mode");
       return;
     }
     await loginAsOwner(page);
@@ -101,8 +103,8 @@ test.describe("Dashboard responsive", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("dashboard renders on mobile without crash", async ({ page }) => {
-    if (E2E.isDeploySmoke) {
-      test.skip(true, "Dashboard responsive test requires seeded Supabase — skipped in deploy-smoke mode");
+    if (!E2E.isFullLocal) {
+      test.skip(true, "Dashboard responsive test requires seeded Supabase — skipped outside full-local mode");
       return;
     }
     await loginAsOwner(page);
