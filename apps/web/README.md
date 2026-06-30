@@ -31,7 +31,7 @@ src/
 ├── contexts/           # AuthContext + AuthProvider
 ├── hooks/              # Custom hooks (useOrganization, useOrgPermissions)
 ├── layouts/            # DashboardLayout (sidebar navigation)
-├── lib/                # Utilities (supabase client, errors, rate-limit, utils)
+├── lib/                # Utilities (supabase client, errors, redirects, utils)
 ├── pages/              # Route-level pages (dashboard, transactions, accounts, products, reports, settings)
 └── __tests__/          # Vitest unit + integration tests
 ```

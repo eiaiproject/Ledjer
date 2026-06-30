@@ -105,7 +105,7 @@ Setiap transaksi diposting melalui SECURITY DEFINER RPC dan otomatis menghasilka
 - **Rate limiting** per identifier (`rate_limits`) dan tracking percobaan login (`login_attempts`)
 - **Format Rupiah** (IDR) dengan input numerik lokal
 - **Onboarding wizard** untuk setup bisnis baru (chart of accounts + saldo awal)
-- **Password recovery flow** — "Lupa password?" di halaman login → email recovery → setel password baru di `/reset-password`. Dilindungi anti account-enumeration (respon sukses generik) dan rate-limit (3 percobaan per 15 menit per email).
+- **Password recovery flow** — "Lupa password?" di halaman login → email recovery → setel password baru di `/reset-password`. Dilindungi anti account-enumeration (respon sukses generik) dan Supabase auth rate limiting.
 
 ---
 
@@ -293,7 +293,7 @@ Ledjer/
 │       │   ├── contexts/                 # AuthContext + AuthProvider
 │       │   ├── hooks/                    # Custom hooks
 │       │   ├── layouts/                  # DashboardLayout (sidebar)
-│       │   ├── lib/                      # supabase client, errors, rate-limit, utils
+│       │   ├── lib/                      # supabase client, errors, redirects, utils
 │       │   ├── pages/                    # Dashboard, Transaksi, Akun, Produk, Laporan, Settings
 │       │   └── __tests__/                # Vitest unit + integration tests
 │       └── package.json

@@ -83,7 +83,11 @@ export default defineConfig({
     }> = [
       // Primary: Vite preview server for the frontend app
       {
-        command: "pnpm preview",
+        command:
+          "LEDJER_CSP_LOCAL=1 " +
+          "VITE_SUPABASE_URL=${E2E_SUPABASE_URL:-$VITE_SUPABASE_URL} " +
+          "VITE_SUPABASE_ANON_KEY=${E2E_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY} " +
+          "pnpm build && pnpm preview",
         port: 4173,
         reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
       },

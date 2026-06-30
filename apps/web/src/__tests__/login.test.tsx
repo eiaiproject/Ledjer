@@ -3,8 +3,8 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import { LoginPage } from '@/pages/login';
 
-// Heavy mocking because LoginPage touches supabase rpc, rate-limit, and
-// the auth context. The point of this file is to assert the static UI
+// Heavy mocking because LoginPage touches Supabase RPCs and the auth
+// context. The point of this file is to assert the static UI
 // elements (links, headings) without exercising the actual sign-in flow.
 
 vi.mock('@/lib/supabase', () => ({
@@ -80,8 +80,6 @@ describe('LoginPage', () => {
   });
 
   it('disables submit button during loading state', async () => {
-    // Verify the submit button reflects the loading state
-    // (rate-limit recovery is tested in forgot-password.test.tsx).
     render(
       <MemoryRouter initialEntries={['/login']}>
         <Routes>

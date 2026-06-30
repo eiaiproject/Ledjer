@@ -11,10 +11,8 @@ import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
-import { checkRateLimit, getResetTime, resetRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { supabase } from "@/lib/supabase";
-import { getSafeRedirectPath } from "@/lib/redirect";
-import { buildAuthCallbackUrl } from "@/lib/auth-callback-url";
+import { buildAuthCallbackUrl, getSafeRedirectPath } from "@/lib/redirect";
 import { useCooldown } from "@/hooks/useCooldown";
 import { isAuthError } from "@supabase/supabase-js";
 import { Lock, Mail } from "lucide-react";
@@ -25,6 +23,8 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MINUTES = 15;
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -71,43 +71,27 @@ export function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     if (loading || oauthLoading) return;
     const email = data.email.trim().toLowerCase();
-    const localRateLimitKey = `login:${email}`;
-
-    // Check rate limit
-    if (!checkRateLimit(localRateLimitKey, RATE_LIMITS.login)) {
-      const resetMs = getResetTime(localRateLimitKey, RATE_LIMITS.login);
-      const resetSeconds = Math.ceil(resetMs / 1000);
-      // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
-      const deadline = Date.now() + resetMs + 500;
-      setRateLimited(true);
-      setError(`Terlalu banyak percobaan. Coba lagi dalam ${resetSeconds} detik.`);
-      setRateLimitUntil(deadline);
-      return;
-    }
 
     setLoading(true);
     setError(null);
     try {
-      const lockoutMinutes = Math.ceil(RATE_LIMITS.login.windowMs / 60_000) * 3;
-
       const { data: isLocked } = await supabase.rpc("is_email_rate_limited", {
         p_email: email,
-        p_max_attempts: RATE_LIMITS.login.maxAttempts,
-        p_lockout_minutes: lockoutMinutes,
+        p_max_attempts: LOGIN_MAX_ATTEMPTS,
+        p_lockout_minutes: LOGIN_LOCKOUT_MINUTES,
       });
 
       if (isLocked) {
-        const lockoutMs = lockoutMinutes * 60_000;
+        const lockoutMs = LOGIN_LOCKOUT_MINUTES * 60_000;
         // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
         const deadline = Date.now() + lockoutMs + 500;
         setRateLimited(true);
-        setError(`Terlalu banyak percobaan gagal. Coba lagi dalam ${lockoutMinutes} menit.`);
+        setError(`Terlalu banyak percobaan gagal. Coba lagi dalam ${LOGIN_LOCKOUT_MINUTES} menit.`);
         setRateLimitUntil(deadline);
         return;
       }
 
       await signIn(email, data.password);
-      resetRateLimit(localRateLimitKey);
       void supabase.rpc("record_login_attempt", {
         p_email: email,
         p_user_agent: navigator.userAgent,

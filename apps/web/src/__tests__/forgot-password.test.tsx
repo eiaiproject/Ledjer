@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ForgotPasswordPage } from '@/pages/forgot-password';
-import { clearAllRateLimits } from '@/lib/rate-limit';
 
 const mocks = vi.hoisted(() => ({
   resetPasswordForEmail: vi.fn(),
@@ -36,8 +35,6 @@ function renderAt(path: string) {
 describe('ForgotPasswordPage', () => {
   beforeEach(() => {
     mocks.resetPasswordForEmail.mockReset();
-    // Reset rate-limit state between tests (module-level Map).
-    clearAllRateLimits();
   });
 
   afterEach(() => {
@@ -124,50 +121,6 @@ describe('ForgotPasswordPage', () => {
     });
     expect(screen.queryByText(/user not found/i)).toBeNull();
     expect(screen.getByText(/nobody@example\.com/i)).toBeTruthy();
-  });
-
-  it('blocks further submissions after exceeding the passwordReset rate limit', async () => {
-    // Use a non-auth error so the form stays visible for rate-limit testing.
-    // Auth errors like 'Email not found' now show the success view (no enumeration).
-    mocks.resetPasswordForEmail.mockResolvedValue({
-      error: { message: 'Service unavailable' },
-    });
-
-    renderAt('/forgot-password');
-
-    const submit = () => {
-      fireEvent.change(screen.getByLabelText(/email/i), {
-        target: { value: 'spam@example.com' },
-      });
-      fireEvent.click(
-        screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
-      );
-    };
-
-    // RATE_LIMITS.passwordReset = 3 per 15 minutes. The 4th submission
-    // must hit the client-side rate limit BEFORE calling Supabase.
-    submit();
-    await waitFor(() => {
-      expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(1);
-    });
-    submit();
-    await waitFor(() => {
-      expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(2);
-    });
-    submit();
-    await waitFor(() => {
-      expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(3);
-    });
-
-    // The 4th submission must NOT call Supabase — rate limit blocks it
-    // before any network call, and the rate-limit alert must surface.
-    submit();
-    await waitFor(() => {
-      expect(
-        screen.getByText(/terlalu banyak percobaan/i),
-      ).toBeTruthy();
-    });
-    expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(3);
   });
 
   it('shows network/service errors to user (non-enumeration errors)', async () => {

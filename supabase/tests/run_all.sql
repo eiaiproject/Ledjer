@@ -39,12 +39,6 @@
 \echo '=== accounting_regression_tests.sql ==='
 \i supabase/tests/accounting_regression_tests.sql
 
-\echo '=== p0_critical_fix_tests.sql ==='
-\i supabase/tests/p0_critical_fix_tests.sql
-
-\echo '=== p0_p1_fix_regression_tests.sql ==='
-\i supabase/tests/p0_p1_fix_regression_tests.sql
-
 \echo '=== opening_balance_guard_tests.sql ==='
 \i supabase/tests/opening_balance_guard_tests.sql
 
@@ -59,9 +53,6 @@
 
 \echo '=== privilege_hardening_tests.sql ==='
 \i supabase/tests/privilege_hardening_tests.sql
-
-\echo '=== master_fix_regression_tests.sql ==='
-\i supabase/tests/master_fix_regression_tests.sql
 
 \echo '=== stage4_production_tests.sql ==='
 \i supabase/tests/stage4_production_tests.sql

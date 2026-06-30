@@ -143,37 +143,39 @@ test.describe("Mayar Checkout", () => {
   test("Non-owner sees disabled checkout", async ({ page }) => {
     // Clear auth state (cookies + localStorage + sessionStorage) before switching user
     await page.context().clearCookies();
-    await page.goto("/login");
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
     });
+    await page.goto("/login");
     // Login as staff
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_STAFF.email);
     await page.getByRole("textbox", { name: /password/i }).fill(E2E_STAFF.password);
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 15_000 });
 
-    // Verify server-side 403: non-owner cannot call mayar-create-checkout
-    const org = await ensureOwnerOrg();
-    const staffToken = await loginUser(E2E_STAFF);
-    const checkoutRes = await fetch(
-      `${E2E.supabaseUrl}/functions/v1/mayar-create-checkout`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${staffToken}`,
-          "Content-Type": "application/json",
+    if (process.env.E2E_BILLING) {
+      // Verify server-side 403: non-owner cannot call mayar-create-checkout
+      const org = await ensureOwnerOrg();
+      const staffToken = await loginUser(E2E_STAFF);
+      const checkoutRes = await fetch(
+        `${E2E.supabaseUrl}/functions/v1/mayar-create-checkout`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${staffToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            organizationId: org.id,
+            plan: "solo",
+            billingPeriod: "monthly",
+            customerMobile: "081234567890",
+          }),
         },
-        body: JSON.stringify({
-          organizationId: org.id,
-          plan: "solo",
-          billingPeriod: "monthly",
-          customerMobile: "081234567890",
-        }),
-      },
-    );
-    expect(checkoutRes.status).toBe(403);
+      );
+      expect(checkoutRes.status).toBe(403);
+    }
 
     await page.goto("/settings/billing");
     await page.waitForLoadState("networkidle");

@@ -58,7 +58,6 @@ Each item must be verified and signed off by the launch owner.
 - [ ] Amount mismatch webhook rejected
 - [ ] Unknown invoice webhook safely ignored
 - [ ] Edge Functions deployed with correct config (`verify_jwt`)
-- [ ] Manual billing runbook reviewed (`docs/private-beta/manual-billing-runbook.md`)
 
 ## Staff Invitations
 

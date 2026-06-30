@@ -88,9 +88,9 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 |---|----------|-------|----------|
 | F1 | Free plan display | View Settings → Billing | "Gratis" plan shown, 50 transaction limit displayed |
 | F2 | Free plan limit | Create 50 transactions on free plan | 51st blocked |
-| F3 | Upgrade request (owner) | Click "Minta Upgrade" as owner | Contact info shown (WhatsApp/email) |
-| F4 | Upgrade request (staff) | View billing as staff | "Hanya pemilik" notice, no upgrade button |
-| F5 | Operator plan change | Operator runs SQL to change plan | Next page load shows new plan |
+| F3 | Mayar checkout (owner) | Enter WhatsApp, click "Bayar dengan Mayar" | Redirects to checkout and creates pending session |
+| F4 | Upgrade request (staff) | View billing as staff | "Hanya pemilik" notice, no checkout button |
+| F5 | Webhook plan change | Paid Mayar webhook received | Next page load shows new plan |
 | F6 | Post-upgrade behavior | After upgrade to solo/business | Transaction limit removed, features unlocked |
 
 ---

@@ -78,7 +78,8 @@ pnpm test:e2e:cross-browser-smoke
 | `reports.spec.ts` | 8 | Reports smoke + golden number assertions |
 | `accounts.spec.ts` | 4 | CoA, add form |
 | `permissions.spec.ts` | 8 | Owner full access, staff restrictions, cross-org |
-| `billing.spec.ts` | 5 | Billing, plan info, upgrade prompts, payment safety |
+| `billing-checkout.spec.ts` | 6 | Mayar checkout UI, owner-only checkout, pending sessions |
+| `billing-webhook.spec.ts` | 8 | Mayar webhook auth, idempotency, payment state handling |
 | `export-import.spec.ts` | 5 | CSV export buttons, download verification |
 
 ### UI Quality

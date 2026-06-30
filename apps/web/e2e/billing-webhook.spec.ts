@@ -127,15 +127,18 @@ test.describe("Mayar Webhook", () => {
   let orgId: string;
 
   test.beforeAll(async () => {
-    if (!E2E.isFullLocal) {
-      console.log("Skipping webhook tests: not in full-local mode");
+    if (!E2E.isFullLocal || process.env.E2E_BILLING !== "1") {
+      console.log("Skipping webhook tests: billing E2E mode is not enabled");
       return;
     }
     const org = await ensureOwnerOrg();
     orgId = org.id;
   });
 
-  test.skip(!E2E.isFullLocal, "Requires local Supabase");
+  test.skip(
+    !E2E.isFullLocal || process.env.E2E_BILLING !== "1",
+    "Requires E2E_BILLING=1 (fake Mayar + local Edge Function env)",
+  );
 
   // ── Unauthorized ──────────────────────────────────────────────
 
@@ -202,7 +205,8 @@ test.describe("Mayar Webhook", () => {
 
   // ── Paid webhook ──────────────────────────────────────────────
 
-  test("Paid webhook happy path", async ({}, testInfo) => {
+  test("Paid webhook happy path", async ({ browserName }, testInfo) => {
+    void browserName;
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "paid");
     const session = await createCheckoutSession(orgId, invoiceId, transactionId);
 
@@ -259,7 +263,8 @@ test.describe("Mayar Webhook", () => {
 
   // ── Duplicate webhook ─────────────────────────────────────────
 
-  test("Duplicate paid webhook is idempotent", async ({}, testInfo) => {
+  test("Duplicate paid webhook is idempotent", async ({ browserName }, testInfo) => {
+    void browserName;
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "dup");
     await createCheckoutSession(orgId, invoiceId, transactionId);
 
@@ -309,7 +314,8 @@ test.describe("Mayar Webhook", () => {
 
   // ── Unpaid/pending webhook ───────────────────────────────────
 
-  test("Unpaid/pending webhook does not upgrade plan", async ({}, testInfo) => {
+  test("Unpaid/pending webhook does not upgrade plan", async ({ browserName }, testInfo) => {
+    void browserName;
     const orgBefore = await getOrganization(orgId);
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "unpaid");
 
@@ -347,7 +353,8 @@ test.describe("Mayar Webhook", () => {
 
   // ── Amount mismatch ──────────────────────────────────────────
 
-  test("Amount mismatch webhook is rejected", async ({}, testInfo) => {
+  test("Amount mismatch webhook is rejected", async ({ browserName }, testInfo) => {
+    void browserName;
     const orgBefore = await getOrganization(orgId);
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "amt");
 
@@ -385,7 +392,8 @@ test.describe("Mayar Webhook", () => {
 
   // ── Failed/expired webhook ───────────────────────────────────
 
-  test("Failed/expired webhook does not change plan", async ({}, testInfo) => {
+  test("Failed/expired webhook does not change plan", async ({ browserName }, testInfo) => {
+    void browserName;
     const orgBefore = await getOrganization(orgId);
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "fail");
 

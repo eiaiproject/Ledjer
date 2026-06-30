@@ -15,8 +15,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { CurrencyInput } from "@/components/ui/currency-input";
-import { formatIDR, formatNumber } from "@/lib/utils";
+import { formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
 
@@ -386,12 +385,13 @@ export function ProductsPage() {
               error={formErrors.unit}
               disabled={formBusy}
             />
-            <CurrencyInput
+            <Input
               label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
-              value={formData.purchase_price}
-              onValueChange={(value) => updateFormField("purchase_price", value)}
+              value={formatAmountInput(formData.purchase_price)}
+              onChange={(e) => updateFormField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
               readOnly={!!editingProduct}
-              error={!!formErrors.purchase_price}
+              isCurrency
+              error={formErrors.purchase_price}
               disabled={formBusy}
               aria-describedby={formErrors.purchase_price ? "purchase-price-error" : undefined}
             />
@@ -403,11 +403,12 @@ export function ProductsPage() {
             {editingProduct && (
               <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>
             )}
-            <CurrencyInput
+            <Input
               label="Harga Jual"
-              value={formData.selling_price}
-              onValueChange={(value) => updateFormField("selling_price", value)}
-              error={!!formErrors.selling_price}
+              value={formatAmountInput(formData.selling_price)}
+              onChange={(e) => updateFormField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
+              isCurrency
+              error={formErrors.selling_price}
               disabled={formBusy}
               aria-describedby={formErrors.selling_price ? "selling-price-error" : undefined}
             />
