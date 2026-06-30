@@ -73,12 +73,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    // ── Step 2: Parse payload ──────────────────────────────────────────────
-    const supabaseUrl = requireEnv("SUPABASE_URL");
-    const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-    const mayarApiKey = requireEnv("MAYAR_API_KEY");
-    const admin = createClient(supabaseUrl, serviceRoleKey);
-
+    // ── Step 2: Parse payload (before loading non-token envs) ──────────────
+    // JSON parsing comes before env loading so malformed payloads get 400
+    // even if non-essential env vars are missing.
     const rawPayload = await req.text();
     let payload: Record<string, unknown>;
     try {
@@ -94,7 +91,14 @@ Deno.serve(async (req) => {
 
     console.log(`Webhook received: event=${event} transactionId=${transactionId} invoiceId=${invoiceId}`);
 
-    // ── Step 3: Find the checkout session ──────────────────────────────────
+    // ── Step 3: Load envs for further processing ───────────────────────────-
+    // These are required only after token + payload validation passes.
+    const supabaseUrl = requireEnv("SUPABASE_URL");
+    const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const mayarApiKey = requireEnv("MAYAR_API_KEY");
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    // ── Step 4: Find the checkout session ──────────────────────────────────
     let session: Record<string, unknown> | null = null;
 
     if (transactionId) {
