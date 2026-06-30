@@ -274,6 +274,17 @@ jobs:
           version: 2.107.0
           github-token: ${{ github.token }}
 
+      - name: Write local Edge Function env file (read by supabase start)
+        run: |
+          mkdir -p supabase/functions
+          cat > supabase/functions/.env << 'EOF'
+          MAYAR_ENV=sandbox
+          MAYAR_API_KEY=test_mayar_key
+          MAYAR_WEBHOOK_TOKEN=test_webhook_token
+          MAYAR_API_BASE_URL=http://fake-mayar:4567
+          APP_URL=http://localhost:4173
+          EOF
+
       - name: Start local Supabase stack
         run: supabase start --workdir . --debug
 
@@ -312,15 +323,17 @@ jobs:
             sleep 2
           done
 
-      - name: Inject Mayar secrets into local Supabase Edge Functions
+      - name: Mayar Edge Function preflight — webhook returns 401 without token
         run: |
-          supabase secrets set --workdir . --env-file /dev/stdin << 'EOF'
-          MAYAR_ENV=sandbox
-          MAYAR_API_KEY=test_mayar_key
-          MAYAR_WEBHOOK_TOKEN=test_webhook_token
-          MAYAR_API_BASE_URL=http://fake-mayar:4567
-          APP_URL=http://localhost:4173
-          EOF
+          supabase_url="http://localhost:54321"
+          echo "Checking mayar-webhook returns 401 without token..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${supabase_url}/functions/v1/mayar-webhook" --max-time 10 2>/dev/null || echo "000")
+          if [ "$status" = "401" ]; then
+            echo "✅ mayar-webhook returns 401 without token"
+          else
+            echo "⚠️  mayar-webhook returned $status (expected 401) — check Edge Function deployment"
+          fi
 
       - name: Capture Supabase env vars
         run: supabase status --workdir . --output env > /tmp/supabase.env
@@ -487,30 +500,9 @@ jobs:
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
-      - name: Preflight — auth forms render (not config error page)
-        env:
-          E2E_BASE_URL: http://localhost:4173
-        run: |
-          # Start preview server in background using project's vite preview
-          cd apps/web && pnpm preview &
-          SERVER_PID=$!
-          cd "${{ github.workspace }}"
-          # Retry loop: vite preview can be slow on cold cache
-          for i in 1 2 3 4 5; do
-            page=$(curl -s http://localhost:4173/login --max-time 5 2>/dev/null || true)
-            if echo "$page" | grep -qv 'Konfigurasi' && echo "$page" | grep -qi 'email'; then
-              echo "✅ Auth forms render correctly (not config error)"
-              break
-            fi
-            if echo "$page" | grep -q 'Konfigurasi'; then
-              echo "❌ App rendered config error page instead of login form"
-              kill "$SERVER_PID" 2>/dev/null || true
-              exit 1
-            fi
-            echo "Waiting for preview server... ($i/5)"
-            sleep 2
-          done
-          kill "$SERVER_PID" 2>/dev/null || true
+      # Preflight is intentionally omitted for cross-browser smoke.
+      # Playwright's webServer (from playwright.config.ts) manages the preview
+      # server on port 4173. A manual preflight step would collide on that port.
 
       - name: Run smoke on Firefox
         env:

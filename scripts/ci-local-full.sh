@@ -154,20 +154,15 @@ else
   fi
 
   # ── Inject Mayar secrets into Edge Runtime ────────────────────────────
-  if command -v supabase >/dev/null 2>&1; then
-    # Write a temp env file for supabase secrets
-    secrets_file=$(mktemp)
-    TMPFILES+=("$secrets_file")
-    cat > "$secrets_file" << 'SECRETSEOF'
+  mkdir -p "$ROOT/supabase/functions"
+  cat > "$ROOT/supabase/functions/.env" << 'FUNCEOF'
 MAYAR_ENV=sandbox
 MAYAR_API_KEY=test_mayar_key
 MAYAR_WEBHOOK_TOKEN=test_webhook_token
 MAYAR_API_BASE_URL=http://fake-mayar:4567
 APP_URL=http://localhost:4173
-SECRETSEOF
-    supabase secrets set --workdir "$ROOT" --env-file "$secrets_file" 2>&1 | tail -3
-    echo "  Mayar secrets injected into Edge Runtime"
-  fi
+FUNCEOF
+  echo "  Mayar secrets written to supabase/functions/.env"
 
   # ── Build app with valid local Supabase config ─────────────────────────
   VITE_SUPABASE_URL="$SUPABASE_URL" \

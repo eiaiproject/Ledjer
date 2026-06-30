@@ -24,6 +24,7 @@ __MACOSX
 supabase/.temp
 supabase/.branches
 supabase/.env
+supabase/functions/.env
 
 # Turborepo
 .turbo
