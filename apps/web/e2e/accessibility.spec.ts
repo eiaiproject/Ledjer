@@ -146,8 +146,8 @@ test.describe("Error announcements", () => {
 
 test.describe("Dashboard accessibility (logged in)", () => {
   test.beforeEach(async ({ page }) => {
-    if (E2E.isDeploySmoke) {
-      test.skip(true, "Dashboard tests require seeded Supabase — skipped in deploy-smoke mode");
+    if (!E2E.isFullLocal) {
+      test.skip(true, "Dashboard tests require seeded Supabase — skipped outside full-local mode");
       return;
     }
     await loginAsOwner(page);

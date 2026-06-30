@@ -54,8 +54,8 @@ for (const vp of viewports) {
 
     if (vp.width < 768) {
       test("mobile navigation menu works", async ({ page }) => {
-        if (E2E.isDeploySmoke) {
-          test.skip(true, "Mobile nav test requires seeded Supabase — skipped in deploy-smoke mode");
+        if (!E2E.isFullLocal) {
+          test.skip(true, "Mobile nav test requires seeded Supabase — skipped outside full-local mode");
           return;
         }
         await loginAsOwner(page);
@@ -77,8 +77,8 @@ test.describe("Transaction form responsive", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("transaction form is usable on mobile", async ({ page }) => {
-    if (E2E.isDeploySmoke) {
-      test.skip(true, "Transaction form test requires seeded Supabase — skipped in deploy-smoke mode");
+    if (!E2E.isFullLocal) {
+      test.skip(true, "Transaction form test requires seeded Supabase — skipped outside full-local mode");
       return;
     }
     await loginAsOwner(page);
@@ -103,8 +103,8 @@ test.describe("Dashboard responsive", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("dashboard renders on mobile without crash", async ({ page }) => {
-    if (E2E.isDeploySmoke) {
-      test.skip(true, "Dashboard responsive test requires seeded Supabase — skipped in deploy-smoke mode");
+    if (!E2E.isFullLocal) {
+      test.skip(true, "Dashboard responsive test requires seeded Supabase — skipped outside full-local mode");
       return;
     }
     await loginAsOwner(page);
