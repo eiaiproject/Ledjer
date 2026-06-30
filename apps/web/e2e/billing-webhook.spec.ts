@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type TestInfo } from "@playwright/test";
 import { E2E } from "./fixtures/env";
 import { E2E_OWNER } from "./fixtures/users";
 import { ensureTestUser } from "./fixtures/seed";
@@ -10,7 +10,7 @@ import { ensureOwnerOrg } from "./fixtures/organizations";
  * Skip if not in full-local mode (requires local Supabase).
  */
 
-const WEBHOOK_TOKEN = "test_webhook_token";
+const WEBHOOK_TOKEN = process.env.E2E_MAYAR_WEBHOOK_TOKEN || "test_webhook_token";
 const FAKE_MAYAR_URL = process.env.MAYAR_API_BASE_URL || "http://127.0.0.1:4567";
 
 const SR_HEADERS = {
@@ -19,7 +19,32 @@ const SR_HEADERS = {
   "Content-Type": "application/json",
 };
 
-async function createCheckoutSession(orgId: string, overrides: Record<string, unknown> = {}) {
+/**
+ * Generate unique Mayar invoice/transaction IDs per test run, worker, and retry.
+ * This prevents 409 collisions on the unique constraint when tests are retried.
+ */
+function uniqueMayarIds(testInfo: TestInfo, prefix = "paid") {
+  const safeTitle = testInfo.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+
+  const suffix = [
+    safeTitle,
+    `w${testInfo.workerIndex}`,
+    `r${testInfo.retry}`,
+    Date.now().toString(36),
+    Math.random().toString(36).slice(2, 8),
+  ].join("_");
+
+  return {
+    invoiceId: `test_inv_${prefix}_${suffix}`,
+    transactionId: `test_trx_${prefix}_${suffix}`,
+  };
+}
+
+async function createCheckoutSession(orgId: string, invoiceId: string, transactionId: string, overrides: Record<string, unknown> = {}) {
   const res = await fetch(`${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions`, {
     method: "POST",
     headers: SR_HEADERS,
@@ -32,8 +57,8 @@ async function createCheckoutSession(orgId: string, overrides: Record<string, un
       currency: "IDR",
       status: "pending",
       payment_provider: "mayar",
-      mayar_invoice_id: "test_inv_001",
-      mayar_transaction_id: "test_txn_001",
+      mayar_invoice_id: invoiceId,
+      mayar_transaction_id: transactionId,
       checkout_url: "https://checkout.mayar.test/pay/test",
       customer_email: "test@example.com",
       customer_mobile: "6281234567890",
@@ -177,14 +202,9 @@ test.describe("Mayar Webhook", () => {
 
   // ── Paid webhook ──────────────────────────────────────────────
 
-  test("Paid webhook happy path", async () => {
-    // Create a pending session
-    const invoiceId = "test_inv_paid_001";
-    const transactionId = "test_txn_paid_001";
-    const session = await createCheckoutSession(orgId, {
-      mayar_invoice_id: invoiceId,
-      mayar_transaction_id: transactionId,
-    });
+  test("Paid webhook happy path", async (_context, testInfo) => {
+    const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "paid");
+    const session = await createCheckoutSession(orgId, invoiceId, transactionId);
 
     // Create a matching fake Mayar invoice via API with the SAME invoice ID
     await fetch(`${FAKE_MAYAR_URL}/hl/v1/invoice/create`, {
@@ -207,11 +227,11 @@ test.describe("Mayar Webhook", () => {
     const result = await sendWebhook({
       event: "invoice.paid",
       data: {
-        id: "test_txn_paid_001",
-        paymentLinkId: "test_inv_paid_001",
+        id: transactionId,
+        paymentLinkId: invoiceId,
         status: "paid",
         amount: 39000,
-        transactionId: "test_txn_paid_001",
+        transactionId,
       },
     });
 
@@ -239,14 +259,9 @@ test.describe("Mayar Webhook", () => {
 
   // ── Duplicate webhook ─────────────────────────────────────────
 
-  test("Duplicate paid webhook is idempotent", async () => {
-    // Create a fresh session for duplicate test
-    const invoiceId = "test_inv_dup_001";
-    const transactionId = "test_txn_dup_001";
-    await createCheckoutSession(orgId, {
-      mayar_invoice_id: invoiceId,
-      mayar_transaction_id: transactionId,
-    });
+  test("Duplicate paid webhook is idempotent", async (_context, testInfo) => {
+    const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "dup");
+    await createCheckoutSession(orgId, invoiceId, transactionId);
 
     // Pre-seed the fake Mayar server with a matching paid invoice
     await fetch(`${FAKE_MAYAR_URL}/hl/v1/invoice/create`, {
@@ -294,14 +309,11 @@ test.describe("Mayar Webhook", () => {
 
   // ── Unpaid/pending webhook ───────────────────────────────────
 
-  test("Unpaid/pending webhook does not upgrade plan", async () => {
+  test("Unpaid/pending webhook does not upgrade plan", async (_context, testInfo) => {
     const orgBefore = await getOrganization(orgId);
-    const invoiceId = "test_inv_unpaid_001";
+    const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "unpaid");
 
-    await createCheckoutSession(orgId, {
-      mayar_invoice_id: invoiceId,
-      mayar_transaction_id: "test_txn_unpaid_001",
-    });
+    await createCheckoutSession(orgId, invoiceId, transactionId);
 
     // Pre-seed fake Mayar invoice with pending status
     await fetch(`${FAKE_MAYAR_URL}/hl/v1/invoice/create`, {
@@ -318,7 +330,7 @@ test.describe("Mayar Webhook", () => {
     const result = await sendWebhook({
       event: "invoice.pending",
       data: {
-        id: "test_txn_unpaid_001",
+        id: transactionId,
         paymentLinkId: invoiceId,
         status: "pending",
         amount: 39000,
@@ -335,15 +347,11 @@ test.describe("Mayar Webhook", () => {
 
   // ── Amount mismatch ──────────────────────────────────────────
 
-  test("Amount mismatch webhook is rejected", async () => {
+  test("Amount mismatch webhook is rejected", async (_context, testInfo) => {
     const orgBefore = await getOrganization(orgId);
-    const invoiceId = "test_inv_amt_001";
-    const transactionId = "test_txn_amt_001";
+    const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "amt");
 
-    await createCheckoutSession(orgId, {
-      mayar_invoice_id: invoiceId,
-      mayar_transaction_id: transactionId,
-    });
+    await createCheckoutSession(orgId, invoiceId, transactionId);
 
     // Create fake Mayar invoice with different amount and MATCHING ID
     await fetch(`${FAKE_MAYAR_URL}/hl/v1/invoice/create`, {
@@ -377,14 +385,11 @@ test.describe("Mayar Webhook", () => {
 
   // ── Failed/expired webhook ───────────────────────────────────
 
-  test("Failed/expired webhook does not change plan", async () => {
+  test("Failed/expired webhook does not change plan", async (_context, testInfo) => {
     const orgBefore = await getOrganization(orgId);
-    const invoiceId = "test_inv_fail_001";
+    const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "fail");
 
-    await createCheckoutSession(orgId, {
-      mayar_invoice_id: invoiceId,
-      mayar_transaction_id: "test_txn_fail_001",
-    });
+    await createCheckoutSession(orgId, invoiceId, transactionId);
 
     // Pre-seed fake Mayar invoice with failed status
     await fetch(`${FAKE_MAYAR_URL}/hl/v1/invoice/create`, {
@@ -401,7 +406,7 @@ test.describe("Mayar Webhook", () => {
     const result = await sendWebhook({
       event: "invoice.failed",
       data: {
-        id: "test_txn_fail_001",
+        id: transactionId,
         paymentLinkId: invoiceId,
         status: "failed",
         amount: 39000,

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { loginViaUI } from "./fixtures/auth";
 import { E2E } from "./fixtures/env";
 import { E2E_OWNER, E2E_STAFF } from "./fixtures/users";
-import { ensureTestUser } from "./fixtures/seed";
+import { ensureTestUser, loginUser } from "./fixtures/seed";
 import { ensureOwnerOrg } from "./fixtures/organizations";
 
 /**
@@ -53,8 +53,8 @@ test.describe("Mayar Checkout", () => {
   test("Owner can see plan comparison cards", async ({ page }) => {
     await page.waitForLoadState("networkidle");
     // Verify both paid plan cards are visible
-    await expect(page.getByText("Solo")).toBeVisible();
-    await expect(page.getByText("Business")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Solo$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Business$/ })).toBeVisible();
   });
 
   test("Checkout requires WhatsApp number", async ({ page }) => {
@@ -69,7 +69,7 @@ test.describe("Mayar Checkout", () => {
     await mayarButtons.first().click();
 
     // Should show validation error
-    await expect(page.getByText(/nomor whatsapp/i)).toBeVisible();
+    await expect(page.getByRole("alert")).toBeVisible();
     await expect(page).toHaveURL(/\/settings\/billing/);
   });
 
@@ -129,7 +129,7 @@ test.describe("Mayar Checkout", () => {
     // Too short
     await mobileInput.fill("081");
     await page.getByRole("button", { name: /bayar dengan mayar/i }).first().click();
-    await expect(page.getByText(/nomor whatsapp/i)).toBeVisible();
+    await expect(page.getByRole("alert")).toBeVisible();
   });
 
   test("Owner sees checkout button enabled", async ({ page }) => {
@@ -141,14 +141,39 @@ test.describe("Mayar Checkout", () => {
   });
 
   test("Non-owner sees disabled checkout", async ({ page }) => {
-    // Logout and login as staff
+    // Clear auth state (cookies + localStorage + sessionStorage) before switching user
     await page.context().clearCookies();
-    // Login as staff
     await page.goto("/login");
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+    // Login as staff
     await page.getByRole("textbox", { name: /email/i }).fill(E2E_STAFF.email);
     await page.getByRole("textbox", { name: /password/i }).fill(E2E_STAFF.password);
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 15_000 });
+
+    // Verify server-side 403: non-owner cannot call mayar-create-checkout
+    const org = await ensureOwnerOrg();
+    const staffToken = await loginUser(E2E_STAFF);
+    const checkoutRes = await fetch(
+      `${E2E.supabaseUrl}/functions/v1/mayar-create-checkout`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${staffToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: org.id,
+          plan: "solo",
+          billingPeriod: "monthly",
+          customerMobile: "081234567890",
+        }),
+      },
+    );
+    expect(checkoutRes.status).toBe(403);
 
     await page.goto("/settings/billing");
     await page.waitForLoadState("networkidle");
