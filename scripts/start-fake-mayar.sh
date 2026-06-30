@@ -25,14 +25,6 @@ FAKE_MAYAR_STATUS="${FAKE_MAYAR_STATUS:-paid}"
 echo "Starting fake Mayar server on 127.0.0.1:${FAKE_MAYAR_PORT} (status: ${FAKE_MAYAR_STATUS})"
 cd "$ROOT"
 
-# Check if deno is available
-if ! command -v deno &>/dev/null; then
-  echo "ERROR: deno is required to run the fake Mayar server." >&2
-  echo "Install it from https://deno.land/" >&2
-  exit 1
-fi
-
 FAKE_MAYAR_PORT="$FAKE_MAYAR_PORT" \
 FAKE_MAYAR_STATUS="$FAKE_MAYAR_STATUS" \
-exec deno run --allow-net --allow-env \
-  "$ROOT/supabase/functions/_shared/fake-mayar-server.ts"
+exec node "$ROOT/scripts/fake-mayar-server.mjs"

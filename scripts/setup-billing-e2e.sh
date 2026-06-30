@@ -41,10 +41,7 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 # ── Check prerequisites ──────────────────────────────────────────────────────
-if ! command -v deno &>/dev/null; then
-  error "deno is required. Install from https://deno.land/"
-  exit 1
-fi
+# Node.js is the project runtime — no additional runtime check needed
 
 if ! command -v supabase &>/dev/null; then
   error "supabase CLI is required. Install from https://supabase.com/docs/guides/cli"
@@ -86,8 +83,7 @@ info "Supabase stack is running at http://127.0.0.1:${SUPABASE_PORT}"
 info "Starting fake Mayar server on 127.0.0.1:${FAKE_MAYAR_PORT}..."
 FAKE_MAYAR_PORT="$FAKE_MAYAR_PORT" \
 FAKE_MAYAR_STATUS="paid" \
-deno run --allow-net --allow-env \
-  "$ROOT/supabase/functions/_shared/fake-mayar-server.ts" &
+node "$ROOT/scripts/fake-mayar-server.mjs" &
 FAKE_MAYAR_PID=$!
 
 # Wait for the fake Mayar server to be ready

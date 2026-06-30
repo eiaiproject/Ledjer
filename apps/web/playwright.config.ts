@@ -95,8 +95,7 @@ export default defineConfig({
       servers.push({
         command:
           `FAKE_MAYAR_PORT=4567 FAKE_MAYAR_STATUS=paid ` +
-          `deno run --allow-net --allow-env ` +
-          `supabase/functions/_shared/fake-mayar-server.ts`,
+          `node ../../scripts/fake-mayar-server.mjs`,
         port: 4567,
         reuseExistingServer: false,
       });

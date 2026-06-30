@@ -202,7 +202,7 @@ test.describe("Mayar Webhook", () => {
 
   // ── Paid webhook ──────────────────────────────────────────────
 
-  test("Paid webhook happy path", async (_context, testInfo) => {
+  test("Paid webhook happy path", async ({}, testInfo) => {
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "paid");
     const session = await createCheckoutSession(orgId, invoiceId, transactionId);
 
@@ -259,7 +259,7 @@ test.describe("Mayar Webhook", () => {
 
   // ── Duplicate webhook ─────────────────────────────────────────
 
-  test("Duplicate paid webhook is idempotent", async (_context, testInfo) => {
+  test("Duplicate paid webhook is idempotent", async ({}, testInfo) => {
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "dup");
     await createCheckoutSession(orgId, invoiceId, transactionId);
 
@@ -309,7 +309,7 @@ test.describe("Mayar Webhook", () => {
 
   // ── Unpaid/pending webhook ───────────────────────────────────
 
-  test("Unpaid/pending webhook does not upgrade plan", async (_context, testInfo) => {
+  test("Unpaid/pending webhook does not upgrade plan", async ({}, testInfo) => {
     const orgBefore = await getOrganization(orgId);
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "unpaid");
 
@@ -347,7 +347,7 @@ test.describe("Mayar Webhook", () => {
 
   // ── Amount mismatch ──────────────────────────────────────────
 
-  test("Amount mismatch webhook is rejected", async (_context, testInfo) => {
+  test("Amount mismatch webhook is rejected", async ({}, testInfo) => {
     const orgBefore = await getOrganization(orgId);
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "amt");
 
@@ -385,7 +385,7 @@ test.describe("Mayar Webhook", () => {
 
   // ── Failed/expired webhook ───────────────────────────────────
 
-  test("Failed/expired webhook does not change plan", async (_context, testInfo) => {
+  test("Failed/expired webhook does not change plan", async ({}, testInfo) => {
     const orgBefore = await getOrganization(orgId);
     const { invoiceId, transactionId } = uniqueMayarIds(testInfo, "fail");
 
