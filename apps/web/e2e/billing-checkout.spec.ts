@@ -80,10 +80,18 @@ test.describe("Mayar Checkout", () => {
       const soloButton = page.getByRole("button", { name: /bayar dengan mayar/i }).first();
       await soloButton.click();
 
-      // Should redirect to the Mayar checkout URL
-      await page.waitForURL((url) => url.href.includes("checkout.mayar.test") || url.pathname.includes("/settings/billing"), {
-        timeout: 15_000,
-      });
+      // Wait for the checkout function to complete (either redirect to Mayar or stay on billing)
+      // Use waitForResponse to ensure the Edge Function call has finished before querying the DB
+      await Promise.race([
+        page.waitForURL((url) => url.href.includes("checkout.mayar.test"), { timeout: 15_000 }),
+        page.waitForResponse(
+          (resp) => resp.url().includes("mayar-create-checkout") && resp.status() !== 0,
+          { timeout: 15_000 },
+        ),
+      ]).catch(() => {});
+
+      // Small buffer for DB commit to complete
+      await page.waitForTimeout(1_000);
 
       // Verify a pending session was created in the DB
       const sessionsRes = await fetch(

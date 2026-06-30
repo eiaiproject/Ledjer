@@ -105,7 +105,7 @@ const server = http.createServer(async (req, res) => {
       link: `https://checkout.mayar.test/pay/${invoiceId}`,
       paymentUrl: `https://checkout.mayar.test/pay/${invoiceId}`,
       amount,
-      status: defaultStatus,
+      status: body.status || defaultStatus,
       customerId: "fake_customer_001",
       customer: {
         id: "fake_customer_001",
@@ -193,10 +193,10 @@ function shutdown(signal) {
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Fake Mayar server listening on http://127.0.0.1:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Fake Mayar server listening on http://0.0.0.0:${PORT}`);
   console.log(`  Default invoice status: ${defaultStatus}`);
   console.log(`  Available endpoints:`);
-  console.log(`    POST http://127.0.0.1:${PORT}/hl/v1/invoice/create`);
-  console.log(`    GET  http://127.0.0.1:${PORT}/hl/v1/invoice/:id`);
+  console.log(`    POST http://0.0.0.0:${PORT}/hl/v1/invoice/create`);
+  console.log(`    GET  http://0.0.0.0:${PORT}/hl/v1/invoice/:id`);
 });

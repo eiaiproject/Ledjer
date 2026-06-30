@@ -46,7 +46,7 @@ function uniqueMayarIds(testInfo: TestInfo, prefix = "paid") {
 async function createCheckoutSession(orgId: string, invoiceId: string, transactionId: string, overrides: Record<string, unknown> = {}) {
   const res = await fetch(`${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions`, {
     method: "POST",
-    headers: SR_HEADERS,
+    headers: { ...SR_HEADERS, Prefer: "return=representation" },
     body: JSON.stringify({
       organization_id: orgId,
       created_by: (await ensureTestUser(E2E_OWNER)),
@@ -66,7 +66,9 @@ async function createCheckoutSession(orgId: string, invoiceId: string, transacti
     }),
   });
   if (!res.ok) throw new Error(`Failed to create session: ${res.status} ${await res.text()}`);
-  const data = await res.json();
+  const text = await res.text();
+  if (!text) throw new Error(`Session created but response body was empty (HTTP ${res.status})`);
+  const data = JSON.parse(text);
   return Array.isArray(data) ? data[0] : data;
 }
 
@@ -129,6 +131,15 @@ test.describe("Mayar Webhook", () => {
   test.beforeAll(async () => {
     const org = await ensureOwnerOrg();
     orgId = org.id;
+  });
+
+  // Clean up pending sessions before each test to avoid 409 unique constraint violations
+  // from previous test runs/retries that left stale pending sessions
+  test.beforeEach(async () => {
+    await fetch(
+      `${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions?organization_id=eq.${orgId}&status=eq.pending`,
+      { method: "DELETE", headers: SR_HEADERS },
+    ).catch(() => {});
   });
 
   // ── Unauthorized ──────────────────────────────────────────────
