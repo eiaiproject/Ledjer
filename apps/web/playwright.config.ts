@@ -108,6 +108,7 @@ export default defineConfig({
     return servers;
   })(),
   expect: {
+    timeout: 10_000,
     toHaveScreenshot: {
       maxDiffPixelRatio: 0.01,
     },

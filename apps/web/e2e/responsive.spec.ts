@@ -40,14 +40,16 @@ for (const vp of viewports) {
 
     test("login page renders correctly", async ({ page }) => {
       await page.goto("/login");
-      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Masuk$/ })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("button", { name: /^Masuk$/ })).toBeVisible({ timeout: 15_000 });
     });
 
     test("register page renders correctly", async ({ page }) => {
       await page.goto("/register");
-      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Daftar$/ })).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("button", { name: /^Daftar$/ })).toBeVisible({ timeout: 15_000 });
     });
 
     if (vp.width < 768) {

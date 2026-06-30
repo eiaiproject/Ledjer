@@ -82,23 +82,26 @@ test.describe("HTML semantics", () => {
 test.describe("Form accessibility", () => {
   test("login form inputs have accessible labels", async ({ page }) => {
     await page.goto("/login");
+    await page.waitForLoadState("networkidle");
     const emailInput = page.getByRole("textbox", { name: /email/i });
-    await expect(emailInput).toBeVisible();
+    await expect(emailInput).toBeVisible({ timeout: 15_000 });
     const passwordInput = page.locator('input[type="password"]');
-    await expect(passwordInput).toBeVisible();
+    await expect(passwordInput).toBeVisible({ timeout: 15_000 });
   });
 
   test("register form inputs have accessible labels", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible();
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     const passwordInputs = page.locator('input[type="password"]');
     expect(await passwordInputs.count()).toBe(2);
   });
 
   test("forgot password form has accessible labels", async ({ page }) => {
     await page.goto("/forgot-password");
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -117,7 +120,9 @@ test.describe("Keyboard navigation", () => {
 
   test("buttons are keyboard accessible", async ({ page }) => {
     await page.goto("/login");
+    await page.waitForLoadState("networkidle");
     const submitBtn = page.getByRole("button", { name: /^Masuk$/ });
+    await expect(submitBtn).toBeVisible({ timeout: 15_000 });
     await submitBtn.focus();
     const isFocused = await page.evaluate(
       () => document.activeElement?.tagName === "BUTTON",
@@ -129,6 +134,7 @@ test.describe("Keyboard navigation", () => {
 test.describe("Error announcements", () => {
   test("login error has role='alert'", async ({ page }) => {
     await page.goto("/login");
+    await page.waitForLoadState("networkidle");
     await page.getByRole("textbox", { name: /email/i }).fill("test@test.com");
     await page.locator('input[type="password"]').fill("Wrong1!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();

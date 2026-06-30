@@ -13,41 +13,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      // Fail-open: if getSession() doesn't resolve within 3 seconds,
+      // treat as guest so public pages render immediately.
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }, 3_000);
+
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        if (cancelled) return;
         setSession(session);
         setLoading(false);
+        clearTimeout(timeoutId);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof Error ? err : new Error(String(err)));
         setLoading(false);
+        clearTimeout(timeoutId);
       });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      if (event === "SIGNED_OUT") {
-        queryClient.clear();
+      try {
+        setSession(session);
+        if (event === "SIGNED_OUT") {
+          queryClient.clear();
+        }
+      } catch (err) {
+        console.error("Auth state change handler error:", err);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, [queryClient]);
-
-  const retryLoadSession = () => {
-    setLoading(true);
-    setError(null);
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setSession(session);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        setLoading(false);
-      });
-  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -104,31 +111,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-cream-100 px-4 py-12 text-center" role="alert">
-        <div className="w-full max-w-sm rounded-lg border border-wood-200 bg-surface p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-wood-900">Gagal memuat sesi</h2>
-          <p className="mt-2 text-sm text-wood-500">
-            Terjadi kesalahan koneksi saat memverifikasi sesi Anda. Silakan coba lagi.
-          </p>
-          <button
-            onClick={retryLoadSession}
-            className="mt-4 w-full rounded-md bg-wood-500 py-2 text-sm font-medium text-white hover:bg-wood-600 active:bg-wood-700 cursor-pointer"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Auth errors are exposed via context (error field) instead of blocking
+  // render. ProtectedRoute and individual pages decide how to handle them.
+  // Public pages render immediately without waiting for auth resolution.
   return (
     <AuthContext.Provider
       value={{
         session,
         user: session?.user ?? null,
         loading,
+        error,
         signIn,
         signUp,
         resendConfirmationEmail,

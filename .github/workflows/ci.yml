@@ -405,6 +405,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: http://localhost:54321
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.signature
+          LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
       - name: Run smoke on Firefox

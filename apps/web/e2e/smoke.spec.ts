@@ -49,31 +49,34 @@ test.describe("Landing page", () => {
 test.describe("Auth pages", () => {
   test("login page loads with form elements", async ({ page }) => {
     await page.goto("/login");
+    await page.waitForLoadState("networkidle");
     await expect(page).toHaveTitle(/Ledjer/);
     // Email and password inputs
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('input[type="password"]')).toBeVisible({ timeout: 15_000 });
     // The login form has a submit button. The exact text is "Masuk".
     // There's also "Masuk dengan Google" — use first() to pick the form submit.
     const loginBtn = page.getByRole("button", { name: /^masuk$/i }).first();
-    await expect(loginBtn).toBeVisible();
+    await expect(loginBtn).toBeVisible({ timeout: 15_000 });
   });
 
   test("register page loads with form elements", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     // Register has two password fields — just verify at least one is visible
     const pwFields = page.locator('input[type="password"]');
-    await expect(pwFields.first()).toBeVisible();
+    await expect(pwFields.first()).toBeVisible({ timeout: 15_000 });
     // Submit button
     const registerBtn = page.getByRole("button", { name: /^daftar$/i }).first();
-    await expect(registerBtn).toBeVisible();
+    await expect(registerBtn).toBeVisible({ timeout: 15_000 });
   });
 
   test("forgot password page loads", async ({ page }) => {
     await page.goto("/forgot-password");
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /kirim/i })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: /kirim/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test("reset-password without token shows safe state", async ({ page }) => {

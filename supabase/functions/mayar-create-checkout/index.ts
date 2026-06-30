@@ -158,37 +158,20 @@ Deno.serve(async (req) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + PENDING_EXPIRY_HOURS * 60 * 60 * 1000);
 
-    // ── Duplicate checkout prevention ──────────────────────────────────────
-    // Check for an existing pending session for the same org, plan, and period
-    // that hasn't expired yet. If one exists, reuse its checkout URL instead
-    // of creating a new Mayar invoice.
-    const { data: existingActiveSession, error: lookupError } = await admin
+    // ── Cancel existing pending sessions ────────────────────────────────────
+    // Before creating a new checkout, cancel ALL pending sessions for this org
+    // regardless of plan/period. This ensures only one active pending session
+    // per organization at a time, and prevents unique constraint violations
+    // when the user switches plans or billing periods.
+    // Old sessions remain in the database with status='canceled' for audit.
+    const { error: cancelError } = await admin
       .from("billing_checkout_sessions")
-      .select("id, checkout_url, expires_at, mayar_invoice_id, mayar_transaction_id")
+      .update({ status: "canceled", updated_at: new Date().toISOString() })
       .eq("organization_id", organizationId)
-      .eq("plan", plan)
-      .eq("billing_period", billingPeriod)
-      .eq("status", "pending")
-      .eq("created_by", userData.user.id)
-      .gte("expires_at", now.toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (lookupError) {
-      console.error("Pending session lookup error:", lookupError);
+      .eq("status", "pending");
+    if (cancelError) {
+      console.error("Failed to cancel existing pending sessions:", cancelError);
       // Non-fatal — proceed to create new session
-    }
-
-    if (existingActiveSession?.checkout_url) {
-      console.log(`Reusing existing pending session ${existingActiveSession.id} for org ${organizationId}`);
-      return jsonResponse({
-        checkoutUrl: existingActiveSession.checkout_url,
-        sessionId: existingActiveSession.id,
-        invoiceId: existingActiveSession.mayar_invoice_id,
-        transactionId: existingActiveSession.mayar_transaction_id,
-        reused: true,
-      });
     }
 
     // ── Create checkout session ────────────────────────────────────────────
