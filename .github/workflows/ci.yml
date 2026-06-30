@@ -274,6 +274,16 @@ jobs:
           version: 2.107.0
           github-token: ${{ github.token }}
 
+      - name: Create Supabase local env file for Mayar Edge Function secrets
+        run: |
+          cat > supabase/.env.local << 'EOF'
+          MAYAR_ENV=sandbox
+          MAYAR_API_KEY=test_mayar_key
+          MAYAR_WEBHOOK_TOKEN=test_webhook_token
+          MAYAR_API_BASE_URL=http://127.0.0.1:4567
+          APP_URL=http://localhost:4173
+          EOF
+
       - name: Start local Supabase stack
         run: supabase start --workdir . --debug
 
@@ -320,13 +330,19 @@ jobs:
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
-      - name: Run full E2E (Chromium)
+      - name: Run full E2E (Chromium) with billing
         env:
           E2E_MODE: full-local
           E2E_BASE_URL: http://localhost:4173
           E2E_SUPABASE_URL: http://localhost:54321
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_BILLING: 1
+          MAYAR_API_BASE_URL: http://127.0.0.1:4567
+          MAYAR_ENV: sandbox
+          MAYAR_API_KEY: test_mayar_key
+          MAYAR_WEBHOOK_TOKEN: test_webhook_token
+          E2E_MAYAR_WEBHOOK_TOKEN: test_webhook_token
           CI: true
         run: pnpm --filter web exec playwright test --project=chromium
 
