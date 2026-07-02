@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
       transactionId: invoice.transactionId ?? null,
     });
   } catch (error) {
-    console.error("[checkout] internal_error");
+    console.error("[checkout] internal_error", error instanceof Error ? error.message : error);
     return jsonResponse({ error: "Terjadi kesalahan internal." }, 500);
   }
 });

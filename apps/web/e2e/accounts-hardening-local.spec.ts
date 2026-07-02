@@ -136,7 +136,7 @@ if (E2E.isFullLocal) {
       const cashAccounts = accountsAfter.filter(
         (a) => a.code >= 1111 && a.code <= 1119 && a.name.startsWith("Kas "),
       );
-      expect(cashAccounts.length).toBe(4);
+      expect(cashAccounts).toHaveLength(4);
 
       // No duplicate codes anywhere
       const allCodes = accountsAfter.map((a) => a.code);

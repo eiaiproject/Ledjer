@@ -83,7 +83,7 @@ if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
 
       // No new billing events
       const eventsAfter = await getBillingEvents(orgId);
-      expect(eventsAfter.length).toBe(eventsBefore.length);
+      expect(eventsAfter).toHaveLength(eventsBefore.length);
     });
 
     // ── Malformed JSON ─────────────────────────────────────────────────
@@ -105,7 +105,7 @@ if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
       expect(orgAfter!.current_plan).toBe(orgBefore!.current_plan);
 
       const eventsAfter = await getBillingEvents(orgId);
-      expect(eventsAfter.length).toBe(eventsBefore.length);
+      expect(eventsAfter).toHaveLength(eventsBefore.length);
     });
 
     // ── Duplicate delivery ─────────────────────────────────────────────
@@ -212,7 +212,7 @@ if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
       expect(orgAfter!.current_plan).toBe(orgBefore!.current_plan);
 
       const eventsAfter = await getBillingEvents(orgId);
-      expect(eventsAfter.length).toBe(eventsBefore.length);
+      expect(eventsAfter).toHaveLength(eventsBefore.length);
     });
   });
 }

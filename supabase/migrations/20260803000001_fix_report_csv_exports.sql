@@ -10,6 +10,25 @@
 -- and CSV structural breaks from user-controlled fields.
 -- =============================================================================
 
+-- ── Shared permission guard (reduces duplication across 3 export fns) ──
+CREATE OR REPLACE FUNCTION public.check_export_permission(p_org_id UUID) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_org_member(p_org_id) THEN
+    RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
+  END IF;
+  IF NOT public.has_permission(p_org_id, 'can_view_reports') THEN
+    RAISE EXCEPTION 'Anda tidak memiliki izin untuk export data';
+  END IF;
+END;
+$$;
+
+ALTER FUNCTION public.check_export_permission(UUID) OWNER TO postgres;
+REVOKE EXECUTE ON FUNCTION public.check_export_permission(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.check_export_permission(UUID) TO authenticated;
+
 -- ── Trial Balance CSV ───────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.export_trial_balance_csv(
   p_organization_id UUID,
@@ -23,13 +42,7 @@ DECLARE
   v_header TEXT := 'Kode Akun,Nama Akun,Debit,Kredit';
   v_date DATE;
 BEGIN
-  IF NOT public.is_org_member(p_organization_id) THEN
-    RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
-  END IF;
-
-  IF NOT public.has_permission(p_organization_id, 'can_view_reports') THEN
-    RAISE EXCEPTION 'Anda tidak memiliki izin untuk export data';
-  END IF;
+  PERFORM public.check_export_permission(p_organization_id);
 
   v_date := COALESCE(p_as_of_date, CURRENT_DATE);
 
@@ -66,13 +79,7 @@ DECLARE
   v_from DATE;
   v_to DATE;
 BEGIN
-  IF NOT public.is_org_member(p_organization_id) THEN
-    RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
-  END IF;
-
-  IF NOT public.has_permission(p_organization_id, 'can_view_reports') THEN
-    RAISE EXCEPTION 'Anda tidak memiliki izin untuk export data';
-  END IF;
+  PERFORM public.check_export_permission(p_organization_id);
 
   v_from := COALESCE(p_from_date, date_trunc('month', CURRENT_DATE)::DATE);
   v_to := COALESCE(p_to_date, CURRENT_DATE);
@@ -108,13 +115,7 @@ DECLARE
   v_header TEXT := 'Bagian,Kode Akun,Nama Akun,Jumlah';
   v_date DATE;
 BEGIN
-  IF NOT public.is_org_member(p_organization_id) THEN
-    RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
-  END IF;
-
-  IF NOT public.has_permission(p_organization_id, 'can_view_reports') THEN
-    RAISE EXCEPTION 'Anda tidak memiliki izin untuk export data';
-  END IF;
+  PERFORM public.check_export_permission(p_organization_id);
 
   v_date := COALESCE(p_as_of_date, CURRENT_DATE);
 

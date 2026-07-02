@@ -30,12 +30,12 @@ export function uniqueMayarIds(
   testInfo: TestInfo,
   prefix = "paid",
 ): { invoiceId: string; transactionId: string } {
-  const safeTitle = testInfo.title
+  // Deterministic slug: lower-case, map any non-[a-z0-9] to '_' (no quantifier
+  // on a negated class — keeps the regex linear and static-analysis friendly).
+  const raw = testInfo.title
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
-
+    .replace(/[^a-z0-9]/g, "_");
+  const safeTitle = raw.replace(/^_+|_+$/g, "").slice(0, 40);
   const suffix = [
     safeTitle,
     `w${testInfo.workerIndex}`,

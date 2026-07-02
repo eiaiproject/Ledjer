@@ -30,6 +30,7 @@ DECLARE
   v_staff_org_id UUID;
   v_cross_org_id UUID;
   v_cross_owner UUID;
+  v_p0001 TEXT := 'P0001';  -- PL/pgSQL raise_exception SQLSTATE
 BEGIN
   -- ── Setup: owner + staff + organization ──────────────────────────────────
   SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id
@@ -133,7 +134,7 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     PERFORM public._test_assert(
       'AC7: Staff without permission cannot create accounts',
-      SQLSTATE = 'P0001',  -- raise_exception
+      SQLSTATE = v_p0001,  -- raise_exception
       'got ' || SQLSTATE || ': ' || SQLERRM
     );
   END;
@@ -156,7 +157,7 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     PERFORM public._test_assert(
       'AC8: Cross-org account creation is rejected',
-      SQLSTATE = 'P0001',
+      SQLSTATE = v_p0001,
       'got ' || SQLSTATE || ': ' || SQLERRM
     );
   END;
@@ -183,7 +184,7 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     PERFORM public._test_assert(
       'AC10: Duplicate account name is rejected',
-      SQLSTATE = 'P0001',
+      SQLSTATE = v_p0001,
       'got ' || SQLSTATE || ': ' || SQLERRM
     );
   END;

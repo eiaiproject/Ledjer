@@ -315,7 +315,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, paid: false, reason: "finalization_failed" });
   } catch (error) {
-    console.error("[webhook] internal_error");
+    console.error("[webhook] internal_error", error instanceof Error ? error.message : error);
     return jsonResponse({ error: "Internal error" }, 500);
   }
 });

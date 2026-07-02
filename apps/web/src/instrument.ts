@@ -85,11 +85,17 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     // Scrub sensitive data from breadcrumbs (defense-in-depth)
     beforeBreadcrumb(breadcrumb) {
       // Scrub auth headers from HTTP breadcrumbs
+      const sensitiveKeys = new Set([
+        'authorization',
+        'cookie',
+        'set-cookie',
+        'x-auth-token',
+        'api-key',
+      ]);
       if (breadcrumb.data?.headers) {
         const headers = breadcrumb.data.headers as Record<string, string>;
-        const sensitiveKeys = ['authorization', 'cookie', 'set-cookie', 'x-auth-token', 'api-key'];
         for (const key of Object.keys(headers)) {
-          if (sensitiveKeys.includes(key.toLowerCase())) {
+          if (sensitiveKeys.has(key.toLowerCase())) {
             headers[key] = '[scrubbed]';
           }
         }

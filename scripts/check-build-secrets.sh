@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$ROOT/apps/web/dist"
 
-if [ ! -d "$DIST_DIR" ]; then
+if [[ ! -d "$DIST_DIR" ]]; then
   echo "❌ dist directory not found: $DIST_DIR"
   echo "   Run 'pnpm --filter web build' first."
   exit 1
@@ -63,7 +63,7 @@ done
 
 # ── Check for .env files in dist ────────────────────────────────────────
 ENV_FILES=$(find "$DIST_DIR" -name ".env" -o -name ".env.local" -o -name ".env.*" 2>/dev/null || true)
-if [ -n "$ENV_FILES" ]; then
+if [[ -n "$ENV_FILES" ]]; then
   echo "❌ FOUND .env files in dist:"
   echo "$ENV_FILES"
   FAIL=1
@@ -71,12 +71,12 @@ fi
 
 # ── Check for source maps (warning only — may be intentional for Sentry) ──
 MAPS=$(find "$DIST_DIR" -name "*.map" 2>/dev/null | head -5 || true)
-if [ -n "$MAPS" ]; then
+if [[ -n "$MAPS" ]]; then
   echo "⚠️  Source maps found in dist (review if intentional — Sentry needs them):"
   echo "$MAPS"
 fi
 
-if [ "$FAIL" -ne 0 ]; then
+if [[ "$FAIL" -ne 0 ]]; then
   echo ""
   echo "❌ SECRET LEAK DETECTED in build output."
   echo "   Do NOT deploy until secrets are removed from the bundle."

@@ -75,6 +75,71 @@ function readBody(req) {
   });
 }
 
+/** Build a default Mayar invoice from the create-request body. */
+function buildInvoiceFromBody(body, linkBase) {
+  const items = body.items || [];
+  const amount = body.amount ?? items.reduce((sum, i) => sum + (i.rate ?? 0), 0);
+  const invoiceId = resolveInvoiceId(body) ?? generateId("mayar_inv");
+  const transactionId = body.transactionId ?? generateId("mayar_txn");
+  return {
+    id: invoiceId,
+    transactionId,
+    link: linkBase || `https://checkout.mayar.test/pay/${invoiceId}`,
+    paymentUrl: linkBase || `https://checkout.mayar.test/pay/${invoiceId}`,
+    amount,
+    status: body.status || defaultStatus,
+    customerId: "fake_customer_001",
+    customer: {
+      id: "fake_customer_001",
+      name: body.name ?? "Test Customer",
+      email: body.email ?? "test@example.com",
+      mobile: body.mobile ?? "6281234567890",
+    },
+    description: body.description ?? "",
+    createdAt: new Date().toISOString(),
+    expiredAt: body.expiredAt ?? new Date(Date.now() + 86400000).toISOString(),
+  };
+}
+
+/** Handle the override branch of POST /hl/v1/invoice/create. */
+async function handleCreateOverride(req, res, body) {
+  const createOverride = control.nextCreate;
+  control.nextCreate = null;
+
+  if (!createOverride) return false;
+
+  if (createOverride.delayMs && createOverride.delayMs > 0) {
+    await new Promise((r) => setTimeout(r, createOverride.delayMs));
+  }
+  if (createOverride.malformedJson) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end("{not valid json");
+    return true;
+  }
+  if (createOverride.status && createOverride.status >= 400) {
+    const { body: respBody, status, headers } = jsonResponse(
+      createOverride.body || { statusCode: createOverride.status, message: "Simulated error" },
+      createOverride.status,
+    );
+    res.writeHead(status, headers);
+    res.end(respBody);
+    return true;
+  }
+  if (createOverride.checkoutUrl) {
+    const invoice = buildInvoiceFromBody(body, createOverride.checkoutUrl);
+    invoices.set(invoice.id, invoice);
+    const { body: respBody, status, headers } = jsonResponse({
+      statusCode: 200,
+      message: "OK",
+      data: [invoice],
+    });
+    res.writeHead(status, headers);
+    res.end(respBody);
+    return true;
+  }
+  return false;
+}
+
 const server = http.createServer(async (req, res) => {
   const host = req.headers.host || "localhost";
   const url = new URL(req.url, `http://${host}`);
@@ -116,97 +181,11 @@ const server = http.createServer(async (req, res) => {
   if (path === "/hl/v1/invoice/create" && method === "POST") {
     const body = await readBody(req);
 
-    // Apply per-test override for create endpoint
-    const createOverride = control.nextCreate;
-    control.nextCreate = null; // consume once
-
-    if (createOverride) {
-      // Delay simulation (for timeout tests)
-      if (createOverride.delayMs && createOverride.delayMs > 0) {
-        await new Promise((r) => setTimeout(r, createOverride.delayMs));
-      }
-
-      // Malformed JSON simulation
-      if (createOverride.malformedJson) {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end("{not valid json");
-        return;
-      }
-
-      // Custom status code simulation (for 500 tests)
-      if (createOverride.status && createOverride.status >= 400) {
-        const { body: respBody, status, headers } = jsonResponse(
-          createOverride.body || { statusCode: createOverride.status, message: "Simulated error" },
-          createOverride.status,
-        );
-        res.writeHead(status, headers);
-        res.end(respBody);
-        return;
-      }
-
-      // Custom checkout URL simulation (for malicious URL tests)
-      if (createOverride.checkoutUrl) {
-        const explicitId = resolveInvoiceId(body);
-        const invoiceId = explicitId ?? generateId("mayar_inv");
-        const transactionId = body.transactionId ?? generateId("mayar_txn");
-        const items = body.items || [];
-        const amount = body.amount ?? items.reduce((sum, i) => sum + (i.rate ?? 0), 0);
-
-        const invoice = {
-          id: invoiceId,
-          transactionId,
-          link: createOverride.checkoutUrl,
-          paymentUrl: createOverride.checkoutUrl,
-          amount,
-          status: body.status || defaultStatus,
-          customerId: "fake_customer_001",
-          customer: { id: "fake_customer_001", name: body.name ?? "Test Customer", email: body.email ?? "test@example.com", mobile: body.mobile ?? "6281234567890" },
-          description: body.description ?? "",
-          createdAt: new Date().toISOString(),
-          expiredAt: body.expiredAt ?? new Date(Date.now() + 86400000).toISOString(),
-        };
-        invoices.set(invoiceId, invoice);
-
-        const { body: respBody, status, headers } = jsonResponse({ statusCode: 200, message: "OK", data: [invoice] });
-        res.writeHead(status, headers);
-        res.end(respBody);
-        return;
-      }
-    }
+    if (await handleCreateOverride(req, res, body)) return;
 
     // Default happy-path behavior
-    const items = body.items || [];
-    const amount =
-      body.amount ??
-      items.reduce((sum, i) => sum + (i.rate ?? 0), 0);
-
-    const explicitId = resolveInvoiceId(body);
-    const invoiceId = explicitId ?? generateId("mayar_inv");
-    const transactionId =
-      body.transactionId ?? generateId("mayar_txn");
-
-    const invoice = {
-      id: invoiceId,
-      transactionId,
-      link: `https://checkout.mayar.test/pay/${invoiceId}`,
-      paymentUrl: `https://checkout.mayar.test/pay/${invoiceId}`,
-      amount,
-      status: body.status || defaultStatus,
-      customerId: "fake_customer_001",
-      customer: {
-        id: "fake_customer_001",
-        name: body.name ?? "Test Customer",
-        email: body.email ?? "test@example.com",
-        mobile: body.mobile ?? "6281234567890",
-      },
-      description: body.description ?? "",
-      createdAt: new Date().toISOString(),
-      expiredAt:
-        body.expiredAt ??
-        new Date(Date.now() + 86400000).toISOString(),
-    };
-
-    invoices.set(invoiceId, invoice);
+    const invoice = buildInvoiceFromBody(body);
+    invoices.set(invoice.id, invoice);
 
     const { body: respBody, status, headers } = jsonResponse({
       statusCode: 200,

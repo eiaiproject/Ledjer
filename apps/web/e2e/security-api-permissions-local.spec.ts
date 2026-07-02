@@ -173,7 +173,7 @@ async function createProductAsServiceRole(
   });
   expect(res.ok).toBe(true);
   const rows = (await res.json()) as ProductRow[];
-  expect(rows.length).toBe(1);
+  expect(rows).toHaveLength(1);
   return rows[0];
 }
 
@@ -267,7 +267,7 @@ async function getMember(
   );
   expect(res.ok).toBe(true);
   const rows = (await res.json()) as MemberRow[];
-  expect(rows.length).toBe(1);
+  expect(rows).toHaveLength(1);
   return rows[0];
 }
 
@@ -610,7 +610,7 @@ test.describe("Security: API permissions", () => {
       await expectRpcForbidden(res);
 
       const after = await getInvitationsAsOwner(ownerToken, orgId);
-      expect(after.length).toBe(before.length);
+      expect(after).toHaveLength(before.length);
       expect(after.some((row) => row.email === inviteEmail)).toBe(false);
     });
 
