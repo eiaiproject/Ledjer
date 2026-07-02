@@ -16,6 +16,19 @@ const PLAN_LABELS: Record<PaidPlan, string> = {
 
 const PENDING_EXPIRY_HOURS = 24;
 
+// ─── Security constants ─────────────────────────────────────────────────
+const MAX_BODY_SIZE = 8 * 1024; // 8 KB — generous for checkout payload
+const MAYAR_FETCH_TIMEOUT_MS = 15_000;
+
+/** Allowed hosts for Mayar checkout redirect URLs. Only HTTPS is accepted. */
+const ALLOWED_CHECKOUT_HOSTS = new Set([
+  "checkout.mayar.club",   // sandbox
+  "checkout.mayar.id",     // production
+  "web.mayar.club",        // sandbox fallback
+  "web.mayar.id",          // production fallback
+  "checkout.mayar.test",   // E2E testing only (IANA-reserved .test TLD)
+]);
+
 function isPaidPlan(value: unknown): value is PaidPlan {
   return value === "solo" || value === "business";
 }
@@ -24,27 +37,49 @@ function isBillingPeriod(value: unknown): value is BillingPeriod {
   return value === "monthly" || value === "yearly";
 }
 
+/**
+ * Validate a checkout URL returned by the payment provider.
+ * Only HTTPS URLs from known Mayar hosts are accepted.
+ * Rejects javascript:, protocol-relative, data:, and off-domain URLs.
+ */
+function validateCheckoutUrl(url: string): { ok: boolean; error?: string } {
+  if (!url || typeof url !== "string") {
+    return { ok: false, error: "Checkout URL is empty" };
+  }
+
+  // Reject protocol-relative, javascript:, data: schemes
+  if (url.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    const lower = url.toLowerCase();
+    if (!lower.startsWith("https://")) {
+      return { ok: false, error: "Checkout URL must use HTTPS" };
+    }
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { ok: false, error: "Checkout URL is malformed" };
+  }
+
+  if (parsed.protocol !== "https:") {
+    return { ok: false, error: "Checkout URL must use HTTPS" };
+  }
+
+  if (!ALLOWED_CHECKOUT_HOSTS.has(parsed.hostname)) {
+    return { ok: false, error: "Checkout URL host not allowed" };
+  }
+
+  return { ok: true };
+}
+
 // ─── Indonesian phone number normalization ──────────────────────────────
-//
-// Accepts:
-//   081234567890      -> 6281234567890
-//   +6281234567890    -> 6281234567890
-//   6281234567890     -> 6281234567890
-//   08-1234-5678-90   -> 6281234567890
-//   0812-3456-7890    -> 6281234567890
-//   0812345678        -> error (too short — must be 10+ digits after normalization)
-//   08123456789012345 -> error (too long)
-//   abcdef            -> error (no digits)
-//
 function normalizeMobile(value: unknown): string {
   const raw = String(value ?? "").trim();
-  // Strip everything except digits and leading +
   const cleaned = raw.replace(/[^\d+]/g, "");
-  // Remove leading +
   const withPlus = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
   const digits = withPlus.replace(/\D/g, "");
 
-  // Minimum valid Indonesian mobile number: 10 digits after normalization
   if (digits.length < 10) {
     if (digits.length === 0) {
       throw new Error("Nomor WhatsApp harus diisi.");
@@ -52,7 +87,6 @@ function normalizeMobile(value: unknown): string {
     throw new Error("Nomor WhatsApp minimal 10 digit setelah kode negara.");
   }
 
-  // Compute the normalized form to check final length
   let normalized: string;
   if (digits.startsWith("0")) {
     normalized = "62" + digits.slice(1);
@@ -62,7 +96,6 @@ function normalizeMobile(value: unknown): string {
     normalized = "62" + digits;
   }
 
-  // Maximum reasonable length (country code + subscriber: 62 + max 13 = 15)
   if (normalized.length > 15) {
     throw new Error("Nomor WhatsApp terlalu panjang.");
   }
@@ -79,6 +112,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ── Body size limit ──────────────────────────────────────────────────
+    const contentLength = Number(req.headers.get("content-length") ?? 0);
+    if (contentLength > MAX_BODY_SIZE) {
+      return jsonResponse({ error: "Request body too large" }, 413);
+    }
+
     const supabaseUrl = requireEnv("SUPABASE_URL");
     const anonKey = requireEnv("SUPABASE_ANON_KEY");
     const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -137,7 +176,7 @@ Deno.serve(async (req) => {
       .eq("status", "active")
       .maybeSingle();
     if (memberError) {
-      console.error("Member lookup error:", memberError);
+      console.error("[checkout] member_lookup_error");
       return jsonResponse({ error: "Terjadi kesalahan." }, 500);
     }
     if (member?.role !== "owner") {
@@ -150,7 +189,7 @@ Deno.serve(async (req) => {
       .eq("id", organizationId)
       .single();
     if (orgError) {
-      console.error("Organization lookup error:", orgError);
+      console.error("[checkout] org_lookup_error");
       return jsonResponse({ error: "Organisasi tidak ditemukan." }, 404);
     }
 
@@ -159,18 +198,13 @@ Deno.serve(async (req) => {
     const expiresAt = new Date(now.getTime() + PENDING_EXPIRY_HOURS * 60 * 60 * 1000);
 
     // ── Cancel existing pending sessions ────────────────────────────────────
-    // Before creating a new checkout, cancel ALL pending sessions for this org
-    // regardless of plan/period. This ensures only one active pending session
-    // per organization at a time, and prevents unique constraint violations
-    // when the user switches plans or billing periods.
-    // Old sessions remain in the database with status='canceled' for audit.
     const { error: cancelError } = await admin
       .from("billing_checkout_sessions")
       .update({ status: "canceled", updated_at: new Date().toISOString() })
       .eq("organization_id", organizationId)
       .eq("status", "pending");
     if (cancelError) {
-      console.error("Failed to cancel existing pending sessions:", cancelError);
+      console.error("[checkout] cancel_pending_error");
       // Non-fatal — proceed to create new session
     }
 
@@ -197,7 +231,7 @@ Deno.serve(async (req) => {
       .select("id")
       .single();
     if (sessionError) {
-      console.error("Session creation error:", sessionError);
+      console.error("[checkout] session_create_error");
       return jsonResponse({ error: "Gagal membuat sesi checkout." }, 500);
     }
 
@@ -234,18 +268,25 @@ Deno.serve(async (req) => {
     let mayarResponse: Response;
     let mayarJson: Record<string, unknown>;
     try {
-      mayarResponse = await fetch(`${mayarBaseUrl()}/hl/v1/invoice/create`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${mayarApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(invoicePayload),
-      });
-      mayarJson = await mayarResponse.json().catch(() => ({}));
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), MAYAR_FETCH_TIMEOUT_MS);
+      try {
+        mayarResponse = await fetch(`${mayarBaseUrl()}/hl/v1/invoice/create`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${mayarApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(invoicePayload),
+          signal: controller.signal,
+        });
+        mayarJson = await mayarResponse.json().catch(() => ({}));
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (fetchError) {
-      console.error("Mayar API create invoice fetch error:", fetchError);
-      // Mark session as failed without leaking Mayar error details
+      const isAbort = fetchError instanceof DOMException && fetchError.name === "AbortError";
+      console.error(`[checkout] provider_fetch_${isAbort ? "timeout" : "error"}`);
       await admin
         .from("billing_checkout_sessions")
         .update({
@@ -259,12 +300,11 @@ Deno.serve(async (req) => {
     if (!mayarResponse.ok) {
       const statusCode = Number(mayarJson.statusCode ?? mayarResponse.status);
       if (statusCode >= 400) {
-        console.error(`Mayar invoice creation failed: status=${mayarResponse.status} body=${JSON.stringify(mayarJson)}`);
+        console.error(`[checkout] provider_error status=${mayarResponse.status}`);
         await admin
           .from("billing_checkout_sessions")
           .update({
             status: "failed",
-            provider_response: mayarJson,
             updated_at: new Date().toISOString(),
           })
           .eq("id", checkoutSession.id);
@@ -274,17 +314,31 @@ Deno.serve(async (req) => {
 
     const invoice = Array.isArray(mayarJson.data) ? mayarJson.data[0] : mayarJson.data;
     const checkoutUrl = invoice?.link || invoice?.paymentUrl;
+
     if (!checkoutUrl) {
-      console.error("Mayar returned no checkout URL in response:", JSON.stringify(mayarJson));
+      console.error("[checkout] provider_no_checkout_url");
       await admin
         .from("billing_checkout_sessions")
         .update({
           status: "failed",
-          provider_response: mayarJson,
           updated_at: new Date().toISOString(),
         })
         .eq("id", checkoutSession.id);
       return jsonResponse({ error: "Gagal mendapatkan link pembayaran." }, 502);
+    }
+
+    // ── Validate checkout URL (security: only allow known Mayar HTTPS hosts) ──
+    const urlCheck = validateCheckoutUrl(checkoutUrl);
+    if (!urlCheck.ok) {
+      console.error(`[checkout] invalid_checkout_url: ${urlCheck.error}`);
+      await admin
+        .from("billing_checkout_sessions")
+        .update({
+          status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", checkoutSession.id);
+      return jsonResponse({ error: "Link pembayaran tidak valid." }, 502);
     }
 
     await admin
@@ -321,7 +375,7 @@ Deno.serve(async (req) => {
       transactionId: invoice.transactionId ?? null,
     });
   } catch (error) {
-    console.error("Checkout creation error:", error);
+    console.error("[checkout] internal_error");
     return jsonResponse({ error: "Terjadi kesalahan internal." }, 500);
   }
 });

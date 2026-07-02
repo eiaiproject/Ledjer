@@ -1,40 +1,24 @@
 name: Generate visual baselines
 
-# Manual workflow to (re)generate committed Linux Chromium baselines for
-# apps/web/e2e/visual.spec.ts. Triggers ONLY via workflow_dispatch.
-#
-# Output: PNG files under apps/web/e2e/visual.spec.ts-snapshots/.
-# Commit those files in a follow-up PR.
-#
-# To run locally:
-#   pnpm --filter web exec playwright test e2e/visual.spec.ts \
-#     --project=chromium --update-snapshots
-
 on:
   workflow_dispatch:
-    inputs:
-      reason:
-        description: "Why are you regenerating baselines?"
-        required: true
-        type: string
 
-concurrency:
-  group: visual-baselines-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write  # needed to commit snapshot updates
 
 jobs:
-  generate-linux:
-    name: Generate Linux Chromium baselines
+  visual-baselines:
+    name: "Generate visual baselines (Linux Chromium)"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 24
           cache: pnpm
@@ -46,7 +30,7 @@ jobs:
         run: pnpm --filter web exec playwright install chromium --with-deps
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v2
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2
         with:
           version: 2.107.0
           github-token: ${{ github.token }}
@@ -58,29 +42,31 @@ jobs:
         run: supabase db reset --workdir . --no-seed
 
       - name: Capture Supabase keys
-        env:
-          # Echo the reason for audit trail.
-          BASELINE_REASON: ${{ inputs.reason }}
-        run: |
-          echo "Baseline regeneration reason: $BASELINE_REASON" >> "$GITHUB_STEP_SUMMARY"
-          supabase status --workdir . --output env > /tmp/supabase.env
+        run: supabase status --workdir . --output env > /tmp/supabase.env
 
       - name: Export Supabase keys
         run: |
           set -euo pipefail
           source /tmp/supabase.env
-          if [ -z "${ANON_KEY:-}" ]; then
-            echo '::error::ANON_KEY empty — cannot run visual baseline generation'
+
+          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
+          supabase_anon_key="${ANON_KEY:-}"
+          supabase_service_role_key="${SERVICE_ROLE_KEY:-}"
+
+          if [ -z "$supabase_anon_key" ]; then
+            echo '::error::ANON_KEY empty — cannot run visual tests'
             exit 1
           fi
-          echo "::add-mask::$ANON_KEY"
-          echo "::add-mask::${SERVICE_ROLE_KEY:-}"
+
+          echo "::add-mask::$supabase_anon_key"
+          echo "::add-mask::$supabase_service_role_key"
+
           {
-            echo "SUPABASE_URL=${API_URL:-http://localhost:54321}"
-            echo "SUPABASE_ANON_KEY=$ANON_KEY"
-            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-}"
-            echo "VITE_SUPABASE_URL=http://localhost:54321"
-            echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_URL=$supabase_url"
+            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_service_role_key"
+            echo "VITE_SUPABASE_URL=$supabase_url"
+            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
           } >> "$GITHUB_ENV"
 
       - name: Build app
@@ -90,7 +76,7 @@ jobs:
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
-      - name: Generate Linux Chromium baselines
+      - name: Run visual regression tests (update baselines)
         env:
           E2E_MODE: full-local
           E2E_VISUAL: "1"
@@ -98,16 +84,16 @@ jobs:
           E2E_SUPABASE_URL: http://localhost:54321
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          pnpm --filter web exec playwright test e2e/visual.spec.ts \
-            --project=chromium --update-snapshots
+          CI: true
+        run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
 
-      - name: Upload generated baselines
-        uses: actions/upload-artifact@v6
-        with:
-          name: visual-baselines-linux
-          path: apps/web/e2e/visual.spec.ts-snapshots/*.png
-          retention-days: 14
+      - name: Commit updated baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/web/e2e/visual-snapshots/
+          git diff --cached --quiet || git commit -m "chore: update visual baselines [skip ci]"
+          git push
 
       - name: Stop Supabase
         if: always()

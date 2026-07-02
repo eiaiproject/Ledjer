@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # ─── Job A: Frontend Quality ────────────────────────────────
   frontend:
@@ -42,6 +45,9 @@ jobs:
 
       - name: Production build
         run: pnpm --filter web build
+
+      - name: Scan build output for leaked secrets
+        run: bash scripts/check-build-secrets.sh
 
   # ─── Job B: Database Types Guard (canonical-file sanity only) ────────────
   # This job is a FAST CANONICAL-FILE SANITY CHECK, not a live drift check.

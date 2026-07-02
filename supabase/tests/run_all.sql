@@ -63,6 +63,9 @@
 \echo '=== post_transaction_security_tests.sql ==='
 \i supabase/tests/post_transaction_security_tests.sql
 
+\echo '=== account_code_generation_tests.sql ==='
+\i supabase/tests/account_code_generation_tests.sql
+
 -- ═══════════════════════════════════════════════════════════════════
 -- FINAL REVOKE: Ensure no _test_* functions leak to anon/authenticated.
 -- Test files may CREATE functions after _test_helpers.sql revocation.

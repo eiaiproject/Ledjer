@@ -44,6 +44,8 @@ function uniqueMayarIds(testInfo: TestInfo, prefix = "paid") {
 }
 
 async function createCheckoutSession(orgId: string, invoiceId: string, transactionId: string, overrides: Record<string, unknown> = {}) {
+  await deleteCheckoutSessions(orgId);
+
   const res = await fetch(`${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions`, {
     method: "POST",
     headers: { ...SR_HEADERS, Prefer: "return=representation" },
@@ -80,6 +82,13 @@ async function getSession(id: string) {
   if (!res.ok) return null;
   const data = await res.json();
   return Array.isArray(data) ? data[0] : data;
+}
+
+async function deleteCheckoutSessions(orgId: string) {
+  await fetch(
+    `${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions?organization_id=eq.${orgId}&status=eq.pending`,
+    { method: "DELETE", headers: SR_HEADERS },
+  ).catch(() => {});
 }
 
 async function getOrganization(orgId: string) {
