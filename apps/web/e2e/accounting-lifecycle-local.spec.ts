@@ -19,6 +19,14 @@ function userHeaders(token: string) {
   };
 }
 
+function serviceHeaders() {
+  return {
+    apikey: E2E.serviceRoleKey,
+    Authorization: `Bearer ${E2E.serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+}
+
 async function rpc(
   token: string,
   fn: string,
@@ -143,7 +151,7 @@ test.describe("Accounting: Full lifecycle", () => {
         {
           method: "POST",
           headers: {
-            ...userHeaders(ownerToken),
+            ...serviceHeaders(),
             Prefer: "return=representation",
           },
           body: JSON.stringify({
@@ -192,7 +200,7 @@ test.describe("Accounting: Full lifecycle", () => {
         {
           method: "POST",
           headers: {
-            ...userHeaders(ownerToken),
+            ...serviceHeaders(),
             Prefer: "return=representation",
           },
           body: JSON.stringify({
@@ -241,7 +249,7 @@ test.describe("Accounting: Full lifecycle", () => {
         {
           method: "POST",
           headers: {
-            ...userHeaders(ownerToken),
+            ...serviceHeaders(),
             Prefer: "return=representation",
           },
           body: JSON.stringify({
@@ -290,7 +298,7 @@ test.describe("Accounting: Full lifecycle", () => {
         {
           method: "POST",
           headers: {
-            ...userHeaders(ownerToken),
+            ...serviceHeaders(),
             Prefer: "return=representation",
           },
           body: JSON.stringify({
