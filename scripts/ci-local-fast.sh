@@ -62,6 +62,12 @@ pnpm --filter web build 2>&1 | tail -10
 echo "✅  Build OK"
 pass
 
+# ── 5b. Build secrets scan ────────────────────────────────────────────────
+section "5b/7  Build secrets scan"
+bash scripts/check-build-secrets.sh 2>&1 | tail -5
+echo "✅  Build secrets OK"
+pass
+
 # ── 6. Database types & migration guards ───────────────────────────────────
 section "6/7  Database types sanity check"
 pnpm db-types:check 2>&1 | tail -5

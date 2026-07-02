@@ -13,13 +13,18 @@ const ERROR_MAP: Record<string, string> = {
 };
 
 const AUTH_MESSAGES: Record<string, string> = {
+  // Keys are matched against both error.message (substring) and error.code (exact).
+  // Keys with underscores match code values; keys with spaces match message substrings.
   JWT_INVALID: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
   JWT_EXPIRED: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
   invalid_credentials: 'Email atau password salah.',
+  'Invalid login credentials': 'Email atau password salah.',
   // PHASE 8 FIX: Generic message prevents user enumeration
   user_not_found: 'Email atau password salah.',
+  'User not found': 'Email atau password salah.',
   weak_password: 'Password terlalu lemah. Gunakan minimal 8 karakter.',
   email_not_confirmed: 'Silakan verifikasi email Anda terlebih dahulu.',
+  'Email not confirmed': 'Silakan verifikasi email Anda terlebih dahulu.',
   token_expired: 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
   'Token has expired': 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
   'Invalid grant': 'Kode verifikasi tidak valid. Silakan coba lagi.',
@@ -42,6 +47,9 @@ export function translateError(error: unknown): string {
     }
 
     if (code && ERROR_MAP[code]) return ERROR_MAP[code];
+
+    // Also check code against AUTH_MESSAGES (Supabase auth uses codes like "invalid_credentials")
+    if (code && AUTH_MESSAGES[code]) return AUTH_MESSAGES[code];
 
     // Supabase Auth errors come as plain objects {message: '...'} without error codes
     if (message) {
@@ -66,6 +74,9 @@ export function translateError(error: unknown): string {
     for (const [c, msg] of Object.entries(ERROR_MAP)) {
       if (message.includes(c)) return msg;
     }
+
+    // Also check code against AUTH_MESSAGES
+    if (code && AUTH_MESSAGES[code]) return AUTH_MESSAGES[code];
 
     // Auth errors
     for (const [key, msg] of Object.entries(AUTH_MESSAGES)) {

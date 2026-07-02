@@ -38,12 +38,13 @@ test.describe("Accounts page", () => {
   });
 
   test("add account button is visible", async ({ page }) => {
-    const addBtn = page.getByRole("button", { name: /tambah|add|buat/i });
-    await expect(addBtn).toBeVisible({ timeout: 5_000 });
+    await page.waitForLoadState("networkidle");
+    const addBtn = page.getByRole("button", { name: /^tambah kas\/bank$/i });
+    await expect(addBtn).toBeVisible({ timeout: 10_000 });
   });
 
   test("account form has required fields", async ({ page }) => {
-    const addBtn = page.getByRole("button", { name: /tambah|add|buat/i }).first();
+    const addBtn = page.getByRole("button", { name: /^tambah kas\/bank$/i });
     await expect(addBtn).toBeVisible({ timeout: 5_000 });
 
     await addBtn.click();

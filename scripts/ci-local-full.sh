@@ -30,6 +30,10 @@ pass()  { PASS=$((PASS + 1)); }
 fail()  { FAIL=$((FAIL + 1)); }
 
 # ── Unified cleanup (runs on EXIT, not overwritten) ────────────────────────
+# Track the Edge Function env file we create so we always remove it.
+FUNC_ENV_FILE="$ROOT/supabase/functions/.env"
+FUNC_ENV_EXISTED_BEFORE=false
+[[ -f "$FUNC_ENV_FILE" ]] && FUNC_ENV_EXISTED_BEFORE=true
 cleanup() {
   local ec=$?
   echo ""
@@ -38,11 +42,17 @@ cleanup() {
   if command -v supabase >/dev/null 2>&1; then
     supabase stop --workdir "$ROOT" --no-backup 2>/dev/null || true
   fi
-  for f in "${TMPFILES[@]}"; do
+  # Remove generated Edge Function env file only if we created it
+  if [[ -f "$FUNC_ENV_FILE" && "$FUNC_ENV_EXISTED_BEFORE" == "false" ]]; then
+    rm -f "$FUNC_ENV_FILE"
+    echo "  Removed $FUNC_ENV_FILE"
+  fi
+  for f in ${TMPFILES[@]+"${TMPFILES[@]}"}; do
     rm -f "$f" 2>/dev/null || true
   done
   echo "── Cleanup done ─────────────────────────────────────────"
   [[ $ec -ne 0 ]] && echo "⚠️  Script exited with code $ec"
+  return "$ec"
 }
 trap cleanup EXIT
 
@@ -88,6 +98,20 @@ pass
 section "2c/8  Vitest unit tests"
 pnpm --filter web test 2>&1 | tail -15
 echo "✅  Unit tests OK"
+pass
+
+# ── 2d. Pre-create Edge Function env (must exist BEFORE supabase start) ────
+section "2d/8  Edge Function env"
+mkdir -p "$ROOT/supabase/functions"
+cat > "$ROOT/supabase/functions/.env" << 'FUNCEOF'
+MAYAR_ENV=sandbox
+MAYAR_API_KEY=test_mayar_key
+MAYAR_WEBHOOK_TOKEN=test_webhook_token
+# Edge Runtime runs inside Docker — use container hostname, not 127.0.0.1
+MAYAR_API_BASE_URL=http://fake-mayar:4567
+APP_URL=http://localhost:4173
+FUNCEOF
+echo "✅  Edge Function env written (MAYAR_API_BASE_URL=http://fake-mayar:4567)"
 pass
 
 # ── 3. Start local Supabase stack ───────────────────────────────────────────
@@ -140,7 +164,7 @@ else
       -v "$ROOT/scripts/fake-mayar-server.mjs:/app/server.mjs:ro" \
       node:22-alpine \
       node /app/server.mjs
-    echo "  Fake Mayar: http://fake-mayar:4567 (Docker) / http://127.0.0.1:4567 (host)"
+    echo "  Fake Mayar: http://127.0.0.1:4567 (host)"
     # Wait for it
     for i in 1 2 3 4 5; do
       if curl -s http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
@@ -153,16 +177,8 @@ else
     echo "  ⚠️  No supabase network found — billing E2E may fail"
   fi
 
-  # ── Inject Mayar secrets into Edge Runtime ────────────────────────────
-  mkdir -p "$ROOT/supabase/functions"
-  cat > "$ROOT/supabase/functions/.env" << 'FUNCEOF'
-MAYAR_ENV=sandbox
-MAYAR_API_KEY=test_mayar_key
-MAYAR_WEBHOOK_TOKEN=test_webhook_token
-MAYAR_API_BASE_URL=http://fake-mayar:4567
-APP_URL=http://localhost:4173
-FUNCEOF
-  echo "  Mayar secrets written to supabase/functions/.env"
+  # ── Edge Function env already created in step 2d ───────────────────────
+  echo "  Edge Function env: MAYAR_API_BASE_URL=http://fake-mayar:4567"
 
   # ── Build app with valid local Supabase config ─────────────────────────
   VITE_SUPABASE_URL="$SUPABASE_URL" \
@@ -186,9 +202,13 @@ FUNCEOF
 
   echo "✅  Chromium E2E passed"
   pass
-fi
+fi  # ── 7b. Build secrets scan ───────────────────────────────────────────────
+  section "7b/8  Build secrets scan"
+  bash scripts/check-build-secrets.sh 2>&1 | tail -5
+  echo "✅  Build secrets scan OK"
+  pass
 
-# ── 8. Migration guards ─────────────────────────────────────────────────────
+  # ── 8. Migration guards ─────────────────────────────────────────────────────
 section "8/8  Migration guards"
 
 bash scripts/check-migration-naming.sh

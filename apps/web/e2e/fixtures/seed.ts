@@ -58,9 +58,28 @@ export async function ensureTestUser(user: TestUser): Promise<string> {
     const listData = await listRes.json();
     const users = listData.users ?? [];
     const existing = users.find(
-      (u: { email: string }) => u.email === user.email,
+      (u: { id: string; email: string }) => u.email === user.email,
     );
-    if (existing) return existing.id;
+    if (existing) {
+      const updateRes = await fetch(
+        `${E2E.supabaseUrl}/auth/v1/admin/users/${existing.id}`,
+        {
+          method: "PUT",
+          headers: SR_HEADERS,
+          body: JSON.stringify({
+            password: user.password,
+            email_confirm: true,
+            user_metadata: { full_name: user.fullName },
+          }),
+        },
+      );
+      if (!updateRes.ok) {
+        throw new Error(
+          `Failed to reset test user ${user.email}: ${updateRes.status} ${await updateRes.text()}`,
+        );
+      }
+      return existing.id;
+    }
     if (users.length < PER_PAGE) break; // last page
   }
   throw new Error(`User ${user.email} reported as duplicate but not found via admin API.`);

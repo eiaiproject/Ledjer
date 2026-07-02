@@ -51,7 +51,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
         inputs: false,
         outputs: false,
       },
-      stackFrameVariables: true,
+      stackFrameVariables: false,
       frameContextLines: 3,
     },
 
@@ -80,6 +80,36 @@ if (import.meta.env.VITE_SENTRY_DSN) {
         }
       }
       return event;
+    },
+
+    // Scrub sensitive data from breadcrumbs (defense-in-depth)
+    beforeBreadcrumb(breadcrumb) {
+      // Scrub auth headers from HTTP breadcrumbs
+      const sensitiveKeys = new Set([
+        'authorization',
+        'cookie',
+        'set-cookie',
+        'x-auth-token',
+        'api-key',
+      ]);
+      if (breadcrumb.data?.headers) {
+        const headers = breadcrumb.data.headers as Record<string, string>;
+        for (const key of Object.keys(headers)) {
+          if (sensitiveKeys.has(key.toLowerCase())) {
+            headers[key] = '[scrubbed]';
+          }
+        }
+      }
+      // Strip query params from breadcrumb URLs
+      if (breadcrumb.data?.url) {
+        try {
+          const url = new URL(breadcrumb.data.url);
+          url.search = '';
+          url.hash = '';
+          breadcrumb.data.url = url.toString();
+        } catch { /* ignore */ }
+      }
+      return breadcrumb;
     },
   })
 }

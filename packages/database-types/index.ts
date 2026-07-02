@@ -1401,6 +1401,10 @@ export type Database = {
         Args: { p_new_plan: string; p_organization_id: string }
         Returns: Json
       }
+      check_export_permission: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
       check_rate_limit: {
         Args: {
           p_action: string
@@ -1964,3 +1968,4 @@ export const Constants = {
     },
   },
 } as const
+

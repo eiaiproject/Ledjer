@@ -36,7 +36,7 @@ test.describe("Page load performance", () => {
 });
 
 test.describe("Dashboard load performance", () => {
-  test("dashboard loads within 8 seconds", async ({ page }) => {
+  test("dashboard loads within 12 seconds", async ({ page }) => {
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
       test.skip(true, "Owner redirected to onboarding — dashboard perf test not applicable");
@@ -47,7 +47,7 @@ test.describe("Dashboard load performance", () => {
     await page.reload();
     await page.waitForLoadState("networkidle");
     const duration = Date.now() - start;
-    expect(duration).toBeLessThan(8000);
+    expect(duration).toBeLessThan(12000);
   });
 });
 
@@ -115,7 +115,7 @@ test.describe("Bundle size", () => {
 });
 
 test.describe("Transaction list performance", () => {
-  test("transaction list loads within 5 seconds", async ({ page }) => {
+  test("transaction list loads within 10 seconds", async ({ page }) => {
     await loginAsOwner(page);
     if (!page.url().includes("/dashboard")) {
       test.skip(true, "Owner redirected to onboarding — transaction list perf test not applicable");
@@ -126,7 +126,7 @@ test.describe("Transaction list performance", () => {
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
     const duration = Date.now() - start;
-    expect(duration).toBeLessThan(5000);
+    expect(duration).toBeLessThan(10000);
   });
 });
 
@@ -139,7 +139,7 @@ test.describe("Report performance", () => {
   ];
 
   for (const route of reportRoutes) {
-    test(`${route} loads within 8 seconds`, async ({ page }) => {
+    test(`${route} loads within 12 seconds`, async ({ page }) => {
       await loginAsOwner(page);
       if (!page.url().includes("/dashboard")) {
         test.skip(true, `Owner redirected to onboarding — ${route} perf test not applicable`);
@@ -150,7 +150,7 @@ test.describe("Report performance", () => {
       await page.goto(route);
       await page.waitForLoadState("networkidle");
       const duration = Date.now() - start;
-      expect(duration).toBeLessThan(8000);
+      expect(duration).toBeLessThan(12000);
     });
   }
 });

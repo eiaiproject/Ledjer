@@ -21,12 +21,15 @@
 #   - __MACOSX, .DS_Store
 #   - supabase/.temp, supabase/.branches
 #   - *.log
+#   - test-results, playwright-report, coverage
+#   - *.pem, *.key (private key files)
+#   - sourcemaps (*.map files outside of dist)
 # =============================================================================
 
 set -euo pipefail
 
 # Build the forbidden regex. Allow .env.example explicitly.
-FORBIDDEN_REGEX='(^|/)(\.git|node_modules|dist|__MACOSX|\.DS_Store|\.temp|\.branches)(/|$)|(^|/)\.env(\.local)?(\.[^/]+)?(/|$)'
+FORBIDDEN_REGEX='(^|/)(\.git|node_modules|dist|__MACOSX|\.DS_Store|\.temp|\.branches|test-results|playwright-report|coverage)(/|$)|(^|/)test-results(/|$)|(^|/)playwright-report(/|$)|(^|/)coverage(/|$)|(^|/)\\.env(\\.local)?(\\.[^/]+)?(/|$)'
 
 fail=0
 

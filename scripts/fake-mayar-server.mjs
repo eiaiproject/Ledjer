@@ -30,6 +30,12 @@ const defaultStatus = process.env.FAKE_MAYAR_STATUS || "paid";
 // In-memory store of created invoices (keyed by ID)
 const invoices = new Map();
 
+// Per-test scenario overrides (set via POST /__control, reset via POST /__reset)
+let control = {
+  nextCreate: null, // { delayMs?, status?, checkoutUrl?, malformedJson? }
+  nextVerify: null,  // { delayMs?, status?, malformedJson? }
+};
+
 function jsonResponse(body, status = 200) {
   return {
     body: JSON.stringify(body),
@@ -69,6 +75,71 @@ function readBody(req) {
   });
 }
 
+/** Build a default Mayar invoice from the create-request body. */
+function buildInvoiceFromBody(body, linkBase) {
+  const items = body.items || [];
+  const amount = body.amount ?? items.reduce((sum, i) => sum + (i.rate ?? 0), 0);
+  const invoiceId = resolveInvoiceId(body) ?? generateId("mayar_inv");
+  const transactionId = body.transactionId ?? generateId("mayar_txn");
+  return {
+    id: invoiceId,
+    transactionId,
+    link: linkBase || `https://checkout.mayar.test/pay/${invoiceId}`,
+    paymentUrl: linkBase || `https://checkout.mayar.test/pay/${invoiceId}`,
+    amount,
+    status: body.status || defaultStatus,
+    customerId: "fake_customer_001",
+    customer: {
+      id: "fake_customer_001",
+      name: body.name ?? "Test Customer",
+      email: body.email ?? "test@example.com",
+      mobile: body.mobile ?? "6281234567890",
+    },
+    description: body.description ?? "",
+    createdAt: new Date().toISOString(),
+    expiredAt: body.expiredAt ?? new Date(Date.now() + 86400000).toISOString(),
+  };
+}
+
+/** Handle the override branch of POST /hl/v1/invoice/create. */
+async function handleCreateOverride(req, res, body) {
+  const createOverride = control.nextCreate;
+  control.nextCreate = null;
+
+  if (!createOverride) return false;
+
+  if (createOverride.delayMs && createOverride.delayMs > 0) {
+    await new Promise((r) => setTimeout(r, createOverride.delayMs));
+  }
+  if (createOverride.malformedJson) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end("{not valid json");
+    return true;
+  }
+  if (createOverride.status && createOverride.status >= 400) {
+    const { body: respBody, status, headers } = jsonResponse(
+      createOverride.body || { statusCode: createOverride.status, message: "Simulated error" },
+      createOverride.status,
+    );
+    res.writeHead(status, headers);
+    res.end(respBody);
+    return true;
+  }
+  if (createOverride.checkoutUrl) {
+    const invoice = buildInvoiceFromBody(body, createOverride.checkoutUrl);
+    invoices.set(invoice.id, invoice);
+    const { body: respBody, status, headers } = jsonResponse({
+      statusCode: 200,
+      message: "OK",
+      data: [invoice],
+    });
+    res.writeHead(status, headers);
+    res.end(respBody);
+    return true;
+  }
+  return false;
+}
+
 const server = http.createServer(async (req, res) => {
   const host = req.headers.host || "localhost";
   const url = new URL(req.url, `http://${host}`);
@@ -86,41 +157,35 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /__control — set per-test scenario overrides ────────────────────
+  if (path === "/__control" && method === "POST") {
+    const body = await readBody(req);
+    if (body.nextCreate) control.nextCreate = body.nextCreate;
+    if (body.nextVerify) control.nextVerify = body.nextVerify;
+    const { body: respBody, status, headers } = jsonResponse({ ok: true, control });
+    res.writeHead(status, headers);
+    res.end(respBody);
+    return;
+  }
+
+  // ── POST /__reset — clear all scenario overrides ────────────────────────
+  if (path === "/__reset" && method === "POST") {
+    control = { nextCreate: null, nextVerify: null };
+    const { body: respBody, status, headers } = jsonResponse({ ok: true });
+    res.writeHead(status, headers);
+    res.end(respBody);
+    return;
+  }
+
   // ── POST /hl/v1/invoice/create ────────────────────────────────────────────
   if (path === "/hl/v1/invoice/create" && method === "POST") {
     const body = await readBody(req);
-    const items = body.items || [];
-    const amount =
-      body.amount ??
-      items.reduce((sum, i) => sum + (i.rate ?? 0), 0);
 
-    const explicitId = resolveInvoiceId(body);
-    const invoiceId = explicitId ?? generateId("mayar_inv");
-    const transactionId =
-      body.transactionId ?? generateId("mayar_txn");
+    if (await handleCreateOverride(req, res, body)) return;
 
-    const invoice = {
-      id: invoiceId,
-      transactionId,
-      link: `https://checkout.mayar.test/pay/${invoiceId}`,
-      paymentUrl: `https://checkout.mayar.test/pay/${invoiceId}`,
-      amount,
-      status: body.status || defaultStatus,
-      customerId: "fake_customer_001",
-      customer: {
-        id: "fake_customer_001",
-        name: body.name ?? "Test Customer",
-        email: body.email ?? "test@example.com",
-        mobile: body.mobile ?? "6281234567890",
-      },
-      description: body.description ?? "",
-      createdAt: new Date().toISOString(),
-      expiredAt:
-        body.expiredAt ??
-        new Date(Date.now() + 86400000).toISOString(),
-    };
-
-    invoices.set(invoiceId, invoice);
+    // Default happy-path behavior
+    const invoice = buildInvoiceFromBody(body);
+    invoices.set(invoice.id, invoice);
 
     const { body: respBody, status, headers } = jsonResponse({
       statusCode: 200,
@@ -135,6 +200,30 @@ const server = http.createServer(async (req, res) => {
   // ── GET /hl/v1/invoice/:invoiceId ─────────────────────────────────────────
   const invoiceMatch = /^\/hl\/v1\/invoice\/(.+)$/.exec(path);
   if (invoiceMatch && method === "GET") {
+    // Apply per-test override for verify endpoint
+    const verifyOverride = control.nextVerify;
+    control.nextVerify = null; // consume once
+
+    if (verifyOverride) {
+      if (verifyOverride.delayMs && verifyOverride.delayMs > 0) {
+        await new Promise((r) => setTimeout(r, verifyOverride.delayMs));
+      }
+      if (verifyOverride.malformedJson) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end("{not valid json");
+        return;
+      }
+      if (verifyOverride.status && verifyOverride.status >= 400) {
+        const { body: respBody, status, headers } = jsonResponse(
+          verifyOverride.body || { statusCode: verifyOverride.status, message: "Simulated verify error" },
+          verifyOverride.status,
+        );
+        res.writeHead(status, headers);
+        res.end(respBody);
+        return;
+      }
+    }
+
     const invoiceId = invoiceMatch[1];
     const invoice = invoices.get(invoiceId);
 
@@ -199,4 +288,6 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`  Available endpoints:`);
   console.log(`    POST http://0.0.0.0:${PORT}/hl/v1/invoice/create`);
   console.log(`    GET  http://0.0.0.0:${PORT}/hl/v1/invoice/:id`);
+  console.log(`    POST http://0.0.0.0:${PORT}/__control  (test scenario override)`);
+  console.log(`    POST http://0.0.0.0:${PORT}/__reset   (clear overrides)`);
 });

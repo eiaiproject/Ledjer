@@ -13,6 +13,10 @@ function constantTimeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
+// ─── Security constants ─────────────────────────────────────────────────
+const MAX_BODY_SIZE = 64 * 1024; // 64 KB — generous for webhook payloads
+const MAYAR_VERIFY_TIMEOUT_MS = 15_000;
+
 function addPeriod(start: Date, period: "monthly" | "yearly") {
   const end = new Date(start);
   if (period === "yearly") {
@@ -48,7 +52,6 @@ function paidStatus(value: unknown) {
 
 /**
  * Extract invoice status from Mayar's verify-invoice response.
- * Handles both `data.status` and nested structure.
  */
 function extractInvoiceStatus(verifyJson: Record<string, unknown>): string {
   const data = recordValue(verifyJson.data);
@@ -58,7 +61,6 @@ function extractInvoiceStatus(verifyJson: Record<string, unknown>): string {
 
 /**
  * Extract invoice amount from Mayar's verify-invoice response.
- * Handles both `data.amount` and nested structures.
  */
 function extractInvoiceAmount(verifyJson: Record<string, unknown>): number {
   const data = recordValue(verifyJson.data);
@@ -79,7 +81,7 @@ Deno.serve(async (req) => {
     // ── Step 1: Validate webhook token (mandatory, constant-time) ──────────
     const webhookToken = Deno.env.get("MAYAR_WEBHOOK_TOKEN");
     if (!webhookToken) {
-      console.error("MAYAR_WEBHOOK_TOKEN is not set — cannot process webhook.");
+      console.error("[webhook] MAYAR_WEBHOOK_TOKEN not configured");
       return jsonResponse({ error: "Server configuration error" }, 500);
     }
 
@@ -93,9 +95,18 @@ Deno.serve(async (req) => {
     }
 
     // ── Step 2: Parse payload (before loading non-token envs) ──────────────
-    // JSON parsing comes before env loading so malformed payloads get 400
-    // even if non-essential env vars are missing.
     const rawPayload = await req.text();
+
+    // Enforce size limit on actual body (defense-in-depth)
+    if (rawPayload.length > MAX_BODY_SIZE) {
+      return jsonResponse({ error: "Payload too large" }, 413);
+    }
+
+    // Enforce size limit on actual body (defense-in-depth, after reading)
+    if (rawPayload.length > MAX_BODY_SIZE) {
+      return jsonResponse({ error: "Payload too large" }, 413);
+    }
+
     let payload: Record<string, unknown>;
     try {
       payload = JSON.parse(rawPayload);
@@ -111,10 +122,10 @@ Deno.serve(async (req) => {
       nullableStringValue(data.productId) ??
       nullableStringValue(data.invoiceId);
 
-    console.log(`Webhook received: event=${event} transactionId=${transactionId} invoiceId=${invoiceId}`);
+    // Sanitized log: only event type and IDs, no PII or raw payload
+    console.log(`[webhook] event=${event} txn=${transactionId ?? "none"} inv=${invoiceId ?? "none"}`);
 
-    // ── Step 3: Load envs for further processing ───────────────────────────-
-    // These are required only after token + payload validation passes.
+    // ── Step 3: Load envs for further processing ────────────────────────────
     const supabaseUrl = requireEnv("SUPABASE_URL");
     const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
     const mayarApiKey = requireEnv("MAYAR_API_KEY");
@@ -130,7 +141,7 @@ Deno.serve(async (req) => {
         .eq("mayar_transaction_id", transactionId)
         .maybeSingle();
       if (result.error) {
-        console.error("Error looking up session by transactionId:", result.error);
+        console.error("[webhook] session_lookup_error txn");
         return jsonResponse({ error: "Internal error" }, 500);
       }
       session = result.data;
@@ -143,7 +154,7 @@ Deno.serve(async (req) => {
         .eq("mayar_invoice_id", invoiceId)
         .maybeSingle();
       if (result.error) {
-        console.error("Error looking up session by invoiceId:", result.error);
+        console.error("[webhook] session_lookup_error inv");
         return jsonResponse({ error: "Internal error" }, 500);
       }
       session = result.data;
@@ -151,7 +162,7 @@ Deno.serve(async (req) => {
 
     // ── Step 4: Unknown session — safely ignore ────────────────────────────
     if (!session) {
-      console.log(`Webhook ignored: no session found for transactionId=${transactionId} invoiceId=${invoiceId}`);
+      console.log(`[webhook] ignored: no session txn=${transactionId ?? "none"} inv=${invoiceId ?? "none"}`);
       return jsonResponse({ ok: true, ignored: true });
     }
 
@@ -164,7 +175,7 @@ Deno.serve(async (req) => {
     const sessionStatus = stringValue(session.status) || "pending";
     const sessionInvoiceId = nullableStringValue(session.mayar_invoice_id);
 
-    // ── Step 5: Log webhook received event ─────────────────────────────────
+    // ── Step 5: Log webhook received event (sanitized) ─────────────────────
     await admin.from("billing_events").insert({
       organization_id: orgId,
       actor_user_id: createdBy,
@@ -194,23 +205,30 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, pending: true });
     }
 
-    // ── Step 8: Verify invoice with Mayar API (don't trust webhook alone) ──
+    // ── Step 8: Verify invoice with Mayar API (with timeout) ──────────────
     let verifyResponse: Response;
     let verifyJson: Record<string, unknown>;
     try {
-      verifyResponse = await fetch(`${mayarBaseUrl()}/hl/v1/invoice/${sessionInvoiceId}`, {
-        headers: { Authorization: `Bearer ${mayarApiKey}` },
-      });
-      verifyJson = await verifyResponse.json().catch(() => ({}));
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), MAYAR_VERIFY_TIMEOUT_MS);
+      try {
+        verifyResponse = await fetch(`${mayarBaseUrl()}/hl/v1/invoice/${sessionInvoiceId}`, {
+          headers: { Authorization: `Bearer ${mayarApiKey}` },
+          signal: controller.signal,
+        });
+        verifyJson = await verifyResponse.json().catch(() => ({}));
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (fetchError) {
-      console.error("Mayar API fetch failed for invoice verification:", fetchError);
+      const isAbort = fetchError instanceof DOMException && fetchError.name === "AbortError";
+      console.error(`[webhook] provider_verify_${isAbort ? "timeout" : "error"}`);
       return jsonResponse({ error: "Internal error" }, 502);
     }
 
     // ── Step 9: Validate invoice status via Mayar API ──────────────────────
     if (!verifyResponse.ok) {
-      console.error(`Mayar invoice verification failed: status=${verifyResponse.status} invoiceId=${sessionInvoiceId}`);
-      // Mark session as potentially failed but don't change the org plan
+      console.error(`[webhook] verify_failed status=${verifyResponse.status} inv=${sessionInvoiceId}`);
       await admin
         .from("billing_checkout_sessions")
         .update({
@@ -226,7 +244,7 @@ Deno.serve(async (req) => {
     const verifiedAmount = extractInvoiceAmount(verifyJson);
 
     if (!paidStatus(verifiedStatus)) {
-      console.log(`Invoice ${sessionInvoiceId} status is ${verifiedStatus} — not upgrading plan`);
+      console.log(`[webhook] inv=${sessionInvoiceId} status=${verifiedStatus} — no upgrade`);
       await admin
         .from("billing_checkout_sessions")
         .update({
@@ -238,9 +256,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, paid: false, status: verifiedStatus });
     }
 
-    // ── Step 10: Validate amount matches — prevent partial/incorrect payment ──
+    // ── Step 10: Validate amount matches ──────────────────────────────────
     if (verifiedAmount < sessionAmount) {
-      console.error(`Amount mismatch: verified=${verifiedAmount} expected=${sessionAmount}`);
+      console.error(`[webhook] amount_mismatch verified=${verifiedAmount} expected=${sessionAmount}`);
       await admin
         .from("billing_checkout_sessions")
         .update({
@@ -254,8 +272,6 @@ Deno.serve(async (req) => {
     }
 
     // ── Step 11: Idempotent, race-safe finalization via RPC ────────────────
-    // Use conditional update semantics: only update if session is still pending.
-    // This prevents double-processing in case of parallel webhook deliveries.
     const periodStart = new Date();
     const periodEnd = addPeriod(periodStart, sessionBillingPeriod as "monthly" | "yearly");
     const providerTransactionId = transactionId ?? sessionInvoiceId;
@@ -263,7 +279,6 @@ Deno.serve(async (req) => {
     const verifyCustomer = recordValue(verifyData?.customer);
     const providerCustomerId = stringValue(verifyData?.customerId) || stringValue(verifyCustomer?.id);
 
-    // Atomic update: mark session as paid only if currently pending
     const { data: updatedSession, error: updateError } = await admin.rpc("finalize_mayar_payment", {
       p_session_id: sessionId,
       p_organization_id: orgId,
@@ -280,17 +295,14 @@ Deno.serve(async (req) => {
     }).maybeSingle();
 
     if (updateError) {
-      console.error("finalize_mayar_payment RPC error:", updateError);
+      console.error("[webhook] finalize_rpc_error");
       return jsonResponse({ error: "Internal error" }, 500);
     }
 
-    // If the RPC returned a result, it means payment was finalized successfully
     if (updatedSession) {
       return jsonResponse({ ok: true, paid: true, idempotent: false });
     }
 
-    // If no rows affected, either session was already paid or something else is wrong
-    // Check current session status
     const { data: currentSession } = await admin
       .from("billing_checkout_sessions")
       .select("status")
@@ -303,7 +315,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ ok: true, paid: false, reason: "finalization_failed" });
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    console.error("[webhook] internal_error", error instanceof Error ? error.message : error);
     return jsonResponse({ error: "Internal error" }, 500);
   }
 });
