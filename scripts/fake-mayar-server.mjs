@@ -36,13 +36,19 @@ let control = {
   nextVerify: null,  // { delayMs?, status?, malformedJson? }
 };
 
-function jsonResponse(body, status = 200) {
-  return {
-    body: JSON.stringify(body),
-    status,
-    headers: { "Content-Type": "application/json" },
-  };
+// ── Response helpers ──────────────────────────────────────────────────────
+
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(payload));
 }
+
+function sendMalformedJson(res) {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end("{not valid json");
+}
+
+// ── Invoice helpers ───────────────────────────────────────────────────────
 
 function generateId(prefix = "inv") {
   return `${prefix}_${Date.now()}_${randomUUID().slice(0, 8)}`;
@@ -101,159 +107,143 @@ function buildInvoiceFromBody(body, linkBase) {
   };
 }
 
-/** Handle the override branch of POST /hl/v1/invoice/create. */
-async function handleCreateOverride(req, res, body) {
-  const createOverride = control.nextCreate;
+// ── Override handlers ─────────────────────────────────────────────────────
+
+async function handleCreateOverride(res, body) {
+  const override = control.nextCreate;
   control.nextCreate = null;
 
-  if (!createOverride) return false;
+  if (!override) return false;
 
-  if (createOverride.delayMs && createOverride.delayMs > 0) {
-    await new Promise((r) => setTimeout(r, createOverride.delayMs));
+  if (override.delayMs && override.delayMs > 0) {
+    await new Promise((r) => setTimeout(r, override.delayMs));
   }
-  if (createOverride.malformedJson) {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end("{not valid json");
+
+  if (override.malformedJson) {
+    sendMalformedJson(res);
     return true;
   }
-  if (createOverride.status && createOverride.status >= 400) {
-    const { body: respBody, status, headers } = jsonResponse(
-      createOverride.body || { statusCode: createOverride.status, message: "Simulated error" },
-      createOverride.status,
-    );
-    res.writeHead(status, headers);
-    res.end(respBody);
+
+  if (override.status && override.status >= 400) {
+    sendJson(res, override.status, override.body || { statusCode: override.status, message: "Simulated error" });
     return true;
   }
-  if (createOverride.checkoutUrl) {
-    const invoice = buildInvoiceFromBody(body, createOverride.checkoutUrl);
+
+  if (override.checkoutUrl) {
+    const invoice = buildInvoiceFromBody(body, override.checkoutUrl);
     invoices.set(invoice.id, invoice);
-    const { body: respBody, status, headers } = jsonResponse({
-      statusCode: 200,
-      message: "OK",
-      data: [invoice],
-    });
-    res.writeHead(status, headers);
-    res.end(respBody);
+    sendJson(res, 200, { statusCode: 200, message: "OK", data: [invoice] });
     return true;
   }
+
   return false;
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleVerifyOverride(res) {
+  const override = control.nextVerify;
+  control.nextVerify = null;
+
+  if (!override) return false;
+
+  if (override.delayMs && override.delayMs > 0) {
+    await new Promise((r) => setTimeout(r, override.delayMs));
+  }
+
+  if (override.malformedJson) {
+    sendMalformedJson(res);
+    return true;
+  }
+
+  if (override.status && override.status >= 400) {
+    sendJson(res, override.status, override.body || { statusCode: override.status, message: "Simulated verify error" });
+    return true;
+  }
+
+  return false;
+}
+
+// ── Route handlers ────────────────────────────────────────────────────────
+
+function handleHealth(res) {
+  sendJson(res, 200, { status: "ok", provider: "fake-mayar" });
+}
+
+async function handleControl(req, res) {
+  const body = await readBody(req);
+  if (body.nextCreate) control.nextCreate = body.nextCreate;
+  if (body.nextVerify) control.nextVerify = body.nextVerify;
+  sendJson(res, 200, { ok: true, control });
+}
+
+function handleReset(res) {
+  control = { nextCreate: null, nextVerify: null };
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleCreateInvoice(req, res) {
+  const body = await readBody(req);
+
+  if (await handleCreateOverride(res, body)) return;
+
+  const invoice = buildInvoiceFromBody(body);
+  invoices.set(invoice.id, invoice);
+  sendJson(res, 200, { statusCode: 200, message: "OK", data: [invoice] });
+}
+
+async function handleVerifyInvoice(res, invoiceId) {
+  if (await handleVerifyOverride(res)) return;
+
+  const invoice = invoices.get(invoiceId);
+
+  if (!invoice) {
+    sendJson(res, 404, { statusCode: 404, message: "Invoice not found", data: null });
+    return;
+  }
+
+  sendJson(res, 200, { statusCode: 200, message: "OK", data: invoice });
+}
+
+// ── Router ────────────────────────────────────────────────────────────────
+
+const INVOICE_PATH_RE = /^\/hl\/v1\/invoice\/(.+)$/;
+
+async function routeRequest(req, res) {
   const host = req.headers.host || "localhost";
-  const url = new URL(req.url, `http://${host}`);
-  const method = req.method;
-  const path = url.pathname;
+  const url = new URL(req.url || "/", `http://${host}`);
+  const method = req.method || "GET";
+  const pathname = url.pathname;
 
-  // ── Health check ──────────────────────────────────────────────────────────
-  if (path === "/health" && method === "GET") {
-    const { body, status, headers } = jsonResponse({
-      status: "ok",
-      provider: "fake-mayar",
-    });
-    res.writeHead(status, headers);
-    res.end(body);
+  if (pathname === "/health" && method === "GET") {
+    handleHealth(res);
     return;
   }
 
-  // ── POST /__control — set per-test scenario overrides ────────────────────
-  if (path === "/__control" && method === "POST") {
-    const body = await readBody(req);
-    if (body.nextCreate) control.nextCreate = body.nextCreate;
-    if (body.nextVerify) control.nextVerify = body.nextVerify;
-    const { body: respBody, status, headers } = jsonResponse({ ok: true, control });
-    res.writeHead(status, headers);
-    res.end(respBody);
+  if (pathname === "/__control" && method === "POST") {
+    await handleControl(req, res);
     return;
   }
 
-  // ── POST /__reset — clear all scenario overrides ────────────────────────
-  if (path === "/__reset" && method === "POST") {
-    control = { nextCreate: null, nextVerify: null };
-    const { body: respBody, status, headers } = jsonResponse({ ok: true });
-    res.writeHead(status, headers);
-    res.end(respBody);
+  if (pathname === "/__reset" && method === "POST") {
+    handleReset(res);
     return;
   }
 
-  // ── POST /hl/v1/invoice/create ────────────────────────────────────────────
-  if (path === "/hl/v1/invoice/create" && method === "POST") {
-    const body = await readBody(req);
-
-    if (await handleCreateOverride(req, res, body)) return;
-
-    // Default happy-path behavior
-    const invoice = buildInvoiceFromBody(body);
-    invoices.set(invoice.id, invoice);
-
-    const { body: respBody, status, headers } = jsonResponse({
-      statusCode: 200,
-      message: "OK",
-      data: [invoice],
-    });
-    res.writeHead(status, headers);
-    res.end(respBody);
+  if (pathname === "/hl/v1/invoice/create" && method === "POST") {
+    await handleCreateInvoice(req, res);
     return;
   }
 
-  // ── GET /hl/v1/invoice/:invoiceId ─────────────────────────────────────────
-  const invoiceMatch = /^\/hl\/v1\/invoice\/(.+)$/.exec(path);
+  const invoiceMatch = INVOICE_PATH_RE.exec(pathname);
   if (invoiceMatch && method === "GET") {
-    // Apply per-test override for verify endpoint
-    const verifyOverride = control.nextVerify;
-    control.nextVerify = null; // consume once
-
-    if (verifyOverride) {
-      if (verifyOverride.delayMs && verifyOverride.delayMs > 0) {
-        await new Promise((r) => setTimeout(r, verifyOverride.delayMs));
-      }
-      if (verifyOverride.malformedJson) {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end("{not valid json");
-        return;
-      }
-      if (verifyOverride.status && verifyOverride.status >= 400) {
-        const { body: respBody, status, headers } = jsonResponse(
-          verifyOverride.body || { statusCode: verifyOverride.status, message: "Simulated verify error" },
-          verifyOverride.status,
-        );
-        res.writeHead(status, headers);
-        res.end(respBody);
-        return;
-      }
-    }
-
-    const invoiceId = invoiceMatch[1];
-    const invoice = invoices.get(invoiceId);
-
-    if (!invoice) {
-      const { body, status, headers } = jsonResponse(
-        { statusCode: 404, message: "Invoice not found", data: null },
-        404,
-      );
-      res.writeHead(status, headers);
-      res.end(body);
-      return;
-    }
-
-    const { body, status, headers } = jsonResponse({
-      statusCode: 200,
-      message: "OK",
-      data: invoice,
-    });
-    res.writeHead(status, headers);
-    res.end(body);
+    await handleVerifyInvoice(res, invoiceMatch[1]);
     return;
   }
 
-  // ── Catch-all ────────────────────────────────────────────────────────────
-  const { body, status, headers } = jsonResponse(
-    { statusCode: 404, message: "Not found" },
-    404,
-  );
-  res.writeHead(status, headers);
-  res.end(body);
+  sendJson(res, 404, { statusCode: 404, message: "Not found" });
+}
+
+const server = http.createServer(async (req, res) => {
+  await routeRequest(req, res);
 });
 
 // Graceful shutdown: close the server on SIGTERM/SIGINT so Playwright can

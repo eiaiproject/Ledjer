@@ -61,8 +61,8 @@ async function postTxWithToken(
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Transaction: Idempotency", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   let ownerToken: string;
@@ -168,3 +168,4 @@ test.describe("Transaction: Idempotency", () => {
     expect(txRows).toHaveLength(1);
   });
 });
+}

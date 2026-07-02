@@ -48,9 +48,8 @@ async function setBusinessPlan(orgId: string): Promise<void> {
   }
 }
 
+if (E2E.isFullLocal) {
 test.describe("Invitation flow", () => {
-  test.skip(!E2E.isFullLocal, "requires local Supabase service role");
-
   test("owner creates invite link and invited staff accepts it", async ({ browser, page }) => {
     const ownerId = await ensureTestUser(E2E_OWNER2);
     await ensureTestUser(E2E_STAFF);
@@ -97,3 +96,4 @@ test.describe("Invitation flow", () => {
     }
   });
 });
+}

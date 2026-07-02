@@ -158,12 +158,9 @@ test.describe("Products page — smoke", () => {
   });
 });
 
+if (E2E.hasServiceRole) {
 test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
   test("create product → purchase → verify stock → sell → verify stock & COGS", async ({ page }, testInfo) => {
-    if (!E2E.hasServiceRole) {
-      test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY for Supabase API stock verification.");
-    }
-
     const suffix = `${Date.now()}-${testInfo.retry}-${testInfo.workerIndex}`;
     const productCode = `E2E-INV-${suffix}`;
     const productName = `[E2E] Inv ${suffix}`;
@@ -321,3 +318,4 @@ test.describe("Inventory purchase-to-sale flow (API-verified)", () => {
     expect(Number(productAfterSale.current_stock)).toBe(8);
   });
 });
+}

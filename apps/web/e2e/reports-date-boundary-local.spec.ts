@@ -40,8 +40,8 @@ function fmtDate(d: Date): string {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Reports: Date boundary", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   let ownerToken: string;
@@ -215,3 +215,4 @@ test.describe("Reports: Date boundary", () => {
     expect([401, 403]).toContain(res.status);
   });
 });
+}

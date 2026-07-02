@@ -146,28 +146,17 @@ test.describe("Error announcements", () => {
 
 test.describe("Dashboard accessibility (logged in)", () => {
   test.beforeEach(async ({ page }) => {
-    if (!E2E.isFullLocal) {
-      test.skip(true, "Dashboard tests require seeded Supabase — skipped outside full-local mode");
-      return;
-    }
+    if (!E2E.isFullLocal) return;
     await loginAsOwner(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });
 
   test("dashboard has proper heading", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) {
-      test.skip(true, "Owner redirected to onboarding — dashboard heading test not applicable");
-      return;
-    }
     const heading = page.locator("h1, h2").first();
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
   test("navigation links are keyboard accessible", async ({ page }) => {
-    if (!page.url().includes("/dashboard")) {
-      test.skip(true, "Owner redirected to onboarding — nav test not applicable");
-      return;
-    }
     await page.waitForTimeout(2_000);
     const navText = await page.locator("body").textContent();
     const hasNav = /Transaksi|Akun|Produk|Laporan|Pengaturan/.test(navText ?? "");

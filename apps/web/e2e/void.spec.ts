@@ -31,11 +31,9 @@ async function createPostedTransaction(description: string): Promise<string> {
   return seedTransaction(orgId, { description });
 }
 
+if (E2E.hasServiceRole) {
 test.describe("Void transaction", () => {
   test.beforeEach(async ({ page }) => {
-    if (!E2E.hasServiceRole) {
-      test.skip(true, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY to create isolated posted transactions.");
-    }
     await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
   });
@@ -94,3 +92,4 @@ test.describe("Void transaction", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 });
+}

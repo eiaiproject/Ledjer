@@ -115,8 +115,8 @@ async function expectBalanced(token: string, orgId: string) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Accounting: Full lifecycle", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   let ownerToken: string;
@@ -428,3 +428,4 @@ test.describe("Accounting: Full lifecycle", () => {
     });
   });
 });
+}

@@ -150,8 +150,8 @@ async function createBusinessOrg(ownerEmail: string) {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Team invites: security + membership lifecycle", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async () => {
@@ -325,3 +325,4 @@ test.describe("Team invites: security + membership lifecycle", () => {
     expect(wrongCount).toBe(0);
   });
 });
+}
