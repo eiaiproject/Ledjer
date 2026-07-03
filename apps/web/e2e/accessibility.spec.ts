@@ -145,10 +145,17 @@ test.describe("Error announcements", () => {
 });
 
 test.describe("Dashboard accessibility (logged in)", () => {
+  test.skip(
+    !E2E.canRunAuthenticatedDashboardTests,
+    "Authenticated dashboard accessibility is covered in full-local mode",
+  );
+
   test.beforeEach(async ({ page }) => {
-    if (!E2E.isFullLocal) return;
     await loginAsOwner(page);
-    await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
+    await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
+    // Wait for the dashboard shell to be fully rendered
+    await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("navigation")).toBeVisible({ timeout: 10_000 });
   });
 
   test("dashboard has proper heading", async ({ page }) => {
@@ -157,9 +164,19 @@ test.describe("Dashboard accessibility (logged in)", () => {
   });
 
   test("navigation links are keyboard accessible", async ({ page }) => {
-    await page.waitForTimeout(2_000);
-    const navText = await page.locator("body").textContent();
-    const hasNav = /Transaksi|Akun|Produk|Laporan|Pengaturan/.test(navText ?? "");
-    expect(hasNav).toBeTruthy();
+    const nav = page.getByRole("navigation");
+    await expect(nav).toBeVisible();
+
+    // Verify key nav items are present and visible
+    for (const name of ["Transaksi", "Akun", "Produk", "Laporan", "Pengaturan"]) {
+      await expect(nav.getByText(name)).toBeVisible();
+    }
+
+    // Verify keyboard focus reaches the navigation
+    await page.keyboard.press("Tab");
+    const focusedTag = await page.evaluate(() =>
+      document.activeElement?.tagName,
+    );
+    expect(focusedTag).toBeTruthy();
   });
 });

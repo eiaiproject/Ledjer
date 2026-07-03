@@ -64,6 +64,15 @@ export const E2E = {
     return Boolean(this.serviceRoleKey);
   },
 
+  get isLocalSmoke() {
+    return mode === "local-smoke";
+  },
+
+  /** Authenticated dashboard tests require service role or full-local mode. */
+  get canRunAuthenticatedDashboardTests() {
+    return this.hasServiceRole || this.isFullLocal;
+  },
+
   ownerEmail: "e2e-owner@ledjer.test",
   ownerPassword: "Password123!",
   staffEmail: "e2e-staff@ledjer.test",
