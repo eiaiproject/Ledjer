@@ -38,6 +38,8 @@ let control = {
 
 // ── Response helpers ──────────────────────────────────────────────────────
 
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, { "Content-Type": "application/json" });
   res.end(JSON.stringify(payload));
@@ -112,53 +114,34 @@ function buildInvoiceFromBody(body, linkBase) {
 async function handleCreateOverride(res, body) {
   const override = control.nextCreate;
   control.nextCreate = null;
-
   if (!override) return false;
 
-  if (override.delayMs && override.delayMs > 0) {
-    await new Promise((r) => setTimeout(r, override.delayMs));
-  }
-
-  if (override.malformedJson) {
-    sendMalformedJson(res);
-    return true;
-  }
-
-  if (override.status && override.status >= 400) {
+  if (override.delayMs > 0) await delay(override.delayMs);
+  if (override.malformedJson) { sendMalformedJson(res); return true; }
+  if (override.status >= 400) {
     sendJson(res, override.status, override.body || { statusCode: override.status, message: "Simulated error" });
     return true;
   }
-
   if (override.checkoutUrl) {
     const invoice = buildInvoiceFromBody(body, override.checkoutUrl);
     invoices.set(invoice.id, invoice);
     sendJson(res, 200, { statusCode: 200, message: "OK", data: [invoice] });
     return true;
   }
-
   return false;
 }
 
 async function handleVerifyOverride(res) {
   const override = control.nextVerify;
   control.nextVerify = null;
-
   if (!override) return false;
 
-  if (override.delayMs && override.delayMs > 0) {
-    await new Promise((r) => setTimeout(r, override.delayMs));
-  }
-
-  if (override.malformedJson) {
-    sendMalformedJson(res);
-    return true;
-  }
-
-  if (override.status && override.status >= 400) {
+  if (override.delayMs > 0) await delay(override.delayMs);
+  if (override.malformedJson) { sendMalformedJson(res); return true; }
+  if (override.status >= 400) {
     sendJson(res, override.status, override.body || { statusCode: override.status, message: "Simulated verify error" });
     return true;
   }
-
   return false;
 }
 

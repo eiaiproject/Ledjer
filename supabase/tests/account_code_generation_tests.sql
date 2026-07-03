@@ -32,6 +32,8 @@ DECLARE
   v_cross_owner UUID;
   v_p0001 TEXT := 'P0001';  -- PL/pgSQL raise_exception SQLSTATE
   v_should_raise_exception CONSTANT TEXT := 'should have raised exception';
+  -- Helper: builds a standard error-check message for expected rejections
+  v_err_msg TEXT;
 BEGIN
   -- ── Setup: owner + staff + organization ──────────────────────────────────
   SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id
@@ -133,10 +135,11 @@ BEGIN
     PERFORM public.create_cash_bank_account(v_org_id, 'Should Fail', 'cash');
     PERFORM public._test_fail('AC7: Staff without permission', v_should_raise_exception);
   EXCEPTION WHEN OTHERS THEN
+    v_err_msg := 'got ' || SQLSTATE || ': ' || SQLERRM;
     PERFORM public._test_assert(
       'AC7: Staff without permission cannot create accounts',
       SQLSTATE = v_p0001,  -- raise_exception
-      'got ' || SQLSTATE || ': ' || SQLERRM
+      v_err_msg
     );
   END;
 
@@ -156,10 +159,11 @@ BEGIN
     PERFORM public.create_cash_bank_account(v_cross_org_id, 'Cross Org Hack', 'cash');
     PERFORM public._test_fail('AC8: Cross-org account creation', v_should_raise_exception);
   EXCEPTION WHEN OTHERS THEN
+    v_err_msg := 'got ' || SQLSTATE || ': ' || SQLERRM;
     PERFORM public._test_assert(
       'AC8: Cross-org account creation is rejected',
       SQLSTATE = v_p0001,
-      'got ' || SQLSTATE || ': ' || SQLERRM
+      v_err_msg
     );
   END;
 
@@ -183,10 +187,11 @@ BEGIN
     PERFORM public.create_cash_bank_account(v_org_id, 'Kas Tambahan', 'cash');
     PERFORM public._test_fail('AC10: Duplicate name rejected', v_should_raise_exception);
   EXCEPTION WHEN OTHERS THEN
+    v_err_msg := 'got ' || SQLSTATE || ': ' || SQLERRM;
     PERFORM public._test_assert(
       'AC10: Duplicate account name is rejected',
       SQLSTATE = v_p0001,
-      'got ' || SQLSTATE || ': ' || SQLERRM
+      v_err_msg
     );
   END;
 
