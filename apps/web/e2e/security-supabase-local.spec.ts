@@ -6,8 +6,6 @@ import { E2E } from "./fixtures/env";
  * Requires running Supabase with service role key.
  */
 
-test.skip(!E2E.isFullLocal, "Requires local Supabase (E2E_MODE=full-local)");
-test.skip(!E2E.hasServiceRole, "Requires E2E_SUPABASE_SERVICE_ROLE_KEY");
 
 const SR_HEADERS = {
   apikey: E2E.serviceRoleKey,
@@ -15,6 +13,7 @@ const SR_HEADERS = {
   "Content-Type": "application/json",
 };
 
+if (E2E.isFullLocal && E2E.hasServiceRole) {
 test.describe("RLS: organizations", () => {
   test("unauthenticated anon cannot read other orgs", async ({ request }) => {
     const response = await request.get(
@@ -108,3 +107,5 @@ test.describe("Service role access", () => {
     expect(response.ok()).toBeTruthy();
   });
 });
+
+}

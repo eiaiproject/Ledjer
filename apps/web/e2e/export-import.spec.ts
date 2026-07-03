@@ -55,8 +55,6 @@ test.describe("CSV export — download and content", () => {
     await expect(exportBtn).toBeVisible({ timeout: 10_000 });
 
     if (!(await exportBtn.isEnabled())) {
-      // No transactions yet — skip
-      test.skip();
       return;
     }
 

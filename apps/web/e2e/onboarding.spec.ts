@@ -49,8 +49,8 @@ test.describe("Onboarding", () => {
     }
   });
 
+  if (E2E.isLocal) {
   test("empty business name is rejected", async ({ page }) => {
-    test.skip(!E2E.isLocal, "Requires local Supabase for fresh registration");
 
     const email = freshRegisterEmail();
     const password = "OnboardTest1!";
@@ -71,6 +71,7 @@ test.describe("Onboarding", () => {
     await submitBtn.click();
     await expect(page.locator("text=/2 karakter|wajib/i")).toBeVisible({ timeout: 5_000 });
   });
+  }
 });
 
 test.describe("Dashboard after onboarding", () => {

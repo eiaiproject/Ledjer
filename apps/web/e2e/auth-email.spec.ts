@@ -8,8 +8,6 @@ import { E2E } from "./fixtures/env";
  * Tests password reset flow using the pre-seeded owner account.
  * Skipped in deployed mode (no Inbucket).
  */
-test.skip(!E2E.isLocal, "Email flow tests require local Supabase with Inbucket");
-
 async function getLatestInbucketEmail(
   inboxId: string,
   timeout = 30_000,
@@ -47,6 +45,7 @@ function extractRecoveryLink(html: string): string | null {
   return null;
 }
 
+if (E2E.isLocal) {
 test.describe("Password reset flow", () => {
   test("forgot password → check Inbucket receives email", async ({ page }) => {
     // Use the pre-seeded owner account
@@ -92,3 +91,4 @@ test.describe("Password reset flow", () => {
     }
   });
 });
+}

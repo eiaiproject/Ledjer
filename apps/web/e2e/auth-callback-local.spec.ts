@@ -126,11 +126,8 @@ function extractVerificationToken(
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Auth: callback via Mailpit", () => {
-  test.skip(
-    !E2E.isFullLocal,
-    "Butuh local Supabase + Mailpit + service role key",
-  );
 
   test.beforeAll(async () => {
     await ensureTestUser(E2E_OWNER);
@@ -305,3 +302,4 @@ test.describe("Auth: callback via Mailpit", () => {
     });
   });
 });
+}

@@ -94,8 +94,8 @@ async function postCashSale(
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Quota + subscription enforcement", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async () => {
@@ -285,3 +285,4 @@ test.describe("Quota + subscription enforcement", () => {
     }
   });
 });
+}

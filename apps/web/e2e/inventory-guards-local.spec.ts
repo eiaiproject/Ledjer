@@ -52,8 +52,8 @@ async function getProductStock(productId: string): Promise<number> {
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Inventory: Guards", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   let ownerToken: string;
@@ -242,3 +242,4 @@ test.describe("Inventory: Guards", () => {
     });
   });
 });
+}

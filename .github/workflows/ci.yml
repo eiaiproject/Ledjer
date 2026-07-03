@@ -86,6 +86,7 @@ jobs:
     env:
       SUPABASE_VERSION: 2.107.0
       PG_META_TAG: v0.96.1
+      SUPABASE_DISABLE_TELEMETRY: "1"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -115,8 +116,26 @@ jobs:
       - name: Validate migration filenames
         run: bash scripts/check-migration-naming.sh
 
-      - name: Start local Supabase stack
-        run: supabase start --workdir . --debug
+      - name: Start local Supabase stack (retry-safe)
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if supabase start --workdir . --debug; then
+              echo "Supabase started successfully"
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo '::error::Supabase start failed after 3 attempts'
+              supabase status --workdir . || true
+              docker ps -a || true
+              docker logs supabase_db_Ledjer 2>/dev/null || true
+              exit 1
+            fi
+            echo "Supabase start failed, retrying ($attempt/3)..."
+            supabase stop --workdir . --no-backup 2>/dev/null || true
+            docker rm -f $(docker ps -aq --filter name=supabase) 2>/dev/null || true
+            sleep 10
+          done
 
       - name: Capture Supabase diagnostics (always)
         if: always()
@@ -292,6 +311,8 @@ jobs:
           EOF
 
       - name: Start local Supabase stack
+        env:
+          SUPABASE_DISABLE_TELEMETRY: "1"
         run: supabase start --workdir . --debug
 
       - name: Apply migrations
@@ -499,6 +520,8 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Start local Supabase stack
+        env:
+          SUPABASE_DISABLE_TELEMETRY: "1"
         run: supabase start --workdir . --debug
 
       - name: Apply migrations
@@ -604,6 +627,8 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Start local Supabase stack
+        env:
+          SUPABASE_DISABLE_TELEMETRY: "1"
         run: supabase start --workdir . --debug
 
       - name: Apply migrations

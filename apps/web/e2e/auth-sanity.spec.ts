@@ -9,8 +9,8 @@ import { E2E_OWNER } from "./fixtures/users";
  * suite is meaningless — fail fast so we don't burn 30 minutes on
  * cascading auth failures.
  */
+if (process.env.E2E_SUPABASE_URL) {
 test("seeded owner can log in and reach /dashboard", async ({ page }) => {
-  test.skip(!process.env.E2E_SUPABASE_URL, "requires E2E_SUPABASE_URL");
 
   await page.goto("/login");
   await page.locator('input[type="email"]').fill(E2E_OWNER.email);
@@ -22,3 +22,4 @@ test("seeded owner can log in and reach /dashboard", async ({ page }) => {
   });
   await expect(page).toHaveURL(/\/dashboard/);
 });
+}

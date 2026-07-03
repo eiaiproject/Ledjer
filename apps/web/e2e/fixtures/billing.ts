@@ -26,16 +26,32 @@ const SR_HEADERS = {
  * Generate unique Mayar invoice/transaction IDs per test run, worker, and retry.
  * Prevents 409 collisions on unique constraints when tests are retried.
  */
+function trimUnderscores(value: string): string {
+  let start = 0;
+  let end = value.length;
+
+  while (start < end && value[start] === "_") {
+    start += 1;
+  }
+
+  while (end > start && value[end - 1] === "_") {
+    end -= 1;
+  }
+
+  return value.slice(start, end);
+}
+
 export function uniqueMayarIds(
   testInfo: TestInfo,
   prefix = "paid",
 ): { invoiceId: string; transactionId: string } {
-  // Deterministic slug: lower-case, map any non-[a-z0-9] to '_' (no quantifier
-  // on a negated class — keeps the regex linear and static-analysis friendly).
+  // Deterministic slug: lower-case, map any non-[a-z0-9] to '_'.
   const raw = testInfo.title
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "_");
-  const safeTitle = raw.replace(/^_+|_+$/g, "").slice(0, 40);
+    .split("")
+    .map((c) => (c >= "a" && c <= "z") || (c >= "0" && c <= "9") ? c : "_")
+    .join("");
+  const safeTitle = trimUnderscores(raw).slice(0, 40);
   const suffix = [
     safeTitle,
     `w${testInfo.workerIndex}`,

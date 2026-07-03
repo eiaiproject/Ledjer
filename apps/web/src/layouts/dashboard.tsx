@@ -149,7 +149,7 @@ export function DashboardLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2">
+        <nav className="flex-1 overflow-y-auto py-4 px-2" aria-label="Primary">
           <ul className="space-y-1">
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
@@ -330,7 +330,7 @@ export function DashboardLayout() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <nav className="py-4 px-3 overflow-y-auto">
+            <nav className="py-4 px-3 overflow-y-auto" aria-label="Primary">
               <ul className="space-y-1">
                 {visibleNavItems.map((item) => {
                   const Icon = item.icon;

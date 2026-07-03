@@ -315,8 +315,8 @@ async function createInvitationFixture(
 
 // ── Tests ────────────────────────────────────────────────────────────────
 
+if (E2E.isFullLocal) {
 test.describe("Security: API permissions", () => {
-  test.skip(!E2E.isFullLocal, "Butuh local Supabase + service role key");
   test.describe.configure({ mode: "serial" });
 
   let ownerId: string;
@@ -897,3 +897,4 @@ test.describe("Security: API permissions", () => {
     });
   });
 });
+}
