@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if supabase start --workdir . --debug; then
+            if supabase start --workdir . -x edge-runtime --debug; then
               echo "Supabase started successfully"
               break
             fi
@@ -328,6 +328,11 @@ jobs:
           fi
           echo "Supabase network: $SUPABASE_NETWORK"
           docker rm -f fake-mayar 2>/dev/null || true
+
+          # Build a deterministic image instead of bind-mounting a single file.
+          # Bind mounts of individual files are brittle on GH-hosted runners.
+          docker build -t ledjer-fake-mayar:ci -f scripts/fake-mayar.Dockerfile .
+
           # -p 4567:4567 maps the port to the host so Playwright tests can reach it
           # --network puts it on the same network as Supabase so Edge Functions can reach it
           docker run -d \
@@ -336,21 +341,24 @@ jobs:
             -p 4567:4567 \
             -e FAKE_MAYAR_PORT=4567 \
             -e FAKE_MAYAR_STATUS=paid \
-            -v "${{ github.workspace }}/scripts/fake-mayar-server.mjs:/app/server.mjs:ro" \
-            node:22-alpine \
-            node /app/server.mjs
+            ledjer-fake-mayar:ci
+
           echo "Fake Mayar started: http://fake-mayar:4567 (Docker) / http://127.0.0.1:4567 (host)"
-          # Health check with retry (from host via port mapping)
-          for i in 1 2 3 4 5; do
-            if curl -s http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
+
+          # Health check with extended retries (host via port mapping)
+          for i in $(seq 1 15); do
+            if curl -fsS http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
               echo "Fake Mayar health check passed (host reachable)"
               exit 0
             fi
-            echo "Waiting for fake Mayar… ($i/5)"
+            echo "Waiting for fake Mayar... ($i/15)"
+            docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}}' fake-mayar 2>/dev/null || true
             sleep 2
           done
+
           echo '::error::Fake Mayar did not become healthy'
           docker ps -a --filter name=fake-mayar
+          docker inspect fake-mayar || true
           docker logs fake-mayar || true
           exit 1
 
@@ -522,7 +530,7 @@ jobs:
       - name: Start local Supabase stack
         env:
           SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . --debug
+        run: supabase start --workdir . -x edge-runtime --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
@@ -629,7 +637,7 @@ jobs:
       - name: Start local Supabase stack
         env:
           SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . --debug
+        run: supabase start --workdir . -x edge-runtime --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed

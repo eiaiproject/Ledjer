@@ -36,7 +36,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Start local Supabase stack
-        run: supabase start --workdir . --debug
+        run: supabase start --workdir . -x edge-runtime --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed

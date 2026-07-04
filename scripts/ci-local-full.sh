@@ -155,24 +155,33 @@ else
   SUPABASE_NETWORK=$(docker network ls --filter name=supabase -q | head -1)
   if [[ -n "$SUPABASE_NETWORK" ]]; then
     docker rm -f fake-mayar 2>/dev/null || true
+    # Build deterministic image instead of bind-mounting a single file
+    docker build -t ledjer-fake-mayar:ci -f scripts/fake-mayar.Dockerfile .
     docker run -d \
       --name fake-mayar \
       --network "$SUPABASE_NETWORK" \
       -p 4567:4567 \
       -e FAKE_MAYAR_PORT=4567 \
       -e FAKE_MAYAR_STATUS=paid \
-      -v "$ROOT/scripts/fake-mayar-server.mjs:/app/server.mjs:ro" \
-      node:22-alpine \
-      node /app/server.mjs
+      ledjer-fake-mayar:ci
     echo "  Fake Mayar: http://127.0.0.1:4567 (host)"
-    # Wait for it
-    for i in 1 2 3 4 5; do
-      if curl -s http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
+    # Health check with extended retries
+    for i in $(seq 1 15); do
+      if curl -fsS http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
         echo "  Fake Mayar health check passed"
         break
       fi
+      echo "  Waiting for fake Mayar... ($i/15)"
+      docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}}' fake-mayar 2>/dev/null || true
       sleep 2
     done
+    # Fail explicitly if health check never passed
+    if ! curl -fsS http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
+      echo "❌  Fake Mayar did not become healthy"
+      docker inspect fake-mayar || true
+      docker logs fake-mayar || true
+      fail
+    fi
   else
     echo "  ⚠️  No supabase network found — billing E2E may fail"
   fi
