@@ -40,8 +40,9 @@ async function preSeedFakeInvoice(invoiceId: string, transactionId: string, amou
   }).catch(() => {});
 }
 
-if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
-  test.describe("Webhook Edge Function Hardening", () => {
+// Legacy Mayar coverage is intentionally excluded from normal full-local runs.
+if (E2E.isFullLocal && process.env.E2E_MAYAR_LEGACY === "1") {
+  test.describe("Legacy Webhook Edge Function Hardening", () => {
     let orgId: string;
 
     test.beforeAll(async () => {

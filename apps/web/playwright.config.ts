@@ -93,19 +93,6 @@ export default defineConfig({
       },
     ];
 
-    // Additional: fake Mayar server for billing E2E tests
-    // Activated by setting E2E_BILLING=1
-    // Skipped when E2E_FAKE_MAYAR_CONTAINER=1 (Docker-based fake Mayar running)
-    if (process.env.E2E_BILLING === "1" && !process.env.E2E_FAKE_MAYAR_CONTAINER) {
-      servers.push({
-        command:
-          `FAKE_MAYAR_PORT=4567 FAKE_MAYAR_STATUS=paid ` +
-          `node ../../scripts/fake-mayar-server.mjs`,
-        port: 4567,
-        reuseExistingServer: false,
-      });
-    }
-
     return servers;
   })(),
   expect: {

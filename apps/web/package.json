@@ -16,7 +16,6 @@
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:webkit": "playwright test --project=webkit",
     "test:e2e:mayar-sandbox": "bash scripts/test-mayar-sandbox.sh",
-    "test:e2e:mayar-local": "MAYAR_API_BASE_URL=http://127.0.0.1:4567 MAYAR_ENV=sandbox MAYAR_API_KEY=test_key MAYAR_WEBHOOK_TOKEN=test_webhook_token pnpm exec playwright test e2e/billing-checkout.spec.ts e2e/billing-webhook.spec.ts --project=chromium",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {

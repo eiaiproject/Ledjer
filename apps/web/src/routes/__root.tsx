@@ -1,9 +1,10 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
-import { getSafeRedirectPath } from "@/lib/redirect";
+import { buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
 
 export function ProtectedRoute() {
   const { session, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -14,7 +15,8 @@ export function ProtectedRoute() {
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    const redirectPath = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?${buildRedirectSearch(redirectPath)}`} replace />;
   }
 
   return <Outlet />;

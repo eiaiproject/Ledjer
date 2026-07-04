@@ -133,8 +133,9 @@ async function sendWebhook(payload: Record<string, unknown>, token: string = WEB
   }
 }
 
-if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
-test.describe("Mayar Webhook", () => {
+// Legacy Mayar coverage is intentionally excluded from normal full-local runs.
+if (E2E.isFullLocal && process.env.E2E_MAYAR_LEGACY === "1") {
+test.describe("Legacy Mayar Webhook", () => {
   let orgId: string;
 
   test.beforeAll(async () => {

@@ -76,8 +76,8 @@ export function RefundPolicyPage() {
             <h2 className="text-lg font-semibold text-wood-800">7. Kontak</h2>
             <p>
               Untuk pertanyaan mengenai billing, hubungi kami di{" "}
-              <a href="mailto:billing@ledjer.id" className="text-leaf-600 underline">
-                billing@ledjer.id
+              <a href="mailto:projects.eiai@gmail.com" className="text-leaf-600 underline">
+                projects.eiai@gmail.com
               </a>
               .
             </p>

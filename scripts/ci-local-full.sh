@@ -3,7 +3,7 @@
 # ci-local-full.sh — Full local CI with Docker, Supabase, Playwright E2E
 # -----------------------------------------------------------------------------
 # Runs all CI gates locally, including Supabase migrations, SQL tests, DB type
-# drift check, Chromium E2E with billing, and visual regression.
+# drift check, and Chromium full-local E2E. Visual regression is a separate gate.
 #
 # Prerequisites:
 #   - Docker running locally
@@ -29,23 +29,12 @@ TMPFILES=()
 pass()  { PASS=$((PASS + 1)); }
 fail()  { FAIL=$((FAIL + 1)); }
 
-# ── Unified cleanup (runs on EXIT, not overwritten) ────────────────────────
-# Track the Edge Function env file we create so we always remove it.
-FUNC_ENV_FILE="$ROOT/supabase/functions/.env"
-FUNC_ENV_EXISTED_BEFORE=false
-[[ -f "$FUNC_ENV_FILE" ]] && FUNC_ENV_EXISTED_BEFORE=true
 cleanup() {
   local ec=$?
   echo ""
   echo "── Cleanup ──────────────────────────────────────────────"
-  docker rm -f fake-mayar 2>/dev/null || true
   if command -v supabase >/dev/null 2>&1; then
     supabase stop --workdir "$ROOT" --no-backup 2>/dev/null || true
-  fi
-  # Remove generated Edge Function env file only if we created it
-  if [[ -f "$FUNC_ENV_FILE" && "$FUNC_ENV_EXISTED_BEFORE" == "false" ]]; then
-    rm -f "$FUNC_ENV_FILE"
-    echo "  Removed $FUNC_ENV_FILE"
   fi
   for f in ${TMPFILES[@]+"${TMPFILES[@]}"}; do
     rm -f "$f" 2>/dev/null || true
@@ -100,23 +89,9 @@ pnpm --filter web test 2>&1 | tail -15
 echo "✅  Unit tests OK"
 pass
 
-# ── 2d. Pre-create Edge Function env (must exist BEFORE supabase start) ────
-section "2d/8  Edge Function env"
-mkdir -p "$ROOT/supabase/functions"
-cat > "$ROOT/supabase/functions/.env" << 'FUNCEOF'
-MAYAR_ENV=sandbox
-MAYAR_API_KEY=test_mayar_key
-MAYAR_WEBHOOK_TOKEN=test_webhook_token
-# Edge Runtime runs inside Docker — use container hostname, not 127.0.0.1
-MAYAR_API_BASE_URL=http://fake-mayar:4567
-APP_URL=http://localhost:4173
-FUNCEOF
-echo "✅  Edge Function env written (MAYAR_API_BASE_URL=http://fake-mayar:4567)"
-pass
-
 # ── 3. Start local Supabase stack ───────────────────────────────────────────
 section "3/8  Start local Supabase"
-supabase start --workdir "$ROOT" 2>&1 | tail -5
+supabase start --workdir "$ROOT" -x edge-runtime 2>&1 | tail -5
 echo "✅  Supabase started"
 pass
 
@@ -138,7 +113,7 @@ bash scripts/check-db-types.sh --live 2>&1 | tail -10
 echo "✅  DB types match"
 pass
 
-# ── 7. Chromium full-local E2E (including billing) ─────────────────────────
+# ── 7. Chromium full-local E2E ──────────────────────────────────────────────
 section "7/8  Full-local Chromium E2E"
 
 # Export Supabase env vars
@@ -151,73 +126,33 @@ if [[ -z "$SUPABASE_ANON_KEY" ]]; then
   echo "❌  Failed to extract Supabase anon key"
   fail
 else
-  # ── Start fake Mayar as Docker container on Supabase network ──────────
-  SUPABASE_NETWORK=$(docker network ls --filter name=supabase -q | head -1)
-  if [[ -n "$SUPABASE_NETWORK" ]]; then
-    docker rm -f fake-mayar 2>/dev/null || true
-    # Build deterministic image instead of bind-mounting a single file
-    docker build -t ledjer-fake-mayar:ci -f scripts/fake-mayar.Dockerfile .
-    docker run -d \
-      --name fake-mayar \
-      --network "$SUPABASE_NETWORK" \
-      -p 4567:4567 \
-      -e FAKE_MAYAR_PORT=4567 \
-      -e FAKE_MAYAR_STATUS=paid \
-      ledjer-fake-mayar:ci
-    echo "  Fake Mayar: http://127.0.0.1:4567 (host)"
-    # Health check with extended retries
-    for i in $(seq 1 15); do
-      if curl -fsS http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
-        echo "  Fake Mayar health check passed"
-        break
-      fi
-      echo "  Waiting for fake Mayar... ($i/15)"
-      docker inspect --format='status={{.State.Status}} exit={{.State.ExitCode}}' fake-mayar 2>/dev/null || true
-      sleep 2
-    done
-    # Fail explicitly if health check never passed
-    if ! curl -fsS http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
-      echo "❌  Fake Mayar did not become healthy"
-      docker inspect fake-mayar || true
-      docker logs fake-mayar || true
-      fail
-    fi
-  else
-    echo "  ⚠️  No supabase network found — billing E2E may fail"
-  fi
-
-  # ── Edge Function env already created in step 2d ───────────────────────
-  echo "  Edge Function env: MAYAR_API_BASE_URL=http://fake-mayar:4567"
-
   # ── Build app with valid local Supabase config ─────────────────────────
   VITE_SUPABASE_URL="$SUPABASE_URL" \
   VITE_SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
   LEDJER_CSP_LOCAL=1 \
   pnpm --filter web build 2>&1 | tail -5
 
-  # ── Run Chromium E2E with billing ─────────────────────────────────────
-  echo "  Running Chromium E2E with billing..."
+  # ── Run Chromium E2E ──────────────────────────────────────────────────
+  echo "  Running Chromium full-local E2E..."
   E2E_MODE=full-local \
-  E2E_BILLING=1 \
-  E2E_FAKE_MAYAR_CONTAINER=1 \
   E2E_BASE_URL=http://localhost:4173 \
   E2E_SUPABASE_URL="$SUPABASE_URL" \
   E2E_SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
   E2E_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
-  E2E_MAYAR_WEBHOOK_TOKEN=test_webhook_token \
-  MAYAR_API_BASE_URL=http://127.0.0.1:4567 \
   CI=true \
   pnpm --filter web exec playwright test --project=chromium 2>&1 | tail -30
 
   echo "✅  Chromium E2E passed"
   pass
-fi  # ── 7b. Build secrets scan ───────────────────────────────────────────────
-  section "7b/8  Build secrets scan"
-  bash scripts/check-build-secrets.sh 2>&1 | tail -5
-  echo "✅  Build secrets scan OK"
-  pass
+fi
 
-  # ── 8. Migration guards ─────────────────────────────────────────────────────
+# ── 7b. Build secrets scan ───────────────────────────────────────────────
+section "7b/8  Build secrets scan"
+bash scripts/check-build-secrets.sh 2>&1 | tail -5
+echo "✅  Build secrets scan OK"
+pass
+
+# ── 8. Migration guards ─────────────────────────────────────────────────────
 section "8/8  Migration guards"
 
 bash scripts/check-migration-naming.sh
