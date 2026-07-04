@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
@@ -14,6 +14,9 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Check, Mail, RefreshCw } from "lucide-react";
 
 const BILLING_CONTACT_EMAIL = "projects.eiai@gmail.com";
+const UPGRADE_REQUEST_SUBJECT = "Permintaan upgrade paket Ledjer";
+const UPGRADE_REQUEST_SUBJECT_PARAM = encodeURIComponent(UPGRADE_REQUEST_SUBJECT);
+const BILLING_CONTACT_HREF = `mailto:${BILLING_CONTACT_EMAIL}?subject=${UPGRADE_REQUEST_SUBJECT_PARAM}`;
 
 const PLAN_DETAILS = {
   free: {
@@ -350,6 +353,55 @@ export function BillingSettingsPage() {
             const isCurrent = key === plan;
             const isRecommended = key === "business" && plan !== "business";
             const price = isYearly ? info.yearlyPrice : info.monthlyPrice;
+            let planAction: ReactNode;
+
+            if (isCurrent) {
+              planAction = (
+                <Button
+                  type="button"
+                  variant="outline"
+                  fullWidth
+                  disabled
+                >
+                  Paket saat ini
+                </Button>
+              );
+            } else if (info.monthlyPrice === 0) {
+              planAction = (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  disabled
+                >
+                  Sudah menggunakan
+                </Button>
+              );
+            } else if (isOwner) {
+              planAction = (
+                <Button
+                  as="a"
+                  href={buildContactHref(key as PaidPlan)}
+                  variant={isRecommended ? "primary" : "secondary"}
+                  fullWidth
+                  aria-label={`Hubungi Admin untuk upgrade ${info.name}`}
+                >
+                  <Mail className="h-4 w-4" />
+                  Hubungi Admin
+                </Button>
+              );
+            } else {
+              planAction = (
+                <Button
+                  type="button"
+                  variant={isRecommended ? "primary" : "secondary"}
+                  fullWidth
+                  disabled
+                >
+                  Tidak tersedia
+                </Button>
+              );
+            }
 
             return (
               <div key={key} className="flex h-full flex-col">
@@ -435,45 +487,7 @@ export function BillingSettingsPage() {
 
                     {/* CTA - pushed to bottom */}
                     <div className="mt-auto pt-6">
-                      {isCurrent ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          fullWidth
-                          disabled
-                        >
-                          Paket saat ini
-                        </Button>
-                      ) : info.monthlyPrice === 0 ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          fullWidth
-                          disabled
-                        >
-                          Sudah menggunakan
-                        </Button>
-                      ) : isOwner ? (
-                        <Button
-                          as="a"
-                          href={buildContactHref(key as PaidPlan)}
-                          variant={isRecommended ? "primary" : "secondary"}
-                          fullWidth
-                          aria-label={`Hubungi Admin untuk upgrade ${info.name}`}
-                        >
-                          <Mail className="h-4 w-4" />
-                          Hubungi Admin
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant={isRecommended ? "primary" : "secondary"}
-                          fullWidth
-                          disabled
-                        >
-                          Tidak tersedia
-                        </Button>
-                      )}
+                      {planAction}
                     </div>
                   </CardContent>
                 </Card>
@@ -497,7 +511,7 @@ export function BillingSettingsPage() {
                   <p className="mt-0.5 text-xs text-wood-600">
                     Saat ini upgrade paket diproses manual. Hubungi admin di{' '}
                     <a
-                      href={`mailto:${BILLING_CONTACT_EMAIL}?subject=${encodeURIComponent(`Permintaan upgrade paket Ledjer`)}`}
+                      href={BILLING_CONTACT_HREF}
                       className="text-leaf-600 underline underline-offset-2 hover:text-leaf-700"
                     >
                       {BILLING_CONTACT_EMAIL}

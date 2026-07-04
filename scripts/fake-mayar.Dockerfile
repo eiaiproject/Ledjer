@@ -1,7 +1,9 @@
 FROM node:22-alpine
 
 WORKDIR /app
-COPY scripts/fake-mayar-server.mjs ./server.mjs
+COPY --chown=node:node scripts/fake-mayar-server.mjs ./server.mjs
+
+USER node
 
 EXPOSE 4567
 
