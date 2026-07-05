@@ -8,8 +8,9 @@ const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN;
 
 // Local-only CSP: production CSP forbids localhost. For `vite preview` (local
 // E2E), allow http(s)://localhost:* and http://127.0.0.1:* so the in-browser
-// Supabase client can reach the local stack. Production builds keep the
-// strict CSP from index.html (no override).
+// Supabase client can reach the local stack. Dockerized local E2E uses
+// host.docker.internal to reach services running on the host. Production builds
+// keep the strict CSP from index.html (no override).
 const localPreviewCspPlugin = () => ({
   name: "ledjer-local-preview-csp",
   apply: "build",
@@ -19,7 +20,7 @@ const localPreviewCspPlugin = () => ({
       if (process.env.LEDJER_CSP_LOCAL !== "1") return html;
       return html.replace(
         /connect-src 'self' https:\/\/\*\.supabase\.co https:\/\/\*\.supabase\.in/,
-        "connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.supabase.co https://*.supabase.in",
+        "connect-src 'self' http://localhost:* http://127.0.0.1:* http://host.docker.internal:* https://*.supabase.co https://*.supabase.in",
       );
     },
   },
@@ -46,5 +47,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  preview: {
+    allowedHosts: ["host.docker.internal"],
   },
 });

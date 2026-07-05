@@ -1,19 +1,17 @@
 import { supabase } from "@/lib/supabase";
 
-export const FREE_PLAN_TRANSACTION_LIMIT = 50;
-
 export interface MonthlyTransactionUsage {
   count: number;
-  limit: number;
-  remaining: number;
+  limit: number | null;
+  remaining: number | null;
+  isUnlimited: boolean;
   periodStart: string;
   periodEnd: string;
 }
 
 /**
  * Fetch monthly usage from the server-owned RPC to avoid client timezone
- * drift. The RPC uses `date_trunc('month', now())` consistently with
- * backend enforcement.
+ * drift. The RPC uses `date_trunc('month', now())` for reporting.
  */
 export async function fetchMonthlyTransactionUsage(
   organizationId: string
@@ -25,22 +23,30 @@ export async function fetchMonthlyTransactionUsage(
   if (error) throw error;
 
   const row = data as Record<string, unknown> | null;
+  const count = row?.count;
+  const limit = row?.limit;
+  const remaining = row?.remaining;
+  const periodStart = row?.period_start;
+  const periodEnd = row?.period_end;
+  const isUnlimited = row?.is_unlimited;
+
   if (
     !row ||
-    typeof row.count !== 'number' ||
-    typeof row.limit !== 'number' ||
-    typeof row.remaining !== 'number' ||
-    typeof row.period_start !== 'string' ||
-    typeof row.period_end !== 'string'
+    typeof count !== 'number' ||
+    (typeof limit !== 'number' && limit !== null) ||
+    (typeof remaining !== 'number' && remaining !== null) ||
+    typeof periodStart !== 'string' ||
+    typeof periodEnd !== 'string'
   ) {
     throw new Error('Respons pemakaian bulanan tidak valid dari server. Silakan coba lagi.');
   }
 
   return {
-    count: row.count,
-    limit: row.limit,
-    remaining: row.remaining,
-    periodStart: row.period_start,
-    periodEnd: row.period_end,
+    count,
+    limit,
+    remaining,
+    isUnlimited: isUnlimited === true || limit === null,
+    periodStart,
+    periodEnd,
   };
 }

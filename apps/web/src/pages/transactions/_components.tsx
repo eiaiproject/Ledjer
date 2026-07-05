@@ -6,7 +6,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link } from "react-router-dom";
 import {
   AlertCircle,
   AlertTriangle,
@@ -158,64 +157,24 @@ ErrorSummary.displayName = "ErrorSummary";
 
 interface PlanUsageBannerProps {
   isFreePlan: boolean;
-  isAtLimit: boolean;
   usageCount: number;
-  usageLimit: number;
 }
 
-export function PlanUsageBanner({ isFreePlan, isAtLimit, usageCount, usageLimit }: PlanUsageBannerProps) {
+export function PlanUsageBanner({ isFreePlan, usageCount }: PlanUsageBannerProps) {
   if (!isFreePlan) return null;
 
-  const usagePercent = usageLimit > 0 ? Math.min(Math.max((usageCount / usageLimit) * 100, 0), 100) : 0;
-  const isWarning = usagePercent >= 80;
-
   return (
-    <Card variant={isAtLimit ? "outline" : "filled"} className="mb-4">
-      <CardContent className={isAtLimit ? "text-error" : "text-text-secondary"}>
-        {isAtLimit ? (
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-error/10">
-              <AlertCircle className="h-5 w-5 text-error" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="break-words font-medium">Limit transaksi bulanan tercapai</p>
-              <p className="mt-1 break-words text-sm">
-                Anda sudah mencapai {usageLimit} dari {usageLimit} transaksi gratis bulan ini.
-              </p>
-              <Link
-                to="/settings/billing"
-                className="mt-2 inline-flex max-w-full items-center gap-1 break-words text-sm font-medium underline underline-offset-2 hover:text-error/80"
-              >
-                Upgrade ke paket Solo
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-              <p className="min-w-0 break-words text-sm">
-                Paket Gratis: <span className="font-medium">{usageCount}/{usageLimit}</span> transaksi bulan ini
-              </p>
-              {isWarning && <Badge variant="warning" dot>Hampir limit</Badge>}
-            </div>
-            <div
-              className="mt-2 h-1.5 overflow-hidden rounded-full bg-wood-200"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={usagePercent}
-              aria-valuetext={`${usageCount} dari ${usageLimit} transaksi digunakan`}
-            >
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  isWarning ? "bg-warning" : "bg-leaf-500"
-                )}
-                style={{ width: `${usagePercent}%` }}
-              />
-            </div>
-          </div>
-        )}
+    <Card variant="filled" className="mb-4">
+      <CardContent className="text-text-secondary">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 break-words text-sm">
+            Paket Gratis: <span className="font-medium">transaksi unlimited</span>
+          </p>
+          <Badge variant="success" dot>Gratis sementara</Badge>
+        </div>
+        <p className="mt-1 text-xs text-text-tertiary">
+          {usageCount} transaksi tercatat bulan ini. Tidak ada batas kuota transaksi.
+        </p>
       </CardContent>
     </Card>
   );
@@ -553,9 +512,6 @@ interface ReviewPanelProps {
   debit: PreviewLine[];
   credit: PreviewLine[];
   stockWarning: number | null;
-  isAtLimit: boolean;
-  usageCount: number;
-  usageLimit: number;
   className?: string;
   /** Seller-first summary props */
   transactionType?: string;
@@ -568,9 +524,6 @@ export function ReviewPanel({
   debit,
   credit,
   stockWarning,
-  isAtLimit,
-  usageCount,
-  usageLimit,
   className,
   transactionType,
   amount = 0,
@@ -743,12 +696,6 @@ export function ReviewPanel({
             <span className="min-w-0 break-words">Stok produk akan menjadi negatif ({formatNumber(stockWarning)}).</span>
           </div>
         )}
-        {isAtLimit && (
-          <div className="flex min-w-0 items-start gap-2 rounded-md border border-error-border bg-error-bg px-3 py-2 text-xs text-error" role="alert">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 break-words">Anda sudah mencapai limit transaksi gratis ({usageCount}/{usageLimit}).</span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -764,9 +711,6 @@ interface MobileReviewToggleProps {
   transactionType: string;
   amount: number;
   stockWarning: number | null;
-  isAtLimit: boolean;
-  usageCount: number;
-  usageLimit: number;
   cashAccountLabel?: string;
   productName?: string;
 }
@@ -831,9 +775,6 @@ export function MobileReviewToggle(props: MobileReviewToggleProps) {
             debit={props.debit}
             credit={props.credit}
             stockWarning={props.stockWarning}
-            isAtLimit={props.isAtLimit}
-            usageCount={props.usageCount}
-            usageLimit={props.usageLimit}
             transactionType={props.transactionType}
             amount={props.amount}
             cashAccountLabel={props.cashAccountLabel}
@@ -852,12 +793,11 @@ export function MobileReviewToggle(props: MobileReviewToggleProps) {
 interface SubmitBarProps {
   loading: boolean;
   disabled: boolean;
-  isAtLimit: boolean;
   successId: string | null;
   label?: string;
 }
 
-export function SubmitBar({ loading, disabled, isAtLimit, successId, label }: SubmitBarProps) {
+export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProps) {
   const buttonLabel = successId
     ? "Transaksi Tersimpan"
     : loading
@@ -879,16 +819,6 @@ export function SubmitBar({ loading, disabled, isAtLimit, successId, label }: Su
         {successId && <Check className="h-5 w-5" />}
         {buttonLabel}
       </Button>
-
-      {/* Free plan limit message near submit */}
-      {isAtLimit && !successId && (
-        <p className="text-center text-xs text-error">
-          Limit transaksi gratis tercapai.{' '}
-          <Link to="/settings/billing" className="underline underline-offset-2 hover:text-error/80">
-            Upgrade
-          </Link>
-        </p>
-      )}
 
       {/* Success state */}
       {successId && (

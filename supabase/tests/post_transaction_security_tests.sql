@@ -1,12 +1,12 @@
 -- =============================================================================
--- LEDJER — post_transaction Security & Free Plan Limit Regression Tests (STRICT)
+-- LEDJER — post_transaction Security & Unlimited Free Transactions Tests (STRICT)
 -- =============================================================================
 -- Validates:
 --   S1 — Staff WITHOUT can_create_transaction cannot call post_transaction (CRITICAL)
 --   S2 — Staff WITH can_create_transaction can call post_transaction
---   S3 — Free plan 50/month limit enforced server-side
---   S4 — Transactions from previous months do NOT count toward current limit
---   S5 — Non-free plans are NOT blocked by free plan limit
+--   S3 — Free plan can post more than the old 50/month quota
+--   S4 — Monthly usage still counts only current-month transactions
+--   S5 — Non-free plans remain unlimited for transactions
 --
 -- STRICT MODE: every assertion uses _test_assert (RAISE EXCEPTION on FAIL).
 -- ============================================================================
@@ -114,7 +114,7 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- S3: Free plan 50/month limit — block at 50
+-- S3: Free plan transactions are temporarily unlimited
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -125,7 +125,6 @@ DECLARE
   v_pay_id     UUID;
   v_rev_id     UUID;
   v_i          INTEGER;
-  v_err        TEXT;
   v_txn_id     UUID;
 BEGIN
   SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
@@ -141,12 +140,12 @@ BEGIN
 
   PERFORM public._test_impersonate(v_owner_id);
 
-  -- Post 49 transactions (should all succeed)
-  FOR v_i IN 1..49 LOOP
+  -- Post more than the old 50/month quota; all should succeed.
+  FOR v_i IN 1..55 LOOP
     v_txn_id := (public.post_transaction(
       v_org_id, CURRENT_DATE, 'cash_sale', 10000,
       NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL,
-      'S3: free limit txn ' || v_i, NULL, NULL, NULL, NULL, NULL
+      'S3: unlimited free txn ' || v_i, NULL, NULL, NULL, NULL, NULL
     ) ->> 'transaction_id')::UUID;
 
     PERFORM public._test_assert(
@@ -155,37 +154,10 @@ BEGIN
       'post failed at count ' || v_i
     );
   END LOOP;
-
-  -- 50th transaction should be BLOCKED
-  BEGIN
-    PERFORM public.post_transaction(
-      v_org_id, CURRENT_DATE, 'cash_sale', 10000,
-      NULL, NULL, v_cash_id, NULL, 'paid', NULL, NULL,
-      'S3: this should be blocked', NULL, NULL, NULL, NULL, NULL
-    );
-    PERFORM public._test_fail('S3.50', '50th transaction on free plan was not blocked');
-  EXCEPTION WHEN OTHERS THEN
-    v_err := SQLERRM;
-    PERFORM public._test_assert(
-      'S3.50: free plan blocks at 50 transactions',
-      v_err ILIKE '%50%' OR v_err ILIKE '%batas%' OR v_err ILIKE '%limit%' OR v_err ILIKE '%tercapai%',
-      format('expected limit error, got: %s', v_err)
-    );
-  END;
-
-  -- Verify no 50th transaction was created
-  PERFORM public._test_assert(
-    'S3.51: no 50th transaction row exists',
-    NOT EXISTS (
-      SELECT 1 FROM public.transactions
-      WHERE organization_id = v_org_id AND description = 'S3: this should be blocked'
-    ),
-    '50th transaction was inserted despite limit'
-  );
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- S4: Previous month transactions do NOT count toward current limit
+-- S4: Monthly usage reports current-month transactions only
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -197,6 +169,7 @@ DECLARE
   v_rev_id     UUID;
   v_txn_id     UUID;
   v_prev_month DATE;
+  v_usage      JSONB;
 BEGIN
   SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
          t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
@@ -245,10 +218,25 @@ BEGIN
     v_txn_id IS NOT NULL,
     'post_transaction blocked — previous month transactions are counting'
   );
+
+  v_usage := public.get_monthly_usage(v_org_id);
+  PERFORM public._test_assert(
+    'S4.2: usage count ignores previous-month transactions',
+    (v_usage->>'count')::INTEGER = 1,
+    format('expected count 1, got: %s', v_usage::text)
+  );
+
+  PERFORM public._test_assert(
+    'S4.3: usage reports unlimited transaction policy',
+    (v_usage ? 'limit') AND (v_usage ? 'remaining') AND (v_usage->>'is_unlimited')::BOOLEAN = true
+      AND jsonb_typeof(v_usage->'limit') = 'null'
+      AND jsonb_typeof(v_usage->'remaining') = 'null',
+    format('unexpected usage shape: %s', v_usage::text)
+  );
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- S5: Non-free plans are NOT blocked by the free plan limit
+-- S5: Non-free plans remain unlimited for transactions
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -293,7 +281,7 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- S6: Source-level check — post_transaction contains can_create_transaction guard
+-- S6: Source-level check — permission guard stays, quota guard is removed
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -312,15 +300,17 @@ BEGIN
   );
 
   PERFORM public._test_assert(
-    'S6.2: post_transaction free limit uses 50',
-    v_source LIKE '%>= 50%' OR v_source LIKE '%>= 50 %',
-    'Free plan limit should be 50'
+    'S6.2: post_transaction no longer blocks free plan at 50',
+    v_source NOT ILIKE '%Batas 50 transaksi%'
+      AND v_source NOT ILIKE '%Free plan limit reached%'
+      AND v_source NOT ILIKE '%v_txn_count >= 50%',
+    'Found old free-plan transaction quota guard'
   );
 
   PERFORM public._test_assert(
-    'S6.3: post_transaction monthly limit uses date_trunc month window',
-    v_source LIKE '%date_trunc%month%',
-    'Monthly limit must use date_trunc(month) window'
+    'S6.3: post_transaction documents temporary unlimited transaction policy',
+    v_source ILIKE '%Transaction posting is unlimited for every plan%',
+    'Missing temporary unlimited transaction policy comment'
   );
 END $$;
 

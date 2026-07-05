@@ -1,6 +1,6 @@
 # Billing Setup Guide
 
-Last updated: 2026-06-29
+Last updated: 2026-07-05
 
 ## Current Status
 
@@ -8,11 +8,13 @@ Last updated: 2026-06-29
 
 The app creates Mayar invoices through Supabase Edge Functions and updates plans from the Mayar webhook after verifying invoice status through Mayar's API. Manual billing via admin SQL console remains the fallback procedure.
 
+Temporary product policy: the Gratis plan currently has no transaction limit. Paid plans still exist for plan lifecycle and feature differentiation, but transaction posting is unlimited across plans.
+
 ## Plan Structure
 
 | Plan | Monthly | Yearly | Staff Limit | Transaction Limit |
 |------|---------|--------|-------------|-------------------|
-| Gratis | Rp 0 | Rp 0 | 0 | 50/month |
+| Gratis | Rp 0 | Rp 0 | 0 | Unlimited (temporary) |
 | Solo | Rp 39.000 | Rp 390.000 | 0 | Unlimited |
 | Business | Rp 49.000 | Rp 490.000 | 1 | Unlimited |
 

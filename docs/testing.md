@@ -101,7 +101,7 @@ pnpm test:e2e:cross-browser-smoke
 | `security-supabase-local.spec.ts` | 6 | RLS, RPC, service role checks |
 | `security-api-permissions-local.spec.ts` | 16 | REST/RPC permission hardening |
 | `accounting-lifecycle-local.spec.ts` | 7 | Accounting lifecycle invariants |
-| `quota-subscription-local.spec.ts` | 5 | Free quota and subscription enforcement |
+| `quota-subscription-local.spec.ts` | 5 | Free unlimited transactions and subscription enforcement |
 | `inventory-guards-local.spec.ts` | 6 | Inventory stock and inactive product guards |
 | `reports-date-boundary-local.spec.ts` | 9 | Date boundary report assertions |
 | `accounts-hardening-local.spec.ts` | 4 | Account mutation hardening |

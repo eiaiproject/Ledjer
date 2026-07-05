@@ -95,7 +95,7 @@ async function postCashSale(
 // ── Tests ────────────────────────────────────────────────────────────────
 
 if (E2E.isFullLocal) {
-test.describe("Quota + subscription enforcement", () => {
+test.describe("Free transactions + subscription enforcement", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async () => {
@@ -108,9 +108,9 @@ test.describe("Quota + subscription enforcement", () => {
     await cleanupE2EUsers();
   });
 
-  // ── Free plan limit + paid webhook unlock ─────────────────────────────
+  // ── Free plan unlimited transactions + paid plan lifecycle ────────────
 
-  test.describe("free plan transaction limit + paid webhook unlock", () => {
+  test.describe("free plan unlimited transactions + paid plan lifecycle", () => {
     let ownerId: string;
     let ownerToken: string;
     let orgId: string;
@@ -128,25 +128,14 @@ test.describe("Quota + subscription enforcement", () => {
       await setOrgPlan(orgId, "free");
     });
 
-    test("free plan limit enforced server-side: 50 pass, 51st fails", async () => {
-      for (let i = 1; i <= 50; i += 1) {
+    test("free plan allows more than the old 50 transaction quota", async () => {
+      for (let i = 1; i <= 55; i += 1) {
         const res = await postCashSale(ownerToken, orgId, cashAccountId, i);
         expect(res.status).toBe(200);
       }
-
-      const overLimit = await postCashSale(
-        ownerToken,
-        orgId,
-        cashAccountId,
-        51,
-      );
-      expect(overLimit.status).not.toBe(200);
-
-      const msg = JSON.stringify(overLimit.data ?? "").toLowerCase();
-      expect(msg).toMatch(/50|limit|gratis|free|kuota/);
     });
 
-    test("get_monthly_usage returns correct count / limit / remaining", async () => {
+    test("get_monthly_usage returns count with null limit / remaining", async () => {
       const usage = await rpc(ownerToken, "get_monthly_usage", {
         p_org_id: orgId,
       });
@@ -154,20 +143,22 @@ test.describe("Quota + subscription enforcement", () => {
 
       const data = usage.data as {
         count: number;
-        limit: number;
-        remaining: number;
+        limit: number | null;
+        remaining: number | null;
+        is_unlimited: boolean;
         period_start: string;
         period_end: string;
       };
 
-      expect(data.count).toBe(50);
-      expect(data.limit).toBe(50);
-      expect(data.remaining).toBe(0);
+      expect(data.count).toBe(55);
+      expect(data.limit).toBeNull();
+      expect(data.remaining).toBeNull();
+      expect(data.is_unlimited).toBe(true);
       expect(data.period_start).toBeTruthy();
       expect(data.period_end).toBeTruthy();
     });
 
-    test("paid webhook unlocks quota / plan", async () => {
+    test("paid webhook still updates plan state", async () => {
       const session = await createCheckoutSession(
         orgId,
         `quota_inv_${Date.now()}`,
@@ -199,12 +190,12 @@ test.describe("Quota + subscription enforcement", () => {
       expect(org?.current_plan).toBe("solo");
       expect(org?.subscription_status).toBe("active");
 
-      // Transaction 51 should now succeed
+      // Transactions were already unlimited on free; this verifies posting still works after plan change.
       const nextTx = await postCashSale(
         ownerToken,
         orgId,
         cashAccountId,
-        52,
+        56,
       );
       expect(nextTx.status).toBe(200);
     });

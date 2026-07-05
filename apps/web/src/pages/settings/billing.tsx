@@ -2,10 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
-import {
-  fetchMonthlyTransactionUsage,
-  FREE_PLAN_TRANSACTION_LIMIT,
-} from "@/lib/transaction-usage";
+import { fetchMonthlyTransactionUsage } from "@/lib/transaction-usage";
 import type { PaidPlan } from "@/lib/billing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,16 +18,16 @@ const BILLING_CONTACT_HREF = `mailto:${BILLING_CONTACT_EMAIL}?subject=${UPGRADE_
 const PLAN_DETAILS = {
   free: {
     name: "Gratis",
-    description: "Cocok untuk usaha kecil yang baru mulai",
+    description: "Gratis sementara tanpa batas transaksi",
     monthlyPrice: 0,
     yearlyPrice: 0,
     userAllowance: "1 pemilik",
-    transactionAllowance: "50/bulan",
-    transactionLimit: 50,
-    isUnlimited: false,
+    transactionAllowance: "Unlimited",
+    transactionLimit: Infinity,
+    isUnlimited: true,
     features: [
       "1 pemilik",
-      "50 transaksi/bulan",
+      "Transaksi unlimited",
       "Laporan dasar",
       "Bagan akun default",
     ],
@@ -107,15 +104,6 @@ export function BillingSettingsPage() {
   });
 
   const usageCount = usage?.count ?? 0;
-  const usageLimit = usage?.limit ?? FREE_PLAN_TRANSACTION_LIMIT;
-  const usagePercent = isFreePlan
-    ? Math.round((usageCount / usageLimit) * 100)
-    : 0;
-  const boundedUsagePercent = Math.min(Math.max(usagePercent, 0), 100);
-  const remaining = isFreePlan
-    ? (usage?.remaining ?? usageLimit)
-    : 0;
-  const isNearLimit = isFreePlan && usagePercent >= 80;
 
   const buildContactHref = (targetPlan: PaidPlan) => {
     const orgName = orgData?.organization?.name || "Organisasi saya";
@@ -187,8 +175,8 @@ export function BillingSettingsPage() {
                   </div>
                   {isFreePlan && (
                     <div>
-                      <span className="block text-xs text-wood-500">Reset kuota</span>
-                      <span className="font-medium text-wood-800">Setiap awal bulan</span>
+                      <span className="block text-xs text-wood-500">Status promo</span>
+                      <span className="font-medium text-wood-800">Tanpa batas transaksi</span>
                     </div>
                   )}
                 </div>
@@ -221,66 +209,6 @@ export function BillingSettingsPage() {
 
         {usageError ? (
           <ErrorState error={usageError} onRetry={refetchUsage} />
-        ) : isFreePlan ? (
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-wood-500">Transaksi terpakai</p>
-                  <p className="text-3xl font-bold text-wood-900">
-                    {usageCount}
-                    <span className="text-base font-normal text-wood-500">
-                      {" "}
-                      / {usageLimit}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-xs text-wood-500">
-                    {remaining} transaksi tersisa bulan ini
-                  </p>
-                </div>
-                {isNearLimit && (
-                  <Badge variant="warning" size="md">
-                    Hampir limit
-                  </Badge>
-                )}
-              </div>
-
-              <div className="mt-4" role="progressbar" aria-valuenow={boundedUsagePercent} aria-valuemin={0} aria-valuemax={100} aria-valuetext={`${usageCount} dari ${usageLimit} transaksi digunakan`}>
-                <div className="h-3 overflow-hidden rounded-full bg-wood-100">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ease-out ${
-                      isNearLimit ? "bg-clay-500" : "bg-wood-500"
-                    }`}
-                    style={{ width: `${boundedUsagePercent}%` }}
-                  />
-                </div>
-                <p className="mt-1.5 text-right text-xs text-wood-500">
-                  {usagePercent}%
-                </p>
-              </div>
-
-              {isNearLimit && (
-                <div className="mt-4 rounded-lg border border-clay-200 bg-clay-50 p-4">
-                  <p className="text-sm font-medium text-clay-800">
-                    Kuota hampir habis
-                  </p>
-                  <p className="mt-1 text-xs text-clay-600">
-                    Upgrade ke paket berbayar untuk transaksi unlimited dan fitur lengkap.
-                  </p>
-                  {isOwner && (
-                    <button
-                      onClick={() => {
-                        document.getElementById("plans-heading")?.scrollIntoView({ behavior: "smooth" });
-                      }}
-                      className="mt-2 text-xs font-medium text-clay-700 underline underline-offset-2 hover:text-clay-900"
-                    >
-                      Lihat paket lainnya
-                    </button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         ) : (
           <Card>
             <CardContent className="p-6">
@@ -293,7 +221,9 @@ export function BillingSettingsPage() {
                     Transaksi unlimited
                   </p>
                   <p className="text-xs text-wood-500">
-                    Paket {planInfo.name} tidak memiliki batas transaksi.
+                    {isFreePlan
+                      ? `Paket Gratis untuk sementara tidak memiliki batas transaksi. ${usageCount} transaksi tercatat bulan ini.`
+                      : `Paket ${planInfo.name} tidak memiliki batas transaksi.`}
                   </p>
                 </div>
               </div>

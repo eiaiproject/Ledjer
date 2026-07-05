@@ -18,8 +18,9 @@ describe('fetchMonthlyTransactionUsage', () => {
     mocks.rpc.mockResolvedValue({
       data: {
         count: 10,
-        limit: 50,
-        remaining: 40,
+        limit: null,
+        remaining: null,
+        is_unlimited: true,
         period_start: '2026-06-01T00:00:00Z',
         period_end: '2026-07-01T00:00:00Z',
       },
@@ -30,8 +31,9 @@ describe('fetchMonthlyTransactionUsage', () => {
 
     expect(result).toEqual({
       count: 10,
-      limit: 50,
-      remaining: 40,
+      limit: null,
+      remaining: null,
+      isUnlimited: true,
       periodStart: '2026-06-01T00:00:00Z',
       periodEnd: '2026-07-01T00:00:00Z',
     });
@@ -68,7 +70,7 @@ describe('fetchMonthlyTransactionUsage', () => {
 
   it('throws on malformed RPC response (wrong types)', async () => {
     mocks.rpc.mockResolvedValue({
-      data: { count: 'ten', limit: 50, remaining: 40, period_start: 123, period_end: 'x' },
+      data: { count: 'ten', limit: null, remaining: null, period_start: 123, period_end: 'x' },
       error: null,
     });
 

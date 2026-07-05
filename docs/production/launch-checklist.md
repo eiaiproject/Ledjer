@@ -44,7 +44,7 @@ Each item must be verified and signed off by the launch owner.
 ## Billing
 
 - [ ] Billing page shows correct plan and usage
-- [ ] Plan limits enforced (free plan 50 transactions/month)
+- [ ] Gratis plan shows unlimited transaction policy
 - [ ] Upgrade/downgrade/cancel UX is truthful
 - [ ] Billing events audit trail working
 - [ ] Admin plan override tested (`admin_update_plan`)

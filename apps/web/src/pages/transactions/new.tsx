@@ -9,7 +9,7 @@ import type { Database } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { fetchMonthlyTransactionUsage, FREE_PLAN_TRANSACTION_LIMIT } from "@/lib/transaction-usage";
+import { fetchMonthlyTransactionUsage } from "@/lib/transaction-usage";
 import {
   usesCashAccount,
   usesCategory,
@@ -99,6 +99,20 @@ function getLastCashAccountKey(transactionType: string) {
   return `ledjer:last-cash-account:${transactionType}`;
 }
 
+function createClientToken() {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
@@ -110,7 +124,7 @@ export function NewTransactionPage() {
   const { canCreateTransaction } = useOrgPermissions();
   const [manualAmount, setManualAmount] = useState(false);
   const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
-  const [clientToken, setClientToken] = useState(() => crypto.randomUUID());
+  const [clientToken, setClientToken] = useState(createClientToken);
   const [isTypeSelectorExpanded, setIsTypeSelectorExpanded] = useState(true);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -342,8 +356,6 @@ export function NewTransactionPage() {
 
   const isFreePlan = orgData?.organization?.current_plan === "free";
   const usageCount = monthlyUsage?.count || 0;
-  const usageLimit = monthlyUsage?.limit ?? FREE_PLAN_TRANSACTION_LIMIT;
-  const isAtLimit = isFreePlan && usageCount >= usageLimit;
 
   /* -- Effects -- */
 
@@ -541,7 +553,7 @@ export function NewTransactionPage() {
         window.localStorage.setItem(getLastCashAccountKey(variables.transactionType), variables.cashAccountId);
       }
       setSuccessTransactionId(result.transaction_id);
-      setClientToken(crypto.randomUUID());
+      setClientToken(createClientToken());
       // P1.5: invalidate every query key affected by a financial mutation so
       // dashboard, reports, accounts, products, parties, and usage do not
       // display stale data after a successful post.
@@ -672,15 +684,13 @@ export function NewTransactionPage() {
       {/* Free plan usage banner */}
       <PlanUsageBanner
         isFreePlan={isFreePlan}
-        isAtLimit={isAtLimit}
         usageCount={usageCount}
-        usageLimit={usageLimit}
       />
 
       {usageError && isFreePlan && (
         <div className="mb-4 flex min-w-0 flex-col gap-2 rounded-lg border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning sm:flex-row sm:items-center sm:justify-between" role="alert">
           <p className="min-w-0 break-words">
-            Gagal memuat pemakaian paket gratis. Batas transaksi mungkin belum akurat.
+            Gagal memuat jumlah transaksi bulan ini. Transaksi tetap dapat dicatat.
           </p>
           <Button type="button" variant="outline" size="sm" onClick={() => void refetchMonthlyUsage()} className="shrink-0">
             Coba lagi
@@ -993,9 +1003,6 @@ export function NewTransactionPage() {
               transactionType={selectedType}
               amount={selectedAmount}
               stockWarning={stockAfterSale}
-              isAtLimit={isAtLimit}
-              usageCount={usageCount}
-              usageLimit={usageLimit}
               cashAccountLabel={selectedCashAccountOption?.label || "Kas / Bank"}
               productName={selectedProduct?.name}
             />
@@ -1005,8 +1012,7 @@ export function NewTransactionPage() {
           <div className="sticky bottom-0 z-sticky -mx-4 border-t border-wood-100 bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
             <SubmitBar
               loading={postMutation.isPending}
-              disabled={postMutation.isPending || isAtLimit || !selectedType}
-              isAtLimit={isAtLimit}
+              disabled={postMutation.isPending || !selectedType}
               successId={successTransactionId}
               label={getSubmitLabel({
                 transactionType: selectedType,
@@ -1028,9 +1034,6 @@ export function NewTransactionPage() {
                     debit={preview.debit}
                     credit={preview.credit}
                     stockWarning={stockAfterSale}
-                    isAtLimit={isAtLimit}
-                    usageCount={usageCount}
-                    usageLimit={usageLimit}
                     transactionType={selectedType}
                     amount={selectedAmount}
                     cashAccountLabel={selectedCashAccountOption?.label || "Kas / Bank"}

@@ -165,7 +165,7 @@ const pricingPlans = [
     tagline: "Untuk mencoba Ledjer",
     highlights: [
       "Mulai gratis tanpa kartu",
-      "Hingga 50 transaksi per bulan",
+      "Transaksi unlimited sementara",
       "Akses laporan utama",
       "Cocok untuk usaha pemula",
     ],
@@ -178,9 +178,9 @@ const pricingPlans = [
     name: "Solo",
     price: "Rp 39.000",
     period: "/bulan",
-    tagline: "Untuk pemilik usaha yang butuh ruang lebih",
+    tagline: "Untuk pemilik usaha yang butuh laporan lengkap",
     highlights: [
-      "Transaksi lebih banyak per bulan",
+      "Semua laporan keuangan",
       "Manajemen piutang & utang",
       "Manajemen stok dan HPP rata-rata tertimbang",
       "Akses penuh ke 4 laporan utama",
