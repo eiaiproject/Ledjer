@@ -110,11 +110,13 @@ export function NewTransactionPage() {
   const { canCreateTransaction } = useOrgPermissions();
   const [manualAmount, setManualAmount] = useState(false);
   const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
+  const [clientToken, setClientToken] = useState(() => crypto.randomUUID());
   const [isTypeSelectorExpanded, setIsTypeSelectorExpanded] = useState(true);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const activeFieldsRef = useRef<HTMLDivElement>(null);
   const previousTypeRef = useRef<string>("");
+  const submitInFlightRef = useRef(false);
 
   const {
     register,
@@ -539,15 +541,21 @@ export function NewTransactionPage() {
         window.localStorage.setItem(getLastCashAccountKey(variables.transactionType), variables.cashAccountId);
       }
       setSuccessTransactionId(result.transaction_id);
+      setClientToken(crypto.randomUUID());
       // P1.5: invalidate every query key affected by a financial mutation so
       // dashboard, reports, accounts, products, parties, and usage do not
       // display stale data after a successful post.
       invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
     },
+    onSettled: () => {
+      submitInFlightRef.current = false;
+    },
   });
 
   /* -- Submit handler -- */
   const onSubmit = (data: TransactionForm) => {
+    if (submitInFlightRef.current || successTransactionId) return;
+
     if (usesParty(data.transactionType) && !data.partyName?.trim()) {
       setError("partyName", { type: "manual", message: "Isi nama pihak" });
       scrollToError();
@@ -606,7 +614,8 @@ export function NewTransactionPage() {
       }
     }
 
-    postMutation.mutate({ ...data, clientToken: crypto.randomUUID() });
+    submitInFlightRef.current = true;
+    postMutation.mutate({ ...data, clientToken });
   };
 
   const scrollToError = () => {

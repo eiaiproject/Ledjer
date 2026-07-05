@@ -8,7 +8,11 @@ export async function loginViaUI(
   page: Page,
   user: TestUser = E2E_OWNER,
 ): Promise<void> {
-  await page.goto("/login");
+  // If already on /login (e.g. redirected by ProtectedRoute with ?redirect=...),
+  // skip the goto to preserve the redirect parameter in the URL.
+  if (!page.url().includes("/login")) {
+    await page.goto("/login");
+  }
   await page.getByRole("textbox", { name: /email/i }).fill(user.email);
   await page.getByRole("textbox", { name: /password/i }).fill(user.password);
   await page.getByRole("button", { name: /^Masuk$/ }).click();

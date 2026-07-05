@@ -67,8 +67,9 @@ async function getSessionCount(orgId: string): Promise<number> {
   return Array.isArray(data) ? data.length : 0;
 }
 
-if (E2E.isFullLocal && process.env.E2E_BILLING === "1") {
-  test.describe("Checkout Edge Function Hardening", () => {
+// Legacy Mayar coverage is intentionally excluded from normal full-local runs.
+if (E2E.isFullLocal && process.env.E2E_MAYAR_LEGACY === "1") {
+  test.describe("Legacy Checkout Edge Function Hardening", () => {
     let orgId: string;
     let ownerToken: string;
 

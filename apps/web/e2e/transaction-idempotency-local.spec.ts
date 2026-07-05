@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { E2E, e2eName } from "./fixtures/env";
 import { E2E_OWNER } from "./fixtures/users";
 import {
@@ -6,6 +6,7 @@ import {
   seedOrganization,
   loginUser,
 } from "./fixtures/seed";
+import { loginViaUI } from "./fixtures/auth";
 import { getCashAccount } from "./fixtures/accounts";
 import { getOrgTransactions } from "./fixtures/transactions";
 import { cleanupE2EOrganizations, cleanupE2EUsers } from "./fixtures/cleanup";
@@ -19,6 +20,11 @@ function userHeaders(token: string) {
     "Content-Type": "application/json",
   };
 }
+
+const serviceRoleHeaders = {
+  apikey: E2E.serviceRoleKey,
+  Authorization: `Bearer ${E2E.serviceRoleKey}`,
+};
 
 async function rpc(
   token: string,
@@ -57,6 +63,30 @@ async function postTxWithToken(
     ...overrides,
   });
   return { status, data: data as Record<string, unknown> | null };
+}
+
+async function fillUiCashSale(page: Page, description: string) {
+  await page.goto("/transactions/new");
+  await page.waitForLoadState("networkidle");
+
+  await page.getByRole("button", { name: /Penjualan Tunai/i }).click();
+
+  const amountField = page.locator('input[name="amount"], input[name*="amount"]').first();
+  await expect(amountField).toBeVisible({ timeout: 5_000 });
+  await amountField.click();
+  await amountField.fill("75000");
+  await amountField.press("Tab");
+
+  const descField = page.locator('input[name="description"], textarea[name="description"]').first();
+  await expect(descField).toBeVisible({ timeout: 5_000 });
+  await descField.fill(description);
+
+  const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
+  await expect(cashAccountCombobox).toBeVisible({ timeout: 5_000 });
+  await cashAccountCombobox.click();
+  const firstOption = page.locator('[role="listbox"] [role="option"]').first();
+  await expect(firstOption).toBeVisible({ timeout: 5_000 });
+  await firstOption.click();
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -164,6 +194,57 @@ test.describe("Transaction: Idempotency", () => {
       `${E2E.supabaseUrl}/rest/v1/transactions?organization_id=eq.${orgId}&client_token=eq.${clientToken}&select=id`,
       { headers: { apikey: E2E.serviceRoleKey, Authorization: `Bearer ${E2E.serviceRoleKey}` } },
     );
+    const txRows = await txCountRes.json();
+    expect(txRows).toHaveLength(1);
+  });
+
+  test("UI retry reuses client_token after processed response is lost", async ({ page }) => {
+    const description = e2eName(`UI idempotency retry ${Date.now()}`);
+    let rpcCalls = 0;
+    let firstClientToken = "";
+
+    await page.route("**/rest/v1/rpc/post_transaction", async (route) => {
+      rpcCalls += 1;
+      const payload = route.request().postDataJSON() as { p_client_token?: string };
+
+      if (rpcCalls === 1) {
+        firstClientToken = payload.p_client_token ?? "";
+        expect(firstClientToken).toBeTruthy();
+
+        const processedResponse = await route.fetch();
+        expect(processedResponse.status()).toBe(200);
+
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Simulated lost response after commit" }),
+        });
+        return;
+      }
+
+      expect(payload.p_client_token).toBe(firstClientToken);
+      await route.continue();
+    });
+
+    await loginViaUI(page, E2E_OWNER);
+    await fillUiCashSale(page, description);
+
+    const submitBtn = page.getByRole("button", { name: /Catat Penjualan|Catat Transaksi/i }).first();
+    await expect(submitBtn).toBeEnabled({ timeout: 5_000 });
+    await submitBtn.click();
+
+    await expect(page.getByRole("alert", { name: /Ringkasan kesalahan/i })).toBeVisible({ timeout: 10_000 });
+    await expect(submitBtn).toBeEnabled({ timeout: 10_000 });
+    await submitBtn.click();
+
+    await page.waitForURL(/\/transactions\/[0-9a-f-]+/i, { timeout: 15_000 });
+    expect(rpcCalls).toBe(2);
+
+    const txCountRes = await fetch(
+      `${E2E.supabaseUrl}/rest/v1/transactions?client_token=eq.${firstClientToken}&select=id`,
+      { headers: serviceRoleHeaders },
+    );
+    expect(txCountRes.ok).toBe(true);
     const txRows = await txCountRes.json();
     expect(txRows).toHaveLength(1);
   });

@@ -43,9 +43,23 @@ if (E2E.isFullLocal) {
     test("anonymous visit to /dashboard redirects to login and returns to dashboard after login", async ({ page }) => {
       await page.goto("/dashboard");
       await page.waitForURL(/\/login/, { timeout: 10_000 });
+      expect(new URL(page.url()).searchParams.get("redirect")).toBe("/dashboard");
       await loginViaUI(page, E2E_OWNER);
       await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
       expect(page.url()).toContain("/dashboard");
+    });
+
+    test("anonymous visit to a protected deep link returns to the original route after login", async ({ page }) => {
+      await page.goto("/reports/profit-loss?period=this-month");
+      await page.waitForURL(/\/login/, { timeout: 10_000 });
+      expect(new URL(page.url()).searchParams.get("redirect")).toBe("/reports/profit-loss?period=this-month");
+
+      await loginViaUI(page, E2E_OWNER);
+      await page.waitForURL(/\/reports\/profit-loss/, { timeout: 15_000 });
+
+      const finalUrl = new URL(page.url());
+      expect(finalUrl.pathname).toBe("/reports/profit-loss");
+      expect(finalUrl.searchParams.get("period")).toBe("this-month");
     });
 
     for (const { label, value } of MALICIOUS_REDIRECTS) {

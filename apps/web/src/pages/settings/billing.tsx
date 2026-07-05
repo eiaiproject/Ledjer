@@ -1,24 +1,22 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import {
   fetchMonthlyTransactionUsage,
   FREE_PLAN_TRANSACTION_LIMIT,
 } from "@/lib/transaction-usage";
-import {
-  createMayarCheckout,
-  type BillingPeriod,
-  type PaidPlan,
-} from "@/lib/billing";
-import { translateError } from "@/lib/errors";
+import type { PaidPlan } from "@/lib/billing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
-import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast-api";
-import { Check, ArrowRight, CreditCard, RefreshCw } from "lucide-react";
+import { Check, Mail, RefreshCw } from "lucide-react";
+
+const BILLING_CONTACT_EMAIL = "projects.eiai@gmail.com";
+const UPGRADE_REQUEST_SUBJECT = "Permintaan upgrade paket Ledjer";
+const UPGRADE_REQUEST_SUBJECT_PARAM = encodeURIComponent(UPGRADE_REQUEST_SUBJECT);
+const BILLING_CONTACT_HREF = `mailto:${BILLING_CONTACT_EMAIL}?subject=${UPGRADE_REQUEST_SUBJECT_PARAM}`;
 
 const PLAN_DETAILS = {
   free: {
@@ -85,11 +83,13 @@ function formatPrice(price: number): string {
   return new Intl.NumberFormat("id-ID").format(price);
 }
 
+const PLAN_LABELS: Record<PaidPlan, string> = {
+  solo: "Solo",
+  business: "Business",
+};
+
 export function BillingSettingsPage() {
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
-  const [customerMobile, setCustomerMobile] = useState("");
-  const [mobileError, setMobileError] = useState("");
-  const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
   const plan = (orgData?.organization?.current_plan as PlanKey) || "free";
@@ -117,34 +117,28 @@ export function BillingSettingsPage() {
     : 0;
   const isNearLimit = isFreePlan && usagePercent >= 80;
 
-  const checkoutMutation = useMutation({
-    mutationFn: createMayarCheckout,
-    onSuccess: (checkout) => {
-      window.location.assign(checkout.checkoutUrl);
-    },
-    onError: (error) => {
-      toast.error(translateError(error));
-    },
-    onSettled: () => {
-      setPendingPlan(null);
-    },
-  });
+  const buildContactHref = (targetPlan: PaidPlan) => {
+    const orgName = orgData?.organization?.name || "Organisasi saya";
+    const periodLabel = billingPeriod === "yearly" ? "Tahunan" : "Bulanan";
+    const subject = encodeURIComponent(`Permintaan upgrade paket Ledjer - ${orgName}`);
+    const body = encodeURIComponent(
+      `Halo admin,
 
-  const handleCheckout = (targetPlan: PaidPlan) => {
-    if (!orgData?.organization?.id) return;
-    const digits = customerMobile.replace(/\D/g, "");
-    if (digits.length < 8 || digits.length > 16) {
-      setMobileError("Isi nomor WhatsApp yang valid untuk invoice Mayar.");
-      return;
-    }
-    setMobileError("");
-    setPendingPlan(targetPlan);
-    checkoutMutation.mutate({
-      organizationId: orgData.organization.id,
-      plan: targetPlan,
-      billingPeriod,
-      customerMobile,
-    });
+` +
+      `Saya ingin upgrade paket Ledjer:
+` +
+      `- Organisasi: ${orgName}
+` +
+  `- Paket saat ini: ${planInfo.name}
+` +
+      `- Paket tujuan: ${PLAN_LABELS[targetPlan]}
+` +
+      `- Periode: ${periodLabel}
+
+` +
+      `Mohon info langkah transfer manual. Terima kasih.`
+    );
+    return `mailto:${BILLING_CONTACT_EMAIL}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -350,24 +344,7 @@ export function BillingSettingsPage() {
           </div>
         </div>
 
-        {isOwner && (
-          <Card className="mb-4">
-            <CardContent className="p-4">
-              <Input
-                label="Nomor WhatsApp pembayaran"
-                value={customerMobile}
-                onChange={(event) => {
-                  setCustomerMobile(event.target.value);
-                  if (mobileError) setMobileError("");
-                }}
-                placeholder="08xxxxxxxxxx"
-                error={mobileError}
-                helperText="Dipakai Mayar untuk membuat invoice pembayaran."
-                inputMode="tel"
-              />
-            </CardContent>
-          </Card>
-        )}
+
 
         {/* Plan Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-stretch">
@@ -376,6 +353,55 @@ export function BillingSettingsPage() {
             const isCurrent = key === plan;
             const isRecommended = key === "business" && plan !== "business";
             const price = isYearly ? info.yearlyPrice : info.monthlyPrice;
+            let planAction: ReactNode;
+
+            if (isCurrent) {
+              planAction = (
+                <Button
+                  type="button"
+                  variant="outline"
+                  fullWidth
+                  disabled
+                >
+                  Paket saat ini
+                </Button>
+              );
+            } else if (info.monthlyPrice === 0) {
+              planAction = (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  disabled
+                >
+                  Sudah menggunakan
+                </Button>
+              );
+            } else if (isOwner) {
+              planAction = (
+                <Button
+                  as="a"
+                  href={buildContactHref(key as PaidPlan)}
+                  variant={isRecommended ? "primary" : "secondary"}
+                  fullWidth
+                  aria-label={`Hubungi Admin untuk upgrade ${info.name}`}
+                >
+                  <Mail className="h-4 w-4" />
+                  Hubungi Admin
+                </Button>
+              );
+            } else {
+              planAction = (
+                <Button
+                  type="button"
+                  variant={isRecommended ? "primary" : "secondary"}
+                  fullWidth
+                  disabled
+                >
+                  Tidak tersedia
+                </Button>
+              );
+            }
 
             return (
               <div key={key} className="flex h-full flex-col">
@@ -461,44 +487,7 @@ export function BillingSettingsPage() {
 
                     {/* CTA - pushed to bottom */}
                     <div className="mt-auto pt-6">
-                      {isCurrent ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          fullWidth
-                          disabled
-                        >
-                          Paket saat ini
-                        </Button>
-                      ) : info.monthlyPrice === 0 ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          fullWidth
-                          disabled
-                        >
-                          Sudah menggunakan
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant={isRecommended ? "primary" : "secondary"}
-                          fullWidth
-                          loading={pendingPlan === key && checkoutMutation.isPending}
-                          disabled={!isOwner || checkoutMutation.isPending}
-                          onClick={() => handleCheckout(key as PaidPlan)}
-                        >
-                          {isOwner ? (
-                            <>
-                              <CreditCard className="h-4 w-4" />
-                              Bayar dengan Mayar
-                              <ArrowRight className="h-4 w-4" />
-                            </>
-                          ) : (
-                            "Tidak tersedia"
-                          )}
-                        </Button>
-                      )}
+                      {planAction}
                     </div>
                   </CardContent>
                 </Card>
@@ -517,10 +506,17 @@ export function BillingSettingsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-wood-800">
-                    Ingin upgrade sekarang?
+                    Upgrade via transfer manual
                   </p>
                   <p className="mt-0.5 text-xs text-wood-600">
-                    Pembayaran diproses melalui Mayar. Paket aktif otomatis setelah pembayaran terkonfirmasi.
+                    Saat ini upgrade paket diproses manual. Hubungi admin di{' '}
+                    <a
+                      href={BILLING_CONTACT_HREF}
+                      className="text-leaf-600 underline underline-offset-2 hover:text-leaf-700"
+                    >
+                      {BILLING_CONTACT_EMAIL}
+                    </a>{' '}
+                    untuk mendapatkan instruksi transfer. Sertakan nama organisasi, paket tujuan, dan periode billing.
                   </p>
                 </div>
               </div>

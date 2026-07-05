@@ -5,7 +5,7 @@
 | Mode | Env | Purpose |
 |------|-----|---------|
 | `deploy-smoke` | Production URL | Fast public smoke, no Supabase |
-| `full-local` | localhost + Supabase | Full authenticated E2E with seed |
+| `full-local` | localhost + Supabase | Full authenticated E2E with seed; excludes visual and legacy Mayar by default |
 | `local-smoke` | localhost | Local smoke without seed |
 
 Auto-detected from `E2E_BASE_URL`:
@@ -23,8 +23,12 @@ Runs: `smoke.spec.ts` + `security-public.spec.ts` against `https://ledjer-ahk.pa
 
 ### Full Local E2E
 ```bash
+# Recommended full local CI gate (starts/resets local Supabase)
+pnpm ci:local:full
+
+# Or run only Playwright after Supabase is already running:
 # 1. Start Supabase
-supabase start --workdir .
+supabase start --workdir . -x edge-runtime
 
 # 2. Build app
 VITE_SUPABASE_URL=http://localhost:54321 \
@@ -60,7 +64,7 @@ pnpm test:e2e:cross-browser-smoke
 | File | Tests | Description |
 |------|-------|-------------|
 | `smoke.spec.ts` | 18 | Landing, auth pages, route guards |
-| `security-public.spec.ts` | 8 | XSS, secrets, headers, error safety |
+| `security-public.spec.ts` | 7 | XSS, secrets, headers, error safety |
 | `static-routes.spec.ts` | 5 | /terms, /privacy, /refund, /security, /contact |
 
 ### Authenticated (require seeded user)
@@ -68,32 +72,48 @@ pnpm test:e2e:cross-browser-smoke
 |------|-------|-------------|
 | `auth.spec.ts` | 14 | Login, register, logout, forgot password |
 | `auth-email.spec.ts` | 1 | Password reset via Inbucket (local only) |
-| `onboarding.spec.ts` | 3 | Onboarding flow, dashboard access |
-| `transactions.spec.ts` | 8 | Transaction creation, types, list |
+| `auth-sanity.spec.ts` | 1 | Auth session sanity |
+| `auth-callback-local.spec.ts` | 8 | Password recovery callback via Mailpit |
+| `onboarding.spec.ts` | 4 | Onboarding flow, dashboard access |
+| `transactions.spec.ts` | 13 | Transaction creation, types, list |
 | `transaction-negative.spec.ts` | 4 | Validation, empty fields |
 | `transaction-list.spec.ts` | 4 | Search, special chars, detail |
-| `transaction-report-flow.spec.ts` | 4 | Cash sale → report E2E flow |
+| `transaction-report-flow.spec.ts` | 3 | Transaction to report E2E flow |
 | `void.spec.ts` | 3 | Void reason, void success, double-void prevention |
 | `products-inventory.spec.ts` | 5 | Products, purchase-to-sale flow |
-| `reports.spec.ts` | 8 | Reports smoke + golden number assertions |
+| `reports.spec.ts` | 11 | Reports smoke + golden number assertions |
 | `accounts.spec.ts` | 4 | CoA, add form |
-| `permissions.spec.ts` | 8 | Owner full access, staff restrictions, cross-org |
-| `billing-checkout.spec.ts` | 6 | Mayar checkout UI, owner-only checkout, pending sessions |
-| `billing-webhook.spec.ts` | 8 | Mayar webhook auth, idempotency, payment state handling |
-| `export-import.spec.ts` | 5 | CSV export buttons, download verification |
+| `permissions.spec.ts` | 10 | Owner full access, staff restrictions, cross-org |
+| `billing-manual-transfer.spec.ts` | 2 | Manual-transfer billing CTA for owner/staff |
+| `export-import.spec.ts` | 7 | CSV export buttons, download verification |
 
 ### UI Quality
 | File | Tests | Description |
 |------|-------|-------------|
-| `accessibility.spec.ts` | 14 | axe-core, semantics, keyboard, a11y |
-| `responsive.spec.ts` | 6 | Mobile/tablet/desktop viewports |
+| `accessibility.spec.ts` | 20 | axe-core, semantics, keyboard, a11y |
+| `responsive.spec.ts` | 12 | Mobile/tablet/desktop viewports |
 | `visual.spec.ts` | 8 | Screenshot baselines |
-| `performance.spec.ts` | 8 | Load timing, bundle size |
+| `performance.spec.ts` | 13 | Load timing, bundle size |
 
 ### Local-only (Supabase required)
 | File | Tests | Description |
 |------|-------|-------------|
 | `security-supabase-local.spec.ts` | 6 | RLS, RPC, service role checks |
+| `security-api-permissions-local.spec.ts` | 16 | REST/RPC permission hardening |
+| `accounting-lifecycle-local.spec.ts` | 7 | Accounting lifecycle invariants |
+| `quota-subscription-local.spec.ts` | 5 | Free quota and subscription enforcement |
+| `inventory-guards-local.spec.ts` | 6 | Inventory stock and inactive product guards |
+| `reports-date-boundary-local.spec.ts` | 9 | Date boundary report assertions |
+| `accounts-hardening-local.spec.ts` | 4 | Account mutation hardening |
+| `csv-security-local.spec.ts` | 4 | CSV injection/export hardening |
+| `team-invite-security-local.spec.ts` | 5 | Invitation security flow |
+| `transaction-idempotency-local.spec.ts` | 6 | RPC and UI transaction idempotency |
+| `invitations.spec.ts` | 1 | Invitation smoke |
+
+### Legacy Mayar (not part of normal full-local)
+Mayar checkout/webhook specs remain in the repo for provider migration reference, but billing currently uses manual transfer. They are not local CI gates and should not be counted as active coverage until a payment provider flow is restored.
+
+The normal `full-local` Chromium suite currently lists 247 tests in 34 files, excluding `visual.spec.ts` and legacy Mayar provider tests.
 
 ## Global Setup
 
@@ -115,6 +135,8 @@ When `E2E_MODE=deploy-smoke` or `local-smoke`, global setup is skipped.
 | `E2E_SUPABASE_ANON_KEY` | Yes (full-local) | Supabase anon key |
 | `E2E_SUPABASE_SERVICE_ROLE_KEY` | Yes (full-local) | Supabase service role (test setup only) |
 | `E2E_INBUCKET_URL` | No | Inbucket URL (default: `http://localhost:54324`) |
+| `E2E_VISUAL` | No | Include visual tests in full-local mode |
+| `E2E_MAYAR_LEGACY` | No | Register legacy Mayar specs for provider migration work only |
 
 ## Test Data
 
@@ -132,7 +154,7 @@ Key jobs:
 - `frontend`: typecheck + lint + vitest + build
 - `supabase`: Docker Supabase + apply migrations + SQL tests + live database-types drift check
 - `db-types-guard`: fast CANONICAL-FILE sanity check on `packages/database-types/index.ts` (does NOT prove drift)
-- `e2e-full-local`: Full E2E with seeded data
+- `e2e-full-local`: Full E2E with seeded data and manual billing coverage; excludes visual and legacy Mayar
 - `e2e-cross-browser`: Firefox + WebKit smoke subset
 - `visual-regression`: Linux Chromium visual baselines (comparison only, requires committed baselines)
 

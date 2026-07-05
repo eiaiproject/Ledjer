@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            if supabase start --workdir . --debug; then
+            if supabase start --workdir . -x edge-runtime --debug; then
               echo "Supabase started successfully"
               break
             fi
@@ -299,98 +299,13 @@ jobs:
           version: 2.107.0
           github-token: ${{ github.token }}
 
-      - name: Write local Edge Function env file (read by supabase start)
-        run: |
-          mkdir -p supabase/functions
-          cat > supabase/functions/.env << 'EOF'
-          MAYAR_ENV=sandbox
-          MAYAR_API_KEY=test_mayar_key
-          MAYAR_WEBHOOK_TOKEN=test_webhook_token
-          MAYAR_API_BASE_URL=http://fake-mayar:4567
-          APP_URL=http://localhost:4173
-          EOF
-
       - name: Start local Supabase stack
         env:
           SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . --debug
+        run: supabase start --workdir . -x edge-runtime --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
-
-      - name: Start fake Mayar server on Supabase Docker network (with host port mapping)
-        run: |
-          set -euo pipefail
-          SUPABASE_NETWORK=$(docker network ls --filter name=supabase -q | head -1)
-          if [ -z "$SUPABASE_NETWORK" ]; then
-            echo '::error::Could not find Supabase Docker network'
-            exit 1
-          fi
-          echo "Supabase network: $SUPABASE_NETWORK"
-          docker rm -f fake-mayar 2>/dev/null || true
-          # -p 4567:4567 maps the port to the host so Playwright tests can reach it
-          # --network puts it on the same network as Supabase so Edge Functions can reach it
-          docker run -d \
-            --name fake-mayar \
-            --network "$SUPABASE_NETWORK" \
-            -p 4567:4567 \
-            -e FAKE_MAYAR_PORT=4567 \
-            -e FAKE_MAYAR_STATUS=paid \
-            -v "${{ github.workspace }}/scripts/fake-mayar-server.mjs:/app/server.mjs:ro" \
-            node:22-alpine \
-            node /app/server.mjs
-          echo "Fake Mayar started: http://fake-mayar:4567 (Docker) / http://127.0.0.1:4567 (host)"
-          # Health check with retry (from host via port mapping)
-          for i in 1 2 3 4 5; do
-            if curl -s http://127.0.0.1:4567/health --max-time 3 2>/dev/null; then
-              echo "Fake Mayar health check passed (host reachable)"
-              exit 0
-            fi
-            echo "Waiting for fake Mayar… ($i/5)"
-            sleep 2
-          done
-          echo '::error::Fake Mayar did not become healthy'
-          docker ps -a --filter name=fake-mayar
-          docker logs fake-mayar || true
-          exit 1
-
-      - name: Ensure Supabase services are running after reset
-        run: |
-          set -euo pipefail
-          supabase start --workdir .
-          for i in 1 2 3 4 5; do
-            if curl -fsS http://127.0.0.1:54321/functions/v1/_internal/health >/dev/null; then
-              echo "Edge Runtime health check passed"
-              exit 0
-            fi
-            echo "Waiting for Edge Runtime... ($i/5)"
-            sleep 2
-          done
-          echo '::error::Edge Runtime did not become healthy'
-          docker ps -a --filter name=supabase_edge_runtime
-          edge_id=$(docker ps -aq --filter name=supabase_edge_runtime | head -1)
-          if [[ -n "$edge_id" ]]; then
-            docker logs "$edge_id" || true
-          fi
-          exit 1
-
-      - name: Mayar Edge Function preflight — webhook returns 401 without token
-        run: |
-          supabase_url="http://localhost:54321"
-          echo "Checking mayar-webhook returns 401 without token..."
-          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            "${supabase_url}/functions/v1/mayar-webhook" --max-time 10 2>/dev/null || echo "000")
-          if [[ "$status" = "401" ]]; then
-            echo "✅ mayar-webhook returns 401 without token"
-          else
-            echo "::error::mayar-webhook returned $status (expected 401)"
-            docker ps -a --filter name=supabase_edge_runtime
-            edge_id=$(docker ps -aq --filter name=supabase_edge_runtime | head -1)
-            if [[ -n "$edge_id" ]]; then
-              docker logs "$edge_id" || true
-            fi
-            exit 1
-          fi
 
       - name: Capture Supabase env vars
         run: supabase status --workdir . --output env > /tmp/supabase.env
@@ -432,29 +347,15 @@ jobs:
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
-      - name: Run full E2E (Chromium) with billing
+      - name: Run full E2E (Chromium)
         env:
           E2E_MODE: full-local
           E2E_BASE_URL: http://localhost:4173
           E2E_SUPABASE_URL: http://localhost:54321
           E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
-          # E2E_BILLING enables the billing tests AND triggers Playwright's webServer
-          # to start a host-side fake Mayar. Since we already have the fake Mayar
-          # running as a Docker container (port-mapped to host), we tell Playwright
-          # to skip its own webServer via E2E_FAKE_MAYAR_CONTAINER=1.
-          E2E_BILLING: 1
-          E2E_FAKE_MAYAR_CONTAINER: 1
-          # Host-facing URL for Playwright test runner (fake-mayar is Docker DNS,
-          # unreachable from host). The Docker container has -p 4567:4567.
-          MAYAR_API_BASE_URL: http://127.0.0.1:4567
-          E2E_MAYAR_WEBHOOK_TOKEN: test_webhook_token
           CI: true
         run: pnpm --filter web exec playwright test --project=chromium
-
-      - name: Clean up fake Mayar container
-        if: always()
-        run: docker rm -f fake-mayar 2>/dev/null || true
 
       - name: Upload Playwright report
         if: failure()
@@ -522,7 +423,7 @@ jobs:
       - name: Start local Supabase stack
         env:
           SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . --debug
+        run: supabase start --workdir . -x edge-runtime --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
@@ -629,7 +530,7 @@ jobs:
       - name: Start local Supabase stack
         env:
           SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . --debug
+        run: supabase start --workdir . -x edge-runtime --debug
 
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed

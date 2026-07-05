@@ -22,8 +22,9 @@ async function deletePendingSessions(orgId: string) {
   ).catch(() => {});
 }
 
-if (E2E.isFullLocal) {
-test.describe("Mayar Checkout", () => {
+// Legacy Mayar coverage is intentionally excluded from normal full-local runs.
+if (E2E.isFullLocal && process.env.E2E_MAYAR_LEGACY === "1") {
+test.describe("Legacy Mayar Checkout", () => {
   test.beforeAll(async () => {
     // Ensure the owner user exists
     await ensureTestUser(E2E_OWNER);
@@ -65,7 +66,7 @@ test.describe("Mayar Checkout", () => {
     await expect(page).toHaveURL(/\/settings\/billing/);
   });
 
-  if (process.env.E2E_BILLING === "1") {
+  if (process.env.E2E_MAYAR_LEGACY === "1") {
     test("Owner checkout creates pending session with correct details", async ({ page }) => {
       await page.waitForLoadState("networkidle");
 
@@ -167,7 +168,7 @@ test.describe("Mayar Checkout", () => {
     await page.getByRole("button", { name: /^Masuk$/ }).click();
     await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 15_000 });
 
-    if (process.env.E2E_BILLING) {
+    if (process.env.E2E_MAYAR_LEGACY) {
       // Verify server-side 403: non-owner cannot call mayar-create-checkout
       const org = await ensureOwnerOrg();
       const staffToken = await loginUser(E2E_STAFF);
