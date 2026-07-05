@@ -320,7 +320,7 @@ export function DashboardLayout() {
       <dialog
         ref={mobileDialogRef}
         onClose={handleDialogClose}
-        className="fixed inset-0 z-modal bg-transparent p-0 backdrop:bg-transparent lg:hidden"
+        className="fixed inset-0 z-modal m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent lg:hidden"
         aria-label="Menu navigasi"
       >
         <button type="button" aria-label="Tutup menu" className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0" onClick={() => mobileDialogRef.current?.close()} />
