@@ -28,7 +28,7 @@ const paddingStyles: Record<CardPadding, string> = {
 export function Card({ children, className, variant = "default", padding = "md" }: CardProps) {
   const style = { "--card-padding": paddingStyles[padding] } as CSSProperties;
   return (
-    <div className={cn("rounded-lg", variantStyles[variant], className)} style={style}>
+    <div className={cn("rounded-lg min-w-0", variantStyles[variant], className)} style={style}>
       {children}
     </div>
   );

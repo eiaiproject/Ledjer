@@ -142,7 +142,7 @@ export function BillingSettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8 space-y-8">
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Langganan & Billing</h1>

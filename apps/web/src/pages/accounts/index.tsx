@@ -766,7 +766,7 @@ export function AccountsPage() {
           type="button"
           onClick={() => setActiveTab("cashbank")}
           className={cn(
-            "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            "flex-1 rounded-md px-4 py-2.5 min-h-[44px] text-sm font-medium transition-colors",
             activeTab === "cashbank"
               ? "bg-surface-elevated text-text-primary shadow-sm"
               : "text-text-secondary hover:text-text-primary"
@@ -779,7 +779,7 @@ export function AccountsPage() {
           type="button"
           onClick={() => setActiveTab("all")}
           className={cn(
-            "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+            "flex-1 rounded-md px-4 py-2.5 min-h-[44px] text-sm font-medium transition-colors",
             activeTab === "all"
               ? "bg-surface-elevated text-text-primary shadow-sm"
               : "text-text-secondary hover:text-text-primary"

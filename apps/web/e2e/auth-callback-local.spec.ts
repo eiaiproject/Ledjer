@@ -271,22 +271,22 @@ test.describe("Auth: callback via Mailpit", () => {
 
   // ── Auth callback UI safety ───────────────────────────────────────────
   // Tests the AuthCallbackPage component error states.
-  // STATUS_COPY: invalid → "Tautan tidak lengkap"
+  // STATUS_COPY: invalid → "Autentikasi tidak terarah"
   //              error   → "Verifikasi gagal"
 
   test.describe("Auth callback UI safety", () => {
     test("missing token_hash param shows invalid-state", async ({ page }) => {
       await page.goto("/auth/callback?type=signup");
-      // Should show the "invalid" status: "Tautan tidak lengkap"
+      // Should show the "invalid" status: "Autentikasi tidak terarah"
       await expect(
-        page.getByText(/Tautan tidak lengkap/i),
+        page.getByText(/Autentikasi tidak terarah/i),
       ).toBeVisible({ timeout: 10_000 });
     });
 
     test("missing type param shows invalid-state", async ({ page }) => {
       await page.goto("/auth/callback?token_hash=fake123");
       await expect(
-        page.getByText(/Tautan tidak lengkap/i),
+        page.getByText(/Autentikasi tidak terarah/i),
       ).toBeVisible({ timeout: 10_000 });
     });
 

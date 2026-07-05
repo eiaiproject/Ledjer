@@ -149,8 +149,8 @@ export function GeneralLedgerPage() {
               {showAllAccounts ? "Semua Akun" : selectedAccount ? `${selectedAccount.code} - ${selectedAccount.name}` : "Buku Besar"}
             </h2>
           </CardHeader>
-          <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full text-sm">
+          <div className="ledger-scroll-x">
+            <table className="ledger-table min-w-[900px]">
               <thead>
                 <tr className="border-b border-wood-200">
                   <th className="px-5 py-3 text-left font-medium text-wood-600">Tanggal</th>

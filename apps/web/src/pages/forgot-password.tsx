@@ -81,7 +81,7 @@ export function ForgotPasswordPage() {
   // ── Success view ──────────────────────────────────────────────────
   if (submittedEmail) {
     return (
-      <div className="ledger-page min-h-screen bg-cream-100 lg:grid lg:grid-cols-3">
+      <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
         <AuthBrandPanel
           className="col-span-1"
           title="Pemulihan password."
@@ -93,7 +93,7 @@ export function ForgotPasswordPage() {
           ]}
         />
 
-        <div className="col-span-1 flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:col-span-2">
+        <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 lg:min-h-0 lg:col-span-2">
           <div className="w-full max-w-sm">
             <div className="mb-8 flex justify-center lg:hidden">
               <Logo size="md" variant="full" />
@@ -145,8 +145,7 @@ export function ForgotPasswordPage() {
   }
 
   // ── Email form view ──────────────────────────────────────────────
-  return (
-    <div className="ledger-page min-h-screen bg-cream-100 lg:grid lg:grid-cols-3">
+  return (      <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
       <AuthBrandPanel
         className="col-span-1"
         title="Lupa password Anda?"
@@ -158,7 +157,7 @@ export function ForgotPasswordPage() {
         ]}
       />
 
-      <div className="col-span-1 flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:col-span-2">
+      <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 lg:min-h-0 lg:col-span-2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex justify-center lg:hidden">
             <Logo size="md" variant="full" />

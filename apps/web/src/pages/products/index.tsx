@@ -277,7 +277,7 @@ export function ProductsPage() {
         />
       ) : (
         <>
-          <div className="space-y-3 sm:hidden">
+          <div className="space-y-3 sm:hidden ledger-mobile-card-stack">
             {filteredProducts.map((product) => (
               <Card key={product.id}>
                 <CardContent>
@@ -319,7 +319,7 @@ export function ProductsPage() {
           </div>
 
           <Card className="hidden overflow-hidden sm:block">
-            <div className="overflow-x-auto">
+            <div className="ledger-scroll-x">
               <table className="min-w-[900px] w-full text-sm">
               <thead>
                 <tr className="border-b border-wood-100">

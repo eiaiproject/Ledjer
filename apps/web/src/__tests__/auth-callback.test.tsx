@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   verifyOtp: vi.fn(),
   resend: vi.fn(),
   resetPasswordForEmail: vi.fn(),
+  getSession: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => ({
@@ -18,6 +19,7 @@ vi.mock('@/lib/supabase', () => ({
       verifyOtp: (...args: unknown[]) => mocks.verifyOtp(...args),
       resend: (...args: unknown[]) => mocks.resend(...args),
       resetPasswordForEmail: (...args: unknown[]) => mocks.resetPasswordForEmail(...args),
+      getSession: (...args: unknown[]) => mocks.getSession(...args),
     },
   },
 }));
@@ -54,6 +56,7 @@ describe('AuthCallbackPage', () => {
     mocks.verifyOtp.mockReset();
     mocks.resend.mockReset();
     mocks.resetPasswordForEmail.mockReset();
+    mocks.getSession.mockReset();
   });
 
   afterEach(() => {
@@ -124,12 +127,14 @@ describe('AuthCallbackPage', () => {
   });
 
   it('shows invalid state when neither code nor token_hash is present', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session: null } });
+
     renderWithSearchParams('?foo=bar');
 
     expect(mocks.exchangeCodeForSession).not.toHaveBeenCalled();
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
 
-    expect(await screen.findByText(/tautan tidak lengkap/i)).toBeTruthy();
+    expect(await screen.findByText(/autentikasi tidak terarah/i)).toBeTruthy();
   });
 
   it('shows error state on token expired/invalid (verifyOtp returns error)', async () => {
@@ -186,6 +191,28 @@ describe('AuthCallbackPage', () => {
     });
 
     expect(await screen.findByText(/email konfirmasi telah dikirim ulang/i)).toBeTruthy();
+  });
+
+  it('redirects to onboarding when session exists but no code/token_hash', async () => {
+    mocks.getSession.mockResolvedValue({
+      data: { session: { access_token: 'existing' } },
+    });
+
+    renderWithSearchParams('?foo=bar');
+
+    await waitFor(() => {
+      expect(mocks.getSession).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText(/email terkonfirmasi/i)).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('onboarding')).toBeTruthy();
+    });
   });
 
   it('does not call real network — supabase.auth methods are the only entry point', async () => {

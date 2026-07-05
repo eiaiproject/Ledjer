@@ -166,7 +166,8 @@
 }
 
 /* === BASE STYLES === */
-* {
+html, *, *::before, *::after {
+  box-sizing: border-box;
   border-color: var(--color-border);
 }
 
@@ -174,6 +175,7 @@ html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
   text-rendering: optimizeLegibility;
+  min-width: 320px;
 }
 
 body {
@@ -186,6 +188,97 @@ body {
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* === DYNAMIC VIEWPORT & MOBILE UTILITIES === */
+.ledger-min-dvh {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.ledger-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.ledger-mobile-nav {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Standardized horizontal scroll wrapper for tables */
+.ledger-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Standardized table helper */
+.ledger-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.ledger-table thead {
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-cream-100) 70%, transparent);
+}
+
+.ledger-table th {
+  font-weight: 500;
+  color: var(--color-wood-600);
+  text-align: left;
+}
+
+.ledger-table td {
+  border-bottom: 1px solid var(--color-wood-50);
+}
+
+.ledger-table tbody tr {
+  transition: background-color 150ms ease-out;
+}
+
+.ledger-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--color-cream-100) 50%, transparent);
+}
+
+/* Vertical card stack for mobile lists */
+.ledger-mobile-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Disable hover translateY on touch devices to prevent jumpy behavior */
+@media (hover: none) and (pointer: coarse) {
+  .ledger-interactive:hover {
+    transform: none;
+  }
+  .ledger-interactive:active {
+    transform: translateY(1px);
+  }
+}
+
+/* Ensure touch targets are at least 44px on coarse pointers */
+@media (pointer: coarse) {
+  button:not([class*="link"]),
+  [role="button"],
+  [role="switch"],
+  [role="radio"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+  }
+  /* Inline text links stay compact */
+  a:not([class*="inline-flex"]):not([class*="flex items-center"]) {
+    min-height: unset;
+  }
 }
 
 h1, h2, h3, h4 {
@@ -242,6 +335,13 @@ p, li {
 ::selection {
   background: var(--color-leaf-200);
   color: var(--color-leaf-900);
+}
+
+/* Ensure no horizontal overflow from page-level elements */
+.ledger-page-root {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Shared product motion: short, stateful, and reduced-motion friendly. */

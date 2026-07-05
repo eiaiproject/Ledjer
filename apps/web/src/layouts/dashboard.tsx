@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -71,20 +71,25 @@ export function DashboardLayout() {
     }
   }, [orgData, navigate]);
 
+  const mobileDialogRef = useRef<HTMLDialogElement>(null);
+
   useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMobileMenuOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    const dialog = mobileDialogRef.current;
+    if (!dialog) return;
+    if (mobileMenuOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!mobileMenuOpen && dialog.open) {
+      dialog.close();
+    }
   }, [mobileMenuOpen]);
+
+  const handleDialogClose = useCallback(() => {
+    setMobileMenuOpen(false);
+  }, []);
 
   if (orgData && orgData.needsOnboarding) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex ledger-min-dvh items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -111,10 +116,12 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
+  const showBottomNav = location.pathname !== '/transactions/new';
+
   const sidebarWidth = sidebarCollapsed ? "w-16" : "w-60";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="ledger-min-dvh bg-background">
       {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-drawer lg:flex lg:flex-col",
@@ -309,140 +316,179 @@ export function DashboardLayout() {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-modal lg:hidden">
-          <button
-            type="button"
-            aria-label="Tutup menu"
-            className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div className="ledger-drawer absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-wood-700 shadow-xl" role="dialog" aria-modal="true" aria-label="Menu navigasi">
-            <div className="flex h-16 items-center justify-between px-5 border-b border-wood-600">
-              <Logo size="md" variant="full" className="h-8" />
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 text-wood-300 hover:text-cream-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Tutup menu"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="py-4 px-3 overflow-y-auto" aria-label="Primary">
-              <ul className="space-y-1">
-                {visibleNavItems.map((item) => {
-                  const Icon = item.icon;
-                  const children = item.children;
-                  const active = children
-                    ? isParentActive(children)
-                    : isActive(item.to!);
-                  const menuId = `mobile-nav-${item.label.toLowerCase()}`;
+      {/* Mobile Menu Dialog */}
+      <dialog
+        ref={mobileDialogRef}
+        onClose={handleDialogClose}
+        className="fixed inset-0 z-modal m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent lg:hidden"
+        aria-label="Menu navigasi"
+      >
+        <button type="button" aria-label="Tutup menu" className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0" onClick={() => mobileDialogRef.current?.close()} />
+        <div className="ledger-drawer absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-wood-700 shadow-xl">
+          <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-wood-600">
+            <Logo size="md" variant="full" className="h-8" />
+            <button
+              type="button"
+              onClick={() => mobileDialogRef.current?.close()}
+              className="p-2 text-wood-300 hover:text-cream-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Tutup menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <nav className="flex-1 overflow-y-auto py-4 px-3" aria-label="Primary">
+            <ul className="space-y-1">
+              {visibleNavItems.map((item) => {
+                const Icon = item.icon;
+                const children = item.children;
+                const active = children
+                  ? isParentActive(children)
+                  : isActive(item.to!);
+                const menuId = `mobile-nav-${item.label.toLowerCase()}`;
 
-                  if (children) {
-                    return (
-                      <li key={item.label}>
-                        <button
-                          type="button"
-                          onClick={() => toggleMenu(item.label)}
-                          aria-expanded={expandedMenus.includes(item.label)}
-                          aria-controls={menuId}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
-                            active
-                              ? "bg-wood-600 text-cream-50"
-                              : "text-wood-200 hover:bg-wood-600/50"
-                          )}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
-                          <ChevronDown
-                            className={cn(
-                              "h-4 w-4 transition-transform",
-                              expandedMenus.includes(item.label) && "rotate-180"
-                            )}
-                          />
-                        </button>
-                        {expandedMenus.includes(item.label) && (
-                          <ul id={menuId} className="mt-1 ml-8 space-y-1">
-                            {children.map((child) => (
-                              <li key={child.to}>
-                                <Link
-                                  to={child.to}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  aria-current={isActive(child.to) ? "page" : undefined}
-                                  className={cn(
-                                    "block rounded-lg px-3 py-2 text-sm",
-                                    isActive(child.to)
-                                      ? "bg-wood-600/50 text-cream-50 font-medium"
-                                      : "text-wood-300 hover:bg-wood-600/30"
-                                  )}
-                                >
-                                  <span className="break-words">{child.label}</span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    );
-                  }
-
+                if (children) {
                   return (
-                    <li key={item.to}>
-                      <Link
-                        to={item.to}
-                        onClick={() => setMobileMenuOpen(false)}
-                        aria-current={active ? "page" : undefined}
+                    <li key={item.label}>
+                      <button
+                        type="button"
+                        onClick={() => toggleMenu(item.label)}
+                        aria-expanded={expandedMenus.includes(item.label)}
+                        aria-controls={menuId}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                          "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px]",
                           active
                             ? "bg-wood-600 text-cream-50"
                             : "text-wood-200 hover:bg-wood-600/50"
                         )}
                       >
                         <Icon className="h-5 w-5" />
-                        <span className="min-w-0 break-words">{item.label}</span>
-                      </Link>
+                        <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 transition-transform",
+                            expandedMenus.includes(item.label) && "rotate-180"
+                          )}
+                        />
+                      </button>
+                      {expandedMenus.includes(item.label) && (
+                        <ul id={menuId} className="mt-1 ml-8 space-y-1">
+                          {children.map((child) => (
+                            <li key={child.to}>
+                              <Link
+                                to={child.to}
+                                onClick={() => setMobileMenuOpen(false)}
+                                aria-current={isActive(child.to) ? "page" : undefined}
+                                className={cn(
+                                  "block rounded-lg px-3 py-2 text-sm min-h-[44px] flex items-center",
+                                  isActive(child.to)
+                                    ? "bg-wood-600/50 text-cream-50 font-medium"
+                                    : "text-wood-300 hover:bg-wood-600/30"
+                                )}
+                              >
+                                <span className="break-words">{child.label}</span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   );
-                })}
-              </ul>
-            </nav>
-            <div className="absolute bottom-0 left-0 right-0 border-t border-wood-600 p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full bg-wood-500 flex items-center justify-center text-cream-50 text-sm font-medium">
-                  {orgData?.organization?.name?.charAt(0) || "U"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="break-words text-sm font-medium text-cream-50">
-                    {orgData?.organization?.name || "Organisasi"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                  aria-label="Keluar"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
+                }
+
+                return (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px]",
+                        active
+                          ? "bg-wood-600 text-cream-50"
+                          : "text-wood-200 hover:bg-wood-600/50"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="min-w-0 break-words">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          <div className="shrink-0 border-t border-wood-600 p-4 ledger-safe-bottom">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-wood-500 flex items-center justify-center text-cream-50 text-sm font-medium shrink-0">
+                {orgData?.organization?.name?.charAt(0) || "U"}
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="break-words text-sm font-medium text-cream-50">
+                  {orgData?.organization?.name || "Organisasi"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Keluar"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </dialog>
 
       {/* Main Content */}
       <main className={cn(
-        "min-h-screen bg-background transition-[padding] duration-300 ease-out",
+        "bg-background transition-[padding] duration-300 ease-out",
+        showBottomNav && "pb-20 lg:pb-0",
         sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
       )}>
-        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
           <Outlet />
         </div>
       </main>
+      {showBottomNav && (
+      <nav
+        className="fixed bottom-0 inset-x-0 z-sticky border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
+        aria-label="Navigasi mobile"
+      >
+        <div className="flex items-stretch justify-around">
+          {visibleNavItems.filter((item) => !item.children).slice(0, 4).map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.to!);
+            return (
+              <Link
+                key={item.to}
+                to={item.to!}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-h-[56px]",
+                  active
+                    ? "text-wood-800"
+                    : "text-wood-500 hover:text-wood-700"
+                )}
+              >
+                <Icon className={cn("h-5 w-5", active && "text-wood-700")} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          {visibleNavItems.filter((item) => !item.children).length > 4 && (
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-wood-500 min-h-[56px]"
+              aria-label="Menu lainnya"
+            >
+              <Menu className="h-5 w-5" />
+              <span>Lainnya</span>
+            </button>
+          )}
+        </div>
+      </nav>
+      )}
     </div>
   );
 }

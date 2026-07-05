@@ -333,7 +333,7 @@ export function TransactionDetailPage() {
                     <span className="font-mono text-xs text-wood-500">{je.entry_number}</span>
                     <Badge variant={statusVariant(je.status)}>{statusLabel(je.status)}</Badge>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="ledger-scroll-x">
                   <table className="min-w-[560px] w-full text-sm">
                     <thead>
                       <tr className="border-b text-left text-xs text-wood-500">

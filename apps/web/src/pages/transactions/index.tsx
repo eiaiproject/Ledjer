@@ -265,7 +265,7 @@ export function TransactionListPage() {
           </div>
         ) : (
         <>
-          <div className="space-y-3 sm:hidden">
+          <div className="space-y-3 sm:hidden ledger-mobile-card-stack">
             {transactions.map((txn) => (
               <Card key={txn.id}>
                 <CardContent>
@@ -287,7 +287,7 @@ export function TransactionListPage() {
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-lg border border-wood-200 bg-cream-50 sm:block">
+          <div className="hidden ledger-scroll-x rounded-lg border border-wood-200 bg-cream-50 sm:block">
             <table className="min-w-[860px] w-full text-left text-sm">
               <thead className="border-b border-wood-100 bg-cream-100/70">
                 <tr>
