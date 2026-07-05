@@ -24,8 +24,8 @@ const STATUS_COPY: Record<Status, { title: string; subtitle: string }> = {
     subtitle: "Tautan tidak valid atau sudah kedaluwarsa.",
   },
   invalid: {
-    title: "Tautan tidak lengkap",
-    subtitle: "Tautan verifikasi tidak valid. Minta tautan baru untuk melanjutkan.",
+    title: "Autentikasi tidak terarah",
+    subtitle: "Tautan tidak valid atau belum terkonfirmasi. Cek email Anda atau coba masuk kembali.",
   },
 };
 
@@ -74,6 +74,19 @@ export function AuthCallbackPage() {
           });
           if (error) throw error;
         } else {
+          // No code or token_hash — check if a session already exists.
+          // A session may exist when the user authenticated on another tab
+          // or the onAuthStateChange listener fired before this component
+          // mounted. Without this check, authenticated users would see a
+          // misleading "link invalid" error instead of being redirected.
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setStatus("success");
+            setTimeout(() => {
+              navigate(redirectPath, { replace: true });
+            }, 1200);
+            return;
+          }
           setStatus("invalid");
           return;
         }
@@ -151,7 +164,7 @@ export function AuthCallbackPage() {
   const copy = STATUS_COPY[status];
 
   return (
-    <div className="ledger-page flex min-h-screen items-center justify-center bg-cream-100 px-4 py-12">
+    <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Logo size="md" variant="full" />

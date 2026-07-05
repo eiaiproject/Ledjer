@@ -42,7 +42,7 @@ export function TransactionListSkeleton() {
         <Skeleton className="h-10 w-32 rounded-md" />
       </div>
       <div className="rounded-lg border border-wood-200 bg-cream-50">
-        <table className="w-full text-sm">
+        <table className="ledger-table">
           <thead>
             <tr className="border-b border-wood-100">
               <th className="px-4 py-3"><Skeleton className="h-4 w-16" /></th>

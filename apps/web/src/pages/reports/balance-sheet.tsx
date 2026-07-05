@@ -112,8 +112,8 @@ export function BalanceSheetPage() {
             <CardHeader>
               <h2 className="text-lg font-semibold text-text-primary">Aset</h2>
             </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="min-w-[520px] w-full text-sm">
+            <div className="ledger-scroll-x">
+              <table className="ledger-table min-w-[520px]">
                 <tbody>
                   {assets.map((item) => (
                     <tr key={item.account_code} className="border-b border-wood-50">
@@ -138,8 +138,8 @@ export function BalanceSheetPage() {
             <CardHeader>
               <h2 className="text-lg font-semibold text-text-primary">Kewajiban & Ekuitas</h2>
             </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="min-w-[560px] w-full text-sm">
+            <div className="ledger-scroll-x">
+              <table className="ledger-table min-w-[560px]">
                 <tbody>
                   {liabilities.length > 0 && (
                     <>

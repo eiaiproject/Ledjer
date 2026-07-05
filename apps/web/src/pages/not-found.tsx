@@ -6,7 +6,7 @@ import { Logo } from "@/components/ui/logo";
 
 export function NotFoundPage() {
   return (
-    <div className="ledger-page flex min-h-screen items-center justify-center bg-cream-100 px-4 py-12">
+    <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Logo size="md" variant="full" />

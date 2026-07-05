@@ -121,7 +121,7 @@ export function RegisterPage() {
   // ── "Check your email" view ───────────────────────────────────────────
   if (pendingEmail) {
     return (
-      <div className="ledger-page min-h-screen bg-cream-100 lg:grid lg:grid-cols-3">
+      <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
         <AuthBrandPanel
           className="col-span-1"
           title="Satu langkah lagi."
@@ -133,7 +133,7 @@ export function RegisterPage() {
           ]}
         />
 
-        <div className="col-span-1 flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:col-span-2">
+        <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 lg:min-h-0 lg:col-span-2">
           <div className="w-full max-w-sm">
             <div className="mb-8 flex justify-center lg:hidden">
               <Logo size="md" variant="full" />
@@ -224,7 +224,7 @@ export function RegisterPage() {
 
   // ── Registration form ────────────────────────────────────────────────
   return (
-    <div className="ledger-page min-h-screen bg-cream-100 lg:grid lg:grid-cols-3">
+    <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
       {/* Brand panel — 33% */}
       <AuthBrandPanel
         className="col-span-1"
@@ -237,8 +237,7 @@ export function RegisterPage() {
         ]}
       />
 
-      {/* Form — 67% */}
-      <div className="col-span-1 flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:col-span-2">
+      {/* Form — 67% */}        <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 lg:min-h-0 lg:col-span-2">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="mb-8 flex justify-center lg:hidden">

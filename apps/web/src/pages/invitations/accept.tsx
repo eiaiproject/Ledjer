@@ -71,7 +71,7 @@ export function AcceptInvitationPage() {
 
   if (loading) {
     return (
-      <div className="ledger-page flex min-h-screen items-center justify-center bg-cream-100 px-4 py-12" role="status">
+      <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-12" role="status">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" aria-hidden="true" />
         <span className="sr-only">Memuat sesi...</span>
       </div>
@@ -79,7 +79,7 @@ export function AcceptInvitationPage() {
   }
 
   return (
-    <div className="ledger-page min-h-screen bg-cream-100 lg:grid lg:grid-cols-3">
+    <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
       <AuthBrandPanel
         className="col-span-1"
         title="Bergabung ke pembukuan tim."
@@ -91,7 +91,7 @@ export function AcceptInvitationPage() {
         ]}
       />
 
-      <div className="col-span-1 flex min-h-screen items-center justify-center p-6 lg:col-span-2 lg:min-h-0">
+      <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 lg:col-span-2 lg:min-h-0">
         <div className="w-full max-w-md">
           <div className="mb-8 flex justify-center lg:hidden">
             <Logo size="md" variant="full" />

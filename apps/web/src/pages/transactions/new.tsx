@@ -1002,7 +1002,7 @@ export function NewTransactionPage() {
           )}
 
           {/* Submit bar */}
-          <div className="sticky bottom-0 z-sticky -mx-4 border-t border-wood-100 bg-surface p-4 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+          <div className="sticky bottom-0 z-sticky -mx-4 border-t border-wood-100 bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
             <SubmitBar
               loading={postMutation.isPending}
               disabled={postMutation.isPending || isAtLimit || !selectedType}

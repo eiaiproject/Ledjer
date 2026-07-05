@@ -150,8 +150,8 @@ export function ProfitLossPage() {
         <PageSpinner />
       ) : (
         <Card>
-          <div className="overflow-x-auto">
-            <table className="min-w-[680px] w-full text-sm">
+          <div className="ledger-scroll-x">
+            <table className="ledger-table min-w-[680px]">
               <thead>
                 <tr className="border-b border-wood-200">
                   <th className="px-5 py-3 text-left font-medium text-wood-600">Akun</th>

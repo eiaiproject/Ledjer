@@ -223,7 +223,7 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="ledger-page flex min-h-screen items-center justify-center bg-cream-100 px-4 py-8 sm:py-12">
+    <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-8 sm:py-12">
       <div className="w-full max-w-lg space-y-7">
         {/* Header */}
         <div className="space-y-3 text-center">

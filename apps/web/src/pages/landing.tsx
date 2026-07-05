@@ -253,7 +253,7 @@ function stagger(index: number) {
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen overflow-x-hidden scroll-smooth motion-reduce:scroll-auto bg-cream-50">
+    <div className="ledger-min-dvh overflow-x-hidden scroll-smooth motion-reduce:scroll-auto bg-cream-50">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-tooltip focus:rounded-lg focus:bg-wood-500 focus:px-4 focus:py-2 focus:text-sm focus:text-cream-50 focus:shadow-lg"
