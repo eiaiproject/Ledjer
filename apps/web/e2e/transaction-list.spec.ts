@@ -30,7 +30,8 @@ test.describe("Transaction list page", () => {
     const specialChars = ["'", '"', "%", "_", ",", ";", "<script>", "OR 1=1"];
     for (const char of specialChars) {
       await searchInput.fill(char);
-      await page.waitForTimeout(300);
+      await expect(searchInput).toHaveValue(char);
+      await expect(page.getByText(`Cari: ${char}`, { exact: true })).toBeVisible({ timeout: 5_000 });
       await expect(page.locator("body")).toBeVisible();
     }
   });

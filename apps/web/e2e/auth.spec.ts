@@ -41,9 +41,10 @@ test.describe("Login", () => {
   test("login with empty fields shows validation error", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
-    // Form validation should prevent submission or show errors
-    await page.waitForTimeout(500);
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
+    await expect(
+      page.getByRole("alert").filter({ hasText: /email tidak valid|password wajib diisi/i }).first(),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("logged-in user visiting /login redirects to dashboard", async ({ page }) => {
@@ -80,8 +81,8 @@ test.describe("Register", () => {
     await page.getByRole("textbox", { name: /email/i }).fill("not-an-email");
     await page.locator('input[type="password"]').first().fill("Password1!");
     await page.getByLabel(/konfirmasi password/i).fill("Password1!");
-    // HTML5 type=email blocks native submit; check form wasn't submitted
-    await page.waitForTimeout(500);
+    await page.getByRole("button", { name: /^Daftar$/ }).click();
+    await expect(page.getByRole("alert").filter({ hasText: /email tidak valid/i }).first()).toBeVisible({ timeout: 5_000 });
     await expect(page).toHaveURL(/\/register/);
   });
 
@@ -140,8 +141,8 @@ test.describe("Forgot Password", () => {
   test("invalid email shows validation error", async ({ page }) => {
     await page.goto("/forgot-password");
     await page.getByRole("textbox", { name: /email/i }).fill("not-email");
-    // HTML5 type=email blocks native submit; check form wasn't submitted
-    await page.waitForTimeout(500);
+    await page.getByRole("button", { name: /kirim/i }).click();
+    await expect(page.getByRole("alert").filter({ hasText: /email tidak valid/i }).first()).toBeVisible({ timeout: 5_000 });
     await expect(page).toHaveURL(/\/forgot-password/);
   });
 });

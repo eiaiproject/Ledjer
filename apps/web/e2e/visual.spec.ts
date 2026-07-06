@@ -12,9 +12,8 @@ import { loginViaUI } from "./fixtures/auth";
  *  - We disable animations and transitions (`*::before`/`*::after`) for the
  *    duration of each test. This eliminates flicker from skeleton/spinner
  *    CSS and stops caret blinking in form fields.
- *  - We prefer waiting on network idle + the first heading / hero element
- *    over arbitrary `waitForTimeout`. A small 200ms settle is kept as a
- *    last-resort buffer for late layout shifts from fonts / images.
+ *  - We prefer waiting on network idle + the first heading / hero element,
+ *    then wait for fonts, images, and two animation frames before capturing.
  */
 const REDUCED_MOTION_CSS = `
   *, *::before, *::after {
@@ -31,6 +30,49 @@ async function applyReducedMotion(
   page: import("@playwright/test").Page,
 ): Promise<void> {
   await page.addStyleTag({ content: REDUCED_MOTION_CSS });
+}
+
+async function waitForVisualReady(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await page.waitForFunction(async () => {
+    const fonts = "fonts" in document
+      ? (document as Document & { fonts: { ready: Promise<unknown> } }).fonts
+      : undefined;
+    await fonts?.ready;
+
+    const viewportImages = Array.from(document.images).filter((image) => {
+      const style = window.getComputedStyle(image);
+      const rect = image.getBoundingClientRect();
+
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom >= 0 &&
+        rect.right >= 0 &&
+        rect.top <= window.innerHeight &&
+        rect.left <= window.innerWidth
+      );
+    });
+
+    await Promise.all(viewportImages.map((image) => {
+      if (image.complete) return undefined;
+
+      return new Promise<void>((resolve) => {
+        const done = () => resolve();
+        image.addEventListener("load", done, { once: true });
+        image.addEventListener("error", done, { once: true });
+      });
+    }));
+
+    return true;
+  }, undefined, { timeout: 10_000 });
+
+  await page.waitForFunction(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)));
+  }), undefined, { timeout: 5_000 });
 }
 
 interface VisualPage {
@@ -59,8 +101,7 @@ for (const vp of visualPages) {
     if (vp.waitFor) {
       await page.locator(vp.waitFor).first().waitFor({ state: "visible", timeout: 10_000 });
     }
-    // Tiny settle for late fonts/images. Don't grow this; it hides real bugs.
-    await page.waitForTimeout(200);
+    await waitForVisualReady(page);
 
     await expect(page).toHaveScreenshot(`${vp.name}.png`, {
       maxDiffPixelRatio: 0.01,
@@ -83,7 +124,7 @@ test.describe("Dashboard visual", () => {
     await applyReducedMotion(page);
     await page.waitForLoadState("networkidle");
     await page.locator("main, h1").first().waitFor({ state: "visible", timeout: 10_000 });
-    await page.waitForTimeout(200);
+    await waitForVisualReady(page);
 
     await expect(page).toHaveScreenshot("dashboard-desktop.png", {
       maxDiffPixelRatio: 0.01,
@@ -107,7 +148,7 @@ test.describe("Transaction form visual", () => {
     await applyReducedMotion(page);
     await page.waitForLoadState("networkidle");
     await page.locator("form, main, h1").first().waitFor({ state: "visible", timeout: 10_000 });
-    await page.waitForTimeout(200);
+    await waitForVisualReady(page);
 
     await expect(page).toHaveScreenshot("transaction-form-desktop.png", {
       maxDiffPixelRatio: 0.01,
@@ -136,7 +177,7 @@ test.describe("Mobile sidebar visual", () => {
       .catch(() => undefined); // Best-effort: layout may use inline drawer.
 
     await applyReducedMotion(page);
-    await page.waitForTimeout(200);
+    await waitForVisualReady(page);
 
     await expect(page).toHaveScreenshot("mobile-sidebar.png", {
       maxDiffPixelRatio: 0.01,

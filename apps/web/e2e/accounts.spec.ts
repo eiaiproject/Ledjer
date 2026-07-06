@@ -19,11 +19,10 @@ test.describe("Accounts page", () => {
 
   test("default chart of accounts is visible after onboarding", async ({ page }) => {
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2_000);
 
-    const hasTable = await page.locator("table").first().isVisible({ timeout: 5_000 }).catch(() => false);
-    const hasAccounts = await page.locator("text=/kas|modal|piutang|utang/i").first().isVisible({ timeout: 5_000 }).catch(() => false);
-    expect(hasTable || hasAccounts).toBeTruthy();
+    await expect(
+      page.locator("table").or(page.getByText(/kas|modal|piutang|utang/i)).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("add account button is visible", async ({ page }) => {

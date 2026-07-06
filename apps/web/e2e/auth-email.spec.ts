@@ -12,8 +12,9 @@ async function getLatestInbucketEmail(
   inboxId: string,
   timeout = 30_000,
 ): Promise<{ subject: string; body: string; html: string }> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
+  let latestEmail: { subject: string; body: string; html: string } | null = null;
+
+  await expect.poll(async () => {
     try {
       const res = await fetch(`${E2E.inbucketUrl}/api/v1/webmail/${inboxId}`);
       if (res.ok) {
@@ -24,17 +25,24 @@ async function getLatestInbucketEmail(
             `${E2E.inbucketUrl}/api/v1/webmail/${inboxId}/${latest.id}`,
           );
           if (bodyRes.ok) {
-            return bodyRes.json();
+            latestEmail = await bodyRes.json();
+            return true;
           }
-          return { subject: latest.subject || "", body: latest.body || "", html: latest.html || "" };
+          latestEmail = { subject: latest.subject || "", body: latest.body || "", html: latest.html || "" };
+          return true;
         }
       }
     } catch {
       // Inbucket not ready yet
     }
-    await new Promise((r) => setTimeout(r, 2000));
-  }
-  throw new Error(`No email received in ${timeout}ms for inbox ${inboxId}`);
+    return false;
+  }, {
+    intervals: [2_000],
+    timeout,
+    message: `No email received in ${timeout}ms for inbox ${inboxId}`,
+  }).toBe(true);
+
+  return latestEmail!;
 }
 
 function extractRecoveryLink(html: string): string | null {
@@ -55,11 +63,16 @@ test.describe("Password reset flow", () => {
     await page.goto("/forgot-password");
     await page.waitForLoadState("networkidle");
     await page.getByRole("textbox", { name: /email/i }).fill(email);
+    const resetResponsePromise = page.waitForResponse(
+      (res) => res.url().includes("/auth/v1/recover") && res.request().method() === "POST",
+      { timeout: 10_000 },
+    ).catch(() => null);
     await page.getByRole("button", { name: /kirim/i }).click();
 
     // Step 2: Page should show a success/confirmation-like state
     // (either "check your email" or stay on page without error)
-    await page.waitForTimeout(3_000);
+    await resetResponsePromise;
+    await expect(page.locator("body")).toContainText(/cek email anda|atur ulang password/i, { timeout: 10_000 });
 
     // Step 3: Check Inbucket for recovery email (inbox is the part before @)
     const inboxId = email.split("@")[0];
@@ -73,7 +86,7 @@ test.describe("Password reset flow", () => {
         // Step 4: Visit recovery link
         await page.goto(recoveryLink);
         await page.waitForLoadState("networkidle");
-        await page.waitForTimeout(3_000);
+        await expect.poll(() => page.url(), { timeout: 10_000 }).toMatch(/\/(?:reset-password|login|dashboard|onboarding)(?:[/?#]|$)/);
 
         // Should be on reset-password page or logged in
         const url = page.url();

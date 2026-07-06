@@ -42,18 +42,18 @@ async function waitForProduct(
   label = "product",
   timeoutMs = 15_000,
 ): Promise<ProductRecord> {
-  const deadline = Date.now() + timeoutMs;
   let lastProduct: ProductRecord | null = null;
 
-  while (Date.now() < deadline) {
+  await expect.poll(async () => {
     lastProduct = await getProductByName(orgId, name);
-    if (lastProduct && predicate(lastProduct)) return lastProduct;
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
+    return !!lastProduct && predicate(lastProduct);
+  }, {
+    intervals: [300],
+    timeout: timeoutMs,
+    message: `Timed out waiting for ${label}: ${name}. Last product state: ${JSON.stringify(lastProduct)}`,
+  }).toBe(true);
 
-  throw new Error(
-    `Timed out waiting for ${label}: ${name}. Last product state: ${JSON.stringify(lastProduct)}`,
-  );
+  return lastProduct!;
 }
 
 /** Get org ID from authenticated user's context */
@@ -124,8 +124,10 @@ test.describe("Products page — smoke", () => {
     const submitBtn = page.getByRole("button", { name: /^Tambah$/i }).first();
     await expect(submitBtn).toBeVisible({ timeout: 3_000 });
     await submitBtn.click();
-    await page.waitForTimeout(500);
-    await expect(page.locator("body")).toBeVisible();
+    await expect(
+      page.getByRole("alert").filter({ hasText: /kode produk wajib diisi|nama produk wajib diisi/i }).first(),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("dialog", { name: /tambah produk/i })).toBeVisible();
   });
 });
 

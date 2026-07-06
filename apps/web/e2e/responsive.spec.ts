@@ -49,7 +49,7 @@ for (const vp of viewports) {
         const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
         await expect(menuBtn).toBeVisible({ timeout: 5_000 });
         await menuBtn.click();
-        await page.waitForTimeout(500);
+        await expect(page.getByRole("dialog", { name: /menu navigasi/i })).toBeVisible({ timeout: 5_000 });
       });
     }
   });
