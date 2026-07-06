@@ -92,14 +92,13 @@ export const queryKeys = {
  */
 export function invalidateTransactionFinancialCaches(
   queryClient: { invalidateQueries: (opts: { queryKey: readonly unknown[] }) => void },
-  orgId: string | undefined,
+  orgId: string | undefined = "",
 ) {
-  const key = orgId ?? "";
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
   queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(key) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.products.all(key) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(key) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgId) });
   queryClient.invalidateQueries({ queryKey: queryKeys.reports.allTrialBalance() });
   queryClient.invalidateQueries({ queryKey: queryKeys.reports.allProfitLoss() });
   queryClient.invalidateQueries({ queryKey: queryKeys.reports.allBalanceSheet() });

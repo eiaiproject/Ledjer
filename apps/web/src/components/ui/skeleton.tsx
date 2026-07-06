@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 interface SkeletonProps {
-  className?: string;
+  readonly className?: string;
 }
 
 export function Skeleton({ className }: SkeletonProps) {
@@ -15,7 +15,7 @@ export function Skeleton({ className }: SkeletonProps) {
   );
 }
 
-function TableRowSkeleton({ cols = 5 }: { cols?: number }) {
+function TableRowSkeleton({ cols = 5 }: { readonly cols?: number }) {
   return (
     <tr className="border-b border-wood-50">
       {Array.from({ length: cols }).map((_, i) => (

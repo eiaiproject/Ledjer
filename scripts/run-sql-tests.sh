@@ -31,7 +31,7 @@ fi
 
 # Fallback: stream the test files into the local Supabase postgres container.
 container=$(docker ps --format '{{.Names}}' | grep -E '^supabase_db(_|$)' | head -1 || true)
-if [ -z "${container:-}" ]; then
+if [[ -z "${container:-}" ]]; then
   echo "ERROR: psql not installed and no supabase_db container running." >&2
   echo "Install postgresql-client or run 'supabase start --workdir .' first." >&2
   exit 1
