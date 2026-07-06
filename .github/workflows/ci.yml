@@ -56,6 +56,7 @@ jobs:
   # in the `supabase` job, which runs `scripts/check-db-types.sh --live`.
   db-types-guard:
     name: "Guard: database types canonical file sanity"
+    needs: frontend
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -81,6 +82,7 @@ jobs:
   # ─── Job C: SQL / Supabase Tests ────────────────────────────
   supabase:
     name: Supabase migrations & SQL tests
+    needs: guard-package-clean
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -222,6 +224,7 @@ jobs:
   # ─── Job D: Guards ─────────────────────────────────────────
   guard-no-test-assert-in-migrations:
     name: "Guard: no test code in migrations"
+    needs: db-types-guard
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -250,6 +253,7 @@ jobs:
 
   guard-package-clean:
     name: "Guard: source archive excludes secrets and generated artifacts"
+    needs: guard-no-test-assert-in-migrations
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -272,7 +276,7 @@ jobs:
   # ─── Job E: Full E2E Local (Chromium) ──────────────────────
   e2e-full-local:
     name: "E2E Full Local (Chromium + Supabase)"
-    needs: frontend
+    needs: supabase
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -363,7 +367,7 @@ jobs:
   # app renders real pages instead of a "Konfigurasi Belum Lengkap" error.
   e2e-cross-browser:
     name: "E2E Cross-Browser Smoke (Firefox + WebKit)"
-    needs: frontend
+    needs: e2e-full-local
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -450,7 +454,7 @@ jobs:
   # ─── Job H: Visual Regression ───────────────────────────────
   visual-regression:
     name: "Visual Regression (Linux Chromium)"
-    needs: frontend
+    needs: e2e-cross-browser
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
