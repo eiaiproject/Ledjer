@@ -5,8 +5,7 @@
 -- 1. Phase 4: create_cash_bank_account RPC (server-side account creation)
 -- 2. Replace create_invitation copy-paste with BEFORE INSERT trigger
 -- 3. (Already fixed in 20260731000000: set_config in recalculate_product_average_cost)
--- 4. Remove dead billing trigger verification
--- 5. Tighten accept_invitation to use hash-only lookup (pre-migration tokens expired)
+-- 4. Tighten accept_invitation to use hash-only lookup (pre-migration tokens expired)
 -- =============================================================================
 
 -- ═══════════════════════════════════════════════════════════════════
@@ -34,6 +33,7 @@ DECLARE
   v_report_group TEXT;
   v_count INTEGER;
   v_existing_id UUID;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
 BEGIN
   -- Auth
   v_user_id := auth.uid();
@@ -46,7 +46,7 @@ BEGIN
   FROM public.organization_members
   WHERE organization_id = p_organization_id
     AND user_id = v_user_id
-    AND status = 'active';
+    AND status = c_status_active;
 
   IF v_role IS NULL THEN
     RAISE EXCEPTION 'Anda bukan anggota organisasi ini';
@@ -211,13 +211,12 @@ AS $$
 DECLARE
   v_inviter_id UUID;
   v_inviter_role TEXT;
-  v_current_plan TEXT;
-  v_staff_count INTEGER;
-  v_pending_invitation_count INTEGER;
   v_invitation_id UUID;
   v_token TEXT;
   v_expires_at TIMESTAMPTZ;
   v_existing_invitation RECORD;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
+  c_role_staff CONSTANT TEXT := 'staff'; -- NOSONAR: database role literal
 BEGIN
   v_inviter_id := auth.uid();
   IF v_inviter_id IS NULL THEN
@@ -232,27 +231,10 @@ BEGIN
   FROM public.organization_members
   WHERE organization_id = p_organization_id
     AND user_id = v_inviter_id
-    AND status = 'active';
+    AND status = c_status_active;
 
   IF v_inviter_role IS NULL OR v_inviter_role != 'owner' THEN
     RAISE EXCEPTION 'Hanya owner yang dapat mengundang staf';
-  END IF;
-
-  SELECT current_plan::TEXT INTO v_current_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*) INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = p_organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Paket Business mendukung maksimal 1 staf';
   END IF;
 
   SELECT id, status, token INTO v_existing_invitation
@@ -282,22 +264,12 @@ BEGIN
     );
   END IF;
 
-  SELECT COUNT(*) INTO v_pending_invitation_count
-  FROM public.organization_invitations
-  WHERE organization_id = p_organization_id
-    AND status = 'pending'
-    AND expires_at > now();
-
-  IF v_pending_invitation_count >= 1 THEN
-    RAISE EXCEPTION 'Slot undangan staf sudah terpakai. Batalkan undangan aktif sebelum membuat undangan baru.';
-  END IF;
-
   v_token := encode(extensions.gen_random_bytes(32), 'hex');
 
   INSERT INTO public.organization_invitations (
     organization_id, email, token, role, invited_by, expires_at
   ) VALUES (
-    p_organization_id, lower(p_email), v_token, 'staff', v_inviter_id,
+    p_organization_id, lower(p_email), v_token, c_role_staff, v_inviter_id,
     now() + INTERVAL '7 days'
   ) RETURNING id INTO v_invitation_id;
 
@@ -305,7 +277,7 @@ BEGIN
 
   INSERT INTO public.audit_logs (organization_id, actor_user_id, entity_type, entity_id, action, after_data)
   VALUES (p_organization_id, v_inviter_id, 'invitation', v_invitation_id, 'invitation_created',
-    jsonb_build_object('email', lower(p_email), 'role', 'staff'));
+    jsonb_build_object('email', lower(p_email), 'role', c_role_staff));
 
   RETURN jsonb_build_object(
     'invitation_id', v_invitation_id,
@@ -322,21 +294,7 @@ REVOKE EXECUTE ON FUNCTION public.create_invitation(UUID, TEXT) FROM PUBLIC, ano
 GRANT EXECUTE ON FUNCTION public.create_invitation(UUID, TEXT) TO authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
--- FIX 4: Remove dead billing trigger verification
--- ═══════════════════════════════════════════════════════════════════
--- The check for 'protect_billing_columns' trigger always warns because
--- the actual trigger has a different name. Remove the dead check.
--- Billing protection is handled by the protect_organization_billing_columns()
--- function which is attached as a trigger in the stage4 migration.
--- The function correctly prevents client-side billing mutations.
-
-DO $$
-BEGIN
-  RAISE NOTICE 'Billing protection is enforced via protect_organization_billing_columns() trigger on organizations table.';
-END $$;
-
--- ═══════════════════════════════════════════════════════════════════
--- FIX 5: Tighten accept_invitation to hash-only lookup
+-- FIX 4: Tighten accept_invitation to hash-only lookup
 -- ═══════════════════════════════════════════════════════════════════
 -- Pre-migration invitations were already expired in 20260731000000.
 -- Replace the OR-based lookup with hash-only for performance (index usage).
@@ -352,9 +310,9 @@ DECLARE
   v_user_email TEXT;
   v_invitation RECORD;
   v_member_id UUID;
-  v_staff_count INTEGER;
-  v_current_plan TEXT;
   v_token_hash TEXT;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
+  c_role_staff CONSTANT public.member_role := 'staff'; -- NOSONAR: database role literal
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
@@ -386,23 +344,6 @@ BEGIN
     RAISE EXCEPTION 'Undangan ini ditujukan untuk email lain';
   END IF;
 
-  SELECT current_plan::TEXT INTO v_current_plan
-  FROM public.organizations WHERE id = v_invitation.organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*) INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = v_invitation.organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Slot staf sudah penuh';
-  END IF;
-
   IF EXISTS (
     SELECT 1 FROM public.organization_members
     WHERE organization_id = v_invitation.organization_id
@@ -417,7 +358,7 @@ BEGIN
     can_create_transaction, can_view_reports, can_manage_accounts,
     can_void_transaction, can_manage_products, can_view_audit_log
   ) VALUES (
-    v_invitation.organization_id, v_user_id, 'staff', 'active',
+    v_invitation.organization_id, v_user_id, c_role_staff, c_status_active,
     v_invitation.invited_by, now(),
     false, false, false, false, false, false
   ) RETURNING id INTO v_member_id;
@@ -433,7 +374,7 @@ BEGIN
   RETURN jsonb_build_object(
     'organization_id', v_invitation.organization_id,
     'member_id', v_member_id,
-    'role', 'staff'
+    'role', c_role_staff
   );
 END;
 $$;

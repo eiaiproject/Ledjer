@@ -43,10 +43,6 @@ export function PrivacyPolicyPage() {
                 laporan keuangan yang Anda buat menggunakan Layanan.
               </li>
               <li>
-                <strong>Data Pembayaran:</strong> informasi langganan dan status pembayaran
-                (detail kartu kredit tidak disimpan oleh kami).
-              </li>
-              <li>
                 <strong>Log & Analitik:</strong> log kesalahan (melalui Sentry), data performa,
                 dan aktivitas sistem untuk pemeliharaan.
               </li>
@@ -61,7 +57,6 @@ export function PrivacyPolicyPage() {
             <p>Kami menggunakan data Anda untuk:</p>
             <ul className="list-disc pl-5 space-y-1">
               <li>Menyediakan dan memelihara Layanan</li>
-              <li>Memproses langganan dan pembayaran</li>
               <li>Mengirimkan pemberitahuan terkait Layanan</li>
               <li>Menanggapi permintaan support</li>
               <li>Memperbaiki dan meningkatkan Layanan</li>

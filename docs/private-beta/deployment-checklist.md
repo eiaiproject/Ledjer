@@ -20,23 +20,15 @@
 
 | Setting | Location | Value |
 |---------|----------|-------|
-| Site URL | Dashboard → Auth → Settings | `https://ledjer.id` (future); currently `https://ledjer-ahk.pages.dev` |
-| Redirect URLs | Dashboard → Auth → Settings | `https://ledjer-ahk.pages.dev`, `https://ledjer-ahk.pages.dev/auth/callback`, `https://ledjer.id`, `https://ledjer.id/auth/callback` (future) |
+| Site URL | Dashboard → Auth → Settings | `https://ledjer.id` |
+| Redirect URLs | Dashboard → Auth → Settings | `https://ledjer.id`, `https://ledjer.id/auth/callback` |
 | SMTP | Dashboard → Auth → SMTP | Configured for email confirmation |
-
-### Supabase Edge Functions
-
-| Setting | Value | Notes |
-|---------|-------|-------|
-| `mayar-create-checkout` | `verify_jwt = true` (in `config.toml`) | Requires authenticated user |
-| `mayar-webhook` | `verify_jwt = false` (in `config.toml`) | Uses mandatory `MAYAR_WEBHOOK_TOKEN` instead |
 
 ## Required Domains
 
 | Domain | Purpose | DNS |
 |--------|---------|-----|
-| `ledjer-ahk.pages.dev` | Cloudflare Pages default domain | Managed by Cloudflare |
-| `ledjer.id` (future) | Frontend hosting custom domain | CNAME to Cloudflare Pages |
+| `ledjer.id` | Frontend hosting custom domain | CNAME to Cloudflare Pages |
 | `<project>.supabase.co` | Supabase backend | Managed by Supabase |
 
 ## Pre-Deploy Checks
@@ -67,12 +59,12 @@ All must pass before merging to `main`.
 
 After deploy completes:
 
-1. [ ] Open `https://ledjer-ahk.pages.dev` (or `https://ledjer.id` after Cloudflare setup) — landing page loads.
+1. [ ] Open `https://ledjer.id` — landing page loads.
 2. [ ] Navigate to `/login` — login form visible.
 3. [ ] Navigate to `/register` — register form visible.
 4. [ ] Submit login with valid credentials — redirects to `/dashboard`.
 5. [ ] Create a test transaction — transaction appears in list.
-6. [ ] Navigate to `/settings/billing` — billing page loads (logged in).
+6. [ ] Navigate to `/settings/team` — team page loads (logged in).
 7. [ ] Check browser console — no "Konfigurasi Belum Lengkap" error.
 8. [ ] Check Sentry dashboard — if DSN is set, verify events arrive.
 9. [ ] Verify security headers (DevTools → Network → Response Headers):
@@ -80,36 +72,6 @@ After deploy completes:
    - `Strict-Transport-Security` present
    - `X-Frame-Options: DENY`
    - `X-Content-Type-Options: nosniff`
-
-### Edge Function Smoke Checks
-
-1. [ ] Verify `mayar-create-checkout` returns 401 without auth:
-   ```bash
-   curl -s -o /dev/null -w "%{http_code}" -X POST \
-     https://<project-ref>.supabase.co/functions/v1/mayar-create-checkout
-   ```
-   Expected: `401`
-2. [ ] Verify `mayar-webhook` returns 401 without token:
-   ```bash
-   curl -s -o /dev/null -w "%{http_code}" -X POST \
-     https://<project-ref>.supabase.co/functions/v1/mayar-webhook
-   ```
-   Expected: `401`
-3. [ ] Verify `mayar-webhook` returns 401 with wrong token:
-   ```bash
-   curl -s -o /dev/null -w "%{http_code}" -X POST \
-     "https://<project-ref>.supabase.co/functions/v1/mayar-webhook?token=wrong"
-   ```
-   Expected: `401`
-4. [ ] Verify Supabase functions are deployed:
-   ```bash
-   supabase functions list --project-ref <project-ref>
-   ```
-5. [ ] Verify required secrets are set:
-   ```bash
-   supabase secrets list --project-ref <project-ref>
-   # Should include: MAYAR_API_KEY, MAYAR_ENV, MAYAR_WEBHOOK_TOKEN, APP_URL
-   ```
 
 ## How to Verify CI Status
 

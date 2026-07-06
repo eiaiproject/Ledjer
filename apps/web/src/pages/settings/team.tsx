@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@ledjer/database-types";
@@ -24,11 +23,8 @@ import {
   ChevronUp,
   Crown,
   Users,
-  Lock,
   Check,
   X,
-  Sparkles,
-  ArrowRight,
   Copy,
   Link2,
   MailCheck,
@@ -113,12 +109,6 @@ const STAFF_PERMISSION_RPC_ARGS = {
 
 const ALL_PERMISSION_KEYS = Object.keys(PERMISSION_LABELS) as StaffPermissionKey[];
 
-const PLAN_NAMES: Record<string, string> = {
-  free: "Gratis",
-  solo: "Solo",
-  business: "Business",
-};
-
 /* ─── Helpers ───────────────────────────────────────────── */
 
 function getInitials(name: string | undefined): string {
@@ -192,58 +182,6 @@ function buildInvitationLink(token: string): string {
 
 async function copyText(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
-}
-
-/* ─── Plan Info Card ────────────────────────────────────── */
-
-function PlanInfoCard({
-  currentPlan,
-  staffCount,
-  isOwner,
-}: {
-  currentPlan: string;
-  staffCount: number;
-  isOwner: boolean;
-}) {
-  const planName = PLAN_NAMES[currentPlan] || "Gratis";
-  const isBusiness = currentPlan === "business";
-  const staffLimit = isBusiness ? 1 : 0;
-  const staffUsed = staffCount;
-
-
-  return (
-    <Card variant="elevated">
-      <CardContent className="p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-wood-500">Paket saat ini:</span>
-              <Badge variant={isBusiness ? "success" : "neutral"}>{planName}</Badge>
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <Users className="h-4 w-4 text-wood-500" />
-              <span className="text-sm text-wood-600">
-                Slot staf digunakan:{" "}
-                <span className="font-semibold text-wood-800">
-                  {isBusiness ? `${staffUsed} / ${staffLimit}` : staffUsed}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {!isBusiness && isOwner && (
-            <Link to="/settings/billing">
-              <Button type="button" variant="primary" size="sm">
-                <Sparkles className="h-4 w-4" />
-                Upgrade ke Business
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 /* ─── Permission Preview ────────────────────────────────── */
@@ -357,8 +295,6 @@ export function TeamSettingsPage() {
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
   const isOwner = useIsOwner();
-  const currentPlan = orgData?.organization?.current_plan || "free";
-  const isBusinessPlan = currentPlan === "business";
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -410,7 +346,7 @@ export function TeamSettingsPage() {
       if (error) throw error;
       return parseInvitations(data);
     },
-    enabled: !!orgData?.organization?.id && isOwner && isBusinessPlan,
+    enabled: !!orgData?.organization?.id && isOwner,
   });
 
   /* ── Mutations ── */
@@ -514,14 +450,8 @@ export function TeamSettingsPage() {
 
   const staffMembers = members?.filter((m) => m.role === "staff") || [];
   const ownerMembers = members?.filter((m) => m.role === "owner") || [];
-  const staffSlotFull = isBusinessPlan && staffMembers.length >= 1;
-  const pendingInviteSlotUsed = invitations.length >= 1;
-  const staffSlotsUsed = staffMembers.length + invitations.length;
   const canInvite =
     isOwner &&
-    isBusinessPlan &&
-    !staffSlotFull &&
-    !pendingInviteSlotUsed &&
     !invitationsLoading;
 
   const handleInvite = () => {
@@ -572,15 +502,6 @@ export function TeamSettingsPage() {
           </p>
         </div>
 
-        {/* Plan Info */}
-        {members && (
-          <PlanInfoCard
-              currentPlan={currentPlan}
-              staffCount={staffSlotsUsed}
-              isOwner={isOwner}
-            />
-        )}
-
         {/* Owner Section */}
         <section aria-labelledby="owners-heading">
           <Card>
@@ -617,11 +538,9 @@ export function TeamSettingsPage() {
                 >
                   Staf
                 </h2>
-                {isBusinessPlan && (
-                  <Badge variant="neutral" size="sm">
-                    {staffSlotsUsed}/1 slot terpakai
-                  </Badge>
-                )}
+                <Badge variant="neutral" size="sm">
+                  {staffMembers.length} staf
+                </Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -660,74 +579,8 @@ export function TeamSettingsPage() {
                 </div>
               )}
 
-              {/* Owner - Non-business plan */}
-              {isOwner && !isBusinessPlan && (
-                <div className="space-y-4">
-                  {/* Permission Preview */}
-                  <PermissionPreview />
-
-                  {/* Upgrade CTA */}
-                  <div className="rounded-lg border border-dashed border-wood-300 bg-cream-50 p-5 text-center">
-                    <Lock className="mx-auto h-8 w-8 text-wood-400" />
-                    <h3 className="mt-3 text-sm font-medium text-wood-700">
-                      Undang staf memerlukan paket Business
-                    </h3>
-                    <p className="mt-1 text-xs text-wood-500">
-                      Dengan paket Business, Anda dapat mengundang 1 staf dan mengatur hak aksesnya.
-                    </p>
-                    <Link to="/settings/billing" className="mt-4 inline-block">
-                      <Button type="button" variant="primary" size="sm">
-                        <Sparkles className="h-4 w-4" />
-                        Lihat Paket Business
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </div>
-
-                  {/* Locked Invite Button */}
-                  <div className="flex items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled
-                      className="opacity-60"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      Undang Staf
-                    </Button>
-                    <span className="text-xs text-wood-500">
-                      <Lock className="mr-1 inline h-3 w-3" />
-                      Upgrade ke Business untuk membuka
-                    </span>
-                  </div>
-
-                  {/* Staff list (if any from legacy) */}
-                  {staffMembers.length > 0 && (
-                    <div className="space-y-3">
-                      {staffMembers.map((member) => (
-                        <StaffCard
-                          key={member.id}
-                          member={member}
-                          isOwner={isOwner}
-                          onPermissionChange={(permission, value) =>
-                            permissionMutation.mutate({
-                              memberId: member.id,
-                              permission,
-                              value,
-                            })
-                          }
-                          onRemove={() => handleRemoveClick(member)}
-                          permissionPending={permissionMutation.isPending}
-                          removePending={removeMutation.isPending}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Owner - Business plan */}
-              {isOwner && isBusinessPlan && (
+              {/* Owner */}
+              {isOwner && (
                 <>
                   {/* Permission Preview */}
                   <PermissionPreview />
@@ -826,11 +679,7 @@ export function TeamSettingsPage() {
                     <div className="mt-4 flex items-start gap-2 rounded-lg border border-wood-200 bg-cream-100 px-4 py-3 text-sm text-wood-600">
                       <Info className="mt-0.5 h-4 w-4 shrink-0 text-wood-500" />
                       <span className="min-w-0 break-words">
-                        {staffSlotFull
-                          ? "Slot staf sudah terpakai. Hapus staf saat ini untuk mengundang yang baru."
-                          : pendingInviteSlotUsed
-                            ? "Satu undangan sedang menunggu diterima. Batalkan undangan tersebut jika ingin membuat link untuk email lain."
-                            : "Memuat status undangan..."}
+                        Memuat status undangan...
                       </span>
                     </div>
                   )}
@@ -862,14 +711,14 @@ export function TeamSettingsPage() {
                     <div className="mt-4 rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
                       <Users className="mx-auto h-10 w-10 text-wood-300" />
                       <h3 className="mt-3 text-sm font-medium text-wood-700">
-                        {pendingInviteSlotUsed ? "Menunggu staf menerima undangan" : "Belum ada staf"}
+                        {invitations.length > 0 ? "Menunggu staf menerima undangan" : "Belum ada staf"}
                       </h3>
                       <p className="mt-1 text-xs text-wood-500 max-w-sm mx-auto">
-                        {pendingInviteSlotUsed
+                        {invitations.length > 0
                           ? "Setelah staf menerima link undangan, mereka akan muncul di daftar ini dan izinnya bisa Anda atur."
                           : "Undang staf untuk membantu mencatat transaksi. Anda dapat mengatur hak akses mereka sesuai kebutuhan."}
                       </p>
-                      {!pendingInviteSlotUsed && (
+                      {invitations.length === 0 && (
                         <ul className="mt-3 space-y-1 text-xs text-wood-500 max-w-sm mx-auto text-left">
                           <li className="flex items-center gap-2">
                             <Check className="h-3 w-3 text-leaf-500 shrink-0" />

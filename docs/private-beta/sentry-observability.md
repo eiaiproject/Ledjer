@@ -73,7 +73,7 @@ Sentry covers frontend errors. For complete observability:
 | API errors / slow queries | Supabase Dashboard | Database → Logs, API → Logs |
 | Auth failures | Supabase Dashboard | Authentication → Logs |
 | RPC errors | Application logs | Check `post_transaction` / RPC error responses in Sentry breadcrumbs |
-| Uptime | External service | UptimeRobot / Checkly — monitor `https://ledjer-ahk.pages.dev` (HTTP 200, 5-min interval); `https://ledjer.id` after custom domain active |
+| Uptime | External service | UptimeRobot / Checkly — monitor `https://ledjer.id` (HTTP 200, 5-min interval) |
 | Incident response | Contact path | Define who to contact (Supabase support, hosting support, Sentry alerts) |
 
 ## No Sentry Token Exposure

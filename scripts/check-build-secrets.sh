@@ -30,8 +30,6 @@ FAIL=0
 # Patterns use ERE syntax (grep -E) — no backslash-escaped braces/parens.
 LABELS=(
   "SUPABASE_SERVICE_ROLE_KEY"
-  "MAYAR_API_KEY"
-  "MAYAR_WEBHOOK_TOKEN"
   "SENTRY_AUTH_TOKEN"
   "AWS_ACCESS_KEY_ID"
   "GitHub token"
@@ -40,8 +38,6 @@ LABELS=(
 )
 PATTERNS=(
   "SUPABASE_SERVICE_ROLE_KEY"
-  "MAYAR_API_KEY"
-  "MAYAR_WEBHOOK_TOKEN"
   "SENTRY_AUTH_TOKEN"
   "AKIA[0-9A-Z]{16}"
   "gh[pousr]_[A-Za-z0-9_]{36,}"

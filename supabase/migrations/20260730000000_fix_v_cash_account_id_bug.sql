@@ -1,7 +1,7 @@
 -- =============================================================================
 -- FIX: post_transaction — v_cash_account_id undeclared variable bug
 -- =============================================================================
--- The active post_transaction function (from 20260626190000_fix_post_transaction_auth_and_free_limit.sql)
+-- The active post_transaction function (from 20260626190000_fix_post_transaction_auth.sql)
 -- references v_cash_account_id on lines 280-310 for partial payment handling,
 -- but this variable is never declared in the DECLARE block.
 --
@@ -46,8 +46,6 @@ AS $$
 DECLARE
   v_user_id            UUID;
   v_role               TEXT;
-  v_plan               TEXT;
-  v_txn_count          INTEGER;
   v_books_start_date   DATE;
   v_account_type       TEXT;
   v_is_cash_account    BOOLEAN;
@@ -82,9 +80,6 @@ DECLARE
   v_existing_je_number TEXT;
   v_existing_impact JSONB;
 
-  -- Monthly usage variables
-  v_period_start TIMESTAMPTZ;
-  v_period_end   TIMESTAMPTZ;
 BEGIN
   -- ── Auth ──
   v_user_id := auth.uid();
@@ -171,29 +166,6 @@ BEGIN
   IF p_transaction_date < v_books_start_date THEN
     RAISE EXCEPTION 'Tanggal transaksi % sebelum tanggal mulai pembukuan %',
       p_transaction_date, v_books_start_date;
-  END IF;
-
-  -- ── FIX #2: Subscription Transaction Limit Guard ──
-  -- Aligned with get_monthly_usage: 50 per calendar month, same counting semantics.
-  SELECT current_plan INTO v_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_plan = 'free' THEN
-    v_period_start := date_trunc('month', now());
-    v_period_end   := v_period_start + INTERVAL '1 month';
-
-    SELECT COUNT(*)::INTEGER INTO v_txn_count
-    FROM public.transactions
-    WHERE organization_id = p_organization_id
-      AND status IN ('posted', 'voided')
-      AND original_transaction_id IS NULL
-      AND transaction_type NOT LIKE 'opening_%'
-      AND created_at >= v_period_start
-      AND created_at < v_period_end;
-
-    IF v_txn_count >= 50 THEN
-      RAISE EXCEPTION 'Batas 50 transaksi per bulan untuk Paket Free telah tercapai. Upgrade paket untuk melanjutkan.';
-    END IF;
   END IF;
 
   -- ── Product Validation ──

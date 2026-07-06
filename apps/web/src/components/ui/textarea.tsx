@@ -17,7 +17,7 @@ const sizeStyles = {
 };
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, containerClassName, label, helperText, error, id, required, rows = 3, size = "md", onInput, style, ...props }, ref) => {
+  ({ className, containerClassName, label, helperText, error, id, required, rows = 3, size = "md", style, ...props }, ref) => {
     const generatedId = useId();
     const textareaId = id || label?.toLowerCase().replace(/\s/g, "-") || generatedId;
     const feedbackId = `${textareaId}-feedback`;
@@ -32,12 +32,6 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           rows={rows}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          onInput={(event) => {
-            const target = event.currentTarget;
-            target.style.height = "auto";
-            target.style.height = `${target.scrollHeight}px`;
-            onInput?.(event);
-          }}
           style={{ ...style, fieldSizing: "content" } as CSSProperties}
           className={cn(
             "w-full resize-y rounded-md border bg-cream-50 text-wood-900",

@@ -148,7 +148,7 @@ Ledjer's palette is a grounded trade-and-bookkeeping palette: Wood, Leaf, Cream,
 - **Clay Warning**: Warning, caution, and operational attention. Clay supports accounting seriousness without turning every issue into an error.
 
 ### Tertiary
-- **Honey Premium**: Premium or billing-adjacent emphasis only. It should not compete with Wood as the primary CTA color.
+- **Honey Premium**: High-emphasis accents only. It should not compete with Wood as the primary CTA color.
 - **Sky Info**: Informational status, report helper states, and neutral educational prompts.
 
 ### Neutral

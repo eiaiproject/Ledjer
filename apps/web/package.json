@@ -15,7 +15,6 @@
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:webkit": "playwright test --project=webkit",
-    "test:e2e:mayar-sandbox": "bash scripts/test-mayar-sandbox.sh",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {

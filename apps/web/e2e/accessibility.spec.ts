@@ -1,23 +1,12 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { E2E } from "./fixtures/env";
-import { E2E_OWNER } from "./fixtures/users";
+import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Accessibility E2E tests.
  * Manual checks + axe-core automated audits.
  */
-
-async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/login");
-  await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /^Masuk$/ }).click();
-  await page.waitForURL((url) =>
-    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-    { timeout: 15_000 },
-  );
-}
 
 test.describe("axe-core automated audits", () => {
   const publicPages = [
@@ -149,7 +138,7 @@ test.describe("Error announcements", () => {
 if (E2E.canRunAuthenticatedDashboardTests) {
   test.describe("Dashboard accessibility (logged in)", () => {
     test.beforeEach(async ({ page }) => {
-      await loginAsOwner(page);
+      await loginViaUI(page);
       await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
       // Wait for the dashboard shell to be fully rendered
       await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });

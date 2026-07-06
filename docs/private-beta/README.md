@@ -14,6 +14,6 @@ Documentation for running a controlled private beta of Ledjer.
 
 ## Status
 
-Private beta target: **controlled rollout to a small number of real users with Mayar checkout and operator support**.
+Private beta target: **controlled rollout to a small number of real users with operator support**.
 
 This is **not** public production readiness. See [Known Limitations](known-limitations.md).

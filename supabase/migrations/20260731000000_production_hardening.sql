@@ -2,8 +2,7 @@
 -- LEDJER — Production Hardening Migration
 -- =============================================================================
 -- Covers: Phase 2 (Admin RPC grants), Phase 3 (Product protection),
---         Phase 5 (CSV escaping), Phase 9 (Invitation token hashing),
---         Phase 7 (Billing boundaries)
+--         Phase 5 (CSV escaping), Phase 9 (Invitation token hashing)
 -- =============================================================================
 
 -- ═══════════════════════════════════════════════════════════════════
@@ -17,9 +16,6 @@ GRANT EXECUTE ON FUNCTION public.admin_list_organizations(TEXT) TO service_role;
 
 -- Admin: get organization detail
 GRANT EXECUTE ON FUNCTION public.admin_get_organization(UUID) TO service_role;
-
--- Admin: update plan
-GRANT EXECUTE ON FUNCTION public.admin_update_plan(UUID, TEXT) TO service_role;
 
 -- Admin: suspend/unsuspend
 GRANT EXECUTE ON FUNCTION public.admin_set_suspension(UUID, BOOLEAN, TEXT) TO service_role;
@@ -41,7 +37,6 @@ BEGIN
       AND p.proname IN (
         'admin_list_organizations',
         'admin_get_organization',
-        'admin_update_plan',
         'admin_set_suspension'
       )
   LOOP
@@ -510,14 +505,13 @@ AS $$
 DECLARE
   v_inviter_id UUID;
   v_inviter_role TEXT;
-  v_current_plan TEXT;
-  v_staff_count INTEGER;
-  v_pending_invitation_count INTEGER;
   v_invitation_id UUID;
   v_token TEXT;
   v_token_hash TEXT;
   v_expires_at TIMESTAMPTZ;
   v_existing_invitation RECORD;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
+  c_role_staff CONSTANT TEXT := 'staff'; -- NOSONAR: database role literal
 BEGIN
   v_inviter_id := auth.uid();
   IF v_inviter_id IS NULL THEN
@@ -532,27 +526,10 @@ BEGIN
   FROM public.organization_members
   WHERE organization_id = p_organization_id
     AND user_id = v_inviter_id
-    AND status = 'active';
+    AND status = c_status_active;
 
   IF v_inviter_role IS NULL OR v_inviter_role != 'owner' THEN
     RAISE EXCEPTION 'Hanya owner yang dapat mengundang staf';
-  END IF;
-
-  SELECT current_plan::TEXT INTO v_current_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*) INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = p_organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Paket Business mendukung maksimal 1 staf';
   END IF;
 
   -- Check for existing pending invitation for this email
@@ -584,16 +561,6 @@ BEGIN
     );
   END IF;
 
-  SELECT COUNT(*) INTO v_pending_invitation_count
-  FROM public.organization_invitations
-  WHERE organization_id = p_organization_id
-    AND status = 'pending'
-    AND expires_at > now();
-
-  IF v_pending_invitation_count >= 1 THEN
-    RAISE EXCEPTION 'Slot undangan staf sudah terpakai. Batalkan undangan aktif sebelum membuat undangan baru.';
-  END IF;
-
   -- Generate secure token (32 bytes hex = 64 chars)
   v_token := encode(extensions.gen_random_bytes(32), 'hex');
   -- Store SHA-256 hash of token
@@ -602,13 +569,13 @@ BEGIN
   INSERT INTO public.organization_invitations (
     organization_id, email, token, token_hash, role, invited_by, expires_at
   ) VALUES (
-    p_organization_id, lower(p_email), v_token, v_token_hash, 'staff', v_inviter_id,
+    p_organization_id, lower(p_email), v_token, v_token_hash, c_role_staff, v_inviter_id,
     now() + INTERVAL '7 days'
   ) RETURNING id INTO v_invitation_id;
 
   INSERT INTO public.audit_logs (organization_id, actor_user_id, entity_type, entity_id, action, after_data)
   VALUES (p_organization_id, v_inviter_id, 'invitation', v_invitation_id, 'invitation_created',
-    jsonb_build_object('email', lower(p_email), 'role', 'staff'));
+    jsonb_build_object('email', lower(p_email), 'role', c_role_staff));
 
   RETURN jsonb_build_object(
     'invitation_id', v_invitation_id,
@@ -636,9 +603,9 @@ DECLARE
   v_user_email TEXT;
   v_invitation RECORD;
   v_member_id UUID;
-  v_staff_count INTEGER;
-  v_current_plan TEXT;
   v_token_hash TEXT;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
+  c_role_staff CONSTANT public.member_role := 'staff'; -- NOSONAR: database role literal
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
@@ -670,24 +637,6 @@ BEGIN
     RAISE EXCEPTION 'Undangan ini ditujukan untuk email lain';
   END IF;
 
-  -- Check plan limit
-  SELECT current_plan::TEXT INTO v_current_plan
-  FROM public.organizations WHERE id = v_invitation.organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*) INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = v_invitation.organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Slot staf sudah penuh';
-  END IF;
-
   -- Check not already a member
   IF EXISTS (
     SELECT 1 FROM public.organization_members
@@ -703,7 +652,7 @@ BEGIN
     can_create_transaction, can_view_reports, can_manage_accounts,
     can_void_transaction, can_manage_products, can_view_audit_log
   ) VALUES (
-    v_invitation.organization_id, v_user_id, 'staff', 'active',
+    v_invitation.organization_id, v_user_id, c_role_staff, c_status_active,
     v_invitation.invited_by, now(),
     false, false, false, false, false, false
   ) RETURNING id INTO v_member_id;
@@ -720,7 +669,7 @@ BEGIN
   RETURN jsonb_build_object(
     'organization_id', v_invitation.organization_id,
     'member_id', v_member_id,
-    'role', 'staff'
+    'role', c_role_staff
   );
 END;
 $$;
@@ -731,26 +680,8 @@ GRANT EXECUTE ON FUNCTION public.accept_invitation(TEXT) TO authenticated;
 
 
 -- ═══════════════════════════════════════════════════════════════════
--- PHASE 7: Billing Readiness Boundaries
--- ═══════════════════════════════════════════════════════════════════
--- Document that current billing is manual/private-beta.
--- The protect_organization_billing_columns trigger already prevents
--- client-side plan mutations. No code changes needed here, but we
--- verify the trigger is functional:
-
-DO $$
-BEGIN
-  -- Verify the trigger exists
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgname = 'protect_billing_columns'
-      AND tgrelid = 'public.organizations'::regclass
-  ) THEN
-    RAISE WARNING 'protect_billing_columns trigger not found on organizations table';
-  ELSE
-    RAISE NOTICE 'PASS: protect_billing_columns trigger exists on organizations table';
-  END IF;
-END $$;
+-- PHASE 7: Organization core-field boundaries are handled by
+-- protect_organization_core_fields.
 
 
 -- ═══════════════════════════════════════════════════════════════════

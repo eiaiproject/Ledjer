@@ -17,8 +17,6 @@ import { loginViaUI } from "./fixtures/auth";
 // Secret patterns to scan for in dist (mirrors check-build-secrets.sh)
 const SECRET_PATTERNS = [
   { label: "SUPABASE_SERVICE_ROLE_KEY", pattern: /SUPABASE_SERVICE_ROLE_KEY/ },
-  { label: "MAYAR_API_KEY", pattern: /MAYAR_API_KEY/ },
-  { label: "MAYAR_WEBHOOK_TOKEN", pattern: /MAYAR_WEBHOOK_TOKEN/ },
   { label: "SENTRY_AUTH_TOKEN", pattern: /SENTRY_AUTH_TOKEN/ },
   { label: "AWS access key", pattern: /AKIA[0-9A-Z]{16}/ },
   { label: "GitHub token", pattern: /gh[pousr]_[A-Za-z0-9_]{36,}/ },

@@ -31,9 +31,8 @@ Last updated: 2026-07-31
 ### What to Monitor
 | URL | Check Type | Interval |
 |-----|-----------|----------|
-| `https://ledjer-ahk.pages.dev` | HTTP 200 | 5 min |
-| `https://ledjer-ahk.pages.dev/login` | Page load | 15 min |
-| `https://ledjer.id` (future) | HTTP 200 | 5 min (after custom domain active) |
+| `https://ledjer.id` | HTTP 200 | 5 min |
+| `https://ledjer.id/login` | Page load | 15 min |
 
 ### Alert Contacts
 - Primary: [owner email]
@@ -66,15 +65,6 @@ ORDER BY mean_exec_time DESC LIMIT 10;
 - Login attempts tracked in `login_attempts` table
 - Rate limiting active on auth endpoints
 - Failed login alerts: configure in Supabase dashboard
-
-## Payment Webhook Monitoring
-
-**Status:** ⚠️ Not implemented (billing scaffold only)
-
-When payment provider is integrated:
-- Monitor webhook delivery status
-- Alert on failed webhook processing
-- Log all webhook events in `billing_events` table
 
 ## Frontend Performance
 

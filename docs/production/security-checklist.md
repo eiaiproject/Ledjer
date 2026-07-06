@@ -6,13 +6,13 @@ Last verified: 2026-07-31
 
 | Item | Status | Notes |
 |------|--------|-------|
-| RLS enabled on all tenant tables | ✅ | `transactions`, `journal_entries`, `journal_lines`, `accounts`, `products`, `parties`, `audit_logs`, `billing_events`, `organization_invitations` |
+| RLS enabled on all tenant tables | ✅ | `transactions`, `journal_entries`, `journal_lines`, `accounts`, `products`, `parties`, `audit_logs`, `organization_invitations` |
 | Org isolation in all SELECT policies | ✅ | `is_org_member()` check |
 | No INSERT/UPDATE/DELETE policies on financial tables | ✅ | Writes via RPCs only |
 | RPCs use `SECURITY DEFINER` | ✅ | All mutation RPCs |
 | RPCs set `search_path = public` | ✅ | All RPCs |
 | Permission checks in RPCs | ✅ | `has_permission()` for create/void/report |
-| Client cannot modify billing columns | ✅ | Trigger-protected `current_plan`, `subscription_status`, etc. |
+| Client cannot modify organization owner fields | ✅ | Trigger-protected `created_by` |
 | `admin_*` RPCs revoked from anon/authenticated | ✅ | Service role only |
 | Test helpers (`_test_*`) revoked from anon/authenticated | ✅ | Verified in test harness |
 | Default privileges not auto-granting | ✅ | Revoked in baseline |
@@ -40,25 +40,13 @@ Last verified: 2026-07-31
 | Input sanitization | ✅ | Zod schema validation + Supabase parameter binding |
 | Error boundaries | ✅ | `ErrorBoundary` component |
 
-## Billing Security
-
-| Item | Status | Notes |
-|------|--------|-------|
-| Webhook token verification (mandatory) | ✅ | Constant-time comparison; returns 401 if missing/wrong, 500 if env not set |
-| Invoice status verified via Mayar API | ✅ | Webhook verifies with Mayar before changing plan; does not trust payload alone |
-| Provider secrets server-side only | ✅ | Edge Functions only; client never sees provider keys |
-| Users cannot self-modify plan | ✅ | Trigger protection + RPC-only changes + owner-only Edge Function checks |
-| Billing events audited | ✅ | `billing_events` table with RLS |
-| Webhook idempotent & race-safe | ✅ | `finalize_mayar_payment` RPC with row-level locking and conditional updates |
-| Duplicate checkout prevention | ✅ | Pending session reuse + partial unique index on `(org, plan, billing_period, user)` |
-
 ## Period Lock Security
 
 | Item | Status | Notes |
 |------|--------|-------|
 | Period lock enforced server-side | ✅ | Trigger on `transactions` table |
 | Owner-only lock/unlock | ✅ | `set_period_lock()` / `unlock_period_lock()` check role |
-| Lock/unlock audited | ✅ | `audit_logs` + `billing_events` |
+| Lock/unlock audited | ✅ | `audit_logs` |
 
 ## Invitation Security
 
@@ -68,7 +56,7 @@ Last verified: 2026-07-31
 | Expiration enforced | ✅ | 7-day expiry, checked on accept |
 | Email verification on accept | ✅ | Must match invitation email |
 | Cross-org isolation | ✅ | Invitation tied to organization |
-| Plan limit enforced | ✅ | Business plan required, 1 staff max |
+| Owner-only invitation creation | ✅ | `create_invitation()` checks active owner role |
 
 ## Data Export Security
 
@@ -95,9 +83,5 @@ Last verified: 2026-07-31
 - [ ] Set up Supabase database monitoring
 - [ ] Review all RLS policies after migration 20260627000000
 - [ ] Test admin RPCs are not callable from frontend
-- [ ] Verify billing trigger protection works
 - [ ] Verify period lock trigger works
 - [ ] Test invitation token generation and acceptance flow
-- [ ] Verify Mayar webhook URL is correctly registered in Mayar dashboard
-- [ ] Verify `MAYAR_WEBHOOK_TOKEN` is set as Supabase secret
-- [ ] Verify fake Mayar E2E tests pass in CI

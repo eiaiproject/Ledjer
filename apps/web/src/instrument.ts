@@ -1,5 +1,10 @@
 import * as Sentry from '@sentry/react'
 
+// Headers that must be scrubbed from Sentry error reports and breadcrumbs.
+const SENSITIVE_HEADERS = new Set([
+  'authorization', 'cookie', 'set-cookie', 'x-auth-token', 'api-key',
+]);
+
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -32,7 +37,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 
     // Session Replay sample rates
     replaysSessionSampleRate: 0.05,
-    replaysOnErrorSampleRate: 1.0,
+    replaysOnErrorSampleRate: 1,
 
     // Enable structured log API
     enableLogs: true,
@@ -70,10 +75,9 @@ if (import.meta.env.VITE_SENTRY_DSN) {
       if (event.request?.headers) {
         const headers = event.request.headers;
         if (typeof headers === 'object' && headers !== null) {
-          const sensitiveHeaders = ['authorization', 'cookie', 'set-cookie', 'x-auth-token', 'api-key'];
           for (const key of Object.keys(headers)) {
             const lower = key.toLowerCase();
-            if (sensitiveHeaders.includes(lower)) {
+            if (SENSITIVE_HEADERS.has(lower)) {
               (headers as Record<string, string>)[key] = '[scrubbed]';
             }
           }
@@ -85,17 +89,11 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     // Scrub sensitive data from breadcrumbs (defense-in-depth)
     beforeBreadcrumb(breadcrumb) {
       // Scrub auth headers from HTTP breadcrumbs
-      const sensitiveKeys = new Set([
-        'authorization',
-        'cookie',
-        'set-cookie',
-        'x-auth-token',
-        'api-key',
-      ]);
+
       if (breadcrumb.data?.headers) {
         const headers = breadcrumb.data.headers as Record<string, string>;
         for (const key of Object.keys(headers)) {
-          if (sensitiveKeys.has(key.toLowerCase())) {
+          if (SENSITIVE_HEADERS.has(key.toLowerCase())) {
             headers[key] = '[scrubbed]';
           }
         }
@@ -114,4 +112,4 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   })
 }
 
-export {}
+// Instrument side-effects only; Sentry.init() is called above.

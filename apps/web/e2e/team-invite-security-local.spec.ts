@@ -39,24 +39,6 @@ async function rpc(
   return { status: res.status, data };
 }
 
-async function setOrgPlan(
-  orgId: string,
-  plan: "free" | "solo" | "business",
-): Promise<void> {
-  const res = await fetch(
-    `${E2E.supabaseUrl}/rest/v1/organizations?id=eq.${orgId}`,
-    {
-      method: "PATCH",
-      headers: SR_HEADERS,
-      body: JSON.stringify({
-        current_plan: plan,
-        subscription_status: plan === "free" ? null : "active",
-      }),
-    },
-  );
-  expect(res.ok).toBe(true);
-}
-
 async function getInvitationById(invitationId: string) {
   const res = await fetch(
     `${E2E.supabaseUrl}/rest/v1/organization_invitations?id=eq.${invitationId}&select=id,status,email,expires_at&limit=1`,
@@ -130,7 +112,7 @@ interface InvitationResult {
   resent: boolean;
 }
 
-async function createBusinessOrg(ownerEmail: string) {
+async function createOrg(ownerEmail: string) {
   const owner =
     ownerEmail === E2E_OWNER.email
       ? E2E_OWNER
@@ -144,7 +126,6 @@ async function createBusinessOrg(ownerEmail: string) {
     `[E2E] Invite ${Date.now()}`,
     owner,
   );
-  await setOrgPlan(orgId, "business");
   return { orgId, ownerId, ownerToken };
 }
 
@@ -166,7 +147,7 @@ test.describe("Team invites: security + membership lifecycle", () => {
   });
 
   test("revoked invite cannot be accepted", async () => {
-    const { orgId, ownerToken } = await createBusinessOrg(E2E_OWNER.email);
+    const { orgId, ownerToken } = await createOrg(E2E_OWNER.email);
     const staffId = await ensureTestUser(E2E_STAFF);
     const staffToken = await loginUser(E2E_STAFF);
 
@@ -196,7 +177,7 @@ test.describe("Team invites: security + membership lifecycle", () => {
   });
 
   test("expired invite cannot be accepted", async () => {
-    const { orgId, ownerToken } = await createBusinessOrg(E2E_OWNER.email);
+    const { orgId, ownerToken } = await createOrg(E2E_OWNER.email);
     const userId = await ensureTestUser(E2E_OWNER2);
     const userToken = await loginUser(E2E_OWNER2);
 
@@ -225,7 +206,7 @@ test.describe("Team invites: security + membership lifecycle", () => {
   });
 
   test("accept invite does not duplicate membership", async () => {
-    const { orgId, ownerToken } = await createBusinessOrg(E2E_OWNER.email);
+    const { orgId, ownerToken } = await createOrg(E2E_OWNER.email);
     const staffId = await ensureTestUser(E2E_STAFF);
     const staffToken = await loginUser(E2E_STAFF);
 
@@ -259,7 +240,7 @@ test.describe("Team invites: security + membership lifecycle", () => {
   });
 
   test("removed staff cannot access with old session", async () => {
-    const { orgId, ownerToken } = await createBusinessOrg(E2E_OWNER.email);
+    const { orgId, ownerToken } = await createOrg(E2E_OWNER.email);
     const staffId = await ensureTestUser(E2E_STAFF);
 
     await seedStaffMember(orgId, staffId, {
@@ -269,9 +250,9 @@ test.describe("Team invites: security + membership lifecycle", () => {
 
     const staffToken = await loginUser(E2E_STAFF);
 
-    // Before removal: staff can access
-    const beforeRemove = await rpc(staffToken, "get_monthly_usage", {
-      p_org_id: orgId,
+    // Before removal: staff can access an app RPC with the active membership.
+    const beforeRemove = await rpc(staffToken, "get_dashboard_summary", {
+      p_organization_id: orgId,
     });
     expect(beforeRemove.status).toBe(200);
 
@@ -286,8 +267,8 @@ test.describe("Team invites: security + membership lifecycle", () => {
     expect(removeRes.status).toBe(200);
 
     // After removal: same session token is rejected (RLS blocks)
-    const afterRemove = await rpc(staffToken, "get_monthly_usage", {
-      p_org_id: orgId,
+    const afterRemove = await rpc(staffToken, "get_dashboard_summary", {
+      p_organization_id: orgId,
     });
     expect(afterRemove.status).not.toBe(200);
 
@@ -296,7 +277,7 @@ test.describe("Team invites: security + membership lifecycle", () => {
   });
 
   test("invite cannot be accepted by the wrong email", async () => {
-    const { orgId, ownerToken } = await createBusinessOrg(E2E_OWNER.email);
+    const { orgId, ownerToken } = await createOrg(E2E_OWNER.email);
     const intendedUserId = await ensureTestUser(E2E_STAFF);
     const wrongUserId = await ensureTestUser(E2E_OWNER2);
     const wrongUserToken = await loginUser(E2E_OWNER2);

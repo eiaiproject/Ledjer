@@ -7,6 +7,7 @@ import {
   loginUser,
 } from "./fixtures/seed";
 import { loginViaUI } from "./fixtures/auth";
+import { selectComboboxValue } from "./fixtures/combobox";
 import { getCashAccount } from "./fixtures/accounts";
 import { getOrgTransactions } from "./fixtures/transactions";
 import { cleanupE2EOrganizations, cleanupE2EUsers } from "./fixtures/cleanup";
@@ -81,12 +82,7 @@ async function fillUiCashSale(page: Page, description: string) {
   await expect(descField).toBeVisible({ timeout: 5_000 });
   await descField.fill(description);
 
-  const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
-  await expect(cashAccountCombobox).toBeVisible({ timeout: 5_000 });
-  await cashAccountCombobox.click();
-  const firstOption = page.locator('[role="listbox"] [role="option"]').first();
-  await expect(firstOption).toBeVisible({ timeout: 5_000 });
-  await firstOption.click();
+  await selectComboboxValue(page, "cashAccountId", "Kas");
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- LEDJER — Stage 4 Production Tests
 -- =============================================================================
--- Tests: billing scaffold, period lock, invitations, admin ops, export RPCs.
+-- Tests: period lock, invitations, admin ops, export RPCs.
 -- WARNING: Run ONLY against disposable local Supabase stack.
 -- =============================================================================
 
@@ -24,6 +24,10 @@ DECLARE
   v_test_count INTEGER := 0;
   v_pass_count INTEGER := 0;
   v_fail_count INTEGER := 0;
+  c_invitation_table CONSTANT TEXT := 'organization_invitations';
+  c_role_staff CONSTANT public.member_role := 'staff';
+  c_status_active CONSTANT public.member_status := 'active';
+  c_public_schema CONSTANT TEXT := 'public';
 BEGIN
   -- ═══════ SETUP ═══════
   -- Use the existing helper to create orgs with users
@@ -34,10 +38,6 @@ BEGIN
   SELECT out_owner_user_id, out_organization_id
   INTO v_other_owner_id, v_other_org_id
   FROM public._test_create_org_with_users('Stage4 Other Org', CURRENT_DATE);
-
-  UPDATE public.organizations
-  SET current_plan = 'business'::public.org_plan
-  WHERE id = v_org_id;
 
   UPDATE public.organization_members
   SET status = 'removed'
@@ -59,42 +59,12 @@ BEGIN
     END IF;
   END;
 
-  -- ═══════ TEST 2: Billing fields exist ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM information_schema.columns
-      WHERE table_name = 'organizations' AND column_name = 'subscription_status'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 2 PASS: subscription_status column exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 2 FAIL: subscription_status column missing';
-    END IF;
-  END;
-
-  -- ═══════ TEST 3: billing_events table exists ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM information_schema.tables
-      WHERE table_name = 'billing_events'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 3 PASS: billing_events table exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 3 FAIL: billing_events table missing';
-    END IF;
-  END;
-
   -- ═══════ TEST 4: organization_invitations table exists ═══════
   v_test_count := v_test_count + 1;
   BEGIN
     IF EXISTS (
       SELECT 1 FROM information_schema.tables
-      WHERE table_name = 'organization_invitations'
+      WHERE table_name = c_invitation_table
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 4 PASS: organization_invitations table exists';
@@ -104,29 +74,13 @@ BEGIN
     END IF;
   END;
 
-  -- ═══════ TEST 5: billing_events RLS enabled ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'billing_events' AND c.relrowsecurity = true
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 5 PASS: billing_events RLS enabled';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 5 FAIL: billing_events RLS not enabled';
-    END IF;
-  END;
-
   -- ═══════ TEST 6: organization_invitations RLS enabled ═══════
   v_test_count := v_test_count + 1;
   BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'organization_invitations' AND c.relrowsecurity = true
+      WHERE n.nspname = c_public_schema AND c.relname = c_invitation_table AND c.relrowsecurity = true
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 6 PASS: organization_invitations RLS enabled';
@@ -142,7 +96,7 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname = 'set_period_lock'
+      WHERE n.nspname = c_public_schema AND p.proname = 'set_period_lock'
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 7 PASS: set_period_lock function exists';
@@ -158,7 +112,7 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname = 'create_invitation'
+      WHERE n.nspname = c_public_schema AND p.proname = 'create_invitation'
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 8 PASS: create_invitation function exists';
@@ -174,7 +128,7 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname = 'accept_invitation'
+      WHERE n.nspname = c_public_schema AND p.proname = 'accept_invitation'
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 9 PASS: accept_invitation function exists';
@@ -190,7 +144,7 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname = 'revoke_invitation'
+      WHERE n.nspname = c_public_schema AND p.proname = 'revoke_invitation'
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 10 PASS: revoke_invitation function exists';
@@ -206,8 +160,8 @@ BEGIN
     IF NOT EXISTS (
       SELECT 1 FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public'
-        AND p.proname IN ('admin_list_organizations', 'admin_update_plan', 'admin_set_suspension')
+      WHERE n.nspname = c_public_schema
+        AND p.proname IN ('admin_list_organizations', 'admin_set_suspension')
         AND p.proacl IS NOT NULL
         AND EXISTS (
           SELECT 1 FROM unnest(p.proacl) AS acl
@@ -225,9 +179,9 @@ BEGIN
   -- ═══════ TEST 12: export functions exist ═══════
   v_test_count := v_test_count + 1;
   BEGIN
-    IF EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'export_transactions_csv')
-       AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'export_accounts_csv')
-       AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'export_products_csv')
+    IF EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = c_public_schema AND p.proname = 'export_transactions_csv')
+       AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = c_public_schema AND p.proname = 'export_accounts_csv')
+       AND EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = c_public_schema AND p.proname = 'export_products_csv')
     THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 12 PASS: export RPC functions exist';
@@ -244,7 +198,7 @@ BEGIN
       SELECT 1 FROM pg_trigger t
       JOIN pg_class c ON c.oid = t.tgrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'transactions'
+      WHERE n.nspname = c_public_schema AND c.relname = 'transactions'
         AND t.tgname = 'enforce_period_lock_before_transaction'
     ) THEN
       v_pass_count := v_pass_count + 1;
@@ -255,45 +209,12 @@ BEGIN
     END IF;
   END;
 
-  -- ═══════ TEST 14: subscription status trigger exists ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM pg_trigger t
-      JOIN pg_class c ON c.oid = t.tgrelid
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'transactions'
-        AND t.tgname = 'enforce_subscription_before_transaction'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 14 PASS: subscription status trigger exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 14 FAIL: subscription status trigger missing';
-    END IF;
-  END;
-
-  -- ═══════ TEST 15: billing_events has correct indexes ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM pg_indexes
-      WHERE tablename = 'billing_events' AND indexname = 'idx_billing_events_org_id'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 15 PASS: billing_events org_id index exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 15 FAIL: billing_events org_id index missing';
-    END IF;
-  END;
-
   -- ═══════ TEST 16: organization_invitations has token index ═══════
   v_test_count := v_test_count + 1;
   BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_indexes
-      WHERE tablename = 'organization_invitations' AND indexname = 'idx_invitations_token'
+      WHERE tablename = c_invitation_table AND indexname = 'idx_invitations_token'
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 16 PASS: invitation token index exists';
@@ -344,8 +265,8 @@ BEGIN
          SELECT 1 FROM public.organization_members
          WHERE organization_id = v_org_id
            AND user_id = v_invitee_id
-           AND role = 'staff'
-           AND status = 'active'
+           AND role = c_role_staff
+           AND status = c_status_active
        )
        AND EXISTS (
          SELECT 1 FROM public.organization_invitations

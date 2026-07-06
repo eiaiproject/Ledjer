@@ -43,11 +43,10 @@ export function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-wood-800">4. Langganan & Pembayaran</h2>
+            <h2 className="text-lg font-semibold text-wood-800">4. Akses Layanan</h2>
             <p>
-              Paket gratis tersedia tanpa kartu kredit. Paket berbayar memerlukan pembayaran melalui
-              metode yang tersedia. Pembayaran yang sudah dilakukan tidak dapat dikembalikan kecuali
-              ditentukan lain dalam Kebijakan Pengembalian Dana.
+              Ledjer saat ini tersedia gratis tanpa kartu kredit. Jika model akses berubah di masa
+              depan, informasi layanan akan diperbarui sebelum diberlakukan.
             </p>
           </section>
 

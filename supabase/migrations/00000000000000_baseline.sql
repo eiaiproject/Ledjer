@@ -106,16 +106,6 @@ CREATE TYPE "public"."onboarding_status" AS ENUM (
 ALTER TYPE "public"."onboarding_status" OWNER TO "postgres";
 
 
-CREATE TYPE "public"."org_plan" AS ENUM (
-    'free',
-    'solo',
-    'business'
-);
-
-
-ALTER TYPE "public"."org_plan" OWNER TO "postgres";
-
-
 CREATE TYPE "public"."party_type" AS ENUM (
     'customer',
     'supplier',
@@ -243,7 +233,7 @@ BEGIN
     (p_org_id, 6150, 'Beban Transportasi', 'expense', 'debit', true, false, 'Beban Usaha', false),
     (p_org_id, 6160, 'Beban Iklan dan Promosi', 'expense', 'debit', true, false, 'Beban Usaha', false),
     (p_org_id, 6170, 'Beban Perlengkapan', 'expense', 'debit', true, false, 'Beban Usaha', false),
-    (p_org_id, 6180, 'Beban Software / Langganan', 'expense', 'debit', true, false, 'Beban Usaha', false),
+    (p_org_id, 6180, 'Beban Software', 'expense', 'debit', true, false, 'Beban Usaha', false),
     (p_org_id, 6190, 'Beban Lain-lain', 'expense', 'debit', true, false, 'Beban Usaha', false),
 
     -- Other Income (7000-7999)
@@ -972,76 +962,6 @@ $$;
 ALTER FUNCTION "public"."get_monthly_summary"("p_organization_id" "uuid", "p_month" "date") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_monthly_transaction_count"("p_org_id" "uuid") RETURNS integer
-    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_count INTEGER;
-BEGIN
-  IF NOT public.is_org_member(p_org_id) THEN
-    RAISE EXCEPTION 'You are not a member of this organization';
-  END IF;
-
-  SELECT COUNT(*)::INTEGER
-  INTO v_count
-  FROM public.transactions
-  WHERE organization_id = p_org_id
-    AND status IN ('posted', 'voided')
-    AND original_transaction_id IS NULL
-    AND transaction_type NOT LIKE 'opening_%'
-    AND created_at >= date_trunc('month', now())
-    AND created_at < date_trunc('month', now()) + INTERVAL '1 month';
-
-  RETURN v_count;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_monthly_transaction_count"("p_org_id" "uuid") OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") RETURNS "jsonb"
-    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public'
-    AS $$
-DECLARE
-  v_count INTEGER;
-  v_limit INTEGER := 50;
-  v_period_start TIMESTAMPTZ;
-  v_period_end TIMESTAMPTZ;
-BEGIN
-  IF NOT public.is_org_member(p_org_id) THEN
-    RAISE EXCEPTION 'You are not a member of this organization';
-  END IF;
-
-  v_period_start := date_trunc('month', now());
-  v_period_end   := v_period_start + INTERVAL '1 month';
-
-  SELECT COUNT(*)::INTEGER
-  INTO v_count
-  FROM public.transactions
-  WHERE organization_id = p_org_id
-    AND status IN ('posted', 'voided')
-    AND original_transaction_id IS NULL
-    AND transaction_type NOT LIKE 'opening_%'
-    AND created_at >= v_period_start
-    AND created_at < v_period_end;
-
-  RETURN jsonb_build_object(
-    'count',        v_count,
-    'limit',        v_limit,
-    'remaining',    GREATEST(v_limit - v_count, 0),
-    'period_start', v_period_start,
-    'period_end',   v_period_end
-  );
-END;
-$$;
-
-
-ALTER FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."get_next_counter"("p_organization_id" "uuid", "p_counter_name" "text") RETURNS integer
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1345,8 +1265,6 @@ DECLARE
   v_inviter_role TEXT;
   v_target_user_id UUID;
   v_target_email_verified_at TIMESTAMPTZ;
-  v_current_plan TEXT;
-  v_staff_count INTEGER;
   v_member_id UUID;
 BEGIN
   v_inviter_id := auth.uid();
@@ -1371,26 +1289,6 @@ BEGIN
 
   IF v_inviter_role != 'owner' THEN
     RAISE EXCEPTION 'Hanya owner yang dapat mengundang staf';
-  END IF;
-
-  SELECT current_plan
-  INTO v_current_plan
-  FROM public.organizations
-  WHERE id = p_organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*)
-  INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = p_organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Paket Business saat ini mendukung maksimal 1 staf';
   END IF;
 
   SELECT id, email_confirmed_at
@@ -1717,8 +1615,6 @@ CREATE OR REPLACE FUNCTION "public"."post_transaction"("p_organization_id" "uuid
 DECLARE
   v_user_id            UUID;
   v_role               TEXT;
-  v_plan               TEXT;
-  v_txn_count          INTEGER;
   v_books_start_date   DATE;
   v_account_type       TEXT;
   v_is_cash_account    BOOLEAN;
@@ -1777,8 +1673,8 @@ BEGIN
   END IF;
 
   -- ── Org metadata ──
-  SELECT books_start_date, current_plan::TEXT
-  INTO v_books_start_date, v_plan
+  SELECT books_start_date
+  INTO v_books_start_date
   FROM public.organizations
   WHERE id = p_organization_id;
 
@@ -1789,14 +1685,6 @@ BEGIN
   IF p_transaction_date < v_books_start_date THEN
     RAISE EXCEPTION 'Tanggal transaksi % sebelum tanggal mulai pembukuan %',
       p_transaction_date, v_books_start_date;
-  END IF;
-
-  -- ── Plan limits ──
-  IF v_plan = 'free' THEN
-    v_txn_count := public.get_monthly_transaction_count(p_organization_id);
-    IF v_txn_count >= 50 THEN
-      RAISE EXCEPTION 'Batas transaksi paket Gratis tercapai (50 transaksi/bulan). Silakan upgrade.';
-    END IF;
   END IF;
 
   -- ── Basic validation ──
@@ -2350,8 +2238,6 @@ CREATE OR REPLACE FUNCTION "public"."post_transaction_impl_20260702"("p_organiza
 DECLARE
   v_user_id UUID;
   v_role TEXT;
-  v_plan TEXT;
-  v_txn_count INTEGER;
   v_debit_account_id UUID;
   v_credit_account_id UUID;
   v_receivable_account_id UUID;
@@ -2389,17 +2275,6 @@ BEGIN
   IF v_role = 'staff'
      AND NOT public.has_permission(p_organization_id, 'can_create_transaction') THEN
     RAISE EXCEPTION 'You do not have permission to create transactions';
-  END IF;
-
-  SELECT current_plan INTO v_plan
-  FROM public.organizations
-  WHERE id = p_organization_id;
-
-  IF v_plan = 'free' THEN
-    v_txn_count := public.get_monthly_transaction_count(p_organization_id);
-    IF v_txn_count >= 50 THEN
-      RAISE EXCEPTION 'Free plan limit reached (50 transactions/month). Please upgrade.';
-    END IF;
   END IF;
 
   IF p_amount IS NULL OR p_amount <= 0 THEN
@@ -2955,7 +2830,7 @@ ALTER FUNCTION "public"."protect_account_fields"() OWNER TO "postgres";
 REVOKE EXECUTE ON FUNCTION "public"."protect_account_fields"() FROM anon, authenticated;
 
 
-CREATE OR REPLACE FUNCTION "public"."protect_organization_billing_columns"() RETURNS "trigger"
+CREATE OR REPLACE FUNCTION "public"."protect_organization_core_fields"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -2963,11 +2838,6 @@ BEGIN
   -- Allow service_role and trusted functions to update protected columns
   IF current_setting('role', true) = 'service_role' THEN
     RETURN NEW;
-  END IF;
-
-  -- Block changes to protected columns from client context
-  IF OLD.current_plan IS DISTINCT FROM NEW.current_plan THEN
-    RAISE EXCEPTION 'Cannot modify billing plan from client. Use service role or billing RPC.';
   END IF;
 
   IF OLD.created_by IS DISTINCT FROM NEW.created_by THEN
@@ -2979,7 +2849,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."protect_organization_billing_columns"() OWNER TO "postgres";
+ALTER FUNCTION "public"."protect_organization_core_fields"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."protect_product_stock_update"() RETURNS "trigger"
@@ -4307,7 +4177,6 @@ CREATE TABLE IF NOT EXISTS "public"."organizations" (
     "books_start_date" "date" DEFAULT CURRENT_DATE NOT NULL,
     "default_reporting_period" "public"."reporting_period" DEFAULT 'monthly'::"public"."reporting_period" NOT NULL,
     "onboarding_status" "public"."onboarding_status" DEFAULT 'not_started'::"public"."onboarding_status" NOT NULL,
-    "current_plan" "public"."org_plan" DEFAULT 'free'::"public"."org_plan" NOT NULL,
     "created_by" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
@@ -4687,7 +4556,7 @@ CREATE OR REPLACE TRIGGER "protect_account_fields_trigger" BEFORE UPDATE ON "pub
 
 
 
-CREATE OR REPLACE TRIGGER "protect_organization_billing_trigger" BEFORE UPDATE ON "public"."organizations" FOR EACH ROW EXECUTE FUNCTION "public"."protect_organization_billing_columns"();
+CREATE OR REPLACE TRIGGER "protect_organization_core_fields_trigger" BEFORE UPDATE ON "public"."organizations" FOR EACH ROW EXECUTE FUNCTION "public"."protect_organization_core_fields"();
 
 
 
@@ -5274,16 +5143,6 @@ GRANT ALL ON FUNCTION "public"."get_monthly_summary"("p_organization_id" "uuid",
 
 
 
-GRANT ALL ON FUNCTION "public"."get_monthly_transaction_count"("p_org_id" "uuid") TO "authenticated";
-
-
-
-REVOKE ALL ON FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") FROM anon;
-GRANT ALL ON FUNCTION "public"."get_monthly_usage"("p_org_id" "uuid") TO "authenticated";
-
-
-
 REVOKE ALL ON FUNCTION "public"."get_next_counter"("p_organization_id" "uuid", "p_counter_name" "text") FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION "public"."get_next_counter"("p_organization_id" "uuid", "p_counter_name" "text") FROM anon, authenticated;
 
@@ -5516,9 +5375,4 @@ BEGIN
     );
   END LOOP;
 END $$;
-
-
-
-
-
 

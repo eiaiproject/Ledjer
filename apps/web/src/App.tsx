@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { lazy, Suspense, type ReactNode, useEffect } from "react";
+import { createBrowserRouter, RouterProvider, useLocation } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth";
@@ -26,7 +26,6 @@ const TrialBalancePage = lazy(async () => ({ default: (await import("@/pages/rep
 const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/reports/profit-loss")).ProfitLossPage }));
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
 const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/team")).TeamSettingsPage }));
-const BillingSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/billing")).BillingSettingsPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
 const ResetPasswordPage = lazy(async () => ({ default: (await import("@/pages/reset-password")).ResetPasswordPage }));
 const ForgotPasswordPage = lazy(async () => ({ default: (await import("@/pages/forgot-password")).ForgotPasswordPage }));
@@ -38,6 +37,51 @@ const SecurityPage = lazy(async () => ({ default: (await import("@/pages/legal/s
 const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/contact")).ContactPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
+type SeoProps = Readonly<{
+  title: string;
+  description: string;
+  path?: string;
+  noindex?: boolean;
+  children: ReactNode;
+}>;
+
+const SITE_URL = "https://ledjer.id";
+const DEFAULT_DESCRIPTION =
+  "Ledjer adalah aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet.";
+
+function setMeta(selector: string, value: string) {
+  const element = document.head.querySelector(selector);
+  if (element) element.setAttribute("content", value);
+}
+
+function ensureCanonical(href: string) {
+  let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "canonical";
+    document.head.appendChild(link);
+  }
+  link.href = href;
+}
+
+function Seo({ title, description, path, noindex = false, children }: SeoProps) {
+  const location = useLocation();
+  const canonicalUrl = `${SITE_URL}${path ?? location.pathname}`;
+
+  useEffect(() => {
+    document.title = title;
+    ensureCanonical(canonicalUrl);
+    setMeta('meta[name="description"]', description);
+    setMeta('meta[name="robots"]', noindex ? "noindex, nofollow" : "index, follow");
+    setMeta('meta[property="og:title"]', title);
+    setMeta('meta[property="og:description"]', description);
+    setMeta('meta[property="og:url"]', canonicalUrl);
+    setMeta('meta[name="twitter:title"]', title);
+    setMeta('meta[name="twitter:description"]', description);
+  }, [canonicalUrl, description, noindex, title]);
+
+  return <>{children}</>;
+}
 
 
 function RouteFallback() {
@@ -54,38 +98,130 @@ const routerConfig = [
     path: "/",
     element: <PublicRoute />,
     children: [
-      { index: true, element: <LandingPage /> },
-      { path: "login", element: <LoginPage /> },
-      { path: "register", element: <RegisterPage /> },
+      {
+        index: true,
+        element: (
+          <Seo title="Ledjer - Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
+            <LandingPage />
+          </Seo>
+        ),
+      },
+      {
+        path: "login",
+        element: (
+          <Seo title="Masuk - Ledjer" description="Masuk ke akun Ledjer." noindex>
+            <LoginPage />
+          </Seo>
+        ),
+      },
+      {
+        path: "register",
+        element: (
+          <Seo title="Daftar - Ledjer" description="Buat akun Ledjer untuk mulai mencatat pembukuan." noindex>
+            <RegisterPage />
+          </Seo>
+        ),
+      },
     ],
   },
   // Auth callback must NOT sit under PublicRoute/ProtectedRoute: after
   // verifyOtp sets a session the guards would redirect before our own
   // navigate("/onboarding") runs.
-  { path: "/auth/callback", element: <AuthCallbackPage /> },
+  {
+    path: "/auth/callback",
+    element: (
+      <Seo title="Memproses autentikasi - Ledjer" description="Memproses autentikasi Ledjer." noindex>
+        <AuthCallbackPage />
+      </Seo>
+    ),
+  },
   // Password recovery destination — Supabase recovery email links land here
   // with a temporary session so the user can set a new password.
-  { path: "/reset-password", element: <ResetPasswordPage /> },
-  { path: "/invitations/accept", element: <AcceptInvitationPage /> },
+  {
+    path: "/reset-password",
+    element: (
+      <Seo title="Reset password - Ledjer" description="Reset password akun Ledjer." noindex>
+        <ResetPasswordPage />
+      </Seo>
+    ),
+  },
+  {
+    path: "/invitations/accept",
+    element: (
+      <Seo title="Terima undangan - Ledjer" description="Terima undangan tim Ledjer." noindex>
+        <AcceptInvitationPage />
+      </Seo>
+    ),
+  },
   // Forgot-password landing page — user enters their email to receive a
   // recovery link. Public route (sits under PublicRoute so signed-in users
   // are not redirected away).
-  { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  {
+    path: "/forgot-password",
+    element: (
+      <Seo title="Lupa password - Ledjer" description="Minta tautan pemulihan password Ledjer." noindex>
+        <ForgotPasswordPage />
+      </Seo>
+    ),
+  },
   // Legal & policy pages (public — accessible to everyone)
-  { path: "/terms", element: <TermsOfServicePage /> },
-  { path: "/privacy", element: <PrivacyPolicyPage /> },
-  { path: "/refund", element: <RefundPolicyPage /> },
-  { path: "/security", element: <SecurityPage /> },
-  { path: "/contact", element: <ContactPage /> },
+  {
+    path: "/terms",
+    element: (
+      <Seo title="Syarat & Ketentuan - Ledjer" description="Syarat dan ketentuan penggunaan Ledjer.">
+        <TermsOfServicePage />
+      </Seo>
+    ),
+  },
+  {
+    path: "/privacy",
+    element: (
+      <Seo title="Kebijakan Privasi - Ledjer" description="Kebijakan privasi dan pengelolaan data Ledjer.">
+        <PrivacyPolicyPage />
+      </Seo>
+    ),
+  },
+  {
+    path: "/refund",
+    element: (
+      <Seo title="Kebijakan Layanan - Ledjer" description="Kebijakan layanan Ledjer selama periode akses gratis.">
+        <RefundPolicyPage />
+      </Seo>
+    ),
+  },
+  {
+    path: "/security",
+    element: (
+      <Seo title="Keamanan - Ledjer" description="Ringkasan keamanan data dan infrastruktur Ledjer.">
+        <SecurityPage />
+      </Seo>
+    ),
+  },
+  {
+    path: "/contact",
+    element: (
+      <Seo title="Kontak - Ledjer" description="Hubungi tim Ledjer untuk dukungan, bug, atau keamanan.">
+        <ContactPage />
+      </Seo>
+    ),
+  },
   {
     path: "/onboarding",
-    element: <ProtectedRoute />,
+    element: (
+      <Seo title="Onboarding - Ledjer" description="Setup awal organisasi Ledjer." noindex>
+        <ProtectedRoute />
+      </Seo>
+    ),
     children: [
       { index: true, element: <OnboardingGuard><OnboardingPage /></OnboardingGuard> },
     ],
   },
   {
-    element: <ProtectedRoute />,
+    element: (
+      <Seo title="Aplikasi Ledjer" description="Area aplikasi Ledjer." noindex>
+        <ProtectedRoute />
+      </Seo>
+    ),
     children: [
       {
         element: <DashboardLayout />,
@@ -101,12 +237,18 @@ const routerConfig = [
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
           { path: "/settings/team", element: <TeamSettingsPage /> },
-          { path: "/settings/billing", element: <BillingSettingsPage /> },
         ],
       },
     ],
   },
-  { path: "*", element: <NotFoundPage /> },
+  {
+    path: "*",
+    element: (
+      <Seo title="Halaman tidak ditemukan - Ledjer" description="Halaman Ledjer tidak ditemukan." noindex>
+        <NotFoundPage />
+      </Seo>
+    ),
+  },
 ];
 
 const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouterV7(createBrowserRouter);

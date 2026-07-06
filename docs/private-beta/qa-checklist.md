@@ -50,7 +50,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 | C4 | Void transaction | Void a posted transaction | Reversal journal created, balances restored |
 | C5 | Audit log | View audit log (owner only) | All financial actions logged |
 | C6 | Journal balance | Create any transaction, check journal | Σ debit = Σ credit |
-| C7 | Transaction limit | On free plan, create 50 transactions | 51st blocked with plan limit error |
+| C7 | Unlimited transaction policy | Create more than 50 transactions | All transactions are created successfully |
 | C8 | Duplicate prevention | Submit same form twice quickly | Only one transaction created (client_token idempotency) |
 
 ---
@@ -79,19 +79,6 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 | E5 | Date range filter | Filter reports by date range | Only transactions in range shown |
 | E6 | Empty state | View reports with no transactions | Graceful empty state, no errors |
 | E7 | As-of date balance sheet | Create future-dated transaction, view today | Future transaction excluded |
-
----
-
-## F. Plan / Billing
-
-| # | Scenario | Steps | Expected |
-|---|----------|-------|----------|
-| F1 | Free plan display | View Settings → Billing | "Gratis" plan shown, 50 transaction limit displayed |
-| F2 | Free plan limit | Create 50 transactions on free plan | 51st blocked |
-| F3 | Mayar checkout (owner) | Enter WhatsApp, click "Bayar dengan Mayar" | Redirects to checkout and creates pending session |
-| F4 | Upgrade request (staff) | View billing as staff | "Hanya pemilik" notice, no checkout button |
-| F5 | Webhook plan change | Paid Mayar webhook received | Next page load shows new plan |
-| F6 | Post-upgrade behavior | After upgrade to solo/business | Transaction limit removed, features unlocked |
 
 ---
 
@@ -128,7 +115,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 
 | # | Scenario | Steps | Expected |
 |---|----------|-------|----------|
-| I1 | Home page loads | Open production URL (`https://ledjer-ahk.pages.dev`) | Landing page renders |
+| I1 | Home page loads | Open production URL (`https://ledjer.id`) | Landing page renders |
 | I2 | Login page loads | Navigate to `/login` | Login form visible |
 | I3 | Register page loads | Navigate to `/register` | Register form visible |
 | I4 | Supabase connection | Submit login form | Auth request succeeds (check network tab) |

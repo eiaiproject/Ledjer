@@ -2,13 +2,6 @@
 
 These items do not block private beta but must be understood before public launch.
 
-## Billing & Payments
-
-- **Mayar-only checkout.** Other gateways are not supported.
-- **No custom invoice generation.** Subscription invoices are created by Mayar only.
-- **No payment receipts in app.** Payment confirmation happens through Mayar/webhook state.
-- **No subscription management UI.** Users cannot view payment history or manage subscription within the app.
-
 ## Staff & Team
 
 - **Staff invitation may require existing registered users.** The `invite_staff` RPC checks that the invitee has a confirmed Supabase auth account. Beta operators should ensure the invited user has registered and confirmed their email before sending an invite.

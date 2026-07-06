@@ -46,7 +46,6 @@ const NAV_ITEMS: NavItemWithPerm[] = [
     label: "Pengaturan",
     icon: Settings,
     children: [
-      { to: "/settings/billing", label: "Langganan" },
       { to: "/settings/team", label: "Tim" },
     ],
   },

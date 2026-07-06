@@ -27,13 +27,6 @@ test.describe("Owner has full access", () => {
     expect(hasTeamContent).toBeTruthy();
   });
 
-  test("owner can access billing settings", async ({ page }) => {
-    await loginViaUI(page, E2E_OWNER);
-    await page.goto("/settings/billing");
-    await page.waitForLoadState("networkidle");
-    await expect(page.locator("body")).toBeVisible();
-  });
-
   test("owner can access transaction form", async ({ page }) => {
     await loginViaUI(page, E2E_OWNER);
     await page.goto("/transactions/new");

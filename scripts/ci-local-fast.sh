@@ -33,7 +33,9 @@ section() {
 
 # ── 1. Corepack / pnpm install ──────────────────────────────────────────────
 section "1/7  pnpm install --frozen-lockfile"
-corepack enable 2>/dev/null || true
+if ! command -v pnpm >/dev/null 2>&1; then
+  corepack enable >/dev/null 2>&1 || true
+fi
 pnpm install --frozen-lockfile 2>&1 | tail -5
 echo "✅  pnpm install OK"
 pass

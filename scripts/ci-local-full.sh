@@ -68,7 +68,9 @@ pass
 
 # ── 1. pnpm install ─────────────────────────────────────────────────────────
 section "1/8  pnpm install --frozen-lockfile"
-corepack enable 2>/dev/null || true
+if ! command -v pnpm >/dev/null 2>&1; then
+  corepack enable >/dev/null 2>&1 || true
+fi
 pnpm install --frozen-lockfile 2>&1 | tail -5
 echo "✅  pnpm install OK"
 pass
@@ -117,10 +119,7 @@ pass
 section "7/8  Full-local Chromium E2E"
 
 # Export Supabase env vars
-eval "$(supabase status --workdir "$ROOT" --output env 2>/dev/null)"
-SUPABASE_URL="${API_URL:-http://localhost:54321}"
-SUPABASE_ANON_KEY="${ANON_KEY:-}"
-SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
+eval "$(bash scripts/export-supabase-env.sh)"
 
 if [[ -z "$SUPABASE_ANON_KEY" ]]; then
   echo "❌  Failed to extract Supabase anon key"

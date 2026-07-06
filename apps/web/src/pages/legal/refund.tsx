@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 
 /**
- * Refund & Billing Policy page.
+ * Service policy page.
  * ⚠️ REQUIRES LEGAL REVIEW before public launch.
  */
 
@@ -9,7 +9,7 @@ export function RefundPolicyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Kebijakan Pengembalian & Billing</h1>
+        <h1 className="text-2xl font-bold text-text-primary">Kebijakan Layanan</h1>
         <p className="mt-1 text-sm text-wood-500">
           Terakhir diperbarui: 26 Juni 2026 · ⚠️ Membutuhkan review legal sebelum peluncuran
         </p>
@@ -18,64 +18,57 @@ export function RefundPolicyPage() {
       <Card>
         <CardContent className="prose prose-wood max-w-none space-y-4 text-sm leading-relaxed text-wood-700">
           <section>
-            <h2 className="text-lg font-semibold text-wood-800">1. Masa Uji Coba</h2>
+            <h2 className="text-lg font-semibold text-wood-800">1. Akses Layanan</h2>
             <p>
-              Ledjer menawarkan masa uji coba gratis untuk paket berbayar. Tidak ada kartu kredit
-              yang diperlukan untuk memulai masa uji coba. Setelah masa uji coba berakhir, akun
-              akan dikembalikan ke paket gratis.
+              Ledjer saat ini tersedia gratis. Tidak ada kartu kredit atau pembayaran yang
+              diperlukan untuk menggunakan fitur yang tersedia.
             </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-wood-800">2. Pembayaran</h2>
+            <h2 className="text-lg font-semibold text-wood-800">2. Biaya</h2>
             <p>
-              Pembayaran paket berbayar dilakukan di muka untuk periode bulanan atau tahunan.
-              Harga tercantum dalam Rupiah (IDR) dan sudah termasuk pajak yang berlaku.
+              Selama periode gratis ini, Ledjer tidak memungut biaya penggunaan atau biaya transaksi.
+              Jika kebijakan harga berubah, kami akan memperbarui informasi layanan terlebih dahulu.
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold text-wood-800">3. Pengembalian Dana</h2>
             <p>
-              Karena Layanan kami bersifat digital dan dapat langsung digunakan, pengembalian dana
-              hanya tersedia dalam kondisi berikut:
-            </p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Pembayaran duplikat karena kesalahan sistem</li>
-              <li>Layanan tidak dapat digunakan selama lebih dari 48 jam karena kesalahan kami</li>
-              <li>Pembatalan dalam 7 hari pertama langganan baru (satu kali saja)</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-wood-800">4. Pembatalan</h2>
-            <p>
-              Anda dapat membatalkan langganan kapan saja dari pengaturan akun. Pembatalan berlaku
-              pada akhir periode billing saat ini. Anda tetap dapat menggunakan Layanan hingga
-              periode berakhir.
+              Karena Ledjer saat ini tidak memproses pembayaran, tidak ada pengembalian dana yang
+              berlaku untuk penggunaan layanan.
             </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-wood-800">5. Perubahan Paket</h2>
+            <h2 className="text-lg font-semibold text-wood-800">4. Penghentian Penggunaan</h2>
             <p>
-              Upgrade berlaku segera dengan prorata pembayaran. Downgrade berlaku pada akhir
-              periode billing saat ini.
+              Anda dapat berhenti menggunakan Ledjer kapan saja. Untuk permintaan terkait akun atau
+              data, hubungi kami melalui alamat kontak di bawah.
             </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-wood-800">6. Pembayaran Gagal</h2>
+            <h2 className="text-lg font-semibold text-wood-800">5. Perubahan Kebijakan</h2>
             <p>
-              Jika pembayaran gagal, kami akan mencoba ulang dalam 3 hari. Jika pembayaran tetap
-              gagal, langganan akan ditangguhkan hingga pembayaran berhasil.
+              Kami dapat memperbarui kebijakan ini dari waktu ke waktu. Perubahan material akan
+              dicantumkan pada halaman ini.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-wood-800">6. Ketersediaan Layanan</h2>
+            <p>
+              Kami berupaya menjaga layanan tetap tersedia, namun gangguan teknis dapat terjadi.
+              Jika ada kendala akses, hubungi kami agar dapat ditindaklanjuti.
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold text-wood-800">7. Kontak</h2>
             <p>
-              Untuk pertanyaan mengenai billing, hubungi kami di{" "}
+              Untuk pertanyaan mengenai layanan, hubungi kami di{" "}
               <a href="mailto:projects.eiai@gmail.com" className="text-leaf-600 underline">
                 projects.eiai@gmail.com
               </a>

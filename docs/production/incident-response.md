@@ -7,7 +7,7 @@ Last updated: 2026-06-27
 | Severity | Description | Response Time | Example |
 |----------|-------------|---------------|---------|
 | **P0 — Critical** | Service down, data loss risk, security breach | Immediate (< 15 min) | Database outage, auth bypass, data deletion |
-| **P1 — High** | Major feature broken, billing failure | < 1 hour | Transaction posting fails, login broken |
+| **P1 — High** | Major feature broken | < 1 hour | Transaction posting fails, login broken |
 | **P2 — Medium** | Minor feature degraded, workaround exists | < 4 hours | Report rendering slow, export failing |
 | **P3 — Low** | Cosmetic, minor UX issue | < 24 hours | UI glitch, typo, non-critical error |
 
@@ -28,7 +28,6 @@ Last updated: 2026-06-27
 - **Service down:** Check hosting platform status, restart if needed
 - **Database issue:** Check Supabase dashboard, check connection pool
 - **Auth issue:** Check Supabase Auth logs, verify RLS policies
-- **Billing issue:** Check webhook delivery, verify payment provider status
 - **Security breach:** Rotate keys immediately, check audit logs
 
 ### 4. Resolve
@@ -89,12 +88,6 @@ REVOKE EXECUTE ON FUNCTION problematic_function(UUID) FROM authenticated;
 2. Test policies with `SET ROLE authenticated`
 3. Verify `is_org_member()` function returns correct results
 4. Fix policy and re-deploy migration
-
-### Billing/Webhook Failure
-1. Check payment provider dashboard for delivery status
-2. Check `billing_events` table for recorded events
-3. Manually process failed webhooks if needed
-4. Re-send from provider dashboard
 
 ## Communication Templates
 

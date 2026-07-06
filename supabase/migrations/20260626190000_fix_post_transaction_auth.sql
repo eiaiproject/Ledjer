@@ -1,19 +1,13 @@
 -- =============================================================================
--- FIX: post_transaction — restore can_create_transaction check + align free plan limit
+-- FIX: post_transaction — restore can_create_transaction check
 -- =============================================================================
 -- Bug 1 (CRITICAL SECURITY): post_transaction in 20260625184100_master_induk_fixes.sql
 --   removed the has_permission('can_create_transaction') check that existed in the
 --   baseline. Any active org member could post transactions regardless of their
 --   staff permission flags — bypassing the UI permission gate via direct RPC.
 --
--- Bug 2 (PRODUCT INCONSISTENCY): Free plan limit was hardcoded to 100 in
---   post_transaction, while get_monthly_usage, frontend constant, and billing UI
---   all use 50. Additionally, post_transaction counted ALL historical posted
---   transactions (no month filter), causing premature blocking.
---
 -- Fix:
---   1. Restore can_create_transaction check after membership validation.
---   2. Align free plan limit to 50 with monthly window matching get_monthly_usage.
+--   Restore can_create_transaction check after membership validation.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.post_transaction(
@@ -42,8 +36,6 @@ AS $$
 DECLARE
   v_user_id            UUID;
   v_role               TEXT;
-  v_plan               TEXT;
-  v_txn_count          INTEGER;
   v_books_start_date   DATE;
   v_account_type       TEXT;
   v_is_cash_account    BOOLEAN;
@@ -78,9 +70,37 @@ DECLARE
   v_existing_je_number TEXT;
   v_existing_impact JSONB;
 
-  -- Monthly usage variables
-  v_period_start TIMESTAMPTZ;
-  v_period_end   TIMESTAMPTZ;
+  c_status_active CONSTANT public.member_status := 'active';
+  c_status_posted CONSTANT TEXT := 'posted';
+  c_account_asset CONSTANT TEXT := 'asset';
+  c_normal_debit CONSTANT TEXT := 'debit';
+  c_normal_credit CONSTANT TEXT := 'credit';
+  c_change_increase CONSTANT TEXT := 'increase';
+  c_change_decrease CONSTANT TEXT := 'decrease';
+  c_payment_partial CONSTANT TEXT := 'partial';
+  c_type_cash_sale CONSTANT TEXT := 'cash_sale';
+  c_type_credit_sale CONSTANT TEXT := 'credit_sale';
+  c_type_receive_receivable CONSTANT TEXT := 'receive_receivable';
+  c_type_cash_purchase CONSTANT TEXT := 'cash_purchase';
+  c_type_credit_purchase CONSTANT TEXT := 'credit_purchase';
+  c_type_pay_payable CONSTANT TEXT := 'pay_payable';
+  c_type_expense_payment CONSTANT TEXT := 'expense_payment';
+  c_type_owner_capital CONSTANT TEXT := 'owner_capital';
+  c_type_owner_draw CONSTANT TEXT := 'owner_draw';
+  c_type_cash_transfer CONSTANT TEXT := 'cash_transfer';
+  c_key_transaction_id CONSTANT TEXT := 'transaction_id';
+  c_key_transaction_number CONSTANT TEXT := 'transaction_number';
+  c_key_journal_entry_id CONSTANT TEXT := 'journal_entry_id';
+  c_key_entry_number CONSTANT TEXT := 'entry_number';
+  c_key_impact CONSTANT TEXT := 'impact';
+  c_key_debit_account_id CONSTANT TEXT := 'debit_account_id';
+  c_key_debit_account CONSTANT TEXT := 'debit_account';
+  c_key_debit_change CONSTANT TEXT := 'debit_change';
+  c_key_credit_account_id CONSTANT TEXT := 'credit_account_id';
+  c_key_credit_account CONSTANT TEXT := 'credit_account';
+  c_key_credit_change CONSTANT TEXT := 'credit_change';
+  c_key_amount CONSTANT TEXT := 'amount';
+
 BEGIN
   -- ── Auth ──
   v_user_id := auth.uid();
@@ -91,9 +111,9 @@ BEGIN
   -- ── Membership ──
   SELECT role::TEXT INTO v_role
   FROM public.organization_members
-  WHERE organization_id = p_organization_id
-    AND user_id = v_user_id
-    AND status = 'active'
+    WHERE organization_id = p_organization_id
+      AND user_id = v_user_id
+      AND status = c_status_active
   LIMIT 1;
 
   IF v_role IS NULL THEN
@@ -116,13 +136,13 @@ BEGIN
 
     IF v_existing_txn_id IS NOT NULL THEN
       SELECT jsonb_build_object(
-        'debit_account_id',  d.account_id,
-        'debit_account',     d.name,
-        'debit_change',      CASE WHEN d.normal_balance = 'debit' THEN 'increase' ELSE 'decrease' END,
-        'credit_account_id', c.account_id,
-        'credit_account',    c.name,
-        'credit_change',     CASE WHEN c.normal_balance = 'credit' THEN 'increase' ELSE 'decrease' END,
-        'amount',            v_existing_amount
+        c_key_debit_account_id,  d.account_id,
+        c_key_debit_account,     d.name,
+        c_key_debit_change,      CASE WHEN d.normal_balance = c_normal_debit THEN c_change_increase ELSE c_change_decrease END,
+        c_key_credit_account_id, c.account_id,
+        c_key_credit_account,    c.name,
+        c_key_credit_change,     CASE WHEN c.normal_balance = c_normal_credit THEN c_change_increase ELSE c_change_decrease END,
+        c_key_amount,            v_existing_amount
       ) INTO v_existing_impact
       FROM
         (SELECT jl.account_id, a.name, a.normal_balance::text AS normal_balance
@@ -137,11 +157,11 @@ BEGIN
           ORDER BY jl.line_order, jl.id LIMIT 1) c;
 
       RETURN jsonb_build_object(
-        'transaction_id',     v_existing_txn_id,
-        'transaction_number', v_existing_txn_number,
-        'journal_entry_id',   v_existing_je_id,
-        'entry_number',       v_existing_je_number,
-        'impact',             v_existing_impact
+        c_key_transaction_id,     v_existing_txn_id,
+        c_key_transaction_number, v_existing_txn_number,
+        c_key_journal_entry_id,   v_existing_je_id,
+        c_key_entry_number,       v_existing_je_number,
+        c_key_impact,             v_existing_impact
       );
     END IF;
   END IF;
@@ -169,32 +189,9 @@ BEGIN
       p_transaction_date, v_books_start_date;
   END IF;
 
-  -- ── FIX #2: Subscription Transaction Limit Guard ──
-  -- Aligned with get_monthly_usage: 50 per calendar month, same counting semantics.
-  SELECT current_plan INTO v_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_plan = 'free' THEN
-    v_period_start := date_trunc('month', now());
-    v_period_end   := v_period_start + INTERVAL '1 month';
-
-    SELECT COUNT(*)::INTEGER INTO v_txn_count
-    FROM public.transactions
-    WHERE organization_id = p_organization_id
-      AND status IN ('posted', 'voided')
-      AND original_transaction_id IS NULL
-      AND transaction_type NOT LIKE 'opening_%'
-      AND created_at >= v_period_start
-      AND created_at < v_period_end;
-
-    IF v_txn_count >= 50 THEN
-      RAISE EXCEPTION 'Batas 50 transaksi per bulan untuk Paket Free telah tercapai. Upgrade paket untuk melanjutkan.';
-    END IF;
-  END IF;
-
   -- ── Product Validation ──
   IF p_product_id IS NOT NULL THEN
-    IF p_transaction_type NOT IN ('cash_purchase', 'credit_purchase', 'cash_sale', 'credit_sale') THEN
+    IF p_transaction_type NOT IN (c_type_cash_purchase, c_type_credit_purchase, c_type_cash_sale, c_type_credit_sale) THEN
       RAISE EXCEPTION 'Produk hanya dapat digunakan untuk transaksi penjualan atau pembelian';
     END IF;
     IF p_quantity IS NULL OR p_quantity <= 0 THEN
@@ -218,7 +215,7 @@ BEGIN
     END IF;
 
     -- P1-2 (a): Zero-cost sale block
-    IF p_transaction_type IN ('cash_sale', 'credit_sale') THEN
+    IF p_transaction_type IN (c_type_cash_sale, c_type_credit_sale) THEN
       IF COALESCE(v_product_purchase_price, 0) = 0 THEN
         RAISE EXCEPTION 'Harga pokok produk belum diatur. Harap atur harga pokok (purchase_price) sebelum mencatat penjualan.';
       END IF;
@@ -230,8 +227,8 @@ BEGIN
   IF p_party_id IS NULL AND p_party_name IS NOT NULL AND btrim(p_party_name) != '' THEN
     v_party_name := btrim(p_party_name);
     v_party_type := CASE
-      WHEN p_transaction_type IN ('credit_sale', 'receive_receivable') THEN 'customer'::public.party_type
-      WHEN p_transaction_type IN ('credit_purchase', 'pay_payable') THEN 'supplier'::public.party_type
+      WHEN p_transaction_type IN (c_type_credit_sale, c_type_receive_receivable) THEN 'customer'::public.party_type
+      WHEN p_transaction_type IN (c_type_credit_purchase, c_type_pay_payable) THEN 'supplier'::public.party_type
       ELSE 'other'::public.party_type
     END;
 
@@ -244,8 +241,8 @@ BEGIN
 
   -- ── Cash account required for certain types ──
   IF p_transaction_type IN (
-    'cash_sale', 'receive_receivable', 'cash_purchase', 'pay_payable',
-    'expense_payment', 'owner_capital', 'owner_draw', 'cash_transfer'
+    c_type_cash_sale, c_type_receive_receivable, c_type_cash_purchase, c_type_pay_payable,
+    c_type_expense_payment, c_type_owner_capital, c_type_owner_draw, c_type_cash_transfer
   ) THEN
     IF p_cash_account_id IS NULL THEN
       RAISE EXCEPTION 'Akun kas diperlukan untuk tipe transaksi ini';
@@ -261,13 +258,13 @@ BEGIN
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Akun kas tidak ditemukan';
     END IF;
-    IF v_account_type != 'asset' OR v_is_cash_account != true THEN
+    IF v_account_type != c_account_asset OR v_is_cash_account != true THEN
       RAISE EXCEPTION 'Akun kas tidak valid';
     END IF;
   END IF;
 
   -- ── Destination cash account required for transfers ──
-  IF p_transaction_type = 'cash_transfer' THEN
+  IF p_transaction_type = c_type_cash_transfer THEN
     IF p_destination_cash_account_id IS NULL THEN
       RAISE EXCEPTION 'Akun kas tujuan diperlukan untuk transfer';
     END IF;
@@ -285,14 +282,14 @@ BEGIN
     IF NOT FOUND THEN
       RAISE EXCEPTION 'Akun kas tujuan tidak ditemukan';
     END IF;
-    IF v_account_type != 'asset' OR v_is_cash_account != true THEN
+    IF v_account_type != c_account_asset OR v_is_cash_account != true THEN
       RAISE EXCEPTION 'Akun kas tujuan tidak valid';
     END IF;
   END IF;
 
   -- ── Party required for credit / receivables / payables ──
   IF p_transaction_type IN (
-    'credit_sale', 'receive_receivable', 'credit_purchase', 'pay_payable'
+    c_type_credit_sale, c_type_receive_receivable, c_type_credit_purchase, c_type_pay_payable
   ) THEN
     IF p_party_id IS NULL THEN
       RAISE EXCEPTION 'Kontak / party diperlukan untuk tipe transaksi ini';
@@ -306,7 +303,7 @@ BEGIN
   END IF;
 
   -- ── Resolve accounts based on transaction type ──
-  IF p_transaction_type = 'cash_sale' THEN
+  IF p_transaction_type = c_type_cash_sale THEN
     v_debit_account_id := p_cash_account_id;
     SELECT id INTO v_credit_account_id
     FROM public.accounts
@@ -315,7 +312,7 @@ BEGIN
       RAISE EXCEPTION 'Akun Pendapatan Penjualan (4100) tidak ditemukan atau tidak aktif';
     END IF;
 
-  ELSIF p_transaction_type = 'credit_sale' THEN
+  ELSIF p_transaction_type = c_type_credit_sale THEN
     SELECT id INTO v_debit_account_id
     FROM public.accounts
     WHERE organization_id = p_organization_id AND code = 1200 AND is_active = true;
@@ -330,7 +327,7 @@ BEGIN
       RAISE EXCEPTION 'Akun Pendapatan Penjualan (4100) tidak ditemukan atau tidak aktif';
     END IF;
 
-  ELSIF p_transaction_type = 'receive_receivable' THEN
+  ELSIF p_transaction_type = c_type_receive_receivable THEN
     v_debit_account_id := p_cash_account_id;
     SELECT id INTO v_credit_account_id
     FROM public.accounts
@@ -339,7 +336,7 @@ BEGIN
       RAISE EXCEPTION 'Akun Piutang Usaha (1200) tidak ditemukan atau tidak aktif';
     END IF;
 
-  ELSIF p_transaction_type = 'cash_purchase' THEN
+  ELSIF p_transaction_type = c_type_cash_purchase THEN
     IF p_product_id IS NOT NULL THEN
       SELECT id INTO v_debit_account_id
       FROM public.accounts
@@ -355,7 +352,7 @@ BEGIN
     END IF;
     v_credit_account_id := p_cash_account_id;
 
-  ELSIF p_transaction_type = 'credit_purchase' THEN
+  ELSIF p_transaction_type = c_type_credit_purchase THEN
     IF p_product_id IS NOT NULL THEN
       SELECT id INTO v_debit_account_id
       FROM public.accounts
@@ -376,7 +373,7 @@ BEGIN
       RAISE EXCEPTION 'Akun Utang Usaha (2100) tidak ditemukan atau tidak aktif';
     END IF;
 
-  ELSIF p_transaction_type = 'pay_payable' THEN
+  ELSIF p_transaction_type = c_type_pay_payable THEN
     SELECT id INTO v_debit_account_id
     FROM public.accounts
     WHERE organization_id = p_organization_id AND code = 2100 AND is_active = true;
@@ -385,7 +382,7 @@ BEGIN
     END IF;
     v_credit_account_id := p_cash_account_id;
 
-  ELSIF p_transaction_type = 'expense_payment' THEN
+  ELSIF p_transaction_type = c_type_expense_payment THEN
     IF p_debit_account_id IS NULL THEN
       SELECT id INTO v_debit_account_id
       FROM public.accounts
@@ -398,7 +395,7 @@ BEGIN
     END IF;
     v_credit_account_id := p_cash_account_id;
 
-  ELSIF p_transaction_type = 'owner_capital' THEN
+  ELSIF p_transaction_type = c_type_owner_capital THEN
     v_debit_account_id := p_cash_account_id;
     SELECT id INTO v_credit_account_id
     FROM public.accounts
@@ -407,7 +404,7 @@ BEGIN
       RAISE EXCEPTION 'Akun Modal Pemilik (3100) tidak ditemukan atau tidak aktif';
     END IF;
 
-  ELSIF p_transaction_type = 'owner_draw' THEN
+  ELSIF p_transaction_type = c_type_owner_draw THEN
     SELECT id INTO v_debit_account_id
     FROM public.accounts
     WHERE organization_id = p_organization_id AND code = 3300 AND is_active = true;
@@ -416,7 +413,7 @@ BEGIN
     END IF;
     v_credit_account_id := p_cash_account_id;
 
-  ELSIF p_transaction_type = 'cash_transfer' THEN
+  ELSIF p_transaction_type = c_type_cash_transfer THEN
     v_debit_account_id := p_destination_cash_account_id;
     v_credit_account_id := p_cash_account_id;
 
@@ -450,11 +447,11 @@ BEGIN
     description, status, posted_at, posted_by
   ) VALUES (
     p_organization_id, v_entry_number, p_transaction_date, 'normal',
-    p_description, 'posted', now(), v_user_id
+    p_description, c_status_posted::public.journal_entry_status, now(), v_user_id
   ) RETURNING id INTO v_journal_id;
 
   -- Credit & Debit lines insertion
-  IF p_transaction_type = 'credit_sale' AND p_payment_status = 'partial' THEN
+  IF p_transaction_type = c_type_credit_sale AND p_payment_status = c_payment_partial THEN
     IF p_partial_amount IS NULL OR p_partial_amount <= 0 OR p_partial_amount >= p_amount THEN
       RAISE EXCEPTION 'Jumlah bayar sebagian tidak valid';
     END IF;
@@ -464,7 +461,7 @@ BEGIN
       (p_organization_id, v_journal_id, v_cash_account_id, p_partial_amount, 0, p_description, 1),
       (p_organization_id, v_journal_id, v_debit_account_id, v_remaining_amount, 0, p_description, 2),
       (p_organization_id, v_journal_id, v_credit_account_id, 0, p_amount, p_description, 3);
-  ELSIF p_transaction_type = 'credit_purchase' AND p_payment_status = 'partial' THEN
+  ELSIF p_transaction_type = c_type_credit_purchase AND p_payment_status = c_payment_partial THEN
     IF p_partial_amount IS NULL OR p_partial_amount <= 0 OR p_partial_amount >= p_amount THEN
       RAISE EXCEPTION 'Jumlah bayar sebagian tidak valid';
     END IF;
@@ -506,13 +503,13 @@ BEGIN
     p_payment_status::public.payment_status, p_due_date,
     p_description,
     CASE
-      WHEN p_partial_amount IS NOT NULL AND p_payment_status = 'partial' THEN
+      WHEN p_partial_amount IS NOT NULL AND p_payment_status = c_payment_partial THEN
         COALESCE(p_notes, '') ||
         (CASE WHEN p_notes IS NOT NULL AND p_notes != '' THEN E'\n' ELSE '' END) ||
         'Dibayar sebagian: ' || p_partial_amount::TEXT
       ELSE p_notes
     END,
-    'posted', now(), v_user_id, v_user_id,
+    c_status_posted::public.transaction_status, now(), v_user_id, v_user_id,
     p_product_id, p_quantity, p_unit_price, p_client_token
   ) RETURNING id, transaction_number INTO v_transaction_id, v_txn_number;
 
@@ -522,13 +519,13 @@ BEGIN
 
   -- ── PRODUCT: STOCK MOVEMENTS + COGS ──
   IF p_product_id IS NOT NULL THEN
-    IF p_transaction_type IN ('cash_purchase', 'credit_purchase') THEN
+    IF p_transaction_type IN (c_type_cash_purchase, c_type_credit_purchase) THEN
       PERFORM public.record_stock_movement(
         p_organization_id, p_product_id, p_transaction_date,
         'purchase', p_quantity, p_unit_price, v_transaction_id
       );
       PERFORM public.recalculate_product_average_cost(p_product_id);
-    ELSIF p_transaction_type IN ('cash_sale', 'credit_sale') THEN
+    ELSIF p_transaction_type IN (c_type_cash_sale, c_type_credit_sale) THEN
       v_cogs_amount := COALESCE(v_product_purchase_price, 0) * p_quantity;
 
       SELECT id INTO v_cogs_account_id FROM public.accounts WHERE organization_id = p_organization_id AND code = 5100 AND is_active = true;
@@ -550,13 +547,13 @@ BEGIN
   SELECT normal_balance::TEXT INTO v_credit_normal FROM public.accounts WHERE id = v_credit_account_id;
 
   v_impact := jsonb_build_object(
-    'debit_account_id',  v_debit_account_id,
-    'debit_account',     COALESCE(v_debit_account_name, 'Debit'),
-    'debit_change',      CASE WHEN v_debit_normal = 'debit' THEN 'increase' ELSE 'decrease' END,
-    'credit_account_id', v_credit_account_id,
-    'credit_account',    COALESCE(v_credit_account_name, 'Credit'),
-    'credit_change',     CASE WHEN v_credit_normal = 'credit' THEN 'increase' ELSE 'decrease' END,
-    'amount',            p_amount
+    c_key_debit_account_id,  v_debit_account_id,
+    c_key_debit_account,     COALESCE(v_debit_account_name, 'Debit'),
+    c_key_debit_change,      CASE WHEN v_debit_normal = c_normal_debit THEN c_change_increase ELSE c_change_decrease END,
+    c_key_credit_account_id, v_credit_account_id,
+    c_key_credit_account,    COALESCE(v_credit_account_name, 'Credit'),
+    c_key_credit_change,     CASE WHEN v_credit_normal = c_normal_credit THEN c_change_increase ELSE c_change_decrease END,
+    c_key_amount,            p_amount
   );
 
   INSERT INTO public.audit_logs (
@@ -566,18 +563,18 @@ BEGIN
     p_organization_id, v_user_id, 'transaction', v_transaction_id,
     'post', jsonb_build_object(
       'transaction_type', p_transaction_type,
-      'amount',           p_amount,
-      'journal_entry_id', v_journal_id,
+      c_key_amount,           p_amount,
+      c_key_journal_entry_id, v_journal_id,
       'product_id',       p_product_id
     )
   );
 
   RETURN jsonb_build_object(
-    'transaction_id',     v_transaction_id,
-    'transaction_number', v_txn_number,
-    'journal_entry_id',   v_journal_id,
-    'entry_number',       v_entry_number,
-    'impact',             v_impact
+    c_key_transaction_id,     v_transaction_id,
+    c_key_transaction_number, v_txn_number,
+    c_key_journal_entry_id,   v_journal_id,
+    c_key_entry_number,       v_entry_number,
+    c_key_impact,             v_impact
   );
 END;
 $$;

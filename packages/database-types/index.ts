@@ -262,139 +262,6 @@ export type Database = {
           },
         ]
       }
-      billing_checkout_sessions: {
-        Row: {
-          amount: number
-          billing_period: string
-          checkout_url: string | null
-          created_at: string
-          created_by: string
-          currency: string
-          customer_email: string | null
-          customer_mobile: string | null
-          expires_at: string | null
-          id: string
-          mayar_invoice_id: string | null
-          mayar_transaction_id: string | null
-          metadata: Json | null
-          organization_id: string
-          paid_at: string | null
-          payment_provider: string
-          plan: Database["public"]["Enums"]["org_plan"]
-          provider_response: Json | null
-          status: string
-          updated_at: string
-          webhook_payload: Json | null
-        }
-        Insert: {
-          amount: number
-          billing_period: string
-          checkout_url?: string | null
-          created_at?: string
-          created_by: string
-          currency?: string
-          customer_email?: string | null
-          customer_mobile?: string | null
-          expires_at?: string | null
-          id?: string
-          mayar_invoice_id?: string | null
-          mayar_transaction_id?: string | null
-          metadata?: Json | null
-          organization_id: string
-          paid_at?: string | null
-          payment_provider?: string
-          plan: Database["public"]["Enums"]["org_plan"]
-          provider_response?: Json | null
-          status?: string
-          updated_at?: string
-          webhook_payload?: Json | null
-        }
-        Update: {
-          amount?: number
-          billing_period?: string
-          checkout_url?: string | null
-          created_at?: string
-          created_by?: string
-          currency?: string
-          customer_email?: string | null
-          customer_mobile?: string | null
-          expires_at?: string | null
-          id?: string
-          mayar_invoice_id?: string | null
-          mayar_transaction_id?: string | null
-          metadata?: Json | null
-          organization_id?: string
-          paid_at?: string | null
-          payment_provider?: string
-          plan?: Database["public"]["Enums"]["org_plan"]
-          provider_response?: Json | null
-          status?: string
-          updated_at?: string
-          webhook_payload?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "billing_checkout_sessions_org_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      billing_events: {
-        Row: {
-          actor_user_id: string | null
-          created_at: string
-          event_type: string
-          from_plan: string | null
-          from_status: string | null
-          id: string
-          metadata: Json | null
-          organization_id: string
-          payment_provider: string | null
-          provider_event_id: string | null
-          to_plan: string | null
-          to_status: string | null
-        }
-        Insert: {
-          actor_user_id?: string | null
-          created_at?: string
-          event_type: string
-          from_plan?: string | null
-          from_status?: string | null
-          id?: string
-          metadata?: Json | null
-          organization_id: string
-          payment_provider?: string | null
-          provider_event_id?: string | null
-          to_plan?: string | null
-          to_status?: string | null
-        }
-        Update: {
-          actor_user_id?: string | null
-          created_at?: string
-          event_type?: string
-          from_plan?: string | null
-          from_status?: string | null
-          id?: string
-          metadata?: Json | null
-          organization_id?: string
-          payment_provider?: string | null
-          provider_event_id?: string | null
-          to_plan?: string | null
-          to_status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "billing_events_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       journal_entries: {
         Row: {
           created_at: string
@@ -764,75 +631,45 @@ export type Database = {
           base_currency: string
           books_start_date: string
           business_type: Database["public"]["Enums"]["business_type"]
-          cancel_at: string | null
-          canceled_at: string | null
           created_at: string
           created_by: string
-          current_period_end: string | null
-          current_period_start: string | null
-          current_plan: Database["public"]["Enums"]["org_plan"]
           default_reporting_period: Database["public"]["Enums"]["reporting_period"]
           id: string
           locked_through_date: string | null
           name: string
           onboarding_status: Database["public"]["Enums"]["onboarding_status"]
-          payment_provider: string | null
-          payment_provider_customer_id: string | null
-          payment_provider_subscription_id: string | null
-          subscription_status: string | null
           suspended_at: string | null
           suspension_reason: string | null
-          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
           base_currency?: string
           books_start_date?: string
           business_type: Database["public"]["Enums"]["business_type"]
-          cancel_at?: string | null
-          canceled_at?: string | null
           created_at?: string
           created_by: string
-          current_period_end?: string | null
-          current_period_start?: string | null
-          current_plan?: Database["public"]["Enums"]["org_plan"]
           default_reporting_period?: Database["public"]["Enums"]["reporting_period"]
           id?: string
           locked_through_date?: string | null
           name: string
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
-          payment_provider?: string | null
-          payment_provider_customer_id?: string | null
-          payment_provider_subscription_id?: string | null
-          subscription_status?: string | null
           suspended_at?: string | null
           suspension_reason?: string | null
-          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
           base_currency?: string
           books_start_date?: string
           business_type?: Database["public"]["Enums"]["business_type"]
-          cancel_at?: string | null
-          canceled_at?: string | null
           created_at?: string
           created_by?: string
-          current_period_end?: string | null
-          current_period_start?: string | null
-          current_plan?: Database["public"]["Enums"]["org_plan"]
           default_reporting_period?: Database["public"]["Enums"]["reporting_period"]
           id?: string
           locked_through_date?: string | null
           name?: string
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
-          payment_provider?: string | null
-          payment_provider_customer_id?: string | null
-          payment_provider_subscription_id?: string | null
-          subscription_status?: string | null
           suspended_at?: string | null
           suspension_reason?: string | null
-          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1397,10 +1234,6 @@ export type Database = {
         }
         Returns: Json
       }
-      admin_update_plan: {
-        Args: { p_new_plan: string; p_organization_id: string }
-        Returns: Json
-      }
       check_export_permission: {
         Args: { p_org_id: string }
         Returns: undefined
@@ -1496,23 +1329,6 @@ export type Database = {
         Args: { p_as_of_date?: string; p_organization_id: string }
         Returns: string
       }
-      finalize_mayar_payment: {
-        Args: {
-          p_actor_user_id: string
-          p_amount: number
-          p_billing_period: string
-          p_organization_id: string
-          p_period_end: string
-          p_period_start: string
-          p_plan: string
-          p_provider_customer_id?: string
-          p_provider_response?: Json
-          p_provider_transaction_id?: string
-          p_session_id: string
-          p_webhook_payload?: Json
-        }
-        Returns: Json
-      }
       generate_entry_number: {
         Args: { p_organization_id: string }
         Returns: string
@@ -1576,11 +1392,6 @@ export type Database = {
         Args: { p_month?: string; p_organization_id: string }
         Returns: Json
       }
-      get_monthly_transaction_count: {
-        Args: { p_org_id: string }
-        Returns: number
-      }
-      get_monthly_usage: { Args: { p_org_id: string }; Returns: Json }
       get_next_counter: {
         Args: { p_counter_name: string; p_organization_id: string }
         Returns: number
@@ -1791,14 +1602,6 @@ export type Database = {
       member_status: "invited" | "active" | "removed"
       normal_balance: "debit" | "credit"
       onboarding_status: "not_started" | "in_progress" | "completed"
-      org_plan:
-        | "free"
-        | "solo"
-        | "business"
-        | "trial"
-        | "past_due"
-        | "canceled"
-        | "expired"
       party_type: "customer" | "supplier" | "employee" | "owner" | "other"
       payment_status: "paid" | "unpaid" | "partial"
       reporting_period: "monthly"
@@ -1952,15 +1755,6 @@ export const Constants = {
       member_status: ["invited", "active", "removed"],
       normal_balance: ["debit", "credit"],
       onboarding_status: ["not_started", "in_progress", "completed"],
-      org_plan: [
-        "free",
-        "solo",
-        "business",
-        "trial",
-        "past_due",
-        "canceled",
-        "expired",
-      ],
       party_type: ["customer", "supplier", "employee", "owner", "other"],
       payment_status: ["paid", "unpaid", "partial"],
       reporting_period: ["monthly"],

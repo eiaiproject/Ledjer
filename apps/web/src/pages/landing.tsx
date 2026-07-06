@@ -157,54 +157,26 @@ const securityItems = [
   },
 ] as const;
 
-const pricingPlans = [
+const freeAccessHighlights = [
   {
-    name: "Gratis",
-    price: "Rp 0",
-    period: "selamanya",
-    tagline: "Untuk mencoba Ledjer",
-    highlights: [
-      "Mulai gratis tanpa kartu",
-      "Hingga 50 transaksi per bulan",
-      "Akses laporan utama",
-      "Cocok untuk usaha pemula",
-    ],
-    cta: "Mulai Gratis",
-    ctaVariant: "primary" as const,
-    ctaTo: "/register",
+    title: "Transaksi tanpa batas",
+    desc: "Catat penjualan, pembelian, beban, modal, dan transfer tanpa cap bulanan.",
     tone: "leaf" as Tone,
   },
   {
-    name: "Solo",
-    price: "Rp 39.000",
-    period: "/bulan",
-    tagline: "Untuk pemilik usaha yang butuh ruang lebih",
-    highlights: [
-      "Transaksi lebih banyak per bulan",
-      "Manajemen piutang & utang",
-      "Manajemen stok dan HPP rata-rata tertimbang",
-      "Akses penuh ke 4 laporan utama",
-    ],
-    cta: "Minta Peningkatan",
-    ctaVariant: "outline" as const,
-    ctaTo: "/register",
+    title: "Laporan utama aktif",
+    desc: "Dashboard, buku besar, neraca saldo, laba rugi, dan neraca tersedia untuk operasional harian.",
+    tone: "sky" as Tone,
+  },
+  {
+    title: "Tim dan izin tersedia",
+    desc: "Undang staf, atur akses, dan pantau aktivitas penting dari audit log.",
     tone: "honey" as Tone,
   },
   {
-    name: "Bisnis",
-    price: "Rp 49.000",
-    period: "/bulan",
-    tagline: "Untuk usaha dengan staf atau admin",
-    highlights: [
-      "Multi-pengguna dengan peran pemilik & staf",
-      "Audit log untuk aktivitas penting",
-      "Pengaturan tim & izin detail",
-      "Cocok untuk operasional harian tim",
-    ],
-    cta: "Minta Peningkatan",
-    ctaVariant: "outline" as const,
-    ctaTo: "/register",
-    tone: "sky" as Tone,
+    title: "Stok dan HPP ikut terbuka",
+    desc: "Kelola produk, pergerakan stok, dan HPP rata-rata tertimbang tanpa paket tambahan.",
+    tone: "wood" as Tone,
   },
 ] as const;
 
@@ -227,14 +199,14 @@ const navLinks = [
   { label: "Cara kerja", href: "#cara-kerja" },
   { label: "Laporan", href: "#laporan" },
   { label: "Keamanan", href: "#keamanan" },
-  { label: "Harga", href: "#harga" },
+  { label: "Akses", href: "#akses" },
 ] as const;
 
 const footerLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Laporan", href: "#laporan" },
   { label: "Keamanan", href: "#keamanan" },
-  { label: "Harga", href: "#harga" },
+  { label: "Akses", href: "#akses" },
   { label: "Masuk", to: "/login" as const },
   { label: "Mulai Gratis", to: "/register" as const },
 ] as const;
@@ -671,75 +643,51 @@ export function LandingPage() {
         </section>
 
         <section
-          id="harga"
-          aria-labelledby="pricing-heading"
+          id="akses"
+          aria-labelledby="access-heading"
           className="bg-cream-50 py-16 sm:py-24"
         >
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl">
+            <div className="max-w-3xl">
               <h2
-                id="pricing-heading"
+                id="access-heading"
                 className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
               >
-                Mulai gratis, naik sesuai kebutuhan.
+                Ledjer gratis digunakan untuk sementara.
               </h2>
               <p className="mt-4 max-w-[60ch] text-pretty text-base leading-relaxed text-wood-600">
-                Paket Ledjer dirancang untuk pemilik usaha pemula, pemilik
-                usaha solo, hingga UMKM dengan tim. Pembayaran belum tersedia
-                otomatis di aplikasi.
+                Tidak ada kartu, tidak ada biaya aplikasi, dan tidak ada batas transaksi.
+                Fitur operasional inti dibuka agar pembukuan bisa langsung berjalan.
               </p>
             </div>
 
             <ul
               role="list"
-              className="ledger-stagger mt-10 grid grid-cols-1 gap-4 md:grid-cols-3"
+              className="ledger-stagger mt-10 grid grid-cols-1 gap-4 md:grid-cols-2"
             >
-              {pricingPlans.map((plan, index) => (
+              {freeAccessHighlights.map((item, index) => (
                 <li
-                  key={plan.name}
-                  className="ledger-interactive flex h-full flex-col gap-5 rounded-xl border border-wood-200 bg-surface-elevated p-6"
+                  key={item.title}
+                  className="ledger-interactive flex h-full flex-col gap-3 rounded-xl border border-wood-200 bg-surface-elevated p-6"
                   style={stagger(index)}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-3">
                     <span
                       className={cn(
-                        "inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
-                        toneStyles[plan.tone]
+                        "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+                        toneStyles[item.tone]
                       )}
                     >
-                      {plan.name}
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                     </span>
-                    <span className="text-xs text-wood-500">{plan.period}</span>
-                  </div>
-                  <div>
-                    <p className="break-words font-mono text-3xl font-bold tracking-[-0.03em] tabular-nums text-wood-900">
-                      {plan.price}
-                    </p>
-                    <p className="mt-1 break-words text-sm leading-relaxed text-wood-600">
-                      {plan.tagline}
-                    </p>
-                  </div>
-                  <ul role="list" className="space-y-2 text-sm leading-relaxed text-wood-700">
-                    {plan.highlights.map((point) => (
-                      <li key={point} className="flex items-start gap-2">
-                        <CheckCircle2
-                          className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600"
-                          aria-hidden="true"
-                        />
-                        <span className="break-words">{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-auto pt-2">
-                    <Button
-                      as={Link}
-                      to={plan.ctaTo}
-                      variant={plan.ctaVariant}
-                      size="md"
-                      fullWidth
-                    >
-                      {plan.cta}
-                    </Button>
+                    <div>
+                      <p className="break-words text-sm font-semibold text-wood-900">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 break-words text-sm leading-relaxed text-wood-600">
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
                 </li>
               ))}

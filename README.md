@@ -517,10 +517,8 @@ Atau via dashboard: SQL Editor → paste migration files satu per satu (urut ber
 ```
 [auth]
 additional_redirect_urls = [
-  "https://ledjer-ahk.pages.dev",
-  "https://ledjer-ahk.pages.dev/auth/callback",       # email confirmation + recovery
   "https://ledjer.id",
-  "https://ledjer.id/auth/callback",            # future custom domain
+  "https://ledjer.id/auth/callback",            # email confirmation + recovery
   "http://localhost:5173",                     # dev
   "http://localhost:5173/auth/callback",       # dev
 ]
@@ -579,7 +577,6 @@ Track进展 di [GitHub Projects](https://github.com/eiaiproject/Ledjer/projects)
 | 🟡 P2 | Pencetakan faktur (invoice) | 📋 Planned |
 | 🟡 P2 | Rekonsiliasi bank (import CSV mutasi rekening) | 📋 Planned |
 | 🟡 P2 | Invoice-level AR/AP tracking (saat ini party-level) | 📋 Planned |
-| 🟢 P3 | Integrasi payment gateway (Midtrans, Xendit) | 💭 Considering |
 | 🟢 P3 | Pajak otomatis (PPN, PPh 21 / 23 / final) | 💭 Considering |
 | 🟢 P3 | Multi-currency | 💭 Considering |
 | 🟢 P3 | Multi-gudang (multi-location inventory) | 💭 Considering |
@@ -595,11 +592,10 @@ Legend: 🚧 In progress · 📋 Planned · 💭 Considering
 2. **Tidak ada report export** (CSV / PDF) — laporan hanya bisa dilihat di aplikasi.
 3. **Tidak ada automated closing entries** — laba ditahan harus dihitung manual di awal tahun buku baru.
 4. **Tidak ada multi-currency** — semua dalam IDR.
-5. **Tidak ada payment gateway integration** — pencatatan transfer / QRIS manual via `receive_receivable` atau `cash_transfer`.
-6. **Tidak ada automatic tax** — PPN / PPh harus dihitung dan dicatat manual via `expense_payment` atau `simple_adjustment`.
-7. **Indonesian business context only** — chart of accounts dan terminologi spesifik Indonesia; belum support English / multi-region.
-8. **No mobile app** — web responsive, tapi belum native iOS / Android.
-9. **Full authenticated E2E flow tests** — Playwright smoke tests exist (page loads, route guards, a11y basics). Authenticated flows require seeded test users.
+5. **Tidak ada automatic tax** — PPN / PPh harus dihitung dan dicatat manual via `expense_payment` atau `simple_adjustment`.
+6. **Indonesian business context only** — chart of accounts dan terminologi spesifik Indonesia; belum support English / multi-region.
+7. **No mobile app** — web responsive, tapi belum native iOS / Android.
+8. **Full authenticated E2E flow tests** — Playwright smoke tests exist (page loads, route guards, a11y basics). Authenticated flows require seeded test users.
 
 ---
 

@@ -14,8 +14,9 @@ async function getLatestMailpitEmail(
   recipientEmail: string,
   timeoutMs = 30_000,
 ): Promise<{ subject: string; body: string; html: string }> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+  let latestEmail: { subject: string; body: string; html: string } | null = null;
+
+  await expect.poll(async () => {
     try {
       const listRes = await fetch(
         `${E2E.inbucketUrl}/api/v1/messages?start=0&limit=50`,
@@ -56,29 +57,34 @@ async function getLatestMailpitEmail(
               const textPart = msgData.Parts.find((p) =>
                 p.ContentType?.includes("text/plain"),
               );
-              return {
+              latestEmail = {
                 subject: msgData.Subject || latest.Subject,
                 body: textPart?.Body || "",
                 html: htmlPart?.Body || "",
               };
+              return true;
             }
             // Direct Text/HTML fields (Mailpit v1 format)
-            return {
+            latestEmail = {
               subject: msgData.Subject || latest.Subject,
               body: msgData.Text || "",
               html: msgData.HTML || "",
             };
+            return true;
           }
         }
       }
     } catch {
       // Mailpit not ready yet
     }
-    await new Promise((r) => setTimeout(r, 2_000));
-  }
-  throw new Error(
-    `Timed out waiting for Mailpit email to "${recipientEmail}"`,
-  );
+    return false;
+  }, {
+    intervals: [2_000],
+    timeout: timeoutMs,
+    message: `Timed out waiting for Mailpit email to "${recipientEmail}"`,
+  }).toBe(true);
+
+  return latestEmail!;
 }
 
 /**
