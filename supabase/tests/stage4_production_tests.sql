@@ -24,6 +24,9 @@ DECLARE
   v_test_count INTEGER := 0;
   v_pass_count INTEGER := 0;
   v_fail_count INTEGER := 0;
+  c_invitation_table CONSTANT TEXT := 'organization_invitations';
+  c_role_staff CONSTANT public.member_role := 'staff';
+  c_status_active CONSTANT public.member_status := 'active';
 BEGIN
   -- ═══════ SETUP ═══════
   -- Use the existing helper to create orgs with users
@@ -60,7 +63,7 @@ BEGIN
   BEGIN
     IF EXISTS (
       SELECT 1 FROM information_schema.tables
-      WHERE table_name = 'organization_invitations'
+      WHERE table_name = c_invitation_table
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 4 PASS: organization_invitations table exists';
@@ -76,7 +79,7 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'organization_invitations' AND c.relrowsecurity = true
+      WHERE n.nspname = 'public' AND c.relname = c_invitation_table AND c.relrowsecurity = true
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 6 PASS: organization_invitations RLS enabled';
@@ -210,7 +213,7 @@ BEGIN
   BEGIN
     IF EXISTS (
       SELECT 1 FROM pg_indexes
-      WHERE tablename = 'organization_invitations' AND indexname = 'idx_invitations_token'
+      WHERE tablename = c_invitation_table AND indexname = 'idx_invitations_token'
     ) THEN
       v_pass_count := v_pass_count + 1;
       RAISE NOTICE 'TEST 16 PASS: invitation token index exists';
@@ -261,8 +264,8 @@ BEGIN
          SELECT 1 FROM public.organization_members
          WHERE organization_id = v_org_id
            AND user_id = v_invitee_id
-           AND role = 'staff'
-           AND status = 'active'
+           AND role = c_role_staff
+           AND status = c_status_active
        )
        AND EXISTS (
          SELECT 1 FROM public.organization_invitations

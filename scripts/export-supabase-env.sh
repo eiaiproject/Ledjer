@@ -14,19 +14,19 @@ supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
 supabase_anon_key="${ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
 supabase_service_role_key="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"
 
-if [ -z "$supabase_anon_key" ]; then
-  echo '::error::SUPABASE_ANON_KEY is empty after export. Check supabase status output.'
+if [[ -z "$supabase_anon_key" ]]; then
+  echo '::error::SUPABASE_ANON_KEY is empty after export. Check supabase status output.' >&2
   exit 1
 fi
 
-if [ "$REQUIRE_SERVICE_ROLE" = "1" ] && [ -z "$supabase_service_role_key" ]; then
-  echo '::error::SUPABASE_SERVICE_ROLE_KEY is empty after export. Check supabase status output.'
+if [[ "$REQUIRE_SERVICE_ROLE" == "1" && -z "$supabase_service_role_key" ]]; then
+  echo '::error::SUPABASE_SERVICE_ROLE_KEY is empty after export. Check supabase status output.' >&2
   exit 1
 fi
 
-if [ -n "${GITHUB_ENV:-}" ]; then
+if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "::add-mask::$supabase_anon_key"
-  if [ -n "$supabase_service_role_key" ]; then
+  if [[ -n "$supabase_service_role_key" ]]; then
     echo "::add-mask::$supabase_service_role_key"
   fi
 
@@ -35,14 +35,14 @@ if [ -n "${GITHUB_ENV:-}" ]; then
     echo "SUPABASE_ANON_KEY=$supabase_anon_key"
     echo "VITE_SUPABASE_URL=$supabase_url"
     echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
-    if [ -n "$supabase_service_role_key" ]; then
+    if [[ -n "$supabase_service_role_key" ]]; then
       echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_service_role_key"
     fi
   } >> "$GITHUB_ENV"
 else
   printf 'SUPABASE_URL=%q\n' "$supabase_url"
   printf 'SUPABASE_ANON_KEY=%q\n' "$supabase_anon_key"
-  if [ -n "$supabase_service_role_key" ]; then
+  if [[ -n "$supabase_service_role_key" ]]; then
     printf 'SUPABASE_SERVICE_ROLE_KEY=%q\n' "$supabase_service_role_key"
   fi
 fi

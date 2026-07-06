@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface ModalProps {
+type ModalProps = Readonly<{
   open: boolean;
   onClose: () => void;
   title?: string;
@@ -10,7 +10,7 @@ interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   ariaLabel?: string;
-}
+}>;
 
 const sizeStyles = {
   sm: "max-w-sm",
@@ -55,9 +55,6 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
         event.preventDefault();
         onCloseRef.current();
       }}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) onCloseRef.current();
-      }}
     >
       {title && (
         <div className="flex items-center justify-between border-b border-wood-100 px-5 py-4">
@@ -78,11 +75,11 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
   );
 }
 
-export function ModalContent({ children, className }: { children: ReactNode; className?: string }) {
+export function ModalContent({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return <div className={cn("p-5", className)}>{children}</div>;
 }
 
-export function ModalFooter({ children, className }: { children: ReactNode; className?: string }) {
+export function ModalFooter({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
     <div className={cn("flex justify-end gap-2 p-5 border-t border-wood-100", className)}>
       {children}

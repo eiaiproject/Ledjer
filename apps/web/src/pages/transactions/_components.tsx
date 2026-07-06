@@ -757,19 +757,21 @@ export function MobileReviewToggle(props: MobileReviewToggleProps) {
 /*  SubmitBar                                                          */
 /* ------------------------------------------------------------------ */
 
-interface SubmitBarProps {
+type SubmitBarProps = Readonly<{
   loading: boolean;
   disabled: boolean;
   successId: string | null;
   label?: string;
-}
+}>;
 
 export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProps) {
-  const buttonLabel = successId
-    ? "Transaksi Tersimpan"
-    : loading
-    ? "Menyimpan..."
-    : label || "Catat Transaksi";
+  let buttonLabel = label || "Catat Transaksi";
+  if (loading) {
+    buttonLabel = "Menyimpan...";
+  }
+  if (successId) {
+    buttonLabel = "Transaksi Tersimpan";
+  }
 
   return (
     <div className="space-y-3 border-t border-wood-100 pt-4">

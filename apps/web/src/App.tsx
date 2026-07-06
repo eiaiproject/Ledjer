@@ -37,13 +37,13 @@ const SecurityPage = lazy(async () => ({ default: (await import("@/pages/legal/s
 const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/contact")).ContactPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
-type SeoProps = {
+type SeoProps = Readonly<{
   title: string;
   description: string;
   path?: string;
   noindex?: boolean;
   children: ReactNode;
-};
+}>;
 
 const SITE_URL = "https://ledjer.id";
 const DEFAULT_DESCRIPTION =

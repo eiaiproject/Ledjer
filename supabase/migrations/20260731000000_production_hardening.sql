@@ -510,6 +510,8 @@ DECLARE
   v_token_hash TEXT;
   v_expires_at TIMESTAMPTZ;
   v_existing_invitation RECORD;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
+  c_role_staff CONSTANT TEXT := 'staff'; -- NOSONAR: database role literal
 BEGIN
   v_inviter_id := auth.uid();
   IF v_inviter_id IS NULL THEN
@@ -524,7 +526,7 @@ BEGIN
   FROM public.organization_members
   WHERE organization_id = p_organization_id
     AND user_id = v_inviter_id
-    AND status = 'active';
+    AND status = c_status_active;
 
   IF v_inviter_role IS NULL OR v_inviter_role != 'owner' THEN
     RAISE EXCEPTION 'Hanya owner yang dapat mengundang staf';
@@ -567,13 +569,13 @@ BEGIN
   INSERT INTO public.organization_invitations (
     organization_id, email, token, token_hash, role, invited_by, expires_at
   ) VALUES (
-    p_organization_id, lower(p_email), v_token, v_token_hash, 'staff', v_inviter_id,
+    p_organization_id, lower(p_email), v_token, v_token_hash, c_role_staff, v_inviter_id,
     now() + INTERVAL '7 days'
   ) RETURNING id INTO v_invitation_id;
 
   INSERT INTO public.audit_logs (organization_id, actor_user_id, entity_type, entity_id, action, after_data)
   VALUES (p_organization_id, v_inviter_id, 'invitation', v_invitation_id, 'invitation_created',
-    jsonb_build_object('email', lower(p_email), 'role', 'staff'));
+    jsonb_build_object('email', lower(p_email), 'role', c_role_staff));
 
   RETURN jsonb_build_object(
     'invitation_id', v_invitation_id,
@@ -602,6 +604,8 @@ DECLARE
   v_invitation RECORD;
   v_member_id UUID;
   v_token_hash TEXT;
+  c_status_active CONSTANT public.member_status := 'active'; -- NOSONAR: database status literal
+  c_role_staff CONSTANT public.member_role := 'staff'; -- NOSONAR: database role literal
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
@@ -648,7 +652,7 @@ BEGIN
     can_create_transaction, can_view_reports, can_manage_accounts,
     can_void_transaction, can_manage_products, can_view_audit_log
   ) VALUES (
-    v_invitation.organization_id, v_user_id, 'staff', 'active',
+    v_invitation.organization_id, v_user_id, c_role_staff, c_status_active,
     v_invitation.invited_by, now(),
     false, false, false, false, false, false
   ) RETURNING id INTO v_member_id;
@@ -665,7 +669,7 @@ BEGIN
   RETURN jsonb_build_object(
     'organization_id', v_invitation.organization_id,
     'member_id', v_member_id,
-    'role', 'staff'
+    'role', c_role_staff
   );
 END;
 $$;

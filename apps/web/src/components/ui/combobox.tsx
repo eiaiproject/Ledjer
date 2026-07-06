@@ -3,13 +3,19 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Field } from "./field";
 
-interface ComboboxProps {
+type ComboboxOption = Readonly<{
+  value: string;
+  label: string;
+  secondaryLabel?: string;
+}>;
+
+type ComboboxProps = Readonly<{
   id?: string;
   name?: string;
   label?: string;
   value: string;
   onChange: (value: string) => void;
-  options: { value: string; label: string; secondaryLabel?: string }[];
+  options: readonly ComboboxOption[];
   placeholder?: string;
   helperText?: string;
   error?: string;
@@ -17,7 +23,7 @@ interface ComboboxProps {
   onCreate?: (input: string) => void;
   loading?: boolean;
   emptyText?: string;
-}
+}>;
 
 export function Combobox({
   id,
@@ -47,6 +53,12 @@ export function Combobox({
   const selectedLabel = selectedOption?.label ?? value;
   const [draftValue, setDraftValue] = useState<string | null>(null);
   const inputValue = draftValue ?? selectedLabel;
+  let placeholderText = placeholder;
+  if (loading) {
+    placeholderText = "Memuat...";
+  } else if (options.length === 0) {
+    placeholderText = emptyText;
+  }
 
   const commit = (rawValue: string) => {
     const nextValue = rawValue.trim();
@@ -87,10 +99,11 @@ export function Combobox({
           role="combobox"
           list={listId}
           aria-controls={listId}
+          aria-expanded={false}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           value={inputValue}
-          placeholder={loading ? "Memuat..." : options.length === 0 ? emptyText : placeholder}
+          placeholder={placeholderText}
           disabled={loading}
           onChange={(event) => setDraftValue(event.target.value)}
           onBlur={(event) => commit(event.currentTarget.value)}
