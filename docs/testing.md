@@ -84,7 +84,6 @@ pnpm test:e2e:cross-browser-smoke
 | `reports.spec.ts` | 11 | Reports smoke + golden number assertions |
 | `accounts.spec.ts` | 4 | CoA, add form |
 | `permissions.spec.ts` | 10 | Owner full access, staff restrictions, cross-org |
-| `billing-manual-transfer.spec.ts` | 2 | Manual-transfer billing CTA for owner/staff |
 | `export-import.spec.ts` | 7 | CSV export buttons, download verification |
 
 ### UI Quality
@@ -101,7 +100,6 @@ pnpm test:e2e:cross-browser-smoke
 | `security-supabase-local.spec.ts` | 6 | RLS, RPC, service role checks |
 | `security-api-permissions-local.spec.ts` | 16 | REST/RPC permission hardening |
 | `accounting-lifecycle-local.spec.ts` | 7 | Accounting lifecycle invariants |
-| `quota-subscription-local.spec.ts` | 5 | Free unlimited transactions and subscription enforcement |
 | `inventory-guards-local.spec.ts` | 6 | Inventory stock and inactive product guards |
 | `reports-date-boundary-local.spec.ts` | 9 | Date boundary report assertions |
 | `accounts-hardening-local.spec.ts` | 4 | Account mutation hardening |
@@ -150,7 +148,7 @@ Key jobs:
 - `frontend`: typecheck + lint + vitest + build
 - `supabase`: Docker Supabase + apply migrations + SQL tests + live database-types drift check
 - `db-types-guard`: fast CANONICAL-FILE sanity check on `packages/database-types/index.ts` (does NOT prove drift)
-- `e2e-full-local`: Full E2E with seeded data and manual billing coverage; excludes visual
+- `e2e-full-local`: Full E2E with seeded data; excludes visual
 - `e2e-cross-browser`: Firefox + WebKit smoke subset
 - `visual-regression`: Linux Chromium visual baselines (comparison only, requires committed baselines)
 

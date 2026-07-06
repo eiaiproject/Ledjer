@@ -95,7 +95,7 @@ BEGIN
     (p_org_id, 6150, 'Beban Transportasi', 'expense', 'debit', true, false, 'Beban Usaha', false),
     (p_org_id, 6160, 'Beban Iklan dan Promosi', 'expense', 'debit', true, false, 'Beban Usaha', false),
     (p_org_id, 6170, 'Beban Perlengkapan', 'expense', 'debit', true, false, 'Beban Usaha', false),
-    (p_org_id, 6180, 'Beban Software / Langganan', 'expense', 'debit', true, false, 'Beban Usaha', false),
+    (p_org_id, 6180, 'Beban Software', 'expense', 'debit', true, false, 'Beban Usaha', false),
     (p_org_id, 6190, 'Beban Lain-lain', 'expense', 'debit', true, false, 'Beban Usaha', false),
 
     -- Other Income (7000-7999)
@@ -155,19 +155,14 @@ BEGIN
 END;
 $$;
 
--- Standardize protect_organization_billing_columns
-CREATE OR REPLACE FUNCTION public.protect_organization_billing_columns() RETURNS trigger
+-- Standardize protect_organization_core_fields
+CREATE OR REPLACE FUNCTION public.protect_organization_core_fields() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
   -- Allow service_role and trusted functions to update protected columns
   IF current_setting('role', true) IN ('service_role', 'postgres') THEN
     RETURN NEW;
-  END IF;
-
-  -- Block changes to protected columns from client context
-  IF OLD.current_plan IS DISTINCT FROM NEW.current_plan THEN
-    RAISE EXCEPTION 'Cannot modify billing plan from client. Use service role or billing RPC.';
   END IF;
 
   IF OLD.created_by IS DISTINCT FROM NEW.created_by THEN
@@ -177,6 +172,12 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+DROP TRIGGER IF EXISTS protect_organization_core_fields_trigger ON public.organizations;
+CREATE TRIGGER protect_organization_core_fields_trigger
+  BEFORE UPDATE ON public.organizations
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_organization_core_fields();
 
 -- ═══════════════════════════════════════════════════════════════════
 -- P1-2 (b): True moving weighted average cost recalculation
@@ -502,8 +503,6 @@ AS $$
 DECLARE
   v_user_id            UUID;
   v_role               TEXT;
-  v_plan               TEXT;
-  v_txn_count          INTEGER;
   v_books_start_date   DATE;
   v_account_type       TEXT;
   v_is_cash_account    BOOLEAN;
@@ -621,22 +620,6 @@ BEGIN
   IF p_transaction_date < v_books_start_date THEN
     RAISE EXCEPTION 'Tanggal transaksi % sebelum tanggal mulai pembukuan %',
       p_transaction_date, v_books_start_date;
-  END IF;
-
-  -- ── Subscription Transaction Limit Guard ──
-  SELECT current_plan INTO v_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_plan = 'free' THEN
-    SELECT COUNT(*)::INTEGER INTO v_txn_count
-    FROM public.transactions
-    WHERE organization_id = p_organization_id
-      AND status = 'posted'
-      AND transaction_type NOT LIKE 'opening_%';
-
-    IF v_txn_count >= 100 THEN
-      RAISE EXCEPTION 'Batas 100 transaksi untuk Paket Free telah tercapai. Silakan upgrade ke Paket Pro.';
-    END IF;
   END IF;
 
   -- ── Product Validation ──

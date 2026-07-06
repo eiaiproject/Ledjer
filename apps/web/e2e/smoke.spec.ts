@@ -98,7 +98,6 @@ test.describe("Route guards", () => {
     "/reports/profit-loss",
     "/reports/balance-sheet",
     "/settings/team",
-    "/settings/billing",
   ];
 
   for (const route of protectedRoutes) {

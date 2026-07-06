@@ -67,8 +67,6 @@ GRANT EXECUTE ON FUNCTION public.get_general_ledger(uuid, uuid, date, date) TO a
 GRANT EXECUTE ON FUNCTION public.get_dashboard_summary(uuid, date, date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_monthly_summary(uuid, date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_account_balance(uuid, date) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_monthly_usage(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_monthly_transaction_count(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_product_info(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(text, text, integer, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_email_rate_limited(text, integer, integer) TO authenticated;

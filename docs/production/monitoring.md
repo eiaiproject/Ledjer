@@ -67,15 +67,6 @@ ORDER BY mean_exec_time DESC LIMIT 10;
 - Rate limiting active on auth endpoints
 - Failed login alerts: configure in Supabase dashboard
 
-## Payment Webhook Monitoring
-
-**Status:** ⚠️ Not implemented (billing scaffold only)
-
-When payment provider is integrated:
-- Monitor webhook delivery status
-- Alert on failed webhook processing
-- Log all webhook events in `billing_events` table
-
 ## Frontend Performance
 
 - Sentry traces capture page load, navigation, and API call timing

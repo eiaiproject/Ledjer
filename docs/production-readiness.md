@@ -35,9 +35,9 @@ Last verified: 2026-07-31 against the active baseline migration `supabase/migrat
 | RPC functions use SECURITY DEFINER | ✅ | All transaction RPCs are SECURITY DEFINER |
 | RPC functions set search_path | ✅ | `SET search_path = public` on all RPCs |
 | Permission checks in RPCs | ✅ | `has_permission()` for create/void/report |
-| Client cannot modify billing plan | ✅ | Trigger-protected `current_plan` column |
+| Client cannot modify organization owner fields | ✅ | Trigger-protected `created_by` column |
 | Client cannot modify system flags | ✅ | Trigger-protected `is_system`, `is_locked` |
-| **Admin RPCs explicitly GRANTed to service_role** | ✅ | `admin_list_organizations`, `admin_get_organization`, `admin_update_plan`, `admin_set_suspension` — inline privilege tests verify anon/authenticated cannot execute |
+| **Admin RPCs explicitly GRANTed to service_role** | ✅ | `admin_list_organizations`, `admin_get_organization`, `admin_set_suspension` — inline privilege tests verify anon/authenticated cannot execute |
 | Audit logging for financial actions | ✅ | `audit_logs` populated by RPCs |
 | Rate limiting implemented | ✅ | `rate_limits` table, `check_rate_limit()` |
 | Login attempt tracking | ✅ | `login_attempts` table, `record_login_attempt()` |
@@ -355,8 +355,5 @@ On deployed host, confirm:
 3. No automated closing entries.
 4. No multi-currency support.
 5. Limited to Indonesian business context (IDR, Bahasa Indonesia).
-6. **Mayar self-serve billing implemented for private beta** — manual billing via admin SQL console remains fallback. See `docs/production/billing-setup.md` for deployment steps.
-7. **Email delivery for invitations requires SMTP configuration** — token generated but provider setup needed.
-8. **Uptime monitoring not configured** — requires external tool setup.
-9. **Mayar webhook requires production API key** — sandbox testing uses `web.mayar.club`, production uses `web.mayar.id`. Change `MAYAR_ENV` and `MAYAR_API_KEY` for production.
-10. **Webhook failure alerting not configured** — monitor `billing_events` for failed webhooks manually during initial rollout.
+6. **Email delivery for invitations requires SMTP configuration** — token generated but provider setup needed.
+7. **Uptime monitoring not configured** — requires external tool setup.

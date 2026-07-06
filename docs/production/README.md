@@ -9,7 +9,6 @@ Stage 4 production readiness documentation.
 | [Incident Response](incident-response.md) | How to handle production incidents |
 | [Backup & Restore](backup-restore.md) | Backup procedures, restore drills, data consistency |
 | [Security Checklist](security-checklist.md) | Security verification for production launch |
-| [Billing Setup](billing-setup.md) | Billing lifecycle, manual billing procedures, provider integration guide |
 
 ## Related Documents
 

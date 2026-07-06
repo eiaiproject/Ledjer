@@ -50,7 +50,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 | C4 | Void transaction | Void a posted transaction | Reversal journal created, balances restored |
 | C5 | Audit log | View audit log (owner only) | All financial actions logged |
 | C6 | Journal balance | Create any transaction, check journal | Σ debit = Σ credit |
-| C7 | Free transaction policy | On free plan, create more than 50 transactions | All transactions are created successfully |
+| C7 | Unlimited transaction policy | Create more than 50 transactions | All transactions are created successfully |
 | C8 | Duplicate prevention | Submit same form twice quickly | Only one transaction created (client_token idempotency) |
 
 ---
@@ -79,19 +79,6 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 | E5 | Date range filter | Filter reports by date range | Only transactions in range shown |
 | E6 | Empty state | View reports with no transactions | Graceful empty state, no errors |
 | E7 | As-of date balance sheet | Create future-dated transaction, view today | Future transaction excluded |
-
----
-
-## F. Plan / Billing
-
-| # | Scenario | Steps | Expected |
-|---|----------|-------|----------|
-| F1 | Free plan display | View Settings → Billing | "Gratis" plan shown with unlimited transactions |
-| F2 | Free plan transactions | Create more than 50 transactions on free plan | Transactions remain allowed |
-| F3 | Mayar checkout (owner) | Enter WhatsApp, click "Bayar dengan Mayar" | Redirects to checkout and creates pending session |
-| F4 | Upgrade request (staff) | View billing as staff | "Hanya pemilik" notice, no checkout button |
-| F5 | Webhook plan change | Paid Mayar webhook received | Next page load shows new plan |
-| F6 | Post-upgrade behavior | After upgrade to solo/business | Plan changes persist and paid-plan features unlock |
 
 ---
 

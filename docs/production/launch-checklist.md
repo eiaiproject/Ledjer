@@ -23,7 +23,6 @@ Each item must be verified and signed off by the launch owner.
 - [ ] Staging environment deployed
 - [ ] Supabase migrations applied to staging
 - [ ] Staging smoke test passed (login, register, transaction, reports)
-- [ ] Staging billing page verified
 - [ ] Staging legal pages accessible
 
 ## Backup & Restore
@@ -40,24 +39,6 @@ Each item must be verified and signed off by the launch owner.
 - [ ] Uptime monitoring configured
 - [ ] Supabase database monitoring reviewed
 - [ ] Auth failure monitoring in place
-
-## Billing
-
-- [ ] Billing page shows correct plan and usage
-- [ ] Gratis plan shows unlimited transaction policy
-- [ ] Upgrade/downgrade/cancel UX is truthful
-- [ ] Billing events audit trail working
-- [ ] Admin plan override tested (`admin_update_plan`)
-- [ ] Mayar self-serve checkout working (sandbox)
-- [ ] Mayar webhook token verification working
-- [ ] Mayar webhook idempotent (duplicate webhook safe)
-- [ ] Duplicate checkout prevented (same session reused)
-- [ ] Owner-only checkout enforced server-side
-- [ ] Invalid mobile number rejected
-- [ ] Unpaid/pending/failed webhooks do not upgrade plan
-- [ ] Amount mismatch webhook rejected
-- [ ] Unknown invoice webhook safely ignored
-- [ ] Edge Functions deployed with correct config (`verify_jwt`)
 
 ## Staff Invitations
 
@@ -107,9 +88,8 @@ Each item must be verified and signed off by the launch owner.
 - [ ] Security checklist completed (`docs/production/security-checklist.md`)
 - [ ] No service role key in frontend code
 - [ ] No secrets in repository
-- [ ] RLS enabled on all new tables (`billing_events`, `organization_invitations`)
+- [ ] RLS enabled on all new tables (`organization_invitations`)
 - [ ] Admin RPCs revoked from anon/authenticated (verified by inline privilege tests)
-- [ ] Billing trigger protection working
 - [ ] CSP/security headers production-safe (no localhost in production CSP)
 - [ ] Sentry Replay privacy enabled (maskAllText, blockAllMedia, maskAllInputs)
 - [ ] Auth error enumeration prevented (generic error messages for user_not_found)
@@ -142,7 +122,7 @@ Each item must be verified and signed off by the launch owner.
 | Staging verified | | | |
 | Backup drill done | | | |
 | Monitoring active | | | |
-| Billing verified | | | |
+| Free access verified | | | |
 | Invitations working | | | |
 | Period lock working | | | |
 | Export working | | | |
@@ -155,13 +135,12 @@ Each item must be verified and signed off by the launch owner.
 
 ## Known Limitations Accepted at Launch
 
-1. **Mayar self-serve billing implemented for private beta** — sandbox tested, production requires API key change
-2. **Email delivery for invitations not implemented** — token generated, email sending is provider setup
-4. **Admin dashboard requires server-side auth** — current page is a placeholder
-5. **No PDF/Excel export** — CSV only
-6. **No automated closing entries** — manual process
-7. **No multi-currency support** — IDR only
-8. **No WCAG 2.1 AA full audit** — basic accessibility tested
+1. **Email delivery for invitations not implemented** — token generated, email sending is provider setup
+2. **Admin dashboard requires server-side auth** — current page is a placeholder
+3. **No PDF/Excel export** — CSV only
+4. **No automated closing entries** — manual process
+5. **No multi-currency support** — IDR only
+6. **No WCAG 2.1 AA full audit** — basic accessibility tested
 9. **Legal pages not reviewed by lawyer** — marked for review
 10. **No invoice-level AR/AP tracking** — party-level only
 

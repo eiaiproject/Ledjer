@@ -212,17 +212,11 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 
 ---
 
-## 7. Plan Behavior
+## 7. Transaction Policy
 
-### 7.1 Free Plan Transactions
-- [ ] Switch to free plan (or use test org)
+### 7.1 Unlimited Transactions
 - [ ] Create more than 50 transactions
 - [ ] **Expected:** Transactions remain allowed
-
-### 7.2 Upgrade Plan
-- [ ] Navigate to `/settings/billing`
-- [ ] Upgrade to Business plan
-- [ ] **Expected:** Plan changes persist and paid-plan features unlock
 
 ---
 

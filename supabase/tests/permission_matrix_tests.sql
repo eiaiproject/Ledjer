@@ -403,8 +403,8 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- TEST 7: get_monthly_usage cross-org isolation
--- User C (org B owner) cannot read Org A's usage via get_monthly_usage.
+-- TEST 7: get_dashboard_summary cross-org isolation
+-- User C (org B owner) cannot read Org A's dashboard summary.
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -426,36 +426,36 @@ BEGIN
   SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
          t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
     INTO v_a_owner, v_a_staff, v_a_org, v_a_cash, v_a_pay, v_a_rev
-  FROM public._test_create_org_with_users('USAGE ISOLATION ORG A', CURRENT_DATE) AS t;
+  FROM public._test_create_org_with_users('DASHBOARD ISOLATION ORG A', CURRENT_DATE) AS t;
 
   SELECT t.out_owner_user_id, t.out_staff_user_id, t.out_organization_id,
          t.out_cash_account_id, t.out_payable_account_id, t.out_revenue_account_id
     INTO v_c_owner, v_c_staff, v_c_org, v_c_cash, v_c_pay, v_c_rev
-  FROM public._test_create_org_with_users('USAGE ISOLATION ORG B', CURRENT_DATE) AS t;
+  FROM public._test_create_org_with_users('DASHBOARD ISOLATION ORG B', CURRENT_DATE) AS t;
 
   -- Impersonate User C (only belongs to Org B)
   PERFORM public._test_impersonate(v_c_owner);
 
-  -- User C calls get_monthly_usage for Org A — should fail (no membership)
+  -- User C calls get_dashboard_summary for Org A — should fail (no membership)
   BEGIN
-    v_result := public.get_monthly_usage(v_a_org);
-    PERFORM public._test_fail('PM7.1', 'cross-org get_monthly_usage succeeded');
+    v_result := public.get_dashboard_summary(v_a_org);
+    PERFORM public._test_fail('PM7.1', 'cross-org get_dashboard_summary succeeded');
   EXCEPTION WHEN OTHERS THEN
     v_err := SQLERRM;
     PERFORM public._test_assert(
-      'PM7.1: get_monthly_usage rejected cross-org call',
-      v_err ILIKE '%bukan anggota%' OR v_err ILIKE '%not a member%' OR v_err ILIKE '%authentication%' OR v_err ILIKE '%autentikasi%',
-      format('expected membership error, got: %s', v_err)
+      'PM7.1: get_dashboard_summary rejected cross-org call',
+      v_err ILIKE '%izin%' OR v_err ILIKE '%permission%' OR v_err ILIKE '%bukan anggota%' OR v_err ILIKE '%not a member%',
+      format('expected permission or membership error, got: %s', v_err)
     );
   END;
 
-  -- Verify Org A owner can still call get_monthly_usage for their own org
+  -- Verify Org A owner can still call get_dashboard_summary for their own org
   PERFORM public._test_impersonate(v_a_owner);
-  v_result := public.get_monthly_usage(v_a_org);
+  v_result := public.get_dashboard_summary(v_a_org);
   PERFORM public._test_assert(
-    'PM7.2: own-org get_monthly_usage returns valid JSONB',
-    v_result ? 'count' AND v_result ? 'limit' AND v_result ? 'remaining'
-      AND v_result ? 'period_start' AND v_result ? 'period_end',
+    'PM7.2: own-org get_dashboard_summary returns valid JSONB',
+    v_result ? 'cash_balance' AND v_result ? 'revenue_current_period'
+      AND v_result ? 'expense_current_period' AND v_result ? 'period_from' AND v_result ? 'period_to',
     format('unexpected shape: %s', v_result::text)
   );
 END $$;

@@ -566,18 +566,6 @@ test.describe("Security: API permissions", () => {
         e2eName("API Security Team"),
         E2E_OWNER,
       );
-      const planRes = await fetch(
-        `${E2E.supabaseUrl}/rest/v1/organizations?id=eq.${orgId}`,
-        {
-          method: "PATCH",
-          headers: srHeaders,
-          body: JSON.stringify({
-            current_plan: "business",
-            subscription_status: "active",
-          }),
-        },
-      );
-      expect(planRes.ok).toBe(true);
       await seedStaffMember(orgId, staffId, {
         can_create_transaction: false,
         can_view_reports: false,

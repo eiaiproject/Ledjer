@@ -151,39 +151,6 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
 );
 ErrorSummary.displayName = "ErrorSummary";
 
-/* ------------------------------------------------------------------ */
-/*  PlanUsageBanner                                                    */
-/* ------------------------------------------------------------------ */
-
-interface PlanUsageBannerProps {
-  isFreePlan: boolean;
-  usageCount: number;
-}
-
-export function PlanUsageBanner({ isFreePlan, usageCount }: PlanUsageBannerProps) {
-  if (!isFreePlan) return null;
-
-  return (
-    <Card variant="filled" className="mb-4">
-      <CardContent className="text-text-secondary">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-          <p className="min-w-0 break-words text-sm">
-            Paket Gratis: <span className="font-medium">transaksi unlimited</span>
-          </p>
-          <Badge variant="success" dot>Gratis sementara</Badge>
-        </div>
-        <p className="mt-1 text-xs text-text-tertiary">
-          {usageCount} transaksi tercatat bulan ini. Tidak ada batas kuota transaksi.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  TransactionTypeSelector                                            */
-/* ------------------------------------------------------------------ */
-
 interface TransactionTypeSelectorProps {
   value: string;
   onChange: (type: string) => void;

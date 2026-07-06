@@ -1,7 +1,7 @@
 -- =============================================================================
 -- LEDJER — Stage 4 Production Tests
 -- =============================================================================
--- Tests: billing scaffold, period lock, invitations, admin ops, export RPCs.
+-- Tests: period lock, invitations, admin ops, export RPCs.
 -- WARNING: Run ONLY against disposable local Supabase stack.
 -- =============================================================================
 
@@ -35,10 +35,6 @@ BEGIN
   INTO v_other_owner_id, v_other_org_id
   FROM public._test_create_org_with_users('Stage4 Other Org', CURRENT_DATE);
 
-  UPDATE public.organizations
-  SET current_plan = 'business'::public.org_plan
-  WHERE id = v_org_id;
-
   UPDATE public.organization_members
   SET status = 'removed'
   WHERE organization_id = v_org_id
@@ -59,36 +55,6 @@ BEGIN
     END IF;
   END;
 
-  -- ═══════ TEST 2: Billing fields exist ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM information_schema.columns
-      WHERE table_name = 'organizations' AND column_name = 'subscription_status'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 2 PASS: subscription_status column exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 2 FAIL: subscription_status column missing';
-    END IF;
-  END;
-
-  -- ═══════ TEST 3: billing_events table exists ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM information_schema.tables
-      WHERE table_name = 'billing_events'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 3 PASS: billing_events table exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 3 FAIL: billing_events table missing';
-    END IF;
-  END;
-
   -- ═══════ TEST 4: organization_invitations table exists ═══════
   v_test_count := v_test_count + 1;
   BEGIN
@@ -101,22 +67,6 @@ BEGIN
     ELSE
       v_fail_count := v_fail_count + 1;
       RAISE EXCEPTION 'TEST 4 FAIL: organization_invitations table missing';
-    END IF;
-  END;
-
-  -- ═══════ TEST 5: billing_events RLS enabled ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'billing_events' AND c.relrowsecurity = true
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 5 PASS: billing_events RLS enabled';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 5 FAIL: billing_events RLS not enabled';
     END IF;
   END;
 
@@ -207,7 +157,7 @@ BEGIN
       SELECT 1 FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public'
-        AND p.proname IN ('admin_list_organizations', 'admin_update_plan', 'admin_set_suspension')
+        AND p.proname IN ('admin_list_organizations', 'admin_set_suspension')
         AND p.proacl IS NOT NULL
         AND EXISTS (
           SELECT 1 FROM unnest(p.proacl) AS acl
@@ -252,39 +202,6 @@ BEGIN
     ELSE
       v_fail_count := v_fail_count + 1;
       RAISE EXCEPTION 'TEST 13 FAIL: period lock trigger missing';
-    END IF;
-  END;
-
-  -- ═══════ TEST 14: subscription status trigger exists ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM pg_trigger t
-      JOIN pg_class c ON c.oid = t.tgrelid
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname = 'transactions'
-        AND t.tgname = 'enforce_subscription_before_transaction'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 14 PASS: subscription status trigger exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 14 FAIL: subscription status trigger missing';
-    END IF;
-  END;
-
-  -- ═══════ TEST 15: billing_events has correct indexes ═══════
-  v_test_count := v_test_count + 1;
-  BEGIN
-    IF EXISTS (
-      SELECT 1 FROM pg_indexes
-      WHERE tablename = 'billing_events' AND indexname = 'idx_billing_events_org_id'
-    ) THEN
-      v_pass_count := v_pass_count + 1;
-      RAISE NOTICE 'TEST 15 PASS: billing_events org_id index exists';
-    ELSE
-      v_fail_count := v_fail_count + 1;
-      RAISE EXCEPTION 'TEST 15 FAIL: billing_events org_id index missing';
     END IF;
   END;
 

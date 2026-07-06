@@ -47,10 +47,6 @@ const rpcArgsByName = {
     p_to_date: isoDate,
   } satisfies RpcArgs<"get_general_ledger">,
 
-  get_monthly_usage: {
-    p_org_id: uuid,
-  } satisfies RpcArgs<"get_monthly_usage">,
-
   get_profit_loss: {
     p_organization_id: uuid,
     p_from_date: isoDate,
@@ -139,7 +135,6 @@ describe("frontend RPC argument contracts", () => {
       "get_dashboard_summary",
       "get_general_ledger",
       "get_invitations",
-      "get_monthly_usage",
       "get_profit_loss",
       "get_trial_balance",
       "is_email_rate_limited",

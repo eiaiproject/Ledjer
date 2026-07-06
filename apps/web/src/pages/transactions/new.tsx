@@ -9,7 +9,6 @@ import type { Database } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { fetchMonthlyTransactionUsage } from "@/lib/transaction-usage";
 import {
   usesCashAccount,
   usesCategory,
@@ -30,7 +29,6 @@ import {
   ProductDetailFields,
   ReviewPanel,
   MobileReviewToggle,
-  PlanUsageBanner,
   SubmitBar,
   ErrorSummary,
   UnsavedChangesDialog,
@@ -273,20 +271,6 @@ export function NewTransactionPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  /* -- Query: monthly usage -- */
-  const {
-    data: monthlyUsage,
-    error: usageError,
-    refetch: refetchMonthlyUsage,
-  } = useQuery({
-    queryKey: queryKeys.monthlyUsage(orgData?.organization?.id ?? ""),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return null;
-      return fetchMonthlyTransactionUsage(orgData.organization.id);
-    },
-    enabled: !!orgData?.organization?.id && orgData.organization.current_plan === "free",
-  });
-
   /* -- Derived data -- */
   const cashAccountOptions = useMemo(() => {
     return (accounts || [])
@@ -353,9 +337,6 @@ export function NewTransactionPage() {
     categoryName: debitAccountName,
     productName: selectedProduct?.name || "",
   });
-
-  const isFreePlan = orgData?.organization?.current_plan === "free";
-  const usageCount = monthlyUsage?.count || 0;
 
   /* -- Effects -- */
 
@@ -555,8 +536,8 @@ export function NewTransactionPage() {
       setSuccessTransactionId(result.transaction_id);
       setClientToken(createClientToken());
       // P1.5: invalidate every query key affected by a financial mutation so
-      // dashboard, reports, accounts, products, parties, and usage do not
-      // display stale data after a successful post.
+      // dashboard, reports, accounts, products, and parties do not display
+      // stale data after a successful post.
       invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
     },
     onSettled: () => {
@@ -680,23 +661,6 @@ export function NewTransactionPage() {
         </div>
         {successTransactionId && <Badge variant="success">Tersimpan, membuka detail...</Badge>}
       </div>
-
-      {/* Free plan usage banner */}
-      <PlanUsageBanner
-        isFreePlan={isFreePlan}
-        usageCount={usageCount}
-      />
-
-      {usageError && isFreePlan && (
-        <div className="mb-4 flex min-w-0 flex-col gap-2 rounded-lg border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning sm:flex-row sm:items-center sm:justify-between" role="alert">
-          <p className="min-w-0 break-words">
-            Gagal memuat jumlah transaksi bulan ini. Transaksi tetap dapat dicatat.
-          </p>
-          <Button type="button" variant="outline" size="sm" onClick={() => void refetchMonthlyUsage()} className="shrink-0">
-            Coba lagi
-          </Button>
-        </div>
-      )}
 
       {/* Error summary (after failed submit) */}
       <ErrorSummary ref={errorSummaryRef} errors={errors} formErrorMessage={postMutation.isError ? (postMutation.error as Error).message || "Gagal memproses transaksi" : undefined} />

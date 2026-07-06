@@ -63,11 +63,6 @@
 | `apps/web/src/pages/reports/balance-sheet.tsx` | Same table standardization (both asset and liability tables). |
 | `apps/web/src/pages/reports/general-ledger.tsx` | Same table standardization. |
 
-### Billing
-| File | Changes |
-|------|---------|
-| `apps/web/src/pages/settings/billing.tsx` | Improved responsive vertical padding (`py-6 sm:py-8`). |
-
 ### Landing
 | File | Changes |
 |------|---------|

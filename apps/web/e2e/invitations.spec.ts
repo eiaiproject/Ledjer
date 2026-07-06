@@ -34,32 +34,17 @@ async function removeOwner2Memberships(ownerId: string): Promise<void> {
   }
 }
 
-async function setBusinessPlan(orgId: string): Promise<void> {
-  const res = await fetch(
-    `${E2E.supabaseUrl}/rest/v1/organizations?id=eq.${orgId}`,
-    {
-      method: "PATCH",
-      headers: { ...SR_HEADERS, Prefer: "return=minimal" },
-      body: JSON.stringify({ current_plan: "business" }),
-    },
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to set business plan: ${res.status} ${await res.text()}`);
-  }
-}
-
 if (E2E.isFullLocal) {
 test.describe("Invitation flow", () => {
   test("owner creates invite link and invited staff accepts it", async ({ browser, page }) => {
     const ownerId = await ensureTestUser(E2E_OWNER2);
     await ensureTestUser(E2E_STAFF);
     await removeOwner2Memberships(ownerId);
-    const orgId = await seedOrganization(
+    await seedOrganization(
       ownerId,
       `[E2E] Invite Flow ${Date.now()}`,
       E2E_OWNER2,
     );
-    await setBusinessPlan(orgId);
 
     await loginAs(page, E2E_OWNER2.email, E2E_OWNER2.password);
     await page.goto("/settings/team");

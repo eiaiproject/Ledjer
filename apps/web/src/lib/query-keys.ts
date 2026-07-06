@@ -80,13 +80,11 @@ export const queryKeys = {
     all: () => ["journal-entries"] as const,
   },
 
-  monthlyUsage: (orgId: string) => ["monthly-usage", orgId] as const,
-  allMonthlyUsage: () => ["monthly-usage"] as const,
 } as const;
 
 /**
  * Invalidates every cache key touched by posting, editing, or voiding a
- * transaction (dashboard, monthly usage, accounts, products, parties, reports).
+ * transaction (dashboard, accounts, products, parties, reports).
  * Use after any successful financial mutation so dependent screens do not show
  * stale balances. Does NOT touch transaction detail caches — callers should
  * also invalidate `queryKeys.transactions.detail(id)` and
@@ -99,7 +97,6 @@ export function invalidateTransactionFinancialCaches(
   const key = orgId ?? "";
   queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
   queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.monthlyUsage(key) });
   queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(key) });
   queryClient.invalidateQueries({ queryKey: queryKeys.products.all(key) });
   queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(key) });

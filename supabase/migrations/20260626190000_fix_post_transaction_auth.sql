@@ -1,19 +1,13 @@
 -- =============================================================================
--- FIX: post_transaction — restore can_create_transaction check + align free plan limit
+-- FIX: post_transaction — restore can_create_transaction check
 -- =============================================================================
 -- Bug 1 (CRITICAL SECURITY): post_transaction in 20260625184100_master_induk_fixes.sql
 --   removed the has_permission('can_create_transaction') check that existed in the
 --   baseline. Any active org member could post transactions regardless of their
 --   staff permission flags — bypassing the UI permission gate via direct RPC.
 --
--- Bug 2 (PRODUCT INCONSISTENCY): Free plan limit was hardcoded to 100 in
---   post_transaction, while get_monthly_usage, frontend constant, and billing UI
---   all use 50. Additionally, post_transaction counted ALL historical posted
---   transactions (no month filter), causing premature blocking.
---
 -- Fix:
---   1. Restore can_create_transaction check after membership validation.
---   2. Align free plan limit to 50 with monthly window matching get_monthly_usage.
+--   Restore can_create_transaction check after membership validation.
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.post_transaction(
@@ -42,8 +36,6 @@ AS $$
 DECLARE
   v_user_id            UUID;
   v_role               TEXT;
-  v_plan               TEXT;
-  v_txn_count          INTEGER;
   v_books_start_date   DATE;
   v_account_type       TEXT;
   v_is_cash_account    BOOLEAN;
@@ -78,9 +70,6 @@ DECLARE
   v_existing_je_number TEXT;
   v_existing_impact JSONB;
 
-  -- Monthly usage variables
-  v_period_start TIMESTAMPTZ;
-  v_period_end   TIMESTAMPTZ;
 BEGIN
   -- ── Auth ──
   v_user_id := auth.uid();
@@ -167,29 +156,6 @@ BEGIN
   IF p_transaction_date < v_books_start_date THEN
     RAISE EXCEPTION 'Tanggal transaksi % sebelum tanggal mulai pembukuan %',
       p_transaction_date, v_books_start_date;
-  END IF;
-
-  -- ── FIX #2: Subscription Transaction Limit Guard ──
-  -- Aligned with get_monthly_usage: 50 per calendar month, same counting semantics.
-  SELECT current_plan INTO v_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_plan = 'free' THEN
-    v_period_start := date_trunc('month', now());
-    v_period_end   := v_period_start + INTERVAL '1 month';
-
-    SELECT COUNT(*)::INTEGER INTO v_txn_count
-    FROM public.transactions
-    WHERE organization_id = p_organization_id
-      AND status IN ('posted', 'voided')
-      AND original_transaction_id IS NULL
-      AND transaction_type NOT LIKE 'opening_%'
-      AND created_at >= v_period_start
-      AND created_at < v_period_end;
-
-    IF v_txn_count >= 50 THEN
-      RAISE EXCEPTION 'Batas 50 transaksi per bulan untuk Paket Free telah tercapai. Upgrade paket untuk melanjutkan.';
-    END IF;
   END IF;
 
   -- ── Product Validation ──

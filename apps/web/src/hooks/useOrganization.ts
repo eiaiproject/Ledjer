@@ -10,7 +10,6 @@ export interface Organization {
   base_currency: string;
   books_start_date: string;
   onboarding_status: string;
-  current_plan: string;
   created_by: string;
 }
 
@@ -62,7 +61,7 @@ export function useOrganization() {
       // Step 2: fetch the organization separately
       const { data: org, error: orgError } = await supabase
         .from("organizations")
-        .select("id, name, business_type, base_currency, books_start_date, onboarding_status, current_plan, created_by")
+        .select("id, name, business_type, base_currency, books_start_date, onboarding_status, created_by")
         .eq("id", member.organization_id)
         .single();
 

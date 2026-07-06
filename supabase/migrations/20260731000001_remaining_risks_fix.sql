@@ -5,8 +5,7 @@
 -- 1. Phase 4: create_cash_bank_account RPC (server-side account creation)
 -- 2. Replace create_invitation copy-paste with BEFORE INSERT trigger
 -- 3. (Already fixed in 20260731000000: set_config in recalculate_product_average_cost)
--- 4. Remove dead billing trigger verification
--- 5. Tighten accept_invitation to use hash-only lookup (pre-migration tokens expired)
+-- 4. Tighten accept_invitation to use hash-only lookup (pre-migration tokens expired)
 -- =============================================================================
 
 -- ═══════════════════════════════════════════════════════════════════
@@ -211,9 +210,6 @@ AS $$
 DECLARE
   v_inviter_id UUID;
   v_inviter_role TEXT;
-  v_current_plan TEXT;
-  v_staff_count INTEGER;
-  v_pending_invitation_count INTEGER;
   v_invitation_id UUID;
   v_token TEXT;
   v_expires_at TIMESTAMPTZ;
@@ -236,23 +232,6 @@ BEGIN
 
   IF v_inviter_role IS NULL OR v_inviter_role != 'owner' THEN
     RAISE EXCEPTION 'Hanya owner yang dapat mengundang staf';
-  END IF;
-
-  SELECT current_plan::TEXT INTO v_current_plan
-  FROM public.organizations WHERE id = p_organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*) INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = p_organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Paket Business mendukung maksimal 1 staf';
   END IF;
 
   SELECT id, status, token INTO v_existing_invitation
@@ -280,16 +259,6 @@ BEGIN
       'expires_at', v_expires_at,
       'resent', true
     );
-  END IF;
-
-  SELECT COUNT(*) INTO v_pending_invitation_count
-  FROM public.organization_invitations
-  WHERE organization_id = p_organization_id
-    AND status = 'pending'
-    AND expires_at > now();
-
-  IF v_pending_invitation_count >= 1 THEN
-    RAISE EXCEPTION 'Slot undangan staf sudah terpakai. Batalkan undangan aktif sebelum membuat undangan baru.';
   END IF;
 
   v_token := encode(extensions.gen_random_bytes(32), 'hex');
@@ -322,21 +291,7 @@ REVOKE EXECUTE ON FUNCTION public.create_invitation(UUID, TEXT) FROM PUBLIC, ano
 GRANT EXECUTE ON FUNCTION public.create_invitation(UUID, TEXT) TO authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
--- FIX 4: Remove dead billing trigger verification
--- ═══════════════════════════════════════════════════════════════════
--- The check for 'protect_billing_columns' trigger always warns because
--- the actual trigger has a different name. Remove the dead check.
--- Billing protection is handled by the protect_organization_billing_columns()
--- function which is attached as a trigger in the stage4 migration.
--- The function correctly prevents client-side billing mutations.
-
-DO $$
-BEGIN
-  RAISE NOTICE 'Billing protection is enforced via protect_organization_billing_columns() trigger on organizations table.';
-END $$;
-
--- ═══════════════════════════════════════════════════════════════════
--- FIX 5: Tighten accept_invitation to hash-only lookup
+-- FIX 4: Tighten accept_invitation to hash-only lookup
 -- ═══════════════════════════════════════════════════════════════════
 -- Pre-migration invitations were already expired in 20260731000000.
 -- Replace the OR-based lookup with hash-only for performance (index usage).
@@ -352,8 +307,6 @@ DECLARE
   v_user_email TEXT;
   v_invitation RECORD;
   v_member_id UUID;
-  v_staff_count INTEGER;
-  v_current_plan TEXT;
   v_token_hash TEXT;
 BEGIN
   v_user_id := auth.uid();
@@ -384,23 +337,6 @@ BEGIN
 
   IF lower(v_user_email) != lower(v_invitation.email) THEN
     RAISE EXCEPTION 'Undangan ini ditujukan untuk email lain';
-  END IF;
-
-  SELECT current_plan::TEXT INTO v_current_plan
-  FROM public.organizations WHERE id = v_invitation.organization_id;
-
-  IF v_current_plan != 'business' THEN
-    RAISE EXCEPTION 'Invite staf memerlukan paket Business';
-  END IF;
-
-  SELECT COUNT(*) INTO v_staff_count
-  FROM public.organization_members
-  WHERE organization_id = v_invitation.organization_id
-    AND role = 'staff'
-    AND status = 'active';
-
-  IF v_staff_count >= 1 THEN
-    RAISE EXCEPTION 'Slot staf sudah penuh';
   END IF;
 
   IF EXISTS (
