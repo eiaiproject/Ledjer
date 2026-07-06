@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle, type LucideIcon } from "lucide-react";
-import { ToastContext, setGlobalToast, type Toast, type ToastVariant } from "./toast-api";
+import { setGlobalToast, type Toast, type ToastVariant } from "./toast-api";
 import { cn } from "@/lib/utils";
 
 type ActiveToast = Toast & { duration: number };
@@ -76,10 +76,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <>
       {children}
       <ToastContainer toasts={toasts} onDismiss={removeToast} onPause={pauseTimer} onResume={resumeTimer} />
-    </ToastContext.Provider>
+    </>
   );
 }
 

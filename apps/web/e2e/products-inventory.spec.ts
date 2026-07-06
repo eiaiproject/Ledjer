@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { E2E } from "./fixtures/env";
 import { loginViaUI } from "./fixtures/auth";
+import { selectComboboxValue } from "./fixtures/combobox";
 
 /**
  * Product, inventory, and purchase-to-sale E2E tests.
@@ -73,34 +74,9 @@ async function selectProductForTransaction(
   const productCombobox = page.locator('input[role="combobox"][name="productId"]');
   await expect(productCombobox).toBeVisible({ timeout: 10_000 });
 
-  const listbox = page.locator("#productId-listbox");
   const productOptionName = new RegExp(escapeRegExp(productName), "i");
-  const deadline = Date.now() + 15_000;
-  let lastListboxText = "";
-
-  while (Date.now() < deadline) {
-    await productCombobox.click();
-    await productCombobox.fill(productName);
-    await expect(listbox).toBeVisible({ timeout: 3_000 });
-
-    const productOption = listbox
-      .getByRole("option", { name: productOptionName })
-      .first();
-
-    if (await productOption.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      await productOption.click();
-      await expect(productCombobox).toHaveValue(productOptionName, { timeout: 3_000 });
-      return;
-    }
-
-    lastListboxText = (await listbox.textContent().catch(() => "")) || "";
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
-  }
-
-  throw new Error(
-    `Product option "${productName}" was not available in transaction combobox. Last listbox: ${lastListboxText}`,
-  );
+  await selectComboboxValue(page, "productId", productName);
+  await expect(productCombobox).toHaveValue(productOptionName, { timeout: 3_000 });
 }
 
 async function selectFirstComboboxOption(
@@ -112,12 +88,7 @@ async function selectFirstComboboxOption(
     return;
   }
 
-  await combobox.click();
-  const listbox = page.locator(`#${name}-listbox`);
-  await expect(listbox).toBeVisible({ timeout: 5_000 });
-  const firstOption = listbox.getByRole("option").first();
-  await expect(firstOption).toBeVisible({ timeout: 5_000 });
-  await firstOption.click();
+  await selectComboboxValue(page, name, "Kas");
   await expect(combobox).not.toHaveValue("", { timeout: 3_000 });
 }
 

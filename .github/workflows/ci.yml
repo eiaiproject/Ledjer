@@ -307,38 +307,8 @@ jobs:
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
 
-      - name: Capture Supabase env vars
-        run: supabase status --workdir . --output env > /tmp/supabase.env
-
       - name: Export Supabase keys
-        run: |
-          set -euo pipefail
-          source /tmp/supabase.env
-
-          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
-          supabase_anon_key="${ANON_KEY:-}"
-          supabase_service_role_key="${SERVICE_ROLE_KEY:-}"
-
-          if [ -z "$supabase_anon_key" ]; then
-            echo '::error::SUPABASE_ANON_KEY is empty after export. Check supabase status output.'
-            exit 1
-          fi
-
-          if [ -z "$supabase_service_role_key" ]; then
-            echo '::error::SUPABASE_SERVICE_ROLE_KEY is empty after export. Check supabase status output.'
-            exit 1
-          fi
-
-          echo "::add-mask::$supabase_anon_key"
-          echo "::add-mask::$supabase_service_role_key"
-
-          {
-            echo "SUPABASE_URL=$supabase_url"
-            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_service_role_key"
-            echo "VITE_SUPABASE_URL=$supabase_url"
-            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
-          } >> "$GITHUB_ENV"
+        run: bash scripts/export-supabase-env.sh
 
       - name: Build app for preview
         env:
@@ -428,30 +398,10 @@ jobs:
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
 
-      - name: Capture Supabase env vars
-        run: supabase status --workdir . --output env > /tmp/supabase.env
-
       - name: Export Supabase keys
-        run: |
-          set -euo pipefail
-          source /tmp/supabase.env
-
-          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
-          supabase_anon_key="${ANON_KEY:-}"
-
-          if [ -z "$supabase_anon_key" ]; then
-            echo '::error::SUPABASE_ANON_KEY is empty. Check supabase status output.'
-            exit 1
-          fi
-
-          echo "::add-mask::$supabase_anon_key"
-
-          {
-            echo "SUPABASE_URL=$supabase_url"
-            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
-            echo "VITE_SUPABASE_URL=$supabase_url"
-            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
-          } >> "$GITHUB_ENV"
+        env:
+          REQUIRE_SERVICE_ROLE: "0"
+        run: bash scripts/export-supabase-env.sh
 
       - name: Build app with valid local Supabase config
         env:
@@ -535,33 +485,8 @@ jobs:
       - name: Apply migrations
         run: supabase db reset --workdir . --no-seed
 
-      - name: Capture Supabase keys
-        run: supabase status --workdir . --output env > /tmp/supabase.env
-
       - name: Export Supabase keys
-        run: |
-          set -euo pipefail
-          source /tmp/supabase.env
-
-          supabase_url="${API_URL:-${SUPABASE_URL:-http://localhost:54321}}"
-          supabase_anon_key="${ANON_KEY:-}"
-          supabase_service_role_key="${SERVICE_ROLE_KEY:-}"
-
-          if [ -z "$supabase_anon_key" ]; then
-            echo '::error::ANON_KEY empty — cannot run visual tests'
-            exit 1
-          fi
-
-          echo "::add-mask::$supabase_anon_key"
-          echo "::add-mask::$supabase_service_role_key"
-
-          {
-            echo "SUPABASE_URL=$supabase_url"
-            echo "SUPABASE_ANON_KEY=$supabase_anon_key"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_service_role_key"
-            echo "VITE_SUPABASE_URL=$supabase_url"
-            echo "VITE_SUPABASE_ANON_KEY=$supabase_anon_key"
-          } >> "$GITHUB_ENV"
+        run: bash scripts/export-supabase-env.sh
 
       - name: Build app
         env:
@@ -572,8 +497,7 @@ jobs:
 
       # CI compares snapshots against committed Linux baselines. To refresh
       # baselines after an intentional UI change, run the
-      # `Generate visual baselines (manual workflow)` workflow or locally:
-      #   pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
+      # `Generate visual baselines (manual workflow)` workflow.
       # Do NOT use --update-snapshots in the normal CI comparison run.
       - name: Run visual regression tests (compare against committed baselines)
         env:

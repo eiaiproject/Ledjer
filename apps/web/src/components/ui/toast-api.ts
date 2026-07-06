@@ -1,5 +1,3 @@
-import { createContext, useContext } from "react";
-
 export type ToastVariant = "success" | "error" | "warning" | "info";
 
 export interface Toast {
@@ -8,28 +6,16 @@ export interface Toast {
   variant: ToastVariant;
 }
 
-export interface ToastContextValue {
-  toast: {
-    success: (message: string) => void;
-    error: (message: string) => void;
-    warning: (message: string) => void;
-    info: (message: string) => void;
-  };
+export interface ToastActions {
+  success: (message: string) => void;
+  error: (message: string) => void;
+  warning: (message: string) => void;
+  info: (message: string) => void;
 }
 
-export const ToastContext = createContext<ToastContextValue | null>(null);
+let globalToast: ToastActions | null = null;
 
-export function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used within a ToastProvider");
-  }
-  return context;
-}
-
-let globalToast: ToastContextValue["toast"] | null = null;
-
-export function setGlobalToast(t: ToastContextValue["toast"]) {
+export function setGlobalToast(t: ToastActions) {
   globalToast = t;
 }
 

@@ -5,7 +5,7 @@
 | Mode | Env | Purpose |
 |------|-----|---------|
 | `deploy-smoke` | Production URL | Fast public smoke, no Supabase |
-| `full-local` | localhost + Supabase | Full authenticated E2E with seed; excludes visual and legacy Mayar by default |
+| `full-local` | localhost + Supabase | Full authenticated E2E with seed; excludes visual by default |
 | `local-smoke` | localhost | Local smoke without seed |
 
 Auto-detected from `E2E_BASE_URL`:
@@ -46,8 +46,8 @@ pnpm --filter web exec playwright test --project=chromium
 
 ### Visual Regression
 ```bash
-# Generate baselines
-pnpm test:visual -- --update-snapshots
+# Generate Linux baselines from GitHub Actions
+# Run the manual "Generate visual baselines" workflow
 
 # Compare against baselines
 pnpm test:visual
@@ -110,10 +110,7 @@ pnpm test:e2e:cross-browser-smoke
 | `transaction-idempotency-local.spec.ts` | 6 | RPC and UI transaction idempotency |
 | `invitations.spec.ts` | 1 | Invitation smoke |
 
-### Legacy Mayar (not part of normal full-local)
-Mayar checkout/webhook specs remain in the repo for provider migration reference, but billing currently uses manual transfer. They are not local CI gates and should not be counted as active coverage until a payment provider flow is restored.
-
-The normal `full-local` Chromium suite currently lists 247 tests in 34 files, excluding `visual.spec.ts` and legacy Mayar provider tests.
+The normal `full-local` Chromium suite excludes `visual.spec.ts`; run `pnpm ci:local:full` for the current test count.
 
 ## Global Setup
 
@@ -136,7 +133,6 @@ When `E2E_MODE=deploy-smoke` or `local-smoke`, global setup is skipped.
 | `E2E_SUPABASE_SERVICE_ROLE_KEY` | Yes (full-local) | Supabase service role (test setup only) |
 | `E2E_INBUCKET_URL` | No | Inbucket URL (default: `http://localhost:54324`) |
 | `E2E_VISUAL` | No | Include visual tests in full-local mode |
-| `E2E_MAYAR_LEGACY` | No | Register legacy Mayar specs for provider migration work only |
 
 ## Test Data
 
@@ -154,7 +150,7 @@ Key jobs:
 - `frontend`: typecheck + lint + vitest + build
 - `supabase`: Docker Supabase + apply migrations + SQL tests + live database-types drift check
 - `db-types-guard`: fast CANONICAL-FILE sanity check on `packages/database-types/index.ts` (does NOT prove drift)
-- `e2e-full-local`: Full E2E with seeded data and manual billing coverage; excludes visual and legacy Mayar
+- `e2e-full-local`: Full E2E with seeded data and manual billing coverage; excludes visual
 - `e2e-cross-browser`: Firefox + WebKit smoke subset
 - `visual-regression`: Linux Chromium visual baselines (comparison only, requires committed baselines)
 
@@ -179,7 +175,7 @@ The `supabase` job runs `--live` after migrations apply.
 
 ### Visual Baselines Workflow
 
-1. Commit Linux Chromium baselines by running the manual **`Generate visual baselines`** workflow (or locally: `pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots`).
+1. Commit Linux Chromium baselines by running the manual **`Generate visual baselines`** workflow.
 2. Commit the resulting PNGs under `apps/web/e2e/visual.spec.ts-snapshots/`.
 3. The normal `visual-regression` CI job runs comparison only (no `--update-snapshots`); failures are real regressions.
 

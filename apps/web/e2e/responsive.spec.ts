@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { E2E } from "./fixtures/env";
-import { E2E_OWNER } from "./fixtures/users";
+import { loginViaUI } from "./fixtures/auth";
 
 
 /**
@@ -13,17 +13,6 @@ const viewports = [
   { name: "Tablet", width: 768, height: 1024 },
   { name: "Desktop", width: 1440, height: 900 },
 ];
-
-async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/login");
-  await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /^Masuk$/ }).click();
-  await page.waitForURL((url) =>
-    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-    { timeout: 15_000 },
-  );
-}
 
 for (const vp of viewports) {
   test.describe(`${vp.name} (${vp.width}px)`, () => {
@@ -55,7 +44,7 @@ for (const vp of viewports) {
     if (vp.width < 768) {
       test("mobile navigation menu works", async ({ page }) => {
         if (!E2E.isFullLocal) return;
-        await loginAsOwner(page);
+        await loginViaUI(page);
 
         const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
         await expect(menuBtn).toBeVisible({ timeout: 5_000 });
@@ -71,7 +60,7 @@ test.describe("Transaction form responsive", () => {
 
   test("transaction form is usable on mobile", async ({ page }) => {
     if (!E2E.isFullLocal) return;
-    await loginAsOwner(page);
+    await loginViaUI(page);
 
     await page.goto("/transactions/new");
     await page.waitForLoadState("networkidle");
@@ -90,7 +79,7 @@ test.describe("Dashboard responsive", () => {
 
   test("dashboard renders on mobile without crash", async ({ page }) => {
     if (!E2E.isFullLocal) return;
-    await loginAsOwner(page);
+    await loginViaUI(page);
 
     await expect(page.locator("body")).toBeVisible();
   });

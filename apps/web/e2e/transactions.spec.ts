@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "./fixtures/auth";
+import { selectComboboxValueIfVisible } from "./fixtures/combobox";
 
 /**
  * Golden transaction flow E2E — tests all 10 general transaction types.
@@ -93,16 +94,7 @@ const TXN_TYPES: TxnType[] = [
     submitBtn: /Catat Transfer|Catat Transaksi/,
     extra: async (page) => {
       // Transfer needs a destination account
-      const destCombobox = page.locator('input[role="combobox"][name="destinationCashAccountId"]');
-      if (await destCombobox.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await destCombobox.click();
-        const listbox = page.locator('[role="listbox"]');
-        await expect(listbox).toBeVisible({ timeout: 3_000 });
-        const option = listbox.locator('[role="option"]').nth(1);
-        if (await option.isVisible({ timeout: 2_000 }).catch(() => false)) {
-          await option.click();
-        }
-      }
+      await selectComboboxValueIfVisible(page, "destinationCashAccountId", "Bank");
     },
   },
 ];
@@ -141,15 +133,7 @@ for (const txn of TXN_TYPES) {
       }
 
       // Select cash account (for types that use it)
-      const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
-      if (await cashAccountCombobox.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await cashAccountCombobox.click();
-        const listbox = page.locator('[role="listbox"]');
-        await expect(listbox).toBeVisible({ timeout: 3_000 });
-        const firstOption = listbox.locator('[role="option"]').first();
-        await expect(firstOption).toBeVisible({ timeout: 3_000 });
-        await firstOption.click();
-      }
+      await selectComboboxValueIfVisible(page, "cashAccountId", "Kas");
 
       // Submit
       const submitBtn = page.getByRole("button", { name: txn.submitBtn }).first();

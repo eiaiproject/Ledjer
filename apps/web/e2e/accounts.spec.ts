@@ -1,24 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { E2E_OWNER } from "./fixtures/users";
+import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Accounts (Chart of Accounts) E2E tests.
  */
 
-async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/login");
-  await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /^Masuk$/ }).click();
-  await page.waitForURL((url) =>
-    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-    { timeout: 15_000 },
-  );
-}
-
 test.describe("Accounts page", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsOwner(page);
+    await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
     await page.goto("/accounts");
     await expect(page).toHaveURL(/\/accounts/);

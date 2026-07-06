@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loginViaUI } from "./fixtures/auth";
+import { selectComboboxValue } from "./fixtures/combobox";
 
 /**
  * End-to-end flow: create a cash sale transaction → verify it appears
@@ -39,16 +40,7 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     await descField.fill("[E2E] Cash Sale Test");
 
     // Step 3: Select cash account ("Diterima di" combobox)
-    const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
-    await expect(cashAccountCombobox).toBeVisible({ timeout: 5_000 });
-    await cashAccountCombobox.click();
-    // Wait for listbox options to appear
-    const listbox = page.locator('[role="listbox"]');
-    await expect(listbox).toBeVisible({ timeout: 3_000 });
-    // Select the first available cash/bank account
-    const firstOption = listbox.locator('[role="option"]').first();
-    await expect(firstOption).toBeVisible({ timeout: 3_000 });
-    await firstOption.click();
+    await selectComboboxValue(page, "cashAccountId", "Kas");
 
     // Step 4: Submit
     const submitBtn = page.getByRole("button", { name: /Catat Penjualan|Catat Transaksi/i }).first();
@@ -117,14 +109,7 @@ test.describe("Transaction → Report flow (cash sale)", () => {
     await descField.fill("[E2E] Purchase Test");
 
     // Select cash account ("Dibayar dari" combobox)
-    const cashAccountCombobox = page.locator('input[role="combobox"][name="cashAccountId"]');
-    await expect(cashAccountCombobox).toBeVisible({ timeout: 5_000 });
-    await cashAccountCombobox.click();
-    const listbox = page.locator('[role="listbox"]');
-    await expect(listbox).toBeVisible({ timeout: 3_000 });
-    const firstOption = listbox.locator('[role="option"]').first();
-    await expect(firstOption).toBeVisible({ timeout: 3_000 });
-    await firstOption.click();
+    await selectComboboxValue(page, "cashAccountId", "Kas");
 
     // Submit
     const submitBtn = page.getByRole("button", { name: /Catat Pembelian|Catat Transaksi/i }).first();

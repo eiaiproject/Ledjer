@@ -1,24 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { E2E_OWNER } from "./fixtures/users";
+import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Transaction list, search, filter, and sort tests.
  */
 
-async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/login");
-  await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /^Masuk$/ }).click();
-  await page.waitForURL((url) =>
-    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-    { timeout: 15_000 },
-  );
-}
-
 test.describe("Transaction list page", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsOwner(page);
+    await loginViaUI(page);
     await expect(page).toHaveURL(/\/dashboard|\/onboarding/);
     await page.goto("/transactions");
     await expect(page).toHaveURL(/\/transactions/);
@@ -55,7 +44,7 @@ test.describe("Transaction list page", () => {
 
 test.describe("Transaction detail page", () => {
   test("invalid UUID shows error state, not crash", async ({ page }) => {
-    await loginAsOwner(page);
+    await loginViaUI(page);
     await page.goto("/transactions/00000000-0000-0000-0000-000000000000");
     await page.waitForLoadState("networkidle");
     const bodyText = await page.locator("body").textContent();

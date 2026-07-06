@@ -102,11 +102,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Payload too large" }, 413);
     }
 
-    // Enforce size limit on actual body (defense-in-depth, after reading)
-    if (rawPayload.length > MAX_BODY_SIZE) {
-      return jsonResponse({ error: "Payload too large" }, 413);
-    }
-
     let payload: Record<string, unknown>;
     try {
       payload = JSON.parse(rawPayload);

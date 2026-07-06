@@ -8,10 +8,6 @@ import {
 } from "./fixtures/seed";
 import { getCashAccount } from "./fixtures/accounts";
 import { cleanupE2EOrganizations, cleanupE2EUsers } from "./fixtures/cleanup";
-import {
-  createCheckoutSession,
-  getOrganization,
-} from "./fixtures/billing";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -72,6 +68,55 @@ async function setOrgPlan(
     },
   );
   expect(res.ok).toBe(true);
+}
+
+async function createCheckoutSession(
+  orgId: string,
+  invoiceId: string,
+  transactionId: string,
+  overrides: Record<string, unknown> = {},
+) {
+  await fetch(
+    `${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions?organization_id=eq.${orgId}&status=eq.pending`,
+    { method: "DELETE", headers: SR_HEADERS },
+  ).catch(() => {});
+
+  const res = await fetch(`${E2E.supabaseUrl}/rest/v1/billing_checkout_sessions`, {
+    method: "POST",
+    headers: { ...SR_HEADERS, Prefer: "return=representation" },
+    body: JSON.stringify({
+      organization_id: orgId,
+      created_by: await ensureTestUser(E2E_OWNER),
+      plan: "solo",
+      billing_period: "monthly",
+      amount: 39_000,
+      currency: "IDR",
+      status: "pending",
+      payment_provider: "mayar",
+      mayar_invoice_id: invoiceId,
+      mayar_transaction_id: transactionId,
+      checkout_url: "https://checkout.mayar.test/pay/test",
+      customer_email: "test@example.com",
+      customer_mobile: "6281234567890",
+      expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+      ...overrides,
+    }),
+  });
+  expect(res.ok).toBe(true);
+
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function getOrganization(orgId: string) {
+  const res = await fetch(
+    `${E2E.supabaseUrl}/rest/v1/organizations?id=eq.${orgId}&select=current_plan,subscription_status`,
+    { headers: SR_HEADERS },
+  );
+  expect(res.ok).toBe(true);
+
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
 }
 
 async function postCashSale(

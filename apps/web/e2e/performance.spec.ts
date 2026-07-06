@@ -1,20 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { E2E_OWNER } from "./fixtures/users";
+import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Performance smoke E2E tests.
  */
-
-async function loginAsOwner(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/login");
-  await page.getByRole("textbox", { name: /email/i }).fill(E2E_OWNER.email);
-  await page.locator('input[type="password"]').fill(E2E_OWNER.password);
-  await page.getByRole("button", { name: /^Masuk$/ }).click();
-  await page.waitForURL((url) =>
-    url.pathname.includes("/dashboard") || url.pathname.includes("/onboarding"),
-    { timeout: 15_000 },
-  );
-}
 
 test.describe("Page load performance", () => {
   const performancePages = [
@@ -37,7 +26,7 @@ test.describe("Page load performance", () => {
 
 test.describe("Dashboard load performance", () => {
   test("dashboard loads within 12 seconds", async ({ page }) => {
-    await loginAsOwner(page);
+    await loginViaUI(page);
     const start = Date.now();
     await page.reload();
     await page.waitForLoadState("networkidle");
@@ -111,7 +100,7 @@ test.describe("Bundle size", () => {
 
 test.describe("Transaction list performance", () => {
   test("transaction list loads within 10 seconds", async ({ page }) => {
-    await loginAsOwner(page);
+    await loginViaUI(page);
     const start = Date.now();
     await page.goto("/transactions");
     await page.waitForLoadState("networkidle");
@@ -130,7 +119,7 @@ test.describe("Report performance", () => {
 
   for (const route of reportRoutes) {
     test(`${route} loads within 12 seconds`, async ({ page }) => {
-      await loginAsOwner(page);
+      await loginViaUI(page);
       const start = Date.now();
       await page.goto(route);
       await page.waitForLoadState("networkidle");

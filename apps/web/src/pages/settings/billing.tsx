@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useIsOwner } from "@/hooks/useOrganization";
 import { fetchMonthlyTransactionUsage } from "@/lib/transaction-usage";
-import type { PaidPlan } from "@/lib/billing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,8 @@ const BILLING_CONTACT_EMAIL = "projects.eiai@gmail.com";
 const UPGRADE_REQUEST_SUBJECT = "Permintaan upgrade paket Ledjer";
 const UPGRADE_REQUEST_SUBJECT_PARAM = encodeURIComponent(UPGRADE_REQUEST_SUBJECT);
 const BILLING_CONTACT_HREF = `mailto:${BILLING_CONTACT_EMAIL}?subject=${UPGRADE_REQUEST_SUBJECT_PARAM}`;
+
+type PaidPlan = "solo" | "business";
 
 const PLAN_DETAILS = {
   free: {
