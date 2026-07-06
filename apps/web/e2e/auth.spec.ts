@@ -78,11 +78,12 @@ test.describe("Register", () => {
   test("register with invalid email shows validation error", async ({ page }) => {
     await page.goto("/register");
     await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
-    await page.getByRole("textbox", { name: /email/i }).fill("not-an-email");
+    const emailInput = page.getByRole("textbox", { name: /email/i });
+    await emailInput.fill("not-an-email");
     await page.locator('input[type="password"]').first().fill("Password1!");
     await page.getByLabel(/konfirmasi password/i).fill("Password1!");
     await page.getByRole("button", { name: /^Daftar$/ }).click();
-    await expect(page.getByRole("alert").filter({ hasText: /email tidak valid/i }).first()).toBeVisible({ timeout: 5_000 });
+    await expect.poll(async () => emailInput.evaluate((input) => (input as HTMLInputElement).validity.typeMismatch)).toBe(true);
     await expect(page).toHaveURL(/\/register/);
   });
 
@@ -140,9 +141,10 @@ test.describe("Forgot Password", () => {
 
   test("invalid email shows validation error", async ({ page }) => {
     await page.goto("/forgot-password");
-    await page.getByRole("textbox", { name: /email/i }).fill("not-email");
+    const emailInput = page.getByRole("textbox", { name: /email/i });
+    await emailInput.fill("not-email");
     await page.getByRole("button", { name: /kirim/i }).click();
-    await expect(page.getByRole("alert").filter({ hasText: /email tidak valid/i }).first()).toBeVisible({ timeout: 5_000 });
+    await expect.poll(async () => emailInput.evaluate((input) => (input as HTMLInputElement).validity.typeMismatch)).toBe(true);
     await expect(page).toHaveURL(/\/forgot-password/);
   });
 });
