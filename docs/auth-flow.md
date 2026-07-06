@@ -121,10 +121,8 @@ Di `supabase/config.toml` section `[auth]`:
 ```toml
 [auth]
 additional_redirect_urls = [
-  "https://ledjer-ahk.pages.dev",
-  "https://ledjer-ahk.pages.dev/auth/callback",  # ← WAJIB ADA untuk recovery
   "https://ledjer.id",
-  "https://ledjer.id/auth/callback",  # future custom domain
+  "https://ledjer.id/auth/callback",  # wajib ada untuk recovery
   "http://localhost:5173",                # dev
   "http://localhost:5173/auth/callback",  # dev
 ]
@@ -151,7 +149,7 @@ Supabase mengirim email dengan template default-nya. Untuk customize branding (l
 
 ```toml
 [auth]
-site_url = "https://ledjer.id"  # future custom domain; current deploy: https://ledjer-ahk.pages.dev
+site_url = "https://ledjer.id"
 ```
 
 ### 4. JWT expiry

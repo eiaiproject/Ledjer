@@ -136,7 +136,7 @@ BEGIN
 
   PERFORM public._test_impersonate(v_owner_id);
 
-  -- Post more than the old 50/month cap; all should succeed.
+  -- Post enough transactions to catch a reintroduced transaction cap.
   FOR v_i IN 1..55 LOOP
     v_txn_id := (public.post_transaction(
       v_org_id, CURRENT_DATE, 'cash_sale', 10000,
@@ -153,7 +153,7 @@ BEGIN
 END $$;
 
 -- ═══════════════════════════════════════════════════════════════════
--- S4: Source-level check — permission guard stays and monthly cap is removed
+-- S4: Source-level check — permission guard stays
 -- ═══════════════════════════════════════════════════════════════════
 DO $$
 DECLARE
@@ -169,14 +169,6 @@ BEGIN
     'S4.1: post_transaction contains has_permission check',
     v_source LIKE '%has_permission%' AND v_source LIKE '%can_create_transaction%',
     'Missing has_permission("can_create_transaction") guard'
-  );
-
-  PERFORM public._test_assert(
-    'S4.2: post_transaction has no monthly transaction cap guard',
-    v_source NOT ILIKE '%Batas 50 transaksi%'
-      AND v_source NOT ILIKE '%limit reached (50 transactions/month)%'
-      AND v_source NOT ILIKE '%v_txn_count >= 50%',
-    'Found old monthly transaction cap guard'
   );
 END $$;
 

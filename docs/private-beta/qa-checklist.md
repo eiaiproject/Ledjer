@@ -115,7 +115,7 @@ Expand on the existing `docs/qa-checklist.md` with private-beta-specific scenari
 
 | # | Scenario | Steps | Expected |
 |---|----------|-------|----------|
-| I1 | Home page loads | Open production URL (`https://ledjer-ahk.pages.dev`) | Landing page renders |
+| I1 | Home page loads | Open production URL (`https://ledjer.id`) | Landing page renders |
 | I2 | Login page loads | Navigate to `/login` | Login form visible |
 | I3 | Register page loads | Navigate to `/register` | Register form visible |
 | I4 | Supabase connection | Submit login form | Auth request succeeds (check network tab) |

@@ -517,10 +517,8 @@ Atau via dashboard: SQL Editor → paste migration files satu per satu (urut ber
 ```
 [auth]
 additional_redirect_urls = [
-  "https://ledjer-ahk.pages.dev",
-  "https://ledjer-ahk.pages.dev/auth/callback",       # email confirmation + recovery
   "https://ledjer.id",
-  "https://ledjer.id/auth/callback",            # future custom domain
+  "https://ledjer.id/auth/callback",            # email confirmation + recovery
   "http://localhost:5173",                     # dev
   "http://localhost:5173/auth/callback",       # dev
 ]

@@ -47,7 +47,7 @@ Each item must be verified and signed off by the launch owner.
 - [ ] `revoke_invitation` RPC tested
 - [ ] Invitation expiry enforced
 - [ ] Cross-org invite prevention verified
-- [ ] Plan limit (Business only, 1 staff max) enforced
+- [ ] Staff invitations remain available during free access
 - [ ] Invitation audit logging working
 
 ## Period Lock
@@ -105,7 +105,7 @@ Each item must be verified and signed off by the launch owner.
 
 ## Deployment
 
-- [ ] Domain configured (`https://ledjer-ahk.pages.dev` currently; `https://ledjer.id` after Cloudflare custom domain is active)
+- [ ] Domain configured (`https://ledjer.id`)
 - [ ] HTTPS enabled
 - [ ] Auth redirect URLs configured in Supabase
 - [ ] Production environment variables set
@@ -166,7 +166,7 @@ pnpm --filter web build
 # For Vercel: vercel --prod
 
 # 5. Verify production
-curl -I https://ledjer-ahk.pages.dev/login
+curl -I https://ledjer.id/login
 
 # 6. Run deploy smoke tests
 pnpm test:e2e:deploy

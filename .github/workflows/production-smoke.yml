@@ -2,8 +2,7 @@ name: Production Smoke Test
 
 # Manual/scheduled smoke test for the Cloudflare Pages production deployment.
 # Does NOT deploy anything — only validates the current production URL.
-# Current production URL: https://ledjer-ahk.pages.dev
-# Future custom domain: https://ledjer.id (optional check, not required)
+# Production URL: https://ledjer.id
 
 on:
   workflow_dispatch:
@@ -12,8 +11,7 @@ on:
   #   - cron: "0 */6 * * *"
 
 env:
-  PRODUCTION_URL: https://ledjer-ahk.pages.dev
-  CUSTOM_DOMAIN_URL: https://ledjer.id
+  PRODUCTION_URL: https://ledjer.id
 
 concurrency:
   group: production-smoke
@@ -21,7 +19,7 @@ concurrency:
 
 jobs:
   smoke:
-    name: "Production Smoke (ledjer-ahk.pages.dev)"
+    name: "Production Smoke (ledjer.id)"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -56,16 +54,6 @@ jobs:
           E2E_BASE_URL: ${{ env.PRODUCTION_URL }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
-
-      - name: Optional — custom domain smoke (may fail if DNS not active)
-        continue-on-error: true
-        run: |
-          echo "Checking custom domain: ${{ env.CUSTOM_DOMAIN_URL }}"
-          if curl -fsS "${{ env.CUSTOM_DOMAIN_URL }}" -o /dev/null --max-time 10; then
-            echo "✅ Custom domain ${{ env.CUSTOM_DOMAIN_URL }} is active"
-          else
-            echo "⚠️  Custom domain ${{ env.CUSTOM_DOMAIN_URL }} not active yet — skipping"
-          fi
 
       - name: Upload smoke report
         if: failure()

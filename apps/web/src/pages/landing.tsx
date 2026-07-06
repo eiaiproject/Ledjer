@@ -199,14 +199,14 @@ const navLinks = [
   { label: "Cara kerja", href: "#cara-kerja" },
   { label: "Laporan", href: "#laporan" },
   { label: "Keamanan", href: "#keamanan" },
-  { label: "Harga", href: "#harga" },
+  { label: "Akses", href: "#akses" },
 ] as const;
 
 const footerLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Laporan", href: "#laporan" },
   { label: "Keamanan", href: "#keamanan" },
-  { label: "Harga", href: "#harga" },
+  { label: "Akses", href: "#akses" },
   { label: "Masuk", to: "/login" as const },
   { label: "Mulai Gratis", to: "/register" as const },
 ] as const;

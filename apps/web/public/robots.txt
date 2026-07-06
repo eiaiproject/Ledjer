@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /auth/
+Disallow: /invitations/
+Disallow: /onboarding
+Disallow: /dashboard
+Disallow: /transactions
+Disallow: /accounts
+Disallow: /products
+Disallow: /reports
+Disallow: /settings
+
+Sitemap: https://ledjer.id/sitemap.xml
