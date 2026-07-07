@@ -58,9 +58,9 @@ apps/web/
     services/              Domain logic
   e2e/                     Public Playwright smoke/visual tests
 docs/
-  accounting-rules.md
-  testing.md
-  cloudflare-rewrite-plan.md
+  accounting-rules.md       Accounting rules reference
+  testing.md                Testing guide
+  production/               Monitoring and incident response
 archive/supabase-reference/
   Historical Supabase implementation, SQL tests, E2E fixtures, and docs.
 ```

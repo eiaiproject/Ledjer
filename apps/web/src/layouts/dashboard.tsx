@@ -48,6 +48,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
     requires: "canManageTeam",
     children: [
       { to: "/settings/team", label: "Tim" },
+      { to: "/settings/period-locks", label: "Kunci Periode" },
     ],
   },
 ];

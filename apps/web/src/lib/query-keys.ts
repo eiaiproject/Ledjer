@@ -80,6 +80,11 @@ export const queryKeys = {
     all: () => ["journal-entries"] as const,
   },
 
+  periodLocks: {
+    list: (orgId: string | undefined) => ["period-locks", orgId] as const,
+    all: () => ["period-locks"] as const,
+  },
+
 } as const;
 
 /**
