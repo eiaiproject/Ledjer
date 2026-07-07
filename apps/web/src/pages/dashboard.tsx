@@ -11,24 +11,13 @@ import {
   Plus,
   BookOpen,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDate } from "@/lib/utils";
-
-interface DashboardSummary {
-  cash_balance: number;
-  revenue_current_period: number;
-  expense_current_period: number;
-  net_profit_current_period: number;
-  accounts_receivable: number;
-  accounts_payable: number;
-  period_from: string;
-  period_to: string;
-}
+import { getDashboardSummary } from "@/lib/api/dashboard";
 
 export function DashboardPage() {
   const { data: orgData, isLoading: orgLoading } = useOrganization();
@@ -44,14 +33,7 @@ export function DashboardPage() {
 
   const { data: summary, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.dashboard(orgData?.organization?.id),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return null;
-      const { data, error } = await supabase.rpc("get_dashboard_summary", {
-        p_organization_id: orgData.organization.id,
-      });
-      if (error) throw error;
-      return data as unknown as DashboardSummary;
-    },
+    queryFn: () => getDashboardSummary(),
     enabled: !!orgData?.organization?.id && canViewReports,
   });
 

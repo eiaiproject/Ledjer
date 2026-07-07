@@ -1,25 +1,18 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
-import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
+import { translateError } from "@/lib/errors";
+import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Download } from "lucide-react";
-
-interface ProfitLossItem {
-  section: string;
-  account_code: number;
-  account_name: string;
-  amount: number;
-}
+import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 
 const SECTION_LABELS: Record<string, { label: string; color: string }> = {
   revenue: { label: "Pendapatan", color: "text-success" },
@@ -34,7 +27,7 @@ const SECTION_LABELS: Record<string, { label: string; color: string }> = {
 
 export function ProfitLossPage() {
   const { data: orgData } = useOrganization();
-  const { canViewReports } = useOrgPermissions();
+  const { canViewReports, canCreateExports } = useOrgPermissions();
   
   const today = new Date();
   const firstDayOfMonth = formatDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -46,13 +39,7 @@ export function ProfitLossPage() {
     queryKey: queryKeys.reports.profitLoss(orgData?.organization?.id, fromDate, toDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase.rpc("get_profit_loss", {
-        p_organization_id: orgData.organization.id,
-        p_from_date: fromDate,
-        p_to_date: toDate,
-      });
-      if (error) throw error;
-      return data as ProfitLossItem[];
+      return getProfitLoss(fromDate, toDate);
     },
     enabled: !!orgData?.organization?.id && canViewReports && !dateRangeInvalid,
   });
@@ -98,6 +85,16 @@ export function ProfitLossPage() {
     { key: "net_income", items: [], total: netIncome },
   ];
 
+  const handleExport = async () => {
+    if (!orgData?.organization?.id || dateRangeInvalid) return;
+    try {
+      await exportProfitLossCsv(orgData.organization.id, fromDate, toDate);
+      toast.success("Export CSV laba rugi dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -130,15 +127,17 @@ export function ProfitLossPage() {
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => orgData?.organization?.id && exportProfitLossCsv(orgData.organization.id, fromDate, toDate).catch((err) => toast.error(translateError(err)))}
-              disabled={!data?.length || dateRangeInvalid}
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+            {canCreateExports && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void handleExport()}
+                disabled={!data?.length || dateRangeInvalid}
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,7 +1,5 @@
-import { supabase } from "@/lib/supabase";
-import type { Enums } from "@ledjer/database-types";
-
-type TransactionStatus = Enums<"transaction_status">;
+import { apiDownload } from "@/lib/api/client";
+import type { TransactionStatus } from "@/lib/api/transactions";
 
 interface TransactionExportFilters {
   fromDate?: string;
@@ -11,13 +9,7 @@ interface TransactionExportFilters {
   transactionType?: string;
 }
 
-/**
- * Download CSV data as a file.
- * ponytail: No server-side streaming yet; adequate for <10k rows.
- * Add streaming/chunked download for large exports.
- */
-function downloadCsv(csvContent: string, filename: string): void {
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -29,97 +21,94 @@ function downloadCsv(csvContent: string, filename: string): void {
 }
 
 function todayFilename(prefix: string): string {
-  const d = new Date();
-  const date = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  return `${prefix}_${date}.csv`;
+  const date = new Date();
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${prefix}_${yyyy}${mm}${dd}.csv`;
+}
+
+async function downloadCsv(path: string, fallbackFilename: string): Promise<void> {
+  const { blob, filename } = await apiDownload(path);
+  downloadBlob(blob, filename || fallbackFilename);
 }
 
 export async function exportTransactionsCsv(
-  organizationId: string,
-  filters: TransactionExportFilters = {}
+  _organizationId: string,
+  filters: TransactionExportFilters = {},
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("export_transactions_csv", {
-    p_organization_id: organizationId,
-    p_from_date: filters.fromDate || undefined,
-    p_search: filters.search || undefined,
-    p_status: filters.status || undefined,
-    p_to_date: filters.toDate || undefined,
-    p_transaction_type: filters.transactionType || undefined,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("transaksi"));
+  const params = new URLSearchParams();
+  if (filters.fromDate) params.set("fromDate", filters.fromDate);
+  if (filters.search) params.set("search", filters.search);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.toDate) params.set("toDate", filters.toDate);
+  if (filters.transactionType) params.set("transactionType", filters.transactionType);
+  await downloadCsv(
+    `/api/exports/transactions.csv${params.size ? `?${params}` : ""}`,
+    todayFilename("transaksi"),
+  );
 }
 
-export async function exportAccountsCsv(
-  organizationId: string
-): Promise<void> {
-  const { data, error } = await supabase.rpc("export_accounts_csv", {
-    p_organization_id: organizationId,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("akun"));
+export async function exportAccountsCsv(_organizationId: string): Promise<void> {
+  void _organizationId;
+  await downloadCsv("/api/exports/accounts.csv", todayFilename("akun"));
 }
 
-export async function exportProductsCsv(
-  organizationId: string
-): Promise<void> {
-  const { data, error } = await supabase.rpc("export_products_csv", {
-    p_organization_id: organizationId,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("produk"));
+export async function exportProductsCsv(_organizationId: string): Promise<void> {
+  void _organizationId;
+  await downloadCsv("/api/exports/products.csv", todayFilename("produk"));
 }
 
 export async function exportTrialBalanceCsv(
-  organizationId: string,
-  asOfDate?: string
+  _organizationId: string,
+  asOfDate?: string,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("export_trial_balance_csv", {
-    p_organization_id: organizationId,
-    p_as_of_date: asOfDate || undefined,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("neraca_saldo"));
+  const params = new URLSearchParams();
+  if (asOfDate) params.set("asOfDate", asOfDate);
+  await downloadCsv(
+    `/api/exports/reports/trial-balance.csv${params.size ? `?${params}` : ""}`,
+    todayFilename("neraca_saldo"),
+  );
 }
 
 export async function exportProfitLossCsv(
-  organizationId: string,
+  _organizationId: string,
   fromDate?: string,
-  toDate?: string
+  toDate?: string,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("export_profit_loss_csv", {
-    p_organization_id: organizationId,
-    p_from_date: fromDate || undefined,
-    p_to_date: toDate || undefined,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("laba_rugi"));
+  const params = new URLSearchParams();
+  if (fromDate) params.set("fromDate", fromDate);
+  if (toDate) params.set("toDate", toDate);
+  await downloadCsv(
+    `/api/exports/reports/profit-loss.csv${params.size ? `?${params}` : ""}`,
+    todayFilename("laba_rugi"),
+  );
 }
 
 export async function exportBalanceSheetCsv(
-  organizationId: string,
-  asOfDate?: string
+  _organizationId: string,
+  asOfDate?: string,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("export_balance_sheet_csv", {
-    p_organization_id: organizationId,
-    p_as_of_date: asOfDate || undefined,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("neraca"));
+  const params = new URLSearchParams();
+  if (asOfDate) params.set("asOfDate", asOfDate);
+  await downloadCsv(
+    `/api/exports/reports/balance-sheet.csv${params.size ? `?${params}` : ""}`,
+    todayFilename("neraca"),
+  );
 }
 
 export async function exportGeneralLedgerCsv(
-  organizationId: string,
+  _organizationId: string,
   accountId?: string,
   fromDate?: string,
-  toDate?: string
+  toDate?: string,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("export_general_ledger_csv", {
-    p_organization_id: organizationId,
-    p_account_id: accountId || undefined,
-    p_from_date: fromDate || undefined,
-    p_to_date: toDate || undefined,
-  });
-  if (error) throw error;
-  downloadCsv((data as string) || "", todayFilename("buku_besar"));
+  const params = new URLSearchParams();
+  if (accountId && accountId !== "all") params.set("accountId", accountId);
+  if (fromDate) params.set("fromDate", fromDate);
+  if (toDate) params.set("toDate", toDate);
+  await downloadCsv(
+    `/api/exports/reports/general-ledger.csv${params.size ? `?${params}` : ""}`,
+    todayFilename("buku_besar"),
+  );
 }

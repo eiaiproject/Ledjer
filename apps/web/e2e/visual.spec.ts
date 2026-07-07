@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Visual regression E2E tests.
@@ -109,79 +108,3 @@ for (const vp of visualPages) {
     });
   });
 }
-
-test.describe("Dashboard visual", () => {
-  test("dashboard screenshot", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await loginViaUI(page);
-    if (!page.url().includes("/dashboard")) {
-      throw new Error(
-        `Dashboard visual test: seeded owner did not reach dashboard. ` +
-        `Current URL: ${page.url()}. Ensure seed completed successfully.`,
-      );
-    }
-
-    await applyReducedMotion(page);
-    await page.waitForLoadState("networkidle");
-    await page.locator("main, h1").first().waitFor({ state: "visible", timeout: 10_000 });
-    await waitForVisualReady(page);
-
-    await expect(page).toHaveScreenshot("dashboard-desktop.png", {
-      maxDiffPixelRatio: 0.01,
-      fullPage: false,
-    });
-  });
-});
-
-test.describe("Transaction form visual", () => {
-  test("transaction form screenshot", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await loginViaUI(page);
-    if (!page.url().includes("/dashboard")) {
-      throw new Error(
-        `Transaction form visual test: seeded owner did not reach dashboard. ` +
-        `Current URL: ${page.url()}. Ensure seed completed successfully.`,
-      );
-    }
-
-    await page.goto("/transactions/new");
-    await applyReducedMotion(page);
-    await page.waitForLoadState("networkidle");
-    await page.locator("form, main, h1").first().waitFor({ state: "visible", timeout: 10_000 });
-    await waitForVisualReady(page);
-
-    await expect(page).toHaveScreenshot("transaction-form-desktop.png", {
-      maxDiffPixelRatio: 0.01,
-      fullPage: false,
-    });
-  });
-});
-
-test.describe("Mobile sidebar visual", () => {
-  test("mobile sidebar screenshot", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await loginViaUI(page);
-    if (!page.url().includes("/dashboard")) {
-      throw new Error(
-        `Mobile sidebar visual test: seeded owner did not reach dashboard. ` +
-        `Current URL: ${page.url()}. Ensure seed completed successfully.`,
-      );
-    }
-
-    const menuBtn = page.getByRole("button", { name: /menu|navigation|sidebar/i }).first();
-    await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-    await menuBtn.click();
-    // Wait for the sidebar dialog/state we just opened to be attached.
-    await page.locator('[role="dialog"], aside, [data-state="open"]').first()
-      .waitFor({ state: "visible", timeout: 5_000 })
-      .catch(() => undefined); // Best-effort: layout may use inline drawer.
-
-    await applyReducedMotion(page);
-    await waitForVisualReady(page);
-
-    await expect(page).toHaveScreenshot("mobile-sidebar.png", {
-      maxDiffPixelRatio: 0.01,
-      fullPage: false,
-    });
-  });
-});

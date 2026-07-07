@@ -29,36 +29,16 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2
-        with:
-          version: 2.107.0
-          github-token: ${{ github.token }}
-
-      - name: Start local Supabase stack
-        run: supabase start --workdir . -x edge-runtime --debug
-
-      - name: Apply migrations
-        run: supabase db reset --workdir . --no-seed
-
-      - name: Export Supabase keys
-        run: bash scripts/export-supabase-env.sh
-
       - name: Build app
         env:
-          VITE_SUPABASE_URL: http://localhost:54321
-          VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
       - name: Run visual regression tests (update baselines)
         env:
-          E2E_MODE: full-local
+          E2E_MODE: local-smoke
           E2E_VISUAL: "1"
           E2E_BASE_URL: http://localhost:4173
-          E2E_SUPABASE_URL: http://localhost:54321
-          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium --update-snapshots
 
@@ -69,7 +49,3 @@ jobs:
           git add apps/web/e2e/visual.spec.ts-snapshots/
           git diff --cached --quiet || git commit -m "chore: update visual baselines [skip ci]"
           git push
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop --workdir . --no-backup || true

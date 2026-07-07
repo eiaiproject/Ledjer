@@ -37,6 +37,8 @@ supabase/functions/.env
 .eslintcache
 .parcel-cache
 .vite
+.wrangler
+**/.wrangler
 coverage
 .pnpm-store/
 

@@ -8,13 +8,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/__tests__/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'worker/**/*.{test,spec}.ts'],
     exclude: ['node_modules', 'dist'],
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@ledjer/database-types': path.resolve(__dirname, '../../packages/database-types/index.ts'),
     },
   },
 });

@@ -19,7 +19,6 @@
 #   - node_modules
 #   - dist (and any */dist/*)
 #   - __MACOSX, .DS_Store
-#   - supabase/.temp, supabase/.branches
 #   - *.log
 #   - test-results, playwright-report, coverage
 #   - *.pem, *.key (private key files)
@@ -72,8 +71,6 @@ elif [ -d "." ]; then
     -not -path '*/coverage/*' \
     -not -path '*/.DS_Store' \
     -not -name '*.log' \
-    -not -path '*/supabase/.temp/*' \
-    -not -path '*/supabase/.branches/*' \
     | sed 's|^\./||')
 else
   echo "ERROR: not in a directory. Provide an archive argument or run from a project directory." >&2

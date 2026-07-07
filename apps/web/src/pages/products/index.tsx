@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search, Download } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { exportProductsCsv } from "@/lib/csv-export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -18,19 +16,14 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
-
-interface Product {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  current_stock: number | null;
-  min_stock: number | null;
-  unit: string | null;
-  purchase_price: number | null;
-  selling_price: number | null;
-  is_active: boolean | null;
-}
+import { exportProductsCsv } from "@/lib/csv-export";
+import {
+  createProduct,
+  deactivateProduct,
+  listProducts,
+  updateProduct,
+  type Product,
+} from "@/lib/api/products";
 
 interface ProductFormData {
   code: string;
@@ -48,7 +41,7 @@ type ProductFormErrors = Partial<Record<keyof ProductFormData, string>>;
 
 export function ProductsPage() {
   const { data: orgData } = useOrganization();
-  const { canManageProducts } = useOrgPermissions();
+  const { canManageProducts, canCreateExports } = useOrgPermissions();
   const queryClient = useQueryClient();
   const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
 
@@ -74,14 +67,7 @@ export function ProductsPage() {
     queryKey: queryKeys.products.fullList(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, code, name, description, unit, purchase_price, selling_price, current_stock, min_stock, is_active")
-        .eq("organization_id", orgData.organization.id)
-        .eq("is_active", true)
-        .order("code");
-      if (error) throw error;
-      return data;
+      return listProducts();
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -95,28 +81,18 @@ export function ProductsPage() {
         name: data.name.trim(),
         description: data.description.trim() || null,
         unit: data.unit,
-        selling_price: data.selling_price,
-        min_stock: data.min_stock,
-        is_active: true,
+        sellingPrice: data.selling_price,
+        minStock: data.min_stock,
       };
 
       if (editingProduct) {
-        const { error } = await supabase
-          .from("products")
-          .update(basePayload)
-          .eq("id", editingProduct.id)
-          .eq("organization_id", orgData.organization.id);
-        if (error) throw error;
+        await updateProduct(editingProduct.id, basePayload);
       } else {
-        const { error } = await supabase
-          .from("products")
-          .insert({
-            ...basePayload,
-            purchase_price: data.purchase_price,
-            organization_id: orgData.organization.id,
-            current_stock: data.current_stock,
-          });
-        if (error) throw error;
+        await createProduct({
+          ...basePayload,
+          purchasePrice: data.purchase_price,
+          currentStock: data.current_stock,
+        });
       }
     },
     onSuccess: () => {
@@ -134,12 +110,7 @@ export function ProductsPage() {
   const deleteMutation = useMutation({
     mutationFn: async (product: Product) => {
       if (!orgData?.organization?.id) throw new Error("Organisasi tidak ditemukan");
-      const { error } = await supabase
-        .from("products")
-        .update({ is_active: false })
-        .eq("id", product.id)
-        .eq("organization_id", orgData.organization.id);
-      if (error) throw error;
+      await deactivateProduct(product.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
@@ -223,9 +194,14 @@ export function ProductsPage() {
     saveMutation.mutate(formData);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!orgData?.organization?.id) return;
-    exportProductsCsv(orgData.organization.id).catch((err) => toast.error(translateError(err)));
+    try {
+      await exportProductsCsv(orgData.organization.id);
+      toast.success("Export CSV produk dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
   };
 
   const filteredProducts = (products || []).filter((p) =>
@@ -244,16 +220,20 @@ export function ProductsPage() {
           <h1 className="text-2xl font-bold text-text-primary">Produk</h1>
           <p className="text-sm text-text-secondary mt-1">Kelola produk dan stok</p>
         </div>
-        {canManageProducts && (
+        {(canManageProducts || canCreateExports) && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button type="button" variant="outline" onClick={handleExport} disabled={!products?.length}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
-            <Button onClick={openCreateModal}>
-              <Plus className="h-4 w-4" />
-              Tambah Produk
-            </Button>
+            {canCreateExports && (
+              <Button type="button" variant="outline" onClick={() => void handleExport()} disabled={!products?.length}>
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
+            {canManageProducts && (
+              <Button onClick={openCreateModal}>
+                <Plus className="h-4 w-4" />
+                Tambah Produk
+              </Button>
+            )}
           </div>
         )}
       </div>

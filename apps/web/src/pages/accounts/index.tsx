@@ -12,13 +12,11 @@ import {
   AlertCircle,
   QrCode,
   Plus,
+  Download,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { translateError } from "@/lib/errors";
-import { exportAccountsCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,23 +26,19 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast-api";
-import { Download } from "lucide-react";
+import { translateError } from "@/lib/errors";
+import { exportAccountsCsv } from "@/lib/csv-export";
+import {
+  createCashBankAccount,
+  listAccounts,
+  updateAccountName,
+  type Account,
+  type CashBankKind,
+} from "@/lib/api/accounts";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Constants                                                  */
 /* ------------------------------------------------------------------ */
-
-interface Account {
-  id: string;
-  code: number;
-  name: string;
-  account_type: string;
-  is_active: boolean;
-  is_cash_account: boolean;
-  is_locked: boolean;
-  is_system: boolean;
-  normal_balance: string;
-}
 
 const ACCOUNT_TYPE_LABELS: Record<string, { label: string; color: "success" | "info" | "warning" | "error" | "neutral" }> = {
   asset: { label: "Aset", color: "success" },
@@ -69,7 +63,6 @@ const ACCOUNT_TYPE_GROUPS = [
 ];
 
 type Tab = "cashbank" | "all";
-type CashBankKind = "cash" | "bank" | "qris" | "ewallet";
 
 /** Determine cash/bank kind from account code + name */
 function getCashBankKind(account: { code: number; name: string; is_cash_account: boolean }): CashBankKind {
@@ -104,11 +97,11 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
 
   switch (kind) {
     case "cash":
-      minCode = 1110;
+      minCode = 1111;
       maxCode = 1119;
       break;
     case "bank":
-      minCode = 1120;
+      minCode = 1121;
       maxCode = 1129;
       break;
     case "qris":
@@ -182,18 +175,7 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
       if (!trimmed) throw new Error("Nama akun wajib diisi");
       if (trimmed.length > 60) throw new Error("Nama akun maksimal 60 karakter");
 
-      // Use server-side RPC for atomic account creation
-      const { data: result, error: rpcError } = await supabase
-        .rpc("create_cash_bank_account", {
-          p_organization_id: orgData.organization.id,
-          p_account_name: trimmed,
-          p_kind: data.kind,
-        });
-
-      if (rpcError) throw rpcError;
-      if (!result) throw new Error("Gagal membuat akun");
-
-      return result as { id: string; code: number; name: string };
+      return createCashBankAccount(data.kind, trimmed);
     },
     onSuccess: () => {
       toast.success("Akun berhasil ditambahkan");
@@ -354,36 +336,11 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
       if (!trimmed) throw new Error("Nama akun wajib diisi");
       if (trimmed.length > 60) throw new Error("Nama akun maksimal 60 karakter");
 
-      // Check for duplicate name
-      const { data: existing, error: checkError } = await supabase
-        .from("accounts")
-        .select("id")
-        .eq("organization_id", orgData!.organization!.id)
-        .ilike("name", trimmed)
-        .neq("id", account.id)
-        .limit(1);
-
-      if (checkError) throw checkError;
-      if (existing && existing.length > 0) {
-        throw new Error("Nama akun sudah digunakan");
-      }
-
-      // Use the rename_account function which bypasses RLS for system accounts
-      const { data: result, error: rpcError } = await supabase
-        .rpc("rename_account", {
-          p_account_id: account.id,
-          p_new_name: trimmed,
-        });
-
-      if (rpcError) throw rpcError;
-      if (!result) throw new Error("Gagal memperbarui akun");
-
-      return result as { id: string; name: string; code: number };
+      return updateAccountName(account.id, trimmed);
     },
     onSuccess: (data) => {
-      // Optimistically update the cache with the new name
       queryClient.setQueryData(
-        ["accounts", orgData?.organization?.id],
+        queryKeys.accounts.fullList(orgData?.organization?.id ?? ""),
         (old: Account[] | undefined) => {
           if (!old) return old;
           return old.map((a) =>
@@ -677,7 +634,7 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
 
 export function AccountsPage() {
   const { data: orgData } = useOrganization();
-  const { canManageAccounts } = useOrgPermissions();
+  const { canManageAccounts, canCreateExports } = useOrgPermissions();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("cashbank");
   const [editAccount, setEditAccount] = useState<Account | null>(null);
@@ -688,13 +645,7 @@ export function AccountsPage() {
     queryKey: queryKeys.accounts.fullList(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, code, name, account_type, is_active, is_cash_account, is_locked, is_system, normal_balance")
-        .eq("organization_id", orgData.organization.id)
-        .order("code");
-      if (error) throw error;
-      return (data || []) as Account[];
+      return listAccounts();
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -714,6 +665,16 @@ export function AccountsPage() {
 
   const handleEditSuccess = () => {
     // Query will auto-refetch due to invalidation in modal
+  };
+
+  const handleExport = async () => {
+    if (!orgData?.organization?.id) return;
+    try {
+      await exportAccountsCsv(orgData.organization.id);
+      toast.success("Export CSV akun dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
   };
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
@@ -738,12 +699,13 @@ export function AccountsPage() {
             Tambah Kas/Bank
           </Button>
         )}
-        {canManageAccounts && activeTab === "all" && (
+        {canCreateExports && activeTab === "all" && (
           <Button
             type="button"
             variant="ghost"
-            onClick={() => orgData?.organization?.id && exportAccountsCsv(orgData.organization.id).catch((err) => toast.error(translateError(err)))}
+            onClick={() => void handleExport()}
             className="w-full sm:w-auto"
+            disabled={!accounts?.length}
           >
             <Download className="mr-2 h-4 w-4" />
             Export CSV

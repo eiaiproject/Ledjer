@@ -17,16 +17,15 @@ import { ResetPasswordPage } from '@/pages/reset-password';
  *
  * Steps:
  *   1. User lands on /forgot-password, enters email, submits.
- *      supabase.auth.resetPasswordForEmail called with redirectTo
- *      pointing at /auth/callback?type=recovery.
+ *      Worker forgotPassword API is called.
  *   2. User clicks the recovery link in their email — lands on
  *      /auth/callback?token_hash=...&type=recovery.
- *      supabase.auth.verifyOtp({ type: 'recovery' }) is called and
- *      a temporary session is established.
+ *      Worker verifyEmail(..., 'recovery') is called and a temporary session
+ *      is established.
  *   3. AuthCallbackPage redirects to /reset-password.
  *   4. User enters a new password and submits.
- *      supabase.auth.updateUser({ password }) is called, then
- *      signOut is called, then router pushes to /login.
+ *      Worker resetPassword(password) is called, then signOut is called,
+ *      then router pushes to /login.
  *
  * The full chain is wired correctly end-to-end. If any step regresses
  * (e.g., someone changes the recovery redirect target), this test
@@ -34,27 +33,18 @@ import { ResetPasswordPage } from '@/pages/reset-password';
  */
 
 const mocks = vi.hoisted(() => ({
-  resetPasswordForEmail: vi.fn(),
-  exchangeCodeForSession: vi.fn(),
-  verifyOtp: vi.fn(),
-  updateUser: vi.fn(),
+  forgotPassword: vi.fn(),
+  verifyEmail: vi.fn(),
+  resetPassword: vi.fn(),
   signOut: vi.fn(),
-  // Mutable session state — set by mocked verifyOtp, read by useAuth().
+  // Mutable session state — set by mocked verifyEmail, read by useAuth().
   sessionRef: { current: null as null | object },
 }));
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      resetPasswordForEmail: (...args: unknown[]) =>
-        mocks.resetPasswordForEmail(...args),
-      exchangeCodeForSession: (...args: unknown[]) =>
-        mocks.exchangeCodeForSession(...args),
-      verifyOtp: (...args: unknown[]) => mocks.verifyOtp(...args),
-      updateUser: (...args: unknown[]) => mocks.updateUser(...args),
-      signOut: (...args: unknown[]) => mocks.signOut(...args),
-    },
-  },
+vi.mock('@/lib/api/auth', () => ({
+  forgotPassword: (...args: unknown[]) => mocks.forgotPassword(...args),
+  verifyEmail: (...args: unknown[]) => mocks.verifyEmail(...args),
+  resetPassword: (...args: unknown[]) => mocks.resetPassword(...args),
 }));
 
 vi.mock('@/contexts/auth-context', () => ({
@@ -67,7 +57,7 @@ vi.mock('@/contexts/auth-context', () => ({
     signIn: vi.fn(),
     signUp: vi.fn(),
     resendConfirmationEmail: vi.fn(),
-    signOut: vi.fn(),
+    signOut: (...args: unknown[]) => mocks.signOut(...args),
   }),
 }));
 
@@ -91,10 +81,9 @@ function FullRouter({ initialPath }: { initialPath: string }) {
 
 describe('Password recovery flow (integration)', () => {
   beforeEach(() => {
-    mocks.resetPasswordForEmail.mockReset();
-    mocks.exchangeCodeForSession.mockReset();
-    mocks.verifyOtp.mockReset();
-    mocks.updateUser.mockReset();
+    mocks.forgotPassword.mockReset();
+    mocks.verifyEmail.mockReset();
+    mocks.resetPassword.mockReset();
     mocks.signOut.mockReset();
     mocks.sessionRef.current = null;
     // AuthCallbackPage uses setTimeout before navigating — make them
@@ -110,7 +99,7 @@ describe('Password recovery flow (integration)', () => {
 
   it('flows /forgot-password → /auth/callback → /reset-password → /login', async () => {
     // ── Step 1: user requests password reset ────────────────────────
-    mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
+    mocks.forgotPassword.mockResolvedValue({ ok: true });
 
     render(<FullRouter initialPath="/forgot-password" />);
 
@@ -122,14 +111,11 @@ describe('Password recovery flow (integration)', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+      expect(mocks.forgotPassword).toHaveBeenCalledTimes(1);
     });
 
-    const [email, options] = mocks.resetPasswordForEmail.mock.calls[0]!;
+    const [email] = mocks.forgotPassword.mock.calls[0]!;
     expect(email).toBe('user@example.com');
-    expect(options).toEqual({
-      redirectTo: expect.stringMatching(/\/auth\/callback\?type=recovery$/),
-    });
 
     // Success view appears (no account enumeration).
     await waitFor(() => {
@@ -140,14 +126,14 @@ describe('Password recovery flow (integration)', () => {
     cleanup();
 
     // ── Step 2: user clicks the recovery link in their email ─────────
-    // verifyOtp establishes a temporary session.
-    mocks.verifyOtp.mockImplementation(async () => {
+    // verifyEmail establishes a temporary session.
+    mocks.verifyEmail.mockImplementation(async () => {
       mocks.sessionRef.current = {
-        access_token: 'recovery-token',
-        refresh_token: 'recovery-refresh',
-        user: { id: 'recovery-user', email: 'user@example.com' },
+        id: 'recovery-token',
+        user_id: 'recovery-user',
+        expires_at: Date.now() + 3600_000,
       };
-      return { error: null };
+      return { ok: true };
     });
 
     render(
@@ -155,10 +141,7 @@ describe('Password recovery flow (integration)', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalledWith({
-        token_hash: 'abc',
-        type: 'recovery',
-      });
+      expect(mocks.verifyEmail).toHaveBeenCalledWith('abc', 'recovery');
     });
 
     // Wait for the success state to render before the navigation.
@@ -179,7 +162,7 @@ describe('Password recovery flow (integration)', () => {
     expect(screen.getByLabelText(/konfirmasi password/i)).toBeTruthy();
 
     // ── Step 4: submit new password ───────────────────────────────────
-    mocks.updateUser.mockResolvedValue({ error: null });
+    mocks.resetPassword.mockResolvedValue({ ok: true });
     mocks.signOut.mockResolvedValue(undefined);
 
     fireEvent.change(screen.getByLabelText(/^password baru$/i), {
@@ -193,9 +176,7 @@ describe('Password recovery flow (integration)', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.updateUser).toHaveBeenCalledWith({
-        password: 'newSecurePassword123',
-      });
+      expect(mocks.resetPassword).toHaveBeenCalledWith('newSecurePassword123');
     });
 
     // After successful update, page signs out then redirects to /login
@@ -212,10 +193,8 @@ describe('Password recovery flow (integration)', () => {
     });
   });
 
-  it('rejects recovery flow if verifyOtp fails (token expired / invalid)', async () => {
-    mocks.verifyOtp.mockResolvedValue({
-      error: { message: 'Token has expired or is invalid' },
-    });
+  it('rejects recovery flow if verifyEmail fails (token expired / invalid)', async () => {
+    mocks.verifyEmail.mockRejectedValue(new Error('Token has expired or is invalid'));
 
     render(
       <FullRouter initialPath="/auth/callback?token_hash=expired&type=recovery" />,
@@ -228,16 +207,17 @@ describe('Password recovery flow (integration)', () => {
       screen.getByText(/Token telah kedaluwarsa/i),
     ).toBeTruthy();
     // No navigation happens on error.
-    expect(mocks.updateUser).not.toHaveBeenCalled();
+    expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 
   it('does not redirect a recovery link to /settings/team or /onboarding', async () => {
-    mocks.verifyOtp.mockImplementation(async () => {
+    mocks.verifyEmail.mockImplementation(async () => {
       mocks.sessionRef.current = {
-        access_token: 'recovery-token',
-        user: { id: 'recovery-user' },
+        id: 'recovery-token',
+        user_id: 'recovery-user',
+        expires_at: Date.now() + 3600_000,
       };
-      return { error: null };
+      return { ok: true };
     });
 
     render(
@@ -245,7 +225,7 @@ describe('Password recovery flow (integration)', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.verifyOtp).toHaveBeenCalled();
+      expect(mocks.verifyEmail).toHaveBeenCalled();
     });
     expect(screen.getByText(/email terkonfirmasi/i)).toBeTruthy();
 

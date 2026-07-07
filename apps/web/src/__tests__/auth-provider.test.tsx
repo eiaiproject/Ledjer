@@ -5,17 +5,15 @@ import { useAuth } from '@/contexts/auth-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+  getMe: vi.fn(),
 }));
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: () => mocks.getSession(),
-      onAuthStateChange: (...args: unknown[]) => mocks.onAuthStateChange(...args),
-    },
-  },
+vi.mock('@/lib/api/auth', () => ({
+  getMe: () => mocks.getMe(),
+  login: vi.fn(),
+  logout: vi.fn(),
+  register: vi.fn(),
+  resendVerification: vi.fn(),
 }));
 
 function Consumer() {
@@ -36,11 +34,11 @@ describe('AuthProvider', () => {
         },
       },
     });
-    mocks.getSession.mockReset();
+    mocks.getMe.mockReset();
   });
 
   it('renders loading state initially then shows consumer content when successful', async () => {
-    mocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    mocks.getMe.mockResolvedValue({ session: null, user: null });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -58,7 +56,7 @@ describe('AuthProvider', () => {
   });
 
   it('exposes error via context instead of blocking render when getSession rejects', async () => {
-    mocks.getSession.mockRejectedValueOnce(new Error('Network failure'));
+    mocks.getMe.mockRejectedValueOnce(new Error('Network failure'));
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -74,8 +72,8 @@ describe('AuthProvider', () => {
     });
   });
 
-  it('loading resolves to guest session when getSession succeeds with null', async () => {
-    mocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+  it('loading resolves to guest session when getMe succeeds with null', async () => {
+    mocks.getMe.mockResolvedValue({ session: null, user: null });
 
     render(
       <QueryClientProvider client={queryClient}>

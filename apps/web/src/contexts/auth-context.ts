@@ -1,15 +1,15 @@
 import { createContext, useContext } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthSession, AuthUser } from "@/lib/api/auth";
 
 export interface SignUpResult {
-  session: Session | null;
-  user: User | null;
+  session: AuthSession | null;
+  user: AuthUser | null;
   needsEmailConfirmation: boolean;
 }
 
 export interface AuthContextType {
-  session: Session | null;
-  user: User | null;
+  session: AuthSession | null;
+  user: AuthUser | null;
   loading: boolean;
   error: Error | null;
   signIn: (email: string, password: string) => Promise<void>;

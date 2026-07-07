@@ -4,13 +4,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
+import { resetPassword } from "@/lib/api/auth";
 
 const resetSchema = z
   .object({
@@ -28,11 +28,11 @@ const resetSchema = z
 type ResetForm = z.infer<typeof resetSchema>;
 
 /**
- * Password-reset landing page used by Supabase recovery email links.
+ * Password-reset landing page used by recovery email links.
  *
- * The recovery flow in auth-callback.tsx verifies the OTP (verifyOtp with
- * type=recovery) and sets a temporary session. The user is redirected here
- * with that session, and is allowed to set a new password once.
+ * The recovery flow in auth-callback.tsx verifies the token and sets a
+ * temporary session cookie. The user is redirected here with that session,
+ * and is allowed to set a new password once.
  *
  * If the page is opened WITHOUT a recovery session (e.g. someone bookmarks
  * it, or refreshes after the session expires), we render a "request new
@@ -41,7 +41,7 @@ type ResetForm = z.infer<typeof resetSchema>;
  */
 export function ResetPasswordPage() {
   const navigate = useNavigate();
-  const { session, loading } = useAuth();
+  const { session, loading, signOut } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -72,15 +72,12 @@ export function ResetPasswordPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const { error: updateErr } = await supabase.auth.updateUser({
-        password: data.password,
-      });
-      if (updateErr) throw updateErr;
+      await resetPassword(data.password);
       setSuccess(true);
       // After a successful password reset, force a fresh sign-in so the
       // session reflects the new credentials.
       setTimeout(async () => {
-        await supabase.auth.signOut();
+        await signOut();
         navigate("/login", { replace: true });
       }, 1500);
     } catch (err) {

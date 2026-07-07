@@ -29,7 +29,9 @@ FAIL=0
 # Using indexed arrays for bash 3.2 compatibility (macOS).
 # Patterns use ERE syntax (grep -E) — no backslash-escaped braces/parens.
 LABELS=(
-  "SUPABASE_SERVICE_ROLE_KEY"
+  "EMAIL_API_KEY"
+  "GOOGLE_CLIENT_SECRET"
+  "SENTRY_DSN"
   "SENTRY_AUTH_TOKEN"
   "AWS_ACCESS_KEY_ID"
   "GitHub token"
@@ -37,7 +39,9 @@ LABELS=(
   "Private key marker"
 )
 PATTERNS=(
-  "SUPABASE_SERVICE_ROLE_KEY"
+  "EMAIL_API_KEY"
+  "GOOGLE_CLIENT_SECRET"
+  "SENTRY_DSN"
   "SENTRY_AUTH_TOKEN"
   "AKIA[0-9A-Z]{16}"
   "gh[pousr]_[A-Za-z0-9_]{36,}"

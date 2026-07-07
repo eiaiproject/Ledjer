@@ -11,10 +11,10 @@ import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
-import { supabase } from "@/lib/supabase";
-import { buildAuthCallbackUrl, getSafeRedirectPath } from "@/lib/redirect";
+import { getSafeRedirectPath } from "@/lib/redirect";
 import { useCooldown } from "@/hooks/useCooldown";
-import { isAuthError } from "@supabase/supabase-js";
+import { isApiError } from "@/lib/api/client";
+import { startGoogleAuth } from "@/lib/api/auth";
 import { Lock, Mail } from "lucide-react";
 
 const loginSchema = z.object({
@@ -23,8 +23,11 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
-const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
+
+function getRateLimitDeadline(): number {
+  return Date.now() + LOGIN_LOCKOUT_MINUTES * 60_000 + 500;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -66,8 +69,6 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-
-
   const onSubmit = async (data: LoginForm) => {
     if (loading || oauthLoading) return;
     const email = data.email.trim().toLowerCase();
@@ -75,39 +76,19 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: isLocked } = await supabase.rpc("is_email_rate_limited", {
-        p_email: email,
-        p_max_attempts: LOGIN_MAX_ATTEMPTS,
-        p_lockout_minutes: LOGIN_LOCKOUT_MINUTES,
-      });
-
-      if (isLocked) {
-        const lockoutMs = LOGIN_LOCKOUT_MINUTES * 60_000;
-        // eslint-disable-next-line react-hooks/purity -- Date.now() in event handler, not render
-        const deadline = Date.now() + lockoutMs + 500;
-        setRateLimited(true);
-        setError(`Terlalu banyak percobaan gagal. Coba lagi dalam ${LOGIN_LOCKOUT_MINUTES} menit.`);
-        setRateLimitUntil(deadline);
-        return;
-      }
-
       await signIn(email, data.password);
-      void supabase.rpc("record_login_attempt", {
-        p_email: email,
-        p_user_agent: navigator.userAgent,
-      });
       navigate(getSafeRedirectPath(searchParams.get("redirect"), "/dashboard"));
     } catch (err) {
       const message = translateError(err);
-      void supabase.rpc("record_login_attempt_pre_auth", {
-        p_email: email,
-        p_user_agent: navigator.userAgent,
-        p_error_message: message,
-      });
       setError(message);
 
+      if (isApiError(err) && err.code === "rate_limited") {
+        setRateLimited(true);
+        setRateLimitUntil(getRateLimitDeadline());
+      }
+
       // Detect "email not confirmed" so we can offer a resend action.
-      if (isAuthError(err) && err.code === "email_not_confirmed") {
+      if (isApiError(err) && err.code === "email_not_confirmed") {
         setUnverifiedEmail(email);
         resendCooldown.start();
       }
@@ -136,13 +117,9 @@ export function LoginPage() {
     setOauthLoading(true);
     setError(null);
     try {
-      const loginRedirect = getSafeRedirectPath(searchParams.get("redirect"));
-      const callbackUrl = buildAuthCallbackUrl(loginRedirect);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: callbackUrl.toString() },
-      });
-      if (error) throw error;
+      const response = await startGoogleAuth();
+      if (!response.url) throw new Error("Google OAuth is not configured yet");
+      window.location.assign(response.url);
     } catch (err) {
       setError(translateError(err));
       setOauthLoading(false);

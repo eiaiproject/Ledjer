@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { exportTrialBalanceCsv } from "@/lib/csv-export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,13 +9,15 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
-import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
+import { translateError } from "@/lib/errors";
+import { exportTrialBalanceCsv } from "@/lib/csv-export";
 import { Download } from "lucide-react";
+import { getTrialBalance } from "@/lib/api/reports";
 
 export function TrialBalancePage() {
   const { data: orgData } = useOrganization();
-  const { canViewReports } = useOrgPermissions();
+  const { canViewReports, canCreateExports } = useOrgPermissions();
   
   const [toDate, setToDate] = useState(formatDateInputValue());
 
@@ -25,12 +25,7 @@ export function TrialBalancePage() {
     queryKey: queryKeys.reports.trialBalance(orgData?.organization?.id, toDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase.rpc("get_trial_balance", {
-        p_organization_id: orgData.organization.id,
-        p_as_of_date: toDate,
-      });
-      if (error) throw error;
-      return data;
+      return getTrialBalance(toDate);
     },
     enabled: !!orgData?.organization?.id && canViewReports,
   });
@@ -51,6 +46,16 @@ export function TrialBalancePage() {
   const totalCredit = (data || []).reduce((sum, i) => sum + i.ending_credit, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 1;
 
+  const handleExport = async () => {
+    if (!orgData?.organization?.id) return;
+    try {
+      await exportTrialBalanceCsv(orgData.organization.id, toDate);
+      toast.success("Export CSV neraca saldo dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -67,15 +72,17 @@ export function TrialBalancePage() {
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => orgData?.organization?.id && exportTrialBalanceCsv(orgData.organization.id, toDate).catch((err) => toast.error(translateError(err)))}
-              disabled={!data?.length}
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+            {canCreateExports && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void handleExport()}
+                disabled={!data?.length}
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

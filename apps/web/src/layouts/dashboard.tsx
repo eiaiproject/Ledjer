@@ -45,6 +45,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   {
     label: "Pengaturan",
     icon: Settings,
+    requires: "canManageTeam",
     children: [
       { to: "/settings/team", label: "Tim" },
     ],

@@ -2,12 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { supabase } from "@/lib/supabase";
-import type { Enums } from "@ledjer/database-types";
-type TransactionStatus = Enums<"transaction_status">;
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { exportTransactionsCsv } from "@/lib/csv-export";
-import { translateError } from "@/lib/errors";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
@@ -17,25 +12,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast-api";
+import { translateError } from "@/lib/errors";
+import { exportTransactionsCsv } from "@/lib/csv-export";
 import { Receipt, Search, Download } from "lucide-react";
+import {
+  listTransactions,
+  type TransactionStatus,
+} from "@/lib/api/transactions";
 import {
   ALL_TRANSACTION_TYPE_LABELS,
   GENERAL_TRANSACTION_TYPE_LABELS,
   labelForTransactionType,
 } from "@/lib/transactions";
-
-interface Transaction {
-  id: string;
-  transaction_number: string;
-  transaction_date: string;
-  transaction_type: string;
-  amount: number;
-  description: string;
-  status: string;
-  payment_status: string;
-  created_by: string;
-  parties?: { name: string };
-}
 
 function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
   if (status === "posted") return "success";
@@ -59,7 +47,7 @@ function localDate(offsetDays = 0) {
 
 export function TransactionListPage() {
   const { data: orgData } = useOrganization();
-  const { canCreateTransaction } = useOrgPermissions();
+  const { canCreateTransaction, canCreateExports } = useOrgPermissions();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
@@ -75,44 +63,33 @@ export function TransactionListPage() {
     queryKey: queryKeys.transactions.list(orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      let query = supabase
-        .from("transactions")
-        .select("id, transaction_number, transaction_date, transaction_type, amount, description, status, payment_status, created_by")
-        .eq("organization_id", orgData.organization.id)
-        .is("original_transaction_id", null)
-        .not("transaction_type", "like", "opening_%")
-        .gte("transaction_date", fromDate)
-        .lte("transaction_date", toDate)
-        .order("transaction_date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .range(page * limit, (page + 1) * limit - 1);
-
-      if (normalizedSearch) {
-        query = query.or(`description.ilike.%${normalizedSearch}%,transaction_number.ilike.%${normalizedSearch}%`);
-      }
-      if (typeFilter) {
-        query = query.eq("transaction_type", typeFilter);
-      }
-      if (statusFilter) {
-        query = query.eq("status", statusFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as Transaction[];
+      return listTransactions({
+        search: normalizedSearch || undefined,
+        transactionType: typeFilter || undefined,
+        status: statusFilter || undefined,
+        fromDate,
+        toDate,
+        limit,
+        offset: page * limit,
+      });
     },
     enabled: !!orgData?.organization?.id,
   });
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!orgData?.organization?.id || dateRangeInvalid) return;
-    exportTransactionsCsv(orgData.organization.id, {
-      fromDate,
-      search: normalizedSearch,
-      status: statusFilter,
-      toDate,
-      transactionType: typeFilter,
-    }).catch((err) => toast.error(translateError(err)));
+    try {
+      await exportTransactionsCsv(orgData.organization.id, {
+        search: normalizedSearch || undefined,
+        transactionType: typeFilter || undefined,
+        status: statusFilter || undefined,
+        fromDate,
+        toDate,
+      });
+      toast.success("Export CSV transaksi dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
   };
 
   return (
@@ -123,15 +100,17 @@ export function TransactionListPage() {
           <p className="mt-1 text-sm text-text-secondary">Daftar transaksi posted dan pembatalan</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleExport}
-            disabled={dateRangeInvalid || !transactions?.length}
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          {canCreateExports && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleExport()}
+              disabled={dateRangeInvalid || !transactions?.length}
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
           {canCreateTransaction && (
             <Link
               to="/transactions/new"
