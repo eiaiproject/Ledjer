@@ -38,27 +38,16 @@ Last updated: 2026-07-31
 - Primary: [owner email]
 - Secondary: [backup email]
 
-## Supabase/Database Health
+## Worker/D1 Health
 
-**Status:** ⚠️ Manual monitoring via dashboard
+**Status:** ⚠️ Manual monitoring via Cloudflare dashboard
 
 ### Key Metrics to Watch
-- Active connections (`pg_stat_activity`)
-- Query performance (`pg_stat_statements`)
-- Disk usage
-- RLS policy violations (in logs)
+- Worker error rate and latency
+- D1 query failures
+- D1 storage and write volume
 - Auth failure rate
-
-### Health Check Queries
-```sql
--- Active connections
-SELECT count(*) FROM pg_stat_activity WHERE state = 'active';
-
--- Slow queries (top 10)
-SELECT query, calls, mean_exec_time
-FROM pg_stat_statements
-ORDER BY mean_exec_time DESC LIMIT 10;
-```
+- Auth failure rate
 
 ## Auth Monitoring
 
@@ -76,16 +65,16 @@ ORDER BY mean_exec_time DESC LIMIT 10;
 **Status:** ⚠️ Not configured
 
 For production, consider:
-- Supabase database logs (available in dashboard)
-- Cloudflare/Vercel edge logs
-- Structured logging for Edge Functions (if added)
+- Cloudflare Worker logs
+- Sentry frontend errors
+- Structured server logging when added
 
 ## Alerting Rules
 
 | Condition | Severity | Action |
 |-----------|----------|--------|
 | Frontend error spike | High | Check Sentry, investigate |
-| Database connection pool exhaustion | Critical | Scale up, investigate queries |
+| D1 query failures | Critical | Check Worker logs and recent migrations |
 | Auth failure spike | Medium | Check for brute force |
 | Uptime check failure | Critical | Investigate service status |
 | Slow query > 5s | Medium | Optimize or add index |
