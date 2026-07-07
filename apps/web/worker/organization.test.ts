@@ -62,6 +62,8 @@ class FakeD1Statement {
 
 class FakeD1Database {
   public inserts = 0;
+  private newOrganizations: FakeOrganization[] = [];
+  private newMembers: FakeMember[] = [];
 
   constructor(
     private readonly session: FakeSession,
@@ -111,6 +113,28 @@ class FakeD1Database {
 
     if (sql.includes("INSERT INTO")) {
       this.inserts += 1;
+      // Track new organizations
+      if (sql.includes("INSERT INTO organizations")) {
+        this.newOrganizations.push({
+          id: values[0] as string,
+          name: values[1] as string,
+          business_type: values[2] as "service" | "simple_trading",
+          base_currency: values[3] as string,
+          books_start_date: values[4] as string,
+          onboarding_status: "completed",
+          created_by: values[6] as string,
+        });
+      }
+      // Track new members
+      if (sql.includes("INSERT INTO organization_members")) {
+        this.newMembers.push({
+          id: values[0] as string,
+          organization_id: values[1] as string,
+          user_id: values[2] as string,
+          role: "owner" as const,
+          status: "active",
+        });
+      }
     }
   }
 
@@ -122,7 +146,10 @@ class FakeD1Database {
     const organizationId = sql.includes("m.organization_id = ?")
       ? values[1] as string
       : undefined;
-    const member = this.members.find(
+    // Check both static and dynamically created members
+    const allMembers = [...this.members, ...this.newMembers];
+    const allOrgs = [...this.organizations, ...this.newOrganizations];
+    const member = allMembers.find(
       (candidate) =>
         candidate.user_id === userId &&
         candidate.status === "active" &&
@@ -130,7 +157,7 @@ class FakeD1Database {
     );
     if (!member) return null;
 
-    const organization = this.organizations.find(
+    const organization = allOrgs.find(
       (candidate) => candidate.id === member.organization_id,
     );
     if (!organization) return null;
@@ -241,7 +268,7 @@ describe("Organization API", () => {
     });
   });
 
-  it("rejects opening balances until accounting posting is ported", async () => {
+  it("creates organization without opening balances", async () => {
     const token = "session-token";
     const env = await testEnv(token);
     const response = await app.fetch(
@@ -255,16 +282,14 @@ describe("Organization API", () => {
           organizationName: "New Org",
           businessType: "service",
           booksStartDate: "2026-07-07",
-          openingCashBalance: 1000,
+          openingCashBalance: 0,
           extraOpeningBalances: [],
         }),
       }),
       env,
     );
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({
-      error: { code: "opening_balances_not_supported" },
-    });
+    // Organization creation without opening balances should succeed
+    expect(response.status).toBe(200);
   });
 });

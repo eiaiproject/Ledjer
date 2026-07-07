@@ -1,5 +1,5 @@
 /**
- * Translate Supabase/PostgreSQL errors to Indonesian user-facing messages.
+ * Translate Worker API / database errors to Indonesian user-facing messages.
  */
 
 const ERROR_MAP: Record<string, string> = {
@@ -30,7 +30,7 @@ const AUTH_MESSAGES: Record<string, string> = {
   from_date_invalid: 'Tanggal awal tidak valid.',
   to_date_invalid: 'Tanggal akhir tidak valid.',
   as_of_date_invalid: 'Tanggal laporan tidak valid.',
-  opening_balances_not_supported: 'Saldo awal belum tersedia di backend baru. Buat organisasi dengan saldo 0 dulu.',
+  opening_balances_not_supported: 'Saldo awal tidak dapat diisi setelah onboarding selesai.',
   account_name_duplicate: 'Nama akun sudah digunakan.',
   account_code_duplicate: 'Kode akun sudah digunakan.',
   account_code_range_full: 'Kode akun untuk jenis ini sudah penuh.',

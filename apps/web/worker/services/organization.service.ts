@@ -1,5 +1,5 @@
 import { generateId } from "../auth/tokens";
-import { execute, nowMs, queryAll, queryFirst } from "../db/client";
+import { execute, executeBatch, nowMs, queryAll, queryFirst, statement } from "../db/client";
 import type { AccountType, NormalBalance, Role } from "../db/schema";
 import { badRequest, forbidden } from "../http/errors";
 import {
@@ -59,7 +59,8 @@ export interface OrganizationState {
 }
 
 export interface ExtraOpeningBalanceInput {
-  openingBalance?: number;
+  accountId?: string;
+  amount?: number;
 }
 
 export interface CreateOrganizationInput {
@@ -127,49 +128,22 @@ const DEFAULT_ACCOUNTS: readonly DefaultAccount[] = [
 
 const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
   owner: new Set([
-    "organization:read",
-    "organization:update",
-    "accounts:read",
-    "accounts:write",
-    "products:read",
-    "products:write",
-    "transactions:read",
-    "transactions:create",
-    "transactions:void",
-    "reports:read",
-    "team:read",
-    "team:manage",
-    "exports:create",
+    "organization:read", "organization:update", "accounts:read", "accounts:write",
+    "products:read", "products:write", "transactions:read", "transactions:create",
+    "transactions:void", "reports:read", "team:read", "team:manage", "exports:create",
   ]),
   admin: new Set([
-    "organization:read",
-    "organization:update",
-    "accounts:read",
-    "accounts:write",
-    "products:read",
-    "products:write",
-    "transactions:read",
-    "transactions:create",
-    "transactions:void",
-    "reports:read",
-    "team:read",
-    "team:manage",
-    "exports:create",
+    "organization:read", "organization:update", "accounts:read", "accounts:write",
+    "products:read", "products:write", "transactions:read", "transactions:create",
+    "transactions:void", "reports:read", "team:read", "team:manage", "exports:create",
   ]),
   member: new Set([
-    "organization:read",
-    "accounts:read",
-    "products:read",
-    "transactions:read",
-    "transactions:create",
-    "reports:read",
+    "organization:read", "accounts:read", "products:read",
+    "transactions:read", "transactions:create", "reports:read",
   ]),
   viewer: new Set([
-    "organization:read",
-    "accounts:read",
-    "products:read",
-    "transactions:read",
-    "reports:read",
+    "organization:read", "accounts:read", "products:read",
+    "transactions:read", "reports:read",
   ]),
 };
 
@@ -183,99 +157,51 @@ export async function getCurrentOrganization(
 ): Promise<OrganizationState> {
   if (session.current_organization_id) {
     const selected = await getOrganizationContextForUser(
-      db,
-      session.user_id,
-      session.current_organization_id,
+      db, session.user_id, session.current_organization_id,
     );
-    if (selected) {
-      return toState(selected);
-    }
+    if (selected) return toState(selected);
   }
 
   const fallback = await getOrganizationContextForUser(db, session.user_id);
   if (!fallback) {
-    return {
-      organization: null,
-      member: null,
-      needsOnboarding: true,
-      error: null,
-    };
+    return { organization: null, member: null, needsOnboarding: true, error: null };
   }
 
-  await setSessionCurrentOrganization(
-    db,
-    session.session_id,
-    fallback.organization.id,
-  );
+  await setSessionCurrentOrganization(db, session.session_id, fallback.organization.id);
   return toState(fallback);
 }
 
 export async function listOrganizationsForUser(
-  db: D1Database,
-  userId: string,
+  db: D1Database, userId: string,
 ): Promise<OrganizationContext[]> {
   const rows = await queryAll<OrganizationMemberRow>(
-    db,
-    `${organizationMemberSelect()}
-     WHERE m.user_id = ?
-       AND m.status = 'active'
-     ORDER BY m.created_at ASC`,
-    [userId],
+    db, `${organizationMemberSelect()} WHERE m.user_id = ? AND m.status = 'active' ORDER BY m.created_at ASC`, [userId],
   );
-
   return rows.map(toContext);
 }
 
 export async function getOrganizationContextForUser(
-  db: D1Database,
-  userId: string,
-  organizationId?: string,
+  db: D1Database, userId: string, organizationId?: string,
 ): Promise<OrganizationContext | null> {
   const row = await queryFirst<OrganizationMemberRow>(
-    db,
-    `${organizationMemberSelect()}
-     WHERE m.user_id = ?
-       ${organizationId ? "AND m.organization_id = ?" : ""}
-       AND m.status = 'active'
-     ORDER BY m.created_at ASC
-     LIMIT 1`,
+    db, `${organizationMemberSelect()} WHERE m.user_id = ? ${organizationId ? "AND m.organization_id = ?" : ""} AND m.status = 'active' ORDER BY m.created_at ASC LIMIT 1`,
     organizationId ? [userId, organizationId] : [userId],
   );
-
   return row ? toContext(row) : null;
 }
 
 export async function setCurrentOrganization(
-  db: D1Database,
-  session: CurrentSessionRow,
-  organizationId: string,
+  db: D1Database, session: CurrentSessionRow, organizationId: string,
 ): Promise<OrganizationState> {
-  const context = await getOrganizationContextForUser(
-    db,
-    session.user_id,
-    organizationId,
-  );
-
-  if (!context) {
-    throw forbidden("organization_forbidden", "Organization access denied");
-  }
-
+  const context = await getOrganizationContextForUser(db, session.user_id, organizationId);
+  if (!context) throw forbidden("organization_forbidden", "Organization access denied");
   await setSessionCurrentOrganization(db, session.session_id, organizationId);
   return toState(context);
 }
 
 export async function createOrganization(
-  db: D1Database,
-  session: CurrentSessionRow,
-  input: CreateOrganizationInput,
+  db: D1Database, session: CurrentSessionRow, input: CreateOrganizationInput,
 ): Promise<OrganizationState> {
-  if (hasPositiveOpeningBalances(input)) {
-    throw badRequest(
-      "opening_balances_not_supported",
-      "Opening balances are not available until accounting posting is ported",
-    );
-  }
-
   const current = nowMs();
   const organizationId = generateId();
   const memberId = generateId();
@@ -283,88 +209,50 @@ export async function createOrganization(
 
   await execute(
     db,
-    `INSERT INTO organizations (
-       id, name, business_type, base_currency, books_start_date,
-       onboarding_status, created_by, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)`,
-    [
-      organizationId,
-      organizationName,
-      input.businessType,
-      input.baseCurrency ?? "IDR",
-      input.booksStartDate,
-      session.user_id,
-      current,
-      current,
-    ],
+    `INSERT INTO organizations (id, name, business_type, base_currency, books_start_date, onboarding_status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'completed', ?, ?, ?)`,
+    [organizationId, organizationName, input.businessType, input.baseCurrency ?? "IDR", input.booksStartDate, session.user_id, current, current],
   );
 
   await execute(
     db,
-    `INSERT INTO organization_members (
-       id, organization_id, user_id, role, status, joined_at, created_at, updated_at
-     ) VALUES (?, ?, ?, 'owner', 'active', ?, ?, ?)`,
+    `INSERT INTO organization_members (id, organization_id, user_id, role, status, joined_at, created_at, updated_at) VALUES (?, ?, ?, 'owner', 'active', ?, ?, ?)`,
     [memberId, organizationId, session.user_id, current, current, current],
   );
 
   await createDefaultAccounts(db, organizationId, current);
-  await setSessionCurrentOrganization(db, session.session_id, organizationId);
 
-  const context = await getOrganizationContextForUser(
-    db,
-    session.user_id,
-    organizationId,
-  );
-  if (!context) {
-    throw badRequest("organization_create_failed", "Organization was not created");
+  // Post opening balances if provided
+  if (hasPositiveOpeningBalances(input)) {
+    await postOpeningBalances(db, organizationId, session.user_id, input, current);
   }
 
+  await setSessionCurrentOrganization(db, session.session_id, organizationId);
+
+  const context = await getOrganizationContextForUser(db, session.user_id, organizationId);
+  if (!context) throw badRequest("organization_create_failed", "Organization was not created");
   return toState(context);
 }
 
-export function requirePermission(
-  member: PublicOrganizationMember,
-  permission: Permission,
-): void {
+export function requirePermission(member: PublicOrganizationMember, permission: Permission): void {
   if (!hasPermission(member, permission)) {
     throw forbidden("permission_denied", "Permission denied");
   }
 }
 
 function organizationMemberSelect(): string {
-  return `SELECT
-       o.id AS organization_id,
-       o.name AS organization_name,
-       o.business_type,
-       o.base_currency,
-       o.books_start_date,
-       o.onboarding_status,
-       o.created_by,
-       m.id AS member_id,
-       m.user_id,
-       m.role,
-       m.status
-     FROM organization_members m
-     JOIN organizations o ON o.id = m.organization_id`;
+  return `SELECT o.id AS organization_id, o.name AS organization_name, o.business_type, o.base_currency, o.books_start_date, o.onboarding_status, o.created_by, m.id AS member_id, m.user_id, m.role, m.status FROM organization_members m JOIN organizations o ON o.id = m.organization_id`;
 }
 
 function toContext(row: OrganizationMemberRow): OrganizationContext {
   return {
     organization: {
-      id: row.organization_id,
-      name: row.organization_name,
-      business_type: row.business_type,
-      base_currency: row.base_currency,
-      books_start_date: row.books_start_date,
-      onboarding_status: row.onboarding_status,
-      created_by: row.created_by,
+      id: row.organization_id, name: row.organization_name, business_type: row.business_type,
+      base_currency: row.base_currency, books_start_date: row.books_start_date,
+      onboarding_status: row.onboarding_status, created_by: row.created_by,
     },
     member: {
-      id: row.member_id,
-      organization_id: row.organization_id,
-      user_id: row.user_id,
-      role: row.role,
-      status: row.status,
+      id: row.member_id, organization_id: row.organization_id, user_id: row.user_id,
+      role: row.role, status: row.status,
       can_create_transaction: ROLE_PERMISSIONS[row.role].has("transactions:create"),
       can_view_reports: ROLE_PERMISSIONS[row.role].has("reports:read"),
       can_manage_accounts: ROLE_PERMISSIONS[row.role].has("accounts:write"),
@@ -376,47 +264,99 @@ function toContext(row: OrganizationMemberRow): OrganizationContext {
 }
 
 function toState(context: OrganizationContext): OrganizationState {
-  return {
-    ...context,
-    needsOnboarding: context.organization.onboarding_status !== "completed",
-    error: null,
-  };
+  return { ...context, needsOnboarding: context.organization.onboarding_status !== "completed", error: null };
 }
 
 function hasPositiveOpeningBalances(input: CreateOrganizationInput): boolean {
   if ((input.openingCashBalance ?? 0) > 0) return true;
-  return (input.extraOpeningBalances ?? []).some(
-    (balance) => (balance.openingBalance ?? 0) > 0,
+  return (input.extraOpeningBalances ?? []).some((b) => (b.amount ?? 0) > 0);
+}
+
+async function postOpeningBalances(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: CreateOrganizationInput,
+  current: number,
+): Promise<void> {
+  const openingBalanceAccountId = await findAccountIdByCode(db, organizationId, "3200");
+  if (!openingBalanceAccountId) {
+    throw badRequest("account_not_found", "Opening balance account (3200) not found");
+  }
+
+  const statements: D1PreparedStatement[] = [];
+  let entriesCount = 1;
+
+  // Post cash/bank opening balance
+  const cashAmount = Math.round(input.openingCashBalance ?? 0);
+  if (cashAmount > 0) {
+    const cashAccountId = await findAccountIdByCode(db, organizationId, "1110");
+    if (!cashAccountId) throw badRequest("account_not_found", "Cash account (1110) not found");
+
+    const entryId = generateId();
+    const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
+
+    statements.push(statement(db,
+      `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal kas', 'posted', ?, ?, ?)`,
+      [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
+    ));
+
+    statements.push(statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal kas', 1, ?)`,
+      [generateId(), organizationId, entryId, cashAccountId, cashAmount, current],
+    ));
+    statements.push(statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal kas', 2, ?)`,
+      [generateId(), organizationId, entryId, openingBalanceAccountId, cashAmount, current],
+    ));
+
+  }
+
+  // Post extra opening balances
+  for (const extra of input.extraOpeningBalances ?? []) {
+    const amount = Math.round(extra.amount ?? 0);
+    if (amount <= 0 || !extra.accountId) continue;
+
+    const entryId = generateId();
+    const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
+
+    statements.push(statement(db,
+      `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal', 'posted', ?, ?, ?)`,
+      [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
+    ));
+
+    statements.push(statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal', 1, ?)`,
+      [generateId(), organizationId, entryId, extra.accountId, amount, current],
+    ));
+    statements.push(statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal', 2, ?)`,
+      [generateId(), organizationId, entryId, openingBalanceAccountId, amount, current],
+    ));
+
+  }
+
+  if (statements.length > 0) {
+    await executeBatch(db, statements);
+  }
+}
+
+async function findAccountIdByCode(db: D1Database, organizationId: string, code: string): Promise<string | null> {
+  const row = await queryFirst<{ id: string }>(
+    db, "SELECT id FROM accounts WHERE organization_id = ? AND code = ? LIMIT 1",
+    [organizationId, code],
   );
+  return row?.id ?? null;
 }
 
 async function createDefaultAccounts(
-  db: D1Database,
-  organizationId: string,
-  current: number,
+  db: D1Database, organizationId: string, current: number,
 ): Promise<void> {
   for (const account of DEFAULT_ACCOUNTS) {
     await execute(
       db,
-      `INSERT INTO accounts (
-         id, organization_id, code, name, account_type, normal_balance,
-         is_system, is_locked, is_active, is_cash_account, cash_account_type,
-         report_group, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?)`,
-      [
-        generateId(),
-        organizationId,
-        account.code,
-        account.name,
-        account.accountType,
-        account.normalBalance,
-        account.isLocked,
-        account.isCashAccount,
-        account.cashAccountType,
-        account.reportGroup,
-        current,
-        current,
-      ],
+      `INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, is_system, is_locked, is_active, is_cash_account, cash_account_type, report_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?)`,
+      [generateId(), organizationId, account.code, account.name, account.accountType, account.normalBalance, account.isLocked, account.isCashAccount, account.cashAccountType, account.reportGroup, current, current],
     );
   }
 }

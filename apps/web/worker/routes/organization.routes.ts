@@ -15,8 +15,9 @@ import {
 const businessTypeSchema = z.enum(["service", "simple_trading"]);
 
 const extraOpeningBalanceSchema = z.object({
-  openingBalance: z.number().min(0).optional(),
-}).passthrough();
+  accountId: z.string().min(1),
+  amount: z.number().min(1),
+});
 
 const createOrganizationSchema = z.object({
   organizationName: z.string().min(2).max(160),

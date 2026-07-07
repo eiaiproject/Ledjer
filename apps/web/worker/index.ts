@@ -12,6 +12,7 @@ import { healthRoutes } from "./routes/health.routes";
 import { inventoryRoutes } from "./routes/inventory.routes";
 import { organizationRoutes } from "./routes/organization.routes";
 import { partiesRoutes } from "./routes/parties.routes";
+import { periodLocksRoutes } from "./routes/period-locks.routes";
 import { productsRoutes } from "./routes/products.routes";
 import { reportsRoutes } from "./routes/reports.routes";
 import { teamRoutes } from "./routes/team.routes";
@@ -37,6 +38,7 @@ app.route("/api/transactions", transactionsRoutes);
 app.route("/api/reports", reportsRoutes);
 app.route("/api/team", teamRoutes);
 app.route("/api/exports", exportsRoutes);
+app.route("/api/period-locks", periodLocksRoutes);
 
 app.notFound((c) => {
   if (new URL(c.req.url).pathname.startsWith("/api/")) {

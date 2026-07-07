@@ -1,0 +1,53 @@
+import { Hono } from "hono";
+import { z } from "zod";
+import type { AppContext } from "../env";
+import { currentSession, requireAuth } from "../middleware/auth.middleware";
+import { requirePermission } from "../services/organization.service";
+import { readJson } from "../http/json";
+import {
+  createPeriodLock,
+  listPeriodLocks,
+  deletePeriodLock,
+} from "../services/period-locks.service";
+import { loadCurrentOrganization } from "../middleware/organization.middleware";
+
+const createPeriodLockSchema = z.object({
+  lockedThroughDate: z.string().min(1).max(10),
+  reason: z.string().max(500).optional(),
+});
+
+
+
+export const periodLocksRoutes = new Hono<AppContext>();
+
+periodLocksRoutes.use("*", requireAuth());
+periodLocksRoutes.use("*", loadCurrentOrganization());
+
+periodLocksRoutes.get("/", async (c) => {
+  const { organization } = c.get("organizationContext");
+  const locks = await listPeriodLocks(c.env.DB, organization.id);
+  return c.json({ periodLocks: locks });
+});
+
+periodLocksRoutes.post("/", async (c) => {
+  const { member } = c.get("organizationContext");
+  requirePermission(member, "organization:update");
+
+  const session = currentSession(c);
+  const body = await readJson(c, createPeriodLockSchema);
+  const lock = await createPeriodLock(
+    c.env.DB,
+    member.organization_id,
+    session.user_id,
+    body,
+  );
+  return c.json({ periodLock: lock }, 201);
+});
+
+periodLocksRoutes.delete("/:lockId", async (c) => {
+  const { member } = c.get("organizationContext");
+  requirePermission(member, "organization:update");
+
+  await deletePeriodLock(c.env.DB, member.organization_id, c.req.param("lockId"));
+  return c.json({ success: true });
+});
