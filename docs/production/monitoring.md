@@ -1,6 +1,6 @@
 # Production Monitoring & Observability
 
-Last updated: 2026-07-31
+Last updated: 2026-07-07
 
 ## Error Tracking — Sentry
 
@@ -42,18 +42,21 @@ Last updated: 2026-07-31
 
 **Status:** ⚠️ Manual monitoring via Cloudflare dashboard
 
-### Key Metrics to Watch
+### Key Metrics to Watch (Cloudflare Dashboard → Workers & Pages)
 - Worker error rate and latency
 - D1 query failures
 - D1 storage and write volume
-- Auth failure rate
-- Auth failure rate
+- Worker CPU time usage
+
+### Cloudflare Dashboard URLs
+- Workers overview: https://dash.cloudflare.com → Workers & Pages
+- D1 database: https://dash.cloudflare.com → D1 SQL Database
 
 ## Auth Monitoring
 
-- Login attempts tracked in `login_attempts` table
-- Rate limiting active on auth endpoints
-- Failed login alerts: configure in Supabase dashboard
+- Login attempts tracked in `login_attempts` table (D1)
+- Rate limiting active on auth endpoints (5 failed attempts → 15 min lockout)
+- Failed login alerts: configure via Sentry or custom alerting
 
 ## Frontend Performance
 
@@ -65,7 +68,7 @@ Last updated: 2026-07-31
 **Status:** ⚠️ Not configured
 
 For production, consider:
-- Cloudflare Worker logs
+- Cloudflare Worker logs (via `wrangler tail` or Cloudflare dashboard)
 - Sentry frontend errors
 - Structured server logging when added
 
@@ -75,7 +78,8 @@ For production, consider:
 |-----------|----------|--------|
 | Frontend error spike | High | Check Sentry, investigate |
 | D1 query failures | Critical | Check Worker logs and recent migrations |
-| Auth failure spike | Medium | Check for brute force |
+| Worker 5xx rate | Critical | Check Cloudflare dashboard, rollback if needed |
+| Auth failure spike | Medium | Check for brute force (login_attempts table) |
 | Uptime check failure | Critical | Investigate service status |
 | Slow query > 5s | Medium | Optimize or add index |
-| Disk usage > 80% | High | Clean up or scale |
+| D1 storage > 80% | High | Clean up or scale |

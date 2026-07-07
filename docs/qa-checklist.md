@@ -1,12 +1,11 @@
 # Ledjer — Manual QA Checklist
 
-This checklist covers manual testing scenarios for Ledjer. Each scenario has an expected result that must be verified.
+This checklist covers manual testing scenarios for Ledjer. Ledjer now runs on Cloudflare Workers + D1.
 
 ## Prerequisites
 
-- Test environment with Supabase backend running
+- Local dev server running (`pnpm --filter web dev`)
 - Test user account (owner role)
-- Test user account (staff role, if applicable)
 - Browser: Chrome, Firefox, or Safari (latest)
 
 ---
@@ -17,7 +16,7 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 - [ ] Navigate to `/register`
 - [ ] Enter valid email, password, full name
 - [ ] Submit form
-- [ ] **Expected:** Success message, redirect to login or email verification
+- [ ] **Expected:** Success message, redirect to login or email verification prompt
 
 ### 1.2 Login
 - [ ] Navigate to `/login`
@@ -28,7 +27,7 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 ### 1.3 Onboarding Flow
 - [ ] Complete onboarding form (business name, type, start date, cash account)
 - [ ] Submit form
-- [ ] **Expected:** Organization created, default accounts created, redirect to `/dashboard`
+- [ ] **Expected:** Organization created via Worker API, default accounts created, redirect to `/dashboard`
 
 ### 1.4 Onboarding Guard
 - [ ] After signup, try to navigate to `/dashboard` directly
@@ -45,14 +44,14 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 - [ ] Select "Penjualan Tunai"
 - [ ] Fill amount, description, cash account
 - [ ] Submit
-- [ ] **Expected:** Transaction created, redirect to detail page
+- [ ] **Expected:** Transaction posted via Worker API, redirect to detail page
 
 ### 2.2 Create Credit Sale
 - [ ] Select "Penjualan Kredit"
 - [ ] Fill party, amount, description
 - [ ] Set payment status to "Belum dibayar"
 - [ ] Submit
-- [ ] **Expected:** Transaction created with receivable
+- [ ] **Expected:** Transaction created with receivable journal entry
 
 ### 2.3 Receive Receivable Payment
 - [ ] Select "Terima Piutang"
@@ -123,13 +122,13 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 - [ ] Click "Tambah Produk"
 - [ ] Fill name, unit, purchase price, selling price
 - [ ] Submit
-- [ ] **Expected:** Product created
+- [ ] **Expected:** Product created via Worker API
 
 ### 3.2 Purchase Product
 - [ ] Create cash purchase with product
 - [ ] Fill quantity, unit price
 - [ ] Submit
-- [ ] **Expected:** Stock increases, inventory account debited
+- [ ] **Expected:** Stock increases, inventory account debited, COGS journal posted
 
 ### 3.3 Sell Product
 - [ ] Create cash sale with product
@@ -151,7 +150,7 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 - [ ] Click "Batalkan Transaksi"
 - [ ] Enter reason (minimum 5 characters)
 - [ ] Confirm
-- [ ] **Expected:** Transaction voided, reversal journal created
+- [ ] **Expected:** Transaction voided via Worker API, reversal journal created
 
 ### 4.2 Void Reversal Journal Balanced
 - [ ] After voiding, check journal entries
@@ -163,12 +162,12 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 
 ### 5.1 Dashboard
 - [ ] Navigate to `/dashboard`
-- [ ] **Expected:** Cash balance, receivables, payables, revenue, expenses displayed correctly
+- [ ] **Expected:** Cash balance, receivables, payables, revenue, expenses displayed correctly via `/api/dashboard/summary`
 
 ### 5.2 General Ledger
 - [ ] Navigate to `/reports/general-ledger`
 - [ ] Select date range
-- [ ] **Expected:** All posted transactions shown with correct balances
+- [ ] **Expected:** All posted transactions shown with correct running balances
 
 ### 5.3 Trial Balance
 - [ ] Navigate to `/reports/trial-balance`
@@ -195,28 +194,38 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 ## 6. Permissions
 
 ### 6.1 Staff Without Report Permission
-- [ ] Login as staff without `can_view_reports`
+- [ ] Login as staff with `viewer` role
 - [ ] Navigate to `/reports/balance-sheet`
-- [ ] **Expected:** "Tidak memiliki izin" message
+- [ ] **Expected:** Access denied message
 
 ### 6.2 Staff Can View Transaction Detail
-- [ ] Login as staff with `can_create_transaction`
+- [ ] Login as staff with `member` role
 - [ ] Navigate to transaction detail
 - [ ] **Expected:** Business details visible (amount, date, description)
-- [ ] Journal lines section: **Expected:** Hidden or restricted
 
 ### 6.3 Staff Cannot Void Transaction
-- [ ] Login as staff without `can_void_transaction`
+- [ ] Login as staff with `member` role
 - [ ] Navigate to transaction detail
 - [ ] **Expected:** "Batalkan Transaksi" button not visible
 
 ---
 
-## 7. Transaction Policy
+## 7. CSV Exports
 
-### 7.1 Unlimited Transactions
-- [ ] Create more than 50 transactions
-- [ ] **Expected:** Transactions remain allowed
+### 7.1 Accounts Export
+- [ ] Navigate to `/accounts`
+- [ ] Click export button
+- [ ] **Expected:** CSV downloaded with safe headers, formula injection escaped
+
+### 7.2 Products Export
+- [ ] Navigate to `/products`
+- [ ] Click export button
+- [ ] **Expected:** CSV downloaded with formula injection escaped
+
+### 7.3 Transactions Export
+- [ ] Navigate to `/transactions`
+- [ ] Click export button
+- [ ] **Expected:** CSV downloaded with formula injection escaped
 
 ---
 
@@ -246,7 +255,7 @@ This checklist covers manual testing scenarios for Ledjer. Each scenario has an 
 ### 9.1 Concurrent Transactions
 - [ ] Open two browser tabs
 - [ ] Create transactions simultaneously
-- [ ] **Expected:** Both succeed, no duplicate transaction numbers
+- [ ] **Expected:** Both succeed, no duplicate transaction numbers (idempotency)
 
 ### 9.2 Large Amount
 - [ ] Create transaction with amount 999,999,999,999
