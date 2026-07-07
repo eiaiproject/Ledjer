@@ -1,22 +1,4 @@
-/**
- * Translate Worker API / database errors to Indonesian user-facing messages.
- */
-
-const ERROR_MAP: Record<string, string> = {
-  '23505': 'Data sudah ada (duplikat).',
-  '23503': 'Data terkait tidak ditemukan.',
-  '42501': 'Anda tidak memiliki izin untuk aksi ini.',
-  'P0001': 'Validasi gagal. Periksa kembali input Anda.',
-  'P0002': 'Transaksi tidak ditemukan.',
-  'P0003': 'Transaksi sudah dibatalkan.',
-  'PGRST202': 'Database belum siap. Hubungi administrator.',
-};
-
-const AUTH_MESSAGES: Record<string, string> = {
-  // Keys are matched against both error.message (substring) and error.code (exact).
-  // Keys with underscores match code values; keys with spaces match message substrings.
-  JWT_INVALID: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
-  JWT_EXPIRED: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
+const ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: 'Email atau password salah.',
   unauthorized: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
   rate_limited: 'Terlalu banyak percobaan gagal. Coba lagi nanti.',
@@ -71,79 +53,56 @@ const AUTH_MESSAGES: Record<string, string> = {
   member_role_invalid: 'Role anggota tidak valid.',
   member_role_protected: 'Role pemilik tidak dapat diubah atau dihapus dari halaman ini.',
   member_self_remove_forbidden: 'Anda tidak dapat menghapus diri sendiri.',
-  'Invalid login credentials': 'Email atau password salah.',
-  // PHASE 8 FIX: Generic message prevents user enumeration
-  user_not_found: 'Email atau password salah.',
-  'User not found': 'Email atau password salah.',
   weak_password: 'Password terlalu lemah. Gunakan minimal 8 karakter.',
   email_not_confirmed: 'Silakan verifikasi email Anda terlebih dahulu.',
-  'Email not confirmed': 'Silakan verifikasi email Anda terlebih dahulu.',
   token_expired: 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
-  'Token has expired': 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
-  'Invalid grant': 'Kode verifikasi tidak valid. Silakan coba lagi.',
-  'Password should be different': 'Password baru harus berbeda dari password lama.',
   same_password: 'Password baru harus berbeda dari password lama.',
 };
+
+const MESSAGE_PATTERNS: Array<[string, string]> = [
+  ['Invalid email or password', 'Email atau password salah.'],
+  ['Invalid current password', 'Password saat ini salah.'],
+  ['Token has expired', 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.'],
+  ['Password should be different', 'Password baru harus berbeda dari password lama.'],
+  ['Failed to fetch', 'Gagal terhubung ke server. Periksa koneksi internet Anda.'],
+  ['NetworkError', 'Gagal terhubung ke server. Periksa koneksi internet Anda.'],
+];
 
 export function translateError(error: unknown): string {
   if (!error) return 'Terjadi kesalahan. Silakan coba lagi.';
 
-  // Handle Supabase error objects with code property (e.g. PostgrestError)
   const errorObj = error as Record<string, unknown>;
   if (errorObj && typeof errorObj === 'object') {
     const code = errorObj.code as string | undefined;
     const message = errorObj.message as string | undefined;
 
-    // P0001 is user-defined exception (RAISE EXCEPTION) in Postgres
-    if (code === 'P0001' && message) {
-      return message;
-    }
+    if (code && ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
 
-    if (code && ERROR_MAP[code]) return ERROR_MAP[code];
-
-    // Also check code against AUTH_MESSAGES (Supabase auth uses codes like "invalid_credentials")
-    if (code && AUTH_MESSAGES[code]) return AUTH_MESSAGES[code];
-
-    // Supabase Auth errors come as plain objects {message: '...'} without error codes
     if (message) {
-      for (const [key, msg] of Object.entries(AUTH_MESSAGES)) {
-        if (message.toLowerCase().includes(key.toLowerCase())) return msg;
-      }
-      if (message.includes('JWT')) return AUTH_MESSAGES.JWT_INVALID;
+      const translated = translateMessage(message);
+      if (translated) return translated;
     }
   }
 
-  // Handle Error objects
   if (error instanceof Error) {
     const message = error.message;
     const code = (error as unknown as Record<string, unknown>).code as string | undefined;
 
-    // Check if Postgres SQLSTATE is P0001
-    if (code === 'P0001') {
-      return message;
-    }
+    if (code && ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
 
-    // Check for known Postgres error codes embedded in message
-    for (const [c, msg] of Object.entries(ERROR_MAP)) {
-      if (message.includes(c)) return msg;
-    }
-
-    // Also check code against AUTH_MESSAGES
-    if (code && AUTH_MESSAGES[code]) return AUTH_MESSAGES[code];
-
-    // Auth errors
-    for (const [key, msg] of Object.entries(AUTH_MESSAGES)) {
-      if (message.toLowerCase().includes(key.toLowerCase())) return msg;
-    }
-
-    // JWT errors
-    if (message.includes('JWT')) return AUTH_MESSAGES.JWT_INVALID;
-
-    // Network errors
-    if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-      return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
-    }
+    const translated = translateMessage(message);
+    if (translated) return translated;
   }
 
   return 'Terjadi kesalahan. Silakan coba lagi.';
+}
+
+function translateMessage(message: string): string | undefined {
+  for (const [needle, translated] of MESSAGE_PATTERNS) {
+    if (message.includes(needle)) return translated;
+  }
+  for (const [code, translated] of Object.entries(ERROR_MESSAGES)) {
+    if (message.toLowerCase().includes(code.toLowerCase())) return translated;
+  }
+  return undefined;
 }

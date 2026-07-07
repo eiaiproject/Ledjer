@@ -13,4 +13,4 @@ Production operations documentation.
 
 ## Status
 
-Cloudflare Worker + D1 migration is active. Some older production docs are archived under `archive/supabase-reference/docs/`.
+Cloudflare Worker + D1 is the active production stack.

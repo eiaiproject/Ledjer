@@ -92,7 +92,7 @@ export function ForgotPasswordPage() {
               <Logo size="md" variant="full" />
             </div>
 
-            <Card padding="lg">
+            <Card className="p-6">
               <CardContent>
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
@@ -156,7 +156,7 @@ export function ForgotPasswordPage() {
             <Logo size="md" variant="full" />
           </div>
 
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <h1 className="text-center text-xl font-bold text-text-primary">
                 Atur Ulang Password

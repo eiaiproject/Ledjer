@@ -10,10 +10,10 @@ pnpm --filter web build
 pnpm --filter web db:migrations:apply:local
 ```
 
-Local CI wrappers:
+Local CI wrapper:
 
 ```bash
-pnpm ci:local:fast
+pnpm ci:local
 pnpm ci:local:full
 ```
 
@@ -34,7 +34,7 @@ pnpm test:e2e:cross-browser-smoke
 pnpm test:visual
 ```
 
-The historical authenticated E2E suite and old REST/RPC fixtures are archived under `archive/supabase-reference/e2e/`.
+Authenticated accounting behavior is covered by Worker service tests. Playwright stays public-only.
 
 ## D1 Migrations
 

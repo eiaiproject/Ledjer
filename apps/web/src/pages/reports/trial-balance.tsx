@@ -49,7 +49,7 @@ export function TrialBalancePage() {
   const handleExport = async () => {
     if (!orgData?.organization?.id) return;
     try {
-      await exportTrialBalanceCsv(orgData.organization.id, toDate);
+      await exportTrialBalanceCsv(toDate);
       toast.success("Export CSV neraca saldo dimulai");
     } catch (err) {
       toast.error(translateError(err));

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashToken } from "../auth/tokens";
+import { FakeD1Database } from "../test/fake-d1";
 import {
   acceptTeamInvitation,
   buildInvitationAcceptUrl,
@@ -8,33 +9,6 @@ import {
   removeTeamMember,
 } from "./team.service";
 import type { CurrentSessionRow } from "./session.service";
-
-class FakeD1Statement {
-  private values: unknown[] = [];
-
-  constructor(
-    private readonly db: FakeD1Database,
-    private readonly sql: string,
-  ) {}
-
-  bind(...values: unknown[]): FakeD1Statement {
-    this.values = values;
-    return this;
-  }
-
-  async first<T>(): Promise<T | null> {
-    return this.db.first<T>(this.sql, this.values);
-  }
-
-  async all<T>(): Promise<{ results: T[] }> {
-    return { results: [] };
-  }
-
-  async run(): Promise<D1Result> {
-    this.db.run(this.sql, this.values);
-    return { success: true } as D1Result;
-  }
-}
 
 interface FakeInvitation {
   id: string;
@@ -52,43 +26,44 @@ interface FakeInvitation {
   updated_at: number;
 }
 
-class FakeD1Database {
-  public invitationInsertValues: unknown[] | null = null;
-  public memberWriteCount = 0;
+type TeamDb = FakeD1Database & {
+  readonly invitationInsertValues: unknown[] | null;
+  readonly memberWriteCount: number;
+};
 
-  constructor(
-    private readonly invitation: FakeInvitation | null = null,
-    private readonly member: Record<string, unknown> | null = null,
-  ) {}
+function teamDb(
+  invitation: FakeInvitation | null = null,
+  member: Record<string, unknown> | null = null,
+): TeamDb {
+  const state = {
+    invitationInsertValues: null as unknown[] | null,
+    memberWriteCount: 0,
+  };
+  const db = new FakeD1Database({
+    first: (sql) => {
+      if (sql.includes("FROM organization_invitations WHERE token_hash")) return invitation;
+      if (sql.includes("FROM organization_members m")) return member;
+      return null;
+    },
+    run: (sql, values) => {
+      if (sql.includes("INSERT INTO organization_invitations")) {
+        state.invitationInsertValues = values;
+      }
+      if (
+        sql.includes("INSERT INTO organization_members") ||
+        sql.includes("UPDATE organization_members")
+      ) {
+        state.memberWriteCount += 1;
+      }
+    },
+  }) as TeamDb;
 
-  prepare(sql: string): FakeD1Statement {
-    return new FakeD1Statement(this, sql);
-  }
+  Object.defineProperties(db, {
+    invitationInsertValues: { get: () => state.invitationInsertValues },
+    memberWriteCount: { get: () => state.memberWriteCount },
+  });
 
-  first<T>(sql: string, values: unknown[]): T | null {
-    void values;
-    if (sql.includes("FROM organization_invitations WHERE token_hash")) {
-      return this.invitation as T | null;
-    }
-
-    if (sql.includes("FROM organization_members m")) {
-      return this.member as T | null;
-    }
-
-    return null;
-  }
-
-  run(sql: string, values: unknown[]): void {
-    if (sql.includes("INSERT INTO organization_invitations")) {
-      this.invitationInsertValues = values;
-    }
-    if (
-      sql.includes("INSERT INTO organization_members") ||
-      sql.includes("UPDATE organization_members")
-    ) {
-      this.memberWriteCount += 1;
-    }
-  }
+  return db;
 }
 
 function session(overrides: Partial<CurrentSessionRow> = {}): CurrentSessionRow {
@@ -119,7 +94,7 @@ describe("team invitation helpers", () => {
   });
 
   it("does not allow removing an owner member", async () => {
-    const db = new FakeD1Database(null, {
+    const db = teamDb(null, {
       id: "member-owner",
       organization_id: "org-1",
       user_id: "owner-1",
@@ -144,7 +119,7 @@ describe("team invitation helpers", () => {
   });
 
   it("does not allow a non-owner member to remove themselves", async () => {
-    const db = new FakeD1Database(null, {
+    const db = teamDb(null, {
       id: "member-admin",
       organization_id: "org-1",
       user_id: "admin-1",
@@ -171,7 +146,7 @@ describe("team invitation helpers", () => {
 
 describe("team invitation service", () => {
   it("stores only the invitation token hash when creating an invitation", async () => {
-    const db = new FakeD1Database();
+    const db = teamDb();
     const result = await createTeamInvitation(db as unknown as D1Database, {
       organizationId: "org-1",
       invitedByUserId: "owner-1",
@@ -187,7 +162,7 @@ describe("team invitation service", () => {
   });
 
   it("rejects revoked, accepted, or expired invitations before member writes", async () => {
-    const db = new FakeD1Database({
+    const db = teamDb({
       id: "invitation-1",
       organization_id: "org-1",
       email: "invitee@example.com",

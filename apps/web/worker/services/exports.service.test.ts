@@ -1,37 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { FakeD1Database } from "../test/fake-d1";
 import { csvEscape, toCsv } from "./exports.service";
 import { cleanupExpiredRows } from "./maintenance.service";
-
-class FakeD1Statement {
-  private values: unknown[] = [];
-
-  constructor(
-    private readonly db: FakeD1Database,
-    private readonly sql: string,
-  ) {}
-
-  bind(...values: unknown[]): FakeD1Statement {
-    this.values = values;
-    return this;
-  }
-
-  async run(): Promise<D1Result> {
-    return this.db.run(this.sql, this.values);
-  }
-}
-
-class FakeD1Database {
-  public statements: { sql: string; values: unknown[] }[] = [];
-
-  prepare(sql: string): FakeD1Statement {
-    return new FakeD1Statement(this, sql);
-  }
-
-  run(sql: string, values: unknown[]): D1Result {
-    this.statements.push({ sql, values });
-    return { success: true, meta: { changes: 1 } } as D1Result;
-  }
-}
 
 describe("CSV escaping", () => {
   it("escapes delimiters, quotes, newlines, and spreadsheet formula prefixes", () => {
@@ -55,7 +25,9 @@ describe("CSV escaping", () => {
 
 describe("maintenance cleanup", () => {
   it("deletes expired sessions, tokens, and export jobs", async () => {
-    const db = new FakeD1Database();
+    const db = new FakeD1Database({
+      run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+    });
     const result = await cleanupExpiredRows(db as unknown as D1Database, 12345);
 
     expect(result).toEqual({

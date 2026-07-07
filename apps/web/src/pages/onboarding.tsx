@@ -250,7 +250,7 @@ export function OnboardingPage() {
 
         {/* Step 1: Business Profile */}
         {step === 1 && (
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-6">
                 {/* Header section */}
@@ -337,7 +337,7 @@ export function OnboardingPage() {
 
         {/* Step 2: Cash Setup */}
         {step === 2 && (
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <form onSubmit={cashForm.handleSubmit(onCashSubmit)} className="space-y-4">
                 <div>

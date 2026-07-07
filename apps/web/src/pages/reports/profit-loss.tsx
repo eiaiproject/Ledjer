@@ -88,7 +88,7 @@ export function ProfitLossPage() {
   const handleExport = async () => {
     if (!orgData?.organization?.id || dateRangeInvalid) return;
     try {
-      await exportProfitLossCsv(orgData.organization.id, fromDate, toDate);
+      await exportProfitLossCsv(fromDate, toDate);
       toast.success("Export CSV laba rugi dimulai");
     } catch (err) {
       toast.error(translateError(err));

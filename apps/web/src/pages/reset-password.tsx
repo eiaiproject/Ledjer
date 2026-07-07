@@ -94,7 +94,7 @@ export function ResetPasswordPage() {
           <Logo size="md" variant="full" />
         </div>
 
-        <Card padding="lg">
+        <Card className="p-6">
           <CardContent>
             <h1 className="text-center text-xl font-bold text-text-primary">
               Atur Ulang Password

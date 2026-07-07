@@ -61,8 +61,6 @@ docs/
   accounting-rules.md       Accounting rules reference
   testing.md                Testing guide
   production/               Monitoring and incident response
-archive/supabase-reference/
-  Historical Supabase implementation, SQL tests, E2E fixtures, and docs.
 ```
 
 ## Current Scope

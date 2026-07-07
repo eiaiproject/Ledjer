@@ -32,7 +32,7 @@ export function PrivacyPolicyPage() {
             <ul className="list-disc pl-5 space-y-1">
               <li>
                 <strong>Data Akun:</strong> nama, alamat email, dan informasi autentikasi yang
-                dikelola oleh Supabase Auth.
+                dikelola oleh Ledjer.
               </li>
               <li>
                 <strong>Data Organisasi:</strong> nama bisnis, jenis usaha, mata uang, dan
@@ -67,9 +67,9 @@ export function PrivacyPolicyPage() {
           <section>
             <h2 className="text-lg font-semibold text-wood-800">4. Penyimpanan & Keamanan Data</h2>
             <p>
-              Data Anda disimpan di Supabase (PostgreSQL) yang aman. Kami menerapkan Row Level
-              Security (RLS) untuk memastikan setiap bisnis hanya dapat mengakses datanya sendiri.
-              Enkripsi TLS digunakan untuk semua komunikasi.
+              Data Anda disimpan di Cloudflare D1. Akses organisasi diperiksa di Worker API untuk
+              memastikan setiap bisnis hanya dapat mengakses datanya sendiri. Enkripsi TLS
+              digunakan untuk semua komunikasi.
             </p>
           </section>
 
@@ -80,7 +80,7 @@ export function PrivacyPolicyPage() {
               dibagikan dengan:
             </p>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Penyedia infrastruktur (Supabase, Vercel/Cloudflare)</li>
+              <li>Penyedia infrastruktur (Cloudflare)</li>
               <li>Penyedia error tracking (Sentry)</li>
               <li>Penyedia pembayaran (saat fitur pembayaran aktif)</li>
             </ul>

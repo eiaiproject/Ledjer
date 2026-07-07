@@ -19,7 +19,7 @@ import { ResetPasswordPage } from '@/pages/reset-password';
  *   1. User lands on /forgot-password, enters email, submits.
  *      Worker forgotPassword API is called.
  *   2. User clicks the recovery link in their email — lands on
- *      /auth/callback?token_hash=...&type=recovery.
+ *      /auth/callback?token=...&type=recovery.
  *      Worker verifyEmail(..., 'recovery') is called and a temporary session
  *      is established.
  *   3. AuthCallbackPage redirects to /reset-password.
@@ -137,7 +137,7 @@ describe('Password recovery flow (integration)', () => {
     });
 
     render(
-      <FullRouter initialPath="/auth/callback?token_hash=abc&type=recovery" />,
+      <FullRouter initialPath="/auth/callback?token=abc&type=recovery" />,
     );
 
     await waitFor(() => {
@@ -197,7 +197,7 @@ describe('Password recovery flow (integration)', () => {
     mocks.verifyEmail.mockRejectedValue(new Error('Token has expired or is invalid'));
 
     render(
-      <FullRouter initialPath="/auth/callback?token_hash=expired&type=recovery" />,
+      <FullRouter initialPath="/auth/callback?token=expired&type=recovery" />,
     );
 
     await waitFor(() => {
@@ -221,7 +221,7 @@ describe('Password recovery flow (integration)', () => {
     });
 
     render(
-      <FullRouter initialPath="/auth/callback?token_hash=xyz&type=recovery" />,
+      <FullRouter initialPath="/auth/callback?token=xyz&type=recovery" />,
     );
 
     await waitFor(() => {

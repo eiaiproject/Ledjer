@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from "./client";
+import { apiRequest } from "./client";
 
 export interface AuthUser {
   id: string;
@@ -40,7 +40,7 @@ export function getMe(): Promise<AuthMeResponse> {
 export function login(email: string, password: string): Promise<{ ok: true }> {
   return apiRequest<{ ok: true }>("/api/auth/login", {
     method: "POST",
-    body: jsonBody({ email, password }),
+    body: JSON.stringify({ email, password }),
   });
 }
 
@@ -51,7 +51,7 @@ export function register(
 ): Promise<RegisterResponse> {
   return apiRequest<RegisterResponse>("/api/auth/register", {
     method: "POST",
-    body: jsonBody({ email, password, fullName }),
+    body: JSON.stringify({ email, password, fullName }),
   });
 }
 
@@ -65,28 +65,28 @@ export function verifyEmail(
 ): Promise<{ ok: true }> {
   return apiRequest<{ ok: true }>("/api/auth/verify-email", {
     method: "POST",
-    body: jsonBody({ token, type }),
+    body: JSON.stringify({ token, type }),
   });
 }
 
 export function resendVerification(email: string): Promise<{ ok: true }> {
   return apiRequest<{ ok: true }>("/api/auth/verify-email", {
     method: "POST",
-    body: jsonBody({ email, type: "signup" }),
+    body: JSON.stringify({ email, type: "signup" }),
   });
 }
 
 export function forgotPassword(email: string): Promise<{ ok: true }> {
   return apiRequest<{ ok: true }>("/api/auth/forgot-password", {
     method: "POST",
-    body: jsonBody({ email }),
+    body: JSON.stringify({ email }),
   });
 }
 
 export function resetPassword(password: string): Promise<{ ok: true }> {
   return apiRequest<{ ok: true }>("/api/auth/reset-password", {
     method: "POST",
-    body: jsonBody({ password }),
+    body: JSON.stringify({ password }),
   });
 }
 

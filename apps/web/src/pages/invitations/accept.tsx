@@ -77,7 +77,7 @@ export function AcceptInvitationPage() {
             <Logo size="md" variant="full" />
           </div>
 
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               {!token ? (
                 <div className="flex flex-col items-center text-center">

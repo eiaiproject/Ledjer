@@ -28,8 +28,8 @@ export function PublicRoute() {
 
   // PublicRoute does NOT wait for loading — public pages (login, register,
   // forgot-password, landing, legal, etc.) render immediately to avoid
-  // blocking on auth resolution. This is critical for cross-browser smoke
-  // tests where no Supabase instance is running.
+  // blocking on auth resolution. This keeps public smoke tests independent
+  // from API availability.
   //
   // Only redirect if we already have a session (user is logged in).
   if (session) {

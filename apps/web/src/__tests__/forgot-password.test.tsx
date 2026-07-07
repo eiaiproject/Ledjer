@@ -91,9 +91,8 @@ describe('ForgotPasswordPage', () => {
   });
 
   it('shows success view for auth-level errors (no account enumeration)', async () => {
-    // Simulate "user not found" — Supabase returns an auth error that
-    // could reveal whether the email is registered. The page must suppress
-    // it and show the same generic "cek email Anda" success view.
+    // Worker password recovery always returns a generic success response so
+    // the page never reveals whether the email is registered.
     mocks.forgotPassword.mockResolvedValue({ ok: true });
 
     renderAt('/forgot-password');
@@ -129,8 +128,7 @@ describe('ForgotPasswordPage', () => {
       screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
     );
 
-    // 'Service unavailable' doesn't match auth enum leak patterns, so
-    // the error should be shown to the user via translateError.
+    // Operational errors should still be shown to the user via translateError.
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeTruthy();
     });

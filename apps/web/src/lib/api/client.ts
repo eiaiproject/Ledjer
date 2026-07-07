@@ -88,10 +88,6 @@ export async function apiDownload(
   };
 }
 
-export function jsonBody(value: unknown): string {
-  return JSON.stringify(value);
-}
-
 function filenameFromContentDisposition(value: string | null): string | undefined {
   if (!value) return undefined;
   const match = /filename="([^"]+)"/i.exec(value) || /filename=([^;]+)/i.exec(value);

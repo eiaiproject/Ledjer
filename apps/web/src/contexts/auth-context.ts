@@ -18,16 +18,8 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextType>({
-  session: null,
-  user: null,
-  loading: true,
-  error: null,
-  signIn: async () => {},
-  signUp: async () => ({ session: null, user: null, needsEmailConfirmation: false }),
-  resendConfirmationEmail: async () => {},
-  signOut: async () => {},
-});
+// ponytail: defaults are never reachable — Provider always wraps consumers.
+export const AuthContext = createContext<AuthContextType>(null!);
 
 export function useAuth() {
   return useContext(AuthContext);

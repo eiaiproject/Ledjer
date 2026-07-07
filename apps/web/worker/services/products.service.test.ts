@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeD1Database } from "../test/fake-d1";
 import { reconcileStock, recordStockMovement } from "./products.service";
 
 interface FakeProductRow {
@@ -33,88 +34,6 @@ interface FakeMovementRow {
   created_at: number;
 }
 
-class FakeD1Statement {
-  private values: unknown[] = [];
-
-  constructor(
-    private readonly db: FakeD1Database,
-    private readonly sql: string,
-  ) {}
-
-  bind(...values: unknown[]): FakeD1Statement {
-    this.values = values;
-    return this;
-  }
-
-  async first<T>(): Promise<T | null> {
-    return this.db.first<T>(this.sql, this.values);
-  }
-
-  async all<T>(): Promise<{ results: T[] }> {
-    return { results: this.db.all<T>() };
-  }
-
-  async run(): Promise<D1Result> {
-    this.db.run(this.sql, this.values);
-    return { success: true } as D1Result;
-  }
-}
-
-class FakeD1Database {
-  public movements: FakeMovementRow[] = [];
-
-  constructor(public product: FakeProductRow) {}
-
-  prepare(sql: string): FakeD1Statement {
-    return new FakeD1Statement(this, sql);
-  }
-
-  first<T>(sql: string, values: unknown[]): T | null {
-    if (sql.includes("FROM products") && values.includes(this.product.id)) {
-      return this.product as T;
-    }
-
-    if (sql.includes("FROM stock_movements")) {
-      return (this.movements[0] ?? null) as T | null;
-    }
-
-    return null;
-  }
-
-  all<T>(): T[] {
-    return [];
-  }
-
-  run(sql: string, values: unknown[]): void {
-    if (sql.startsWith("UPDATE products")) {
-      this.product = {
-        ...this.product,
-        current_stock_milli: values[0] as number,
-        average_cost_minor: values[1] as number,
-        purchase_price_minor: values[2] as number,
-      };
-      return;
-    }
-
-    if (sql.includes("INSERT INTO stock_movements")) {
-      this.movements.unshift({
-        id: values[0] as string,
-        organization_id: values[1] as string,
-        product_id: values[2] as string,
-        movement_date: values[3] as string,
-        movement_type: values[4] as string,
-        quantity_milli: values[5] as number,
-        unit_cost_minor: values[6] as number | null,
-        transaction_id: values[7] as string | null,
-        stock_after_milli: values[8] as number,
-        notes: values[9] as string | null,
-        created_by: values[10] as string | null,
-        created_at: values[11] as number,
-      });
-    }
-  }
-}
-
 function product(overrides: Partial<FakeProductRow> = {}): FakeProductRow {
   return {
     id: "product-1",
@@ -135,9 +54,51 @@ function product(overrides: Partial<FakeProductRow> = {}): FakeProductRow {
   };
 }
 
+function productDb(initialProduct: FakeProductRow) {
+  const state = {
+    product: initialProduct,
+    movements: [] as FakeMovementRow[],
+  };
+  const db = new FakeD1Database({
+    first: (sql, values) => {
+      if (sql.includes("FROM products") && values.includes(state.product.id)) return state.product;
+      if (sql.includes("FROM stock_movements")) return state.movements[0] ?? null;
+      return null;
+    },
+    run: (sql, values) => {
+      if (sql.startsWith("UPDATE products")) {
+        state.product = {
+          ...state.product,
+          current_stock_milli: values[0] as number,
+          average_cost_minor: values[1] as number,
+          purchase_price_minor: values[2] as number,
+        };
+      }
+
+      if (sql.includes("INSERT INTO stock_movements")) {
+        state.movements.unshift({
+          id: values[0] as string,
+          organization_id: values[1] as string,
+          product_id: values[2] as string,
+          movement_date: values[3] as string,
+          movement_type: values[4] as string,
+          quantity_milli: values[5] as number,
+          unit_cost_minor: values[6] as number | null,
+          transaction_id: values[7] as string | null,
+          stock_after_milli: values[8] as number,
+          notes: values[9] as string | null,
+          created_by: values[10] as string | null,
+          created_at: values[11] as number,
+        });
+      }
+    },
+  });
+  return { db: db as unknown as D1Database, state };
+}
+
 describe("product inventory service", () => {
   it("records stock movement and keeps movement sum reconcilable", async () => {
-    const db = new FakeD1Database(product()) as unknown as D1Database;
+    const { db } = productDb(product());
 
     const movement = await recordStockMovement(db, "org-1", "user-1", {
       productId: "product-1",
@@ -154,8 +115,8 @@ describe("product inventory service", () => {
   });
 
   it("updates weighted average cost on purchase movements", async () => {
-    const fake = new FakeD1Database(product());
-    await recordStockMovement(fake as unknown as D1Database, "org-1", "user-1", {
+    const fake = productDb(product());
+    await recordStockMovement(fake.db, "org-1", "user-1", {
       productId: "product-1",
       movementType: "purchase",
       movementDate: "2026-07-07",
@@ -163,10 +124,10 @@ describe("product inventory service", () => {
       unitCost: 200,
     });
 
-    expect(fake.movements[0].stock_after_milli).toBe(20_000);
-    expect(fake.product.average_cost_minor).toBe(150);
+    expect(fake.state.movements[0].stock_after_milli).toBe(20_000);
+    expect(fake.state.product.average_cost_minor).toBe(150);
 
-    await recordStockMovement(fake as unknown as D1Database, "org-1", "user-1", {
+    await recordStockMovement(fake.db, "org-1", "user-1", {
       productId: "product-1",
       movementType: "sale",
       movementDate: "2026-07-08",
@@ -174,12 +135,12 @@ describe("product inventory service", () => {
       unitCost: 999,
     });
 
-    expect(fake.product.current_stock_milli).toBe(16_000);
-    expect(fake.product.average_cost_minor).toBe(150);
+    expect(fake.state.product.current_stock_milli).toBe(16_000);
+    expect(fake.state.product.average_cost_minor).toBe(150);
   });
 
   it("rejects movements that would make stock negative", async () => {
-    const db = new FakeD1Database(product()) as unknown as D1Database;
+    const { db } = productDb(product());
 
     await expect(
       recordStockMovement(db, "org-1", "user-1", {

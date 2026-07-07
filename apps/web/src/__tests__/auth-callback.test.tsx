@@ -64,10 +64,10 @@ describe('AuthCallbackPage', () => {
     expect(screen.getByText(/google belum tersedia/i)).toBeTruthy();
   });
 
-  it('handles token_hash + type verifyEmail successfully', async () => {
+  it('handles token + type verifyEmail successfully', async () => {
     mocks.verifyEmail.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token_hash=abc&type=signup');
+    renderWithSearchParams('?token=abc&type=signup');
 
     await waitFor(() => {
       expect(mocks.verifyEmail).toHaveBeenCalledWith('abc', 'signup');
@@ -79,7 +79,7 @@ describe('AuthCallbackPage', () => {
   it('recovery type redirects to /reset-password (NOT /settings/team)', async () => {
     mocks.verifyEmail.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token_hash=xyz&type=recovery');
+    renderWithSearchParams('?token=xyz&type=recovery');
 
     await waitFor(() => {
       expect(mocks.verifyEmail).toHaveBeenCalledWith('xyz', 'recovery');
@@ -100,7 +100,7 @@ describe('AuthCallbackPage', () => {
     expect(screen.queryByTestId('onboarding')).toBeNull();
   });
 
-  it('shows invalid state when neither code nor token_hash is present', async () => {
+  it('shows invalid state when neither code nor token is present', async () => {
     mocks.getMe.mockResolvedValue({ session: null, user: null });
 
     renderWithSearchParams('?foo=bar');
@@ -113,7 +113,7 @@ describe('AuthCallbackPage', () => {
   it('shows error state on token expired/invalid (verifyEmail returns error)', async () => {
     mocks.verifyEmail.mockRejectedValue(new Error('Token has expired or is invalid'));
 
-    renderWithSearchParams('?token_hash=expired&type=signup');
+    renderWithSearchParams('?token=expired&type=signup');
 
     await waitFor(() => {
       expect(mocks.verifyEmail).toHaveBeenCalled();
@@ -134,7 +134,7 @@ describe('AuthCallbackPage', () => {
     mocks.verifyEmail.mockRejectedValue(new Error('expired'));
     mocks.resendVerification.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token_hash=stale&type=signup');
+    renderWithSearchParams('?token=stale&type=signup');
 
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
 
@@ -151,7 +151,7 @@ describe('AuthCallbackPage', () => {
     expect(await screen.findByText(/email konfirmasi telah dikirim ulang/i)).toBeTruthy();
   });
 
-  it('redirects to onboarding when session exists but no code/token_hash', async () => {
+  it('redirects to onboarding when session exists but no code/token', async () => {
     mocks.getMe.mockResolvedValue({
       session: { id: 'existing', user_id: 'user-1', expires_at: Date.now() + 1000 },
       user: { id: 'user-1', email: 'u@example.com', full_name: '', email_verified_at: Date.now() },
@@ -191,7 +191,7 @@ describe('AuthCallbackPage', () => {
   it('recovery success CTA navigates to /reset-password (not /onboarding)', async () => {
     mocks.verifyEmail.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token_hash=rec&type=recovery');
+    renderWithSearchParams('?token=rec&type=recovery');
 
     await waitFor(() => {
       expect(mocks.verifyEmail).toHaveBeenCalled();
@@ -215,7 +215,7 @@ describe('AuthCallbackPage', () => {
     mocks.verifyEmail.mockRejectedValue(new Error('Token has expired'));
     mocks.forgotPassword.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token_hash=expired&type=recovery');
+    renderWithSearchParams('?token=expired&type=recovery');
 
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
 
@@ -237,7 +237,7 @@ describe('AuthCallbackPage', () => {
     mocks.verifyEmail.mockRejectedValue(new Error('Token has expired'));
     mocks.resendVerification.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token_hash=expired&type=signup');
+    renderWithSearchParams('?token=expired&type=signup');
 
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
 

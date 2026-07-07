@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from "./client";
+import { apiRequest } from "./client";
 
 export interface Organization {
   id: string;
@@ -58,7 +58,7 @@ export function createOrganization(
 ): Promise<OrganizationState> {
   return apiRequest<OrganizationState>("/api/organizations", {
     method: "POST",
-    body: jsonBody(input),
+    body: JSON.stringify(input),
   });
 }
 
@@ -67,6 +67,6 @@ export function selectCurrentOrganization(
 ): Promise<OrganizationState> {
   return apiRequest<OrganizationState>("/api/organizations/current", {
     method: "POST",
-    body: jsonBody({ organizationId }),
+    body: JSON.stringify({ organizationId }),
   });
 }

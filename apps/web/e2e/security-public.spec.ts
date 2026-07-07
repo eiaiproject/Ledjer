@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Public security tests — safe for production deploy smoke.
- * No local Supabase required.
+ * No seeded backend users required.
  */
 
 test.describe("XSS prevention", () => {

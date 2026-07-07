@@ -670,7 +670,7 @@ export function AccountsPage() {
   const handleExport = async () => {
     if (!orgData?.organization?.id) return;
     try {
-      await exportAccountsCsv(orgData.organization.id);
+      await exportAccountsCsv();
       toast.success("Export CSV akun dimulai");
     } catch (err) {
       toast.error(translateError(err));

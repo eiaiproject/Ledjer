@@ -56,7 +56,6 @@ export function GeneralLedgerPage() {
     if (!orgData?.organization?.id || dateRangeInvalid) return;
     try {
       await exportGeneralLedgerCsv(
-        orgData.organization.id,
         accountId,
         fromDate,
         toDate,

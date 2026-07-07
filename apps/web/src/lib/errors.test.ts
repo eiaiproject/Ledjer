@@ -10,26 +10,15 @@ describe("translateError", () => {
     expect(translateError(internalError)).toBe("Terjadi kesalahan. Silakan coba lagi.");
   });
 
-  it("passes through known backend exceptions with SQLSTATE P0001 verbatim", () => {
-    // As PostgrestError object
-    const pgError = {
-      code: "P0001",
-      message: "Jurnal tidak seimbang",
-    };
-    expect(translateError(pgError)).toBe("Jurnal tidak seimbang");
-
-    // As Error object with code attached
-    const errorWithCode = new Error("Harga pokok produk belum diatur");
-    (errorWithCode as Error & { code?: string }).code = "P0001";
-    expect(translateError(errorWithCode)).toBe("Harga pokok produk belum diatur");
+  it("translates Worker error codes", () => {
+    expect(translateError({ code: "journal_unbalanced" })).toBe("Jurnal transaksi tidak seimbang.");
+    expect(translateError({ code: "product_code_duplicate" })).toBe("Kode produk sudah digunakan.");
   });
 
-  it("translates mapped error codes and messages correctly", () => {
-    // 23505 duplicate
-    expect(translateError({ code: "23505" })).toBe("Data sudah ada (duplikat).");
-
-    // invalid_credentials auth message
-    const authError = new Error("invalid_credentials: login failed");
-    expect(translateError(authError)).toBe("Email atau password salah.");
+  it("translates known Worker messages", () => {
+    expect(translateError(new Error("Invalid email or password"))).toBe("Email atau password salah.");
+    expect(translateError(new Error("Failed to fetch"))).toBe(
+      "Gagal terhubung ke server. Periksa koneksi internet Anda.",
+    );
   });
 });

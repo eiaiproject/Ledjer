@@ -54,7 +54,7 @@ export function BalanceSheetPage() {
   const handleExport = async () => {
     if (!orgData?.organization?.id) return;
     try {
-      await exportBalanceSheetCsv(orgData.organization.id, asOfDate);
+      await exportBalanceSheetCsv(asOfDate);
       toast.success("Export CSV neraca dimulai");
     } catch (err) {
       toast.error(translateError(err));

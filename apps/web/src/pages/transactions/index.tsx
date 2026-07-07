@@ -23,21 +23,9 @@ import {
   ALL_TRANSACTION_TYPE_LABELS,
   GENERAL_TRANSACTION_TYPE_LABELS,
   labelForTransactionType,
+  statusVariant,
+  statusLabel,
 } from "@/lib/transactions";
-
-function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
-  if (status === "posted") return "success";
-  if (status === "voided") return "error";
-  if (status === "reversed") return "warning";
-  return "neutral";
-}
-
-function statusLabel(status: string) {
-  if (status === "posted") return "Posted";
-  if (status === "voided") return "Dibatalkan";
-  if (status === "reversed") return "Reversal";
-  return status;
-}
 
 function localDate(offsetDays = 0) {
   const date = new Date();
@@ -79,7 +67,7 @@ export function TransactionListPage() {
   const handleExport = async () => {
     if (!orgData?.organization?.id || dateRangeInvalid) return;
     try {
-      await exportTransactionsCsv(orgData.organization.id, {
+      await exportTransactionsCsv({
         search: normalizedSearch || undefined,
         transactionType: typeFilter || undefined,
         status: statusFilter || undefined,

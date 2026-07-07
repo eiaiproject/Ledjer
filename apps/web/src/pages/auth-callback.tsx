@@ -59,8 +59,7 @@ export function AuthCallbackPage() {
       // OAuth flow: ?code=... (not implemented yet; Google OAuth is optional)
       const code = searchParams.get("code");
       // Email-link flow: ?token=...&type=signup | recovery.
-      // token_hash is accepted temporarily for old Supabase-shaped local tests/links.
-      const token = searchParams.get("token") ?? searchParams.get("token_hash");
+      const token = searchParams.get("token");
       const type = searchParams.get("type") as
         | "signup"
         | "recovery"
@@ -74,7 +73,7 @@ export function AuthCallbackPage() {
           setCallbackType(type);
           await verifyEmail(token, type);
         } else {
-          // No code or token_hash — check if a session already exists.
+          // No code or token — check if a session already exists.
           // A session may exist when the user authenticated on another tab
           // or the onAuthStateChange listener fired before this component
           // mounted. Without this check, authenticated users would see a
@@ -161,7 +160,7 @@ export function AuthCallbackPage() {
           <Logo size="md" variant="full" />
         </div>
 
-        <Card padding="lg">
+        <Card className="p-6">
           <CardContent>
             <div className="flex flex-col items-center text-center">
               <StatusIcon status={status} />

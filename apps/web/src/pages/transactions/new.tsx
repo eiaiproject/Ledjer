@@ -4,7 +4,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
+import { createClientToken, formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { listAccounts } from "@/lib/api/accounts";
@@ -50,6 +50,7 @@ import {
   SECTION_LABELS,
   generateAutoDescription,
   getSubmitLabel,
+  localDate,
 } from "./_helpers";
 
 /* ------------------------------------------------------------------ */
@@ -90,28 +91,8 @@ interface ImpactSummary {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function localDate(offsetDays = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return formatDateInputValue(date);
-}
-
 function getLastCashAccountKey(transactionType: string) {
   return `ledjer:last-cash-account:${transactionType}`;
-}
-
-function createClientToken() {
-  if (typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /* ------------------------------------------------------------------ */

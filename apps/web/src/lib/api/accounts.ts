@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from "./client";
+import { apiRequest } from "./client";
 
 export type AccountType =
   | "asset"
@@ -67,14 +67,14 @@ export function createCashBankAccount(
 ): Promise<Account> {
   return apiRequest<AccountResponse>("/api/accounts/cash-bank", {
     method: "POST",
-    body: jsonBody({ kind, name }),
+    body: JSON.stringify({ kind, name }),
   }).then((data) => data.account);
 }
 
 export function generateCashBankCode(kind: CashBankKind): Promise<number> {
   return apiRequest<{ code: number }>("/api/accounts/generate-code", {
     method: "POST",
-    body: jsonBody({ kind }),
+    body: JSON.stringify({ kind }),
   }).then((data) => data.code);
 }
 
@@ -84,6 +84,6 @@ export function updateAccountName(
 ): Promise<Account> {
   return apiRequest<AccountResponse>(`/api/accounts/${accountId}`, {
     method: "PATCH",
-    body: jsonBody({ name }),
+    body: JSON.stringify({ name }),
   }).then((data) => data.account);
 }

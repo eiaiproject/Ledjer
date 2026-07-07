@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from "./client";
+import { apiRequest } from "./client";
 
 export type TransactionStatus = "draft" | "posted" | "voided" | "reversed";
 export type PaymentStatus = "paid" | "unpaid" | "partial";
@@ -140,7 +140,7 @@ export function listTransactionJournal(transactionId: string): Promise<JournalEn
 export function postTransaction(input: PostTransactionInput): Promise<PostTransactionResult> {
   return apiRequest<PostTransactionResult>("/api/transactions", {
     method: "POST",
-    body: jsonBody(input),
+    body: JSON.stringify(input),
   });
 }
 
@@ -151,6 +151,6 @@ export function voidTransaction(
 ): Promise<VoidTransactionResult> {
   return apiRequest<VoidTransactionResult>(`/api/transactions/${transactionId}/void`, {
     method: "POST",
-    body: jsonBody({ reason, idempotencyKey }),
+    body: JSON.stringify({ reason, idempotencyKey }),
   });
 }

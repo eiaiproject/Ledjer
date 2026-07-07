@@ -1,6 +1,6 @@
 # Ledjer Worker
 
-Cloudflare Worker API for Ledjer. All 11 phases of the Supabase-to-Cloudflare migration are complete.
+Cloudflare Worker API for Ledjer.
 
 ## Routes
 

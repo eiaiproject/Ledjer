@@ -1,40 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FakeD1Database } from "../test/fake-d1";
 import { currentMonthPeriod, getDashboardSummary } from "./dashboard.service";
-
-class FakeD1Statement {
-  private values: unknown[] = [];
-
-  constructor(
-    private readonly db: FakeD1Database,
-    private readonly sql: string,
-  ) {}
-
-  bind(...values: unknown[]): FakeD1Statement {
-    this.values = values;
-    return this;
-  }
-
-  async first<T>(): Promise<T | null> {
-    return this.db.first<T>(this.sql, this.values);
-  }
-}
-
-class FakeD1Database {
-  public sql = "";
-  public values: unknown[] = [];
-
-  constructor(private readonly row: Record<string, unknown> | null) {}
-
-  prepare(sql: string): FakeD1Statement {
-    this.sql = sql;
-    return new FakeD1Statement(this, sql);
-  }
-
-  first<T>(_sql: string, values: unknown[]): T | null {
-    this.values = values;
-    return this.row as T | null;
-  }
-}
 
 describe("dashboard summary", () => {
   it("uses the current UTC month as the dashboard period", () => {
@@ -45,12 +11,21 @@ describe("dashboard summary", () => {
   });
 
   it("maps aggregate rows and derives net profit", async () => {
-    const fake = new FakeD1Database({
+    let sql = "";
+    let values: unknown[] = [];
+    const row = {
       cash_balance: 1_250_000,
       revenue_current_period: 2_000_000,
       expense_current_period: 750_000,
       accounts_receivable: 300_000,
       accounts_payable: 125_000,
+    };
+    const fake = new FakeD1Database({
+      first: (query, boundValues) => {
+        sql = query;
+        values = boundValues;
+        return row;
+      },
     });
 
     const summary = await getDashboardSummary(
@@ -69,7 +44,7 @@ describe("dashboard summary", () => {
       period_from: "2026-07-01",
       period_to: "2026-07-17",
     });
-    expect(fake.values).toEqual([
+    expect(values).toEqual([
       "org-1",
       "2026-07-17",
       "org-1",
@@ -77,8 +52,8 @@ describe("dashboard summary", () => {
       "2026-07-17",
       "org-1",
     ]);
-    expect(fake.sql).toContain("posted_balances AS");
-    expect(fake.sql).toContain("period_balances AS");
-    expect(fake.sql).toContain("je.entry_type != 'opening_balance'");
+    expect(sql).toContain("posted_balances AS");
+    expect(sql).toContain("period_balances AS");
+    expect(sql).toContain("je.entry_type != 'opening_balance'");
   });
 });

@@ -1,18 +1,12 @@
 import { cn, formatIDR } from "@/lib/utils";
-import { TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface StatCardProps {
   label: string;
   value: number | string;
   icon: LucideIcon;
   tone?: "wood" | "leaf" | "clay" | "sky" | "honey";
-  trend?: {
-    value: number;
-    isPositive: boolean;
-    label?: string;
-  };
   format?: "currency" | "number" | "text";
-  color?: "green" | "wood" | "clay" | "sky" | "honey";
   className?: string;
 }
 
@@ -30,10 +24,8 @@ function formatValue(value: number | string, format: StatCardProps["format"]) {
   return typeof value === "number" ? formatIDR(value) : value;
 }
 
-export function StatCard({ label, value, icon: Icon, trend, tone, color, format = "currency", className }: StatCardProps) {
-  const resolvedTone = tone ?? (color === "green" ? "leaf" : color) ?? "wood";
-  const colors = colorStyles[resolvedTone];
-  const TrendIcon = trend?.isPositive ? TrendingUp : TrendingDown;
+export function StatCard({ label, value, icon: Icon, tone = "wood", format = "currency", className }: StatCardProps) {
+  const colors = colorStyles[tone];
 
   return (
     <div className={cn("h-full min-h-[112px] rounded-xl border bg-surface-elevated p-5 transition-[border-color,box-shadow] duration-200 ease-out", colors.border, className)}>
@@ -50,18 +42,6 @@ export function StatCard({ label, value, icon: Icon, trend, tone, color, format 
           <Icon className={cn("h-5 w-5", colors.icon)} />
         </div>
       </div>
-      {trend && (
-        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1 text-xs">
-          <span className={cn(
-            "inline-flex items-center gap-1 font-medium",
-            trend.isPositive ? "text-success" : "text-error"
-          )}>
-            <TrendIcon className="h-3.5 w-3.5" />
-            {Math.abs(trend.value)}%
-          </span>
-          <span className="min-w-0 break-words text-text-tertiary">{trend.label ?? "vs bulan lalu"}</span>
-        </div>
-      )}
     </div>
   );
 }

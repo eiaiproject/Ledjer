@@ -1,8 +1,7 @@
 /**
  * Golden Accounting Scenarios — Worker/D1 Unit Tests
  *
- * Ported from archive/supabase-reference/supabase/tests/golden_scenario_tests.sql
- * and archive/supabase-reference/supabase/tests/inventory_golden_tests.sql.
+ * Golden accounting scenarios retained from the legacy SQL regression suite.
  *
  * These tests verify core accounting invariants using the Worker service layer
  * directly against D1, ensuring:

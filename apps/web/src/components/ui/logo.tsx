@@ -1,9 +1,5 @@
 import { cn } from "@/lib/utils";
 
-function LogoIcon({ className }: { className?: string }) {
-  return <img src="/logo-icon.svg" alt="Ledjer icon" className={className} />;
-}
-
 interface LogoProps {
   size?: "xs" | "sm" | "md" | "lg";
   variant?: "icon" | "full";
@@ -11,15 +7,12 @@ interface LogoProps {
   className?: string;
 }
 
-
-
 const iconSizeStyles = {
   xs: "h-4 w-4",
   sm: "h-5 w-5",
   md: "h-6 w-6",
   lg: "h-10 w-10",
 };
-
 
 const horizontalSizeStyles = {
   xs: "h-4",
@@ -39,5 +32,5 @@ export function Logo({ size = "sm", variant = "full", color = "dark", className 
     );
   }
 
-  return <LogoIcon className={cn(iconSizeStyles[size], className)} />;
+  return <img src="/logo-icon.svg" alt="Ledjer icon" className={cn(iconSizeStyles[size], className)} />;
 }

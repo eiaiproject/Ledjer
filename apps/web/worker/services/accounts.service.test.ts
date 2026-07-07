@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FakeD1Database } from "../test/fake-d1";
 import {
   deleteAccount,
   nextCashBankCode,
@@ -20,56 +21,6 @@ interface FakeAccountRow {
   report_group: string | null;
 }
 
-class FakeD1Statement {
-  private values: unknown[] = [];
-
-  constructor(
-    private readonly db: FakeD1Database,
-    private readonly sql: string,
-  ) {}
-
-  bind(...values: unknown[]): FakeD1Statement {
-    this.values = values;
-    return this;
-  }
-
-  async first<T>(): Promise<T | null> {
-    return this.db.first<T>(this.sql, this.values);
-  }
-
-  async all<T>(): Promise<{ results: T[] }> {
-    return { results: [] };
-  }
-
-  async run(): Promise<D1Result> {
-    this.db.run(this.sql);
-    return { success: true } as D1Result;
-  }
-}
-
-class FakeD1Database {
-  public deleteCalls = 0;
-  public updateCalls = 0;
-
-  constructor(private readonly account: FakeAccountRow | null) {}
-
-  prepare(sql: string): FakeD1Statement {
-    return new FakeD1Statement(this, sql);
-  }
-
-  async first<T>(sql: string, values: unknown[]): Promise<T | null> {
-    if (sql.includes("FROM accounts") && values[0] === this.account?.id) {
-      return this.account as T;
-    }
-    return null;
-  }
-
-  run(sql: string): void {
-    if (sql.startsWith("DELETE FROM accounts")) this.deleteCalls += 1;
-    if (sql.startsWith("UPDATE accounts")) this.updateCalls += 1;
-  }
-}
-
 function account(overrides: Partial<FakeAccountRow> = {}): FakeAccountRow {
   return {
     id: "account-1",
@@ -86,6 +37,15 @@ function account(overrides: Partial<FakeAccountRow> = {}): FakeAccountRow {
     report_group: "Kas",
     ...overrides,
   };
+}
+
+function dbWithAccount(row: FakeAccountRow | null): D1Database {
+  return new FakeD1Database({
+    first: (sql, values) => {
+      if (sql.includes("FROM accounts") && values[0] === row?.id) return row;
+      return null;
+    },
+  }) as unknown as D1Database;
 }
 
 describe("account code generation", () => {
@@ -108,7 +68,7 @@ describe("account code generation", () => {
 
 describe("account safety rules", () => {
   it("blocks deleting system accounts", async () => {
-    const db = new FakeD1Database(account()) as unknown as D1Database;
+    const db = dbWithAccount(account());
 
     await expect(
       deleteAccount(db, "org-1", "user-1", "account-1"),
@@ -119,7 +79,7 @@ describe("account safety rules", () => {
   });
 
   it("blocks renaming locked accounts", async () => {
-    const db = new FakeD1Database(account()) as unknown as D1Database;
+    const db = dbWithAccount(account());
 
     await expect(
       patchAccount(db, "org-1", "user-1", "account-1", { name: "Kas Baru" }),

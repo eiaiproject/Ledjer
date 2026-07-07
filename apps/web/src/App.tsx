@@ -126,8 +126,8 @@ const routerConfig = [
     ],
   },
   // Auth callback must NOT sit under PublicRoute/ProtectedRoute: after
-  // verifyOtp sets a session the guards would redirect before our own
-  // navigate("/onboarding") runs.
+  // token verification sets a session, route guards would redirect before
+  // this page can choose the right destination.
   {
     path: "/auth/callback",
     element: (
@@ -136,8 +136,8 @@ const routerConfig = [
       </Seo>
     ),
   },
-  // Password recovery destination — Supabase recovery email links land here
-  // with a temporary session so the user can set a new password.
+  // Password recovery destination. Recovery email links land here with a
+  // temporary session so the user can set a new password.
   {
     path: "/reset-password",
     element: (

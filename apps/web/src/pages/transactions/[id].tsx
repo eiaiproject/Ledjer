@@ -3,11 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { formatIDR, formatShortDate } from "@/lib/utils";
+import { formatIDR, formatShortDate, createClientToken } from "@/lib/utils";
 import {
   PAYMENT_STATUS_LABELS,
   ALL_TRANSACTION_TYPE_LABELS,
   usesCategory,
+  statusVariant,
+  statusLabel,
 } from "@/lib/transactions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,25 +24,6 @@ import {
   listTransactionJournal,
   voidTransaction,
 } from "@/lib/api/transactions";
-
-function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
-  if (status === "posted") return "success";
-  if (status === "voided") return "error";
-  if (status === "reversed") return "warning";
-  return "neutral";
-}
-
-function statusLabel(status: string) {
-  if (status === "posted") return "Posted";
-  if (status === "voided") return "Dibatalkan";
-  if (status === "reversed") return "Reversal";
-  return status;
-}
-
-function createClientToken() {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();

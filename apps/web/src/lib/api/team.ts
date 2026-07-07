@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from "./client";
+import { apiRequest } from "./client";
 
 export type TeamRole = "owner" | "admin" | "member" | "viewer";
 export type TeamInvitationRole = Exclude<TeamRole, "owner">;
@@ -75,14 +75,14 @@ export function createTeamInvitation(input: {
 }): Promise<CreatedTeamInvitation> {
   return apiRequest<CreatedInvitationResponse>("/api/team/invitations", {
     method: "POST",
-    body: jsonBody(input),
+    body: JSON.stringify(input),
   }).then((data) => data.invitation);
 }
 
 export function acceptTeamInvitation(token: string): Promise<AcceptInvitationResult> {
   return apiRequest<AcceptInvitationResult>("/api/team/invitations/accept", {
     method: "POST",
-    body: jsonBody({ token }),
+    body: JSON.stringify({ token }),
   });
 }
 
@@ -100,7 +100,7 @@ export function updateTeamMemberRole(
     `/api/team/members/${encodeURIComponent(memberId)}/role`,
     {
       method: "PATCH",
-      body: jsonBody({ role }),
+      body: JSON.stringify({ role }),
     },
   ).then((data) => data.member);
 }

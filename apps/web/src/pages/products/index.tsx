@@ -197,7 +197,7 @@ export function ProductsPage() {
   const handleExport = async () => {
     if (!orgData?.organization?.id) return;
     try {
-      await exportProductsCsv(orgData.organization.id);
+      await exportProductsCsv();
       toast.success("Export CSV produk dimulai");
     } catch (err) {
       toast.error(translateError(err));

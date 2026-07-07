@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from "./client";
+import { apiRequest } from "./client";
 
 export interface Product {
   id: string;
@@ -49,7 +49,7 @@ export function listProducts(): Promise<Product[]> {
 export function createProduct(input: ProductInput): Promise<Product> {
   return apiRequest<ProductResponse>("/api/products", {
     method: "POST",
-    body: jsonBody(input),
+    body: JSON.stringify(input),
   }).then((data) => data.product);
 }
 
@@ -59,7 +59,7 @@ export function updateProduct(
 ): Promise<Product> {
   return apiRequest<ProductResponse>(`/api/products/${productId}`, {
     method: "PATCH",
-    body: jsonBody(input),
+    body: JSON.stringify(input),
   }).then((data) => data.product);
 }
 
