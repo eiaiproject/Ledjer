@@ -121,7 +121,7 @@ export function GeneralLedgerPage() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => void handleExport()}
+                onClick={() => handleExport().catch((err) => console.error("export failed", err))}
                 disabled={!ledger?.length || dateRangeInvalid}
               >
                 <Download className="h-4 w-4" />
@@ -204,7 +204,7 @@ export function GeneralLedgerPage() {
                   })()
                 ) : (
                   <tr>
-                    <td colSpan={showAllAccounts ? 6 : 6} className="px-5 py-8 text-center text-wood-500">
+                    <td colSpan={6} className="px-5 py-8 text-center text-wood-500">
                       Tidak ada transaksi untuk akun ini pada periode ini
                     </td>
                   </tr>

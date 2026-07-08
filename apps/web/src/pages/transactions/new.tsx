@@ -266,10 +266,15 @@ export function NewTransactionPage() {
   const lookupError = accountsError || expenseAccountsError || partiesError || productsError;
 
   const retryLookups = () => {
-    void refetchAccounts();
-    void refetchExpenseAccounts();
-    void refetchParties();
-    void refetchProducts();
+    Promise.allSettled([
+      refetchAccounts(),
+      refetchExpenseAccounts(),
+      refetchParties(),
+      refetchProducts(),
+    ]).then((settlements) => {
+      const rejected = settlements.filter((s) => s.status === "rejected");
+      if (rejected.length > 0) console.error(`${rejected.length} lookup refetch(es) failed`, rejected);
+    });
   };
 
   // ponytail: derive account name for preview from CoA or fallback to category/product name
@@ -620,7 +625,7 @@ export function NewTransactionPage() {
           <form
             ref={formRef}
             onSubmit={(event) => {
-              void handleSubmit(onSubmit)(event);
+              handleSubmit(onSubmit)(event).catch((err) => console.error("submit failed", err));
             }}
             onKeyDown={handleKeyDown}
             className="min-w-0 space-y-4"

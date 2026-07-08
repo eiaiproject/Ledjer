@@ -206,7 +206,8 @@ export function getSubmitLabel(args: {
   const isSale = transactionType === "cash_sale" || transactionType === "credit_sale";
   const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
 
-  const verb = isSale ? "Catat Penjualan" : isPurchase ? "Catat Pembelian" : "Catat Transaksi";
+  const VERBS = { sale: "Catat Penjualan", purchase: "Catat Pembelian" } as const;
+  const verb = (isSale && VERBS.sale) || (isPurchase && VERBS.purchase) || "Catat Transaksi";
   if (amount > 0) {
     return `${verb} ${formatIDR(amount)}`;
   }
