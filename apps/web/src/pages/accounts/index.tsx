@@ -216,8 +216,9 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
         <div className="space-y-4">
           {/* Kind selector */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-text-secondary">Jenis akun</label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <fieldset>
+              <legend className="mb-2 block text-sm font-medium text-text-secondary">Jenis akun</legend>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {CASH_BANK_KINDS.map((k) => {
                 const Icon = k.icon;
                 return (
@@ -239,6 +240,7 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
                 );
               })}
             </div>
+            </fieldset>
           </div>
 
           {/* Name input */}
@@ -273,8 +275,9 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
 
           {/* Auto-generated code preview */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
+            <label htmlFor="account-code" className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
             <input
+              id="account-code"
               type="text"
               value={isRangeExhausted ? "Penuh — tidak ada kode tersedia" : `${nextCode} - ${selectedMeta?.label || selectedKind}`}
               readOnly
@@ -419,8 +422,9 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
+              <label htmlFor="edit-account-code" className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
               <input
+                id="edit-account-code"
                 type="text"
                 value={account.code}
                 readOnly
@@ -428,8 +432,9 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text-secondary">Jenis akun</label>
+              <label htmlFor="edit-account-type" className="mb-1.5 block text-sm font-medium text-text-secondary">Jenis akun</label>
               <input
+                id="edit-account-type"
                 type="text"
                 value={typeInfo?.label || account.account_type}
                 readOnly

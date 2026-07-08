@@ -104,12 +104,11 @@ export function ResetPasswordPage() {
             </p>
 
             {success ? (
-              <div
+              <output
                 className="mt-6 rounded-lg bg-success/10 p-3 text-sm text-success"
-                role="status"
               >
                 Password berhasil diperbarui. Mengarahkan ke halaman masuk…
-              </div>
+              </output>
             ) : !session ? (
               <div className="mt-6 space-y-4">
                 <div

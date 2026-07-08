@@ -230,7 +230,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
                   <button
                     key={type}
                     type="button"
-                    role="button"
+                   
                     aria-pressed={selected}
                     onClick={() => handleSelect(type)}
                     className={cn(

@@ -51,10 +51,10 @@ export function AcceptInvitationPage() {
 
   if (loading) {
     return (
-      <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-12" role="status">
+      <output className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-12" aria-live="polite">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" aria-hidden="true" />
         <span className="sr-only">Memuat sesi...</span>
-      </div>
+      </output>
     );
   }
 

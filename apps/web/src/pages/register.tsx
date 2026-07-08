@@ -159,12 +159,11 @@ export function RegisterPage() {
                 </div>
 
                 {resendMessage && (
-                  <div
+                  <output
                     className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success"
-                    role="status"
                   >
                     {resendMessage}
-                  </div>
+                  </output>
                 )}
                 {resendError && (
                   <div

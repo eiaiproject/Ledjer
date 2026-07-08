@@ -119,9 +119,9 @@ function ToastContainer({
       {toasts.map((t) => {
         const Icon = ICONS[t.variant];
         return (
-          <div
+          <output
             key={t.id}
-            role={t.variant === "error" ? "alert" : "status"}
+            role={t.variant === "error" ? "alert" : undefined}
             aria-live={t.variant === "error" ? "assertive" : "polite"}
             onMouseEnter={() => onPause(t.id)}
             onMouseLeave={() => onResume(t.id, t.duration)}
@@ -139,7 +139,7 @@ function ToastContainer({
             >
               <X className="h-4 w-4" />
             </button>
-          </div>
+          </output>
         );
       })}
     </div>
