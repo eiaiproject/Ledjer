@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import { getSessionCookie, setSessionCookie, clearSessionCookie } from "../auth/cookies";
 import type { AppContext } from "../env";
@@ -15,6 +16,10 @@ import {
   verifyEmailToken,
   verifyPasswordResetToken,
 } from "../services/auth.service";
+import {
+  buildGoogleAuthUrl,
+  completeGoogleAuth,
+} from "../services/google-auth.service";
 import {
   getSessionByToken,
   publicSession,
@@ -154,16 +159,96 @@ authRoutes.post("/change-password", async (c) => {
 });
 
 authRoutes.get("/google/start", (c) => {
-  return c.json(
-    {
-      error: {
-        code: "oauth_not_configured",
-        message: "Google OAuth is not configured yet",
-        requestId: c.get("requestId"),
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return c.json(
+      {
+        error: {
+          code: "oauth_not_configured",
+          message: "Google OAuth is not configured yet",
+          requestId: c.get("requestId"),
+        },
       },
-    },
-    501,
-  );
+      501,
+    );
+  }
+
+  // Generate CSRF state token
+  const state = crypto.randomUUID();
+  const current = Date.now();
+
+  // Store state in cookie (5 min expiry)
+  setCookie(c, "google_oauth_state", state, {
+    domain: c.env.COOKIE_DOMAIN,
+    expires: new Date(current + 5 * 60 * 1000),
+    httpOnly: true,
+    path: "/",
+    sameSite: "Lax",
+    secure: true,
+  });
+
+  // Build redirect URI (worker callback endpoint)
+  const origin = c.env.APP_ORIGIN || new URL(c.req.url).origin;
+  const redirectUri = `${origin}/api/auth/google/callback`;
+
+  const url = buildGoogleAuthUrl(clientId, redirectUri, state);
+  return c.json({ url });
+});
+
+authRoutes.get("/google/callback", async (c) => {
+  const code = c.req.query("code");
+  const state = c.req.query("state");
+  const error = c.req.query("error");
+
+  if (error) {
+    return c.redirect(`/auth/callback?error=${encodeURIComponent(error)}`);
+  }
+
+  if (!code || !state) {
+    return c.redirect("/auth/callback?error=missing_params");
+  }
+
+  // Verify CSRF state
+  const storedState = getCookie(c, "google_oauth_state");
+  if (!storedState || storedState !== state) {
+    return c.redirect("/auth/callback?error=invalid_state");
+  }
+
+  // Clear state cookie
+  deleteCookie(c, "google_oauth_state", {
+    domain: c.env.COOKIE_DOMAIN,
+    path: "/",
+    secure: true,
+  });
+
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return c.redirect("/auth/callback?error=oauth_not_configured");
+  }
+
+  try {
+    const origin = c.env.APP_ORIGIN || new URL(c.req.url).origin;
+    const redirectUri = `${origin}/api/auth/google/callback`;
+
+    const session = await completeGoogleAuth(
+      c.env.DB,
+      code,
+      clientId,
+      clientSecret,
+      redirectUri,
+      c.req.raw,
+    );
+
+    setSessionCookie(c, session.token, session.expiresAt);
+    return c.redirect("/auth/callback?success=true");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown_error";
+    return c.redirect(`/auth/callback?error=${encodeURIComponent(message)}`);
+  }
 });
 
 async function requireSession(c: Context<AppContext>) {

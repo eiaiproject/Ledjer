@@ -56,8 +56,9 @@ export function AuthCallbackPage() {
       if (verifiedRef.current) return;
       verifiedRef.current = true;
 
-      // OAuth flow: ?code=... (not implemented yet; Google OAuth is optional)
-      const code = searchParams.get("code");
+      // OAuth flow: backend redirects here with ?success=true or ?error=...
+      const oauthSuccess = searchParams.get("success");
+      const oauthError = searchParams.get("error");
       // Email-link flow: ?token=...&type=signup | recovery.
       const token = searchParams.get("token");
       const type = searchParams.get("type") as
@@ -67,8 +68,15 @@ export function AuthCallbackPage() {
       const redirectPath = getSafeRedirectPath(searchParams.get("redirect"), "/onboarding");
 
       try {
-        if (code) {
-          throw new ApiError(501, "oauth_not_configured", "Google OAuth is not configured yet");
+        if (oauthSuccess === "true") {
+          // Google OAuth succeeded — session cookie is already set by backend
+          setStatus("success");
+          setTimeout(() => {
+            navigate(redirectPath, { replace: true });
+          }, 1200);
+          return;
+        } else if (oauthError) {
+          throw new ApiError(500, "oauth_error", decodeURIComponent(oauthError));
         } else if (token && type) {
           setCallbackType(type);
           await verifyEmail(token, type);

@@ -57,11 +57,12 @@ describe('AuthCallbackPage', () => {
     vi.clearAllMocks();
   });
 
-  it('verifies successfully with code exchange and redirects to onboarding', async () => {
+  it('shows invalid state when code is present without success/error params', async () => {
+    mocks.getMe.mockResolvedValue({ session: null, user: null });
     renderWithSearchParams('?code=test-code');
 
-    expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
-    expect(screen.getByText(/google belum tersedia/i)).toBeTruthy();
+    expect(mocks.verifyEmail).not.toHaveBeenCalled();
+    expect(await screen.findByText(/autentikasi tidak terarah/i)).toBeTruthy();
   });
 
   it('handles token + type verifyEmail successfully', async () => {
@@ -123,11 +124,10 @@ describe('AuthCallbackPage', () => {
     expect(screen.getByText(/Token telah kedaluwarsa/i)).toBeTruthy();
   });
 
-  it('shows error state on code exchange failure', async () => {
-    renderWithSearchParams('?code=bad');
+  it('shows error state when OAuth returns error param', async () => {
+    renderWithSearchParams('?error=access_denied');
 
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
-    expect(screen.getByText(/google belum tersedia/i)).toBeTruthy();
   });
 
   it('resends confirmation email successfully', async () => {
