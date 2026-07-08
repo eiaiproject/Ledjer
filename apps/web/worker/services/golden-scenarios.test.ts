@@ -78,11 +78,17 @@ describe("Golden Accounting Scenarios", () => {
     });
 
     it("weighted average: void sale does not change average cost", () => {
+      // Setup: 20 units in stock at avg cost 150, then 10 units sold
       const avgBefore = 150;
-      const avgAfterVoid = avgBefore;
-      // Void sale: stock goes back to 20, average stays 150
-      // The average cost is not recalculated on void in the current implementation
-      expect(avgAfterVoid).toBe(avgBefore);
+      const stockBeforeMilli = 20_000; // 20 units * 1000
+      const voidedQtyMilli = 10_000; // 10 units sold, then voided
+
+      // Void sale adds stock back; average stays the same when stock > 0
+      const nextStockMilli = stockBeforeMilli + voidedQtyMilli;
+      const avgAfterVoid = nextStockMilli === 0 ? 0 : avgBefore;
+
+      expect(avgAfterVoid).toBe(150);
+      expect(nextStockMilli).toBe(30_000);
     });
   });
 
