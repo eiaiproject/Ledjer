@@ -70,31 +70,32 @@ const MESSAGE_PATTERNS: Array<[string, string]> = [
 
 export function translateError(error: unknown): string {
   if (!error) return 'Terjadi kesalahan. Silakan coba lagi.';
-
-  const errorObj = error as Record<string, unknown>;
-  if (errorObj && typeof errorObj === 'object') {
-    const code = errorObj.code as string | undefined;
-    const message = errorObj.message as string | undefined;
-
-    if (code && ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
-
-    if (message) {
-      const translated = translateMessage(message);
-      if (translated) return translated;
-    }
-  }
-
-  if (error instanceof Error) {
-    const message = error.message;
-    const code = (error as unknown as Record<string, unknown>).code as string | undefined;
-
-    if (code && ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
-
+  const code = readCode(error);
+  if (code && ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
+  const message = readMessage(error);
+  if (message) {
     const translated = translateMessage(message);
     if (translated) return translated;
   }
-
   return 'Terjadi kesalahan. Silakan coba lagi.';
+}
+
+function readCode(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null) {
+    return (error as Record<string, unknown>).code as string | undefined;
+  }
+  if (error instanceof Error) {
+    return (error as unknown as Record<string, unknown>).code as string | undefined;
+  }
+  return undefined;
+}
+
+function readMessage(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null) {
+    return (error as Record<string, unknown>).message as string | undefined;
+  }
+  if (error instanceof Error) return error.message;
+  return undefined;
 }
 
 function translateMessage(message: string): string | undefined {
