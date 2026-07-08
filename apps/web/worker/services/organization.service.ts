@@ -296,19 +296,20 @@ async function postOpeningBalances(
     const entryId = generateId();
     const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
 
-    statements.push(statement(db,
-      `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal kas', 'posted', ?, ?, ?)`,
-      [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
-    ));
-
-    statements.push(statement(db,
-      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal kas', 1, ?)`,
-      [generateId(), organizationId, entryId, cashAccountId, cashAmount, current],
-    ));
-    statements.push(statement(db,
-      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal kas', 2, ?)`,
-      [generateId(), organizationId, entryId, openingBalanceAccountId, cashAmount, current],
-    ));
+    statements.push(
+      statement(db,
+        `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal kas', 'posted', ?, ?, ?)`,
+        [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
+      ),
+      statement(db,
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal kas', 1, ?)`,
+        [generateId(), organizationId, entryId, cashAccountId, cashAmount, current],
+      ),
+      statement(db,
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal kas', 2, ?)`,
+        [generateId(), organizationId, entryId, openingBalanceAccountId, cashAmount, current],
+      ),
+    );
 
   }
 
@@ -320,19 +321,20 @@ async function postOpeningBalances(
     const entryId = generateId();
     const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
 
-    statements.push(statement(db,
-      `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal', 'posted', ?, ?, ?)`,
-      [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
-    ));
-
-    statements.push(statement(db,
-      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal', 1, ?)`,
-      [generateId(), organizationId, entryId, extra.accountId, amount, current],
-    ));
-    statements.push(statement(db,
-      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal', 2, ?)`,
-      [generateId(), organizationId, entryId, openingBalanceAccountId, amount, current],
-    ));
+    statements.push(
+      statement(db,
+        `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal', 'posted', ?, ?, ?)`,
+        [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
+      ),
+      statement(db,
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal', 1, ?)`,
+        [generateId(), organizationId, entryId, extra.accountId, amount, current],
+      ),
+      statement(db,
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal', 2, ?)`,
+        [generateId(), organizationId, entryId, openingBalanceAccountId, amount, current],
+      ),
+    );
 
   }
 

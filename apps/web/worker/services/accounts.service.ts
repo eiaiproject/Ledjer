@@ -9,6 +9,7 @@ import {
 import { badRequest, conflict, forbidden, notFound } from "../http/errors";
 
 export type CashBankKind = "cash" | "bank" | "qris" | "ewallet";
+type CashAccountType = "cash" | "bank" | "qris";
 
 export interface PublicAccount {
   id: string;
@@ -21,7 +22,7 @@ export interface PublicAccount {
   is_locked: boolean;
   is_active: boolean;
   is_cash_account: boolean;
-  cash_account_type: "cash" | "bank" | "qris" | null;
+  cash_account_type: CashAccountType | null;
   report_group: string | null;
 }
 
@@ -37,7 +38,7 @@ export interface CreateAccountInput {
   accountType: AccountType;
   normalBalance: NormalBalance;
   isCashAccount?: boolean;
-  cashAccountType?: "cash" | "bank" | "qris";
+  cashAccountType?: CashAccountType;
   reportGroup?: string;
 }
 
@@ -57,7 +58,7 @@ interface AccountRow {
   is_locked: 0 | 1;
   is_active: 0 | 1;
   is_cash_account: 0 | 1;
-  cash_account_type: "cash" | "bank" | "qris" | null;
+  cash_account_type: CashAccountType | null;
   report_group: string | null;
 }
 
@@ -65,7 +66,7 @@ interface UsedCodeRow {
   code: number;
 }
 
-const CASH_BANK_RANGES: Record<CashBankKind, { min: number; max: number; reportGroup: string; cashAccountType: "cash" | "bank" | "qris" | null }> = {
+const CASH_BANK_RANGES: Record<CashBankKind, { min: number; max: number; reportGroup: string; cashAccountType: CashAccountType | null }> = {
   cash: { min: 1111, max: 1119, reportGroup: "Kas", cashAccountType: "cash" },
   bank: { min: 1121, max: 1129, reportGroup: "Bank", cashAccountType: "bank" },
   qris: { min: 1130, max: 1139, reportGroup: "Bank", cashAccountType: "qris" },

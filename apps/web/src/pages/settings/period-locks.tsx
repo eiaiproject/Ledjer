@@ -51,6 +51,83 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+interface PeriodLocksContentProps {
+  isLoading: boolean;
+  locks: PeriodLock[];
+  deletePending: boolean;
+  onDeleteClick: (lock: PeriodLock) => void;
+}
+
+function PeriodLocksContent({
+  isLoading,
+  locks,
+  deletePending,
+  onDeleteClick,
+}: Readonly<PeriodLocksContentProps>) {
+  if (isLoading) return <PageSpinner />;
+
+  if (locks.length === 0) {
+    return (
+      <div className="rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
+        <Lock className="mx-auto h-10 w-10 text-wood-300" />
+        <h3 className="mt-3 text-sm font-medium text-wood-700">
+          Belum ada periode terkunci
+        </h3>
+        <p className="mx-auto mt-1 max-w-sm text-xs text-wood-500">
+          Kunci periode untuk mencegah perubahan data di periode yang sudah ditutup.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {locks.map((lock) => (
+        <div
+          key={lock.id}
+          className="min-w-0 rounded-lg border border-wood-200 bg-cream-50 p-4 transition-[border-color] duration-150"
+        >
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wood-100 text-wood-600">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-wood-800">
+                  Tutup sampai {formatLockDate(lock.lockedThroughDate)}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-wood-500">
+                  <span>Dikunci {formatCreatedAt(lock.createdAt)}</span>
+                  {lock.reason && (
+                    <>
+                      <span className="text-wood-300">·</span>
+                      <span className="italic text-wood-600">{lock.reason}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="shrink-0">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onDeleteClick(lock)}
+                disabled={deletePending}
+                aria-label={`Hapus kunci periode ${lock.lockedThroughDate}`}
+                className="text-error hover:bg-error/10 hover:text-error"
+              >
+                <Trash2 className="h-4 w-4" />
+                Hapus
+              </Button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function PeriodLocksPage() {
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
@@ -213,64 +290,12 @@ export function PeriodLocksPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <PageSpinner />
-              ) : locks.length === 0 ? (
-                <div className="rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
-                  <Lock className="mx-auto h-10 w-10 text-wood-300" />
-                  <h3 className="mt-3 text-sm font-medium text-wood-700">
-                    Belum ada periode terkunci
-                  </h3>
-                  <p className="mx-auto mt-1 max-w-sm text-xs text-wood-500">
-                    Kunci periode untuk mencegah perubahan data di periode yang sudah ditutup.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {locks.map((lock) => (
-                    <div
-                      key={lock.id}
-                      className="min-w-0 rounded-lg border border-wood-200 bg-cream-50 p-4 transition-[border-color] duration-150"
-                    >
-                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0 flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wood-100 text-wood-600">
-                            <Lock className="h-5 w-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-wood-800">
-                              Tutup sampai {formatLockDate(lock.lockedThroughDate)}
-                            </p>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-wood-500">
-                              <span>Dikunci {formatCreatedAt(lock.createdAt)}</span>
-                              {lock.reason && (
-                                <>
-                                  <span className="text-wood-300">·</span>
-                                  <span className="italic text-wood-600">{lock.reason}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="shrink-0">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(lock)}
-                            disabled={deleteMutation.isPending}
-                            aria-label={`Hapus kunci periode ${lock.lockedThroughDate}`}
-                            className="text-error hover:bg-error/10 hover:text-error"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Hapus
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <PeriodLocksContent
+                isLoading={isLoading}
+                locks={locks}
+                deletePending={deleteMutation.isPending}
+                onDeleteClick={handleDeleteClick}
+              />
             </CardContent>
           </Card>
         </section>

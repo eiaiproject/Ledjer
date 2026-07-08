@@ -120,7 +120,8 @@ export function listTransactions(filters: TransactionListFilters): Promise<Trans
   if (filters.limit !== undefined) params.set("limit", String(filters.limit));
   if (filters.offset !== undefined) params.set("offset", String(filters.offset));
   const query = params.toString();
-  return apiRequest<TransactionsResponse>(`/api/transactions${query ? `?${query}` : ""}`).then(
+  const path = query ? `/api/transactions?${query}` : "/api/transactions";
+  return apiRequest<TransactionsResponse>(path).then(
     (data) => data.transactions,
   );
 }

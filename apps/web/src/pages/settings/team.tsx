@@ -229,7 +229,7 @@ function PendingInvitationCard({
   );
 }
 
-function OwnerCard({ member }: { member: TeamMember }) {
+function OwnerCard({ member }: Readonly<{ member: TeamMember }>) {
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-honey-200 bg-honey-50 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex items-center gap-3">
@@ -252,6 +252,67 @@ function OwnerCard({ member }: { member: TeamMember }) {
           Akses penuh ke semua fitur
         </span>
       </div>
+    </div>
+  );
+}
+
+interface StaffListContentProps {
+  isLoading: boolean;
+  invitationsCount: number;
+  staffMembers: TeamMember[];
+  canManageTeam: boolean;
+  rolePending: boolean;
+  removePending: boolean;
+  onRoleChange: (memberId: string, role: TeamInvitationRole) => void;
+  onRemove: (member: TeamMember) => void;
+}
+
+function StaffListContent({
+  isLoading,
+  invitationsCount,
+  staffMembers,
+  canManageTeam,
+  rolePending,
+  removePending,
+  onRoleChange,
+  onRemove,
+}: Readonly<StaffListContentProps>) {
+  if (isLoading) {
+    return (
+      <div className="mt-4">
+        <PageSpinner />
+      </div>
+    );
+  }
+
+  if (staffMembers.length === 0) {
+    const title = invitationsCount > 0 ? "Menunggu anggota menerima undangan" : "Belum ada anggota";
+    const body = invitationsCount > 0
+      ? "Setelah undangan diterima, anggota akan muncul di daftar ini."
+      : "Undang anggota untuk membantu pencatatan dan pengawasan pembukuan.";
+
+    return (
+      <div className="mt-4 rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
+        <Users className="mx-auto h-10 w-10 text-wood-300" />
+        <h3 className="mt-3 text-sm font-medium text-wood-700">{title}</h3>
+        <p className="mx-auto mt-1 max-w-sm text-xs text-wood-500">{body}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      {staffMembers.map((member) => (
+        <MemberCard
+          key={member.id}
+          member={member}
+          canManageTeam={canManageTeam}
+          onRoleChange={(role) => onRoleChange(member.id, role)}
+          onRemove={() => onRemove(member)}
+          rolePending={rolePending}
+          removePending={removePending}
+        />
+      ))}
     </div>
   );
 }
@@ -553,7 +614,7 @@ export function TeamSettingsPage() {
                           containerClassName="min-w-0"
                         />
                         <label className="block text-sm font-medium text-wood-700">
-                          Role
+                          <span className="block">Role</span>
                           <select
                             value={inviteRole}
                             onChange={(event) => setInviteRole(event.target.value as TeamInvitationRole)}
@@ -616,39 +677,16 @@ export function TeamSettingsPage() {
                 </>
               )}
 
-              {isLoading ? (
-                <div className="mt-4">
-                  <PageSpinner />
-                </div>
-              ) : staffMembers.length === 0 ? (
-                <div className="mt-4 rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
-                  <Users className="mx-auto h-10 w-10 text-wood-300" />
-                  <h3 className="mt-3 text-sm font-medium text-wood-700">
-                    {invitations.length > 0 ? "Menunggu anggota menerima undangan" : "Belum ada anggota"}
-                  </h3>
-                  <p className="mx-auto mt-1 max-w-sm text-xs text-wood-500">
-                    {invitations.length > 0
-                      ? "Setelah undangan diterima, anggota akan muncul di daftar ini."
-                      : "Undang anggota untuk membantu pencatatan dan pengawasan pembukuan."}
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {staffMembers.map((member) => (
-                    <MemberCard
-                      key={member.id}
-                      member={member}
-                      canManageTeam={canManageTeam}
-                      onRoleChange={(role) =>
-                        roleMutation.mutate({ memberId: member.id, role })
-                      }
-                      onRemove={() => handleRemoveClick(member)}
-                      rolePending={roleMutation.isPending}
-                      removePending={removeMutation.isPending}
-                    />
-                  ))}
-                </div>
-              )}
+              <StaffListContent
+                isLoading={isLoading}
+                invitationsCount={invitations.length}
+                staffMembers={staffMembers}
+                canManageTeam={canManageTeam}
+                rolePending={roleMutation.isPending}
+                removePending={removeMutation.isPending}
+                onRoleChange={(memberId, role) => roleMutation.mutate({ memberId, role })}
+                onRemove={handleRemoveClick}
+              />
             </CardContent>
           </Card>
         </section>
@@ -677,14 +715,14 @@ function MemberCard({
   onRemove,
   rolePending,
   removePending,
-}: {
+}: Readonly<{
   member: TeamMember;
   canManageTeam: boolean;
   onRoleChange: (role: TeamInvitationRole) => void;
   onRemove: () => void;
   rolePending: boolean;
   removePending: boolean;
-}) {
+}>) {
   const [showPerms, setShowPerms] = useState(false);
   const activeCount = countActivePermissions(member);
   const joinedDate = formatJoinedDate(member.joined_at);

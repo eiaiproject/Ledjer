@@ -27,6 +27,10 @@ async function downloadCsv(path: string, fallbackFilename: string): Promise<void
   downloadBlob(blob, filename || fallbackFilename);
 }
 
+function withQuery(path: string, query: string): string {
+  return query ? `${path}?${query}` : path;
+}
+
 export async function exportTransactionsCsv(
   filters: {
     fromDate?: string;
@@ -43,7 +47,7 @@ export async function exportTransactionsCsv(
   if (filters.toDate) params.set("toDate", filters.toDate);
   if (filters.transactionType) params.set("transactionType", filters.transactionType);
   const query = params.toString();
-  await downloadCsv(`/api/exports/transactions.csv${query ? `?${params}` : ""}`, todayFilename("transaksi"));
+  await downloadCsv(withQuery("/api/exports/transactions.csv", query), todayFilename("transaksi"));
 }
 
 export async function exportAccountsCsv(): Promise<void> {
@@ -58,7 +62,7 @@ export async function exportTrialBalanceCsv(asOfDate?: string): Promise<void> {
   const params = new URLSearchParams();
   if (asOfDate) params.set("asOfDate", asOfDate);
   const query = params.toString();
-  await downloadCsv(`/api/exports/reports/trial-balance.csv${query ? `?${params}` : ""}`, todayFilename("neraca_saldo"));
+  await downloadCsv(withQuery("/api/exports/reports/trial-balance.csv", query), todayFilename("neraca_saldo"));
 }
 
 export async function exportProfitLossCsv(fromDate?: string, toDate?: string): Promise<void> {
@@ -66,14 +70,14 @@ export async function exportProfitLossCsv(fromDate?: string, toDate?: string): P
   if (fromDate) params.set("fromDate", fromDate);
   if (toDate) params.set("toDate", toDate);
   const query = params.toString();
-  await downloadCsv(`/api/exports/reports/profit-loss.csv${query ? `?${params}` : ""}`, todayFilename("laba_rugi"));
+  await downloadCsv(withQuery("/api/exports/reports/profit-loss.csv", query), todayFilename("laba_rugi"));
 }
 
 export async function exportBalanceSheetCsv(asOfDate?: string): Promise<void> {
   const params = new URLSearchParams();
   if (asOfDate) params.set("asOfDate", asOfDate);
   const query = params.toString();
-  await downloadCsv(`/api/exports/reports/balance-sheet.csv${query ? `?${params}` : ""}`, todayFilename("neraca"));
+  await downloadCsv(withQuery("/api/exports/reports/balance-sheet.csv", query), todayFilename("neraca"));
 }
 
 export async function exportGeneralLedgerCsv(
@@ -86,5 +90,5 @@ export async function exportGeneralLedgerCsv(
   if (fromDate) params.set("fromDate", fromDate);
   if (toDate) params.set("toDate", toDate);
   const query = params.toString();
-  await downloadCsv(`/api/exports/reports/general-ledger.csv${query ? `?${params}` : ""}`, todayFilename("buku_besar"));
+  await downloadCsv(withQuery("/api/exports/reports/general-ledger.csv", query), todayFilename("buku_besar"));
 }

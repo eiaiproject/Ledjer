@@ -24,7 +24,7 @@ function formatValue(value: number | string, format: StatCardProps["format"]) {
   return typeof value === "number" ? formatIDR(value) : value;
 }
 
-export function StatCard({ label, value, icon: Icon, tone = "wood", format = "currency", className }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, tone = "wood", format = "currency", className }: Readonly<StatCardProps>) {
   const colors = colorStyles[tone];
 
   return (

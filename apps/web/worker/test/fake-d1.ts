@@ -1,7 +1,7 @@
 type MaybePromise<T> = T | Promise<T>;
 
 interface FakeD1Handlers {
-  first?: (sql: string, values: unknown[]) => MaybePromise<unknown | null>;
+  first?: (sql: string, values: unknown[]) => MaybePromise<unknown>;
   all?: (sql: string, values: unknown[]) => MaybePromise<unknown[]>;
   run?: (sql: string, values: unknown[]) => MaybePromise<D1Result | void>;
 }
@@ -14,7 +14,7 @@ export class FakeD1Statement {
     private readonly sql: string,
   ) {}
 
-  bind(...values: unknown[]): FakeD1Statement {
+  bind(...values: unknown[]): this {
     this.values = values;
     return this;
   }
@@ -53,6 +53,6 @@ export class FakeD1Database {
 
   async run(sql: string, values: unknown[]): Promise<D1Result> {
     this.statements.push({ sql, values });
-    return await this.handlers.run?.(sql, values) ?? { success: true } as D1Result;
+    return (await this.handlers.run?.(sql, values)) ?? { success: true } as D1Result;
   }
 }

@@ -16,6 +16,10 @@ import { describe, expect, it } from "vitest";
 const LOGIN_MAX_FAILURES = 5;
 const LOGIN_LOCKOUT_MS = 1000 * 60 * 15;
 
+function isLockedOut(failureCount: number): boolean {
+  return failureCount >= LOGIN_MAX_FAILURES;
+}
+
 describe("login rate limiting constants", () => {
   it("allows at most 5 failures before lockout", () => {
     expect(LOGIN_MAX_FAILURES).toBe(5);
@@ -32,19 +36,19 @@ describe("login rate limiting behavior", () => {
     const failures = Array.from({ length: LOGIN_MAX_FAILURES }, (_, i) => ({
       id: `attempt-${i}`,
     }));
-    expect(failures.length >= LOGIN_MAX_FAILURES).toBe(true);
+    expect(isLockedOut(failures.length)).toBe(true);
   });
 
   it("allows when failure count is below MAX_FAILURES", () => {
     const failures = Array.from({ length: LOGIN_MAX_FAILURES - 1 }, (_, i) => ({
       id: `attempt-${i}`,
     }));
-    expect(failures.length >= LOGIN_MAX_FAILURES).toBe(false);
+    expect(isLockedOut(failures.length)).toBe(false);
   });
 
   it("allows when no failures exist", () => {
     const failures: unknown[] = [];
-    expect(failures.length >= LOGIN_MAX_FAILURES).toBe(false);
+    expect(isLockedOut(failures.length)).toBe(false);
   });
 
   it("filters by time window (only recent failures count)", () => {
@@ -61,8 +65,8 @@ describe("login rate limiting behavior", () => {
     const recent = recentFailures.filter((f) => f.created_at >= since);
     const old = oldFailures.filter((f) => f.created_at >= since);
 
-    expect(recent.length).toBe(2);
-    expect(old.length).toBe(0);
+    expect(recent).toHaveLength(2);
+    expect(old).toHaveLength(0);
   });
 
   it("counts failures by email OR IP address", () => {
@@ -86,7 +90,7 @@ describe("login rate limiting behavior", () => {
     const matchingAttempts = allAttempts.filter(
       (a) => a.email === email || a.ip_address === ip,
     );
-    expect(matchingAttempts.length).toBe(4);
+    expect(matchingAttempts).toHaveLength(4);
   });
 
   it("successful login does not count toward failures", () => {
@@ -99,7 +103,7 @@ describe("login rate limiting behavior", () => {
     ];
 
     const failures = attempts.filter((a) => a.success === 0);
-    expect(failures.length).toBe(4);
-    expect(failures.length < LOGIN_MAX_FAILURES).toBe(true);
+    expect(failures).toHaveLength(4);
+    expect(isLockedOut(failures.length)).toBe(false);
   });
 });

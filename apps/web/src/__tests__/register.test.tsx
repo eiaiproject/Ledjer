@@ -35,7 +35,31 @@ describe('RegisterPage', () => {
     vi.useRealTimers();
   });
 
-  it('renders the registration form with all required inputs', () => {
+  it.each([
+    {
+      name: "registration form",
+      assert: () => {
+        expect(screen.getByLabelText(/nama lengkap/i)).toBeTruthy();
+        expect(screen.getByLabelText(/email/i)).toBeTruthy();
+        expect(screen.getAllByLabelText(/password/i)).toHaveLength(2);
+        expect(screen.getByRole('button', { name: /^daftar$/i })).toBeTruthy();
+      },
+    },
+    {
+      name: "Google sign-up button",
+      assert: () => {
+        expect(screen.getByRole('button', { name: /daftar dengan google/i })).toBeTruthy();
+      },
+    },
+    {
+      name: "Masuk link pointing at /login",
+      assert: () => {
+        const loginLink = screen.getByRole('link', { name: /masuk$/i });
+        expect(loginLink).toBeTruthy();
+        expect(loginLink.getAttribute('href')).toBe('/login');
+      },
+    },
+  ])('renders $name', ({ assert }) => {
     render(
       <MemoryRouter initialEntries={['/register']}>
         <Routes>
@@ -44,39 +68,7 @@ describe('RegisterPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByLabelText(/nama lengkap/i)).toBeTruthy();
-    expect(screen.getByLabelText(/email/i)).toBeTruthy();
-    // Two password inputs: "Password" and "Konfirmasi password"
-    const passwordInputs = screen.getAllByLabelText(/password/i);
-    expect(passwordInputs.length).toBe(2);
-    expect(screen.getByRole('button', { name: /^daftar$/i })).toBeTruthy();
-  });
-
-  it('renders the Google sign-up button', () => {
-    render(
-      <MemoryRouter initialEntries={['/register']}>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const googleButton = screen.getByRole('button', { name: /daftar dengan google/i });
-    expect(googleButton).toBeTruthy();
-  });
-
-  it('renders the "Masuk" link pointing at /login', () => {
-    render(
-      <MemoryRouter initialEntries={['/register']}>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const loginLink = screen.getByRole('link', { name: /masuk$/i });
-    expect(loginLink).toBeTruthy();
-    expect(loginLink.getAttribute('href')).toBe('/login');
+    assert();
   });
 
   it('calls startGoogleAuth when Google button is clicked', async () => {

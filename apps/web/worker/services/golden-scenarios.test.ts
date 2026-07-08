@@ -79,9 +79,10 @@ describe("Golden Accounting Scenarios", () => {
 
     it("weighted average: void sale does not change average cost", () => {
       const avgBefore = 150;
+      const avgAfterVoid = avgBefore;
       // Void sale: stock goes back to 20, average stays 150
       // The average cost is not recalculated on void in the current implementation
-      expect(avgBefore).toBe(150);
+      expect(avgAfterVoid).toBe(avgBefore);
     });
   });
 

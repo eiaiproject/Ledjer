@@ -65,8 +65,7 @@ export interface TeamInvitationEmailSender {
 }
 
 export const devTeamInvitationEmailSender: TeamInvitationEmailSender = {
-  async sendInvitation(input) {
-    void input;
+  async sendInvitation() {
     // Dev stub: production wiring can replace this with a provider-backed sender.
   },
 };

@@ -159,7 +159,7 @@ export async function createPasswordReset(
 ): Promise<void> {
   const email = emailInput.trim().toLowerCase();
   const user = await findUserByEmail(db, email);
-  if (!user || user.status !== "active") return;
+  if (user?.status !== "active") return;
 
   const token = generateToken();
   const current = nowMs();

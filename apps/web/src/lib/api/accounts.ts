@@ -50,7 +50,8 @@ export function listAccounts(filters: AccountListFilters = {}): Promise<Account[
     params.set("accountTypes", filters.accountTypes.join(","));
   }
   const query = params.toString();
-  return apiRequest<AccountsResponse>(`/api/accounts${query ? `?${query}` : ""}`).then(
+  const path = query ? `/api/accounts?${query}` : "/api/accounts";
+  return apiRequest<AccountsResponse>(path).then(
     (data) => data.accounts,
   );
 }

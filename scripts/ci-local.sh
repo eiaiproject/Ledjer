@@ -5,9 +5,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 FULL=0
-if [[ "${1:-}" == "--full" ]]; then
+ARG="${1:-}"
+if [[ "$ARG" == "--full" ]]; then
   FULL=1
-elif [[ "${1:-}" != "" ]]; then
+elif [[ "$ARG" != "" ]]; then
   echo "Usage: bash scripts/ci-local.sh [--full]" >&2
   exit 2
 fi

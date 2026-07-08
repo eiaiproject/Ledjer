@@ -66,10 +66,7 @@ export default {
   async scheduled(
     _controller: ScheduledController,
     env: AppContext["Bindings"],
-    _ctx: ExecutionContext,
   ) {
-    void _controller;
-    void _ctx;
     await cleanupExpiredRows(env.DB);
   },
 };

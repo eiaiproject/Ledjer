@@ -375,18 +375,10 @@ export async function postTransaction(
     current,
   });
 
-  const cashAccount = input.cashAccountId
-    ? await getAccountById(db, organizationId, input.cashAccountId)
-    : null;
-  const destinationCashAccount = input.destinationCashAccountId
-    ? await getAccountById(db, organizationId, input.destinationCashAccountId)
-    : null;
+  const cashAccount = await resolveOptionalAccount(db, organizationId, input.cashAccountId);
+  const destinationCashAccount = await resolveOptionalAccount(db, organizationId, input.destinationCashAccountId);
 
-  const product = input.productId
-    ? await getProductRow(db, organizationId, input.productId)
-    : null;
-  const quantityMilli = product ? toQuantityMilli(input.quantity) : null;
-  const unitPriceMinor = product ? toMoneyMinor(input.unitPrice ?? 0) : null;
+  const { product, quantityMilli, unitPriceMinor } = await resolveProductFields(db, organizationId, input);
   if (product && quantityMilli !== null && unitPriceMinor !== null) {
     validateProductIntent(transactionType, product, quantityMilli, unitPriceMinor, amountMinor);
   }
@@ -418,114 +410,100 @@ export async function postTransaction(
   const transactionNumber = await generateTransactionNumber(db, organizationId, transactionDate);
   const entryNumber = await generateEntryNumber(db, organizationId);
   const categoryName = resolved.categoryName ?? nullableText(input.categoryName);
-  const statements: D1PreparedStatement[] = [];
-
-  statements.push(statement(
-    db,
-    `INSERT INTO transactions (
-       id, organization_id, transaction_number, transaction_date,
-       transaction_type, amount_minor, party_id, category_name,
-       cash_account_id, destination_cash_account_id, payment_status, due_date,
-       description, notes, status, idempotency_key, posted_at, posted_by,
-       created_by, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?)`,
-    [
-      transactionId,
-      organizationId,
-      transactionNumber,
-      transactionDate,
-      transactionType,
-      amountMinor,
-      partyId,
-      categoryName,
-      cashAccount?.id ?? null,
-      destinationCashAccount?.id ?? null,
-      paymentStatus,
-      input.dueDate ? normalizeDate(input.dueDate, "due_date_invalid") : null,
-      description,
-      notesWithPartial(notes, partialAmountMinor, paymentStatus),
-      idempotencyKey,
-      current,
-      userId,
-      userId,
-      current,
-      current,
-    ],
-  ));
-
-  statements.push(statement(
-    db,
-    `INSERT INTO journal_entries (
-       id, organization_id, entry_number, entry_date, entry_type,
-       transaction_id, description, status, posted_at, posted_by, created_at
-     ) VALUES (?, ?, ?, ?, 'normal', ?, ?, 'posted', ?, ?, ?)`,
-    [
-      journalEntryId,
-      organizationId,
-      entryNumber,
-      transactionDate,
-      transactionId,
-      description,
-      current,
-      userId,
-      current,
-    ],
-  ));
-
-  journalLines.forEach((line, index) => {
-    statements.push(insertJournalLineStatement(
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, organization_id, transaction_number, transaction_date,
+         transaction_type, amount_minor, party_id, category_name,
+         cash_account_id, destination_cash_account_id, payment_status, due_date,
+         description, notes, status, idempotency_key, posted_at, posted_by,
+         created_by, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?)`,
+      [
+        transactionId,
+        organizationId,
+        transactionNumber,
+        transactionDate,
+        transactionType,
+        amountMinor,
+        partyId,
+        categoryName,
+        cashAccount?.id ?? null,
+        destinationCashAccount?.id ?? null,
+        paymentStatus,
+        input.dueDate ? normalizeDate(input.dueDate, "due_date_invalid") : null,
+        description,
+        notesWithPartial(notes, partialAmountMinor, paymentStatus),
+        idempotencyKey,
+        current,
+        userId,
+        userId,
+        current,
+        current,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, entry_number, entry_date, entry_type,
+         transaction_id, description, status, posted_at, posted_by, created_at
+       ) VALUES (?, ?, ?, ?, 'normal', ?, ?, 'posted', ?, ?, ?)`,
+      [
+        journalEntryId,
+        organizationId,
+        entryNumber,
+        transactionDate,
+        transactionId,
+        description,
+        current,
+        userId,
+        current,
+      ],
+    ),
+    ...journalLines.map((line, index) => insertJournalLineStatement(
       db,
       organizationId,
       journalEntryId,
       line,
       index + 1,
       current,
-    ));
-  });
-
-  statements.push(insertTransactionLineStatement(db, {
-    organizationId,
-    transactionId,
-    productId: product?.id ?? null,
-    accountId: product ? null : resolved.debitAccount.id,
-    description,
-    quantityMilli,
-    unitPriceMinor,
-    amountMinor,
-    lineOrder: 1,
-    current,
-  }));
-
-  if (product && quantityMilli !== null && unitPriceMinor !== null) {
-    appendStockStatements(db, statements, {
+    )),
+    insertTransactionLineStatement(db, {
       organizationId,
       transactionId,
-      product,
-      transactionType,
+      productId: product?.id ?? null,
+      accountId: product ? null : resolved.debitAccount.id,
+      description,
       quantityMilli,
       unitPriceMinor,
-      movementDate: transactionDate,
-      userId,
-      notes: description,
+      amountMinor,
+      lineOrder: 1,
       current,
-    });
-  }
+    }),
+  ];
 
-  statements.push(insertAuditStatement(db, {
-    organizationId,
-    actorUserId: userId,
-    entityId: transactionId,
-    action: "post",
-    after: {
-      transaction_type: transactionType,
-      amount: amountMinor,
-      journal_entry_id: journalEntryId,
-      product_id: product?.id ?? null,
-    },
-    reason: null,
-    requestId,
-    current,
-  }));
+  appendPostStockStatements(db, statements, product, quantityMilli, unitPriceMinor, {
+    organizationId, transactionId, transactionType, movementDate: transactionDate, userId, notes: description, current,
+  });
+
+  statements.push(
+    insertAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityId: transactionId,
+      action: "post",
+      after: {
+        transaction_type: transactionType,
+        amount: amountMinor,
+        journal_entry_id: journalEntryId,
+        product_id: product?.id ?? null,
+      },
+      reason: null,
+      requestId,
+      current,
+    }),
+  );
 
   await executeBatch(db, statements);
   return buildPostResult(db, organizationId, transactionId);
@@ -596,66 +574,62 @@ export async function voidTransaction(
   const reversalJournalEntryId = generateId();
   const reversalTransactionNumber = await generateTransactionNumber(db, organizationId, voidDate);
   const reversalEntryNumber = await generateEntryNumber(db, organizationId);
-  const statements: D1PreparedStatement[] = [];
-
-  statements.push(statement(
-    db,
-    `INSERT INTO transactions (
-       id, organization_id, transaction_number, transaction_date,
-       transaction_type, amount_minor, party_id, category_name,
-       cash_account_id, destination_cash_account_id, payment_status, due_date,
-       description, notes, status, idempotency_key, posted_at, posted_by,
-       original_transaction_id, created_by, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      reversalTransactionId,
-      organizationId,
-      reversalTransactionNumber,
-      voidDate,
-      original.transaction_type,
-      original.amount_minor,
-      original.party_id,
-      original.category_name,
-      original.cash_account_id,
-      original.destination_cash_account_id,
-      original.payment_status,
-      original.due_date,
-      `Pembatalan: ${original.description}`,
-      reason,
-      idempotencyKey,
-      current,
-      userId,
-      transactionId,
-      userId,
-      current,
-      current,
-    ],
-  ));
-
-  statements.push(statement(
-    db,
-    `INSERT INTO journal_entries (
-       id, organization_id, entry_number, entry_date, entry_type,
-       transaction_id, description, status, reversed_entry_id, reversal_reason,
-       posted_at, posted_by, created_at
-     ) VALUES (?, ?, ?, ?, 'reversal', ?, ?, 'posted', ?, ?, ?, ?, ?)`,
-    [
-      reversalJournalEntryId,
-      organizationId,
-      reversalEntryNumber,
-      voidDate,
-      reversalTransactionId,
-      `Pembatalan: ${original.description}`,
-      originalJournalLines[0]?.journal_entry_id ?? null,
-      reason,
-      current,
-      userId,
-      current,
-    ],
-  ));
-
-  originalJournalLines.forEach((line, index) => {
-    statements.push(insertJournalLineStatement(
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, organization_id, transaction_number, transaction_date,
+         transaction_type, amount_minor, party_id, category_name,
+         cash_account_id, destination_cash_account_id, payment_status, due_date,
+         description, notes, status, idempotency_key, posted_at, posted_by,
+         original_transaction_id, created_by, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reversalTransactionId,
+        organizationId,
+        reversalTransactionNumber,
+        voidDate,
+        original.transaction_type,
+        original.amount_minor,
+        original.party_id,
+        original.category_name,
+        original.cash_account_id,
+        original.destination_cash_account_id,
+        original.payment_status,
+        original.due_date,
+        `Pembatalan: ${original.description}`,
+        reason,
+        idempotencyKey,
+        current,
+        userId,
+        transactionId,
+        userId,
+        current,
+        current,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, entry_number, entry_date, entry_type,
+         transaction_id, description, status, reversed_entry_id, reversal_reason,
+         posted_at, posted_by, created_at
+       ) VALUES (?, ?, ?, ?, 'reversal', ?, ?, 'posted', ?, ?, ?, ?, ?)`,
+      [
+        reversalJournalEntryId,
+        organizationId,
+        reversalEntryNumber,
+        voidDate,
+        reversalTransactionId,
+        `Pembatalan: ${original.description}`,
+        originalJournalLines[0]?.journal_entry_id ?? null,
+        reason,
+        current,
+        userId,
+        current,
+      ],
+    ),
+    ...originalJournalLines.map((line, index) => insertJournalLineStatement(
       db,
       organizationId,
       reversalJournalEntryId,
@@ -667,8 +641,8 @@ export async function voidTransaction(
       },
       index + 1,
       current,
-    ));
-  });
+    )),
+  ];
 
   if (product && productLine?.quantity_milli) {
     appendVoidStockStatements(db, statements, {
@@ -685,42 +659,43 @@ export async function voidTransaction(
     });
   }
 
-  statements.push(statement(
-    db,
-    `UPDATE transactions
-     SET status = 'voided',
-         voided_at = ?,
-         voided_by = ?,
-         void_reason = ?,
-         reversal_transaction_id = ?,
-         updated_at = ?
-     WHERE id = ? AND organization_id = ?`,
-    [
-      current,
-      userId,
-      reason,
-      reversalTransactionId,
-      current,
-      transactionId,
+  statements.push(
+    statement(
+      db,
+      `UPDATE transactions
+       SET status = 'voided',
+           voided_at = ?,
+           voided_by = ?,
+           void_reason = ?,
+           reversal_transaction_id = ?,
+           updated_at = ?
+       WHERE id = ? AND organization_id = ?`,
+      [
+        current,
+        userId,
+        reason,
+        reversalTransactionId,
+        current,
+        transactionId,
+        organizationId,
+      ],
+    ),
+    insertAuditStatement(db, {
       organizationId,
-    ],
-  ));
-
-  statements.push(insertAuditStatement(db, {
-    organizationId,
-    actorUserId: userId,
-    entityId: transactionId,
-    action: "void",
-    before: {
-      transaction_number: original.transaction_number,
-      amount: original.amount_minor,
-      transaction_type: original.transaction_type,
-    },
-    after: { reversal_transaction_id: reversalTransactionId },
-    reason,
-    requestId,
-    current,
-  }));
+      actorUserId: userId,
+      entityId: transactionId,
+      action: "void",
+      before: {
+        transaction_number: original.transaction_number,
+        amount: original.amount_minor,
+        transaction_type: original.transaction_type,
+      },
+      after: { reversal_transaction_id: reversalTransactionId },
+      reason,
+      requestId,
+      current,
+    }),
+  );
 
   await executeBatch(db, statements);
 
@@ -995,22 +970,87 @@ async function resolveParty(
   return partyId;
 }
 
-async function resolvePostingAccounts(
-  db: D1Database,
-  organizationId: string,
-  transactionType: TransactionType,
-  input: {
+interface PostingAccountInput {
     cashAccount: AccountRow | null;
     destinationCashAccount: AccountRow | null;
     debitAccountId?: string | null;
     product: ProductRow | null;
     paymentStatus: PaymentStatus;
-  },
-): Promise<{
+}
+
+interface PostingAccountsResult {
   debitAccount: AccountRow;
   creditAccount: AccountRow;
   categoryName: string | null;
-}> {
+}
+
+function productAccountId(product: ProductRow | null, key: "inventory_account_id" | "revenue_account_id"): string | null {
+  return product?.[key] ?? null;
+}
+
+async function revenueAccount(
+  db: D1Database,
+  organizationId: string,
+  product: ProductRow | null,
+): Promise<AccountRow> {
+  const accountId = productAccountId(product, "revenue_account_id");
+  return accountByCode(db, organizationId, accountId ? null : "4100", accountId);
+}
+
+async function inventoryOrDebitAccount(
+  db: D1Database,
+  organizationId: string,
+  input: PostingAccountInput,
+): Promise<AccountRow> {
+  const accountId = productAccountId(input.product, "inventory_account_id");
+  if (input.product) {
+    return accountByCode(db, organizationId, accountId ? null : "1300", accountId);
+  }
+  return requireDebitAccount(db, organizationId, input.debitAccountId, ["expense", "cogs"]);
+}
+
+async function resolveSaleAccounts(
+  db: D1Database,
+  organizationId: string,
+  transactionType: TransactionType,
+  input: PostingAccountInput,
+): Promise<PostingAccountsResult> {
+  const creditAccount = await revenueAccount(db, organizationId, input.product);
+  if (transactionType === "cash_sale" || input.paymentStatus === "paid") {
+    assertCashAccount(input.cashAccount, "cash_account_invalid");
+    return { debitAccount: input.cashAccount, creditAccount, categoryName: null };
+  }
+  return {
+    debitAccount: await accountByCode(db, organizationId, "1200"),
+    creditAccount,
+    categoryName: null,
+  };
+}
+
+async function resolvePurchaseAccounts(
+  db: D1Database,
+  organizationId: string,
+  transactionType: TransactionType,
+  input: PostingAccountInput,
+): Promise<PostingAccountsResult> {
+  const debitAccount = await inventoryOrDebitAccount(db, organizationId, input);
+  if (transactionType === "cash_purchase" || input.paymentStatus === "paid") {
+    assertCashAccount(input.cashAccount, "cash_account_invalid");
+    return { debitAccount, creditAccount: input.cashAccount, categoryName: null };
+  }
+  return {
+    debitAccount,
+    creditAccount: await accountByCode(db, organizationId, "2100"),
+    categoryName: null,
+  };
+}
+
+async function resolvePostingAccounts(
+  db: D1Database,
+  organizationId: string,
+  transactionType: TransactionType,
+  input: PostingAccountInput,
+): Promise<PostingAccountsResult> {
   if (requiresCashAccount(transactionType, input.paymentStatus)) {
     assertCashAccount(input.cashAccount, "cash_account_invalid");
   }
@@ -1024,25 +1064,9 @@ async function resolvePostingAccounts(
 
   switch (transactionType) {
     case "cash_sale":
-      return {
-        debitAccount: input.cashAccount!,
-        creditAccount: await accountByCode(db, organizationId, input.product?.revenue_account_id ? null : "4100", input.product?.revenue_account_id),
-        categoryName: null,
-      };
+      return resolveSaleAccounts(db, organizationId, transactionType, input);
     case "credit_sale":
-      if (input.paymentStatus === "paid") {
-        assertCashAccount(input.cashAccount, "cash_account_invalid");
-        return {
-          debitAccount: input.cashAccount!,
-          creditAccount: await accountByCode(db, organizationId, input.product?.revenue_account_id ? null : "4100", input.product?.revenue_account_id),
-          categoryName: null,
-        };
-      }
-      return {
-        debitAccount: await accountByCode(db, organizationId, "1200"),
-        creditAccount: await accountByCode(db, organizationId, input.product?.revenue_account_id ? null : "4100", input.product?.revenue_account_id),
-        categoryName: null,
-      };
+      return resolveSaleAccounts(db, organizationId, transactionType, input);
     case "receive_receivable":
       return {
         debitAccount: input.cashAccount!,
@@ -1050,31 +1074,9 @@ async function resolvePostingAccounts(
         categoryName: null,
       };
     case "cash_purchase":
-      return {
-        debitAccount: input.product
-          ? await accountByCode(db, organizationId, input.product.inventory_account_id ? null : "1300", input.product.inventory_account_id)
-          : await requireDebitAccount(db, organizationId, input.debitAccountId, ["expense", "cogs"]),
-        creditAccount: input.cashAccount!,
-        categoryName: null,
-      };
+      return resolvePurchaseAccounts(db, organizationId, transactionType, input);
     case "credit_purchase":
-      if (input.paymentStatus === "paid") {
-        assertCashAccount(input.cashAccount, "cash_account_invalid");
-        return {
-          debitAccount: input.product
-            ? await accountByCode(db, organizationId, input.product.inventory_account_id ? null : "1300", input.product.inventory_account_id)
-            : await requireDebitAccount(db, organizationId, input.debitAccountId, ["expense", "cogs"]),
-          creditAccount: input.cashAccount!,
-          categoryName: null,
-        };
-      }
-      return {
-        debitAccount: input.product
-          ? await accountByCode(db, organizationId, input.product.inventory_account_id ? null : "1300", input.product.inventory_account_id)
-          : await requireDebitAccount(db, organizationId, input.debitAccountId, ["expense", "cogs"]),
-        creditAccount: await accountByCode(db, organizationId, "2100"),
-        categoryName: null,
-      };
+      return resolvePurchaseAccounts(db, organizationId, transactionType, input);
     case "pay_payable":
       return {
         debitAccount: await accountByCode(db, organizationId, "2100"),
@@ -1231,37 +1233,38 @@ function appendStockStatements(
     ? nextAverageCostMinor(input.product, input.quantityMilli, input.unitPriceMinor)
     : input.product.average_cost_minor;
 
-  statements.push(statement(
-    db,
-    `UPDATE products
-     SET current_stock_milli = ?,
-         average_cost_minor = ?,
-         purchase_price_minor = ?,
-         updated_at = ?
-     WHERE id = ? AND organization_id = ?`,
-    [
-      nextStock,
-      nextAverage,
-      nextAverage,
-      input.current,
-      input.product.id,
-      input.organizationId,
-    ],
-  ));
-
-  statements.push(insertStockMovementStatement(db, {
-    organizationId: input.organizationId,
-    productId: input.product.id,
-    transactionId: input.transactionId,
-    movementDate: input.movementDate,
-    movementType: isPurchase ? "purchase" : "sale",
-    quantityMilli: quantityDelta,
-    unitCostMinor: unitCost,
-    stockAfterMilli: nextStock,
-    notes: input.notes,
-    userId: input.userId,
-    current: input.current,
-  }));
+  statements.push(
+    statement(
+      db,
+      `UPDATE products
+       SET current_stock_milli = ?,
+           average_cost_minor = ?,
+           purchase_price_minor = ?,
+           updated_at = ?
+       WHERE id = ? AND organization_id = ?`,
+      [
+        nextStock,
+        nextAverage,
+        nextAverage,
+        input.current,
+        input.product.id,
+        input.organizationId,
+      ],
+    ),
+    insertStockMovementStatement(db, {
+      organizationId: input.organizationId,
+      productId: input.product.id,
+      transactionId: input.transactionId,
+      movementDate: input.movementDate,
+      movementType: isPurchase ? "purchase" : "sale",
+      quantityMilli: quantityDelta,
+      unitCostMinor: unitCost,
+      stockAfterMilli: nextStock,
+      notes: input.notes,
+      userId: input.userId,
+      current: input.current,
+    }),
+  );
 }
 
 function appendVoidStockStatements(
@@ -1289,37 +1292,38 @@ function appendVoidStockStatements(
   if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
   const nextAverage = nextStock === 0 ? 0 : input.product.average_cost_minor;
 
-  statements.push(statement(
-    db,
-    `UPDATE products
-     SET current_stock_milli = ?,
-         average_cost_minor = ?,
-         purchase_price_minor = ?,
-         updated_at = ?
-     WHERE id = ? AND organization_id = ?`,
-    [
-      nextStock,
-      nextAverage,
-      nextAverage,
-      input.current,
-      input.product.id,
-      input.organizationId,
-    ],
-  ));
-
-  statements.push(insertStockMovementStatement(db, {
-    organizationId: input.organizationId,
-    productId: input.product.id,
-    transactionId: input.transactionId,
-    movementDate: input.movementDate,
-    movementType: "void",
-    quantityMilli: quantityDelta,
-    unitCostMinor: input.unitCostMinor,
-    stockAfterMilli: nextStock,
-    notes: input.notes,
-    userId: input.userId,
-    current: input.current,
-  }));
+  statements.push(
+    statement(
+      db,
+      `UPDATE products
+       SET current_stock_milli = ?,
+           average_cost_minor = ?,
+           purchase_price_minor = ?,
+           updated_at = ?
+       WHERE id = ? AND organization_id = ?`,
+      [
+        nextStock,
+        nextAverage,
+        nextAverage,
+        input.current,
+        input.product.id,
+        input.organizationId,
+      ],
+    ),
+    insertStockMovementStatement(db, {
+      organizationId: input.organizationId,
+      productId: input.product.id,
+      transactionId: input.transactionId,
+      movementDate: input.movementDate,
+      movementType: "void",
+      quantityMilli: quantityDelta,
+      unitCostMinor: input.unitCostMinor,
+      stockAfterMilli: nextStock,
+      notes: input.notes,
+      userId: input.userId,
+      current: input.current,
+    }),
+  );
 }
 
 async function journalLinesForTransaction(
@@ -1398,18 +1402,62 @@ async function getAccountById(
   return row;
 }
 
+async function resolveOptionalAccount(
+  db: D1Database,
+  organizationId: string,
+  accountId: string | null | undefined,
+): Promise<AccountRow | null> {
+  if (!accountId) return null;
+  return getAccountById(db, organizationId, accountId);
+}
+
+async function resolveProductFields(
+  db: D1Database,
+  organizationId: string,
+  input: PostTransactionInput,
+): Promise<{ product: ProductRow | null; quantityMilli: number | null; unitPriceMinor: number | null }> {
+  if (!input.productId) return { product: null, quantityMilli: null, unitPriceMinor: null };
+  const product = await getProductRow(db, organizationId, input.productId);
+  return {
+    product,
+    quantityMilli: toQuantityMilli(input.quantity),
+    unitPriceMinor: toMoneyMinor(input.unitPrice ?? 0),
+  };
+}
+
+function appendPostStockStatements(
+  db: D1Database,
+  statements: D1PreparedStatement[],
+  product: ProductRow | null,
+  quantityMilli: number | null,
+  unitPriceMinor: number | null,
+  input: {
+    organizationId: string;
+    transactionId: string;
+    transactionType: TransactionType;
+    movementDate: string;
+    userId: string;
+    notes: string;
+    current: number;
+  },
+): void {
+  if (!product || quantityMilli === null || unitPriceMinor === null) return;
+  appendStockStatements(db, statements, { ...input, product, quantityMilli, unitPriceMinor });
+}
+
 async function accountByCode(
   db: D1Database,
   organizationId: string,
   code: string | null,
   accountId?: string | null,
 ): Promise<AccountRow> {
+  const idCondition = accountId ? "id = ?" : "code = ?";
   const row = await queryFirst<AccountRow>(
     db,
     `SELECT id, code, name, account_type, normal_balance, is_active, is_cash_account
      FROM accounts
      WHERE organization_id = ?
-       AND ${accountId ? "id = ?" : "code = ?"}
+       AND ${idCondition}
        AND is_active = 1
      LIMIT 1`,
     [organizationId, accountId ?? code],
@@ -1749,7 +1797,7 @@ function normalizeRequiredText(input: string, code: string): string {
 
 function nullableText(input: string | null | undefined): string | null {
   const value = input?.trim();
-  return value ? value : null;
+  return value || null;
 }
 
 function toMoneyMinor(value: number): number {

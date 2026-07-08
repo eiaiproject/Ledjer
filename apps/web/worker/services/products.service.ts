@@ -511,7 +511,7 @@ function normalizeUnit(input: string): string {
 
 function nullableText(input: string | null | undefined): string | null {
   const value = input?.trim();
-  return value ? value : null;
+  return value || null;
 }
 
 function toMoneyMinor(value: number): number {

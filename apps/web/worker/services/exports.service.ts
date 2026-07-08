@@ -40,18 +40,21 @@ interface ExportTransactionRow {
 
 export function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    throw badRequest("csv_value_invalid", "CSV export values must be scalar");
+  }
 
   let text = String(value)
-    .replace(/\r\n/g, " ")
-    .replace(/\r/g, " ")
-    .replace(/\n/g, " ");
+    .replaceAll("\r\n", " ")
+    .replaceAll("\r", " ")
+    .replaceAll("\n", " ");
 
   if (/^[=+\-@\t]/.test(text)) {
     text = `'${text}`;
   }
 
   if (/[,"']/.test(text) || /^\s/.test(text) || /\s$/.test(text)) {
-    text = `"${text.replace(/"/g, '""')}"`;
+    text = `"${text.replaceAll('"', '""')}"`;
   }
 
   return text;
