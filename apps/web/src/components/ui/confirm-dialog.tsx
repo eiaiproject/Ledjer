@@ -3,15 +3,15 @@ import { Button } from "./button";
 import { Modal, ModalContent, ModalFooter } from "./modal";
 
 interface ConfirmDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  variant?: "danger" | "warning";
-  loading?: boolean;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onConfirm: () => void;
+  readonly title: string;
+  readonly message: string;
+  readonly confirmLabel?: string;
+  readonly cancelLabel?: string;
+  readonly variant?: "danger" | "warning";
+  readonly loading?: boolean;
 }
 
 export function ConfirmDialog({

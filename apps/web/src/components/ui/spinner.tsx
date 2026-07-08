@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
 interface SpinnerProps {
-  size?: "sm" | "md" | "lg";
-  className?: string;
+  readonly size?: "sm" | "md" | "lg";
+  readonly className?: string;
 }
 
 const sizeStyles = {

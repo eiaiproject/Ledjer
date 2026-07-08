@@ -257,14 +257,14 @@ function OwnerCard({ member }: Readonly<{ member: TeamMember }>) {
 }
 
 interface StaffListContentProps {
-  isLoading: boolean;
-  invitationsCount: number;
-  staffMembers: TeamMember[];
-  canManageTeam: boolean;
-  rolePending: boolean;
-  removePending: boolean;
-  onRoleChange: (memberId: string, role: TeamInvitationRole) => void;
-  onRemove: (member: TeamMember) => void;
+  readonly isLoading: boolean;
+  readonly invitationsCount: number;
+  readonly staffMembers: TeamMember[];
+  readonly canManageTeam: boolean;
+  readonly rolePending: boolean;
+  readonly removePending: boolean;
+  readonly onRoleChange: (memberId: string, role: TeamInvitationRole) => void;
+  readonly onRemove: (member: TeamMember) => void;
 }
 
 function StaffListContent({

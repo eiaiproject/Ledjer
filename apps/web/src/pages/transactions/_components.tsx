@@ -35,11 +35,11 @@ import {
 /* ------------------------------------------------------------------ */
 
 interface SectionCardProps {
-  title: string;
-  step?: number;
-  helperText?: string;
-  id?: string;
-  children: ReactNode;
+  readonly title: string;
+  readonly step?: number;
+  readonly helperText?: string;
+  readonly id?: string;
+  readonly children: ReactNode;
 }
 
 export function SectionCard({ title, step, helperText, id, children }: SectionCardProps) {
@@ -71,8 +71,8 @@ export function SectionCard({ title, step, helperText, id, children }: SectionCa
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic error display component */
 interface ErrorSummaryProps {
-  errors: FieldErrors<any>;
-  formErrorMessage?: string;
+  readonly errors: FieldErrors<any>;
+  readonly formErrorMessage?: string;
 }
 
 function flattenErrors(
@@ -152,9 +152,9 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
 ErrorSummary.displayName = "ErrorSummary";
 
 interface TransactionTypeSelectorProps {
-  value: string;
-  onChange: (type: string) => void;
-  error?: string;
+  readonly value: string;
+  readonly onChange: (type: string) => void;
+  readonly error?: string;
 }
 
 export function TransactionTypeSelector({ value, onChange, error }: TransactionTypeSelectorProps) {
@@ -276,11 +276,11 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
 /* ------------------------------------------------------------------ */
 
 interface PaymentStatusSelectorProps {
-  value: "unpaid" | "partial";
-  onChange: (status: "unpaid" | "partial") => void;
-  showDueDate: boolean;
-  dueDate: string;
-  onDueDateChange: (date: string) => void;
+  readonly value: "unpaid" | "partial";
+  readonly onChange: (status: "unpaid" | "partial") => void;
+  readonly showDueDate: boolean;
+  readonly dueDate: string;
+  readonly onDueDateChange: (date: string) => void;
 }
 
 const PAYMENT_OPTIONS = [
@@ -367,14 +367,14 @@ interface Product {
 }
 
 interface ProductDetailFieldsProps {
-  product: Product;
-  isSaleType: boolean;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  stockAfterSale: number | null;
-  onQuantityChange: (value: number) => void;
-  onUnitPriceChange: (value: number) => void;
+  readonly product: Product;
+  readonly isSaleType: boolean;
+  readonly quantity: number;
+  readonly unitPrice: number;
+  readonly subtotal: number;
+  readonly stockAfterSale: number | null;
+  readonly onQuantityChange: (value: number) => void;
+  readonly onUnitPriceChange: (value: number) => void;
   quantityError?: string;
   unitPriceError?: string;
 }
@@ -476,15 +476,15 @@ export function ProductDetailFields({
 /* ------------------------------------------------------------------ */
 
 interface ReviewPanelProps {
-  debit: PreviewLine[];
-  credit: PreviewLine[];
-  stockWarning: number | null;
-  className?: string;
+  readonly debit: PreviewLine[];
+  readonly credit: PreviewLine[];
+  readonly stockWarning: number | null;
+  readonly className?: string;
   /** Seller-first summary props */
-  transactionType?: string;
-  amount?: number;
-  cashAccountLabel?: string;
-  productName?: string;
+  readonly transactionType?: string;
+  readonly amount?: number;
+  readonly cashAccountLabel?: string;
+  readonly productName?: string;
 }
 
 export function ReviewPanel({
@@ -673,13 +673,13 @@ export function ReviewPanel({
 /* ------------------------------------------------------------------ */
 
 interface MobileReviewToggleProps {
-  debit: PreviewLine[];
-  credit: PreviewLine[];
-  transactionType: string;
-  amount: number;
-  stockWarning: number | null;
-  cashAccountLabel?: string;
-  productName?: string;
+  readonly debit: PreviewLine[];
+  readonly credit: PreviewLine[];
+  readonly transactionType: string;
+  readonly amount: number;
+  readonly stockWarning: number | null;
+  readonly cashAccountLabel?: string;
+  readonly productName?: string;
 }
 
 const REVIEW_HINT_KEY = "ledjer:mobile-review-hint-seen";
@@ -804,10 +804,10 @@ export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProp
 /* ------------------------------------------------------------------ */
 
 interface UnsavedChangesDialogProps {
-  open: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-  loading?: boolean;
+  readonly open: boolean;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+  readonly loading?: boolean;
 }
 
 export function UnsavedChangesDialog({ open, onConfirm, onCancel, loading }: UnsavedChangesDialogProps) {

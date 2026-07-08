@@ -143,10 +143,10 @@ const CASH_BANK_META: Record<CashBankKind, { label: string; icon: typeof Wallet;
 /* ------------------------------------------------------------------ */
 
 interface AddCashBankModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  accounts: Account[];
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly onSuccess: () => void;
+  readonly accounts: Account[];
 }
 
 function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankModalProps) {
@@ -308,10 +308,10 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
 /* ------------------------------------------------------------------ */
 
 interface EditAccountModalProps {
-  open: boolean;
-  account: Account | null;
-  onClose: () => void;
-  onSuccess: () => void;
+  readonly open: boolean;
+  readonly account: Account | null;
+  readonly onClose: () => void;
+  readonly onSuccess: () => void;
 }
 
 function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModalProps) {
@@ -460,9 +460,9 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
 /* ------------------------------------------------------------------ */
 
 interface CashBankCardProps {
-  account: Account;
-  onEdit: (account: Account) => void;
-  canEdit: boolean;
+  readonly account: Account;
+  readonly onEdit: (account: Account) => void;
+  readonly canEdit: boolean;
 }
 
 function CashBankCard({ account, onEdit, canEdit }: CashBankCardProps) {
@@ -518,9 +518,9 @@ function CashBankCard({ account, onEdit, canEdit }: CashBankCardProps) {
 /* ------------------------------------------------------------------ */
 
 interface AccountsTableProps {
-  accounts: Account[];
-  onEdit: (account: Account) => void;
-  canEdit: boolean;
+  readonly accounts: Account[];
+  readonly onEdit: (account: Account) => void;
+  readonly canEdit: boolean;
 }
 
 function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
