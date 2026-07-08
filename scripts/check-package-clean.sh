@@ -32,9 +32,9 @@ FORBIDDEN_REGEX='(^|/)(\.git|node_modules|dist|__MACOSX|\.DS_Store|\.temp|\.bran
 
 fail=0
 
-if [ "$#" -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
   archive="$1"
-  if [ ! -f "$archive" ]; then
+  if [[ ! -f "$archive" ]]; then
     echo "ERROR: archive not found: $archive" >&2
     exit 2
   fi
@@ -56,10 +56,10 @@ if [ "$#" -gt 0 ]; then
       exit 2
       ;;
   esac
-elif [ -d ".git" ]; then
+elif [[ -d .git ]]; then
   echo "Inspecting git ls-files in: $(pwd)"
   FILES=$(git ls-files)
-elif [ -d "." ]; then
+elif [[ -d . ]]; then
   # Non-git directory: fall back to find, excluding common build/vendored dirs
   echo "Warning: not a git repo. Falling back to find in: $(pwd)" >&2
   FILES=$(find . -type f \
@@ -79,7 +79,7 @@ fi
 
 fail=0
 while IFS= read -r f; do
-  [ -z "$f" ] && continue
+  [[ -z "$f" ]] && continue
   # Allow .env.example explicitly (it's a documented template, no secrets).
   case "$f" in
     */.env.example|.env.example) continue ;;
@@ -92,7 +92,7 @@ done <<EOF
 $FILES
 EOF
 
-if [ "$fail" -ne 0 ]; then
+if [[ $fail -ne 0 ]]; then
   echo "" >&2
   echo "ERROR: forbidden path(s) detected. See list above." >&2
   echo "Regenerate the archive from a clean checkout using:" >&2
