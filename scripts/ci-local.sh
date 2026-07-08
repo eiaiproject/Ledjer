@@ -64,14 +64,18 @@ if [[ "$FULL" -eq 1 ]]; then
   section "D1 migration list"
   pnpm --filter web db:migrations:list
 
-  section "Playwright public smoke"
-  E2E_MODE=local-smoke \
+  section "Playwright public E2E"
+  E2E_MODE=local-full \
   E2E_BASE_URL=http://localhost:4173 \
   CI=true \
   pnpm --filter web exec playwright test \
     e2e/smoke.spec.ts \
+    e2e/auth.spec.ts \
     e2e/security-public.spec.ts \
     e2e/static-routes.spec.ts \
+    e2e/accessibility.spec.ts \
+    e2e/responsive.spec.ts \
+    e2e/performance.spec.ts \
     --project=chromium
 fi
 

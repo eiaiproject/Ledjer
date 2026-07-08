@@ -17,22 +17,26 @@ pnpm ci:local
 pnpm ci:local:full
 ```
 
-`ci:local:full` also applies D1 migrations from an empty local database and runs public Playwright smoke tests.
+`ci:local:full` also applies D1 migrations from an empty local database and runs the full public Playwright E2E suite.
 
 ## Playwright Modes
 
 | Mode | Purpose |
 |------|---------|
 | `local-smoke` | Local public smoke with Vite preview |
+| `local-full` | Local public E2E suite with auth-form, route, security, accessibility, responsive, and performance checks |
 | `deploy-smoke` | Public smoke against a deployed URL |
 
 Active Playwright tests are public and do not require seeded backend users:
 
 ```bash
+pnpm test:e2e:local:full
 pnpm test:e2e:deploy
 pnpm test:e2e:cross-browser-smoke
 pnpm test:visual
 ```
+
+`test:e2e:local:full` and `ci:local:full` run every non-visual public spec: smoke, auth-form validation, static routes, public security checks, accessibility, responsive layout, and performance smoke. Visual regression stays in `pnpm test:visual` because its screenshots use platform-specific committed baselines.
 
 Authenticated accounting behavior is covered by Worker service tests. Playwright stays public-only.
 
