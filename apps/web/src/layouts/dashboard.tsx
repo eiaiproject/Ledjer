@@ -67,7 +67,7 @@ export function DashboardLayout() {
 
   // P1.4: Onboarding guard — redirect to onboarding if not completed
   useEffect(() => {
-    if (orgData && orgData.needsOnboarding) {
+    if (orgData?.needsOnboarding) {
       navigate("/onboarding", { replace: true });
     }
   }, [orgData, navigate]);
@@ -88,7 +88,7 @@ export function DashboardLayout() {
     setMobileMenuOpen(false);
   }, []);
 
-  if (orgData && orgData.needsOnboarding) {
+  if (orgData?.needsOnboarding) {
     return (
       <div className="flex ledger-min-dvh items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

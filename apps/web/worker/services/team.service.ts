@@ -8,7 +8,7 @@ import {
 } from "./session.service";
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 
 export const INVITABLE_ROLES = ["admin", "member", "viewer"] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
