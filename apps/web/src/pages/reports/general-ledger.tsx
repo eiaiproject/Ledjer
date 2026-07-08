@@ -191,8 +191,8 @@ export function GeneralLedgerPage() {
                         </Fragment>
                       ));
                     }
-                    return ledger.map((entry, idx) => (
-                      <tr key={idx} className="border-b border-wood-50 hover:bg-cream-100/50">
+                    return ledger.map((entry) => (
+                      <tr key={entry.journal_entry_id} className="border-b border-wood-50 hover:bg-cream-100/50">
                         <td className="px-5 py-2 text-wood-600">{formatShortDate(entry.entry_date)}</td>
                         <td className="px-5 py-2 font-mono text-xs text-wood-500">{entry.transaction_number}</td>
                         <td className="max-w-[320px] px-5 py-2 text-wood-800"><span className="line-clamp-2 break-words">{entry.description}</span></td>
