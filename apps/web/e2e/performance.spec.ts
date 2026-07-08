@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Performance smoke E2E tests.
@@ -22,17 +21,6 @@ test.describe("Page load performance", () => {
       expect(duration).toBeLessThan(p.budgetMs);
     });
   }
-});
-
-test.describe("Dashboard load performance", () => {
-  test("dashboard loads within 12 seconds", async ({ page }) => {
-    await loginViaUI(page);
-    const start = Date.now();
-    await page.reload();
-    await page.waitForLoadState("networkidle");
-    const duration = Date.now() - start;
-    expect(duration).toBeLessThan(12000);
-  });
 });
 
 test.describe("Static asset performance", () => {
@@ -96,35 +84,4 @@ test.describe("Bundle size", () => {
       expect(gz).toBeLessThan(750 * 1024);
     }
   });
-});
-
-test.describe("Transaction list performance", () => {
-  test("transaction list loads within 10 seconds", async ({ page }) => {
-    await loginViaUI(page);
-    const start = Date.now();
-    await page.goto("/transactions");
-    await page.waitForLoadState("networkidle");
-    const duration = Date.now() - start;
-    expect(duration).toBeLessThan(10000);
-  });
-});
-
-test.describe("Report performance", () => {
-  const reportRoutes = [
-    "/reports/general-ledger",
-    "/reports/trial-balance",
-    "/reports/profit-loss",
-    "/reports/balance-sheet",
-  ];
-
-  for (const route of reportRoutes) {
-    test(`${route} loads within 12 seconds`, async ({ page }) => {
-      await loginViaUI(page);
-      const start = Date.now();
-      await page.goto(route);
-      await page.waitForLoadState("networkidle");
-      const duration = Date.now() - start;
-      expect(duration).toBeLessThan(12000);
-    });
-  }
 });

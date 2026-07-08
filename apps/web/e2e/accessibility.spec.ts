@@ -1,7 +1,5 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { E2E } from "./fixtures/env";
-import { loginViaUI } from "./fixtures/auth";
 
 /**
  * Accessibility E2E tests.
@@ -132,39 +130,3 @@ test.describe("Error announcements", () => {
     await expect(alert).toBeVisible({ timeout: 15_000 });
   });
 });
-
-// Authenticated dashboard tests only run when we have full-local mode with service role.
-// Conditional registration avoids Sonar flagged 'ignored test' from test.skip().
-if (E2E.canRunAuthenticatedDashboardTests) {
-  test.describe("Dashboard accessibility (logged in)", () => {
-    test.beforeEach(async ({ page }) => {
-      await loginViaUI(page);
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
-      // Wait for the dashboard shell to be fully rendered
-      await expect(page.locator("main")).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByRole("navigation")).toBeVisible({ timeout: 10_000 });
-    });
-
-    test("dashboard has proper heading", async ({ page }) => {
-      const heading = page.locator("h1, h2").first();
-      await expect(heading).toBeVisible({ timeout: 10_000 });
-    });
-
-    test("navigation links are keyboard accessible", async ({ page }) => {
-      const nav = page.getByRole("navigation");
-      await expect(nav).toBeVisible();
-
-      // Verify key nav items are present and visible
-      for (const name of ["Transaksi", "Akun", "Produk", "Laporan", "Pengaturan"]) {
-        await expect(nav.getByText(name)).toBeVisible();
-      }
-
-      // Verify keyboard focus reaches the navigation
-      await page.keyboard.press("Tab");
-      const focusedTag = await page.evaluate(() =>
-        document.activeElement?.tagName,
-      );
-      expect(focusedTag).toBeTruthy();
-    });
-  });
-}

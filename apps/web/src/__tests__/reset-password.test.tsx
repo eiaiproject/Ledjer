@@ -4,7 +4,7 @@ import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { ResetPasswordPage } from '@/pages/reset-password';
 
 const mocks = vi.hoisted(() => ({
-  updateUser: vi.fn(),
+  resetPassword: vi.fn(),
   signOut: vi.fn(),
   sessionState: { current: null as null | object },
 }));
@@ -17,17 +17,12 @@ vi.mock('@/contexts/auth-context', () => ({
     signIn: vi.fn(),
     signUp: vi.fn(),
     resendConfirmationEmail: vi.fn(),
-    signOut: vi.fn(),
+    signOut: (...args: unknown[]) => mocks.signOut(...args),
   }),
 }));
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      updateUser: (...args: unknown[]) => mocks.updateUser(...args),
-      signOut: (...args: unknown[]) => mocks.signOut(...args),
-    },
-  },
+vi.mock('@/lib/api/auth', () => ({
+  resetPassword: (...args: unknown[]) => mocks.resetPassword(...args),
 }));
 
 function LocationCapture() {
@@ -50,7 +45,7 @@ function renderAt(path: string) {
 describe('ResetPasswordPage', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    mocks.updateUser.mockReset();
+    mocks.resetPassword.mockReset();
     mocks.signOut.mockReset();
     mocks.sessionState.current = null;
   });
@@ -97,7 +92,7 @@ describe('ResetPasswordPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/konfirmasi password tidak cocok/i)).toBeTruthy();
     });
-    expect(mocks.updateUser).not.toHaveBeenCalled();
+    expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 
   it('rejects passwords shorter than 8 characters', async () => {
@@ -116,12 +111,12 @@ describe('ResetPasswordPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/password minimal 8 karakter/i)).toBeTruthy();
     });
-    expect(mocks.updateUser).not.toHaveBeenCalled();
+    expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
 
-  it('calls updateUser with the new password and signs out on success', async () => {
+  it('calls resetPassword with the new password and signs out on success', async () => {
     mocks.sessionState.current = { access_token: 'tok', user: { id: 'u' } };
-    mocks.updateUser.mockResolvedValue({ error: null });
+    mocks.resetPassword.mockResolvedValue({ ok: true });
     mocks.signOut.mockResolvedValue(undefined);
 
     renderAt('/reset-password');
@@ -135,7 +130,7 @@ describe('ResetPasswordPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /perbarui password/i }));
 
     await waitFor(() => {
-      expect(mocks.updateUser).toHaveBeenCalledWith({ password: 'newpassword123' });
+      expect(mocks.resetPassword).toHaveBeenCalledWith('newpassword123');
     });
 
     await act(async () => {
@@ -148,11 +143,11 @@ describe('ResetPasswordPage', () => {
     });
   });
 
-  it('surfaces an error when updateUser fails', async () => {
+  it('surfaces an error when resetPassword fails', async () => {
     mocks.sessionState.current = { access_token: 'tok', user: { id: 'u' } };
-    mocks.updateUser.mockResolvedValue({
-      error: { message: 'Password should be different from previous' },
-    });
+    mocks.resetPassword.mockRejectedValue(
+      new Error('Password should be different from previous'),
+    );
 
     renderAt('/reset-password');
 

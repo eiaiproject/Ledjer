@@ -57,16 +57,17 @@ else
 fi
 
 echo ""
-echo "--- Frontend (required for Vite build) ---"
-check_var "VITE_SUPABASE_URL" true
-check_var "VITE_SUPABASE_ANON_KEY" true
+echo "--- Frontend (optional for Vite build) ---"
+check_var "VITE_API_BASE_URL" false
 check_var "VITE_SENTRY_DSN" false
 
 echo ""
-echo "--- Server / Admin (optional, never in frontend) ---"
-check_var "SUPABASE_URL" false
-check_var "SUPABASE_ANON_KEY" false
-check_var "SUPABASE_SERVICE_ROLE_KEY" false
+echo "--- Worker / Server (optional locally, configure for deploy) ---"
+check_var "APP_ORIGIN" false
+check_var "EMAIL_API_KEY" false
+check_var "GOOGLE_CLIENT_ID" false
+check_var "GOOGLE_CLIENT_SECRET" false
+check_var "SENTRY_DSN" false
 
 echo ""
 if [ $ERRORS -gt 0 ]; then

@@ -1,9 +1,7 @@
 import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { exportGeneralLedgerCsv } from "@/lib/csv-export";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,25 +9,16 @@ import { Select } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
-import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
+import { translateError } from "@/lib/errors";
+import { exportGeneralLedgerCsv } from "@/lib/csv-export";
 import { Download } from "lucide-react";
-
-interface LedgerEntry {
-  account_id: string;
-  account_code: number;
-  account_name: string;
-  entry_date: string;
-  transaction_number: string;
-  description: string;
-  debit: number;
-  credit: number;
-  running_balance: number;
-}
+import { listAccounts } from "@/lib/api/accounts";
+import { getGeneralLedger, type LedgerEntry } from "@/lib/api/reports";
 
 export function GeneralLedgerPage() {
   const { data: orgData } = useOrganization();
-  const { canViewReports } = useOrgPermissions();
+  const { canViewReports, canCreateExports } = useOrgPermissions();
   
   const today = new Date();
   const firstDayOfMonth = formatDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -42,14 +31,7 @@ export function GeneralLedgerPage() {
     queryKey: queryKeys.accounts.ledgerOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, code, name")
-        .eq("organization_id", orgData.organization.id)
-        .eq("is_active", true)
-        .order("code");
-      if (error) throw error;
-      return data || [];
+      return listAccounts({ active: true });
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -58,21 +40,31 @@ export function GeneralLedgerPage() {
     queryKey: queryKeys.reports.generalLedger(orgData?.organization?.id, accountId, fromDate, toDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-
-      const { data, error } = await supabase.rpc("get_general_ledger", {
-        p_organization_id: orgData.organization.id,
-        p_account_id: accountId === "all" ? undefined : accountId,
-        p_from_date: fromDate,
-        p_to_date: toDate,
+      return getGeneralLedger({
+        accountId: accountId === "all" ? undefined : accountId,
+        fromDate,
+        toDate,
       });
-      if (error) throw error;
-      return (data || []) as LedgerEntry[];
     },
     enabled: !!orgData?.organization?.id && canViewReports && !dateRangeInvalid,
   });
 
   const selectedAccount = accounts?.find((a) => a.id === accountId);
   const showAllAccounts = accountId === "all";
+
+  const handleExport = async () => {
+    if (!orgData?.organization?.id || dateRangeInvalid) return;
+    try {
+      await exportGeneralLedgerCsv(
+        accountId,
+        fromDate,
+        toDate,
+      );
+      toast.success("Export CSV buku besar dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
+  };
 
   if (!canViewReports) {
     return (
@@ -125,15 +117,17 @@ export function GeneralLedgerPage() {
               onChange={(e) => setToDate(e.target.value)}
               error={dateRangeInvalid ? "Tanggal akhir harus sama atau setelah tanggal awal." : undefined}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => orgData?.organization?.id && exportGeneralLedgerCsv(orgData.organization.id, accountId === 'all' ? undefined : accountId, fromDate, toDate).catch((err) => toast.error(translateError(err)))}
-              disabled={!ledger?.length || dateRangeInvalid}
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+            {canCreateExports && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void handleExport()}
+                disabled={!ledger?.length || dateRangeInvalid}
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

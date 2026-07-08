@@ -17,14 +17,3 @@ export function getSafeRedirectPath(
 export function buildRedirectSearch(path: string): string {
   return `redirect=${encodeURIComponent(getSafeRedirectPath(path))}`;
 }
-
-export function buildAuthCallbackUrl(
-  redirectPath?: string,
-  defaultRedirect = "/dashboard",
-): URL {
-  const url = new URL("/auth/callback", globalThis.location.origin);
-  if (redirectPath && redirectPath !== defaultRedirect) {
-    url.searchParams.set("redirect", redirectPath);
-  }
-  return url;
-}

@@ -114,6 +114,20 @@ export function usesPaymentStatus(type?: string) {
   return includesType(PAYMENT_STATUS_TRANSACTION_TYPES, type);
 }
 
+export function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
+  if (status === "posted") return "success";
+  if (status === "voided") return "error";
+  if (status === "reversed") return "warning";
+  return "neutral";
+}
+
+export function statusLabel(status: string) {
+  if (status === "posted") return "Posted";
+  if (status === "voided") return "Dibatalkan";
+  if (status === "reversed") return "Reversal";
+  return status;
+}
+
 export function partyTypeForTransaction(type?: string) {
   if (type === "credit_sale" || type === "receive_receivable") return "customer";
   if (type === "credit_purchase" || type === "pay_payable") return "supplier";

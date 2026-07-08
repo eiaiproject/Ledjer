@@ -1,6 +1,6 @@
 # Production Monitoring & Observability
 
-Last updated: 2026-07-31
+Last updated: 2026-07-07
 
 ## Error Tracking — Sentry
 
@@ -38,33 +38,25 @@ Last updated: 2026-07-31
 - Primary: [owner email]
 - Secondary: [backup email]
 
-## Supabase/Database Health
+## Worker/D1 Health
 
-**Status:** ⚠️ Manual monitoring via dashboard
+**Status:** ⚠️ Manual monitoring via Cloudflare dashboard
 
-### Key Metrics to Watch
-- Active connections (`pg_stat_activity`)
-- Query performance (`pg_stat_statements`)
-- Disk usage
-- RLS policy violations (in logs)
-- Auth failure rate
+### Key Metrics to Watch (Cloudflare Dashboard → Workers & Pages)
+- Worker error rate and latency
+- D1 query failures
+- D1 storage and write volume
+- Worker CPU time usage
 
-### Health Check Queries
-```sql
--- Active connections
-SELECT count(*) FROM pg_stat_activity WHERE state = 'active';
-
--- Slow queries (top 10)
-SELECT query, calls, mean_exec_time
-FROM pg_stat_statements
-ORDER BY mean_exec_time DESC LIMIT 10;
-```
+### Cloudflare Dashboard URLs
+- Workers overview: https://dash.cloudflare.com → Workers & Pages
+- D1 database: https://dash.cloudflare.com → D1 SQL Database
 
 ## Auth Monitoring
 
-- Login attempts tracked in `login_attempts` table
-- Rate limiting active on auth endpoints
-- Failed login alerts: configure in Supabase dashboard
+- Login attempts tracked in `login_attempts` table (D1)
+- Rate limiting active on auth endpoints (5 failed attempts → 15 min lockout)
+- Failed login alerts: configure via Sentry or custom alerting
 
 ## Frontend Performance
 
@@ -76,17 +68,18 @@ ORDER BY mean_exec_time DESC LIMIT 10;
 **Status:** ⚠️ Not configured
 
 For production, consider:
-- Supabase database logs (available in dashboard)
-- Cloudflare/Vercel edge logs
-- Structured logging for Edge Functions (if added)
+- Cloudflare Worker logs (via `wrangler tail` or Cloudflare dashboard)
+- Sentry frontend errors
+- Structured server logging when added
 
 ## Alerting Rules
 
 | Condition | Severity | Action |
 |-----------|----------|--------|
 | Frontend error spike | High | Check Sentry, investigate |
-| Database connection pool exhaustion | Critical | Scale up, investigate queries |
-| Auth failure spike | Medium | Check for brute force |
+| D1 query failures | Critical | Check Worker logs and recent migrations |
+| Worker 5xx rate | Critical | Check Cloudflare dashboard, rollback if needed |
+| Auth failure spike | Medium | Check for brute force (login_attempts table) |
 | Uptime check failure | Critical | Investigate service status |
 | Slow query > 5s | Medium | Optimize or add index |
-| Disk usage > 80% | High | Clean up or scale |
+| D1 storage > 80% | High | Clean up or scale |

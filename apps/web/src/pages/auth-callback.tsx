@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
 import { getSafeRedirectPath } from "@/lib/redirect";
+import { ApiError } from "@/lib/api/client";
+import {
+  forgotPassword,
+  getMe,
+  resendVerification,
+  verifyEmail,
+} from "@/lib/api/auth";
 import { AlertTriangle, ArrowRight, CheckCircle2, Mail } from "lucide-react";
 
 type Status = "verifying" | "success" | "error" | "invalid";
@@ -50,36 +56,37 @@ export function AuthCallbackPage() {
       if (verifiedRef.current) return;
       verifiedRef.current = true;
 
-      // Supabase PKCE flow: ?code=...  (after a fresh login / OAuth)
-      const code = searchParams.get("code");
-      // Email-link flow: ?token_hash=...&type=signup | magiclink | recovery | email_change
-      const tokenHash = searchParams.get("token_hash");
+      // OAuth flow: backend redirects here with ?success=true or ?error=...
+      const oauthSuccess = searchParams.get("success");
+      const oauthError = searchParams.get("error");
+      // Email-link flow: ?token=...&type=signup | recovery.
+      const token = searchParams.get("token");
       const type = searchParams.get("type") as
         | "signup"
-        | "magiclink"
         | "recovery"
-        | "email_change"
         | null;
       const redirectPath = getSafeRedirectPath(searchParams.get("redirect"), "/onboarding");
 
       try {
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-        } else if (tokenHash && type) {
+        if (oauthSuccess === "true") {
+          // Google OAuth succeeded — session cookie is already set by backend
+          setStatus("success");
+          setTimeout(() => {
+            navigate(redirectPath, { replace: true });
+          }, 1200);
+          return;
+        } else if (oauthError) {
+          throw new ApiError(500, "oauth_error", decodeURIComponent(oauthError));
+        } else if (token && type) {
           setCallbackType(type);
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type,
-          });
-          if (error) throw error;
+          await verifyEmail(token, type);
         } else {
-          // No code or token_hash — check if a session already exists.
+          // No code or token — check if a session already exists.
           // A session may exist when the user authenticated on another tab
           // or the onAuthStateChange listener fired before this component
           // mounted. Without this check, authenticated users would see a
           // misleading "link invalid" error instead of being redirected.
-          const { data: { session } } = await supabase.auth.getSession();
+          const { session } = await getMe();
           if (session) {
             setStatus("success");
             setTimeout(() => {
@@ -135,18 +142,9 @@ export function AuthCallbackPage() {
     try {
       const isRecovery = callbackType === "recovery";
       if (isRecovery) {
-        const redirectTo = `${window.location.origin}/auth/callback?type=recovery`;
-        const { error } = await supabase.auth.resetPasswordForEmail(
-          resendEmail.trim().toLowerCase(),
-          { redirectTo },
-        );
-        if (error) throw error;
+        await forgotPassword(resendEmail.trim().toLowerCase());
       } else {
-        const { error } = await supabase.auth.resend({
-          type: "signup",
-          email: resendEmail.trim().toLowerCase(),
-        });
-        if (error) throw error;
+        await resendVerification(resendEmail.trim().toLowerCase());
       }
       setResendMessage(
         isRecovery
@@ -170,7 +168,7 @@ export function AuthCallbackPage() {
           <Logo size="md" variant="full" />
         </div>
 
-        <Card padding="lg">
+        <Card className="p-6">
           <CardContent>
             <div className="flex flex-col items-center text-center">
               <StatusIcon status={status} />

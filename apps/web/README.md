@@ -1,45 +1,49 @@
-# Ledjer — Frontend (`apps/web`)
+# Ledjer Web App
 
-React 19 + TypeScript + Vite + Tailwind CSS application for the Ledjer bookkeeping system.
+React + Vite frontend and Cloudflare Worker API for Ledjer.
 
 ## Quick Start
 
 ```bash
-# From repo root
 pnpm install
-pnpm dev
-# → http://localhost:5173
+pnpm --filter web dev
 ```
 
-Requires a running Supabase backend. Copy `apps/web/.env.example` to `apps/web/.env.local` and fill in `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`.
+Local URL: `http://localhost:5173`.
 
 ## Scripts
 
 ```bash
-pnpm --filter web typecheck   # TypeScript compilation
-pnpm --filter web lint        # ESLint
-pnpm --filter web test        # Vitest unit + integration tests
-pnpm --filter web build       # Production build → dist/
+pnpm --filter web typecheck
+pnpm --filter web lint
+pnpm --filter web test
+pnpm --filter web build
+pnpm --filter web db:migrations:apply:local
+pnpm --filter web cf:deploy
 ```
 
 ## Structure
 
-```
+```text
 src/
-├── components/ui/      # Reusable UI primitives (Button, Card, Input, Modal, etc.)
-├── components/         # Feature components (error-boundary, auth-brand-panel)
-├── contexts/           # AuthContext + AuthProvider
-├── hooks/              # Custom hooks (useOrganization, useOrgPermissions)
-├── layouts/            # DashboardLayout (sidebar navigation)
-├── lib/                # Utilities (supabase client, errors, redirects, utils)
-├── pages/              # Route-level pages (dashboard, transactions, accounts, products, reports, settings)
-└── __tests__/          # Vitest unit + integration tests
+  components/
+  contexts/
+  hooks/
+  layouts/
+  lib/api/
+  pages/
+  __tests__/
+worker/
+  db/migrations/
+  middleware/
+  routes/
+  services/
 ```
 
-## Key Conventions
+## Conventions
 
-- **Styling:** Tailwind CSS with custom theme tokens (wood, leaf, clay, cream palettes).
-- **State:** TanStack React Query for server state; local state via `useState`/`useForm`.
-- **Forms:** React Hook Form + Zod v4 validation.
-- **Auth:** Supabase Auth via `AuthContext`. Protected routes check session.
-- **Indonesian UX copy** — all user-facing text is in Bahasa Indonesia.
+- Frontend server state uses TanStack React Query.
+- Forms use React Hook Form + Zod.
+- API calls go through `src/lib/api/*`.
+- Worker route handlers stay thin; accounting logic lives in `worker/services/*`.
+- User-facing copy is Bahasa Indonesia.

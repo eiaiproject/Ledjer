@@ -69,6 +69,10 @@ export function formatShortDate(date: string | Date | null | undefined): string 
 
 
 
+export function createClientToken(): string {
+  return crypto.randomUUID();
+}
+
 export function parseAmountInput(
   value: unknown,
   emptyValue: number | undefined = undefined
@@ -88,5 +92,4 @@ export function formatAmountInput(value: unknown, blankWhenZero = false) {
     maximumFractionDigits: 0,
   }).format(amount);
 }
-
 

@@ -4,15 +4,11 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ForgotPasswordPage } from '@/pages/forgot-password';
 
 const mocks = vi.hoisted(() => ({
-  resetPasswordForEmail: vi.fn(),
+  forgotPassword: vi.fn(),
 }));
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      resetPasswordForEmail: (...args: unknown[]) => mocks.resetPasswordForEmail(...args),
-    },
-  },
+vi.mock('@/lib/api/auth', () => ({
+  forgotPassword: (...args: unknown[]) => mocks.forgotPassword(...args),
 }));
 
 function LocationCapture() {
@@ -34,7 +30,7 @@ function renderAt(path: string) {
 
 describe('ForgotPasswordPage', () => {
   beforeEach(() => {
-    mocks.resetPasswordForEmail.mockReset();
+    mocks.forgotPassword.mockReset();
   });
 
   afterEach(() => {
@@ -71,11 +67,11 @@ describe('ForgotPasswordPage', () => {
         screen.getByText(/email tidak valid/i),
       ).toBeTruthy();
     });
-    expect(mocks.resetPasswordForEmail).not.toHaveBeenCalled();
+    expect(mocks.forgotPassword).not.toHaveBeenCalled();
   });
 
-  it('calls resetPasswordForEmail with the trimmed lowercased email and recovery redirectTo', async () => {
-    mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
+  it('calls forgotPassword with the trimmed lowercased email', async () => {
+    mocks.forgotPassword.mockResolvedValue({ ok: true });
 
     renderAt('/forgot-password');
 
@@ -87,23 +83,17 @@ describe('ForgotPasswordPage', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+      expect(mocks.forgotPassword).toHaveBeenCalledTimes(1);
     });
 
-    const [email, options] = mocks.resetPasswordForEmail.mock.calls[0]!;
+    const [email] = mocks.forgotPassword.mock.calls[0]!;
     expect(email).toBe('user@example.com');
-    expect(options).toEqual({
-      redirectTo: expect.stringMatching(/\/auth\/callback\?type=recovery$/),
-    });
   });
 
   it('shows success view for auth-level errors (no account enumeration)', async () => {
-    // Simulate "user not found" — Supabase returns an auth error that
-    // could reveal whether the email is registered. The page must suppress
-    // it and show the same generic "cek email Anda" success view.
-    mocks.resetPasswordForEmail.mockResolvedValue({
-      error: { message: 'User not found' },
-    });
+    // Worker password recovery always returns a generic success response so
+    // the page never reveals whether the email is registered.
+    mocks.forgotPassword.mockResolvedValue({ ok: true });
 
     renderAt('/forgot-password');
 
@@ -125,7 +115,7 @@ describe('ForgotPasswordPage', () => {
 
   it('shows network/service errors to user (non-enumeration errors)', async () => {
     // A genuine operational error (network failure) must NOT be swallowed.
-    mocks.resetPasswordForEmail.mockRejectedValue(
+    mocks.forgotPassword.mockRejectedValue(
       new Error('Service unavailable'),
     );
 
@@ -138,8 +128,7 @@ describe('ForgotPasswordPage', () => {
       screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
     );
 
-    // 'Service unavailable' doesn't match auth enum leak patterns, so
-    // the error should be shown to the user via translateError.
+    // Operational errors should still be shown to the user via translateError.
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeTruthy();
     });
@@ -147,7 +136,7 @@ describe('ForgotPasswordPage', () => {
   });
 
   it('offers a "back to login" link from the success view', async () => {
-    mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
+    mocks.forgotPassword.mockResolvedValue({ ok: true });
 
     renderAt('/forgot-password');
 

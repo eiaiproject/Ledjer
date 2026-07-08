@@ -15,12 +15,12 @@ const securityMeasures = [
   {
     icon: Database,
     title: "Isolasi Data",
-    desc: "Setiap bisnis terisolasi di level database menggunakan Row Level Security (RLS).",
+    desc: "Setiap bisnis terisolasi melalui pemeriksaan organisasi di Worker API dan database.",
   },
   {
     icon: Key,
     title: "Autentikasi",
-    desc: "Autentikasi dikelola oleh Supabase Auth dengan email verification dan session management.",
+    desc: "Autentikasi dikelola oleh Ledjer Worker dengan sesi cookie, CSRF protection, dan verifikasi email.",
   },
   {
     icon: Eye,
@@ -30,7 +30,7 @@ const securityMeasures = [
   {
     icon: Shield,
     title: "Akses Berbasis Peran",
-    desc: "Pemilik dan staf memiliki hak akses yang berbeda. Izin diperiksa di level database.",
+    desc: "Pemilik dan staf memiliki hak akses yang berbeda. Izin diperiksa di service layer.",
   },
   {
     icon: AlertTriangle,
@@ -103,9 +103,9 @@ export function SecurityPage() {
           <section>
             <h2 className="text-lg font-semibold text-wood-800">Infrastruktur</h2>
             <p>
-              Ledjer dibangun di atas Supabase (PostgreSQL, Auth, Storage) dan di-deploy melalui
-              Cloudflare Pages / Vercel. Semua infrastruktur berjalan di data center yang
-              mematuhi standar keamanan internasional.
+              Ledjer berjalan di Cloudflare Workers dengan Cloudflare D1 sebagai database.
+              Semua infrastruktur berjalan di data center yang mematuhi standar keamanan
+              internasional.
             </p>
           </section>
         </CardContent>

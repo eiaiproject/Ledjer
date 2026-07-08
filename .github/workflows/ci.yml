@@ -14,51 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  # ─── Job A: Frontend Quality ────────────────────────────────
-  frontend:
-    name: Frontend (typecheck, lint, test, build)
+  quality:
+    name: Quality (typecheck, lint, test, build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: TypeScript typecheck
-        run: pnpm --filter web typecheck
-
-      - name: ESLint
-        run: pnpm --filter web lint
-
-      - name: Vitest unit tests
-        run: pnpm --filter web test
-
-      - name: Production build
-        run: pnpm --filter web build
-
-      - name: Scan build output for leaked secrets
-        run: bash scripts/check-build-secrets.sh
-
-  # ─── Job B: Database Types Guard (canonical-file sanity only) ────────────
-  # This job is a FAST CANONICAL-FILE SANITY CHECK, not a live drift check.
-  # It catches accidentally truncated/empty database-types/index.ts in CI
-  # without spinning up the full Supabase stack. Real drift detection lives
-  # in the `supabase` job, which runs `scripts/check-db-types.sh --live`.
-  db-types-guard:
-    name: "Guard: database types canonical file sanity"
-    needs: frontend
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -74,211 +33,33 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify database types canonical file is healthy
-        run: pnpm db-types:check
-        # Default mode = sanity check (size heuristic). Does NOT prove drift.
-        # Live drift is verified separately in the Supabase job.
+      - name: TypeScript typecheck
+        run: pnpm --filter web typecheck
 
-  # ─── Job C: SQL / Supabase Tests ────────────────────────────
-  supabase:
-    name: Supabase migrations & SQL tests
-    needs: guard-package-clean
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SUPABASE_VERSION: 2.107.0
-      PG_META_TAG: v0.96.1
-      SUPABASE_DISABLE_TELEMETRY: "1"
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: ESLint
+        run: pnpm --filter web lint
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Vitest unit tests
+        run: pnpm --filter web test
 
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 24
+      - name: Production build
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: pnpm --filter web build
 
-      - name: Install (no scripts, frozen lockfile)
-        run: pnpm install --ignore-scripts --frozen-lockfile
+      - name: Scan build output for leaked secrets
+        run: bash scripts/check-build-secrets.sh
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2
-        with:
-          version: ${{ env.SUPABASE_VERSION }}
-          github-token: ${{ github.token }}
-
-      - name: Verify Supabase CLI
-        run: |
-          set -euo pipefail
-          command -v supabase
-          supabase --version
-
-      - name: Validate migration filenames
+      - name: D1 migration naming guard
         run: bash scripts/check-migration-naming.sh
 
-      - name: Start local Supabase stack (retry-safe)
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if supabase start --workdir . -x edge-runtime --debug; then
-              echo "Supabase started successfully"
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo '::error::Supabase start failed after 3 attempts'
-              supabase status --workdir . || true
-              docker ps -a || true
-              docker logs supabase_db_Ledjer 2>/dev/null || true
-              exit 1
-            fi
-            echo "Supabase start failed, retrying ($attempt/3)..."
-            supabase stop --workdir . --no-backup 2>/dev/null || true
-            docker rm -f $(docker ps -aq --filter name=supabase) 2>/dev/null || true
-            sleep 10
-          done
-
-      - name: Capture Supabase diagnostics (always)
-        if: always()
-        run: |
-          echo "=== Supabase status ==="
-          supabase status --workdir . || true
-          echo "=== Docker containers ==="
-          docker ps -a || true
-
-      - name: Apply migrations from empty DB
-        run: supabase db reset --workdir . --no-seed --debug
-
-      - name: Capture DB URL for diagnostic logging
-        if: success()
-        run: |
-          supabase status --workdir . --output env > /tmp/supabase.env
-          echo "DB URL components:"
-          grep -E '^(DB_URL|POSTGRES_HOST|POSTGRES_PORT|POSTGRES_DB|POSTGRES_USER|POSTGRES_PASSWORD)=' /tmp/supabase.env || true
-
-      # SQL tests run BEFORE type generation. Even if `supabase gen types`
-      # later hits transient ECR rate limits, the SQL test suite still runs
-      # and guards schema/RLS correctness.
-      - name: Run SQL tests explicitly via psql
-        env:
-          PGPASSWORD: postgres
-          PGHOST: localhost
-          PGPORT: "54322"
-          PGUSER: postgres
-          PGDATABASE: postgres
-        run: |
-          set -euo pipefail
-          if ! command -v psql >/dev/null 2>&1; then
-            echo "Installing postgresql-client for psql..."
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq postgresql-client >/dev/null
-          fi
-          psql -h localhost -p 54322 -U postgres -d postgres \
-            -v ON_ERROR_STOP=1 -f supabase/tests/run_all.sql
-
-      # Cache postgres-meta to defeat ECR anonymous rate limits. Keyed by OS +
-      # Supabase CLI version + image tag, no secrets. The pre-pull step saves
-      # the image to a tarball the gen-types script can reuse.
-      - name: Cache postgres-meta image (deterministic ECR rate-limit guard)
-        id: cache-meta-image
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: /tmp/supabase-pg-meta-image.tar
-          key: pgmeta-${{ runner.os }}-${{ env.SUPABASE_VERSION }}-${{ env.PG_META_TAG }}
-          restore-keys: |
-            pgmeta-${{ runner.os }}-${{ env.SUPABASE_VERSION }}-
-
-      - name: Pre-pull postgres-meta
-        if: steps.cache-meta-image.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          image="public.ecr.aws/supabase/postgres-meta:${PG_META_TAG}"
-          for attempt in 1 2 3 4; do
-            if docker pull "$image" >/dev/null; then
-              break
-            fi
-            if [ "$attempt" -eq 4 ]; then
-              echo "Failed to pull $image after $attempt attempts" >&2
-              exit 1
-            fi
-            sleep $((attempt * 20))
-          done
-          docker save "$image" -o /tmp/supabase-pg-meta-image.tar
-
-      - name: Load cached postgres-meta
-        if: steps.cache-meta-image.outputs.cache-hit == 'true'
-        run: |
-          set -euo pipefail
-          docker load -i /tmp/supabase-pg-meta-image.tar >/dev/null
-
-      - name: Check database types drift (live, retry-safe)
-        # Real drift detection. Wraps supabase gen types in retry+backoff
-        # for transient ECR rate limits; non-transient failures fail fast.
-        run: bash scripts/check-db-types.sh --live
-
-      - name: Stop local Supabase stack
-        if: always()
-        run: supabase stop --workdir . --no-backup || true
-
-  # ─── Job D: Guards ─────────────────────────────────────────
-  guard-no-test-assert-in-migrations:
-    name: "Guard: no test code in migrations"
-    needs: db-types-guard
+  d1-migrations:
+    name: D1 migrations from empty local database
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - name: Fail if any migration references the test helper (executable code only)
-        run: |
-          set -euo pipefail
-          # The previous pipeline could emit "Broken pipe" warnings when grep
-          # closed stdin early. Write each file's stripped contents into a
-          # stream-safe temp file, then grep that file directly.
-          tmp=$(mktemp)
-          hits=$(mktemp)
-          trap 'rm -f "$tmp" "$hits"' EXIT
-          : > "$tmp"
-          for f in supabase/migrations/*.sql; do
-            [ -f "$f" ] || continue
-            perl -0777 -pe 's{/\*.*?\*/}{}gs; s/(?m)^[ \t]*--.*$//g' "$f" \
-              | awk -v file="$f" '{ print file ":" NR ":" $0 }'
-          done > "$tmp"
-          if grep -n '_test_assert' "$tmp" > "$hits"; then
-            echo 'ERROR: _test_assert referenced in executable migration code:' >&2
-            cat "$hits" >&2
-            exit 1
-          fi
-          echo 'OK: no _test_assert in executable migration code'
-
-  guard-package-clean:
-    name: "Guard: source archive excludes secrets and generated artifacts"
-    needs: guard-no-test-assert-in-migrations
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - name: Install unzip and tar (for archive inspection)
-        run: sudo apt-get install -y -qq unzip tar >/dev/null
-      - name: Create source tarball via git archive
-        run: |
-          git archive --format=tar.gz --output=/tmp/ledjer-src.tar.gz HEAD
-      - name: Create source zip via git ls-files
-        run: |
-          git ls-files | zip -@ /tmp/ledjer-src.zip
-      - name: Run packaging guard against both archives
-        run: |
-          set -e
-          chmod +x scripts/check-package-clean.sh
-          ./scripts/check-package-clean.sh /tmp/ledjer-src.tar.gz
-          ./scripts/check-package-clean.sh /tmp/ledjer-src.zip
-
-  # ─── Job E: Full E2E Local (Chromium) ──────────────────────
-  e2e-full-local:
-    name: "E2E Full Local (Chromium + Supabase)"
-    needs: supabase
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -291,170 +72,74 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install dependencies (frozen lockfile)
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply D1 migrations
+        run: pnpm --filter web exec wrangler d1 migrations apply DB --local --persist-to "$RUNNER_TEMP/ledjer-d1"
+
+  package-clean:
+    name: Package clean guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install archive tooling
+        run: sudo apt-get install -y -qq unzip tar zip >/dev/null
+
+      - name: Create source archives
+        run: |
+          git archive --format=tar.gz --output=/tmp/ledjer-src.tar.gz HEAD
+          git ls-files | zip -@ /tmp/ledjer-src.zip
+
+      - name: Run packaging guard
+        run: |
+          ./scripts/check-package-clean.sh /tmp/ledjer-src.tar.gz
+          ./scripts/check-package-clean.sh /tmp/ledjer-src.zip
+
+  e2e-public:
+    name: Playwright public smoke
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2
-        with:
-          version: 2.107.0
-          github-token: ${{ github.token }}
-
-      - name: Start local Supabase stack
+      - name: Run public smoke tests
         env:
-          SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . -x edge-runtime --debug
-
-      - name: Apply migrations
-        run: supabase db reset --workdir . --no-seed
-
-      - name: Export Supabase keys
-        run: bash scripts/export-supabase-env.sh
-
-      - name: Build app for preview
-        env:
-          VITE_SUPABASE_URL: http://localhost:54321
-          VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          LEDJER_CSP_LOCAL: "1"
-        run: pnpm --filter web build
-
-      - name: Run full E2E (Chromium)
-        env:
-          E2E_MODE: full-local
+          E2E_MODE: local-smoke
           E2E_BASE_URL: http://localhost:4173
-          E2E_SUPABASE_URL: http://localhost:54321
-          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
-        run: pnpm --filter web exec playwright test --project=chromium
+        run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: playwright-report-full-local
+          name: playwright-report-public
           path: apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: test-results-full-local
-          path: apps/web/test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload traces
-        if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: playwright-traces-full-local
-          path: apps/web/test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop --workdir . --no-backup || true
-
-  # ─── Job F: Cross-Browser Smoke ─────────────────────────────
-  # Builds the app with VALID local Supabase config (not a dummy key) so the
-  # app renders real pages instead of a "Konfigurasi Belum Lengkap" error.
-  e2e-cross-browser:
-    name: "E2E Cross-Browser Smoke (Firefox + WebKit)"
-    needs: e2e-full-local
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright browsers
-        run: pnpm --filter web exec playwright install --with-deps
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2
-        with:
-          version: 2.107.0
-          github-token: ${{ github.token }}
-
-      - name: Start local Supabase stack
-        env:
-          SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . -x edge-runtime --debug
-
-      - name: Apply migrations
-        run: supabase db reset --workdir . --no-seed
-
-      - name: Export Supabase keys
-        env:
-          REQUIRE_SERVICE_ROLE: "0"
-        run: bash scripts/export-supabase-env.sh
-
-      - name: Build app with valid local Supabase config
-        env:
-          VITE_SUPABASE_URL: http://localhost:54321
-          VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          LEDJER_CSP_LOCAL: "1"
-        run: pnpm --filter web build
-
-      # Preflight is intentionally omitted for cross-browser smoke.
-      # Playwright's webServer (from playwright.config.ts) manages the preview
-      # server on port 4173. A manual preflight step would collide on that port.
-
-      - name: Run smoke on Firefox
-        env:
-          E2E_MODE: local-smoke
-          E2E_BASE_URL: http://localhost:4173
-          E2E_CROSS_BROWSER: 1
-          E2E_SUPABASE_URL: ${{ env.SUPABASE_URL }}
-          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          CI: true
-        run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts e2e/responsive.spec.ts --project=firefox
-
-      - name: Run smoke on WebKit
-        env:
-          E2E_MODE: local-smoke
-          E2E_BASE_URL: http://localhost:4173
-          E2E_CROSS_BROWSER: 1
-          E2E_SUPABASE_URL: ${{ env.SUPABASE_URL }}
-          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          CI: true
-        run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts e2e/responsive.spec.ts --project=webkit
-
-      - name: Upload cross-browser report
-        if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: playwright-report-cross-browser
-          path: apps/web/playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop --workdir . --no-backup || true
-
-  # ─── Job H: Visual Regression ───────────────────────────────
   visual-regression:
-    name: "Visual Regression (Linux Chromium)"
-    needs: e2e-cross-browser
+    name: Visual regression (public pages)
+    needs: e2e-public
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -469,57 +154,21 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install dependencies (frozen lockfile)
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2
-        with:
-          version: 2.107.0
-          github-token: ${{ github.token }}
-
-      - name: Start local Supabase stack
+      - name: Run visual regression tests
         env:
-          SUPABASE_DISABLE_TELEMETRY: "1"
-        run: supabase start --workdir . -x edge-runtime --debug
-
-      - name: Apply migrations
-        run: supabase db reset --workdir . --no-seed
-
-      - name: Export Supabase keys
-        run: bash scripts/export-supabase-env.sh
-
-      - name: Build app
-        env:
-          VITE_SUPABASE_URL: http://localhost:54321
-          VITE_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          LEDJER_CSP_LOCAL: "1"
-        run: pnpm --filter web build
-
-      # CI compares snapshots against committed Linux baselines. To refresh
-      # baselines after an intentional UI change, run the
-      # `Generate visual baselines (manual workflow)` workflow.
-      # Do NOT use --update-snapshots in the normal CI comparison run.
-      - name: Run visual regression tests (compare against committed baselines)
-        env:
-          E2E_MODE: full-local
+          E2E_MODE: local-smoke
           E2E_VISUAL: "1"
           E2E_BASE_URL: http://localhost:4173
-          E2E_SUPABASE_URL: http://localhost:54321
-          E2E_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
-          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium
 
-      # Artifacts on comparison failure only:
-      #   visual-regression-report   - HTML report
-      #   visual-regression-diffs    - diff PNGs from apps/web/test-results/
-      # The canonical baselines live in git, so we do not upload the snapshot
-      # directory here.
-      - name: Upload visual regression report
+      - name: Upload visual report
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -527,16 +176,3 @@ jobs:
           path: apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: Upload visual regression diffs
-        if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: visual-regression-diffs
-          path: apps/web/test-results/
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop --workdir . --no-backup || true

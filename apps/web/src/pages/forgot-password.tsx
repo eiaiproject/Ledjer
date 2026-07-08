@@ -4,13 +4,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { translateError } from "@/lib/errors";
+import { forgotPassword } from "@/lib/api/auth";
 
 const forgotSchema = z.object({
   email: z.string().email("Email tidak valid"),
@@ -21,14 +21,12 @@ type ForgotForm = z.infer<typeof forgotSchema>;
 /**
  * "Lupa password?" landing page.
  *
- * Asks for the email, calls supabase.auth.resetPasswordForEmail with
- * redirectTo pointing at /auth/callback?type=recovery so that the
- * user lands on /reset-password with a valid recovery session.
+ * Asks for the email and calls the Worker password recovery endpoint.
  *
  * Security notes:
  *  - Always shows the same success message regardless of whether the
  *    email exists. Prevents account enumeration.
- *  - Server-side rate limiting on auth endpoints is handled by Supabase.
+ *  - Server-side rate limiting is handled by the Worker auth service.
  */
 export function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -50,12 +48,7 @@ export function ForgotPasswordPage() {
     setLoading(true);
     setError(null);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback?type=recovery`;
-      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
-        email,
-        { redirectTo },
-      );
-      if (resetErr) throw resetErr;
+      await forgotPassword(email);
       // Move to "check your inbox" view regardless of whether the email
       // actually exists — prevents account enumeration.
       setSubmittedEmail(email);
@@ -99,7 +92,7 @@ export function ForgotPasswordPage() {
               <Logo size="md" variant="full" />
             </div>
 
-            <Card padding="lg">
+            <Card className="p-6">
               <CardContent>
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
@@ -163,7 +156,7 @@ export function ForgotPasswordPage() {
             <Logo size="md" variant="full" />
           </div>
 
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <h1 className="text-center text-xl font-bold text-text-primary">
                 Atur Ulang Password

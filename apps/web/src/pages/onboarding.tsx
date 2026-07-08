@@ -4,11 +4,13 @@ import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import type { Json } from "@ledjer/database-types";
 import { formatAmountInput, formatDateInputValue, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  createOrganization,
+  type ExtraOpeningBalance,
+} from "@/lib/api/organizations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,15 +40,6 @@ const cashSetupSchema = z.object({
 
 type BusinessForm = z.infer<typeof businessSchema>;
 type CashSetupForm = z.infer<typeof cashSetupSchema>;
-
-interface ExtraOpeningBalance {
-  accountCode?: string;
-  openingBalance: number;
-  description: string;
-  createBank?: boolean;
-  bankNumber?: number;
-  accountName?: string;
-}
 
 // Default cash/bank accounts from chart of accounts
 const CASH_ACCOUNTS = [
@@ -162,9 +155,9 @@ export function OnboardingPage() {
         extraBankNumber += 1;
       }
 
-      // Optional non-cash opening balances for migrating businesses. Each is
-      // posted by create_organization_with_opening_balances → post_opening_balance,
-      // balanced against Saldo Awal (3200). Only positive amounts are sent.
+      // Optional non-cash opening balances for migrating businesses. The
+      // Worker API rejects positive balances until posting is ported so these
+      // values cannot be silently dropped.
       if (data.openingReceivable > 0) {
         extraOpeningBalances.push({
           accountCode: "1200",
@@ -187,24 +180,16 @@ export function OnboardingPage() {
         });
       }
 
-      const { data: orgResponse, error: orgError } = await supabase.rpc("create_organization_with_opening_balances", {
-        p_organization_name: businessData.organizationName,
-        p_business_type: businessData.businessType,
-        p_books_start_date: businessData.booksStartDate,
-        p_default_cash_account_name: mainAccountInfo?.name || "Kas",
-        p_opening_cash_balance: mainAccount.openingBalance,
-        p_extra_opening_balances: extraOpeningBalances as unknown as Json,
+      const orgResponse = await createOrganization({
+        organizationName: businessData.organizationName,
+        businessType: businessData.businessType,
+        booksStartDate: businessData.booksStartDate,
+        defaultCashAccountName: mainAccountInfo?.name || "Kas",
+        openingCashBalance: mainAccount.openingBalance,
+        extraOpeningBalances,
       });
 
-      if (orgError) {
-        setError(orgError.message || "Gagal membuat organisasi");
-        setLoading(false);
-        return;
-      }
-
-      // Extract organization_id from response
-      const orgData = orgResponse as { id?: string; organization_id?: string } | null;
-      const orgId = orgData?.id || orgData?.organization_id;
+      const orgId = orgResponse.organization?.id;
       if (!orgId) {
         setError("Gagal mendapatkan ID organisasi");
         setLoading(false);
@@ -265,7 +250,7 @@ export function OnboardingPage() {
 
         {/* Step 1: Business Profile */}
         {step === 1 && (
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <form onSubmit={businessForm.handleSubmit(onBusinessSubmit)} className="space-y-6">
                 {/* Header section */}
@@ -352,7 +337,7 @@ export function OnboardingPage() {
 
         {/* Step 2: Cash Setup */}
         {step === 2 && (
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <form onSubmit={cashForm.handleSubmit(onCashSubmit)} className="space-y-4">
                 <div>

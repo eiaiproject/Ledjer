@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { formatIDR, formatShortDate } from "@/lib/utils";
-import { fetchProfilesByUserIds } from "@/lib/profiles";
+import { formatIDR, formatShortDate, createClientToken } from "@/lib/utils";
 import {
   PAYMENT_STATUS_LABELS,
   ALL_TRANSACTION_TYPE_LABELS,
   usesCategory,
+  statusVariant,
+  statusLabel,
 } from "@/lib/transactions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,58 +19,11 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast-api";
 import { translateError } from "@/lib/errors";
 import { ChevronDown, ChevronRight } from "lucide-react";
-
-interface TransactionDetail {
-  id: string;
-  transaction_number: string;
-  transaction_date: string;
-  transaction_type: string;
-  amount: number;
-  category_name: string | null;
-  description: string;
-  notes: string | null;
-  status: string;
-  payment_status: string;
-  due_date: string | null;
-  posted_at: string;
-  voided_at: string | null;
-  void_reason: string | null;
-  created_by: string;
-  parties?: { name: string };
-}
-
-interface JournalLine {
-  id: string;
-  account_id: string;
-  debit: number;
-  credit: number;
-  description: string;
-  accounts?: { code: number; name: string };
-}
-
-interface JournalEntry {
-  id: string;
-  entry_number: string;
-  entry_date: string;
-  entry_type: string;
-  description: string;
-  status: string;
-  journal_lines: JournalLine[];
-}
-
-function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
-  if (status === "posted") return "success";
-  if (status === "voided") return "error";
-  if (status === "reversed") return "warning";
-  return "neutral";
-}
-
-function statusLabel(status: string) {
-  if (status === "posted") return "Posted";
-  if (status === "voided") return "Dibatalkan";
-  if (status === "reversed") return "Reversal";
-  return status;
-}
+import {
+  getTransaction,
+  listTransactionJournal,
+  voidTransaction,
+} from "@/lib/api/transactions";
 
 export function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +33,7 @@ export function TransactionDetailPage() {
   const [showVoidForm, setShowVoidForm] = useState(false);
   const [voidReason, setVoidReason] = useState("");
   const [showJournal, setShowJournal] = useState(false);
+  const voidTokenRef = useRef(createClientToken());
 
   // P1.3: Allow any member with transaction access to view business details.
   // Journal lines are separately gated by RLS (can_view_reports policy).
@@ -87,56 +41,16 @@ export function TransactionDetailPage() {
     queryKey: queryKeys.transactions.detail(id!),
     queryFn: async () => {
       if (!id || !orgData?.organization?.id) return null;
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(`
-          *,
-          parties:parties!transactions_party_same_org_fkey(name)
-        `)
-        .eq("id", id)
-        .eq("organization_id", orgData.organization.id)
-        .single();
-      if (error) throw error;
-      return data as unknown as TransactionDetail;
+      return getTransaction(id);
     },
-    enabled: !!id && !!orgData?.organization?.id,
-  });
-
-  const { data: createdByProfile } = useQuery({
-    queryKey: queryKeys.profile(transaction?.created_by),
-    queryFn: async () => {
-      if (!transaction?.created_by) return null;
-      const profiles = await fetchProfilesByUserIds([transaction.created_by]);
-      return profiles[transaction.created_by] ?? null;
-    },
-    enabled: !!transaction?.created_by,
+    enabled: !!id && !!orgData?.organization?.id && canViewReports,
   });
 
   const { data: journalEntries, error: journalError, refetch: refetchJournal } = useQuery({
     queryKey: queryKeys.journalEntries.detail(id!),
     queryFn: async () => {
       if (!id || !orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .select(`
-          *,
-          journal_lines:journal_lines!journal_lines_entry_same_org_fkey(
-            id,
-            account_id,
-            debit,
-            credit,
-            description,
-            accounts:accounts!journal_lines_account_same_org_fkey(
-              code,
-              name
-            )
-          )
-        `)
-        .eq("transaction_id", id)
-        .eq("organization_id", orgData.organization.id)
-        .order("created_at");
-      if (error) throw error;
-      return (data || []) as unknown as JournalEntry[];
+      return listTransactionJournal(id);
     },
     enabled: !!id && !!orgData?.organization?.id,
   });
@@ -144,15 +58,10 @@ export function TransactionDetailPage() {
   const voidMutation = useMutation({
     mutationFn: async () => {
       if (!id || !orgData?.organization?.id) throw new Error("Missing data");
-      const { data, error } = await supabase.rpc("void_transaction", {
-        p_organization_id: orgData.organization.id,
-        p_transaction_id: id,
-        p_void_reason: voidReason,
-      });
-      if (error) throw error;
-      return data;
+      return voidTransaction(id, voidReason, voidTokenRef.current);
     },
     onSuccess: () => {
+      voidTokenRef.current = createClientToken();
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.journalEntries.detail(id!) });
       // P1.5: void reverses stock, COGS, balances → invalidate everything
@@ -247,7 +156,7 @@ export function TransactionDetailPage() {
           )}
             <div>
               <dt className="text-wood-500">Dibuat oleh</dt>
-              <dd className="mt-1 break-words">{createdByProfile?.full_name || "-"}</dd>
+              <dd className="mt-1 break-words">{transaction.created_by_profile?.full_name || "-"}</dd>
             </div>
           <div>
             <dt className="text-wood-500">Diposting</dt>

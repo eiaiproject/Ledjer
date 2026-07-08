@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { exportBalanceSheetCsv } from "@/lib/csv-export";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,20 +9,15 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
-import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast-api";
+import { translateError } from "@/lib/errors";
+import { exportBalanceSheetCsv } from "@/lib/csv-export";
 import { Download } from "lucide-react";
-
-interface BalanceSheetItem {
-  section: string;
-  account_code: number;
-  account_name: string;
-  amount: number;
-}
+import { getBalanceSheet } from "@/lib/api/reports";
 
 export function BalanceSheetPage() {
   const { data: orgData } = useOrganization();
-  const { canViewReports } = useOrgPermissions();
+  const { canViewReports, canCreateExports } = useOrgPermissions();
   
   const [asOfDate, setAsOfDate] = useState(formatDateInputValue());
 
@@ -32,15 +25,7 @@ export function BalanceSheetPage() {
     queryKey: queryKeys.reports.balanceSheet(orgData?.organization?.id, asOfDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase.rpc("get_balance_sheet", {
-        p_organization_id: orgData.organization.id,
-        p_as_of_date: asOfDate,
-      });
-      if (error) {
-        if (import.meta.env.DEV) console.error("get_balance_sheet error", { code: error.code, message: error.message, details: error.details, hint: error.hint });
-        throw error;
-      }
-      return data as BalanceSheetItem[];
+      return getBalanceSheet(asOfDate);
     },
     enabled: !!orgData?.organization?.id && canViewReports,
   });
@@ -66,6 +51,16 @@ export function BalanceSheetPage() {
   const totalEquity = equity.reduce((sum, i) => sum + i.amount, 0);
   const totalLiabEquity = totalLiabilities + totalEquity;
 
+  const handleExport = async () => {
+    if (!orgData?.organization?.id) return;
+    try {
+      await exportBalanceSheetCsv(asOfDate);
+      toast.success("Export CSV neraca dimulai");
+    } catch (err) {
+      toast.error(translateError(err));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,15 +80,17 @@ export function BalanceSheetPage() {
             <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => orgData?.organization?.id && exportBalanceSheetCsv(orgData.organization.id, asOfDate).catch((err) => toast.error(translateError(err)))}
-              disabled={!data?.length}
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+            {canCreateExports && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void handleExport()}
+                disabled={!data?.length}
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

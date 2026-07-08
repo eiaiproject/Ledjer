@@ -16,7 +16,7 @@ Last updated: 2026-06-27
 ### 1. Detect & Confirm
 - Check Sentry for error spikes
 - Check uptime monitoring alerts
-- Check Supabase dashboard for database issues
+- Check Cloudflare dashboard for Worker/D1 issues
 - Confirm the issue is real (not user error or local)
 
 ### 2. Communicate
@@ -26,8 +26,8 @@ Last updated: 2026-06-27
 
 ### 3. Mitigate
 - **Service down:** Check hosting platform status, restart if needed
-- **Database issue:** Check Supabase dashboard, check connection pool
-- **Auth issue:** Check Supabase Auth logs, verify RLS policies
+- **Database issue:** Check D1 status, recent migrations, and Worker logs
+- **Auth issue:** Check Worker auth logs and session/token tables
 - **Security breach:** Rotate keys immediately, check audit logs
 
 ### 4. Resolve
@@ -43,13 +43,10 @@ Last updated: 2026-06-27
 
 ## Rollback Procedure
 
-### Frontend Rollback (Vercel/Cloudflare)
+### Worker Rollback
 ```bash
-# Vercel
-vercel rollback [deployment-url]
-
-# Cloudflare Pages
-# Revert to previous deployment via dashboard
+pnpm --filter web exec wrangler deployments list
+pnpm --filter web exec wrangler rollback
 ```
 
 ### Database Rollback
@@ -57,10 +54,8 @@ vercel rollback [deployment-url]
 
 ```sql
 -- Emergency: disable a problematic trigger
-ALTER TABLE transactions DISABLE TRIGGER trigger_name;
-
--- Emergency: revoke a problematic function
-REVOKE EXECUTE ON FUNCTION problematic_function(UUID) FROM authenticated;
+-- Prefer forward-fix migrations for accounting data.
+-- For D1, restore from a verified backup/snapshot only after impact review.
 ```
 
 ### Environment Variable Rollback
@@ -71,23 +66,11 @@ REVOKE EXECUTE ON FUNCTION problematic_function(UUID) FROM authenticated;
 
 ## Specific Scenarios
 
-### Database Connection Pool Exhaustion
-1. Check Supabase dashboard → Database → Connection pool
-2. Check for long-running queries: `SELECT * FROM pg_stat_activity WHERE state != 'idle'`
-3. Kill stuck queries if needed
-4. Consider upgrading Supabase plan
-
 ### Authentication Failure Spike
 1. Check `login_attempts` table for patterns
 2. Check for brute force attacks
-3. Enable additional rate limiting if needed
-4. Check Supabase Auth logs
-
-### RLS Policy Violation
-1. Check recent migrations for RLS changes
-2. Test policies with `SET ROLE authenticated`
-3. Verify `is_org_member()` function returns correct results
-4. Fix policy and re-deploy migration
+3. Tighten Worker auth throttling if needed
+4. Check session revocation and token cleanup
 
 ## Communication Templates
 
@@ -117,5 +100,4 @@ serupa di masa depan.
 |------|---------|
 | Primary responder | [owner name, email] |
 | Backup responder | [backup name, email] |
-| Supabase support | Via Supabase dashboard |
-| Hosting support | Via hosting platform |
+| Cloudflare support | Via Cloudflare dashboard |

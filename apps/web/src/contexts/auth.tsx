@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthContext, type SignUpResult } from "@/contexts/auth-context";
-import { supabase } from "@/lib/supabase";
-import { getSafeRedirectPath } from "@/lib/redirect";
+import type { AuthSession, AuthUser } from "@/lib/api/auth";
+import {
+  getMe,
+  login,
+  logout,
+  register,
+  resendVerification,
+} from "@/lib/api/auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -22,10 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 3_000);
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+    getMe()
+      .then(({ session, user }) => {
         if (cancelled) return;
         setSession(session);
+        setUser(user);
         setLoading(false);
         clearTimeout(timeoutId);
       })
@@ -36,79 +43,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(timeoutId);
       });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      try {
-        setSession(session);
-        if (event === "SIGNED_OUT") {
-          queryClient.clear();
-        }
-      } catch (err) {
-        console.error("Auth state change handler error:", err);
-      }
-    });
-
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
-      subscription.unsubscribe();
     };
   }, [queryClient]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await logout();
+    setSession(null);
+    setUser(null);
     queryClient.clear();
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
+    await login(email, password);
+    const next = await getMe();
+    setSession(next.session);
+    setUser(next.user);
   };
 
   const signUp = async (
     email: string,
     password: string,
-    fullName: string,
-    redirectTo?: string
+    fullName: string
   ): Promise<SignUpResult> => {
-    const safeRedirect = getSafeRedirectPath(redirectTo, "/onboarding");
-    const callbackUrl = new URL("/auth/callback", window.location.origin);
-    if (safeRedirect !== "/onboarding") {
-      callbackUrl.searchParams.set("redirect", safeRedirect);
+    const data = await register(email, password, fullName);
+    if (data.session) {
+      const next = await getMe();
+      setSession(next.session);
+      setUser(next.user);
     }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-        // Pin the verification link to our callback page so we can show a
-        // branded success state and route the user to onboarding.
-        emailRedirectTo: callbackUrl.toString(),
-      },
-    });
-    if (error) throw error;
     return {
       session: data.session,
-      user: data.user,
-      // When email confirmations are enabled, Supabase returns a user but
-      // no session until the user verifies their email.
-      needsEmailConfirmation: !!data.user && !data.session,
+      user: data.session
+        ? {
+            id: data.user.id,
+            email: data.user.email,
+            full_name: data.user.fullName,
+            email_verified_at: null,
+          }
+        : null,
+      needsEmailConfirmation: data.needsEmailConfirmation,
     };
   };
 
   const resendConfirmationEmail = async (email: string) => {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-    if (error) throw error;
+    await resendVerification(email);
   };
 
   // Auth errors are exposed via context (error field) instead of blocking
@@ -118,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         session,
-        user: session?.user ?? null,
+        user,
         loading,
         error,
         signIn,

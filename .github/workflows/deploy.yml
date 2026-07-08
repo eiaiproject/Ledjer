@@ -1,9 +1,6 @@
-name: Deploy to Cloudflare Pages
+name: Deploy to Cloudflare Workers
 
-# Manual-only. Cloudflare Pages Git integration auto-deploys main to production.
-# This workflow exists for emergency/manual Wrangler deploys if needed.
-# Uses Wrangler v4 via pnpm exec (root devDependency) — NOT the deprecated
-# cloudflare/wrangler-action@v3.
+# Manual-only emergency deploy with Wrangler.
 on:
   workflow_dispatch:
     inputs:
@@ -17,11 +14,11 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write  # needed for Pages deploy
+  contents: read
 
 jobs:
   deploy:
-    name: "Manual deploy to Cloudflare Pages"
+    name: "Manual deploy to Cloudflare Workers"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -46,23 +43,21 @@ jobs:
 
       - name: Build production
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: pnpm --filter web build
 
-      - name: Deploy to Cloudflare Pages
-        run: |
-          pnpm exec wrangler pages deploy apps/web/dist \
-            --project-name="${CLOUDFLARE_PAGES_PROJECT_NAME:-ledjer}" \
-            --branch="${{ inputs.branch || 'main' }}"
+      - name: Deploy with Wrangler
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm --filter web exec wrangler deploy
 
       - name: Summary
         run: |
-          echo "### ✅ Manual deploy to Cloudflare Pages" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Manual deploy to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** \`${{ inputs.branch || 'main' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** https://ledjer.id" >> $GITHUB_STEP_SUMMARY

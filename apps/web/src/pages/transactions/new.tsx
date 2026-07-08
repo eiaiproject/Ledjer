@@ -4,11 +4,16 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import type { Database } from "@ledjer/database-types";
-import { formatAmountInput, formatDateInputValue, formatNumber, parseAmountInput } from "@/lib/utils";
+import { createClientToken, formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
+import { listAccounts } from "@/lib/api/accounts";
+import { listParties } from "@/lib/api/parties";
+import { listProducts } from "@/lib/api/products";
+import {
+  postTransaction as postTransactionApi,
+  type PostTransactionInput,
+} from "@/lib/api/transactions";
 import {
   usesCashAccount,
   usesCategory,
@@ -45,6 +50,7 @@ import {
   SECTION_LABELS,
   generateAutoDescription,
   getSubmitLabel,
+  localDate,
 } from "./_helpers";
 
 /* ------------------------------------------------------------------ */
@@ -74,8 +80,6 @@ const transactionSchema = z.object({
 type TransactionForm = z.infer<typeof transactionSchema>;
 type TransactionSubmission = TransactionForm & { clientToken: string };
 
-type PostTransactionArgs = Database["public"]["Functions"]["post_transaction"]["Args"];
-
 interface ImpactSummary {
   debit_account: string;
   credit_account: string;
@@ -87,28 +91,8 @@ interface ImpactSummary {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function localDate(offsetDays = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return formatDateInputValue(date);
-}
-
 function getLastCashAccountKey(transactionType: string) {
   return `ledjer:last-cash-account:${transactionType}`;
-}
-
-function createClientToken() {
-  if (typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -192,14 +176,7 @@ export function NewTransactionPage() {
     queryKey: queryKeys.accounts.activeTransactionOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, code, name, account_type, is_cash_account")
-        .eq("organization_id", orgData.organization.id)
-        .eq("is_active", true)
-        .order("code");
-      if (error) throw error;
-      return data || [];
+      return listAccounts({ active: true });
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -214,15 +191,7 @@ export function NewTransactionPage() {
     queryKey: queryKeys.accounts.expenseCogsOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, code, name, account_type")
-        .eq("organization_id", orgData.organization.id)
-        .eq("is_active", true)
-        .in("account_type", ["expense", "cogs"])
-        .order("code");
-      if (error) throw error;
-      return data || [];
+      return listAccounts({ active: true, accountTypes: ["expense", "cogs"] });
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -237,14 +206,7 @@ export function NewTransactionPage() {
     queryKey: queryKeys.parties.transactionOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("parties")
-        .select("id, name")
-        .eq("organization_id", orgData.organization.id)
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data || [];
+      return listParties();
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -259,14 +221,7 @@ export function NewTransactionPage() {
     queryKey: queryKeys.products.transactionOptions(orgData?.organization?.id ?? ""),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, code, name, unit, purchase_price, selling_price, current_stock")
-        .eq("organization_id", orgData.organization.id)
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data || [];
+      return listProducts();
     },
     enabled: !!orgData?.organization?.id,
   });
@@ -472,62 +427,46 @@ export function NewTransactionPage() {
       const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
       const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
 
-      const rpcParams: PostTransactionArgs = {
-        p_organization_id: organizationId,
-        p_transaction_date: data.transactionDate,
-        p_transaction_type: data.transactionType,
-        p_amount: data.amount,
-        p_payment_status: paymentStatus,
-        p_partial_amount: data.partialAmount ?? 0,
-        p_description: data.description,
-        p_client_token: data.clientToken,
+      const params: PostTransactionInput = {
+        transactionDate: data.transactionDate,
+        transactionType: data.transactionType,
+        amount: data.amount,
+        paymentStatus,
+        partialAmount: data.partialAmount ?? undefined,
+        description: data.description,
+        idempotencyKey: data.clientToken,
       };
 
-      if (shouldUseParty && data.partyName?.trim()) rpcParams.p_party_name = data.partyName.trim();
+      if (shouldUseParty && data.partyName?.trim()) params.partyName = data.partyName.trim();
 
       // CoA account ID for debit account (expense/cogs purchases)
       if (shouldUseCategory && data.debitAccountId) {
-        rpcParams.p_debit_account_id = data.debitAccountId;
+        params.debitAccountId = data.debitAccountId;
         // Also send account name as category_name for transaction record display
         const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
-        if (selectedAccount) rpcParams.p_category_name = selectedAccount.name;
+        if (selectedAccount) params.categoryName = selectedAccount.name;
       } else if (shouldUseCategory && data.categoryName?.trim()) {
         // Legacy fallback: category name only
-        rpcParams.p_category_name = data.categoryName.trim();
+        params.categoryName = data.categoryName.trim();
       }
-      if (shouldSendCashAccount && data.cashAccountId) rpcParams.p_cash_account_id = data.cashAccountId;
+      if (shouldSendCashAccount && data.cashAccountId) params.cashAccountId = data.cashAccountId;
       if (shouldUseDestinationAccount && data.destinationCashAccountId) {
-        rpcParams.p_destination_cash_account_id = data.destinationCashAccountId;
+        params.destinationCashAccountId = data.destinationCashAccountId;
       }
-      if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) rpcParams.p_due_date = data.dueDate;
+      if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) params.dueDate = data.dueDate;
 
       const notes = data.bankName
         ? `Bank: ${data.bankName}${data.notes ? "\n" + data.notes : ""}`
         : data.notes?.trim();
-      if (notes) rpcParams.p_notes = notes;
+      if (notes) params.notes = notes;
 
       if (data.productId) {
-        rpcParams.p_product_id = data.productId;
-        if (data.quantity !== undefined) rpcParams.p_quantity = data.quantity;
-        if (data.unitPrice !== undefined) rpcParams.p_unit_price = data.unitPrice;
+        params.productId = data.productId;
+        if (data.quantity !== undefined) params.quantity = data.quantity;
+        if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
       }
 
-      const { data: result, error } = await supabase.rpc("post_transaction", rpcParams);
-      if (error) {
-        if (import.meta.env.DEV) console.error("post_transaction error:", error);
-        const msg = error.message || error.details || JSON.stringify(error);
-        // Friendly messages for common errors
-        if (msg.includes("does not exist") || msg.includes("column")) {
-          throw new Error("Terjadi kesalahan sistem. Silakan hubungi admin.");
-        }
-        if (msg.includes("multiple function") || error.code === "PGRST202") {
-          throw new Error("Database belum di-update. Silakan hubungi admin.");
-        }
-        // Extract PostgreSQL error message
-        const pgMatch = msg.match(/ERROR:\s*(.+?)(?:\n|$)/);
-        throw new Error(pgMatch ? pgMatch[1].trim() : "Gagal menyimpan transaksi. Silakan coba lagi.");
-      }
-      return result as unknown as { transaction_id: string; impact: ImpactSummary };
+      return postTransactionApi(params) as Promise<{ transaction_id: string; impact: ImpactSummary }>;
     },
     onSuccess: (result, variables) => {
       if (variables.cashAccountId) {

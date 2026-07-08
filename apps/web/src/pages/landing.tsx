@@ -138,7 +138,7 @@ const securityItems = [
   {
     icon: Database,
     label: "Data dipisah per bisnis",
-    desc: "Setiap bisnis hanya bisa melihat datanya sendiri. Pemisahan ini dijaga di level database dengan Row Level Security.",
+    desc: "Setiap bisnis hanya bisa melihat datanya sendiri. Pemisahan ini dijaga oleh Worker API dan database.",
   },
   {
     icon: Shield,
@@ -152,8 +152,8 @@ const securityItems = [
   },
   {
     icon: Lock,
-    label: "Keamanan Supabase",
-    desc: "Koneksi dan penyimpanan data terlindungi dengan platform modern.",
+    label: "Keamanan Cloudflare",
+    desc: "Koneksi, sesi, dan penyimpanan data terlindungi dengan platform modern.",
   },
 ] as const;
 

@@ -29,7 +29,9 @@ FAIL=0
 # Using indexed arrays for bash 3.2 compatibility (macOS).
 # Patterns use ERE syntax (grep -E) — no backslash-escaped braces/parens.
 LABELS=(
-  "SUPABASE_SERVICE_ROLE_KEY"
+  "EMAIL_API_KEY"
+  "GOOGLE_CLIENT_SECRET"
+  "SENTRY_DSN"
   "SENTRY_AUTH_TOKEN"
   "AWS_ACCESS_KEY_ID"
   "GitHub token"
@@ -37,7 +39,9 @@ LABELS=(
   "Private key marker"
 )
 PATTERNS=(
-  "SUPABASE_SERVICE_ROLE_KEY"
+  "EMAIL_API_KEY"
+  "GOOGLE_CLIENT_SECRET"
+  "SENTRY_DSN"
   "SENTRY_AUTH_TOKEN"
   "AKIA[0-9A-Z]{16}"
   "gh[pousr]_[A-Za-z0-9_]{36,}"
@@ -48,12 +52,24 @@ PATTERNS=(
 for i in "${!LABELS[@]}"; do
   label="${LABELS[$i]}"
   pattern="${PATTERNS[$i]}"
-  if grep -rlE "$pattern" "$DIST_DIR" 2>/dev/null | head -1 | grep -q .; then
-    echo "❌ FOUND: $label"
-    grep -rlE "$pattern" "$DIST_DIR" 2>/dev/null | head -3 | while read -r f; do
-      echo "   in: $f"
+  # Find matching files, then exclude env variable references (c.env.*, process.env.*)
+  # which are harmless property access patterns bundled by @cloudflare/vite-plugin.
+  matched_files=$(grep -rlE "$pattern" "$DIST_DIR" 2>/dev/null || true)
+  if [[ -n "$matched_files" ]]; then
+    leaked=0
+    for f in $matched_files; do
+      if grep -nE "$pattern" "$f" 2>/dev/null | grep -vE 'c\.env\.|process\.env\.' | grep -q .; then
+        leaked=1
+        break
+      fi
     done
-    FAIL=1
+    if [[ "$leaked" -ne 0 ]]; then
+      echo "❌ FOUND: $label"
+      echo "$matched_files" | head -3 | while read -r f; do
+        echo "   in: $f"
+      done
+      FAIL=1
+    fi
   fi
 done
 

@@ -11,8 +11,8 @@ import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
-import { buildAuthCallbackUrl, buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
-import { supabase } from "@/lib/supabase";
+import { buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
+import { startGoogleAuth } from "@/lib/api/auth";
 import { useCooldown } from "@/hooks/useCooldown";
 import { Lock, Mail, User } from "lucide-react";
 
@@ -64,12 +64,9 @@ export function RegisterPage() {
     setOauthLoading(true);
     setError(null);
     try {
-      const callbackUrl = buildAuthCallbackUrl(redirectPath, "/onboarding");
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: callbackUrl.toString() },
-      });
-      if (error) throw error;
+      const response = await startGoogleAuth();
+      if (!response.url) throw new Error("Google OAuth is not configured yet");
+      window.location.assign(response.url);
     } catch (err) {
       setError(translateError(err));
       setOauthLoading(false);
@@ -139,7 +136,7 @@ export function RegisterPage() {
               <Logo size="md" variant="full" />
             </div>
 
-            <Card padding="lg">
+            <Card className="p-6">
               <CardContent>
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
@@ -244,7 +241,7 @@ export function RegisterPage() {
             <Logo size="md" variant="full" />
           </div>
 
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               <h1 className="text-xl font-bold text-text-primary">Daftar</h1>
               <p className="mt-1 text-sm text-text-secondary">

@@ -3,32 +3,16 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CheckCircle2, LogIn, MailCheck, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/query-keys";
 import { buildRedirectSearch } from "@/lib/redirect";
 import { translateError } from "@/lib/errors";
+import { acceptTeamInvitation } from "@/lib/api/team";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 
 type AcceptState = "idle" | "success" | "error";
-
-interface AcceptResult {
-  organization_id?: string;
-  member_id?: string;
-  role?: string;
-}
-
-function parseAcceptResult(value: unknown): AcceptResult {
-  if (!value || typeof value !== "object") return {};
-  const result = value as Record<string, unknown>;
-  return {
-    organization_id: typeof result.organization_id === "string" ? result.organization_id : undefined,
-    member_id: typeof result.member_id === "string" ? result.member_id : undefined,
-    role: typeof result.role === "string" ? result.role : undefined,
-  };
-}
 
 export function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
@@ -52,11 +36,7 @@ export function AcceptInvitationPage() {
     setAccepting(true);
     setError(null);
     try {
-      const { data, error: rpcError } = await supabase.rpc("accept_invitation", {
-        p_token: token,
-      });
-      if (rpcError) throw rpcError;
-      const result = parseAcceptResult(data);
+      const result = await acceptTeamInvitation(token);
       setAcceptedOrgId(result.organization_id || null);
       setStatus("success");
       queryClient.invalidateQueries({ queryKey: queryKeys.allOrganization() });
@@ -97,7 +77,7 @@ export function AcceptInvitationPage() {
             <Logo size="md" variant="full" />
           </div>
 
-          <Card padding="lg">
+          <Card className="p-6">
             <CardContent>
               {!token ? (
                 <div className="flex flex-col items-center text-center">

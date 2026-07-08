@@ -5,18 +5,14 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Modes (controlled via E2E_MODE env):
  *   deploy-smoke — production public-only smoke
- *   full-local   — full E2E with local Supabase + seeded data
- *   local-smoke  — local smoke without seed
+ *   local-smoke  — local public smoke without seed
+ *   local-full   — local full public E2E without seed
  */
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore:
-    process.env.E2E_MODE === "full-local" && !process.env.E2E_VISUAL
-      ? ["**/visual.spec.ts"]
-      : [],
+  testIgnore: process.env.E2E_VISUAL ? [] : ["**/visual.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  // Deploy smoke: no retries needed (deterministic). Full local: retry once in CI.
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   maxFailures: process.env.CI ? 10 : undefined,
@@ -32,11 +28,6 @@ export default defineConfig({
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
   },
-  // Only run globalSetup for full-local mode (needs Supabase seed)
-  globalSetup:
-    process.env.E2E_MODE === "full-local"
-      ? "./e2e/global-setup.ts"
-      : undefined,
   projects: [
     {
       name: "chromium",
@@ -83,11 +74,7 @@ export default defineConfig({
     }> = [
       // Primary: Vite preview server for the frontend app
       {
-        command:
-          "LEDJER_CSP_LOCAL=1 " +
-          "VITE_SUPABASE_URL=${E2E_SUPABASE_URL:-$VITE_SUPABASE_URL} " +
-          "VITE_SUPABASE_ANON_KEY=${E2E_SUPABASE_ANON_KEY:-$VITE_SUPABASE_ANON_KEY} " +
-          "pnpm build && pnpm preview",
+        command: "LEDJER_CSP_LOCAL=1 pnpm build && pnpm preview",
         port: 4173,
         reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
       },
