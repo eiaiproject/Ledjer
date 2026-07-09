@@ -1,26 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useBlocker, useNavigate } from "react-router-dom";
-import { Controller, useForm, useWatch } from "react-hook-form";
-import { z } from "zod/v3";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { Controller } from "react-hook-form";
 import { createClientToken, formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { listAccounts } from "@/lib/api/accounts";
-import { listParties } from "@/lib/api/parties";
-import { listProducts } from "@/lib/api/products";
-import {
-  postTransaction as postTransactionApi,
-  type PostTransactionInput,
-} from "@/lib/api/transactions";
-import {
-  usesCashAccount,
-  usesCategory,
-  usesDestinationAccount,
-  usesParty,
-  usesPaymentStatus,
-} from "@/lib/transactions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,71 +22,27 @@ import {
 } from "./_components";
 import {
   buildPreview,
-  TRANSACTION_META,
-  PARTY_COPY,
-  CASH_ACCOUNT_LABELS,
   CASH_ACCOUNT_PLACEHOLDERS,
-  CATEGORY_LABELS,
-  DESCRIPTION_PLACEHOLDERS,
   SECTION_LABELS,
-  generateAutoDescription,
   getSubmitLabel,
-  localDate,
 } from "./_helpers";
-
-/* ------------------------------------------------------------------ */
-/*  Schema                                                             */
-/* ------------------------------------------------------------------ */
-
-const transactionSchema = z.object({
-  transactionDate: z.string().min(1, "Tanggal wajib diisi"),
-  transactionType: z.string().min(1, "Jenis transaksi wajib dipilih"),
-  amount: z.number().min(1, "Nominal harus lebih dari 0"),
-  partyName: z.string().optional(),
-  categoryName: z.string().optional(),
-  cashAccountId: z.string().optional(),
-  bankName: z.string().optional(),
-  destinationCashAccountId: z.string().optional(),
-  paymentStatus: z.enum(["paid", "unpaid", "partial"]),
-  partialAmount: z.number().optional(),
-  dueDate: z.string().optional(),
-  description: z.string().min(1, "Deskripsi wajib diisi"),
-  notes: z.string().optional(),
-  productId: z.string().optional(),
-  quantity: z.number().optional(),
-  unitPrice: z.number().optional(),
-  debitAccountId: z.string().optional(),
-});
-
-type TransactionForm = z.infer<typeof transactionSchema>;
-type TransactionSubmission = TransactionForm & { clientToken: string };
-
-interface ImpactSummary {
-  debit_account: string;
-  credit_account: string;
-  debit_change: string;
-  credit_change: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function getLastCashAccountKey(transactionType: string) {
-  return `ledjer:last-cash-account:${transactionType}`;
-}
+import {
+  type TransactionForm,
+  useTransactionForm,
+  useTransactionLookups,
+  useTransactionDerived,
+  useTransactionEffects,
+  useTransactionMutation,
+} from "./_hooks";
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
 export function NewTransactionPage() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
   const { canCreateTransaction } = useOrgPermissions();
   const [manualAmount, setManualAmount] = useState(false);
-  const [successTransactionId, setSuccessTransactionId] = useState<string | null>(null);
   const [clientToken, setClientToken] = useState(createClientToken);
   const [isTypeSelectorExpanded, setIsTypeSelectorExpanded] = useState(true);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
@@ -114,179 +51,116 @@ export function NewTransactionPage() {
   const previousTypeRef = useRef<string>("");
   const submitInFlightRef = useRef(false);
 
+  /* -- Hooks -- */
+  const formState = useTransactionForm();
   const {
-    register,
-    handleSubmit,
+    form,
     control,
-    setValue,
-    setError,
-    clearErrors,
-    getValues,
-    formState,
-  } = useForm<TransactionForm>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      transactionDate: localDate(),
-      paymentStatus: "unpaid",
-      description: "",
-      amount: 0,
-    },
-  });
+    errors,
+    blocker,
+    successTransactionId,
+    setSuccessTransactionId,
+    selectedType,
+    selectedPaymentStatus,
+    selectedAmount,
+    selectedProductId,
+    selectedQuantity,
+    selectedUnitPrice,
+    selectedCashAccountId,
+    selectedDestinationCashAccountId,
+    selectedPartyName,
+    selectedCategoryName,
+    selectedDebitAccountId,
+    selectedDueDate,
+    selectedPartialAmount,
+    selectedTypeLabel,
+    showPaymentStatus,
+    showCashAccount,
+    showDestinationAccount,
+    showParty,
+    showCategory,
+    showDueDate,
+    isProductType,
+    isSaleType,
+  } = formState;
 
-  const { errors, isDirty } = formState;
-
-  /* -- Blocker & navigation safety -- */
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-    return isDirty && !successTransactionId && currentLocation.pathname !== nextLocation.pathname;
-  });
-
-  /* -- Watched values -- */
-  const selectedType = useWatch({ control, name: "transactionType" }) || "";
-  const selectedPaymentStatus = useWatch({ control, name: "paymentStatus" }) || "unpaid";
-  const selectedAmount = useWatch({ control, name: "amount" }) || 0;
-  const selectedProductId = useWatch({ control, name: "productId" });
-  const selectedQuantity = useWatch({ control, name: "quantity" });
-  const selectedUnitPrice = useWatch({ control, name: "unitPrice" });
-  const selectedCashAccountId = useWatch({ control, name: "cashAccountId" });
-  const selectedDestinationCashAccountId = useWatch({ control, name: "destinationCashAccountId" });
-  const selectedPartyName = useWatch({ control, name: "partyName" }) || "";
-  const selectedCategoryName = useWatch({ control, name: "categoryName" }) || "";
-  const selectedDebitAccountId = useWatch({ control, name: "debitAccountId" }) || "";
-  const selectedDueDate = useWatch({ control, name: "dueDate" });
-  const selectedPartialAmount = useWatch({ control, name: "partialAmount" }) || 0;
-
-  /* -- Derived booleans -- */
-  const selectedTypeLabel = selectedType ? (TRANSACTION_META[selectedType]?.label || selectedType) : "";
-  const showPaymentStatus = usesPaymentStatus(selectedType);
-  const showCashAccount = usesCashAccount(selectedType) || (showPaymentStatus && selectedPaymentStatus !== "unpaid");
-  const showDestinationAccount = usesDestinationAccount(selectedType);
-  const showParty = usesParty(selectedType);
-  const showCategory = usesCategory(selectedType);
-  const showDueDate = showPaymentStatus && selectedPaymentStatus !== "paid";
-  const isProductType = selectedType === "cash_purchase" || selectedType === "credit_purchase" || selectedType === "cash_sale" || selectedType === "credit_sale";
-  const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
-
-  /* -- Query: accounts -- */
+  const lookups = useTransactionLookups(orgData?.organization?.id);
   const {
-    data: accounts,
-    isLoading: accountsLoading,
-    error: accountsError,
-    refetch: refetchAccounts,
-  } = useQuery({
-    queryKey: queryKeys.accounts.activeTransactionOptions(orgData?.organization?.id ?? ""),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return listAccounts({ active: true });
-    },
-    enabled: !!orgData?.organization?.id,
-  });
+    accounts,
+    accountsLoading,
+    expenseCogsAccounts,
+    expenseAccountsLoading,
+    parties,
+    partiesLoading,
+    products,
+    productsLoading,
+    lookupError,
+    retryLookups,
+  } = lookups;
 
-  /* -- Query: expense/cogs accounts for CoA dropdown -- */
+  const derived = useTransactionDerived({
+    selectedType,
+    selectedAmount,
+    selectedProductId,
+    selectedQuantity,
+    selectedUnitPrice,
+    selectedCashAccountId,
+    selectedDestinationCashAccountId,
+    selectedCategoryName,
+    selectedDebitAccountId,
+    selectedPartialAmount,
+    accounts,
+    expenseCogsAccounts,
+    products,
+  });
   const {
-    data: expenseCogsAccounts,
-    isLoading: expenseAccountsLoading,
-    error: expenseAccountsError,
-    refetch: refetchExpenseAccounts,
-  } = useQuery({
-    queryKey: queryKeys.accounts.expenseCogsOptions(orgData?.organization?.id ?? ""),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return listAccounts({ active: true, accountTypes: ["expense", "cogs"] });
-    },
-    enabled: !!orgData?.organization?.id,
+    cashAccountOptions,
+    debitAccountOptions,
+    selectedCashAccountOption,
+    selectedDestinationCashAccountOption,
+    selectedProduct,
+    showBankNameField,
+    partyCopy,
+    cashAccountLabel,
+    categoryLabel,
+    descriptionPlaceholder,
+    productSubtotal,
+    remainingAmount,
+    stockAfterSale,
+    debitAccountName,
+  } = derived;
+
+  useTransactionEffects({
+    form,
+    selectedType,
+    selectedProductId,
+    selectedQuantity,
+    selectedUnitPrice,
+    selectedDueDate,
+    selectedAmount,
+    showDueDate,
+    isProductType,
+    isSaleType,
+    manualAmount,
+    productSubtotal,
+    successTransactionId,
+    setIsTypeSelectorExpanded,
+    activeFieldsRef,
+    previousTypeRef,
+    cashAccountOptions,
+    debitAccountOptions,
+    selectedProduct,
   });
 
-  /* -- Query: parties -- */
-  const {
-    data: parties,
-    isLoading: partiesLoading,
-    error: partiesError,
-    refetch: refetchParties,
-  } = useQuery({
-    queryKey: queryKeys.parties.transactionOptions(orgData?.organization?.id ?? ""),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return listParties();
-    },
-    enabled: !!orgData?.organization?.id,
+  const { postMutation } = useTransactionMutation({
+    orgId: orgData?.organization?.id,
+    expenseCogsAccounts,
+    setSuccessTransactionId,
+    setClientToken,
+    submitInFlightRef,
   });
 
-  /* -- Query: products -- */
-  const {
-    data: products,
-    isLoading: productsLoading,
-    error: productsError,
-    refetch: refetchProducts,
-  } = useQuery({
-    queryKey: queryKeys.products.transactionOptions(orgData?.organization?.id ?? ""),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return listProducts();
-    },
-    enabled: !!orgData?.organization?.id,
-  });
-
-  /* -- Derived data -- */
-  const cashAccountOptions = useMemo(() => {
-    return (accounts || [])
-      .filter((account) => account.account_type === "asset" && account.is_cash_account)
-      .map((account) => ({
-        id: account.id,
-        value: account.id,
-        label: `${account.code} - ${account.name}`,
-        secondaryLabel: account.code === 1110 ? "Kas" : "Bank",
-        kind: account.code === 1110 ? "cash" : "bank",
-      }));
-  }, [accounts]);
-
-  // ponytail: CoA dropdown options filtered by transaction type
-  const debitAccountOptions = useMemo(() => {
-    const accounts = expenseCogsAccounts || [];
-    if (selectedType === "expense_payment") {
-      // Expense payments: only operating expense accounts
-      return accounts
-        .filter((a) => a.account_type === "expense")
-        .map((a) => ({ value: a.id, label: `${a.code} - ${a.name}` }));
-    }
-    // cash_purchase / credit_purchase without product: COGS + expense accounts
-    return accounts.map((a) => ({ value: a.id, label: `${a.code} - ${a.name}` }));
-  }, [expenseCogsAccounts, selectedType]);
-
-  const selectedCashAccountOption = cashAccountOptions.find((account) => account.id === selectedCashAccountId);
-  const selectedDestinationCashAccountOption = cashAccountOptions.find((account) => account.id === selectedDestinationCashAccountId);
-  const selectedProduct = products?.find((product) => product.id === selectedProductId);
-  const showBankNameField = selectedCashAccountOption?.kind === "bank" || selectedDestinationCashAccountOption?.kind === "bank";
-  const partyCopy = PARTY_COPY[selectedType] || { label: "Pihak", placeholder: "Ketik nama pihak...", helper: "" };
-  const cashAccountLabel = CASH_ACCOUNT_LABELS[selectedType] || "Akun kas/bank";
-  const categoryLabel = CATEGORY_LABELS[selectedType] || "Kategori";
-  const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
-  const productSubtotal = selectedProductId && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
-  const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
-  const stockAfterSale = selectedProduct && selectedQuantity ? (selectedProduct.current_stock ?? 0) - selectedQuantity : null;
-  const lookupError = accountsError || expenseAccountsError || partiesError || productsError;
-
-  const retryLookups = () => {
-    Promise.allSettled([
-      refetchAccounts(),
-      refetchExpenseAccounts(),
-      refetchParties(),
-      refetchProducts(),
-    ]).then((settlements) => {
-      const rejected = settlements.filter((s) => s.status === "rejected");
-      if (rejected.length > 0) console.error(`${rejected.length} lookup refetch(es) failed`, rejected);
-    });
-  };
-
-  // ponytail: derive account name for preview from CoA or fallback to category/product name
-  const debitAccountName = (() => {
-    if (selectedProductId && selectedProduct) return selectedProduct.name;
-    if (selectedDebitAccountId) {
-      const account = expenseCogsAccounts?.find((a) => a.id === selectedDebitAccountId);
-      if (account) return account.name;
-    }
-    return selectedCategoryName || "Beban / Pembelian";
-  })();
-
+  /* -- Derived -- */
   const preview = buildPreview({
     transactionType: selectedType,
     amount: selectedAmount,
@@ -298,241 +172,52 @@ export function NewTransactionPage() {
     productName: selectedProduct?.name || "",
   });
 
-  /* -- Effects -- */
-
-  // Before unload protection
-  useEffect(() => {
-    if (!isDirty || successTransactionId) return;
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty, successTransactionId]);
-
-  const showUnsavedDialog = blocker.state === "blocked" && isDirty && !successTransactionId;
-
-  const handleUnsavedConfirm = () => {
-    blocker.proceed?.();
-  };
-
-  const handleUnsavedCancel = () => {
-    blocker.reset?.();
-  };
-
-  // Auto-set payment status & due date when type changes
-  useEffect(() => {
-    if (!selectedType) return;
-    if (usesPaymentStatus(selectedType)) {
-      const currentStatus = getValues("paymentStatus");
-      if (!currentStatus || currentStatus === "paid") setValue("paymentStatus", "unpaid");
-      if (!getValues("dueDate")) setValue("dueDate", localDate(30));
-    } else {
-      setValue("paymentStatus", "paid");
-      setValue("dueDate", "");
-    }
-
-    const lastCashAccountId = window.localStorage.getItem(getLastCashAccountKey(selectedType));
-    if (lastCashAccountId && cashAccountOptions.some((account) => account.id === lastCashAccountId)) {
-      setValue("cashAccountId", lastCashAccountId);
-    }
-
-    // Auto-select first debit account when type changes and no product is selected
-    if (usesCategory(selectedType) && !selectedProductId && debitAccountOptions.length > 0) {
-      const current = getValues("debitAccountId");
-      if (!current || !debitAccountOptions.some((a) => a.value === current)) {
-        setValue("debitAccountId", debitAccountOptions[0].value, { shouldDirty: true, shouldValidate: true });
-      }
-    }
-  }, [cashAccountOptions, debitAccountOptions, getValues, selectedProductId, selectedType, setValue]);
-
-  // Auto-set due date if empty
-  useEffect(() => {
-    if (showDueDate && !selectedDueDate) setValue("dueDate", localDate(30));
-  }, [selectedDueDate, setValue, showDueDate]);
-
-  // Auto-fill product price and quantity
-  useEffect(() => {
-    if (!selectedProductId || !selectedProduct) return;
-    if (!selectedQuantity) setValue("quantity", 1, { shouldDirty: true, shouldValidate: true });
-    const defaultPrice = (isSaleType ? selectedProduct.selling_price : selectedProduct.purchase_price) ?? 0;
-    if ((!selectedUnitPrice || selectedUnitPrice <= 0) && defaultPrice > 0) {
-      setValue("unitPrice", defaultPrice, { shouldDirty: true, shouldValidate: true });
-    }
-  }, [isSaleType, selectedProduct, selectedProductId, selectedQuantity, selectedUnitPrice, setValue]);
-
-  // Auto-fill amount from product subtotal
-  useEffect(() => {
-    if (!selectedProductId || manualAmount || productSubtotal <= 0) return;
-    setValue("amount", productSubtotal, { shouldDirty: true, shouldValidate: true });
-  }, [manualAmount, productSubtotal, selectedProductId, setValue]);
-
-  // Auto-generate description for sale/purchase types when product is selected
-  useEffect(() => {
-    if (!isSaleType && !isProductType) return;
-    if (!selectedProductId || !selectedProduct) return;
-    const currentDesc = getValues("description");
-    // Only auto-fill if description is empty or auto-generated
-    if (currentDesc && !currentDesc.startsWith("Penjualan ") && !currentDesc.startsWith("Pembelian ")) return;
-    const autoDesc = generateAutoDescription({
-      transactionType: selectedType,
-      productName: selectedProduct.name,
-      quantity: selectedQuantity,
-      totalAmount: selectedAmount,
-    });
-    setValue("description", autoDesc, { shouldDirty: true });
-  }, [selectedType, selectedProduct, selectedProductId, selectedQuantity, selectedAmount, isSaleType, isProductType, getValues, setValue]);
-
-  // Auto-navigate after success
-  useEffect(() => {
-    if (!successTransactionId) return;
-    const timer = window.setTimeout(() => navigate(`/transactions/${successTransactionId}`), 1400);
-    return () => window.clearTimeout(timer);
-  }, [navigate, successTransactionId]);
-
-  // Collapse type selector & scroll to active fields when selectedType changes
-  useEffect(() => {
-    if (!selectedType) {
-      previousTypeRef.current = "";
-      return;
-    }
-    const previousType = previousTypeRef.current;
-    previousTypeRef.current = selectedType;
-
-    // Only act when transitioning from empty to selected, or to a different type
-    if (previousType === selectedType) return;
-
-    setIsTypeSelectorExpanded(false);
-
-    // Mobile only: scroll to active fields
-    const isMobile = window.innerWidth < 1024;
-    if (isMobile && activeFieldsRef.current) {
-      requestAnimationFrame(() => {
-        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        activeFieldsRef.current?.scrollIntoView({
-          behavior: prefersReduced ? "auto" : "smooth",
-          block: "start",
-        });
-      });
-    }
-  }, [selectedType]);
-
-  /* -- Mutation -- */
-  const postMutation = useMutation({
-    mutationFn: async (data: TransactionSubmission) => {
-      const organizationId = orgData?.organization?.id;
-      if (!organizationId) throw new Error("Organisasi tidak ditemukan");
-
-      const shouldUseParty = usesParty(data.transactionType);
-      const shouldUseCategory = usesCategory(data.transactionType);
-      const shouldUseCashAccount = usesCashAccount(data.transactionType);
-      const shouldUseDestinationAccount = usesDestinationAccount(data.transactionType);
-      const shouldUsePaymentStatus = usesPaymentStatus(data.transactionType);
-      const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
-      const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
-
-      const params: PostTransactionInput = {
-        transactionDate: data.transactionDate,
-        transactionType: data.transactionType,
-        amount: data.amount,
-        paymentStatus,
-        partialAmount: data.partialAmount ?? undefined,
-        description: data.description,
-        idempotencyKey: data.clientToken,
-      };
-
-      if (shouldUseParty && data.partyName?.trim()) params.partyName = data.partyName.trim();
-
-      // CoA account ID for debit account (expense/cogs purchases)
-      if (shouldUseCategory && data.debitAccountId) {
-        params.debitAccountId = data.debitAccountId;
-        // Also send account name as category_name for transaction record display
-        const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
-        if (selectedAccount) params.categoryName = selectedAccount.name;
-      } else if (shouldUseCategory && data.categoryName?.trim()) {
-        // Legacy fallback: category name only
-        params.categoryName = data.categoryName.trim();
-      }
-      if (shouldSendCashAccount && data.cashAccountId) params.cashAccountId = data.cashAccountId;
-      if (shouldUseDestinationAccount && data.destinationCashAccountId) {
-        params.destinationCashAccountId = data.destinationCashAccountId;
-      }
-      if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) params.dueDate = data.dueDate;
-
-      const notes = data.bankName
-        ? `Bank: ${data.bankName}${data.notes ? "\n" + data.notes : ""}`
-        : data.notes?.trim();
-      if (notes) params.notes = notes;
-
-      if (data.productId) {
-        params.productId = data.productId;
-        if (data.quantity !== undefined) params.quantity = data.quantity;
-        if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
-      }
-
-      return postTransactionApi(params) as Promise<{ transaction_id: string; impact: ImpactSummary }>;
-    },
-    onSuccess: (result, variables) => {
-      if (variables.cashAccountId) {
-        window.localStorage.setItem(getLastCashAccountKey(variables.transactionType), variables.cashAccountId);
-      }
-      setSuccessTransactionId(result.transaction_id);
-      setClientToken(createClientToken());
-      // P1.5: invalidate every query key affected by a financial mutation so
-      // dashboard, reports, accounts, products, and parties do not display
-      // stale data after a successful post.
-      invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
-    },
-    onSettled: () => {
-      submitInFlightRef.current = false;
-    },
-  });
+  const showUnsavedDialog = blocker.state === "blocked" && form.formState.isDirty && !successTransactionId;
 
   /* -- Submit handler -- */
   const onSubmit = (data: TransactionForm) => {
     if (submitInFlightRef.current || successTransactionId) return;
 
-    if (usesParty(data.transactionType) && !data.partyName?.trim()) {
-      setError("partyName", { type: "manual", message: "Isi nama pihak" });
+    if (formState.showParty && !data.partyName?.trim()) {
+      formState.setError("partyName", { type: "manual", message: "Isi nama pihak" });
       scrollToError();
       return;
     }
 
-    const needsCashAccount = usesCashAccount(data.transactionType) || (usesPaymentStatus(data.transactionType) && data.paymentStatus !== "unpaid");
+    const needsCashAccount = formState.showCashAccount || (formState.showPaymentStatus && data.paymentStatus !== "unpaid");
     if (needsCashAccount && !data.cashAccountId) {
-      setError("cashAccountId", { type: "manual", message: "Pilih akun kas/bank" });
+      formState.setError("cashAccountId", { type: "manual", message: "Pilih akun kas/bank" });
       scrollToError();
       return;
     }
 
-    if (usesDestinationAccount(data.transactionType) && !data.destinationCashAccountId) {
-      setError("destinationCashAccountId", { type: "manual", message: "Pilih akun tujuan" });
+    if (formState.showDestinationAccount && !data.destinationCashAccountId) {
+      formState.setError("destinationCashAccountId", { type: "manual", message: "Pilih akun tujuan" });
       scrollToError();
       return;
     }
 
     // Validate debit account for expense/purchase types (when no product selected)
-    if (usesCategory(data.transactionType) && !data.productId && !data.debitAccountId) {
-      setError("debitAccountId", { type: "manual", message: "Pilih akun CoA" });
+    if (formState.showCategory && !data.productId && !data.debitAccountId) {
+      formState.setError("debitAccountId", { type: "manual", message: "Pilih akun CoA" });
       scrollToError();
       return;
     }
 
     if (data.transactionType === "cash_transfer" && data.cashAccountId === data.destinationCashAccountId) {
-      setError("destinationCashAccountId", { type: "manual", message: "Akun tujuan harus berbeda dari sumber" });
+      formState.setError("destinationCashAccountId", { type: "manual", message: "Akun tujuan harus berbeda dari sumber" });
       scrollToError();
       return;
     }
 
-    if (usesPaymentStatus(data.transactionType) && data.paymentStatus === "partial") {
+    if (formState.showPaymentStatus && data.paymentStatus === "partial") {
       if (!data.partialAmount || data.partialAmount <= 0) {
-        setError("partialAmount", { type: "manual", message: "Isi jumlah pembayaran sebagian" });
+        formState.setError("partialAmount", { type: "manual", message: "Isi jumlah pembayaran sebagian" });
         scrollToError();
         return;
       }
       if (data.partialAmount >= data.amount) {
-        setError("partialAmount", { type: "manual", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal transaksi" });
+        formState.setError("partialAmount", { type: "manual", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal transaksi" });
         scrollToError();
         return;
       }
@@ -540,23 +225,22 @@ export function NewTransactionPage() {
 
     if (data.productId) {
       if (!data.quantity || data.quantity <= 0) {
-        setError("quantity", { type: "manual", message: "Isi kuantitas produk (minimal 1)" });
+        formState.setError("quantity", { type: "manual", message: "Isi kuantitas produk (minimal 1)" });
         scrollToError();
         return;
       }
       if (data.unitPrice === undefined || data.unitPrice < 0) {
-        setError("unitPrice", { type: "manual", message: "Isi harga satuan produk" });
+        formState.setError("unitPrice", { type: "manual", message: "Isi harga satuan produk" });
         scrollToError();
         return;
       }
     }
 
     submitInFlightRef.current = true;
-    postMutation.mutate({ ...data, clientToken });
+    postMutation.mutate({ ...data, clientToken } as import("./_hooks").TransactionSubmission);
   };
 
   const scrollToError = () => {
-    // Use requestAnimationFrame to ensure errors are rendered before scrolling
     requestAnimationFrame(() => {
       errorSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       errorSummaryRef.current?.focus();
@@ -625,7 +309,7 @@ export function NewTransactionPage() {
           <form
             ref={formRef}
             onSubmit={(event) => {
-              handleSubmit(onSubmit)(event).catch((err) => console.error("submit failed", err));
+              form.handleSubmit(onSubmit)(event).catch((err) => console.error("submit failed", err));
             }}
             onKeyDown={handleKeyDown}
             className="min-w-0 space-y-4"
@@ -642,8 +326,8 @@ export function NewTransactionPage() {
               <TransactionTypeSelector
                 value={selectedType}
                 onChange={(type) => {
-                  setValue("transactionType", type, { shouldDirty: true, shouldValidate: true });
-                  clearErrors("transactionType");
+                  form.setValue("transactionType", type, { shouldDirty: true, shouldValidate: true });
+                  form.clearErrors("transactionType");
                 }}
                 error={errors.transactionType?.message}
               />
@@ -682,8 +366,8 @@ export function NewTransactionPage() {
                       value={selectedProductId || ""}
                       onChange={(value) => {
                         setManualAmount(false);
-                        setValue("productId", value, { shouldDirty: true, shouldValidate: true });
-                        clearErrors("productId");
+                        form.setValue("productId", value, { shouldDirty: true, shouldValidate: true });
+                        form.clearErrors("productId");
                       }}
                       options={(products || []).map((product) => ({
                         value: product.id,
@@ -704,8 +388,8 @@ export function NewTransactionPage() {
                         unitPrice={selectedUnitPrice || 0}
                         subtotal={productSubtotal}
                         stockAfterSale={stockAfterSale}
-                        onQuantityChange={(value) => setValue("quantity", value, { shouldDirty: true, shouldValidate: true })}
-                        onUnitPriceChange={(value) => setValue("unitPrice", value, { shouldDirty: true, shouldValidate: true })}
+                        onQuantityChange={(value) => form.setValue("quantity", value, { shouldDirty: true, shouldValidate: true })}
+                        onUnitPriceChange={(value) => form.setValue("unitPrice", value, { shouldDirty: true, shouldValidate: true })}
                         quantityError={errors.quantity?.message}
                         unitPriceError={errors.unitPrice?.message}
                       />
@@ -744,7 +428,7 @@ export function NewTransactionPage() {
                 {/* Description / Keterangan */}
                 <Input
                   label="Keterangan"
-                  {...register("description")}
+                  {...form.register("description")}
                   placeholder={descriptionPlaceholder}
                   error={errors.description?.message}
                 />
@@ -754,12 +438,12 @@ export function NewTransactionPage() {
                   <PaymentStatusSelector
                     value={selectedPaymentStatus as "unpaid" | "partial"}
                     onChange={(status) => {
-                      setValue("paymentStatus", status, { shouldDirty: true, shouldValidate: true });
-                      if (status !== "partial") setValue("partialAmount", undefined);
+                      form.setValue("paymentStatus", status, { shouldDirty: true, shouldValidate: true });
+                      if (status !== "partial") form.setValue("partialAmount", undefined);
                     }}
                     showDueDate={showDueDate}
                     dueDate={selectedDueDate || ""}
-                    onDueDateChange={(date) => setValue("dueDate", date, { shouldDirty: true })}
+                    onDueDateChange={(date) => form.setValue("dueDate", date, { shouldDirty: true })}
                   />
                 )}
 
@@ -812,8 +496,8 @@ export function NewTransactionPage() {
                   label={partyCopy.label}
                   value={selectedPartyName}
                   onChange={(value) => {
-                    setValue("partyName", value, { shouldDirty: true, shouldValidate: true });
-                    clearErrors("partyName");
+                    form.setValue("partyName", value, { shouldDirty: true, shouldValidate: true });
+                    form.clearErrors("partyName");
                   }}
                   options={(parties || []).map((party) => ({ value: party.name, label: party.name }))}
                   placeholder={partyCopy.placeholder}
@@ -834,8 +518,8 @@ export function NewTransactionPage() {
                     label={cashAccountLabel}
                     value={selectedCashAccountId || ""}
                     onChange={(value) => {
-                      setValue("cashAccountId", value, { shouldDirty: true, shouldValidate: true });
-                      clearErrors("cashAccountId");
+                      form.setValue("cashAccountId", value, { shouldDirty: true, shouldValidate: true });
+                      form.clearErrors("cashAccountId");
                     }}
                     options={cashAccountOptions}
                     placeholder={CASH_ACCOUNT_PLACEHOLDERS[selectedType] || "Pilih akun kas/bank..."}
@@ -845,7 +529,7 @@ export function NewTransactionPage() {
                   {showBankNameField && (
                     <Input
                       label="Nama Bank (opsional)"
-                      {...register("bankName")}
+                      {...form.register("bankName")}
                       placeholder="Contoh: BCA, Mandiri, BRI, BNI..."
                     />
                   )}
@@ -860,8 +544,8 @@ export function NewTransactionPage() {
                   label="Akun Tujuan"
                   value={selectedDestinationCashAccountId || ""}
                   onChange={(value) => {
-                    setValue("destinationCashAccountId", value, { shouldDirty: true, shouldValidate: true });
-                    clearErrors("destinationCashAccountId");
+                    form.setValue("destinationCashAccountId", value, { shouldDirty: true, shouldValidate: true });
+                    form.clearErrors("destinationCashAccountId");
                   }}
                   options={cashAccountOptions.filter((account) => account.id !== selectedCashAccountId)}
                   placeholder="Pilih akun tujuan..."
@@ -879,8 +563,8 @@ export function NewTransactionPage() {
                   label={categoryLabel}
                   value={selectedDebitAccountId}
                   onChange={(value) => {
-                    setValue("debitAccountId", value, { shouldDirty: true, shouldValidate: true });
-                    clearErrors("debitAccountId");
+                    form.setValue("debitAccountId", value, { shouldDirty: true, shouldValidate: true });
+                    form.clearErrors("debitAccountId");
                   }}
                   options={debitAccountOptions}
                   placeholder="Pilih akun CoA..."
@@ -896,7 +580,7 @@ export function NewTransactionPage() {
             <SectionCard id="section-notes" title={SECTION_LABELS[selectedType]?.notes || "Catatan"} step={3}>
               <Textarea
                 label="Catatan (opsional)"
-                {...register("notes")}
+                {...form.register("notes")}
                 rows={2}
                 placeholder="Catatan tambahan untuk transaksi ini..."
               />
@@ -957,8 +641,8 @@ export function NewTransactionPage() {
       {/* Unsaved changes dialog */}
       <UnsavedChangesDialog
         open={showUnsavedDialog}
-        onConfirm={handleUnsavedConfirm}
-        onCancel={handleUnsavedCancel}
+        onConfirm={() => blocker.proceed?.()}
+        onCancel={() => blocker.reset?.()}
       />
     </div>
   );
