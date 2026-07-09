@@ -10,10 +10,10 @@ interface AuthLedgerEntry {
 }
 
 interface AuthBrandPanelProps {
-  title: string;
-  description: string;
-  entries: AuthLedgerEntry[];
-  className?: string;
+  readonly title: string;
+  readonly description: string;
+  readonly entries: AuthLedgerEntry[];
+  readonly className?: string;
 }
 
 const toneStyles = {

@@ -18,8 +18,8 @@ export function Skeleton({ className }: SkeletonProps) {
 function TableRowSkeleton({ cols = 5 }: { readonly cols?: number }) {
   return (
     <tr className="border-b border-wood-50">
-      {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
+      {Array.from({ length: cols }, (_, i) => `row-col-${i}`).map((key) => (
+        <td key={key} className="px-4 py-3">
           <Skeleton className="h-4 w-full" />
         </td>
       ))}
@@ -54,8 +54,8 @@ export function TransactionListSkeleton() {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <TableRowSkeleton key={i} cols={6} />
+            {Array.from({ length: 5 }, (_, i) => `skeleton-row-${i}`).map((key) => (
+              <TableRowSkeleton key={key} cols={6} />
             ))}
           </tbody>
         </table>

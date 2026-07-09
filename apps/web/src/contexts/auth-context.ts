@@ -8,14 +8,14 @@ export interface SignUpResult {
 }
 
 export interface AuthContextType {
-  session: AuthSession | null;
-  user: AuthUser | null;
-  loading: boolean;
-  error: Error | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, redirectTo?: string) => Promise<SignUpResult>;
-  resendConfirmationEmail: (email: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  readonly session: AuthSession | null;
+  readonly user: AuthUser | null;
+  readonly loading: boolean;
+  readonly error: Error | null;
+  readonly signIn: (email: string, password: string) => Promise<void>;
+  readonly signUp: (email: string, password: string, fullName: string, redirectTo?: string) => Promise<SignUpResult>;
+  readonly resendConfirmationEmail: (email: string) => Promise<void>;
+  readonly signOut: () => Promise<void>;
 }
 
 // ponytail: defaults are never reachable — Provider always wraps consumers.

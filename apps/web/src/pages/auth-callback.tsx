@@ -188,12 +188,11 @@ export function AuthCallbackPage() {
                 )}
 
                 {resendMessage && (
-                  <div
+                  <output
                     className="rounded-lg bg-success/10 p-3 text-sm text-success"
-                    role="status"
                   >
                     {resendMessage}
-                  </div>
+                  </output>
                 )}
 
                 <div className="space-y-3">
@@ -284,7 +283,7 @@ export function AuthCallbackPage() {
   );
 }
 
-function StatusIcon({ status }: { status: Status }) {
+function StatusIcon({ status }: { readonly status: Status }) {
   if (status === "verifying") {
     return (
       <div

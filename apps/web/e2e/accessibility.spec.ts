@@ -82,7 +82,7 @@ test.describe("Form accessibility", () => {
     await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     const passwordInputs = page.locator('input[type="password"]');
-    expect(await passwordInputs.count()).toBe(2);
+    await expect(passwordInputs).toHaveCount(2);
   });
 
   test("forgot password form has accessible labels", async ({ page }) => {

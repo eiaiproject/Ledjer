@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
-  size?: "xs" | "sm" | "md" | "lg";
-  variant?: "icon" | "full";
-  color?: "dark" | "white";
-  className?: string;
+  readonly size?: "xs" | "sm" | "md" | "lg";
+  readonly variant?: "icon" | "full";
+  readonly color?: "dark" | "white";
+  readonly className?: string;
 }
 
 const iconSizeStyles = {

@@ -1,26 +1,6 @@
-// ============================================================================
-// Transaction type constants
-// ============================================================================
-// Three layered constants:
-//
-//   GENERAL_TRANSACTION_TYPE_LABELS — used by the new-transaction form,
-//     transaction list type filter, and recent-types UI. Opening balances are
-//     intentionally excluded: those are only posted through the dedicated
-//     onboarding / post_opening_balance flow, not the general RPC.
-//
-//   OPENING_TRANSACTION_TYPE_LABELS — labels for the three opening balance
-//     types. Kept for backward compatibility of stored transactions.
-//
-//   ALL_TRANSACTION_TYPE_LABELS — union of the two. Use only on historical
-//     detail / display pages where any historical type may need a label.
-//
-// TRANSACTION_TYPE_LABELS is preserved as an alias for ALL_TRANSACTION_TYPE_LABELS
-// to avoid breaking existing imports; new code should prefer the explicit names.
-// ============================================================================
-
-// ponytail: simple_adjustment is backend-only/historical — not creatable from UI,
-// kept in ALL_TRANSACTION_TYPE_LABELS for display of historical records.
-export const GENERAL_TRANSACTION_TYPE_LABELS = {
+// Transaction labels — single flat map, includes historical/opening types.
+// Opening types not in UI selector but kept for display of stored records.
+export const TRANSACTION_LABELS: Record<string, string> = {
   cash_sale: "Penjualan Tunai",
   credit_sale: "Penjualan Kredit",
   receive_receivable: "Terima Piutang",
@@ -31,88 +11,38 @@ export const GENERAL_TRANSACTION_TYPE_LABELS = {
   owner_capital: "Modal Pemilik",
   owner_draw: "Penarikan Tunai",
   cash_transfer: "Transfer Antar Rekening Bank",
-} as const;
-
-export const OPENING_TRANSACTION_TYPE_LABELS = {
   opening_cash_balance: "Saldo Awal Kas",
   opening_receivable_balance: "Saldo Awal Piutang",
   opening_payable_balance: "Saldo Awal Utang",
-} as const;
-
-export const ALL_TRANSACTION_TYPE_LABELS = {
-  ...GENERAL_TRANSACTION_TYPE_LABELS,
-  ...OPENING_TRANSACTION_TYPE_LABELS,
   simple_adjustment: "Penyesuaian",
-} as const;
+};
 
-// Type derived from the explicit general-UI set.
-export type GeneralTransactionType = keyof typeof GENERAL_TRANSACTION_TYPE_LABELS;
-export type OpeningTransactionType = keyof typeof OPENING_TRANSACTION_TYPE_LABELS;
-export type TransactionType = keyof typeof ALL_TRANSACTION_TYPE_LABELS;
-
-// ============================================================================
-// Other shared labels
-// ============================================================================
-export const PAYMENT_STATUS_LABELS = {
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   paid: "Lunas",
   unpaid: "Belum dibayar",
   partial: "Sebagian dibayar",
-} as const;
+};
 
-export const CASH_ACCOUNT_TRANSACTION_TYPES: readonly GeneralTransactionType[] = [
-  "cash_sale",
-  "receive_receivable",
-  "cash_purchase",
-  "pay_payable",
-  "expense_payment",
-  "owner_capital",
-  "owner_draw",
-  "cash_transfer",
-] as const;
+// Feature flags per transaction type — replaces 6 separate constant arrays + 6 accessor functions
+const TX_FEATURES: Record<string, { cash?: true; dest?: true; party?: true; category?: true; payment?: true }> = {
+  cash_sale:         { cash: true },
+  credit_sale:       { party: true, payment: true },
+  receive_receivable:{ cash: true, party: true },
+  cash_purchase:     { cash: true, category: true },
+  credit_purchase:   { party: true, category: true, payment: true },
+  pay_payable:       { cash: true, party: true },
+  expense_payment:   { cash: true, category: true },
+  owner_capital:     { cash: true },
+  owner_draw:        { cash: true },
+  cash_transfer:     { cash: true, dest: true },
+};
 
-export const DESTINATION_ACCOUNT_TRANSACTION_TYPES = ["cash_transfer"] as const;
-
-export const PARTY_TRANSACTION_TYPES = [
-  "credit_sale",
-  "receive_receivable",
-  "credit_purchase",
-  "pay_payable",
-] as const;
-
-export const CATEGORY_TRANSACTION_TYPES = [
-  "cash_purchase",
-  "credit_purchase",
-  "expense_payment",
-] as const;
-
-export const PAYMENT_STATUS_TRANSACTION_TYPES = [
-  "credit_sale",
-  "credit_purchase",
-] as const;
-
-function includesType(types: readonly string[], type?: string) {
-  return !!type && types.includes(type);
-}
-
-export function usesCashAccount(type?: string) {
-  return includesType(CASH_ACCOUNT_TRANSACTION_TYPES, type);
-}
-
-export function usesDestinationAccount(type?: string) {
-  return includesType(DESTINATION_ACCOUNT_TRANSACTION_TYPES, type);
-}
-
-export function usesParty(type?: string) {
-  return includesType(PARTY_TRANSACTION_TYPES, type);
-}
-
-export function usesCategory(type?: string) {
-  return includesType(CATEGORY_TRANSACTION_TYPES, type);
-}
-
-export function usesPaymentStatus(type?: string) {
-  return includesType(PAYMENT_STATUS_TRANSACTION_TYPES, type);
-}
+const features = (type?: string) => TX_FEATURES[type ?? ""] ?? {};
+export const usesCashAccount = (t?: string) => !!features(t).cash;
+export const usesDestinationAccount = (t?: string) => !!features(t).dest;
+export const usesParty = (t?: string) => !!features(t).party;
+export const usesCategory = (t?: string) => !!features(t).category;
+export const usesPaymentStatus = (t?: string) => !!features(t).payment;
 
 export function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
   if (status === "posted") return "success";
@@ -134,13 +64,7 @@ export function partyTypeForTransaction(type?: string) {
   return "other";
 }
 
-/**
- * Returns a label for any historical transaction type (general or opening).
- * For new-UI selectors, prefer the explicit GENERAL_TRANSACTION_TYPE_LABELS map.
- */
 export function labelForTransactionType(type?: string | null): string {
   if (!type) return "—";
-  return (
-    ALL_TRANSACTION_TYPE_LABELS[type as TransactionType] ?? type
-  );
+  return TRANSACTION_LABELS[type] ?? type;
 }

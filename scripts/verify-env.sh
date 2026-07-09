@@ -16,8 +16,8 @@ check_var() {
   local required="${2:-false}"
   local value="${!var_name:-}"
 
-  if [ -z "$value" ]; then
-    if [ "$required" = "true" ]; then
+  if [[ -z "$value" ]]; then
+    if [[ $required == "true" ]]; then
       echo -e "${RED}✗ MISSING (required):${NC} $var_name"
       ERRORS=$((ERRORS + 1))
     else
@@ -29,7 +29,7 @@ check_var() {
   # Check for obvious placeholder values
   case "$value" in
     *your-*|*example*|placeholder*)
-      if [ "$required" = "true" ]; then
+      if [[ $required == "true" ]]; then
         echo -e "${RED}✗ PLACEHOLDER (required):${NC} $var_name = $value"
         ERRORS=$((ERRORS + 1))
       else
@@ -46,7 +46,7 @@ echo "=== Environment Variable Check ==="
 echo ""
 
 # Frontend vars (Vite) — loaded from .env.local if present
-if [ -f apps/web/.env.local ]; then
+if [[ -f apps/web/.env.local ]]; then
   echo "Loading apps/web/.env.local"
   set -a
   # shellcheck disable=SC1091
@@ -70,7 +70,7 @@ check_var "GOOGLE_CLIENT_SECRET" false
 check_var "SENTRY_DSN" false
 
 echo ""
-if [ $ERRORS -gt 0 ]; then
+if [[ $ERRORS -gt 0 ]]; then
   echo -e "${RED}Failed: $ERRORS required variable(s) missing or placeholder.${NC}"
   echo "Copy apps/web/.env.example → apps/web/.env.local and fill in real values."
   exit 1

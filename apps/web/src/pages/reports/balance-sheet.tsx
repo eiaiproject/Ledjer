@@ -77,14 +77,14 @@ export function BalanceSheetPage() {
               value={asOfDate}
               onChange={(e) => setAsOfDate(e.target.value)}
             />
-            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
+            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => refetch().catch((err) => console.error("refetch failed", err))} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
             {canCreateExports && (
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => void handleExport()}
+                onClick={() => handleExport().catch((err) => console.error("export failed", err))}
                 disabled={!data?.length}
               >
                 <Download className="h-4 w-4" />

@@ -1,9 +1,9 @@
 export type ToastVariant = "success" | "error" | "warning" | "info";
 
 export interface Toast {
-  id: string;
-  message: string;
-  variant: ToastVariant;
+  readonly id: string;
+  readonly message: string;
+  readonly variant: ToastVariant;
 }
 
 export interface ToastActions {

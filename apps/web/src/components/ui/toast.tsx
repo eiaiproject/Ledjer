@@ -14,7 +14,7 @@ function getToastDuration(variant: ToastVariant) {
   return variant === "warning" || variant === "error" ? 8000 : 5000;
 }
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: { readonly children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ActiveToast[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -119,9 +119,9 @@ function ToastContainer({
       {toasts.map((t) => {
         const Icon = ICONS[t.variant];
         return (
-          <div
+          <output
             key={t.id}
-            role={t.variant === "error" ? "alert" : "status"}
+            role={t.variant === "error" ? "alert" : undefined}
             aria-live={t.variant === "error" ? "assertive" : "polite"}
             onMouseEnter={() => onPause(t.id)}
             onMouseLeave={() => onResume(t.id, t.duration)}
@@ -139,7 +139,7 @@ function ToastContainer({
             >
               <X className="h-4 w-4" />
             </button>
-          </div>
+          </output>
         );
       })}
     </div>

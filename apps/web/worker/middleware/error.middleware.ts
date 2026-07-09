@@ -1,4 +1,5 @@
 import type { ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
 import type { AppContext } from "../env";
 import { HttpError } from "../http/errors";
 
@@ -10,6 +11,19 @@ export const errorHandler: ErrorHandler<AppContext> = (error, c) => {
       {
         error: {
           code: error.code,
+          message: error.message,
+          requestId,
+        },
+      },
+      error.status,
+    );
+  }
+
+  if (error instanceof HTTPException) {
+    return c.json(
+      {
+        error: {
+          code: "request_rejected",
           message: error.message,
           requestId,
         },

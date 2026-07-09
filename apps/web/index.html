@@ -17,7 +17,9 @@
     <meta name="twitter:description" content="Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet." />
     <meta name="twitter:image" content="https://ledjer.id/logo-horizontal.svg" />
     <!-- Production CSP: localhost origins are NOT included. For development,
-         set LEDJER_CSP_LOCAL=1 before build to add localhost to connect-src. -->
+         set LEDJER_CSP_LOCAL=1 before build to add localhost to connect-src.
+         SECURITY: 'unsafe-inline' kept for dev HMR; production build has no inline styles.
+         TODO: replace wildcard Sentry domain with exact o<org-id>.ingest.sentry.io -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.ingest.sentry.io; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" />
     <link rel="canonical" href="https://ledjer.id/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

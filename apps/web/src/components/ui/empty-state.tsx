@@ -2,11 +2,11 @@ import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
-  icon?: React.ReactNode;
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  className?: string;
+  readonly icon?: React.ReactNode;
+  readonly title: string;
+  readonly description?: string;
+  readonly action?: React.ReactNode;
+  readonly className?: string;
 }
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {

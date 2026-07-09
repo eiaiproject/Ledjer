@@ -6,7 +6,7 @@ import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-key
 import { formatIDR, formatShortDate, createClientToken } from "@/lib/utils";
 import {
   PAYMENT_STATUS_LABELS,
-  ALL_TRANSACTION_TYPE_LABELS,
+  TRANSACTION_LABELS,
   usesCategory,
   statusVariant,
   statusLabel,
@@ -100,7 +100,7 @@ export function TransactionDetailPage() {
       <div className="mb-6 flex min-w-0 items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-bold text-text-primary">
-            {ALL_TRANSACTION_TYPE_LABELS[transaction.transaction_type as keyof typeof ALL_TRANSACTION_TYPE_LABELS] || transaction.transaction_type}
+            {TRANSACTION_LABELS[transaction.transaction_type] || transaction.transaction_type}
           </h1>
           <p className="mt-1 break-words font-mono text-sm text-wood-500">{transaction.transaction_number}</p>
         </div>

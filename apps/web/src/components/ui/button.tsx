@@ -45,7 +45,7 @@ export function Button<C extends ElementType = "button">({
   children,
   ...props
 }: ButtonProps<C>) {
-  const Component = as || "button";
+  const Component = as ?? "button";
   return (
     <Component
       disabled={disabled || loading}

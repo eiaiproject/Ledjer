@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 
 interface ErrorStateProps {
-  error?: unknown;
-  message?: string;
-  onRetry?: () => void;
-  className?: string;
+  readonly error?: unknown;
+  readonly message?: string;
+  readonly onRetry?: () => void;
+  readonly className?: string;
 }
 
 export function ErrorState({ error, message, onRetry, className }: ErrorStateProps) {

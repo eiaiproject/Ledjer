@@ -23,7 +23,7 @@ const registerSchema = z.object({
     .string()
     .min(8, "Password harus minimal 8 karakter")
     .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
-    .regex(/[0-9]/, "Password harus mengandung minimal 1 angka"),
+    .regex(/\d/, "Password harus mengandung minimal 1 angka"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Password tidak cocok",
@@ -159,12 +159,11 @@ export function RegisterPage() {
                 </div>
 
                 {resendMessage && (
-                  <div
+                  <output
                     className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success"
-                    role="status"
                   >
                     {resendMessage}
-                  </div>
+                  </output>
                 )}
                 {resendError && (
                   <div

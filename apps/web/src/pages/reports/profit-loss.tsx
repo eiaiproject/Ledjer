@@ -124,14 +124,14 @@ export function ProfitLossPage() {
               onChange={(e) => setToDate(e.target.value)}
               error={dateRangeInvalid ? "Tanggal akhir harus sama atau setelah tanggal awal." : undefined}
             />
-            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => void refetch()} loading={isLoading}>
+            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => refetch().catch((err) => console.error("refetch failed", err))} loading={isLoading}>
               {isLoading ? "Memuat..." : "Muat Ulang"}
             </Button>
             {canCreateExports && (
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => void handleExport()}
+                onClick={() => handleExport().catch((err) => console.error("export failed", err))}
                 disabled={!data?.length || dateRangeInvalid}
               >
                 <Download className="h-4 w-4" />
@@ -189,11 +189,11 @@ function SectionBlock({
   items,
   totalOverride,
 }: {
-  section: string;
-  label: string;
-  color: string;
-  items: ProfitLossItem[];
-  totalOverride?: number;
+  readonly section: string;
+  readonly label: string;
+  readonly color: string;
+  readonly items: ProfitLossItem[];
+  readonly totalOverride?: number;
 }) {
   const total = totalOverride ?? items.reduce((sum, item) => sum + item.amount, 0);
   const isSummaryRow = section === "gross_profit" || section === "operating_profit" || section === "net_income";

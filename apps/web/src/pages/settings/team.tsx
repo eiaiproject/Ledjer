@@ -74,7 +74,7 @@ function getInitials(name: string | undefined, email: string | undefined): strin
   const source = name?.trim() || email?.trim() || "?";
   const parts = source.split(/\s+/);
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  return (parts[0].charAt(0) + parts.at(-1)!.charAt(0)).toUpperCase();
 }
 
 function formatJoinedDate(value: number | null): string | null {
@@ -100,7 +100,7 @@ function countActivePermissions(member: PermissionCarrier): number {
 }
 
 function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/.test(email.trim());
 }
 
 function buildInvitationLink(token: string): string {
@@ -257,14 +257,14 @@ function OwnerCard({ member }: Readonly<{ member: TeamMember }>) {
 }
 
 interface StaffListContentProps {
-  isLoading: boolean;
-  invitationsCount: number;
-  staffMembers: TeamMember[];
-  canManageTeam: boolean;
-  rolePending: boolean;
-  removePending: boolean;
-  onRoleChange: (memberId: string, role: TeamInvitationRole) => void;
-  onRemove: (member: TeamMember) => void;
+  readonly isLoading: boolean;
+  readonly invitationsCount: number;
+  readonly staffMembers: TeamMember[];
+  readonly canManageTeam: boolean;
+  readonly rolePending: boolean;
+  readonly removePending: boolean;
+  readonly onRoleChange: (memberId: string, role: TeamInvitationRole) => void;
+  readonly onRemove: (member: TeamMember) => void;
 }
 
 function StaffListContent({

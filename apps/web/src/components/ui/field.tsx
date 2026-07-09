@@ -3,14 +3,14 @@ import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FieldProps {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  required?: boolean;
-  htmlFor?: string;
-  feedbackId?: string;
-  children: ReactNode;
-  className?: string;
+  readonly label?: string;
+  readonly error?: string;
+  readonly helperText?: string;
+  readonly required?: boolean;
+  readonly htmlFor?: string;
+  readonly feedbackId?: string;
+  readonly children: ReactNode;
+  readonly className?: string;
 }
 
 export function Field({ label, error, helperText, required, htmlFor, feedbackId, children, className }: FieldProps) {

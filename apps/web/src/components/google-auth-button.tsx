@@ -2,10 +2,10 @@ import { Button } from "@/components/ui/button";
 
 interface GoogleAuthButtonProps {
   /** "signup" or "login" */
-  mode: "signup" | "login";
-  onClick: () => void;
-  loading: boolean;
-  disabled: boolean;
+  readonly mode: "signup" | "login";
+  readonly onClick: () => void;
+  readonly loading: boolean;
+  readonly disabled: boolean;
 }
 
 const GOOGLE_SVG = (

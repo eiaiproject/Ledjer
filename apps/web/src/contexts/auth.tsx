@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthContext, type SignUpResult } from "@/contexts/auth-context";
@@ -49,65 +49,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await logout();
     setSession(null);
     setUser(null);
     queryClient.clear();
-  };
+  }, [queryClient]);
 
-  const signIn = async (email: string, password: string) => {
-    await login(email, password);
-    const next = await getMe();
-    setSession(next.session);
-    setUser(next.user);
-  };
-
-  const signUp = async (
-    email: string,
-    password: string,
-    fullName: string
-  ): Promise<SignUpResult> => {
-    const data = await register(email, password, fullName);
-    if (data.session) {
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      await login(email, password);
       const next = await getMe();
       setSession(next.session);
       setUser(next.user);
-    }
-    return {
-      session: data.session,
-      user: data.session
-        ? {
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.fullName,
-            email_verified_at: null,
-          }
-        : null,
-      needsEmailConfirmation: data.needsEmailConfirmation,
-    };
-  };
+    },
+    []
+  );
 
-  const resendConfirmationEmail = async (email: string) => {
-    await resendVerification(email);
-  };
+  const signUp = useCallback(
+    async (
+      email: string,
+      password: string,
+      fullName: string
+    ): Promise<SignUpResult> => {
+      const data = await register(email, password, fullName);
+      if (data.session) {
+        const next = await getMe();
+        setSession(next.session);
+        setUser(next.user);
+      }
+      return {
+        session: data.session,
+        user: data.session
+          ? {
+              id: data.user.id,
+              email: data.user.email,
+              full_name: data.user.fullName,
+              email_verified_at: null,
+            }
+          : null,
+        needsEmailConfirmation: data.needsEmailConfirmation,
+      };
+    },
+    []
+  );
+
+  const resendConfirmationEmail = useCallback(
+    async (email: string) => {
+      await resendVerification(email);
+    },
+    []
+  );
+
+  const value = useMemo(
+    () => ({
+      session,
+      user,
+      loading,
+      error,
+      signIn,
+      signUp,
+      resendConfirmationEmail,
+      signOut,
+    }),
+    [session, user, loading, error, signIn, signUp, resendConfirmationEmail, signOut]
+  );
 
   // Auth errors are exposed via context (error field) instead of blocking
   // render. ProtectedRoute and individual pages decide how to handle them.
   // Public pages render immediately without waiting for auth resolution.
   return (
-    <AuthContext.Provider
-      value={{
-        session,
-        user,
-        loading,
-        error,
-        signIn,
-        signUp,
-        resendConfirmationEmail,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

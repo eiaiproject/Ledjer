@@ -358,11 +358,10 @@ export function LandingPage() {
                     </div>
                   </div>
 
-                  <div
+                  <fieldset
                     className="grid grid-cols-2 gap-3 py-4"
-                    role="group"
-                    aria-label="Metrik dashboard contoh"
                   >
+                    <legend className="sr-only">Metrik dashboard contoh</legend>
                     {mockupMetrics.map((metric, index) => (
                       <div
                         key={metric.label}
@@ -380,7 +379,7 @@ export function LandingPage() {
                         </div>
                       </div>
                     ))}
-                  </div>
+                  </fieldset>
 
                   <div
                     className="min-w-0 rounded-lg bg-cream-50 p-4 text-wood-900"
@@ -460,7 +459,7 @@ export function LandingPage() {
             </div>
 
             <ul
-              role="list"
+             
               className="ledger-stagger mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
             >
               {features.map((feature, index) => (
@@ -510,7 +509,7 @@ export function LandingPage() {
             </div>
 
             <ol
-              role="list"
+             
               className="ledger-stagger mt-10 grid grid-cols-1 gap-4 md:grid-cols-3"
             >
               {workflowSteps.map((step, index) => (
@@ -563,7 +562,7 @@ export function LandingPage() {
             </div>
 
             <ul
-              role="list"
+             
               className="ledger-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
             >
               {reportCards.map((report, index) => (
@@ -613,7 +612,7 @@ export function LandingPage() {
             </div>
 
             <ul
-              role="list"
+             
               className="ledger-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2"
             >
               {securityItems.map((item, index) => (
@@ -662,7 +661,7 @@ export function LandingPage() {
             </div>
 
             <ul
-              role="list"
+             
               className="ledger-stagger mt-10 grid grid-cols-1 gap-4 md:grid-cols-2"
             >
               {freeAccessHighlights.map((item, index) => (
@@ -739,7 +738,7 @@ export function LandingPage() {
             </div>
             <nav aria-label="Tautan footer">
               <ul
-                role="list"
+               
                 className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"
               >
                 {footerLinks.map((link) =>

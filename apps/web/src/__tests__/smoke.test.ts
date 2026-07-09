@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 describe('smoke test', () => {
-  it('vitest runs', () => {
-    expect(true).toBe(true);
+  it('vitest runs and Intl is available', () => {
+    expect(typeof Intl.NumberFormat).toBe('function');
   });
 
   it('formatIDR works', async () => {

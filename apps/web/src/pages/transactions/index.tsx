@@ -20,8 +20,7 @@ import {
   type TransactionStatus,
 } from "@/lib/api/transactions";
 import {
-  ALL_TRANSACTION_TYPE_LABELS,
-  GENERAL_TRANSACTION_TYPE_LABELS,
+  TRANSACTION_LABELS,
   labelForTransactionType,
   statusVariant,
   statusLabel,
@@ -151,7 +150,7 @@ export function TransactionListPage() {
               value={typeFilter}
               onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
               placeholder="Semua Jenis"
-              options={Object.entries(GENERAL_TRANSACTION_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+              options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
             />
           </div>
           <div className="xl:col-span-2">
@@ -182,7 +181,7 @@ export function TransactionListPage() {
           {search && <Badge variant="neutral">Cari: {search}</Badge>}
           {typeFilter && (
             <Badge variant="info">
-              Jenis: {ALL_TRANSACTION_TYPE_LABELS[typeFilter as keyof typeof ALL_TRANSACTION_TYPE_LABELS] || typeFilter}
+              Jenis: {TRANSACTION_LABELS[typeFilter] || typeFilter}
             </Badge>
           )}
           {statusFilter && <Badge variant={statusVariant(statusFilter)}>{statusLabel(statusFilter)}</Badge>}
