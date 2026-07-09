@@ -27,9 +27,9 @@ export function Spinner({ size = "md", className }: SpinnerProps) {
 
 export function PageSpinner() {
   return (
-    <div className="flex items-center justify-center gap-3 py-12" role="status" aria-live="polite">
+    <output aria-live="polite" className="flex items-center justify-center gap-3 py-12">
       <Spinner size="lg" />
       <span className="sr-only">Memuat data</span>
-    </div>
+    </output>
   );
 }
