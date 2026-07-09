@@ -66,7 +66,7 @@ accountsRoutes.get("/", requirePermission("accounts:read"), async (c) => {
   const context = c.get("organizationContext");
   const url = new URL(c.req.url);
   const accountTypes = parseAccountTypes(url.searchParams.get("accountTypes"));
-  const active = parseBoolean(url.searchParams.get("active"));
+  const active = url.searchParams.get("active") === "true" ? true : url.searchParams.get("active") === "false" ? false : undefined;
   const cashBankOnly = url.searchParams.get("kind") === "cash-bank";
 
   const accounts = await listAccounts(c.env.DB, context.organization.id, {
@@ -159,12 +159,6 @@ accountsRoutes.delete("/:accountId", requirePermission("accounts:write"), async 
   );
   return c.body(null, 204);
 });
-
-function parseBoolean(value: string | null): boolean | undefined {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return undefined;
-}
 
 function parseAccountTypes(value: string | null) {
   if (!value) return undefined;

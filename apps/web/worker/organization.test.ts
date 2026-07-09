@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { SESSION_COOKIE } from "./auth/cookies";
 import { hashToken } from "./auth/tokens";
 import type { Env } from "./env";
 import app from "./index";
@@ -198,7 +197,7 @@ describe("Organization API", () => {
     const token = "session-token";
     const response = await app.fetch(
       new Request("http://localhost/api/organizations/current", {
-        headers: { Cookie: `${SESSION_COOKIE}=${token}` },
+        headers: { Cookie: `ledjer_session=${token}` },
       }),
       await testEnv(token),
     );
@@ -220,7 +219,7 @@ describe("Organization API", () => {
     const token = "session-token";
     const response = await app.fetch(
       new Request("http://localhost/api/organizations/org-2", {
-        headers: { Cookie: `${SESSION_COOKIE}=${token}` },
+        headers: { Cookie: `ledjer_session=${token}` },
       }),
       await testEnv(token),
     );
@@ -238,7 +237,7 @@ describe("Organization API", () => {
       new Request("http://localhost/api/organizations", {
         method: "POST",
         headers: {
-          Cookie: `${SESSION_COOKIE}=${token}`,
+          Cookie: `ledjer_session=${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

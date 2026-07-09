@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
-import { currentSession, requireAuth } from "../middleware/auth.middleware";
+import { requireAuth } from "../middleware/auth.middleware";
 import { forbidden } from "../http/errors";
 import { readJson } from "../http/json";
 import {
@@ -37,7 +37,7 @@ export const organizationRoutes = new Hono<AppContext>();
 organizationRoutes.use("*", requireAuth());
 
 organizationRoutes.get("/", async (c) => {
-  const session = currentSession(c);
+  const session = c.get("session");
   const organizations = await listOrganizationsForUser(c.env.DB, session.user_id);
 
   return c.json({
@@ -51,12 +51,12 @@ organizationRoutes.get("/", async (c) => {
 
 organizationRoutes.post("/", async (c) => {
   const body = await readJson(c, createOrganizationSchema);
-  const state = await createOrganization(c.env.DB, currentSession(c), body);
+  const state = await createOrganization(c.env.DB, c.get("session"), body);
   return c.json(state);
 });
 
 organizationRoutes.get("/current", async (c) => {
-  const state = await getCurrentOrganization(c.env.DB, currentSession(c));
+  const state = await getCurrentOrganization(c.env.DB, c.get("session"));
   return c.json(state);
 });
 
@@ -64,14 +64,14 @@ organizationRoutes.post("/current", async (c) => {
   const body = await readJson(c, selectCurrentOrganizationSchema);
   const state = await setCurrentOrganization(
     c.env.DB,
-    currentSession(c),
+    c.get("session"),
     body.organizationId,
   );
   return c.json(state);
 });
 
 organizationRoutes.get("/:organizationId", async (c) => {
-  const session = currentSession(c);
+  const session = c.get("session");
   const context = await getOrganizationContextForUser(
     c.env.DB,
     session.user_id,

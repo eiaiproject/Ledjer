@@ -1,4 +1,4 @@
-import { execute, nowMs, queryAll, queryFirst } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import { conflict, forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
@@ -51,7 +51,7 @@ export async function registerUser(
     throw conflict("email_already_registered", "Email is already registered");
   }
 
-  const current = nowMs();
+  const current = Date.now();
   const userId = generateId();
   await execute(
     db,
@@ -115,7 +115,7 @@ export async function verifyEmailToken(
   request: Request,
 ): Promise<CreatedSession> {
   const tokenHash = await hashToken(token);
-  const current = nowMs();
+  const current = Date.now();
   const row = await queryFirst<TokenUserRow>(
     db,
     `SELECT ev.user_id, ev.expires_at, ev.used_at, u.email
@@ -162,7 +162,7 @@ export async function createPasswordReset(
   if (user?.status !== "active") return;
 
   const token = generateToken();
-  const current = nowMs();
+  const current = Date.now();
   await execute(
     db,
     `INSERT INTO password_reset_tokens (
@@ -184,7 +184,7 @@ export async function verifyPasswordResetToken(
   request: Request,
 ): Promise<CreatedSession> {
   const tokenHash = await hashToken(token);
-  const current = nowMs();
+  const current = Date.now();
   const row = await queryFirst<TokenUserRow>(
     db,
     `SELECT pr.user_id, pr.expires_at, pr.used_at, u.email
@@ -213,7 +213,7 @@ export async function resetPassword(
   password: string,
   pepper?: string,
 ): Promise<void> {
-  const current = nowMs();
+  const current = Date.now();
   await execute(
     db,
     "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
@@ -256,7 +256,7 @@ async function createEmailVerification(
   email: string,
 ): Promise<void> {
   const token = generateToken();
-  const current = nowMs();
+  const current = Date.now();
   await execute(
     db,
     `INSERT INTO email_verifications (
@@ -278,7 +278,7 @@ async function isLoginRateLimited(
   email: string,
   ipAddress: string | null,
 ): Promise<boolean> {
-  const since = nowMs() - LOGIN_LOCKOUT_MS;
+  const since = Date.now() - LOGIN_LOCKOUT_MS;
   const rows = await queryAll<{ id: string }>(
     db,
     `SELECT id
@@ -312,7 +312,7 @@ async function recordLoginAttempt(
       request.headers.get("User-Agent"),
       success,
       errorCode,
-      nowMs(),
+      Date.now(),
     ],
   );
 }

@@ -1,5 +1,5 @@
 import { generateId } from "../auth/tokens";
-import { execute, nowMs, queryAll, queryFirst } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import {
   ACCOUNT_TYPE_VALUES,
   NORMAL_BALANCE_VALUES,
@@ -153,7 +153,7 @@ export async function createCashBankAccount(
 
   const range = CASH_BANK_RANGES[kind];
   const code = await generateCashBankCode(db, organizationId, kind);
-  const current = nowMs();
+  const current = Date.now();
   const accountId = generateId();
 
   await execute(
@@ -207,7 +207,7 @@ export async function createAccount(
   );
   await ensureUniqueAccountCode(db, organizationId, code);
 
-  const current = nowMs();
+  const current = Date.now();
   const accountId = generateId();
   await execute(
     db,
@@ -279,7 +279,7 @@ export async function patchAccount(
 
   if (!updates.length) return before;
 
-  const current = nowMs();
+  const current = Date.now();
   updates.push("updated_at = ?");
   values.push(current, accountId, organizationId);
   await execute(
@@ -331,7 +331,7 @@ export async function deleteAccount(
     action: "delete",
     before: toPublicAccount(existing),
     requestId,
-    current: nowMs(),
+    current: Date.now(),
   });
 }
 

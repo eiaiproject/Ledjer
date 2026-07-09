@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { toast } from "@/components/ui/toast-api";
+import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
 import { Receipt, Search, Download } from "lucide-react";

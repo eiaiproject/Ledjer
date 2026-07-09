@@ -15,7 +15,7 @@ import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
-import { toast } from "@/components/ui/toast-api";
+import { toast } from "@/components/ui/toast";
 import { exportProductsCsv } from "@/lib/csv-export";
 import {
   createProduct,

@@ -1,4 +1,4 @@
-import { execute, nowMs } from "../db/client";
+import { execute } from "../db/client";
 
 export interface CleanupResult {
   sessions: number;
@@ -9,7 +9,7 @@ export interface CleanupResult {
 
 export async function cleanupExpiredRows(
   db: D1Database,
-  current = nowMs(),
+  current = Date.now(),
 ): Promise<CleanupResult> {
   const sessions = await execute(
     db,

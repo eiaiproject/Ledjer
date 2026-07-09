@@ -1,5 +1,5 @@
 import { generateId, generateToken, hashToken } from "../auth/tokens";
-import { execute, nowMs, queryAll, queryFirst } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import type { Role } from "../db/schema";
 import { badRequest, conflict, forbidden, notFound } from "../http/errors";
 import {
@@ -192,7 +192,7 @@ export async function createTeamInvitation(
   const role = input.role ?? "member";
   assertInvitableRole(role);
 
-  const current = nowMs();
+  const current = Date.now();
   await expirePendingInvitations(db, input.organizationId, email, current);
   await ensureEmailIsNotActiveMember(db, input.organizationId, email);
 
@@ -326,7 +326,7 @@ export async function acceptTeamInvitation(
     throw notFound("invitation_not_found", "Invitation not found");
   }
 
-  const current = nowMs();
+  const current = Date.now();
   if (invitation.status !== "pending") {
     throw conflict("invitation_not_pending", "Invitation is no longer pending");
   }
@@ -467,7 +467,7 @@ export async function revokeTeamInvitation(
     throw conflict("invitation_not_pending", "Invitation is no longer pending");
   }
 
-  const current = nowMs();
+  const current = Date.now();
   await execute(
     db,
     `UPDATE organization_invitations
@@ -509,7 +509,7 @@ export async function updateTeamMemberRole(
     throw forbidden("member_role_protected", "Owner role cannot be changed here");
   }
 
-  const current = nowMs();
+  const current = Date.now();
   if (member.role !== input.role) {
     await execute(
       db,
@@ -558,7 +558,7 @@ export async function removeTeamMember(
     throw forbidden("member_self_remove_forbidden", "You cannot remove yourself");
   }
 
-  const current = nowMs();
+  const current = Date.now();
   await execute(
     db,
     `UPDATE organization_members
@@ -642,7 +642,7 @@ async function expirePendingInvitations(
   db: D1Database,
   organizationId: string,
   email?: string,
-  current = nowMs(),
+  current = Date.now(),
 ): Promise<void> {
   const emailFilter = email ? "AND lower(email) = lower(?)" : "";
   await execute(
