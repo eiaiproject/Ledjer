@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import type { AppContext } from "./env";
-import { csrfProtection } from "./middleware/csrf.middleware";
+import { csrf } from "hono/csrf";
 import { errorHandler } from "./middleware/error.middleware";
-import { requestId } from "./middleware/request-id.middleware";
-import { secureHeaders } from "./middleware/secure-headers.middleware";
+
+import { secureHeaders } from "hono/secure-headers";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { authRoutes } from "./routes/auth.routes";
 import { dashboardRoutes } from "./routes/dashboard.routes";
@@ -22,9 +22,9 @@ import { cleanupExpiredRows } from "./services/maintenance.service";
 const app = new Hono<AppContext>();
 
 app.onError(errorHandler);
-app.use("*", requestId());
+app.use("*", async (c, next) => { c.set("requestId", crypto.randomUUID()); await next(); });
 app.use("*", secureHeaders());
-app.use("/api/*", csrfProtection());
+app.use("/api/*", csrf());
 
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
