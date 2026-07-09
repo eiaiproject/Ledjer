@@ -58,9 +58,11 @@ fi
 
 if [[ "$FULL" -eq 1 ]]; then
   section "Fresh D1 migration apply"
-  tmp_d1="$(mktemp -d /tmp/ledjer-d1-ci.XXXXXX)"
-  trap 'rm -f "$tmp"; rm -rf "$tmp_d1"' EXIT
-  pnpm --filter web exec wrangler d1 migrations apply DB --local --persist-to "$tmp_d1"
+  # Use the default .wrangler persistence path so vite preview (via
+  # @cloudflare/vite-plugin) picks up the same D1 database.
+  local_d1="${ROOT}/apps/web/.wrangler/state/v3/d1"
+  rm -rf "$local_d1"
+  pnpm --filter web exec wrangler d1 migrations apply DB --local
 
   section "D1 migration list"
   pnpm --filter web db:migrations:list

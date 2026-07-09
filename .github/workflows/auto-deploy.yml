@@ -1,0 +1,185 @@
+name: Auto Deploy
+
+# Automatically deploy both frontend (SPA) and backend (Worker API) to
+# Cloudflare Workers on every push to main.  The single `wrangler deploy`
+# bundles the Vite build output as static assets AND the Hono Worker —
+# no separate Pages deployment needed.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ─── 1. Quality gate ─────────────────────────────────────────
+  quality:
+    name: "Quality gate"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript typecheck
+        run: pnpm --filter web typecheck
+
+      - name: ESLint
+        run: pnpm --filter web lint
+
+      - name: Unit tests
+        run: pnpm --filter web test
+
+      - name: Production build
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: pnpm --filter web build
+
+      - name: Scan build output for leaked secrets
+        run: bash scripts/check-build-secrets.sh
+
+  # ─── 2. D1 migrations ────────────────────────────────────────
+  migrations:
+    name: "D1 migrations"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply D1 migrations (production)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm --filter web exec wrangler d1 migrations apply DB
+
+  # ─── 3. Deploy (frontend + backend in one shot) ───────────────
+  deploy:
+    name: "Deploy to Cloudflare Workers"
+    needs: [quality, migrations]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://ledjer.id
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build production
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: pnpm --filter web build
+
+      - name: Deploy with Wrangler
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm --filter web exec wrangler deploy
+
+      - name: Summary
+        run: |
+          echo "### 🚀 Auto-deploy to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${GITHUB_REF_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** https://ledjer.id" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Both frontend (SPA) and backend (Worker API + D1) deployed." >> $GITHUB_STEP_SUMMARY
+
+  # ─── 4. Post-deploy smoke test ────────────────────────────────
+  smoke:
+    name: "Post-deploy smoke test"
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install chromium --with-deps
+
+      - name: Preflight — API health check
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -fsS "https://ledjer.id/api/health" | grep -q '"ok":true'; then
+              echo "✅ API health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "⏳ Waiting for API... (attempt $i)"
+            sleep 5
+          done
+          echo "❌ API health check failed after 5 attempts"
+          exit 1
+
+      - name: Run production smoke tests
+        env:
+          E2E_MODE: deploy-smoke
+          E2E_BASE_URL: https://ledjer.id
+          CI: true
+        run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
+
+      - name: Upload smoke report
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: auto-deploy-smoke-report
+          path: apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
