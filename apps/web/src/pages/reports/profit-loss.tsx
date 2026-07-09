@@ -189,11 +189,11 @@ function SectionBlock({
   items,
   totalOverride,
 }: {
-  section: string;
-  label: string;
-  color: string;
-  items: ProfitLossItem[];
-  totalOverride?: number;
+  readonly section: string;
+  readonly label: string;
+  readonly color: string;
+  readonly items: ProfitLossItem[];
+  readonly totalOverride?: number;
 }) {
   const total = totalOverride ?? items.reduce((sum, item) => sum + item.amount, 0);
   const isSummaryRow = section === "gross_profit" || section === "operating_profit" || section === "net_income";

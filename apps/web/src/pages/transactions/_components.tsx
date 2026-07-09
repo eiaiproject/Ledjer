@@ -375,8 +375,8 @@ interface ProductDetailFieldsProps {
   readonly stockAfterSale: number | null;
   readonly onQuantityChange: (value: number) => void;
   readonly onUnitPriceChange: (value: number) => void;
-  quantityError?: string;
-  unitPriceError?: string;
+  readonly quantityError?: string;
+  readonly unitPriceError?: string;
 }
 
 export function ProductDetailFields({

@@ -14,7 +14,7 @@ function getToastDuration(variant: ToastVariant) {
   return variant === "warning" || variant === "error" ? 8000 : 5000;
 }
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: { readonly children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ActiveToast[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 

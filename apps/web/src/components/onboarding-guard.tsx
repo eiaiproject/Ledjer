@@ -6,7 +6,7 @@ import { useOrganization } from "@/hooks/useOrganization";
  * Redirects away from /onboarding if the organization has already completed
  * onboarding. Prevents users from re-running setup after completion.
  */
-export function OnboardingGuard({ children }: { children: React.ReactNode }) {
+export function OnboardingGuard({ children }: { readonly children: React.ReactNode }) {
   const navigate = useNavigate();
   const { data: orgData, isLoading } = useOrganization();
 

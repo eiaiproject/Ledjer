@@ -283,7 +283,7 @@ export function AuthCallbackPage() {
   );
 }
 
-function StatusIcon({ status }: { status: Status }) {
+function StatusIcon({ status }: { readonly status: Status }) {
   if (status === "verifying") {
     return (
       <div
