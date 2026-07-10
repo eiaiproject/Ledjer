@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b --pretty false && vite build",
+    "build": "tsc -b --pretty false && vite build && bash scripts/postbuild-csp.sh",
     "cf:deploy": "wrangler deploy",
     "cf:dev": "vite dev",
     "db:migrations:apply": "wrangler d1 migrations apply DB",

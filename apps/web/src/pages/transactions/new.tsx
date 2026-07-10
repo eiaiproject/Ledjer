@@ -247,13 +247,6 @@ export function NewTransactionPage() {
     });
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault();
-      formRef.current?.requestSubmit();
-    }
-  };
-
   /* -- No access guard -- */
   if (orgData?.member && !canCreateTransaction) {
     return (
@@ -311,7 +304,6 @@ export function NewTransactionPage() {
             onSubmit={(event) => {
               form.handleSubmit(onSubmit)(event).catch((err) => console.error("submit failed", err));
             }}
-            onKeyDown={handleKeyDown}
             className="min-w-0 space-y-4"
             noValidate
           >
