@@ -16,7 +16,7 @@ import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
-import { toast } from "@/components/ui/toast-api";
+import { toast } from "@/components/ui/toast";
 import { formatShortDate } from "@/lib/utils";
 import {
   Lock,

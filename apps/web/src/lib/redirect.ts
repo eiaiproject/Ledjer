@@ -15,5 +15,5 @@ export function getSafeRedirectPath(
 }
 
 export function buildRedirectSearch(path: string): string {
-  return `redirect=${encodeURIComponent(getSafeRedirectPath(path))}`;
+  return `redirect=${encodeURIComponent(path)}`;
 }

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
-import { currentSession, requireAuth } from "../middleware/auth.middleware";
+import { requireAuth } from "../middleware/auth.middleware";
 import { requirePermission } from "../services/organization.service";
 import { readJson } from "../http/json";
 import {
@@ -33,7 +33,7 @@ periodLocksRoutes.post("/", async (c) => {
   const { member } = c.get("organizationContext");
   requirePermission(member, "organization:update");
 
-  const session = currentSession(c);
+  const session = c.get("session");
   const body = await readJson(c, createPeriodLockSchema);
   const lock = await createPeriodLock(
     c.env.DB,

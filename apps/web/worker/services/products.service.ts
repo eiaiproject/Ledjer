@@ -1,5 +1,5 @@
 import { generateId } from "../auth/tokens";
-import { execute, nowMs, queryAll, queryFirst } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import { badRequest, conflict, notFound } from "../http/errors";
 
 export type StockMovementType = "opening" | "purchase" | "sale" | "adjustment" | "void";
@@ -134,7 +134,7 @@ export async function createProduct(
   input: CreateProductInput,
   requestId?: string,
 ): Promise<PublicProduct> {
-  const current = nowMs();
+  const current = Date.now();
   const productId = generateId();
   const code = normalizeCode(input.code);
   const name = normalizeName(input.name);
@@ -257,7 +257,7 @@ export async function patchProduct(
 
   if (!updates.length) return before;
 
-  const current = nowMs();
+  const current = Date.now();
   updates.push("updated_at = ?");
   values.push(current, productId, organizationId);
   await execute(
@@ -329,7 +329,7 @@ export async function recordStockMovement(
     unitCostMinor,
     input.movementType,
   );
-  const current = nowMs();
+  const current = Date.now();
   const movementId = generateId();
 
   await execute(

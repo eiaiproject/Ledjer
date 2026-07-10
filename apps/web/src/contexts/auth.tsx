@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AuthContext, type SignUpResult } from "@/contexts/auth-context";
+import { AuthContext } from "@/contexts/auth-context";
+import type { SignUpResult } from "@/contexts/auth-context";
 import type { AuthSession, AuthUser } from "@/lib/api/auth";
 import {
   getMe,

@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
-import { getSessionCookie, setSessionCookie, clearSessionCookie } from "../auth/cookies";
 import type { AppContext } from "../env";
 import { badRequest, unauthorized } from "../http/errors";
 import { readJson } from "../http/json";
@@ -22,9 +21,7 @@ import {
 } from "../services/google-auth.service";
 import {
   getSessionByToken,
-  publicSession,
   revokeSessionToken,
-  sessionUser,
 } from "../services/session.service";
 
 const emailSchema = z.string().email().transform((value) => value.trim().toLowerCase());
@@ -85,32 +82,57 @@ authRoutes.post("/login", async (c) => {
     c.env.PASSWORD_PEPPER,
   );
 
-  setSessionCookie(c, session.token, session.expiresAt);
+  setCookie(c, "ledjer_session", session.token, {
+    domain: c.env.COOKIE_DOMAIN,
+    expires: new Date(session.expiresAt),
+    httpOnly: true,
+    path: "/",
+    sameSite: "Lax",
+    secure: true,
+  });
   return c.json({ ok: true });
 });
 
 authRoutes.post("/logout", async (c) => {
-  const token = getSessionCookie(c);
+  const token = getCookie(c, "ledjer_session");
   if (token) {
     await revokeSessionToken(c.env.DB, token);
   }
-  clearSessionCookie(c);
+  deleteCookie(c, "ledjer_session", {
+    domain: c.env.COOKIE_DOMAIN,
+    path: "/",
+    secure: true,
+  });
   return c.json({ ok: true });
 });
 
 authRoutes.get("/me", async (c) => {
-  const token = getSessionCookie(c);
+  const token = getCookie(c, "ledjer_session");
   if (!token) return c.json({ user: null, session: null });
 
   const row = await getSessionByToken(c.env.DB, token);
   if (!row) {
-    clearSessionCookie(c);
+    deleteCookie(c, "ledjer_session", {
+      domain: c.env.COOKIE_DOMAIN,
+      path: "/",
+      secure: true,
+    });
     return c.json({ user: null, session: null });
   }
 
   return c.json({
-    user: sessionUser(row),
-    session: publicSession(row),
+    user: {
+      id: row.user_id,
+      email: row.email,
+      full_name: row.full_name,
+      email_verified_at: row.email_verified_at,
+    },
+    session: {
+      id: row.session_id,
+      user_id: row.user_id,
+      expires_at: row.expires_at,
+      current_organization_id: row.current_organization_id,
+    },
   });
 });
 
@@ -121,7 +143,14 @@ authRoutes.post("/verify-email", async (c) => {
     const session = body.type === "recovery"
       ? await verifyPasswordResetToken(c.env.DB, body.token, c.req.raw)
       : await verifyEmailToken(c.env.DB, body.token, c.req.raw);
-    setSessionCookie(c, session.token, session.expiresAt);
+    setCookie(c, "ledjer_session", session.token, {
+      domain: c.env.COOKIE_DOMAIN,
+      expires: new Date(session.expiresAt),
+      httpOnly: true,
+      path: "/",
+      sameSite: "Lax",
+      secure: true,
+    });
     return c.json({ ok: true });
   }
 
@@ -140,7 +169,11 @@ authRoutes.post("/reset-password", async (c) => {
   const body = await readJson(c, resetPasswordSchema);
   const row = await requireSession(c);
   await resetPassword(c.env.DB, row.user_id, body.password, c.env.PASSWORD_PEPPER);
-  clearSessionCookie(c);
+  deleteCookie(c, "ledjer_session", {
+    domain: c.env.COOKIE_DOMAIN,
+    path: "/",
+    secure: true,
+  });
   return c.json({ ok: true });
 });
 
@@ -154,7 +187,11 @@ authRoutes.post("/change-password", async (c) => {
     body.password,
     c.env.PASSWORD_PEPPER,
   );
-  clearSessionCookie(c);
+  deleteCookie(c, "ledjer_session", {
+    domain: c.env.COOKIE_DOMAIN,
+    path: "/",
+    secure: true,
+  });
   return c.json({ ok: true });
 });
 
@@ -243,7 +280,14 @@ authRoutes.get("/google/callback", async (c) => {
       c.req.raw,
     );
 
-    setSessionCookie(c, session.token, session.expiresAt);
+    setCookie(c, "ledjer_session", session.token, {
+      domain: c.env.COOKIE_DOMAIN,
+      expires: new Date(session.expiresAt),
+      httpOnly: true,
+      path: "/",
+      sameSite: "Lax",
+      secure: true,
+    });
     return c.redirect("/auth/callback?success=true");
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown_error";
@@ -252,12 +296,16 @@ authRoutes.get("/google/callback", async (c) => {
 });
 
 async function requireSession(c: Context<AppContext>) {
-  const token = getSessionCookie(c);
+  const token = getCookie(c, "ledjer_session");
   if (!token) throw unauthorized();
 
   const row = await getSessionByToken(c.env.DB, token);
   if (!row) {
-    clearSessionCookie(c);
+    deleteCookie(c, "ledjer_session", {
+      domain: c.env.COOKIE_DOMAIN,
+      path: "/",
+      secure: true,
+    });
     throw unauthorized();
   }
 

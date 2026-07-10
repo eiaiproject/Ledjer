@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
 import { readJson } from "../http/json";
-import { currentSession, requireAuth } from "../middleware/auth.middleware";
+import { requireAuth } from "../middleware/auth.middleware";
 import {
   loadCurrentOrganization,
   requirePermission,
@@ -42,7 +42,7 @@ teamRoutes.post("/invitations/accept", async (c) => {
   const body = await readJson(c, acceptInvitationSchema);
   const result = await acceptTeamInvitation(
     c.env.DB,
-    currentSession(c),
+    c.get("session"),
     body.token,
     c.get("requestId"),
   );

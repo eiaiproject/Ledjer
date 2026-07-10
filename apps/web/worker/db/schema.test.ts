@@ -7,7 +7,7 @@ import {
   ROLE_VALUES,
   TENANT_SCOPED_TABLES,
 } from "./schema";
-import { normalizeD1Value, normalizeD1Values, nowMs } from "./client";
+import { normalizeD1Value, normalizeD1Values } from "./client";
 
 function expectUnique(values: readonly string[]): void {
   expect(new Set(values).size).toBe(values.length);
@@ -54,7 +54,5 @@ describe("D1 client helpers", () => {
     ]);
   });
 
-  it("creates millisecond timestamps", () => {
-    expect(nowMs(new Date("2026-07-07T00:00:00.123Z"))).toBe(1783382400123);
-  });
+
 });

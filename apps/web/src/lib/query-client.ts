@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { translateError } from "@/lib/errors";
-import { toast } from "@/components/ui/toast-api";
+import { toast } from "@/components/ui/toast";
 
 export const queryClient = new QueryClient({
   defaultOptions: {

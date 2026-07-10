@@ -1,6 +1,7 @@
 import { forwardRef, useId, type CSSProperties, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { Field } from "./field";
+import { SIZE_STYLES } from "./size-styles";
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -9,12 +10,6 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   containerClassName?: string;
   size?: "sm" | "md" | "lg";
 }
-
-const sizeStyles = {
-  sm: "px-3 py-2 text-sm",
-  md: "px-3 py-2.5 text-sm",
-  lg: "px-4 py-3 text-base",
-};
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, containerClassName, label, helperText, error, id, required, rows = 3, size = "md", style, ...props }, ref) => {
@@ -41,7 +36,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             "disabled:opacity-50 disabled:cursor-not-allowed",
             error ? "border-error" : "border-wood-200",
             "min-w-0",
-            sizeStyles[size],
+            SIZE_STYLES[size],
             className
           )}
           {...props}

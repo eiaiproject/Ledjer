@@ -1,5 +1,5 @@
 import { generateId } from "../auth/tokens";
-import { execute, executeBatch, nowMs, queryAll, queryFirst, statement } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
 import type { AccountType, NormalBalance, Role } from "../db/schema";
 import { badRequest, forbidden } from "../http/errors";
 import {
@@ -202,7 +202,7 @@ export async function setCurrentOrganization(
 export async function createOrganization(
   db: D1Database, session: CurrentSessionRow, input: CreateOrganizationInput,
 ): Promise<OrganizationState> {
-  const current = nowMs();
+  const current = Date.now();
   const organizationId = generateId();
   const memberId = generateId();
   const organizationName = input.organizationName.trim();

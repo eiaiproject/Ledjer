@@ -22,21 +22,12 @@ const sizeStyles = {
 export function Modal({ open, onClose, title, children, size = "md", className, ariaLabel }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
+    if (open) dialog.showModal();
+    else dialog.close();
   }, [open]);
 
   if (!open) return null;
@@ -53,7 +44,7 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
       aria-label={!title ? ariaLabel : undefined}
       onCancel={(event) => {
         event.preventDefault();
-        onCloseRef.current();
+        onClose();
       }}
     >
       {title && (

@@ -1,19 +1,22 @@
 import type { Context, MiddlewareHandler } from "hono";
-import { clearSessionCookie, getSessionCookie } from "../auth/cookies";
+import { deleteCookie, getCookie } from "hono/cookie";
 import type { AppContext } from "../env";
 import { unauthorized } from "../http/errors";
 import {
   getSessionByToken,
-  sessionUser,
   type CurrentSessionRow,
-  type SessionUser,
 } from "../services/session.service";
 
 export function requireAuth(): MiddlewareHandler<AppContext> {
   return async (c, next) => {
     const session = await getAuthenticatedSession(c);
     c.set("session", session);
-    c.set("user", sessionUser(session));
+    c.set("user", {
+      id: session.user_id,
+      email: session.email,
+      full_name: session.full_name,
+      email_verified_at: session.email_verified_at,
+    });
     await next();
   };
 }
@@ -21,22 +24,18 @@ export function requireAuth(): MiddlewareHandler<AppContext> {
 export async function getAuthenticatedSession(
   c: Context<AppContext>,
 ): Promise<CurrentSessionRow> {
-  const token = getSessionCookie(c);
+  const token = getCookie(c, "ledjer_session");
   if (!token) throw unauthorized();
 
   const session = await getSessionByToken(c.env.DB, token);
   if (!session) {
-    clearSessionCookie(c);
+    deleteCookie(c, "ledjer_session", {
+      domain: c.env.COOKIE_DOMAIN,
+      path: "/",
+      secure: true,
+    });
     throw unauthorized();
   }
 
   return session;
-}
-
-export function currentSession(c: Context<AppContext>): CurrentSessionRow {
-  return c.get("session");
-}
-
-export function currentUser(c: Context<AppContext>): SessionUser {
-  return c.get("user");
 }

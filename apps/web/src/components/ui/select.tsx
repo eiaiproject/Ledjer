@@ -2,6 +2,7 @@ import { forwardRef, useId, type ReactNode, type SelectHTMLAttributes } from "re
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { Field } from "./field";
+import { SIZE_STYLES } from "./size-styles";
 
 interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> {
   label?: string;
@@ -12,12 +13,6 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "siz
   size?: "sm" | "md" | "lg";
   leftIcon?: ReactNode;
 }
-
-const sizeStyles = {
-  sm: "min-h-[44px] h-8 px-3 text-sm sm:h-8 sm:min-h-0",
-  md: "min-h-[44px] h-10 px-3 text-sm sm:h-10 sm:min-h-0",
-  lg: "h-12 px-4 text-base",
-};
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, options, placeholder, size = "md", leftIcon, id, required, ...props }, ref) => {
@@ -45,7 +40,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               "transition-[background-color,border-color,box-shadow] duration-150 ease-out focus-visible:bg-surface-elevated",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               "disabled:opacity-50 disabled:cursor-not-allowed",
-              sizeStyles[size],
+              SIZE_STYLES[size],
               error ? "border-error" : "border-wood-200",
               leftIcon && "pl-9",
               "min-w-0",

@@ -1,4 +1,4 @@
-import { execute, nowMs, queryFirst } from "../db/client";
+import { execute, queryFirst } from "../db/client";
 import { generateId } from "../auth/tokens";
 import {
   createSession,
@@ -155,7 +155,7 @@ async function linkOAuthAccount(
 
   if (existing) return; // Already linked
 
-  const current = nowMs();
+  const current = Date.now();
   await execute(
     db,
     `INSERT INTO oauth_accounts (
@@ -172,7 +172,7 @@ async function createUserFromGoogle(
   db: D1Database,
   googleUser: GoogleUserInfo,
 ): Promise<UserRow> {
-  const current = nowMs();
+  const current = Date.now();
   const userId = generateId();
 
   await execute(

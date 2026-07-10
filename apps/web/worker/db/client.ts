@@ -1,10 +1,6 @@
 export type D1Scalar = string | number | null | ArrayBuffer;
 export type D1Input = D1Scalar | boolean | undefined;
 
-export function nowMs(date = new Date()): number {
-  return date.getTime();
-}
-
 export function normalizeD1Value(value: D1Input): D1Scalar {
   if (typeof value === "boolean") return value ? 1 : 0;
   if (value === undefined) return null;

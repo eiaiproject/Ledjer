@@ -1,4 +1,4 @@
-import { execute, nowMs, queryFirst } from "../db/client";
+import { execute, queryFirst } from "../db/client";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -43,7 +43,7 @@ export async function createSession(
 ): Promise<CreatedSession> {
   const token = generateToken();
   const tokenHash = await hashToken(token);
-  const createdAt = nowMs();
+  const createdAt = Date.now();
   const expiresAt = createdAt + SESSION_TTL_MS;
 
   await execute(
@@ -71,7 +71,7 @@ export async function getSessionByToken(
   token: string,
 ): Promise<CurrentSessionRow | null> {
   const tokenHash = await hashToken(token);
-  const current = nowMs();
+  const current = Date.now();
 
   const row = await queryFirst<CurrentSessionRow>(
     db,
@@ -110,7 +110,7 @@ export async function revokeSessionToken(
   await execute(
     db,
     "UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL",
-    [nowMs(), tokenHash],
+    [Date.now(), tokenHash],
   );
 }
 
@@ -121,7 +121,7 @@ export async function revokeAllUserSessions(
   await execute(
     db,
     "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
-    [nowMs(), userId],
+    [Date.now(), userId],
   );
 }
 
@@ -135,24 +135,6 @@ export async function setSessionCurrentOrganization(
     "UPDATE sessions SET current_organization_id = ? WHERE id = ? AND revoked_at IS NULL",
     [organizationId, sessionId],
   );
-}
-
-export function sessionUser(row: CurrentSessionRow): SessionUser {
-  return {
-    id: row.user_id,
-    email: row.email,
-    full_name: row.full_name,
-    email_verified_at: row.email_verified_at,
-  };
-}
-
-export function publicSession(row: CurrentSessionRow): AuthSession {
-  return {
-    id: row.session_id,
-    user_id: row.user_id,
-    expires_at: row.expires_at,
-    current_organization_id: row.current_organization_id,
-  };
 }
 
 export type { CurrentSessionRow, SessionRow };

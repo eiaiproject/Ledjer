@@ -95,17 +95,22 @@ export const queryKeys = {
  * also invalidate `queryKeys.transactions.detail(id)` and
  * `queryKeys.journalEntries.detail(id)` for the specific record being mutated.
  */
+import type { QueryClient } from "@tanstack/react-query";
+
 export function invalidateTransactionFinancialCaches(
-  queryClient: { invalidateQueries: (opts: { queryKey: readonly unknown[] }) => void },
-  orgId: string | undefined = "",
+  qc: QueryClient,
+  orgId = "",
 ) {
-  queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.parties.all(orgId) });
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.allTrialBalance() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.allProfitLoss() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.allBalanceSheet() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.reports.allGeneralLedger() });
+  const keys = [
+    queryKeys.transactions.all(),
+    queryKeys.allDashboard(),
+    queryKeys.accounts.all(orgId),
+    queryKeys.products.all(orgId),
+    queryKeys.parties.all(orgId),
+    queryKeys.reports.allTrialBalance(),
+    queryKeys.reports.allProfitLoss(),
+    queryKeys.reports.allBalanceSheet(),
+    queryKeys.reports.allGeneralLedger(),
+  ];
+  keys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
 }

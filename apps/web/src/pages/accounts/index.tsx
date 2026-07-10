@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
-import { toast } from "@/components/ui/toast-api";
+import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportAccountsCsv } from "@/lib/csv-export";
 import {

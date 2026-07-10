@@ -1,5 +1,5 @@
 import { generateId } from "../auth/tokens";
-import { execute, nowMs, queryAll, queryFirst } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import { badRequest, conflict, notFound } from "../http/errors";
 
 export interface PeriodLock {
@@ -45,7 +45,7 @@ export async function createPeriodLock(
     );
   }
 
-  const current = nowMs();
+  const current = Date.now();
   const id = generateId();
 
   await execute(

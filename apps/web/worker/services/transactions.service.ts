@@ -1,7 +1,6 @@
 import { generateId } from "../auth/tokens";
 import {
   executeBatch,
-  nowMs,
   queryAll,
   queryFirst,
   statement,
@@ -364,7 +363,7 @@ export async function postTransaction(
   const paymentStatus = input.paymentStatus ?? "paid";
   const description = normalizeRequiredText(input.description, "transaction_description_required");
   const notes = nullableText(input.notes);
-  const current = nowMs();
+  const current = Date.now();
 
   await assertBooksOpen(db, organizationId, transactionDate);
   await assertPeriodOpen(db, organizationId, transactionDate);
@@ -569,7 +568,7 @@ export async function voidTransaction(
     ? await stockMovementForTransaction(db, organizationId, transactionId, productLine.product_id)
     : null;
 
-  const current = nowMs();
+  const current = Date.now();
   const reversalTransactionId = generateId();
   const reversalJournalEntryId = generateId();
   const reversalTransactionNumber = await generateTransactionNumber(db, organizationId, voidDate);
@@ -1687,7 +1686,7 @@ async function nextCounter(
   organizationId: string,
   counterName: string,
 ): Promise<number> {
-  const current = nowMs();
+  const current = Date.now();
   const row = await queryFirst<{ current_value: number }>(
     db,
     `INSERT INTO organization_document_counters (
