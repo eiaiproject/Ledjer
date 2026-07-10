@@ -18,7 +18,7 @@
     "ci:local": "bash scripts/ci-local.sh",
     "ci:local:fast": "bash scripts/ci-local.sh",
     "ci:local:full": "bash scripts/ci-local.sh --full",
-    "deploy": "pnpm --filter web exec wrangler deploy",
+    "deploy": "pnpm --filter web deploy",
     "test:all": "pnpm test:quality && pnpm test:e2e:local:full",
     "test:quality": "pnpm --filter web typecheck && pnpm --filter web lint && pnpm --filter web test && pnpm --filter web build",
     "test:e2e": "pnpm --filter web test:e2e",

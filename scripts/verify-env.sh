@@ -60,10 +60,14 @@ echo ""
 echo "--- Frontend (optional for Vite build) ---"
 check_var "VITE_API_BASE_URL" false
 check_var "VITE_SENTRY_DSN" false
+check_var "VITE_APP_VERSION" false
 
 echo ""
 echo "--- Worker / Server (optional locally, configure for deploy) ---"
 check_var "APP_ORIGIN" false
+check_var "COOKIE_DOMAIN" false
+check_var "SESSION_SECRET" false
+check_var "PASSWORD_PEPPER" false
 check_var "EMAIL_API_KEY" false
 check_var "GOOGLE_CLIENT_ID" false
 check_var "GOOGLE_CLIENT_SECRET" false

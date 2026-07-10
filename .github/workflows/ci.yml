@@ -76,7 +76,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Apply D1 migrations
-        run: pnpm --filter web exec wrangler d1 migrations apply DB --local --persist-to "$RUNNER_TEMP/ledjer-d1"
+        run: pnpm --filter web db:migrations:apply:local -- --persist-to "$RUNNER_TEMP/ledjer-d1"
 
   package-clean:
     name: Package clean guard

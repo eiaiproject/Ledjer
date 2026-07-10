@@ -62,7 +62,7 @@ if [[ "$FULL" -eq 1 ]]; then
   # @cloudflare/vite-plugin) picks up the same D1 database.
   local_d1="${ROOT}/apps/web/.wrangler/state/v3/d1"
   rm -rf "$local_d1"
-  pnpm --filter web exec wrangler d1 migrations apply DB --local
+  pnpm --filter web db:migrations:apply:local
 
   section "D1 migration list"
   pnpm --filter web db:migrations:list

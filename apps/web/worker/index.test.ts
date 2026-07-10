@@ -24,6 +24,7 @@ describe("Worker API", () => {
       ok: true,
       service: "ledjer-api",
       runtime: "cloudflare-workers",
+      db: "error",
     });
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
   });

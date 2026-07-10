@@ -37,7 +37,7 @@ Fresh-database verification:
 
 ```bash
 TMP_D1="$(mktemp -d /tmp/ledjer-d1.XXXXXX)"
-pnpm --filter web exec wrangler d1 migrations apply DB --local --persist-to "$TMP_D1"
+cd apps/web && pnpm exec wrangler d1 migrations apply DB --local --persist-to "$TMP_D1"
 rm -rf "$TMP_D1"
 ```
 

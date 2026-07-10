@@ -45,6 +45,7 @@ pnpm --filter web db:migrations:list
 
 pnpm ci:local:fast
 pnpm ci:local:full
+pnpm deploy
 ```
 
 ## Project Structure
@@ -61,7 +62,52 @@ docs/
   accounting-rules.md       Accounting rules reference
   testing.md                Testing guide
   production/               Monitoring and incident response
+scripts/
+  deploy.sh                 Build + deploy script
+  ci-local.sh               Run CI checks locally
+  check-build-secrets.sh    Scan dist for leaked secrets
+  check-migration-naming.sh Validate D1 migration filenames
+  verify-env.sh             Check environment variables
 ```
+
+## Deployment
+
+```bash
+# Full build + deploy (from root)
+pnpm deploy
+
+# Or step-by-step:
+pnpm --filter web build
+pnpm --filter web deploy
+
+# Using the deploy script:
+bash scripts/deploy.sh           # build + deploy
+bash scripts/deploy.sh --deploy-only  # deploy only (build already done)
+```
+
+D1 migrations (production):
+```bash
+pnpm --filter web db:migrations:apply:remote
+```
+
+### Troubleshooting Deploy
+
+**Error: "The Cloudflare application detection logic has been run in the root of a workspace"**
+
+Penyebab: Wrangler v4+ mendeteksi bahwa `wrangler deploy` dijalankan dari root workspace (`pnpm --filter web exec wrangler deploy`).
+
+Solusi: Gunakan script yang sudah didefinisikan di `apps/web/package.json` via `pnpm --filter web <script>` — script tersebut dijalankan dari direktori package (`apps/web`), bukan dari root.
+
+✅ `pnpm --filter web deploy` → otomatis `cd apps/web && wrangler deploy`
+❌ `pnpm --filter web exec wrangler deploy` → dijalankan dari root, gagal
+
+Pastikan juga:
+- Wrangler config ada di `apps/web/wrangler.jsonc` (sudah)
+- Command dijalankan dari direktori yang benar di CI/CD workflows
+
+### Production Secrets
+
+Worker vars/secrets dikonfigurasi di Cloudflare Dashboard atau via `wrangler secret put`. Jangan pernah menaruh Worker secrets di `VITE_*` variables — `VITE_*` di-embed ke browser bundle.
 
 ## Current Scope
 
@@ -78,13 +124,3 @@ docs/
 ## Testing
 
 See [docs/testing.md](docs/testing.md). The active CI path is Cloudflare-native: typecheck, lint, unit tests, production build, D1 migration apply from an empty local database, and public Playwright smoke.
-
-## Deployment
-
-Manual deployment uses Wrangler:
-
-```bash
-pnpm --filter web cf:deploy
-```
-
-Production Worker vars/secrets are configured in Cloudflare. Do not put private Worker secrets in `VITE_*` variables; `VITE_*` values are embedded in the browser bundle.

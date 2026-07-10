@@ -46,7 +46,7 @@ Last updated: 2026-06-27
 ### Worker Rollback
 ```bash
 pnpm --filter web exec wrangler deployments list
-pnpm --filter web exec wrangler rollback
+cd apps/web && pnpm exec wrangler rollback
 ```
 
 ### Database Rollback
