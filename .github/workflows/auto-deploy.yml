@@ -165,6 +165,37 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
+      - name: Preflight — Verify deployment via Cloudflare API
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "Checking latest deployment of Worker 'ledjer'..."
+          DEPLOYMENTS=$(curl -sf \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/ledjer/deployments")
+
+          # Check API call succeeded
+          if ! echo "$DEPLOYMENTS" | grep -q '"success":true'; then
+            echo "❌ Cloudflare API call failed"
+            echo "$DEPLOYMENTS"
+            exit 1
+          fi
+
+          # Get latest deployment ID
+          LATEST=$(echo "$DEPLOYMENTS" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+deployments = data.get('result', [])
+if deployments:
+    d = deployments[0]
+    print(d.get('id', 'unknown'))
+else:
+    print('none')
+")
+          echo "✅ Latest deployment ID: $LATEST"
+
       - name: Preflight — API health check
         run: |
           for i in 1 2 3 4 5 6 7 8 9 10; do
