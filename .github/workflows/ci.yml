@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -42,13 +42,22 @@ jobs:
       - name: Vitest unit tests
         run: pnpm --filter web test
 
-      - name: Production build
+      - name: Production build (with CSP local for E2E)
         env:
+          LEDJER_CSP_LOCAL: "1"
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: pnpm --filter web build
+
+      - name: Upload build artifact (for downstream E2E jobs)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: web-dist
+          path: apps/web/dist/
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Scan build output for leaked secrets
         run: bash scripts/check-build-secrets.sh
@@ -61,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -83,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Install archive tooling
         run: sudo apt-get install -y -qq unzip tar zip >/dev/null
@@ -104,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -121,16 +130,23 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
+      - name: Download build artifact (skip rebuild)
+        uses: actions/download-artifact@3e5f45b59714856f709121d58231c69992c90f23 # v8
+        with:
+          name: web-dist
+          path: apps/web/dist/
+
       - name: Run public smoke tests
         env:
           E2E_MODE: local-smoke
           E2E_BASE_URL: http://localhost:4173
           CI: true
+          SKIP_BUILD_FOR_CI: "1"
         run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report-public
           path: apps/web/playwright-report/
@@ -143,7 +159,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -160,17 +176,24 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
+      - name: Download build artifact (skip rebuild)
+        uses: actions/download-artifact@3e5f45b59714856f709121d58231c69992c90f23 # v8
+        with:
+          name: web-dist
+          path: apps/web/dist/
+
       - name: Run visual regression tests
         env:
           E2E_MODE: local-smoke
           E2E_VISUAL: "1"
           E2E_BASE_URL: http://localhost:4173
           CI: true
+          SKIP_BUILD_FOR_CI: "1"
         run: pnpm --filter web exec playwright test e2e/visual.spec.ts --project=chromium
 
       - name: Upload visual report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: visual-regression-report
           path: apps/web/playwright-report/

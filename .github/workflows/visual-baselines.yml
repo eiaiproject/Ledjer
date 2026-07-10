@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -34,6 +34,9 @@ jobs:
           LEDJER_CSP_LOCAL: "1"
         run: pnpm --filter web build
 
+      - name: Scan build output for leaked secrets
+        run: bash scripts/check-build-secrets.sh
+
       - name: Run visual regression tests (update baselines)
         env:
           E2E_MODE: local-smoke
@@ -46,6 +49,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add apps/web/e2e/visual.spec.ts-snapshots/
+          # Stage all Playwright snapshot directories (not tied to a specific spec filename)
+          SNAPSHOTS=$(find apps/web/e2e -type d -name "*.spec.ts-snapshots" 2>/dev/null || true)
+          if [ -n "$SNAPSHOTS" ]; then
+            echo "$SNAPSHOTS" | xargs git add --
+          fi
           git diff --cached --quiet || git commit -m "chore: update visual baselines [skip ci]"
           git push

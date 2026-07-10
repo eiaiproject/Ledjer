@@ -4,10 +4,18 @@ name: Auto Deploy
 # Cloudflare Workers on every push to main.  The single `wrangler deploy`
 # bundles the Vite build output as static assets AND the Hono Worker —
 # no separate Pages deployment needed.
+#
+# Can also be triggered manually via workflow_dispatch.
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy (default: main)"
+        required: false
+        default: main
 
 concurrency:
   group: deploy-production
@@ -23,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -63,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -81,7 +89,7 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm --filter web exec wrangler d1 migrations apply DB
+        run: pnpm --filter web exec wrangler d1 migrations apply DB --remote
 
   # ─── 3. Deploy (frontend + backend in one shot) ───────────────
   deploy:
@@ -93,7 +101,9 @@ jobs:
       name: production
       url: https://ledjer.id
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
+        with:
+          ref: ${{ inputs.branch || github.ref_name }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -123,10 +133,10 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### 🚀 Auto-deploy to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deployed to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ inputs.branch || github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`${GITHUB_REF_NAME}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** https://ledjer.id" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> Both frontend (SPA) and backend (Worker API + D1) deployed." >> $GITHUB_STEP_SUMMARY
@@ -138,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -177,7 +187,7 @@ jobs:
 
       - name: Upload smoke report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: auto-deploy-smoke-report
           path: apps/web/playwright-report/

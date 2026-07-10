@@ -6,9 +6,8 @@ name: Production Smoke Test
 
 on:
   workflow_dispatch:
-  # Uncomment for scheduled smoke:
-  # schedule:
-  #   - cron: "0 */6 * * *"
+  schedule:
+    - cron: "0 */6 * * *"
 
 env:
   PRODUCTION_URL: https://ledjer.id
@@ -25,7 +24,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb09341492af7d3a778e7f848df8deef6a5 # v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -57,7 +56,7 @@ jobs:
 
       - name: Upload smoke report
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: production-smoke-report
           path: apps/web/playwright-report/
