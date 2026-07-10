@@ -83,6 +83,7 @@ while IFS= read -r f; do
   # Allow .env.example explicitly (it's a documented template, no secrets).
   case "$f" in
     */.env.example|.env.example) continue ;;
+    *) ;;
   esac
   if [[ "$f" =~ $FORBIDDEN_REGEX ]]; then
     echo "FORBIDDEN: $f" >&2

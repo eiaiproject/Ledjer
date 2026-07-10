@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
-import path from "path";
+import path from "node:path";
 
 const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN;
 
@@ -17,10 +17,15 @@ const localPreviewCspPlugin = () => ({
     order: "pre",
     handler(html: string) {
       if (process.env.LEDJER_CSP_LOCAL !== "1") return html;
-      return html.replace(
-        /connect-src 'self' https:\/\/\*\.ingest\.sentry\.io/,
-        "connect-src 'self' http://localhost:* http://127.0.0.1:* http://host.docker.internal:* https://*.ingest.sentry.io",
-      );
+      return html
+        .replace(
+          /style-src 'self' https:\/\/fonts\.googleapis\.com/,
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        )
+        .replace(
+          /connect-src 'self' https:\/\/\*\.ingest\.sentry\.io/,
+          "connect-src 'self' http://localhost:* http://127.0.0.1:* http://host.docker.internal:* https://*.ingest.sentry.io",
+        );
     },
   },
 });

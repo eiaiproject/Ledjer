@@ -297,7 +297,7 @@ export function LandingPage() {
                   className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-leaf-200 bg-leaf-50 px-3 py-1 text-xs font-semibold text-leaf-700"
                   style={stagger(0)}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-leaf-500" aria-hidden="true" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-leaf-500" aria-hidden="true" />{' '}
                   Pembukuan UMKM Indonesia
                 </div>
 

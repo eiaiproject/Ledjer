@@ -147,10 +147,7 @@ export function RegisterPage() {
                   </h1>
                   <p className="mt-2 text-sm text-text-secondary">
                     Kami telah mengirim tautan konfirmasi ke{" "}
-                    <span className="font-medium break-all text-text-primary">
-                      {pendingEmail}
-                    </span>
-                    . Klik tautan tersebut untuk mengaktifkan akun Anda.
+                    <span className="font-medium break-all text-text-primary">{pendingEmail}</span>. Klik tautan tersebut untuk mengaktifkan akun Anda.
                   </p>
                 </div>
 

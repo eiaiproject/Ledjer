@@ -18,6 +18,7 @@ DEPLOY_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --deploy-only) DEPLOY_ONLY=1 ;;
+    *) ;;
   esac
 done
 

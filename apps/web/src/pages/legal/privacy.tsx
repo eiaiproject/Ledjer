@@ -127,10 +127,7 @@ export function PrivacyPolicyPage() {
             <h2 className="text-lg font-semibold text-wood-800">10. Kontak</h2>
             <p>
               Untuk pertanyaan mengenai privasi, hubungi kami di{" "}
-              <a href="mailto:privacy@ledjer.id" className="text-leaf-600 underline">
-                privacy@ledjer.id
-              </a>
-              .
+              <a href="mailto:privacy@ledjer.id" className="text-leaf-600 underline">privacy@ledjer.id</a>.
             </p>
           </section>
         </CardContent>

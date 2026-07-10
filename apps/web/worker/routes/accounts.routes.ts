@@ -66,7 +66,10 @@ accountsRoutes.get("/", requirePermission("accounts:read"), async (c) => {
   const context = c.get("organizationContext");
   const url = new URL(c.req.url);
   const accountTypes = parseAccountTypes(url.searchParams.get("accountTypes"));
-  const active = url.searchParams.get("active") === "true" ? true : url.searchParams.get("active") === "false" ? false : undefined;
+  const activeParam = url.searchParams.get("active");
+  let active: boolean | undefined;
+  if (activeParam === "true") active = true;
+  else if (activeParam === "false") active = false;
   const cashBankOnly = url.searchParams.get("kind") === "cash-bank";
 
   const accounts = await listAccounts(c.env.DB, context.organization.id, {

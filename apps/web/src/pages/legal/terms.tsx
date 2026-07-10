@@ -106,10 +106,7 @@ export function TermsOfServicePage() {
             <h2 className="text-lg font-semibold text-wood-800">11. Kontak</h2>
             <p>
               Untuk pertanyaan mengenai syarat ini, hubungi kami di{" "}
-              <a href="mailto:support@ledjer.id" className="text-leaf-600 underline">
-                support@ledjer.id
-              </a>
-              .
+              <a href="mailto:support@ledjer.id" className="text-leaf-600 underline">support@ledjer.id</a>.
             </p>
           </section>
         </CardContent>
