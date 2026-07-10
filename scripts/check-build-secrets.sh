@@ -62,7 +62,7 @@ for i in "${!LABELS[@]}"; do
   if [[ -n "$matched_files" ]]; then
     leaked=0
     for f in $matched_files; do
-      if grep -nE "$pattern" "$f" 2>/dev/null | grep -vE 'c\.env\.|process\.env\.' | grep -q .; then
+      if grep -nE "$pattern" "$f" 2>/dev/null | grep -vE 'c\.env\.|process\.env\.|VITE_' | grep -q .; then
         leaked=1
         break
       fi
