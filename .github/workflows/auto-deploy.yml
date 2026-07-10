@@ -184,7 +184,7 @@ jobs:
           fi
 
           # Get latest deployment ID
-          LATEST=$(echo "$DEPLOYMENTS" | python3 -c "import sys,json; d=json.load(sys.stdin).get('result',[]); print(d[0].get('id','unknown') if d else 'none')")
+          LATEST=$(echo "$DEPLOYMENTS" | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',{}); ds=r.get('deployments',[]) if isinstance(r,dict) else r; print(ds[0].get('id','unknown') if ds else 'none')")
           echo "✅ Latest deployment ID: $LATEST"
 
       - name: Preflight — API health check (best-effort)
