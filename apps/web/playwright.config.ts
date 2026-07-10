@@ -66,9 +66,6 @@ export default defineConfig({
       return undefined;
     }
 
-    // When SKIP_BUILD_FOR_CI is set, build was already done upstream (CI artifact)
-    const skipBuild = process.env.SKIP_BUILD_FOR_CI === '1';
-
     // Build the webServer config(s) as an array (Playwright supports both single and array)
     const servers: Array<{
       command: string;
@@ -77,9 +74,7 @@ export default defineConfig({
     }> = [
       // Primary: Vite preview server for the frontend app
       {
-        command: skipBuild
-          ? "LEDJER_CSP_LOCAL=1 pnpm preview"
-          : "LEDJER_CSP_LOCAL=1 pnpm build && pnpm preview",
+        command: "LEDJER_CSP_LOCAL=1 pnpm build && pnpm preview",
         port: 4173,
         reuseExistingServer: !process.env.CI && !process.env.E2E_BASE_URL,
       },
