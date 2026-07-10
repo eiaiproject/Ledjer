@@ -1,7 +1,11 @@
-name: Deploy to Cloudflare Workers
+name: Auto Deploy
 
-# Manual-only emergency deploy with Wrangler.
+# Deploys to Cloudflare Workers on push to main, or manually via workflow_dispatch.
+# CI must pass before merge to main (branch protection), so deploy is safe to auto-run.
+
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       branch:
@@ -10,7 +14,7 @@ on:
         default: main
 
 concurrency:
-  group: deploy-manual
+  group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -18,7 +22,7 @@ permissions:
 
 jobs:
   deploy:
-    name: "Manual deploy to Cloudflare Workers"
+    name: "Deploy to Cloudflare Workers"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -27,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
-          ref: ${{ inputs.branch || 'main' }}
+          ref: ${{ inputs.branch || github.ref_name }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -49,15 +53,41 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: pnpm --filter web build
 
+      - name: Run post-build security scan
+        run: bash scripts/check-build-secrets.sh
+
+      - name: Run D1 migrations (production)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm --filter web exec wrangler d1 migrations apply ledjer-production --remote
+
       - name: Deploy with Wrangler
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm --filter web exec wrangler deploy
 
+      - name: Run production smoke test
+        run: |
+          echo "Checking health endpoint: https://ledjer.id/api/health"
+          curl -fsS "https://ledjer.id/api/health" -o /dev/null --max-time 15
+          echo "✅ Health endpoint OK"
+          echo "Checking frontend routing: https://ledjer.id/"
+          status=$(curl -sI "https://ledjer.id/" -o /dev/null -w "%{http_code}" --max-time 15)
+          echo "Frontend returned HTTP $status"
+          # 302 is expected (Zero Trust Access redirect) — confirms Worker is routing
+          if [ "$status" != "000" ]; then
+            echo "✅ Frontend routing OK (HTTP $status)"
+          else
+            echo "❌ Frontend unreachable"
+            exit 1
+          fi
+
       - name: Summary
         run: |
-          echo "### ✅ Manual deploy to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Deploy to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`${{ inputs.branch || 'main' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ inputs.branch || github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** https://ledjer.id" >> $GITHUB_STEP_SUMMARY
