@@ -170,7 +170,7 @@ export async function getBalanceSheet(
   return queryAll<BalanceSheetRow>(
     db,
     `WITH posted_lines AS (
-       SELECT jl.account_id, jl.debit_minor, jl.credit_minor
+       SELECT jl.account_id, jl.debit_minor, jl.credit_minor, jl.party_id
        FROM journal_lines jl
        JOIN journal_entries je
          ON je.id = jl.journal_entry_id
