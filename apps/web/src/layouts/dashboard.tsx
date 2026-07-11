@@ -293,7 +293,7 @@ export function DashboardLayout() {
       </aside>
 
       {/* Mobile Header */}
-      <div className="sticky top-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
+      <div className="fixed top-0 inset-x-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <button
             type="button"
@@ -444,6 +444,7 @@ export function DashboardLayout() {
       {/* Main Content */}
       <main className={cn(
         "bg-background transition-[padding] duration-300 ease-out",
+        "pt-14 lg:pt-0",
         showBottomNav && "pb-20 lg:pb-0",
         sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
       )}>
