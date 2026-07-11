@@ -370,7 +370,7 @@ export function GeneralLedgerPage() {
           {/* Summary bar */}
           {(ledger?.length ?? 0) > 0 && (
             <div className="flex items-center gap-4 rounded-lg border border-wood-200 bg-surface-elevated px-4 py-2.5">
-              <span className="text-xs text-text-tertiary">{ledger.length} entri</span>
+              <span className="text-xs text-text-tertiary">{ledger?.length} entri</span>
               <span className="text-xs text-text-tertiary">·</span>
               <span className="text-xs text-text-tertiary">Debit: <span className="font-mono font-medium text-text-primary">{formatIDR(totals.debit)}</span></span>
               <span className="text-xs text-text-tertiary">Kredit: <span className="font-mono font-medium text-text-primary">{formatIDR(totals.credit)}</span></span>
