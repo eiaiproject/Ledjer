@@ -85,7 +85,7 @@ function flattenErrors(
     const fieldPath = prefix ? `${prefix}.${key}` : key;
     if (value && typeof value === "object" && "message" in value && value.message) {
       const msg =
-        typeof value.message === "string" ? value.message : String(value.message);
+        typeof value.message === "string" ? value.message : String(value.message as unknown as string);
       result.push({ field: fieldPath, message: msg });
     } else if (value && typeof value === "object" && !Array.isArray(value)) {
       result.push(...flattenErrors(value as FieldErrors<any>, fieldPath));

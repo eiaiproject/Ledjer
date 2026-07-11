@@ -77,7 +77,7 @@ export function parseAmountInput(
   value: unknown,
   emptyValue: number | undefined = undefined
 ) {
-  const rawValue = value == null ? "" : String(value);
+  const rawValue = value == null ? "" : String(value as string);
   const digits = rawValue.replace(/\D/g, "");
   if (!digits) return emptyValue;
   const amount = Number(digits);
