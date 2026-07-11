@@ -38,62 +38,85 @@ function formatNotes(bankName?: string, notes?: string): string | undefined {
   return notes?.trim();
 }
 
+type AccountLookup = ReturnType<typeof useTransactionLookups>["expenseCogsAccounts"];
+
+function buildPartyParams(data: TransactionSubmission): Partial<PostTransactionInput> {
+  if (!usesParty(data.transactionType)) return {};
+  const name = data.partyName?.trim();
+  return name ? { partyName: name } : {};
+}
+
+function buildCategoryParams(
+  data: TransactionSubmission,
+  expenseCogsAccounts: AccountLookup,
+): Partial<PostTransactionInput> {
+  if (!usesCategory(data.transactionType)) return {};
+  if (data.debitAccountId) {
+    const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
+    return selectedAccount
+      ? { debitAccountId: data.debitAccountId, categoryName: selectedAccount.name }
+      : { debitAccountId: data.debitAccountId };
+  }
+  const name = data.categoryName?.trim();
+  return name ? { categoryName: name } : {};
+}
+
+function buildCashAccountParams(data: TransactionSubmission): Partial<PostTransactionInput> {
+  const usesCash = usesCashAccount(data.transactionType);
+  const usesPayment = usesPaymentStatus(data.transactionType);
+  const sendsCash = usesCash || (usesPayment && data.paymentStatus !== "unpaid");
+  return sendsCash && data.cashAccountId ? { cashAccountId: data.cashAccountId } : {};
+}
+
+function buildDestinationParams(data: TransactionSubmission): Partial<PostTransactionInput> {
+  if (usesDestinationAccount(data.transactionType) && data.destinationCashAccountId) {
+    return { destinationCashAccountId: data.destinationCashAccountId };
+  }
+  return {};
+}
+
+function buildDueDateParams(data: TransactionSubmission): Partial<PostTransactionInput> {
+  if (!usesPaymentStatus(data.transactionType)) return {};
+  return data.paymentStatus !== "paid" && data.dueDate ? { dueDate: data.dueDate } : {};
+}
+
+function buildNotesParams(data: TransactionSubmission): Partial<PostTransactionInput> {
+  const notes = formatNotes(data.bankName, data.notes);
+  return notes ? { notes } : {};
+}
+
+function buildProductParams(data: TransactionSubmission): Partial<PostTransactionInput> {
+  if (!data.productId) return {};
+  const params: Partial<PostTransactionInput> = { productId: data.productId };
+  if (data.quantity !== undefined) params.quantity = data.quantity;
+  if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
+  return params;
+}
+
 function buildTransactionParams(
   data: TransactionSubmission,
-  expenseCogsAccounts: ReturnType<typeof useTransactionLookups>["expenseCogsAccounts"],
+  expenseCogsAccounts: AccountLookup,
 ): PostTransactionInput {
-  const shouldUseParty = usesParty(data.transactionType);
-  const shouldUseCategory = usesCategory(data.transactionType);
-  const shouldUseCashAccount = usesCashAccount(data.transactionType);
-  const shouldUseDestinationAccount = usesDestinationAccount(data.transactionType);
-  const shouldUsePaymentStatus = usesPaymentStatus(data.transactionType);
-  const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
-  const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
-
   const params: PostTransactionInput = {
     transactionDate: data.transactionDate,
     transactionType: data.transactionType,
     amount: data.amount,
-    paymentStatus,
+    paymentStatus: usesPaymentStatus(data.transactionType) ? data.paymentStatus : "paid",
     partialAmount: data.partialAmount ?? undefined,
     description: data.description,
     idempotencyKey: data.clientToken,
   };
 
-  if (shouldUseParty && data.partyName?.trim()) {
-    params.partyName = data.partyName.trim();
-  }
-
-  if (shouldUseCategory) {
-    if (data.debitAccountId) {
-      params.debitAccountId = data.debitAccountId;
-      const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
-      if (selectedAccount) params.categoryName = selectedAccount.name;
-    } else if (data.categoryName?.trim()) {
-      params.categoryName = data.categoryName.trim();
-    }
-  }
-
-  if (shouldSendCashAccount && data.cashAccountId) {
-    params.cashAccountId = data.cashAccountId;
-  }
-
-  if (shouldUseDestinationAccount && data.destinationCashAccountId) {
-    params.destinationCashAccountId = data.destinationCashAccountId;
-  }
-
-  if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) {
-    params.dueDate = data.dueDate;
-  }
-
-  const notes = formatNotes(data.bankName, data.notes);
-  if (notes) params.notes = notes;
-
-  if (data.productId) {
-    params.productId = data.productId;
-    if (data.quantity !== undefined) params.quantity = data.quantity;
-    if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
-  }
+  Object.assign(
+    params,
+    buildPartyParams(data),
+    buildCategoryParams(data, expenseCogsAccounts),
+    buildCashAccountParams(data),
+    buildDestinationParams(data),
+    buildDueDateParams(data),
+    buildNotesParams(data),
+    buildProductParams(data),
+  );
 
   return params;
 }

@@ -53,6 +53,49 @@ function amountLabel(isSale: boolean, isProduct: boolean): string {
   return "Nominal";
 }
 
+function getTransactionFormError(
+  data: TransactionForm,
+  formState: ReturnType<typeof useTransactionForm>,
+  selectedProduct: { current_stock?: number } | undefined,
+  stockAfterSale: number | null,
+): { field: string; message: string } | null {
+  if (formState.showParty && !data.partyName?.trim()) {
+    return { field: "partyName", message: "Isi nama pihak" };
+  }
+  const needsCashAccount = formState.showCashAccount || (formState.showPaymentStatus && data.paymentStatus !== "unpaid");
+  if (needsCashAccount && !data.cashAccountId) {
+    return { field: "cashAccountId", message: "Pilih akun kas/bank" };
+  }
+  if (formState.showDestinationAccount && !data.destinationCashAccountId) {
+    return { field: "destinationCashAccountId", message: "Pilih akun tujuan" };
+  }
+  if (formState.showCategory && !data.productId && !data.debitAccountId) {
+    return { field: "debitAccountId", message: "Pilih akun CoA" };
+  }
+  if (data.transactionType === "cash_transfer" && data.cashAccountId === data.destinationCashAccountId) {
+    return { field: "destinationCashAccountId", message: "Akun tujuan harus berbeda dari sumber" };
+  }
+  if (formState.showPaymentStatus && data.paymentStatus === "partial" && (!data.partialAmount || data.partialAmount <= 0)) {
+    return { field: "partialAmount", message: "Isi jumlah pembayaran sebagian" };
+  }
+  if (formState.showPaymentStatus && data.paymentStatus === "partial" && (data.partialAmount ?? 0) >= data.amount) {
+    return { field: "partialAmount", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal transaksi" };
+  }
+  if (data.productId && (!data.quantity || data.quantity <= 0)) {
+    return { field: "quantity", message: "Isi kuantitas produk (minimal 1)" };
+  }
+  if (data.productId && (data.unitPrice === undefined || data.unitPrice < 0)) {
+    return { field: "unitPrice", message: "Isi harga satuan produk" };
+  }
+  if (data.productId && formState.isSaleType && stockAfterSale !== null && stockAfterSale < 0) {
+    return {
+      field: "quantity",
+      message: "Stok tidak mencukupi. Stok tersisa: " + formatNumber(selectedProduct?.current_stock ?? 0),
+    };
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
@@ -196,68 +239,11 @@ export function NewTransactionPage() {
   const onSubmit = (data: TransactionForm) => {
     if (submitInFlightRef.current || successTransactionId) return;
 
-    if (formState.showParty && !data.partyName?.trim()) {
-      formState.setError("partyName", { type: "manual", message: "Isi nama pihak" });
+    const formError = getTransactionFormError(data, formState, selectedProduct, stockAfterSale);
+    if (formError) {
+      formState.setError(formError.field as Parameters<typeof formState.setError>[0], { type: "manual", message: formError.message });
       scrollToError();
       return;
-    }
-
-    const needsCashAccount = formState.showCashAccount || (formState.showPaymentStatus && data.paymentStatus !== "unpaid");
-    if (needsCashAccount && !data.cashAccountId) {
-      formState.setError("cashAccountId", { type: "manual", message: "Pilih akun kas/bank" });
-      scrollToError();
-      return;
-    }
-
-    if (formState.showDestinationAccount && !data.destinationCashAccountId) {
-      formState.setError("destinationCashAccountId", { type: "manual", message: "Pilih akun tujuan" });
-      scrollToError();
-      return;
-    }
-
-    // Validate debit account for expense/purchase types (when no product selected)
-    if (formState.showCategory && !data.productId && !data.debitAccountId) {
-      formState.setError("debitAccountId", { type: "manual", message: "Pilih akun CoA" });
-      scrollToError();
-      return;
-    }
-
-    if (data.transactionType === "cash_transfer" && data.cashAccountId === data.destinationCashAccountId) {
-      formState.setError("destinationCashAccountId", { type: "manual", message: "Akun tujuan harus berbeda dari sumber" });
-      scrollToError();
-      return;
-    }
-
-    if (formState.showPaymentStatus && data.paymentStatus === "partial") {
-      if (!data.partialAmount || data.partialAmount <= 0) {
-        formState.setError("partialAmount", { type: "manual", message: "Isi jumlah pembayaran sebagian" });
-        scrollToError();
-        return;
-      }
-      if (data.partialAmount >= data.amount) {
-        formState.setError("partialAmount", { type: "manual", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal transaksi" });
-        scrollToError();
-        return;
-      }
-    }
-
-    if (data.productId) {
-      if (!data.quantity || data.quantity <= 0) {
-        formState.setError("quantity", { type: "manual", message: "Isi kuantitas produk (minimal 1)" });
-        scrollToError();
-        return;
-      }
-      if (data.unitPrice === undefined || data.unitPrice < 0) {
-        formState.setError("unitPrice", { type: "manual", message: "Isi harga satuan produk" });
-        scrollToError();
-        return;
-      }
-      // Block sale if stock insufficient
-      if (formState.isSaleType && stockAfterSale !== null && stockAfterSale < 0) {
-        formState.setError("quantity", { type: "manual", message: "Stok tidak mencukupi. Stok tersisa: " + formatNumber(selectedProduct?.current_stock ?? 0) });
-        scrollToError();
-        return;
-      }
     }
 
     submitInFlightRef.current = true;

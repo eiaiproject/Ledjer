@@ -655,6 +655,28 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Filters                                                            */
+/* ------------------------------------------------------------------ */
+
+function accountMatchesFilters(
+  a: Account,
+  search: string,
+  activeTab: Tab,
+  typeFilter: string,
+): boolean {
+  if (search) {
+    const q = search.toLowerCase();
+    const matches =
+      a.code.toString().includes(q) || a.name.toLowerCase().includes(q);
+    if (!matches) return false;
+  }
+  if (activeTab === "all" && typeFilter !== "all" && a.account_type !== typeFilter) {
+    return false;
+  }
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -677,20 +699,9 @@ export function AccountsPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  const filteredAccounts = (accounts || []).filter((a) => {
-    // Search filter
-    if (search) {
-      const q = search.toLowerCase();
-      if (!a.code.toString().includes(q) && !a.name.toLowerCase().includes(q)) {
-        return false;
-      }
-    }
-    // Type filter (only for "all" tab)
-    if (activeTab === "all" && typeFilter !== "all" && a.account_type !== typeFilter) {
-      return false;
-    }
-    return true;
-  });
+  const filteredAccounts = (accounts || []).filter((a) =>
+    accountMatchesFilters(a, search, activeTab, typeFilter),
+  );
 
   const cashBankAccounts = filteredAccounts.filter((a) => a.is_cash_account || [1110, 1120, 1130, 1121, 1122, 1123].includes(a.code));
 

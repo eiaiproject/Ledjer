@@ -153,6 +153,36 @@ function LedgerSkeleton() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Account grouping                                                   */
+/* ------------------------------------------------------------------ */
+
+function buildAccountGroups(
+  ledger: LedgerEntry[] | undefined,
+  showAllAccounts: boolean,
+): AccountGroup[] | null {
+  if (!ledger || !showAllAccounts) return null;
+  const groups: Record<string, AccountGroup> = {};
+  for (const entry of ledger) {
+    const key = String(entry.account_code);
+    if (!groups[key]) {
+      groups[key] = {
+        code: entry.account_code,
+        name: entry.account_name,
+        entries: [],
+        totalDebit: 0,
+        totalCredit: 0,
+        runningBalance: 0,
+      };
+    }
+    groups[key].entries.push(entry);
+    groups[key].totalDebit += entry.debit;
+    groups[key].totalCredit += entry.credit;
+    groups[key].runningBalance = entry.running_balance;
+  }
+  return Object.values(groups).sort((a, b) => a.code - b.code);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -194,22 +224,10 @@ export function GeneralLedgerPage() {
   const selectedAccount = accounts?.find((a) => a.id === accountId);
   const showAllAccounts = accountId === "all";
 
-  // Group entries by account
-  const accountGroups = useMemo(() => {
-    if (!ledger || !showAllAccounts) return null;
-    const groups: Record<string, AccountGroup> = {};
-    for (const entry of ledger) {
-      const key = String(entry.account_code);
-      if (!groups[key]) {
-        groups[key] = { code: entry.account_code, name: entry.account_name, entries: [], totalDebit: 0, totalCredit: 0, runningBalance: 0 };
-      }
-      groups[key].entries.push(entry);
-      groups[key].totalDebit += entry.debit;
-      groups[key].totalCredit += entry.credit;
-      groups[key].runningBalance = entry.running_balance;
-    }
-    return Object.values(groups).sort((a, b) => a.code - b.code);
-  }, [ledger, showAllAccounts]);
+  const accountGroups = useMemo(
+    () => buildAccountGroups(ledger, showAllAccounts),
+    [ledger, showAllAccounts],
+  );
 
   // Compute running balance for single account view
   const entriesWithBalance = useMemo(() => {
