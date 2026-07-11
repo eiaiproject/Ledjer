@@ -127,6 +127,13 @@ export interface VoidTransactionResult {
   status: "voided";
 }
 
+export interface SettleTransactionResult {
+  settle_transaction_id: string;
+  settle_transaction_number: string;
+  journal_entry_id: string;
+  status: "settled";
+}
+
 interface OrganizationRow {
   books_start_date: string;
 }
@@ -243,6 +250,17 @@ const TRANSACTION_TYPES = new Set<TransactionType>([
   "owner_draw",
   "cash_transfer",
 ]);
+
+/**
+ * Format an integer (minor-unit) amount as an IDR string, e.g. 15000 -> "Rp 15.000".
+ */
+function formatIDRMinor(amount: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
 export async function listTransactions(
   db: D1Database,
@@ -386,7 +404,9 @@ export async function postTransaction(
   // ponytail: Atomic stock reservation via optimistic lock on current_stock_milli.
   // Prevents race-condition overselling: two concurrent requests cannot both pass
   // the WHERE current_stock_milli = ? check.
-  let reservedStock: { nextStock: number; unitCost: number } | null = null;
+  // The UPDATE is added to the executeBatch statements array below so stock
+  // mutation and journal inserts succeed or fail together atomically.
+  let reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null = null;
   const isStockTxn = product && quantityMilli !== null && unitPriceMinor !== null
     && (transactionType === "cash_purchase" || transactionType === "credit_purchase"
         || transactionType === "cash_sale" || transactionType === "credit_sale");
@@ -398,12 +418,7 @@ export async function postTransaction(
     const unitCost = isPurchase ? unitPriceMinor! : productCostMinor(product!);
     if (!isPurchase && unitCost <= 0) throw badRequest("product_zero_cost", "Product cost must be set before sale");
     const nextAverage = isPurchase ? nextAverageCostMinor(product!, quantityMilli!, unitPriceMinor!) : product!.average_cost_minor;
-    const res = await db.prepare(
-      `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
-       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`
-    ).bind(nextStock, nextAverage, nextAverage, current, product!.id, organizationId, product!.current_stock_milli).run();
-    if (!res.meta?.changes) throw conflict("insufficient_stock", "Insufficient stock");
-    reservedStock = { nextStock, unitCost };
+    reservedStock = { nextStock, unitCost, nextAverage: nextAverage };
   }
 
   const resolved = await resolvePostingAccounts(db, organizationId, transactionType, {
@@ -506,11 +521,17 @@ export async function postTransaction(
     }),
   ];
 
-  // Stock movement INSERT only (stock UPDATE already done atomically above)
+  // Stock UPDATE (optimistic lock) + INSERT stock_movements inside the batch
   if (reservedStock && product) {
     const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
     const quantityDelta = isPurchase ? quantityMilli! : -quantityMilli!;
     statements.push(
+      statement(
+        db,
+        `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+         WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+        [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product.id, organizationId, product.current_stock_milli],
+      ),
       insertStockMovementStatement(db, {
         organizationId, productId: product.id, transactionId,
         movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
@@ -548,6 +569,199 @@ export async function postTransaction(
     throw e;
   }
   return buildPostResult(db, organizationId, transactionId);
+}
+
+/**
+ * Settle a partially-paid credit transaction by posting a second transaction
+ * (receive_receivable or pay_payable) for the remaining amount, then void the
+ * original transaction. The original must have payment_status = 'partial' and
+ * be of type credit_sale or credit_purchase.
+ */
+export async function settleAndVoidTransaction(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  transactionId: string,
+  cashAccountId: string,
+  idempotencyKey: string,
+  requestId?: string,
+): Promise<SettleTransactionResult> {
+  const normalizedKey = normalizeIdempotencyKey(idempotencyKey);
+  const existing = await getTransactionByIdempotencyKey(db, organizationId, normalizedKey);
+  if (existing) {
+    if (existing.original_transaction_id === transactionId) {
+      return {
+        settle_transaction_id: existing.id,
+        settle_transaction_number: existing.transaction_number,
+        journal_entry_id: existing.id,
+        status: "settled",
+      };
+    }
+    throw conflict("idempotency_key_conflict", "Idempotency key is already used");
+  }
+
+  const original = await getTransactionRow(db, organizationId, transactionId);
+  if (!original) throw notFound("transaction_not_found", "Transaction not found");
+  if (original.status !== "posted") {
+    throw conflict("transaction_not_posted", "Only posted transactions can be settled");
+  }
+  if (original.payment_status !== "partial") {
+    throw conflict("transaction_not_partial", "Only partially paid credit transactions can be settled");
+  }
+  if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
+    throw conflict("transaction_not_credit", "Only credit transactions can be settled");
+  }
+
+  await assertPeriodOpen(db, organizationId, original.transaction_date);
+
+  const cashAccount = await getAccountById(db, organizationId, cashAccountId);
+  assertCashAccount(cashAccount, "cash_account_invalid");
+
+  // Calculate remaining amount (original amount - already paid partial)
+  const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
+  const partialAmountDebit = originalLines.find(
+    (l) => l.account_id === cashAccountId || original.cash_account_id === cashAccountId,
+  );
+  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
+  const remainingMinor = original.amount_minor - partialAmountMinor;
+
+  if (remainingMinor <= 0) {
+    throw badRequest("already_fully_paid", "This transaction is already fully paid");
+  }
+
+  const current = Date.now();
+  const settleTransactionId = generateId();
+  const journalEntryId = generateId();
+  const settleTransactionNumber = await generateTransactionNumber(db, organizationId, original.transaction_date);
+  const settleEntryNumber = await generateEntryNumber(db, organizationId);
+
+  const isSale = original.transaction_type === "credit_sale";
+  const settleType = isSale ? "receive_receivable" : "pay_payable";
+  const arApAccountCode = isSale ? "1200" : "2100";
+  const arApAccount = await accountByCode(db, organizationId, arApAccountCode);
+
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, organization_id, transaction_number, transaction_date,
+         transaction_type, amount_minor, party_id, category_name,
+         cash_account_id, description, notes, status, idempotency_key,
+         posted_at, posted_by, original_transaction_id,
+         created_by, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        settleTransactionId,
+        organizationId,
+        settleTransactionNumber,
+        original.transaction_date,
+        settleType,
+        remainingMinor,
+        original.party_id,
+        original.category_name,
+        cashAccountId,
+        `Pelunasan: ${original.description}`,
+        `Settle remaining ${formatIDRMinor(remainingMinor)} for ${original.transaction_number}`,
+        normalizedKey,
+        current,
+        userId,
+        transactionId,
+        userId,
+        current,
+        current,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, entry_number, entry_date, entry_type,
+         transaction_id, description, status, posted_at, posted_by, created_at
+       ) VALUES (?, ?, ?, ?, 'normal', ?, ?, 'posted', ?, ?, ?)`,
+      [
+        journalEntryId,
+        organizationId,
+        settleEntryNumber,
+        original.transaction_date,
+        settleTransactionId,
+        `Pelunasan sisa: ${formatIDRMinor(remainingMinor)}`,
+        current,
+        userId,
+        current,
+      ],
+    ),
+    // Debit cash account, credit AR/AP for remaining amount
+    insertJournalLineStatement(
+      db,
+      organizationId,
+      journalEntryId,
+      {
+        accountId: cashAccountId,
+        debitMinor: isSale ? remainingMinor : 0,
+        creditMinor: isSale ? 0 : remainingMinor,
+        description: `Pelunasan: ${original.transaction_number}`,
+      },
+      1,
+      current,
+    ),
+    insertJournalLineStatement(
+      db,
+      organizationId,
+      journalEntryId,
+      {
+        accountId: arApAccount.id,
+        debitMinor: isSale ? 0 : remainingMinor,
+        creditMinor: isSale ? remainingMinor : 0,
+        description: `Pelunasan: ${original.transaction_number}`,
+      },
+      2,
+      current,
+    ),
+    insertAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityId: settleTransactionId,
+      action: "settle",
+      before: { original_transaction_id: transactionId, remaining_minor: remainingMinor },
+      after: { settle_transaction_type: settleType },
+      reason: null,
+      requestId,
+      current,
+    }),
+  ];
+
+  // Update original transaction's payment_status to 'paid' so it can be voided
+  statements.push(
+    statement(
+      db,
+      `UPDATE transactions
+       SET payment_status = 'paid',
+           updated_at = ?
+       WHERE id = ? AND organization_id = ?`,
+      [current, transactionId, organizationId],
+    ),
+  );
+
+  try {
+    await executeBatch(db, statements);
+  } catch (e) {
+    const retry = await getTransactionByIdempotencyKey(db, organizationId, normalizedKey);
+    if (retry) {
+      return {
+        settle_transaction_id: retry.id,
+        settle_transaction_number: retry.transaction_number,
+        journal_entry_id: retry.id,
+        status: "settled",
+      };
+    }
+    throw e;
+  }
+
+  return {
+    settle_transaction_id: settleTransactionId,
+    settle_transaction_number: settleTransactionNumber,
+    journal_entry_id: journalEntryId,
+    status: "settled",
+  };
 }
 
 export async function voidTransaction(
@@ -593,8 +807,8 @@ export async function voidTransaction(
   const reason = normalizeRequiredText(input.reason, "void_reason_required");
   const voidDate = input.voidDate
     ? normalizeDate(input.voidDate, "void_date_invalid")
-    // ponytail: Use Intl for client timezone. Falls back to UTC if Intl unavailable.
-    : new Date().toLocaleDateString("en-CA"); // en-CA gives YYYY-MM-DD in local tz
+    // ponytail: Use Intl.DateTimeFormat with WIB timezone for correct date.
+    : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
   await assertPeriodOpen(db, organizationId, original.transaction_date);
   await assertPeriodOpen(db, organizationId, voidDate);
 
@@ -687,7 +901,9 @@ export async function voidTransaction(
   ];
 
   if (product && productLine?.quantity_milli) {
-    // ponytail: Atomic stock restore via optimistic lock (same pattern as postTransaction)
+    // ponytail: Atomic stock restore via optimistic lock — UPDATE is in the
+    // executeBatch statements array so stock mutation and reversal journal
+    // inserts succeed or fail together atomically.
     const isSale = original.transaction_type === "cash_sale" || original.transaction_type === "credit_sale";
     const isPurchase = original.transaction_type === "cash_purchase" || original.transaction_type === "credit_purchase";
     if (isSale || isPurchase) {
@@ -696,12 +912,14 @@ export async function voidTransaction(
       if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
       const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
       const unitCostMinor = stockMovement?.unit_cost_minor ?? productLine.unit_price_minor ?? product.average_cost_minor;
-      const res = await db.prepare(
-        `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
-         WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`
-      ).bind(nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli).run();
-      if (!res.meta?.changes) throw conflict("insufficient_stock", "Insufficient stock");
+      // Add stock UPDATE to the batch statements array
       statements.push(
+        statement(
+          db,
+          `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+           WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+          [nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli],
+        ),
         insertStockMovementStatement(db, {
           organizationId, productId: product.id, transactionId: reversalTransactionId,
           movementDate: voidDate, movementType: "void",
@@ -1720,6 +1938,9 @@ function toMoneyMinor(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     throw badRequest("money_invalid", "Money value must be greater than zero");
   }
+  if (!Number.isInteger(value)) {
+    throw badRequest("money_not_integer", "Money value must be a whole number of rupiah");
+  }
   return Math.round(value);
 }
 
@@ -1752,7 +1973,7 @@ function notesWithPartial(
   paymentStatus: PaymentStatus,
 ): string | null {
   if (paymentStatus !== "partial" || partialAmountMinor === null) return notes;
-  const suffix = `Dibayar sebagian: ${partialAmountMinor}`;
+  const suffix = `Dibayar sebagian: ${formatIDRMinor(partialAmountMinor)}`;
   return notes ? `${notes}\n${suffix}` : suffix;
 }
 
