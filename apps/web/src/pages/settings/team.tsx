@@ -169,12 +169,12 @@ function PendingInvitationCard({
   onRefreshLink,
   onRevoke,
   actionPending,
-}: {
+}: Readonly<{
   invitation: TeamInvitation;
   onRefreshLink: () => void;
   onRevoke: () => void;
   actionPending: boolean;
-}) {
+}>) {
   const expiresAt = formatEpochDate(invitation.expires_at);
 
   return (

@@ -341,11 +341,13 @@ export function GeneralLedgerPage() {
       </div>
 
       {/* Content */}
-      {dateRangeInvalid ? (
+      {dateRangeInvalid && (
         <ErrorState message="Perbaiki rentang tanggal untuk melihat buku besar." />
-      ) : isLoading ? (
+      )}
+      {!dateRangeInvalid && isLoading && (
         <LedgerSkeleton />
-      ) : (
+      )}
+      {!dateRangeInvalid && !isLoading && (
         <>
           {/* Summary bar */}
           {ledger && ledger.length > 0 && (
@@ -366,34 +368,34 @@ export function GeneralLedgerPage() {
           <Card>
             {/* Mobile: grouped cards */}
             <div className="space-y-4 p-4 lg:hidden">
-              {ledger && ledger.length > 0 ? (
-                showAllAccounts && accountGroups ? (
-                  accountGroups.map((group) => (
-                    <AccountGroupSection key={group.code} group={group} showAccount />
-                  ))
-                ) : (
-                  <div className="space-y-2">
-                    {entriesWithBalance?.map((entry) => (
-                      <LedgerMobileCard key={entry.journal_entry_id} entry={entry} />
-                    ))}
-                  </div>
-                )
-              ) : (
+              {ledger && ledger.length > 0 && showAllAccounts && accountGroups && (
+                accountGroups.map((group) => (
+                  <AccountGroupSection key={group.code} group={group} showAccount />
+                ))
+              )}
+              {ledger && ledger.length > 0 && (!showAllAccounts || !accountGroups) && (
+                <div className="space-y-2">
+                  {entriesWithBalance?.map((entry) => (
+                    <LedgerMobileCard key={entry.journal_entry_id} entry={entry} />
+                  ))}
+                </div>
+              )}
+              {(!ledger || ledger.length === 0) && (
                 <EmptyLedgerState />
               )}
             </div>
 
             {/* Desktop: table per account group */}
             <div className="hidden lg:block space-y-4">
-              {ledger && ledger.length > 0 ? (
-                showAllAccounts && accountGroups ? (
-                  accountGroups.map((group) => (
-                    <AccountGroupTableSection key={group.code} group={group} />
-                  ))
-                ) : (
-                  <SingleAccountTable entries={entriesWithBalance || []} />
-                )
-              ) : (
+              {ledger && ledger.length > 0 && showAllAccounts && accountGroups && (
+                accountGroups.map((group) => (
+                  <AccountGroupTableSection key={group.code} group={group} />
+                ))
+              )}
+              {ledger && ledger.length > 0 && (!showAllAccounts || !accountGroups) && (
+                <SingleAccountTable entries={entriesWithBalance || []} />
+              )}
+              {(!ledger || ledger.length === 0) && (
                 <EmptyLedgerState />
               )}
             </div>

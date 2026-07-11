@@ -95,14 +95,16 @@ export function BalanceSheetPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {isLoading && (
         <PageSpinner />
-      ) : !data?.length ? (
+      )}
+      {!isLoading && !data?.length && (
         <EmptyState
           title="Belum ada data neraca"
           description="Belum ada saldo neraca pada tanggal ini."
         />
-      ) : (
+      )}
+      {!isLoading && data?.length && (
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Assets */}
           <Card>

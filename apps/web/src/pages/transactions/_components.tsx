@@ -84,7 +84,9 @@ function flattenErrors(
   for (const [key, value] of Object.entries(errors)) {
     const fieldPath = prefix ? `${prefix}.${key}` : key;
     if (value && typeof value === "object" && "message" in value && value.message) {
-      result.push({ field: fieldPath, message: String(value.message) });
+      const msg =
+        typeof value.message === "string" ? value.message : String(value.message);
+      result.push({ field: fieldPath, message: msg });
     } else if (value && typeof value === "object" && !Array.isArray(value)) {
       result.push(...flattenErrors(value as FieldErrors<any>, fieldPath));
     }
@@ -476,6 +478,12 @@ export function ProductDetailFields({
   quantityError,
   unitPriceError,
 }: ProductDetailFieldsProps) {
+  let stockBadgeClass = "text-text-tertiary";
+  if (stockAfterSale !== null && stockAfterSale < 0) {
+    stockBadgeClass = "border border-error-border bg-error-bg text-error";
+  } else if (stockAfterSale === 0) {
+    stockBadgeClass = "border border-warning-border bg-warning-bg text-warning";
+  }
   return (
     <div className="min-w-0 space-y-4 rounded-lg border border-wood-100 bg-cream-100 p-4">
       <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
@@ -533,11 +541,7 @@ export function ProductDetailFields({
         <div
           className={cn(
             "flex min-w-0 items-start gap-2 rounded-md px-3 py-2 text-sm",
-            stockAfterSale < 0
-              ? "border border-error-border bg-error-bg text-error"
-              : stockAfterSale === 0
-              ? "border border-warning-border bg-warning-bg text-warning"
-              : "text-text-tertiary"
+            stockBadgeClass
           )}
           role={stockAfterSale < 0 ? "alert" : undefined}
         >
@@ -662,8 +666,8 @@ export function ReviewPanel({
           </button>
           {journalOpen && (
             <div className="mt-3 space-y-2">
-              {debit.map((line, index) => (
-                <div key={`debit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+              {debit.map((line) => (
+                <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
                   <span className="min-w-0 break-words text-text-secondary">
                     <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
                     {line.account}
@@ -671,8 +675,8 @@ export function ReviewPanel({
                   <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
                 </div>
               ))}
-              {credit.map((line, index) => (
-                <div key={`credit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+              {credit.map((line) => (
+                <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
                   <span className="min-w-0 break-words text-text-secondary">
                     <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
                     {line.account}
@@ -694,8 +698,8 @@ export function ReviewPanel({
             <div className="space-y-2 border-t border-wood-100 pt-3">
               {hasPreview ? (
                 <>
-                  {debit.map((line, index) => (
-                    <div key={`debit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  {debit.map((line) => (
+                    <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
                       <span className="min-w-0 break-words text-text-secondary">
                         <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
                         {line.account}
@@ -703,8 +707,8 @@ export function ReviewPanel({
                       <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
                     </div>
                   ))}
-                  {credit.map((line, index) => (
-                    <div key={`credit-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  {credit.map((line) => (
+                    <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
                       <span className="min-w-0 break-words text-text-secondary">
                         <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
                         {line.account}
@@ -725,8 +729,8 @@ export function ReviewPanel({
           <div>
             <h4 className="mb-2 text-sm font-semibold text-text-primary">Pengaruh Saldo</h4>
             <div className="space-y-2 border-t border-wood-100 pt-3">
-              {[...debit, ...credit].map((line, index) => (
-                <div key={`impact-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+              {[...debit, ...credit].map((line) => (
+                <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
                   <span className="min-w-0 break-words text-text-secondary">{line.account}</span>
                   <span className={cn("shrink-0 text-right num-mono font-medium", line.direction === "increase" ? "text-success" : "text-error")}>
                     {line.direction === "increase" ? "+" : "-"}

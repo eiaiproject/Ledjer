@@ -103,13 +103,14 @@ export function ResetPasswordPage() {
               Masukkan password baru untuk akun Anda.
             </p>
 
-            {success ? (
+            {success && (
               <output
                 className="mt-6 rounded-lg bg-success/10 p-3 text-sm text-success"
               >
                 Password berhasil diperbarui. Mengarahkan ke halaman masuk…
               </output>
-            ) : !session ? (
+            )}
+            {!success && !session && (
               <div className="mt-6 space-y-4">
                 <div
                   className="rounded-lg bg-warning/10 p-3 text-sm text-warning"
@@ -126,7 +127,8 @@ export function ResetPasswordPage() {
                   Kembali ke halaman masuk
                 </Button>
               </div>
-            ) : (
+            )}
+            {!success && session && (
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
                 {error && (
                   <div

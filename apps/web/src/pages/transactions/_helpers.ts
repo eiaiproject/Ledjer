@@ -292,8 +292,10 @@ export function buildPreview({
       if (paymentStatus === "paid") {
         debit.push({ account: cashAccountLabel, amount, direction: "increase" });
       } else if (paymentStatus === "partial") {
-        debit.push({ account: cashAccountLabel, amount: partialAmount, direction: "increase" });
-        debit.push({ account: "Piutang Usaha", amount: remaining, direction: "increase" });
+        debit.push(
+          { account: cashAccountLabel, amount: partialAmount, direction: "increase" },
+          { account: "Piutang Usaha", amount: remaining, direction: "increase" },
+        );
       } else {
         debit.push({ account: "Piutang Usaha", amount, direction: "increase" });
       }
@@ -314,8 +316,10 @@ export function buildPreview({
       if (paymentStatus === "paid") {
         credit.push({ account: cashAccountLabel, amount, direction: "decrease" });
       } else if (paymentStatus === "partial") {
-        credit.push({ account: cashAccountLabel, amount: partialAmount, direction: "decrease" });
-        credit.push({ account: "Utang Usaha", amount: remaining, direction: "increase" });
+        credit.push(
+          { account: cashAccountLabel, amount: partialAmount, direction: "decrease" },
+          { account: "Utang Usaha", amount: remaining, direction: "increase" },
+        );
       } else {
         credit.push({ account: "Utang Usaha", amount, direction: "increase" });
       }

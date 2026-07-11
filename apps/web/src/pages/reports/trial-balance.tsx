@@ -87,14 +87,16 @@ export function TrialBalancePage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {isLoading && (
         <PageSpinner />
-      ) : !data?.length ? (
+      )}
+      {!isLoading && !data?.length && (
         <EmptyState
           title="Belum ada saldo"
           description="Belum ada saldo akun pada tanggal ini."
         />
-      ) : (
+      )}
+      {!isLoading && data?.length && (
         <Card>
           {/* Mobile: card per account */}
           <div className="space-y-3 px-4 py-4 sm:hidden ledger-mobile-card-stack">

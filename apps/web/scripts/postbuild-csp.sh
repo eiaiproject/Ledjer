@@ -10,8 +10,9 @@ HTML="dist/client/index.html"
 # Cross-platform sed in-place (works on macOS and Linux)
 sed_inplace() {
   local tmp
+  local pattern="$1"
   tmp=$(mktemp)
-  sed "$1" "$HTML" > "$tmp" && mv "$tmp" "$HTML"
+  sed "$pattern" "$HTML" > "$tmp" && mv "$tmp" "$HTML"
 }
 
 # Resolve Sentry connect-src from DSN

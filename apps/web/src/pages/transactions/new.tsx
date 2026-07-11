@@ -36,6 +36,24 @@ import {
 } from "./_hooks";
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function transactionHint(type: string | null): string {
+  if (type === "cash_sale") return "Catat penjualan yang langsung dibayar.";
+  if (type === "credit_sale") return "Catat penjualan yang belum dibayar.";
+  if (type === "cash_purchase") return "Catat pembelian yang langsung dibayar.";
+  if (type === "credit_purchase") return "Catat pembelian dengan utang.";
+  return "Catat transaksi bisnis Anda. Isi dari atas ke bawah.";
+}
+
+function amountLabel(isSale: boolean, isProduct: boolean): string {
+  if (isSale) return "Total Penjualan";
+  if (isProduct) return "Total Pembelian";
+  return "Nominal";
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -275,15 +293,7 @@ export function NewTransactionPage() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Transaksi Baru</h1>
           <p className="mt-1 text-sm text-text-secondary">
-            {selectedType === "cash_sale"
-              ? "Catat penjualan yang langsung dibayar."
-              : selectedType === "credit_sale"
-              ? "Catat penjualan yang belum dibayar."
-              : selectedType === "cash_purchase"
-              ? "Catat pembelian yang langsung dibayar."
-              : selectedType === "credit_purchase"
-              ? "Catat pembelian dengan utang."
-              : "Catat transaksi bisnis Anda. Isi dari atas ke bawah."}
+            {transactionHint(selectedType)}
           </p>
         </div>
         {successTransactionId && <Badge variant="success">Tersimpan, membuka detail...</Badge>}
@@ -403,7 +413,7 @@ export function NewTransactionPage() {
                     <Input
                       ref={field.ref}
                       name={field.name}
-                      label={isSaleType ? "Total Penjualan" : isProductType ? "Total Pembelian" : "Nominal"}
+                      label={amountLabel(isSaleType, isProductType)}
                       value={formatAmountInput(field.value, true)}
                       onBlur={field.onBlur}
                       onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}

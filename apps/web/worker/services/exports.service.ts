@@ -44,7 +44,7 @@ export function csvEscape(value: unknown): string {
     throw badRequest("csv_value_invalid", "CSV export values must be scalar");
   }
 
-  let text = String(value)
+  let text = String(value as string | number | boolean)
     .replaceAll("\r\n", " ")
     .replaceAll("\r", " ")
     .replaceAll("\n", " ");

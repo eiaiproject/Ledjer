@@ -23,14 +23,15 @@ export function Field({ label, error, helperText, required, htmlFor, feedbackId,
         </label>
       )}
       {children}
-      {error ? (
+      {error && (
         <p id={feedbackId} className="mt-1 flex items-start gap-1 break-words text-xs text-error" role="alert">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0">{error}</span>
         </p>
-      ) : helperText ? (
+      )}
+      {!error && helperText && (
         <p id={feedbackId} className="mt-1 break-words text-xs text-text-tertiary">{helperText}</p>
-      ) : null}
+      )}
     </div>
   );
 }

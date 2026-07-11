@@ -106,12 +106,12 @@ function ToastContainer({
   onDismiss,
   onPause,
   onResume,
-}: {
+}: Readonly<{
   toasts: ActiveToast[];
   onDismiss: (id: string) => void;
   onPause: (id: string) => void;
   onResume: (id: string, duration: number) => void;
-}) {
+}>) {
   if (toasts.length === 0) return null;
 
   return (

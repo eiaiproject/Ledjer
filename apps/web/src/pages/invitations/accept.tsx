@@ -79,7 +79,7 @@ export function AcceptInvitationPage() {
 
           <Card className="p-6">
             <CardContent>
-              {!token ? (
+              {!token && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-error/10 text-error">
                     <AlertTriangle className="h-6 w-6" />
@@ -92,7 +92,8 @@ export function AcceptInvitationPage() {
                     Masuk ke Ledjer
                   </Button>
                 </div>
-              ) : status === "success" ? (
+              )}
+              {token && status === "success" && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-100 text-leaf-700">
                     <CheckCircle2 className="h-6 w-6" />
@@ -122,7 +123,8 @@ export function AcceptInvitationPage() {
                     )}
                   </div>
                 </div>
-              ) : !session ? (
+              )}
+              {token && status !== "success" && !session && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                     <MailCheck className="h-6 w-6" />
@@ -142,7 +144,8 @@ export function AcceptInvitationPage() {
                     </Button>
                   </div>
                 </div>
-              ) : (
+              )}
+              {token && status !== "success" && session && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-100 text-leaf-700">
                     <MailCheck className="h-6 w-6" />

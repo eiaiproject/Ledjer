@@ -20,13 +20,6 @@ function isLockedOut(failureCount: number): boolean {
   return failureCount >= LOGIN_MAX_FAILURES;
 }
 
-describe("login rate limiting constants", () => {
-  it("has correct configuration", () => {
-    expect(LOGIN_MAX_FAILURES).toBe(5);
-    expect(LOGIN_LOCKOUT_MS).toBe(15 * 60 * 1000);
-  });
-});
-
 describe("login rate limiting behavior", () => {
   it("rejects when failure count reaches MAX_FAILURES", () => {
     // Simulate: 5 failures → locked

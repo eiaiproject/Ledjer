@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -37,14 +37,19 @@ function localDate(offsetDays = 0) {
 function StatusBadge({ status }: { readonly status: string }) {
   const variant = statusVariant(status);
   const label = statusLabel(status);
-  const Icon = status === "posted" ? Check : status === "voided" ? X : ArrowRight;
-  
+
   return (
     <Badge variant={variant} size="sm">
-      <Icon className="h-3 w-3" />
+      <StatusIcon status={status} />
       {label}
     </Badge>
   );
+}
+
+function StatusIcon({ status }: { readonly status: string }) {
+  if (status === "posted") return <Check className="h-3 w-3" />;
+  if (status === "voided") return <X className="h-3 w-3" />;
+  return <ArrowRight className="h-3 w-3" />;
 }
 
 export function TransactionListPage() {
@@ -113,6 +118,30 @@ export function TransactionListPage() {
     setToDate(DEFAULT_TO);
     setPage(0);
   };
+
+  const emptyTitle = filtersActive
+    ? "Tidak ada transaksi yang cocok"
+    : "Belum ada transaksi";
+  const emptyDescription = filtersActive
+    ? "Coba ubah filter atau rentang tanggal."
+    : "Catat transaksi pertama untuk mulai membentuk jurnal.";
+  let emptyAction: ReactNode = undefined;
+  if (filtersActive) {
+    emptyAction = (
+      <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
+        Reset filter
+      </Button>
+    );
+  } else if (canCreateTransaction) {
+    emptyAction = (
+      <Link
+        to="/transactions/new"
+        className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600"
+      >
+        Catat Transaksi Pertama
+      </Link>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -281,39 +310,29 @@ export function TransactionListPage() {
 
       {/* Transaction list */}
       <section className="rounded-xl border border-wood-200 bg-surface-elevated">
-        {error ? (
+        {error && (
           <div className="p-8">
             <ErrorState error={error} onRetry={refetch} />
           </div>
-        ) : isLoading ? (
+        )}
+        {!error && isLoading && (
           <div className="p-4">
             <TransactionListSkeleton />
           </div>
-        ) : !transactions?.length ? (
+        )}
+        {!error && !isLoading && !transactions?.length && (
           <EmptyState
             icon={<Receipt className="h-8 w-8" />}
-            title={filtersActive ? "Tidak ada transaksi yang cocok" : "Belum ada transaksi"}
-            description={filtersActive ? "Coba ubah filter atau rentang tanggal." : "Catat transaksi pertama untuk mulai membentuk jurnal."}
-            action={
-              filtersActive ? (
-                <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
-                  Reset filter
-                </Button>
-              ) : canCreateTransaction ? (
-                <Link
-                  to="/transactions/new"
-                  className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600"
-                >
-                  Catat Transaksi Pertama
-                </Link>
-              ) : undefined
-            }
+            title={emptyTitle}
+            description={emptyDescription}
+            action={emptyAction}
           />
-        ) : (
+        )}
+        {!error && !isLoading && (transactions?.length ?? 0) > 0 && (
         <>
           {/* Mobile: Card stack */}
           <div className="divide-y divide-wood-100 sm:hidden">
-            {transactions.map((txn) => (
+            {transactions?.map((txn) => (
               <Link
                 key={txn.id}
                 to={`/transactions/${txn.id}`}
@@ -356,7 +375,7 @@ export function TransactionListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-wood-50">
-                {transactions.map((txn) => (
+                {transactions?.map((txn) => (
                   <tr key={txn.id} className="transition-colors hover:bg-cream-50">
                     <td className="whitespace-nowrap px-4 py-3 text-wood-600">
                       {formatShortDate(txn.transaction_date)}

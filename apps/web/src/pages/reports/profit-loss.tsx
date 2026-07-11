@@ -143,11 +143,13 @@ export function ProfitLossPage() {
       </Card>
 
       {/* Report */}
-      {dateRangeInvalid ? (
+      {dateRangeInvalid && (
         <ErrorState message="Perbaiki rentang tanggal untuk melihat laporan laba rugi." />
-      ) : isLoading ? (
+      )}
+      {!dateRangeInvalid && isLoading && (
         <PageSpinner />
-      ) : (
+      )}
+      {!dateRangeInvalid && !isLoading && (
         <Card>
           <div className="ledger-scroll-x">
             <table className="ledger-table min-w-0 sm:min-w-[680px]">
