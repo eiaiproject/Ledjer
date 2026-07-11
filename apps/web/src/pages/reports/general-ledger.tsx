@@ -368,7 +368,7 @@ export function GeneralLedgerPage() {
       {!dateRangeInvalid && !isLoading && (
         <>
           {/* Summary bar */}
-          {ledger && ledger.length > 0 && (
+          {(ledger?.length ?? 0) > 0 && (
             <div className="flex items-center gap-4 rounded-lg border border-wood-200 bg-surface-elevated px-4 py-2.5">
               <span className="text-xs text-text-tertiary">{ledger.length} entri</span>
               <span className="text-xs text-text-tertiary">·</span>
@@ -391,7 +391,7 @@ export function GeneralLedgerPage() {
                   <AccountGroupSection key={group.code} group={group} showAccount />
                 ))
               )}
-              {ledger && ledger.length > 0 && (!showAllAccounts || !accountGroups) && (
+              {(ledger?.length ?? 0) > 0 && (!showAllAccounts || !accountGroups) && (
                 <div className="space-y-2">
                   {entriesWithBalance?.map((entry) => (
                     <LedgerMobileCard key={entry.journal_entry_id} entry={entry} />
@@ -410,7 +410,7 @@ export function GeneralLedgerPage() {
                   <AccountGroupTableSection key={group.code} group={group} />
                 ))
               )}
-              {ledger && ledger.length > 0 && (!showAllAccounts || !accountGroups) && (
+              {(ledger?.length ?? 0) > 0 && (!showAllAccounts || !accountGroups) && (
                 <SingleAccountTable entries={entriesWithBalance || []} />
               )}
               {(!ledger || ledger.length === 0) && (
