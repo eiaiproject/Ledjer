@@ -42,9 +42,12 @@ jobs:
         run: pnpm --filter web exec playwright install chromium --with-deps
 
       - name: Preflight — production URL is reachable (HTTP 200)
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           echo "Checking production URL: ${{ env.PRODUCTION_URL }}"
-          curl -fsS "${{ env.PRODUCTION_URL }}" -o /dev/null --max-time 15 -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}"
+          curl -fsS "${{ env.PRODUCTION_URL }}" -o /dev/null --max-time 15 -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET"
           echo "✅ Production URL is reachable"
 
       - name: Run production smoke tests

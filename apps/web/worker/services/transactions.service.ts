@@ -378,7 +378,7 @@ export async function postTransaction(
   const destinationCashAccount = await resolveOptionalAccount(db, organizationId, input.destinationCashAccountId);
 
   const { product: initialProduct, quantityMilli, unitPriceMinor } = await resolveProductFields(db, organizationId, input);
-  let product = initialProduct;
+  const product = initialProduct;
   if (product && quantityMilli !== null && unitPriceMinor !== null) {
     validateProductIntent(transactionType, product, quantityMilli, unitPriceMinor, amountMinor);
   }
