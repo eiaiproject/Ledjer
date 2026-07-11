@@ -50,7 +50,6 @@ export interface StockMovementInput {
 
 export interface PublicStockMovement {
   id: string;
-  organization_id: string;
   product_id: string;
   movement_date: string;
   movement_type: StockMovementType;
@@ -474,7 +473,6 @@ function toPublicProduct(row: ProductRow): PublicProduct {
 function toPublicStockMovement(row: StockMovementRow): PublicStockMovement {
   return {
     id: row.id,
-    organization_id: row.organization_id,
     product_id: row.product_id,
     movement_date: row.movement_date,
     movement_type: row.movement_type,
@@ -517,6 +515,9 @@ function nullableText(input: string | null | undefined): string | null {
 function toMoneyMinor(value: number): number {
   if (!Number.isFinite(value) || value < 0) {
     throw badRequest("money_invalid", "Money value must be non-negative");
+  }
+  if (!Number.isInteger(value)) {
+    throw badRequest("money_not_integer", "Money value must be a whole number of rupiah");
   }
   return Math.round(value);
 }
