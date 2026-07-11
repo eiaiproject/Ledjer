@@ -115,14 +115,16 @@ export function currentMonthPeriod(date: Date): {
   periodFrom: string;
   periodTo: string;
 } {
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth();
+  // ponytail: Use local time instead of UTC to avoid timezone drift.
+  const year = date.getFullYear();
+  const month = date.getMonth();
   return {
-    periodFrom: isoDate(new Date(Date.UTC(year, month, 1))),
+    periodFrom: isoDate(new Date(year, month, 1)),
     periodTo: isoDate(date),
   };
 }
 
 function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  // ponytail: toLocaleDateString('en-CA') gives YYYY-MM-DD in local tz.
+  return date.toLocaleDateString("en-CA");
 }

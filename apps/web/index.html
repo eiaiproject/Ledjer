@@ -19,7 +19,9 @@
     <!-- Production CSP. Vite replaces __SENTRY_CONNECT_SRC__ at build time
          with the exact ingest host from VITE_SENTRY_DSN, or removes it if unset.
          For dev/local builds, set LEDJER_CSP_LOCAL=1 for relaxed connect-src. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' __SENTRY_CONNECT_SRC__; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" />
+    <!-- Dev: a relaxed CSP is injected by Vite (see vite.config.ts) so Vite's inline
+         <style> (Tailwind) and React-refresh inline script are not blocked. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' __SENTRY_CONNECT_SRC__; base-uri 'self'; form-action 'self'" />
     <link rel="canonical" href="https://ledjer.id/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/logo-icon.svg" />

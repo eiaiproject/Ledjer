@@ -17,7 +17,12 @@ export async function readJson<T>(
     return schema.parse(body);
   } catch (error) {
     if (error instanceof ZodError) {
-      throw badRequest("validation_error", "Request body is invalid");
+      // Log full body for debugging
+      console.log("[json] Validation failed for", c.req.path, JSON.stringify(body));
+      const details = error.issues
+        .map((i) => `${i.path.join(".")}: ${i.message}`)
+        .join("; ");
+      throw badRequest("validation_error", details || "Request body is invalid");
     }
     throw error;
   }

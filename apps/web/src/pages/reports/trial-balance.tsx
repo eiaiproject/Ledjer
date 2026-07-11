@@ -57,7 +57,7 @@ export function TrialBalancePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="ledger-page space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Neraca Saldo</h1>
         <p className="text-sm text-text-secondary mt-1">
@@ -96,8 +96,50 @@ export function TrialBalancePage() {
         />
       ) : (
         <Card>
-          <div className="ledger-scroll-x">
-            <table className="ledger-table min-w-[720px]">
+          {/* Mobile: card per account */}
+          <div className="space-y-3 px-4 py-4 sm:hidden ledger-mobile-card-stack">
+            {(data || []).map((item) => (
+              <div key={item.account_code} className="overflow-hidden rounded-lg border border-wood-200">
+                <div className="px-4 py-3">
+                  <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
+                  <p className="break-words text-sm font-medium text-wood-800">{item.account_name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-px border-t border-wood-100 bg-wood-100">
+                  <div className="bg-surface-elevated px-4 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-wood-500">Debit</p>
+                    <p className="num-mono text-sm font-medium text-wood-800">
+                      {item.ending_debit > 0 ? formatIDR(item.ending_debit) : "—"}
+                    </p>
+                  </div>
+                  <div className="bg-surface-elevated px-4 py-2">
+                    <p className="text-[11px] uppercase tracking-wide text-wood-500">Kredit</p>
+                    <p className="num-mono text-sm font-medium text-wood-800">
+                      {item.ending_credit > 0 ? formatIDR(item.ending_credit) : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div className={`overflow-hidden rounded-lg border-2 ${isBalanced ? "border-leaf-300" : "border-error"}`}>
+              <div className="grid grid-cols-2 gap-px bg-wood-100">
+                <div className={`px-4 py-2 ${isBalanced ? "bg-leaf-50" : "bg-error/10"}`}>
+                  <p className="text-[11px] uppercase tracking-wide text-wood-500">Total Debit</p>
+                  <p className="num-mono text-sm font-bold text-wood-800">{formatIDR(totalDebit)}</p>
+                </div>
+                <div className={`px-4 py-2 ${isBalanced ? "bg-leaf-50" : "bg-error/10"}`}>
+                  <p className="text-[11px] uppercase tracking-wide text-wood-500">Total Kredit</p>
+                  <p className="num-mono text-sm font-bold text-wood-800">{formatIDR(totalCredit)}</p>
+                </div>
+              </div>
+              <p className={`px-4 py-2 text-center text-sm font-medium ${isBalanced ? "bg-leaf-50 text-leaf-600" : "bg-error/10 text-error"}`}>
+                {isBalanced ? "Neraca saldo seimbang" : `Selisih: ${formatIDR(Math.abs(totalDebit - totalCredit))}`}
+              </p>
+            </div>
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden ledger-scroll-x sm:block">
+            <table className="ledger-table min-w-0 sm:min-w-[720px]">
               <thead>
                 <tr className="border-b border-wood-200">
                   <th className="px-5 py-3 text-left font-medium text-wood-600">Kode</th>
@@ -110,7 +152,7 @@ export function TrialBalancePage() {
                 {(data || []).map((item) => (
                   <tr key={item.account_code} className="border-b border-wood-50 hover:bg-cream-100/50">
                     <td className="px-5 py-2 font-mono text-wood-600">{item.account_code}</td>
-                    <td className="min-w-[240px] max-w-[420px] break-words px-5 py-2 text-wood-800">{item.account_name}</td>
+                    <td className="min-w-0 sm:min-w-[240px] max-w-[420px] break-words px-5 py-2 text-wood-800">{item.account_name}</td>
                     <td className="px-5 py-2 text-right tabular-nums text-wood-800">
                       {item.ending_debit > 0 ? formatIDR(item.ending_debit) : ""}
                     </td>
@@ -129,7 +171,7 @@ export function TrialBalancePage() {
               </tfoot>
             </table>
           </div>
-          <CardContent>
+          <CardContent className="hidden sm:block">
             {isBalanced ? (
               <p className="text-sm font-medium text-leaf-600">Neraca saldo seimbang</p>
             ) : (

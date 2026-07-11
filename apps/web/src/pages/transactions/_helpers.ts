@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Wallet,
 } from "lucide-react";
-import { formatDateInputValue, formatIDR } from "@/lib/utils";
+import { formatIDR } from "@/lib/utils";
 import { TRANSACTION_LABELS } from "@/lib/transactions";
 
 export interface PreviewLine {
@@ -95,6 +95,9 @@ export const TRANSACTION_GROUPS = [
   { label: "Modal Pemilik", types: ["owner_capital", "owner_draw"] },
   { label: "Transfer", types: ["cash_transfer"] },
 ];
+
+/** Top transaction types shown by default on mobile (above the fold) */
+export const MOBILE_PRIORITY_TYPES = ["cash_sale", "cash_purchase", "expense_payment"];
 
 export const PARTY_COPY: Record<string, { label: string; placeholder: string; helper: string }> = {
   credit_sale: {
@@ -203,11 +206,19 @@ export function getSubmitLabel(args: {
   if (successId) return "Transaksi Tersimpan";
   if (loading) return "Menyimpan...";
 
-  const isSale = transactionType === "cash_sale" || transactionType === "credit_sale";
-  const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
-
-  const VERBS = { sale: "Catat Penjualan", purchase: "Catat Pembelian" } as const;
-  const verb = (isSale && VERBS.sale) || (isPurchase && VERBS.purchase) || "Catat Transaksi";
+  const LABELS: Record<string, string> = {
+    cash_sale: "Catat Penjualan",
+    credit_sale: "Catat Penjualan Kredit",
+    receive_receivable: "Catat Penerimaan",
+    cash_purchase: "Catat Pembelian",
+    credit_purchase: "Catat Pembelian Kredit",
+    pay_payable: "Catat Pembayaran Utang",
+    expense_payment: "Catat Beban",
+    owner_capital: "Catat Setoran Modal",
+    owner_draw: "Catat Penarikan",
+    cash_transfer: "Transfer Saldo",
+  };
+  const verb = LABELS[transactionType] || "Catat Transaksi";
   if (amount > 0) {
     return `${verb} ${formatIDR(amount)}`;
   }
@@ -240,7 +251,9 @@ export function addRecentTransactionType(type: string): string[] {
 export function localDate(offsetDays = 0): string {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
-  return formatDateInputValue(date);
+  // ponytail: toLocaleDateString('en-CA') gives YYYY-MM-DD in local tz.
+  // Avoids UTC drift from toISOString().slice(0, 10).
+  return date.toLocaleDateString("en-CA");
 }
 
 export function buildPreview({

@@ -27,6 +27,12 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
+    extraHTTPHeaders: process.env.CF_ACCESS_CLIENT_ID
+      ? {
+          "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID,
+          "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET,
+        }
+      : {},
   },
   projects: [
     {

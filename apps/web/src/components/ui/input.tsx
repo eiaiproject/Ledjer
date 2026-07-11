@@ -33,6 +33,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       id,
       required,
       inputMode,
+      type,
       ...props
     },
     ref
@@ -43,6 +44,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const describedBy = error || helperText ? feedbackId : undefined;
     const resolvedPrefix = isCurrency ? (prefix ?? "Rp") : (prefix ?? leftIcon);
     const numericInputMode = isCurrency || isNumeric ? "numeric" : inputMode;
+    // ponytail: number inputs use text+inputmode to prevent scroll increment
+    const resolvedType = type === "number" ? "text" : type;
 
     return (
       <Field label={label} error={error} helperText={helperText} required={required} htmlFor={inputId} feedbackId={feedbackId} className={containerClassName}>
@@ -56,9 +59,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             required={required}
+            type={resolvedType}
             inputMode={numericInputMode}
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy}
+            dir={isCurrency ? "rtl" : undefined}
             className={cn(
               "w-full rounded-md border bg-cream-50 text-wood-900",
               "placeholder:text-text-muted",

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { ErrorState } from "@/components/ui/error-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -292,11 +293,12 @@ function StaffListContent({
       : "Undang anggota untuk membantu pencatatan dan pengawasan pembukuan.";
 
     return (
-      <div className="mt-4 rounded-lg border border-wood-100 bg-cream-50 p-6 text-center">
-        <Users className="mx-auto h-10 w-10 text-wood-300" />
-        <h3 className="mt-3 text-sm font-medium text-wood-700">{title}</h3>
-        <p className="mx-auto mt-1 max-w-sm text-xs text-wood-500">{body}</p>
-      </div>
+      <EmptyState
+        icon={<Users className="h-8 w-8" />}
+        title={title}
+        description={body}
+        className="mt-4"
+      />
     );
   }
 
@@ -485,7 +487,7 @@ export function TeamSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="ledger-page mx-auto max-w-5xl px-4 py-8">
       <div className="min-w-0 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Tim & Izin</h1>

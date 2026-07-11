@@ -234,6 +234,12 @@ export function NewTransactionPage() {
         scrollToError();
         return;
       }
+      // Block sale if stock insufficient
+      if (formState.isSaleType && stockAfterSale !== null && stockAfterSale < 0) {
+        formState.setError("quantity", { type: "manual", message: "Stok tidak mencukupi. Stok tersisa: " + formatNumber(selectedProduct?.current_stock ?? 0) });
+        scrollToError();
+        return;
+      }
     }
 
     submitInFlightRef.current = true;
@@ -263,7 +269,7 @@ export function NewTransactionPage() {
 
   /* -- Render -- */
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+    <div className="ledger-page mx-auto max-w-6xl px-4 py-6 sm:py-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -593,7 +599,7 @@ export function NewTransactionPage() {
           )}
 
           {/* Submit bar */}
-          <div className="sticky bottom-0 z-sticky -mx-4 border-t border-wood-100 bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
+          <div className="sticky bottom-0 z-[var(--z-sticky)] -mx-4 border-t border-wood-100 bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
             <SubmitBar
               loading={postMutation.isPending}
               disabled={postMutation.isPending || !selectedType}

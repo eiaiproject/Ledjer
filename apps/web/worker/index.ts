@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import type { AppContext } from "./env";
-import { csrf } from "hono/csrf";
 import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
@@ -24,7 +23,19 @@ const app = new Hono<AppContext>();
 app.onError(errorHandler);
 app.use("*", async (c, next) => { c.set("requestId", crypto.randomUUID()); await next(); });
 app.use("*", secureHeaders());
-app.use("/api/*", csrf());
+// ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
+// Built-in csrf() can't access c.env at config time.
+app.use("/api/*", async (c, next) => {
+  const method = c.req.method;
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
+  const origin = c.req.header("Origin") || c.req.header("Referer");
+  if (!origin) return next(); // same-origin or non-browser
+  const allowed = c.env.APP_ORIGIN;
+  if (!allowed) return next(); // dev mode: allow all
+  const ok = origin === allowed || origin.startsWith(allowed + "/");
+  if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
+  return next();
+});
 
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);

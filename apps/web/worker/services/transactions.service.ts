@@ -377,9 +377,33 @@ export async function postTransaction(
   const cashAccount = await resolveOptionalAccount(db, organizationId, input.cashAccountId);
   const destinationCashAccount = await resolveOptionalAccount(db, organizationId, input.destinationCashAccountId);
 
-  const { product, quantityMilli, unitPriceMinor } = await resolveProductFields(db, organizationId, input);
+  const { product: initialProduct, quantityMilli, unitPriceMinor } = await resolveProductFields(db, organizationId, input);
+  let product = initialProduct;
   if (product && quantityMilli !== null && unitPriceMinor !== null) {
     validateProductIntent(transactionType, product, quantityMilli, unitPriceMinor, amountMinor);
+  }
+
+  // ponytail: Atomic stock reservation via optimistic lock on current_stock_milli.
+  // Prevents race-condition overselling: two concurrent requests cannot both pass
+  // the WHERE current_stock_milli = ? check.
+  let reservedStock: { nextStock: number; unitCost: number } | null = null;
+  const isStockTxn = product && quantityMilli !== null && unitPriceMinor !== null
+    && (transactionType === "cash_purchase" || transactionType === "credit_purchase"
+        || transactionType === "cash_sale" || transactionType === "credit_sale");
+  if (isStockTxn) {
+    const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+    const quantityDelta = isPurchase ? quantityMilli! : -quantityMilli!;
+    const nextStock = product!.current_stock_milli + quantityDelta;
+    if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
+    const unitCost = isPurchase ? unitPriceMinor! : productCostMinor(product!);
+    if (!isPurchase && unitCost <= 0) throw badRequest("product_zero_cost", "Product cost must be set before sale");
+    const nextAverage = isPurchase ? nextAverageCostMinor(product!, quantityMilli!, unitPriceMinor!) : product!.average_cost_minor;
+    const res = await db.prepare(
+      `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`
+    ).bind(nextStock, nextAverage, nextAverage, current, product!.id, organizationId, product!.current_stock_milli).run();
+    if (!res.meta?.changes) throw conflict("insufficient_stock", "Insufficient stock");
+    reservedStock = { nextStock, unitCost };
   }
 
   const resolved = await resolvePostingAccounts(db, organizationId, transactionType, {
@@ -482,9 +506,19 @@ export async function postTransaction(
     }),
   ];
 
-  appendPostStockStatements(db, statements, product, quantityMilli, unitPriceMinor, {
-    organizationId, transactionId, transactionType, movementDate: transactionDate, userId, notes: description, current,
-  });
+  // Stock movement INSERT only (stock UPDATE already done atomically above)
+  if (reservedStock && product) {
+    const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+    const quantityDelta = isPurchase ? quantityMilli! : -quantityMilli!;
+    statements.push(
+      insertStockMovementStatement(db, {
+        organizationId, productId: product.id, transactionId,
+        movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
+        quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
+        stockAfterMilli: reservedStock.nextStock, notes: description, userId, current,
+      }),
+    );
+  }
 
   statements.push(
     insertAuditStatement(db, {
@@ -504,7 +538,15 @@ export async function postTransaction(
     }),
   );
 
-  await executeBatch(db, statements);
+  try {
+    await executeBatch(db, statements);
+  } catch (e) {
+    // ponytail: If batch fails due to idempotency race (two concurrent requests
+    // both passed the pre-check), return the existing transaction instead of error.
+    const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+    if (retry) return buildPostResult(db, organizationId, retry.id);
+    throw e;
+  }
   return buildPostResult(db, organizationId, transactionId);
 }
 
@@ -551,7 +593,8 @@ export async function voidTransaction(
   const reason = normalizeRequiredText(input.reason, "void_reason_required");
   const voidDate = input.voidDate
     ? normalizeDate(input.voidDate, "void_date_invalid")
-    : new Date().toISOString().slice(0, 10);
+    // ponytail: Use Intl for client timezone. Falls back to UTC if Intl unavailable.
+    : new Date().toLocaleDateString("en-CA"); // en-CA gives YYYY-MM-DD in local tz
   await assertPeriodOpen(db, organizationId, original.transaction_date);
   await assertPeriodOpen(db, organizationId, voidDate);
 
@@ -644,18 +687,29 @@ export async function voidTransaction(
   ];
 
   if (product && productLine?.quantity_milli) {
-    appendVoidStockStatements(db, statements, {
-      organizationId,
-      transactionId: reversalTransactionId,
-      originalType: original.transaction_type,
-      product,
-      quantityMilli: productLine.quantity_milli,
-      unitCostMinor: stockMovement?.unit_cost_minor ?? productLine.unit_price_minor ?? product.average_cost_minor,
-      movementDate: voidDate,
-      userId,
-      notes: reason,
-      current,
-    });
+    // ponytail: Atomic stock restore via optimistic lock (same pattern as postTransaction)
+    const isSale = original.transaction_type === "cash_sale" || original.transaction_type === "credit_sale";
+    const isPurchase = original.transaction_type === "cash_purchase" || original.transaction_type === "credit_purchase";
+    if (isSale || isPurchase) {
+      const quantityDelta = isSale ? productLine.quantity_milli : -productLine.quantity_milli;
+      const nextStock = product.current_stock_milli + quantityDelta;
+      if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
+      const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
+      const unitCostMinor = stockMovement?.unit_cost_minor ?? productLine.unit_price_minor ?? product.average_cost_minor;
+      const res = await db.prepare(
+        `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+         WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`
+      ).bind(nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli).run();
+      if (!res.meta?.changes) throw conflict("insufficient_stock", "Insufficient stock");
+      statements.push(
+        insertStockMovementStatement(db, {
+          organizationId, productId: product.id, transactionId: reversalTransactionId,
+          movementDate: voidDate, movementType: "void",
+          quantityMilli: quantityDelta, unitCostMinor, stockAfterMilli: nextStock,
+          notes: reason, userId, current,
+        }),
+      );
+    }
   }
 
   statements.push(
@@ -696,7 +750,20 @@ export async function voidTransaction(
     }),
   );
 
-  await executeBatch(db, statements);
+  try {
+    await executeBatch(db, statements);
+  } catch (e) {
+    const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+    if (retry?.original_transaction_id === transactionId) {
+      return {
+        original_transaction_id: transactionId,
+        reversal_transaction_id: retry.id,
+        reversal_journal_entry_ids: (await listJournalEntriesForTransaction(db, organizationId, retry.id)).map((entry) => entry.id),
+        status: "voided" as const,
+      };
+    }
+    throw e;
+  }
 
   return {
     original_transaction_id: transactionId,
@@ -1195,136 +1262,6 @@ function saleCogsLines(
   ];
 }
 
-function appendStockStatements(
-  db: D1Database,
-  statements: D1PreparedStatement[],
-  input: {
-    organizationId: string;
-    transactionId: string;
-    product: ProductRow;
-    transactionType: TransactionType;
-    quantityMilli: number;
-    unitPriceMinor: number;
-    movementDate: string;
-    userId: string;
-    notes: string;
-    current: number;
-  },
-): void {
-  if (input.transactionType !== "cash_purchase"
-    && input.transactionType !== "credit_purchase"
-    && input.transactionType !== "cash_sale"
-    && input.transactionType !== "credit_sale") {
-    return;
-  }
-
-  const isPurchase = input.transactionType === "cash_purchase"
-    || input.transactionType === "credit_purchase";
-  const quantityDelta = isPurchase ? input.quantityMilli : -input.quantityMilli;
-  const nextStock = input.product.current_stock_milli + quantityDelta;
-  if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
-
-  const unitCost = isPurchase ? input.unitPriceMinor : productCostMinor(input.product);
-  if (!isPurchase && unitCost <= 0) {
-    throw badRequest("product_zero_cost", "Product cost must be set before sale");
-  }
-  const nextAverage = isPurchase
-    ? nextAverageCostMinor(input.product, input.quantityMilli, input.unitPriceMinor)
-    : input.product.average_cost_minor;
-
-  statements.push(
-    statement(
-      db,
-      `UPDATE products
-       SET current_stock_milli = ?,
-           average_cost_minor = ?,
-           purchase_price_minor = ?,
-           updated_at = ?
-       WHERE id = ? AND organization_id = ?`,
-      [
-        nextStock,
-        nextAverage,
-        nextAverage,
-        input.current,
-        input.product.id,
-        input.organizationId,
-      ],
-    ),
-    insertStockMovementStatement(db, {
-      organizationId: input.organizationId,
-      productId: input.product.id,
-      transactionId: input.transactionId,
-      movementDate: input.movementDate,
-      movementType: isPurchase ? "purchase" : "sale",
-      quantityMilli: quantityDelta,
-      unitCostMinor: unitCost,
-      stockAfterMilli: nextStock,
-      notes: input.notes,
-      userId: input.userId,
-      current: input.current,
-    }),
-  );
-}
-
-function appendVoidStockStatements(
-  db: D1Database,
-  statements: D1PreparedStatement[],
-  input: {
-    organizationId: string;
-    transactionId: string;
-    originalType: string;
-    product: ProductRow;
-    quantityMilli: number;
-    unitCostMinor: number;
-    movementDate: string;
-    userId: string;
-    notes: string;
-    current: number;
-  },
-): void {
-  const isSale = input.originalType === "cash_sale" || input.originalType === "credit_sale";
-  const isPurchase = input.originalType === "cash_purchase" || input.originalType === "credit_purchase";
-  if (!isSale && !isPurchase) return;
-
-  const quantityDelta = isSale ? input.quantityMilli : -input.quantityMilli;
-  const nextStock = input.product.current_stock_milli + quantityDelta;
-  if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
-  const nextAverage = nextStock === 0 ? 0 : input.product.average_cost_minor;
-
-  statements.push(
-    statement(
-      db,
-      `UPDATE products
-       SET current_stock_milli = ?,
-           average_cost_minor = ?,
-           purchase_price_minor = ?,
-           updated_at = ?
-       WHERE id = ? AND organization_id = ?`,
-      [
-        nextStock,
-        nextAverage,
-        nextAverage,
-        input.current,
-        input.product.id,
-        input.organizationId,
-      ],
-    ),
-    insertStockMovementStatement(db, {
-      organizationId: input.organizationId,
-      productId: input.product.id,
-      transactionId: input.transactionId,
-      movementDate: input.movementDate,
-      movementType: "void",
-      quantityMilli: quantityDelta,
-      unitCostMinor: input.unitCostMinor,
-      stockAfterMilli: nextStock,
-      notes: input.notes,
-      userId: input.userId,
-      current: input.current,
-    }),
-  );
-}
-
 async function journalLinesForTransaction(
   db: D1Database,
   organizationId: string,
@@ -1422,26 +1359,6 @@ async function resolveProductFields(
     quantityMilli: toQuantityMilli(input.quantity),
     unitPriceMinor: toMoneyMinor(input.unitPrice ?? 0),
   };
-}
-
-function appendPostStockStatements(
-  db: D1Database,
-  statements: D1PreparedStatement[],
-  product: ProductRow | null,
-  quantityMilli: number | null,
-  unitPriceMinor: number | null,
-  input: {
-    organizationId: string;
-    transactionId: string;
-    transactionType: TransactionType;
-    movementDate: string;
-    userId: string;
-    notes: string;
-    current: number;
-  },
-): void {
-  if (!product || quantityMilli === null || unitPriceMinor === null) return;
-  appendStockStatements(db, statements, { ...input, product, quantityMilli, unitPriceMinor });
 }
 
 async function accountByCode(

@@ -222,7 +222,9 @@ export async function exportGeneralLedgerCsv(
   organizationId: string,
   filters: GeneralLedgerExportFilters,
 ): Promise<ExportResponse> {
+  // ponytail: Cap at 50k rows to prevent Worker OOM/timeout.
   const ledger = await getGeneralLedger(db, organizationId, filters);
+  const capped = ledger.slice(0, 50_000);
   return {
     filename: filenameFor("buku_besar"),
     csv: toCsv(
@@ -237,7 +239,7 @@ export async function exportGeneralLedgerCsv(
         "Kredit",
         "Saldo",
       ],
-      ledger.map((row) => [
+      capped.map((row) => [
         row.entry_date,
         row.transaction_number ?? row.entry_number,
         row.account_id,

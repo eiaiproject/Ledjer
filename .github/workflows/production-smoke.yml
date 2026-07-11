@@ -44,13 +44,15 @@ jobs:
       - name: Preflight — production URL is reachable (HTTP 200)
         run: |
           echo "Checking production URL: ${{ env.PRODUCTION_URL }}"
-          curl -fsS "${{ env.PRODUCTION_URL }}" -o /dev/null --max-time 15
+          curl -fsS "${{ env.PRODUCTION_URL }}" -o /dev/null --max-time 15 -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}"
           echo "✅ Production URL is reachable"
 
       - name: Run production smoke tests
         env:
           E2E_MODE: deploy-smoke
           E2E_BASE_URL: ${{ env.PRODUCTION_URL }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           CI: true
         run: pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
 

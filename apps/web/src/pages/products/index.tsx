@@ -1,19 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Package, Edit2, Trash2, Search, Download } from "lucide-react";
+import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "lucide-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
+import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast";
 import { exportProductsCsv } from "@/lib/csv-export";
@@ -24,6 +22,10 @@ import {
   updateProduct,
   type Product,
 } from "@/lib/api/products";
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
 interface ProductFormData {
   code: string;
@@ -39,6 +41,52 @@ interface ProductFormData {
 const UNITS = ["pcs", "kg", "liter", "meter", "box", "pack", "roll", "pair", "set", "other"];
 type ProductFormErrors = Partial<Record<keyof ProductFormData, string>>;
 
+/** Stock status badge */
+function StockBadge({ product }: { readonly product: Product }) {
+  const stock = product.current_stock ?? 0;
+  const minStock = product.min_stock ?? 0;
+  
+  if (stock <= 0) {
+    return (
+      <Badge variant="error" size="sm">
+        <X className="h-3 w-3" />
+        Stok habis
+      </Badge>
+    );
+  }
+  if (minStock > 0 && stock <= minStock) {
+    return (
+      <Badge variant="warning" size="sm">
+        <AlertTriangle className="h-3 w-3" />
+        Stok menipis
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="success" size="sm">
+      <Check className="h-3 w-3" />
+      Stok aman
+    </Badge>
+  );
+}
+
+/** Margin indicator */
+function MarginIndicator({ purchase, selling }: { readonly purchase: number; readonly selling: number }) {
+  const margin = selling - purchase;
+  const pct = purchase > 0 ? Math.round((margin / purchase) * 100) : 0;
+  const isPositive = margin > 0;
+  
+  return (
+    <span className={cn("text-xs font-medium", isPositive ? "text-leaf-600" : "text-clay-600")}>
+      {isPositive ? "+" : ""}{formatIDR(margin)} / {pct}%
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
+
 export function ProductsPage() {
   const { data: orgData } = useOrganization();
   const { canManageProducts, canCreateExports } = useOrgPermissions();
@@ -46,6 +94,7 @@ export function ProductsPage() {
   const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
 
   const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "low" | "out">("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -204,138 +253,266 @@ export function ProductsPage() {
     }
   };
 
-  const filteredProducts = (products || []).filter((p) =>
-    !search ||
-    p.code.toLowerCase().includes(search.toLowerCase()) ||
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.description?.toLowerCase().includes(search.toLowerCase())
-  );
+  const getStockStatus = (p: Product): "in_stock" | "low" | "out" => {
+    const stock = p.current_stock ?? 0;
+    const minStock = p.min_stock ?? 0;
+    if (stock <= 0) return "out";
+    if (minStock > 0 && stock <= minStock) return "low";
+    return "in_stock";
+  };
+
+  const filteredProducts = (products || []).filter((p) => {
+    // Search filter
+    if (search) {
+      const q = search.toLowerCase();
+      if (!p.code.toLowerCase().includes(q) && !p.name.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    // Stock filter
+    if (stockFilter !== "all") {
+      if (getStockStatus(p) !== stockFilter) return false;
+    }
+    return true;
+  });
 
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="ledger-page space-y-4">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Produk</h1>
           <p className="text-sm text-text-secondary mt-1">Kelola produk dan stok</p>
         </div>
-        {(canManageProducts || canCreateExports) && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {canCreateExports && (
-              <Button type="button" variant="outline" onClick={() => void handleExport()} disabled={!products?.length}>
-                <Download className="h-4 w-4" />
-                Export CSV
-              </Button>
-            )}
+        <div className="flex items-center gap-2">
+          {canCreateExports && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void handleExport()}
+              disabled={!products?.length}
+              className="hidden sm:inline-flex"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
+          {canCreateExports && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => void handleExport()}
+              disabled={!products?.length}
+              className="sm:hidden min-h-[44px] min-w-[44px]"
+              aria-label="Export CSV"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+          {canManageProducts && (
+            <Button onClick={openCreateModal} className="min-h-[44px]">
+              <Plus className="h-4 w-4" />
+              Tambah Produk
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Search — always visible */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" />
+        <input
+          type="text"
+          placeholder="Cari kode atau nama produk..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-4 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
+        />
+      </div>
+
+      {/* Stock filter */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-text-secondary">Stok:</span>
+        {(["all", "in_stock", "low", "out"] as const).map((filter) => (
+          <Button
+            key={filter}
+            type="button"
+            variant={stockFilter === filter ? "primary" : "outline"}
+            size="sm"
+            onClick={() => setStockFilter(filter)}
+            className="min-h-[36px]"
+          >
+            {filter === "all" && "Semua"}
+            {filter === "in_stock" && "Aman"}
+            {filter === "low" && "Menipis"}
+            {filter === "out" && "Habis"}
+          </Button>
+        ))}
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <PageSpinner />
+      ) : !products?.length ? (
+        /* Empty state — no products at all */
+        <div className="flex min-h-[320px] items-center justify-center p-8">
+          <div className="mx-auto max-w-sm text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-wood-200 text-wood-400">
+              <Package className="h-7 w-7" />
+            </div>
+            <h3 className="mt-4 text-base font-semibold text-text-primary">Belum ada produk</h3>
+            <p className="mt-1 text-sm text-text-secondary">Tambahkan produk pertama untuk melacak stok dan HPP.</p>
             {canManageProducts && (
-              <Button onClick={openCreateModal}>
+              <Button onClick={openCreateModal} className="mt-4 min-h-[44px]">
                 <Plus className="h-4 w-4" />
-                Tambah Produk
+                Tambah Produk Pertama
               </Button>
             )}
           </div>
-        )}
-      </div>
-
-      <Input
-        aria-label="Cari produk"
-        placeholder="Cari kode atau nama produk..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        leftIcon={<Search className="h-4 w-4" />}
-      />
-
-      {isLoading ? (
-        <PageSpinner />
-      ) : filteredProducts.length === 0 ? (
-        <EmptyState
-          icon={<Package className="h-8 w-8 text-wood-400" />}
-          title="Belum ada produk"
-          description="Tambahkan produk pertama untuk melacak stok dan HPP."
-          action={canManageProducts ? <Button onClick={openCreateModal}><Plus className="h-4 w-4" /> Tambah Produk</Button> : undefined}
-        />
+        </div>
+      ) : !filteredProducts.length ? (
+        /* No results — filters active but no match */
+        <div className="flex min-h-[240px] items-center justify-center p-8">
+          <div className="mx-auto max-w-sm text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-wood-200 text-wood-400">
+              <Search className="h-6 w-6" />
+            </div>
+            <h3 className="mt-3 text-base font-semibold text-text-primary">Tidak ada produk yang cocok</h3>
+            <p className="mt-1 text-sm text-text-secondary">Coba ubah filter atau kata kunci pencarian.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => { setSearch(""); setStockFilter("all"); }}
+            >
+              Reset filter
+            </Button>
+          </div>
+        </div>
       ) : (
         <>
-          <div className="space-y-3 sm:hidden ledger-mobile-card-stack">
+          {/* Mobile: Card stack */}
+          <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated lg:hidden">
             {filteredProducts.map((product) => (
-              <Card key={product.id}>
-                <CardContent>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="break-words font-mono text-xs text-text-tertiary">{product.code}</p>
-                      <h2 className="mt-1 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
-                      {product.description && <p className="mt-1 line-clamp-2 text-xs text-text-tertiary">{product.description}</p>}
-                    </div>
-                    <Badge variant={(product.current_stock ?? 0) <= (product.min_stock ?? 0) ? "warning" : "success"} className="shrink-0">
-                      {formatNumber(product.current_stock)} {product.unit || "pcs"}
-                    </Badge>
+              <div key={product.id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-xs text-wood-500">{product.code}</p>
+                    <h2 className="mt-0.5 line-clamp-1 break-words text-sm font-semibold text-text-primary">
+                      {product.name}
+                    </h2>
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-xs text-text-tertiary">Harga Beli</p>
-                      <p className="num-mono font-medium text-text-secondary">{formatIDR(product.purchase_price)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-text-tertiary">Harga Jual</p>
-                      <p className="num-mono font-semibold text-text-primary">{formatIDR(product.selling_price)}</p>
-                    </div>
+                  <StockBadge product={product} />
+                </div>
+                
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-text-tertiary">Beli</p>
+                    <p className="num-mono font-medium text-text-secondary">{formatIDR(product.purchase_price)}</p>
                   </div>
-                  {canManageProducts && (
-                    <div className="mt-4 flex justify-end gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(product)}>
-                        <Edit2 className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }} className="text-error hover:bg-error-bg">
-                        <Trash2 className="h-4 w-4" />
-                        Hapus
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  <div className="text-right">
+                    <p className="text-xs text-text-tertiary">Jual</p>
+                    <p className="num-mono font-semibold text-text-primary">{formatIDR(product.selling_price)}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-2 flex items-center justify-between">
+                  <MarginIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
+                  <span className="num-mono text-xs text-text-tertiary">
+                    Stok: {formatNumber(product.current_stock)} {product.unit || "pcs"}
+                  </span>
+                </div>
+                
+                {canManageProducts && (
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(product)} className="min-h-[44px] min-w-[44px]">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }}
+                      className="min-h-[44px] min-w-[44px] text-error hover:bg-error-bg"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
-          <Card className="hidden overflow-hidden sm:block">
-            <div className="ledger-scroll-x">
-              <table className="min-w-[900px] w-full text-sm">
-              <thead>
-                <tr className="border-b border-wood-100">
+          {/* Desktop: Table */}
+          <div className="hidden lg:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="border-b border-wood-100 bg-cream-100/50">
+                <tr>
                   <th className="px-4 py-3 text-left font-medium text-wood-600">Kode</th>
                   <th className="px-4 py-3 text-left font-medium text-wood-600">Nama</th>
-                  <th className="px-4 py-3 text-center font-medium text-wood-600">Stok</th>
+                  <th className="px-4 py-3 text-center font-medium text-wood-600">Status Stok</th>
                   <th className="px-4 py-3 text-right font-medium text-wood-600">Harga Beli</th>
                   <th className="px-4 py-3 text-right font-medium text-wood-600">Harga Jual</th>
+                  <th className="px-4 py-3 text-right font-medium text-wood-600">Margin</th>
                   {canManageProducts && <th className="px-4 py-3 text-center font-medium text-wood-600">Aksi</th>}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-wood-50">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-wood-50 transition-colors hover:bg-cream-100/50">
-                    <td className="max-w-[160px] break-words px-4 py-3 font-mono text-wood-600">{product.code}</td>
-                    <td className="min-w-[220px] max-w-[360px] px-4 py-3">
+                  <tr key={product.id} className="transition-colors hover:bg-cream-50">
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-wood-600">{product.code}</td>
+                    <td className="min-w-[200px] max-w-[320px] px-4 py-3">
                       <div className="break-words font-medium text-wood-800">{product.name}</div>
-                      {product.description && <div className="line-clamp-2 break-words text-xs text-wood-500">{product.description}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant={(product.current_stock ?? 0) <= (product.min_stock ?? 0) ? "warning" : "success"}>
-                        {formatNumber(product.current_stock)} {product.unit || "pcs"}
-                      </Badge>
-                      {(product.min_stock ?? 0) > 0 && (
-                        <div className="mt-1 text-xs text-wood-500">Min {formatNumber(product.min_stock)}</div>
+                      {product.description && (
+                        <div className="line-clamp-1 break-words text-xs text-wood-500">{product.description}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-wood-600">{formatIDR(product.purchase_price)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-wood-800 font-medium">{formatIDR(product.selling_price)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <StockBadge product={product} />
+                        <span className="num-mono text-xs text-wood-500">
+                          {formatNumber(product.current_stock)} {product.unit || "pcs"}
+                        </span>
+                        {(product.min_stock ?? 0) > 0 && (
+                          <span className="text-xs text-wood-400">Min: {formatNumber(product.min_stock)}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">
+                      {formatIDR(product.purchase_price)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right num-mono font-medium text-wood-800">
+                      {formatIDR(product.selling_price)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <MarginIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
+                    </td>
                     {canManageProducts && (
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => openEditModal(product)} aria-label="Edit produk" className="h-10 w-10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-wood-500 hover:text-wood-600">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditModal(product)}
+                            aria-label="Edit produk"
+                            className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-wood-500 hover:text-wood-600"
+                          >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }} aria-label="Hapus produk" className="h-10 w-10 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-wood-500 hover:text-error hover:bg-error-bg">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }}
+                            aria-label="Hapus produk"
+                            className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-wood-500 hover:text-error hover:bg-error-bg"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -344,9 +521,8 @@ export function ProductsPage() {
                   </tr>
                 ))}
               </tbody>
-              </table>
-            </div>
-          </Card>
+            </table>
+          </div>
         </>
       )}
 
@@ -373,13 +549,7 @@ export function ProductsPage() {
               isCurrency
               error={formErrors.purchase_price}
               disabled={formBusy}
-              aria-describedby={formErrors.purchase_price ? "purchase-price-error" : undefined}
             />
-            {formErrors.purchase_price && (
-              <p id="purchase-price-error" className="mt-1 text-xs text-error" role="alert">
-                {formErrors.purchase_price}
-              </p>
-            )}
             {editingProduct && (
               <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>
             )}
@@ -390,13 +560,7 @@ export function ProductsPage() {
               isCurrency
               error={formErrors.selling_price}
               disabled={formBusy}
-              aria-describedby={formErrors.selling_price ? "selling-price-error" : undefined}
             />
-            {formErrors.selling_price && (
-              <p id="selling-price-error" className="mt-1 text-xs text-error" role="alert">
-                {formErrors.selling_price}
-              </p>
-            )}
             {!editingProduct && !onboardingCompleted && (
               <Input label="Stok Awal" type="number" min={0} value={formData.current_stock || ""} onChange={(e) => updateFormField("current_stock", Number(e.target.value))} placeholder="0" error={formErrors.current_stock} disabled={formBusy} />
             )}
@@ -405,7 +569,7 @@ export function ProductsPage() {
                 Stok ditambahkan otomatis melalui alur pembelian atau stok resmi.
               </div>
             )}
-            <Input label="Stok Minimum" type="number" min={0} value={formData.min_stock || ""} onChange={(e) => updateFormField("min_stock", Number(e.target.value))} placeholder="0" error={formErrors.min_stock} disabled={formBusy} />
+            <Input label="Stok Minimum" type="number" min={0} value={formData.min_stock || ""} onChange={(e) => updateFormField("min_stock", Number(e.target.value))} placeholder="0" error={formErrors.min_stock} disabled={formBusy} helperText="Ketika stok tersisa sampai angka ini, produk akan ditandai stok menipis." />
           </div>
         </ModalContent>
         <ModalFooter>

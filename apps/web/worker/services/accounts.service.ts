@@ -260,9 +260,8 @@ export async function patchAccount(
   const before = toPublicAccount(existing);
 
   if (input.name !== undefined) {
-    if (existing.is_locked) {
-      throw forbidden("account_locked", "Locked accounts cannot be renamed");
-    }
+    // ponytail: rename allowed for system/locked accounts (users name their own
+    // bank, e.g. BCA/Mandiri). Deletion + deactivation stay protected below.
     const name = normalizeAccountName(input.name);
     await ensureUniqueAccountName(db, organizationId, name, accountId);
     updates.push("name = ?");

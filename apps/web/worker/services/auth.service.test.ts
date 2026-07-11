@@ -21,11 +21,8 @@ function isLockedOut(failureCount: number): boolean {
 }
 
 describe("login rate limiting constants", () => {
-  it("allows at most 5 failures before lockout", () => {
+  it("has correct configuration", () => {
     expect(LOGIN_MAX_FAILURES).toBe(5);
-  });
-
-  it("lockout window is 15 minutes", () => {
     expect(LOGIN_LOCKOUT_MS).toBe(15 * 60 * 1000);
   });
 });

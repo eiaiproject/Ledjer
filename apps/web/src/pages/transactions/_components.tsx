@@ -25,6 +25,7 @@ import {
   addRecentTransactionType,
   getRecentTransactionTypes,
   localDate,
+  MOBILE_PRIORITY_TYPES,
   TRANSACTION_GROUPS,
   TRANSACTION_META,
   type PreviewLine,
@@ -159,6 +160,7 @@ interface TransactionTypeSelectorProps {
 
 export function TransactionTypeSelector({ value, onChange, error }: TransactionTypeSelectorProps) {
   const [recentTypes, setRecentTypes] = useState<string[]>(() => getRecentTransactionTypes());
+  const [showAll, setShowAll] = useState(false);
 
   const handleSelect = useCallback(
     (type: string) => {
@@ -173,6 +175,21 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
     [recentTypes]
   );
 
+  // Types NOT in priority list (shown when expanded)
+  const hiddenTypes = useMemo(
+    () => TRANSACTION_GROUPS.flatMap((g) => g.types).filter((t) => !MOBILE_PRIORITY_TYPES.includes(t)),
+    []
+  );
+
+  // Auto-expand if a hidden type is selected
+  const selectedInHidden = value && hiddenTypes.includes(value);
+
+  // Priority types in recent list (to avoid duplication)
+  const priorityRecent = useMemo(
+    () => recentMeta.filter((r) => MOBILE_PRIORITY_TYPES.includes(r.type)),
+    [recentMeta]
+  );
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -185,8 +202,8 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
         )}
       </div>
 
-      {/* Recently used */}
-      {recentMeta.length > 0 && (
+      {/* Recently used — non-priority only */}
+      {priorityRecent.length > 0 && (
         <div className="mb-4">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-normal text-text-tertiary">
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -196,7 +213,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
             Sering Digunakan
           </p>
           <div className="flex flex-wrap gap-2">
-            {recentMeta.map(({ type, label, icon: Icon }) => (
+            {priorityRecent.map(({ type, label, icon: Icon }) => (
               <Button
                 key={type}
                 type="button"
@@ -214,59 +231,127 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
         </div>
       )}
 
-      {/* All types by group */}
-      <div className="space-y-4">
-        {TRANSACTION_GROUPS.map((group) => (
-          <div key={group.label}>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-normal text-text-tertiary">
-              {group.label}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {group.types.map((type) => {
-                const meta = TRANSACTION_META[type];
-                const Icon = meta.icon;
-                const selected = value === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                   
-                    aria-pressed={selected}
-                    onClick={() => handleSelect(type)}
-                    className={cn(
-                      "ledger-interactive group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left",
-                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
-                      selected
-                        ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
-                        : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-100"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
-                        selected ? "bg-leaf-100 text-leaf-600" : "bg-cream-200 text-wood-500 group-hover:bg-cream-300"
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="min-w-0 flex-1">
-                      <span className="block break-words text-sm font-medium text-text-primary">
-                        {meta.label}
-                      </span>
-                      <span className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
-                        {meta.description}
-                      </span>
-                    </span>
-                    {selected && (
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      {/* Priority types — always visible */}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {MOBILE_PRIORITY_TYPES.map((type) => {
+          const meta = TRANSACTION_META[type];
+          const Icon = meta.icon;
+          const selected = value === type;
+          return (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => handleSelect(type)}
+              className={cn(
+                "ledger-interactive group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
+                selected
+                  ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
+                  : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-100"
+              )}
+            >
+              <div
+                className={cn(
+                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                  selected ? "bg-leaf-100 text-leaf-600" : "bg-cream-200 text-wood-500 group-hover:bg-cream-300"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="min-w-0 flex-1">
+                <span className="block break-words text-sm font-medium text-text-primary">
+                  {meta.label}
+                </span>
+                <span className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
+                  {meta.description}
+                </span>
+              </span>
+              {selected && (
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" />
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Expandable: other types */}
+      {!showAll && !selectedInHidden && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-wood-300 bg-cream-50 py-2.5 text-sm font-medium text-wood-600 hover:bg-cream-100 hover:text-wood-700 min-h-[44px]"
+        >
+          Lihat Jenis Transaksi Lainnya
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      )}
+
+      {showAll && (
+        <div className="mt-4 space-y-4 border-t border-wood-100 pt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-normal text-text-tertiary">Semua Jenis</p>
+            <button
+              type="button"
+              onClick={() => setShowAll(false)}
+              className="text-xs font-medium text-wood-500 hover:text-wood-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            >
+              Sembunyikan
+            </button>
+          </div>
+          {TRANSACTION_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-normal text-text-tertiary">
+                {group.label}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {group.types
+                  .filter((t) => !MOBILE_PRIORITY_TYPES.includes(t))
+                  .map((type) => {
+                    const meta = TRANSACTION_META[type];
+                    const Icon = meta.icon;
+                    const selected = value === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => handleSelect(type)}
+                        className={cn(
+                          "ledger-interactive group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left",
+                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
+                          selected
+                            ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
+                            : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-100"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                            selected ? "bg-leaf-100 text-leaf-600" : "bg-cream-200 text-wood-500 group-hover:bg-cream-300"
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block break-words text-sm font-medium text-text-primary">
+                            {meta.label}
+                          </span>
+                          <span className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
+                            {meta.description}
+                          </span>
+                        </span>
+                        {selected && (
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" />
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -528,7 +613,7 @@ export function ReviewPanel({
               </div>
               <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
                 <span className="text-text-secondary">Diterima di</span>
-                <span className="shrink-0 text-right text-text-primary">{cashAccountLabel || "Kas / Bank"}</span>
+                <span className="shrink-0 right text-text-primary">{cashAccountLabel || "Kas / Bank"}</span>
               </div>
               <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
                 <span className="text-text-secondary">Pendapatan bertambah</span>

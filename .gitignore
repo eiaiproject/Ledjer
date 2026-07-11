@@ -13,6 +13,9 @@ dist
 !.env.example
 !**/.env.example
 
+# Cloudflare local dev secrets (contains real secrets — never commit)
+.dev.vars
+
 # OS files
 .DS_Store
 __MACOSX

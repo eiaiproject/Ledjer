@@ -96,7 +96,7 @@ export function ProfitLossPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="ledger-page space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Laba Rugi</h1>
@@ -150,7 +150,7 @@ export function ProfitLossPage() {
       ) : (
         <Card>
           <div className="ledger-scroll-x">
-            <table className="ledger-table min-w-[680px]">
+            <table className="ledger-table min-w-0 sm:min-w-[680px]">
               <thead>
                 <tr className="border-b border-wood-200">
                   <th className="px-5 py-3 text-left font-medium text-wood-600">Akun</th>
@@ -205,7 +205,7 @@ function SectionBlock({
       </tr>
       {items.map((item) => (
         <tr key={item.account_code} className="border-b border-wood-50">
-          <td className="min-w-[280px] max-w-[520px] break-words px-5 py-2 pl-8 text-wood-600">
+          <td className="min-w-0 sm:min-w-[280px] max-w-[520px] break-words px-5 py-2 pl-8 text-wood-600">
             <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
             {item.account_name}
           </td>

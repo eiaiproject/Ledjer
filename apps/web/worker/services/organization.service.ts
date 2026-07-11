@@ -61,6 +61,10 @@ export interface OrganizationState {
 export interface ExtraOpeningBalanceInput {
   accountId?: string;
   amount?: number;
+  // frontend format — resolved to accountId by code
+  accountCode?: string;
+  openingBalance?: number;
+  description?: string;
 }
 
 export interface CreateOrganizationInput {
@@ -269,7 +273,7 @@ function toState(context: OrganizationContext): OrganizationState {
 
 function hasPositiveOpeningBalances(input: CreateOrganizationInput): boolean {
   if ((input.openingCashBalance ?? 0) > 0) return true;
-  return (input.extraOpeningBalances ?? []).some((b) => (b.amount ?? 0) > 0);
+  return (input.extraOpeningBalances ?? []).some((b) => (b.amount ?? b.openingBalance ?? 0) > 0);
 }
 
 async function postOpeningBalances(
@@ -315,24 +319,31 @@ async function postOpeningBalances(
 
   // Post extra opening balances
   for (const extra of input.extraOpeningBalances ?? []) {
-    const amount = Math.round(extra.amount ?? 0);
-    if (amount <= 0 || !extra.accountId) continue;
+    const amount = Math.round(extra.amount ?? extra.openingBalance ?? 0);
+    if (amount <= 0) continue;
+
+    // Resolve account ID — prefer accountCode from frontend, fall back to accountId
+    const accountId = extra.accountId
+      ?? (extra.accountCode
+        ? await findAccountIdByCode(db, organizationId, extra.accountCode)
+        : undefined);
+    if (!accountId) continue;
 
     const entryId = generateId();
     const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
 
     statements.push(
       statement(db,
-        `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal', 'posted', ?, ?, ?)`,
-        [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
+        `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', ?, 'posted', ?, ?, ?)`,
+        [entryId, organizationId, entryNumber, input.booksStartDate, extra.description ?? 'Saldo awal', current, userId, current],
       ),
       statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal', 1, ?)`,
-        [generateId(), organizationId, entryId, extra.accountId, amount, current],
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, 1, ?)`,
+        [generateId(), organizationId, entryId, accountId, amount, extra.description ?? 'Saldo awal', current],
       ),
       statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal', 2, ?)`,
-        [generateId(), organizationId, entryId, openingBalanceAccountId, amount, current],
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, 2, ?)`,
+        [generateId(), organizationId, entryId, openingBalanceAccountId, amount, extra.description ?? 'Saldo awal', current],
       ),
     );
 

@@ -84,7 +84,7 @@ export function TransactionDetailPage() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 text-center">
         <p className="break-words text-wood-500">Transaksi tidak ditemukan</p>
-        <Link to="/transactions" className="mt-2 inline-block text-sm text-wood-600 hover:text-wood-500">
+        <Link to="/transactions" className="mt-2 inline-flex h-11 items-center text-sm text-wood-600 hover:text-wood-500">
           ← Kembali ke daftar
         </Link>
       </div>
@@ -92,8 +92,8 @@ export function TransactionDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <Link to="/transactions" className="mb-4 inline-block text-sm text-wood-600 hover:text-wood-500">
+    <div className="ledger-page mx-auto max-w-3xl px-4 py-8">
+      <Link to="/transactions" className="mb-4 flex h-11 items-center text-sm text-wood-600 hover:text-wood-500">
         ← Kembali
       </Link>
 
@@ -243,7 +243,7 @@ export function TransactionDetailPage() {
                     <Badge variant={statusVariant(je.status)}>{statusLabel(je.status)}</Badge>
                   </div>
                   <div className="ledger-scroll-x">
-                  <table className="min-w-[560px] w-full text-sm">
+                  <table className="min-w-0 sm:min-w-[560px] w-full text-sm">
                     <thead>
                       <tr className="border-b text-left text-xs text-wood-500">
                         <th className="pb-1">Akun</th>
@@ -254,7 +254,7 @@ export function TransactionDetailPage() {
                     <tbody>
                       {je.journal_lines.map((line) => (
                         <tr key={line.id} className="border-b border-wood-50">
-                          <td className="max-w-[280px] break-words py-1.5">
+                          <td className="sm:max-w-[280px] break-words py-1.5">
                             <span className="font-mono text-xs text-wood-500">{line.accounts?.code}</span>{" "}
                             {line.accounts?.name}
                           </td>

@@ -13,15 +13,17 @@ import {
   QrCode,
   Plus,
   Download,
+  Check,
+  X,
+  Shield,
 } from "lucide-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
+
 import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
@@ -64,25 +66,49 @@ const ACCOUNT_TYPE_GROUPS = [
 
 type Tab = "cashbank" | "all";
 
+/** Status badge with icon for accessibility */
+function AccountStatusBadge({ account }: { readonly account: Account }) {
+  if (account.is_system) {
+    return (
+      <Badge variant="neutral" size="sm">
+        <Shield className="h-3 w-3" />
+        Akun bawaan
+      </Badge>
+    );
+  }
+  if (account.is_active) {
+    return (
+      <Badge variant="success" size="sm">
+        <Check className="h-3 w-3" />
+        Aktif
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="error" size="sm">
+      <X className="h-3 w-3" />
+      Nonaktif
+    </Badge>
+  );
+}
+
+
+
 /** Determine cash/bank kind from account code + name */
 function getCashBankKind(account: { code: number; name: string; is_cash_account: boolean }): CashBankKind {
-  // Code-based detection (most reliable)
   if (account.code >= 1110 && account.code < 1120) return "cash";
   if (account.code >= 1120 && account.code < 1130) return "bank";
   if (account.code >= 1130 && account.code < 1140) return "ewallet";
 
-  // Name-based fallback
   const name = account.name.toLowerCase();
   if (/qris|qr/i.test(name)) return "qris";
   if (/bank|bca|bri|bni|mandiri|cimb|permata|danamon|mega|btn|bsi|ocbc|uob|maybank|panin|digibank|jago|blu|neobank|marl/i.test(name)) return "bank";
   if (/ovo|dana|gopay|shopeepay|linkaja|isaku|cash|kas|dompet/i.test(name)) return "cash";
   if (/e-?wallet|dompet digital/i.test(name)) return "ewallet";
 
-  // Fallback to is_cash_account flag
   return account.is_cash_account ? "cash" : "bank";
 }
 
-/** Cash/Bank kind metadata for add account modal */
 const CASH_BANK_KINDS: { kind: CashBankKind; label: string; icon: typeof Wallet; placeholder: string }[] = [
   { kind: "cash", label: "Kas", icon: Wallet, placeholder: "Kas Toko" },
   { kind: "bank", label: "Bank", icon: Landmark, placeholder: "BCA / Mandiri / BRI" },
@@ -90,7 +116,6 @@ const CASH_BANK_KINDS: { kind: CashBankKind; label: string; icon: typeof Wallet;
   { kind: "ewallet", label: "E-wallet", icon: CreditCard, placeholder: "GoPay / ShopeePay" },
 ];
 
-/** Generate next account code for a given kind */
 function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): number {
   let minCode: number;
   let maxCode: number;
@@ -106,7 +131,6 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
       break;
     case "qris":
     case "ewallet":
-      // QRIS and e-wallet go in 1130-1139 range
       minCode = 1130;
       maxCode = 1139;
       break;
@@ -115,20 +139,18 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
       maxCode = 1199;
   }
 
-  // Find existing codes in this range
   const usedCodes = existingAccounts
     .map((a) => a.code)
     .filter((c) => c >= minCode && c <= maxCode)
     .sort((a, b) => a - b);
 
-  // Find first available code
   let nextCode = minCode;
   for (const code of usedCodes) {
     if (code > nextCode) break;
     nextCode = code + 1;
   }
 
-  return nextCode <= maxCode ? nextCode : -1; // -1 signals range exhausted
+  return nextCode <= maxCode ? nextCode : -1;
 }
 
 const CASH_BANK_META: Record<CashBankKind, { label: string; icon: typeof Wallet; bgClass: string; iconClass: string }> = {
@@ -157,7 +179,6 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input on mount (modal resets via key prop)
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -174,7 +195,6 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
       const trimmed = data.name.trim();
       if (!trimmed) throw new Error("Nama akun wajib diisi");
       if (trimmed.length > 60) throw new Error("Nama akun maksimal 60 karakter");
-
       return createCashBankAccount(data.kind, trimmed);
     },
     onSuccess: () => {
@@ -214,36 +234,34 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
     <Modal open={open} onClose={createMutation.isPending ? () => {} : onClose} title="Tambah Kas/Bank" size="md">
       <ModalContent>
         <div className="space-y-4">
-          {/* Kind selector */}
           <div>
             <fieldset>
               <legend className="mb-2 block text-sm font-medium text-text-secondary">Jenis akun</legend>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {CASH_BANK_KINDS.map((k) => {
-                const Icon = k.icon;
-                return (
-                  <button
-                    key={k.kind}
-                    type="button"
-                    onClick={() => setSelectedKind(k.kind)}
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm transition-colors",
-                      selectedKind === k.kind
-                        ? "border-leaf-500 bg-leaf-50 text-leaf-700"
-                        : "border-wood-200 bg-surface text-text-secondary hover:bg-cream-50"
-                    )}
-                    disabled={createMutation.isPending}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{k.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+                {CASH_BANK_KINDS.map((k) => {
+                  const Icon = k.icon;
+                  return (
+                    <button
+                      key={k.kind}
+                      type="button"
+                      onClick={() => setSelectedKind(k.kind)}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm transition-colors min-h-[44px]",
+                        selectedKind === k.kind
+                          ? "border-leaf-500 bg-leaf-50 text-leaf-700"
+                          : "border-wood-200 bg-surface text-text-secondary hover:bg-cream-50"
+                      )}
+                      disabled={createMutation.isPending}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{k.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </fieldset>
           </div>
 
-          {/* Name input */}
           <div>
             <label htmlFor="account-name" className="mb-1.5 block text-sm font-medium text-text-secondary">
               Nama akun
@@ -259,7 +277,7 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
               maxLength={60}
               disabled={createMutation.isPending}
               className={cn(
-                "h-10 min-h-[44px] w-full rounded-md border bg-surface px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:min-h-0",
+                "h-11 min-h-[44px] w-full rounded-md border bg-surface px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0",
                 error ? "border-error" : "border-wood-200"
               )}
               aria-invalid={error ? true : undefined}
@@ -273,7 +291,6 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
             )}
           </div>
 
-          {/* Auto-generated code preview */}
           <div>
             <label htmlFor="account-code" className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
             <input
@@ -282,13 +299,12 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
               value={isRangeExhausted ? "Penuh — tidak ada kode tersedia" : `${nextCode} - ${selectedMeta?.label || selectedKind}`}
               readOnly
               className={cn(
-                "h-10 min-h-[44px] w-full rounded-md border bg-cream-100 px-3 text-sm sm:min-h-0",
+                "h-11 min-h-[44px] w-full rounded-md border bg-cream-100 px-3 text-sm sm:h-10 sm:min-h-0",
                 isRangeExhausted ? "border-error text-error" : "border-wood-200 text-text-tertiary"
               )}
             />
           </div>
 
-          {/* Info note */}
           <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">
             Akun baru akan muncul di tab Kas & Bank dan dropdown transaksi.
           </div>
@@ -320,12 +336,10 @@ interface EditAccountModalProps {
 function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModalProps) {
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
-  // Initialize with account name (key prop resets state when account changes)
   const [name, setName] = useState(account?.name || "");
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input on mount
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -338,7 +352,6 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
       const trimmed = newName.trim();
       if (!trimmed) throw new Error("Nama akun wajib diisi");
       if (trimmed.length > 60) throw new Error("Nama akun maksimal 60 karakter");
-
       return updateAccountName(account.id, trimmed);
     },
     onSuccess: (data) => {
@@ -346,13 +359,10 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
         queryKeys.accounts.fullList(orgData?.organization?.id ?? ""),
         (old: Account[] | undefined) => {
           if (!old) return old;
-          return old.map((a) =>
-            a.id === data.id ? { ...a, name: data.name } : a
-          );
+          return old.map((a) => (a.id === data.id ? { ...a, name: data.name } : a));
         }
       );
       toast.success("Nama akun berhasil diperbarui");
-      // Also invalidate to ensure sync with server
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgData?.organization?.id ?? "") });
       onSuccess();
       onClose();
@@ -393,12 +403,12 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
       <ModalContent>
         <div className="space-y-4">
           <div>
-            <label htmlFor="account-name" className="mb-1.5 block text-sm font-medium text-text-secondary">
+            <label htmlFor="edit-name" className="mb-1.5 block text-sm font-medium text-text-secondary">
               Nama akun
             </label>
             <input
               ref={inputRef}
-              id="account-name"
+              id="edit-name"
               type="text"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(""); }}
@@ -406,14 +416,14 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
               maxLength={60}
               disabled={updateMutation.isPending}
               className={cn(
-                "h-10 min-h-[44px] w-full rounded-md border bg-surface px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:min-h-0",
+                "h-11 min-h-[44px] w-full rounded-md border bg-surface px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0",
                 error ? "border-error" : "border-wood-200"
               )}
               aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "account-name-error" : undefined}
+              aria-describedby={error ? "edit-name-error" : undefined}
             />
             {error && (
-              <p id="account-name-error" className="mt-1.5 flex items-center gap-1 text-xs text-error" role="alert">
+              <p id="edit-name-error" className="mt-1.5 flex items-center gap-1 text-xs text-error" role="alert">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 {error}
               </p>
@@ -422,23 +432,23 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="edit-account-code" className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
+              <label htmlFor="edit-code" className="mb-1.5 block text-sm font-medium text-text-secondary">Kode akun</label>
               <input
-                id="edit-account-code"
+                id="edit-code"
                 type="text"
                 value={account.code}
                 readOnly
-                className="h-10 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-100 px-3 text-sm text-text-tertiary sm:min-h-0"
+                className="h-11 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-100 px-3 text-sm text-text-tertiary sm:h-10 sm:min-h-0"
               />
             </div>
             <div>
-              <label htmlFor="edit-account-type" className="mb-1.5 block text-sm font-medium text-text-secondary">Jenis akun</label>
+              <label htmlFor="edit-type" className="mb-1.5 block text-sm font-medium text-text-secondary">Jenis akun</label>
               <input
-                id="edit-account-type"
+                id="edit-type"
                 type="text"
                 value={typeInfo?.label || account.account_type}
                 readOnly
-                className="h-10 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-100 px-3 text-sm text-text-tertiary sm:min-h-0"
+                className="h-11 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-100 px-3 text-sm text-text-tertiary sm:h-10 sm:min-h-0"
               />
             </div>
           </div>
@@ -476,45 +486,38 @@ function CashBankCard({ account, onEdit, canEdit }: CashBankCardProps) {
   const Icon = meta.icon;
 
   return (
-    <Card className="transition-[border-color,box-shadow] hover:border-wood-300 hover:shadow-sm">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", meta.bgClass, meta.iconClass)}>
-              <Icon className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="break-words text-sm font-semibold text-text-primary">{account.name}</h3>
-              <p className="mt-0.5 text-xs text-text-tertiary">
-                {meta.label} · Kode {account.code}
-              </p>
-            </div>
+    <div className="rounded-xl border border-wood-200 bg-surface-elevated p-4 transition-[border-color,box-shadow] hover:border-wood-300 hover:shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", meta.bgClass, meta.iconClass)}>
+            <Icon className="h-5 w-5" />
           </div>
-          {canEdit && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(account)}
-              aria-label={`Edit nama akun ${account.name}`}
-              className="h-9 w-9 shrink-0 text-wood-500 hover:text-wood-700"
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
-          )}
+          <div className="min-w-0">
+            <h3 className="break-words text-sm font-semibold text-text-primary">{account.name}</h3>
+            <p className="mt-0.5 text-xs text-text-tertiary">
+              {meta.label} · Kode {account.code}
+            </p>
+          </div>
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          <Badge variant={account.is_active ? "success" : "neutral"}>
-            {account.is_active ? "Aktif" : "Nonaktif"}
-          </Badge>
-          {account.is_system && (
-            <span className="rounded-full border border-wood-200 bg-cream-50 px-2 py-0.5 text-xs text-text-tertiary">
-              Akun bawaan
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        {canEdit && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(account)}
+            aria-label={`Edit nama akun ${account.name}`}
+            className="h-11 w-11 shrink-0 text-wood-500 hover:text-wood-700 sm:h-9 sm:w-9"
+          >
+            <Edit2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      
+      {/* Status badges */}
+      <div className="mt-3 flex items-center gap-2">
+        <AccountStatusBadge account={account} />
+      </div>
+    </div>
   );
 }
 
@@ -555,7 +558,7 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
             <button
               type="button"
               onClick={() => toggleType(group.type)}
-              className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-cream-50"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-cream-50 sm:px-5 sm:py-4 min-h-[44px]"
             >
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4 shrink-0 text-wood-500" />
@@ -564,66 +567,84 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-text-primary">{group.label}</h2>
+                  <h2 className="text-base font-semibold text-text-primary sm:text-lg">{group.label}</h2>
                   <span className="rounded-full border border-wood-200 bg-cream-50 px-2 py-0.5 text-xs text-text-tertiary">
                     {group.accounts.length}
                   </span>
                 </div>
-                <p className="mt-0.5 text-sm text-text-tertiary">{group.description}</p>
+                <p className="mt-0.5 text-xs text-text-tertiary sm:text-sm">{group.description}</p>
               </div>
             </button>
 
             {isExpanded && (
               <div className="border-t border-wood-100">
-                {group.accounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="grid grid-cols-1 gap-1 border-t border-wood-100 px-5 py-3 first:border-t-0 sm:grid-cols-[88px_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4"
-                  >
-                    <div className="font-mono text-sm text-text-tertiary">{account.code}</div>
+                {/* Desktop table */}
+                <div className="hidden sm:block">
+                  {group.accounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="grid grid-cols-[80px_minmax(0,1fr)_100px_120px_auto] items-center gap-4 border-t border-wood-100 px-5 py-3 first:border-t-0"
+                    >
+                      <div className="font-mono text-sm text-text-tertiary">{account.code}</div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate font-medium text-text-primary">{account.name}</span>
+                          {account.is_cash_account && (
+                            <Badge variant="success" size="sm">Kas/Bank</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <AccountStatusBadge account={account} />
 
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-medium text-text-primary">{account.name}</span>
-                        {account.is_cash_account && (
-                          <span className="rounded-full border border-leaf-200 bg-leaf-50 px-2 py-0.5 text-xs text-leaf-700">
-                            Kas/Bank
-                          </span>
-                        )}
-                        {account.is_system && (
-                          <span className="rounded-full border border-wood-200 bg-cream-50 px-2 py-0.5 text-xs text-text-tertiary">
-                            Akun bawaan
-                          </span>
+                      <div>
+                        {canEdit ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(account)}
+                            aria-label={`Edit nama akun ${account.name}`}
+                          >
+                            <Edit2 className="mr-1.5 h-4 w-4" />
+                            Edit
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-text-tertiary">Terkunci</span>
                         )}
                       </div>
                     </div>
+                  ))}
+                </div>
+                
+                {/* Mobile cards */}
+                <div className="sm:hidden divide-y divide-wood-100">
+                  {group.accounts.map((account) => (
+                    <div key={account.id} className="px-4 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-text-tertiary">{account.code}</span>
+                            <AccountStatusBadge account={account} />
+                          </div>
+                          <p className="mt-1 truncate text-sm font-medium text-text-primary">{account.name}</p>
+                        </div>
+                        {canEdit && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onEdit(account)}
+                            aria-label={`Edit nama akun ${account.name}`}
+                            className="h-11 w-11 shrink-0 sm:h-9 sm:w-9"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
 
-                    <div className="text-sm text-text-tertiary">
-                      {!account.is_active ? (
-                        <span className="rounded-full border border-clay-200 bg-clay-50 px-2 py-0.5 text-xs text-clay-700">
-                          Nonaktif
-                        </span>
-                      ) : null}
                     </div>
-
-                    <div className="sm:justify-self-end">
-                      {canEdit ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(account)}
-                          aria-label={`Edit nama akun ${account.name}`}
-                        >
-                          <Edit2 className="mr-1.5 h-4 w-4" />
-                          Edit
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-text-tertiary">Terkunci</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -642,6 +663,7 @@ export function AccountsPage() {
   const { canManageAccounts, canCreateExports } = useOrgPermissions();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("cashbank");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [editAccount, setEditAccount] = useState<Account | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -655,21 +677,26 @@ export function AccountsPage() {
     enabled: !!orgData?.organization?.id,
   });
 
-  const filteredAccounts = (accounts || []).filter((a) =>
-    !search ||
-    a.code.toString().includes(search) ||
-    a.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredAccounts = (accounts || []).filter((a) => {
+    // Search filter
+    if (search) {
+      const q = search.toLowerCase();
+      if (!a.code.toString().includes(q) && !a.name.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    // Type filter (only for "all" tab)
+    if (activeTab === "all" && typeFilter !== "all" && a.account_type !== typeFilter) {
+      return false;
+    }
+    return true;
+  });
 
   const cashBankAccounts = filteredAccounts.filter((a) => a.is_cash_account || [1110, 1120, 1130, 1121, 1122, 1123].includes(a.code));
 
   const handleEdit = (account: Account) => {
     setEditAccount(account);
     setEditModalOpen(true);
-  };
-
-  const handleEditSuccess = () => {
-    // Query will auto-refetch due to invalidation in modal
   };
 
   const handleExport = async () => {
@@ -685,53 +712,72 @@ export function AccountsPage() {
   if (error) return <ErrorState error={error} onRetry={refetch} />;
 
   return (
-    <div className="space-y-6">
+    <div className="ledger-page space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Akun</h1>
           <p className="mt-1 text-sm text-text-secondary">
             Kelola kas, bank, dan akun pembukuan bisnis Anda.
           </p>
         </div>
-        {canManageAccounts && activeTab === "cashbank" && (
-          <Button
-            type="button"
-            onClick={() => setAddModalOpen(true)}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Kas/Bank
-          </Button>
-        )}
-        {canCreateExports && activeTab === "all" && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => void handleExport()}
-            className="w-full sm:w-auto"
-            disabled={!accounts?.length}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {canCreateExports && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void handleExport()}
+              disabled={!accounts?.length}
+              className="hidden sm:inline-flex"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
+          {canCreateExports && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => void handleExport()}
+              disabled={!accounts?.length}
+              className="sm:hidden min-h-[44px] min-w-[44px]"
+              aria-label="Export CSV"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+          {canManageAccounts && activeTab === "cashbank" && (
+            <Button
+              type="button"
+              onClick={() => setAddModalOpen(true)}
+              className="min-h-[44px]"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Kas/Bank
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Search */}
-      <Input
-        aria-label="Cari akun"
-        placeholder={activeTab === "cashbank" ? "Cari akun kas atau bank..." : "Cari kode atau nama akun..."}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        leftIcon={<Search className="h-4 w-4" />}
-      />
+      {/* Search — always visible */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" />
+        <input
+          type="text"
+          placeholder={activeTab === "cashbank" ? "Cari akun kas atau bank..." : "Cari kode atau nama akun..."}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-4 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
+        />
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg border border-wood-200 bg-cream-100 p-1">
         <button
           type="button"
-          onClick={() => setActiveTab("cashbank")}
+          onClick={() => { setActiveTab("cashbank"); setTypeFilter("all"); }}
           className={cn(
             "flex-1 rounded-md px-4 py-2.5 min-h-[44px] text-sm font-medium transition-colors",
             activeTab === "cashbank"
@@ -757,6 +803,33 @@ export function AccountsPage() {
         </button>
       </div>
 
+      {/* Type filter — only for "All Accounts" tab */}
+      {activeTab === "all" && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={typeFilter === "all" ? "primary" : "outline"}
+            size="sm"
+            onClick={() => setTypeFilter("all")}
+            className="min-h-[36px]"
+          >
+            Semua
+          </Button>
+          {ACCOUNT_TYPE_GROUPS.filter((g) => accounts?.some((a) => a.account_type === g.type)).map((group) => (
+            <Button
+              key={group.type}
+              type="button"
+              variant={typeFilter === group.type ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setTypeFilter(group.type)}
+              className="min-h-[36px]"
+            >
+              {group.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {/* Content */}
       {isLoading ? (
         <PageSpinner />
@@ -766,11 +839,19 @@ export function AccountsPage() {
           {activeTab === "cashbank" && (
             <>
               {cashBankAccounts.length === 0 ? (
-                <EmptyState
-                  icon={<Wallet className="h-8 w-8 text-wood-400" />}
-                  title={search ? "Akun tidak ditemukan" : "Belum ada akun kas/bank"}
-                  description={search ? "Coba kata kunci lain." : "Selesaikan onboarding untuk membuat akun kas dan bank."}
-                />
+                <div className="flex min-h-[240px] items-center justify-center p-8">
+                  <div className="mx-auto max-w-sm text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-wood-200 text-wood-400">
+                      <Wallet className="h-6 w-6" />
+                    </div>
+                    <h3 className="mt-3 text-base font-semibold text-text-primary">
+                      {search ? "Akun tidak ditemukan" : "Belum ada akun kas/bank"}
+                    </h3>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {search ? "Coba kata kunci lain." : "Selesaikan onboarding untuk membuat akun kas dan bank."}
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {cashBankAccounts.map((account) => (
@@ -790,11 +871,30 @@ export function AccountsPage() {
           {activeTab === "all" && (
             <>
               {filteredAccounts.length === 0 ? (
-                <EmptyState
-                  icon={<BookOpen className="h-8 w-8 text-wood-400" />}
-                  title={search ? "Akun tidak ditemukan" : "Belum ada akun"}
-                  description={search ? "Coba kata kunci lain." : "Selesaikan onboarding untuk membuat bagan akun awal."}
-                />
+                <div className="flex min-h-[240px] items-center justify-center p-8">
+                  <div className="mx-auto max-w-sm text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-wood-200 text-wood-400">
+                      <BookOpen className="h-6 w-6" />
+                    </div>
+                    <h3 className="mt-3 text-base font-semibold text-text-primary">
+                      {search || typeFilter !== "all" ? "Akun tidak ditemukan" : "Belum ada akun"}
+                    </h3>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {search || typeFilter !== "all" ? "Coba ubah filter atau kata kunci." : "Selesaikan onboarding untuk membuat bagan akun awal."}
+                    </p>
+                    {(search || typeFilter !== "all") && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => { setSearch(""); setTypeFilter("all"); }}
+                      >
+                        Reset filter
+                      </Button>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <AccountsTable
                   accounts={filteredAccounts}
@@ -812,7 +912,7 @@ export function AccountsPage() {
         key={addModalOpen ? "add-open" : "add-closed"}
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-        onSuccess={handleEditSuccess}
+        onSuccess={() => {}}
         accounts={accounts || []}
       />
 
@@ -822,7 +922,7 @@ export function AccountsPage() {
         open={editModalOpen}
         account={editAccount}
         onClose={() => { setEditModalOpen(false); setEditAccount(null); }}
-        onSuccess={handleEditSuccess}
+        onSuccess={() => {}}
       />
     </div>
   );

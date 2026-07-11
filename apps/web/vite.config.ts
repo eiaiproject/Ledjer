@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
@@ -7,8 +7,34 @@ import path from "node:path";
 
 const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN;
 
+// In dev, Vite injects Tailwind CSS as an inline <style> and a React-refresh
+// inline script. The production CSP (style-src 'self', script-src 'self') blocks
+// those, leaving the page unstyled and breaking HMR. Relax it for `vite` serve
+// only; production builds keep the strict CSP (postbuild-csp.sh adds Sentry).
+function relaxCspForDev(): Plugin {
+  return {
+    name: "relax-csp-for-dev",
+    transformIndexHtml(html, ctx) {
+      if (!ctx.server) return html; // build: leave the strict CSP intact
+      const devCsp =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; " +
+        "base-uri 'self'; form-action 'self'";
+      return html.replace(
+        /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+        `<meta http-equiv="Content-Security-Policy" content="${devCsp}">`,
+      );
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    relaxCspForDev(),
     react(),
     cloudflare(),
     tailwindcss(),

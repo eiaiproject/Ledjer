@@ -31,6 +31,73 @@ import {
   localDate,
 } from "./_helpers";
 
+function formatNotes(bankName?: string, notes?: string): string | undefined {
+  if (bankName) {
+    return `Bank: ${bankName}${notes ? "\n" + notes : ""}`;
+  }
+  return notes?.trim();
+}
+
+function buildTransactionParams(
+  data: TransactionSubmission,
+  expenseCogsAccounts: ReturnType<typeof useTransactionLookups>["expenseCogsAccounts"],
+): PostTransactionInput {
+  const shouldUseParty = usesParty(data.transactionType);
+  const shouldUseCategory = usesCategory(data.transactionType);
+  const shouldUseCashAccount = usesCashAccount(data.transactionType);
+  const shouldUseDestinationAccount = usesDestinationAccount(data.transactionType);
+  const shouldUsePaymentStatus = usesPaymentStatus(data.transactionType);
+  const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
+  const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
+
+  const params: PostTransactionInput = {
+    transactionDate: data.transactionDate,
+    transactionType: data.transactionType,
+    amount: data.amount,
+    paymentStatus,
+    partialAmount: data.partialAmount ?? undefined,
+    description: data.description,
+    idempotencyKey: data.clientToken,
+  };
+
+  if (shouldUseParty && data.partyName?.trim()) {
+    params.partyName = data.partyName.trim();
+  }
+
+  if (shouldUseCategory) {
+    if (data.debitAccountId) {
+      params.debitAccountId = data.debitAccountId;
+      const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
+      if (selectedAccount) params.categoryName = selectedAccount.name;
+    } else if (data.categoryName?.trim()) {
+      params.categoryName = data.categoryName.trim();
+    }
+  }
+
+  if (shouldSendCashAccount && data.cashAccountId) {
+    params.cashAccountId = data.cashAccountId;
+  }
+
+  if (shouldUseDestinationAccount && data.destinationCashAccountId) {
+    params.destinationCashAccountId = data.destinationCashAccountId;
+  }
+
+  if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) {
+    params.dueDate = data.dueDate;
+  }
+
+  const notes = formatNotes(data.bankName, data.notes);
+  if (notes) params.notes = notes;
+
+  if (data.productId) {
+    params.productId = data.productId;
+    if (data.quantity !== undefined) params.quantity = data.quantity;
+    if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
+  }
+
+  return params;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Schema & Types                                                     */
 /* ------------------------------------------------------------------ */
@@ -523,54 +590,7 @@ export function useTransactionMutation(params: {
   const postMutation = useMutation({
     mutationFn: async (data: TransactionSubmission) => {
       if (!orgId) throw new Error("Organisasi tidak ditemukan");
-
-      const shouldUseParty = usesParty(data.transactionType);
-      const shouldUseCategory = usesCategory(data.transactionType);
-      const shouldUseCashAccount = usesCashAccount(data.transactionType);
-      const shouldUseDestinationAccount = usesDestinationAccount(data.transactionType);
-      const shouldUsePaymentStatus = usesPaymentStatus(data.transactionType);
-      const paymentStatus = shouldUsePaymentStatus ? data.paymentStatus : "paid";
-      const shouldSendCashAccount = shouldUseCashAccount || (shouldUsePaymentStatus && paymentStatus !== "unpaid");
-
-      const params: PostTransactionInput = {
-        transactionDate: data.transactionDate,
-        transactionType: data.transactionType,
-        amount: data.amount,
-        paymentStatus,
-        partialAmount: data.partialAmount ?? undefined,
-        description: data.description,
-        idempotencyKey: data.clientToken,
-      };
-
-      if (shouldUseParty && data.partyName?.trim()) params.partyName = data.partyName.trim();
-
-      // CoA account ID for debit account (expense/cogs purchases)
-      if (shouldUseCategory && data.debitAccountId) {
-        params.debitAccountId = data.debitAccountId;
-        // Also send account name as category_name for transaction record display
-        const selectedAccount = expenseCogsAccounts?.find((a) => a.id === data.debitAccountId);
-        if (selectedAccount) params.categoryName = selectedAccount.name;
-      } else if (shouldUseCategory && data.categoryName?.trim()) {
-        // Legacy fallback: category name only
-        params.categoryName = data.categoryName.trim();
-      }
-      if (shouldSendCashAccount && data.cashAccountId) params.cashAccountId = data.cashAccountId;
-      if (shouldUseDestinationAccount && data.destinationCashAccountId) {
-        params.destinationCashAccountId = data.destinationCashAccountId;
-      }
-      if (shouldUsePaymentStatus && paymentStatus !== "paid" && data.dueDate) params.dueDate = data.dueDate;
-
-      const notes = data.bankName
-        ? `Bank: ${data.bankName}${data.notes ? "\n" + data.notes : ""}`
-        : data.notes?.trim();
-      if (notes) params.notes = notes;
-
-      if (data.productId) {
-        params.productId = data.productId;
-        if (data.quantity !== undefined) params.quantity = data.quantity;
-        if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
-      }
-
+      const params = buildTransactionParams(data, expenseCogsAccounts);
       return postTransactionApi(params) as Promise<{ transaction_id: string; impact: ImpactSummary }>;
     },
     onSuccess: (result, variables) => {
@@ -579,10 +599,11 @@ export function useTransactionMutation(params: {
       }
       setSuccessTransactionId(result.transaction_id);
       setClientToken(createClientToken());
-      // P1.5: invalidate every query key affected by a financial mutation so
-      // dashboard, reports, accounts, products, and parties do not display
-      // stale data after a successful post.
-      invalidateTransactionFinancialCaches(queryClient, orgId);
+      // ponytail: Delay cache invalidation to avoid D1 read-after-write inconsistency.
+      // D1 replicas may not have synced yet; 500ms gives primary time to propagate.
+      setTimeout(() => {
+        invalidateTransactionFinancialCaches(queryClient, orgId);
+      }, 500);
     },
     onSettled: () => {
       submitInFlightRef.current = false;

@@ -3,8 +3,9 @@ import { FakeD1Database } from "../test/fake-d1";
 import { currentMonthPeriod, getDashboardSummary } from "./dashboard.service";
 
 describe("dashboard summary", () => {
-  it("uses the current UTC month as the dashboard period", () => {
-    expect(currentMonthPeriod(new Date("2026-07-17T23:59:59.000Z"))).toEqual({
+  it("uses the current local month as the dashboard period", () => {
+    // Use noon UTC to avoid date boundary issues across timezones
+    expect(currentMonthPeriod(new Date("2026-07-17T12:00:00.000Z"))).toEqual({
       periodFrom: "2026-07-01",
       periodTo: "2026-07-17",
     });

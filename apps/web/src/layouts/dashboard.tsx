@@ -125,7 +125,7 @@ export function DashboardLayout() {
     <div className="ledger-min-dvh bg-background">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-drawer lg:flex lg:flex-col",
+        "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-[var(--z-drawer)] lg:flex lg:flex-col",
         sidebarWidth
       )}>
         {/* Logo */}
@@ -292,23 +292,23 @@ export function DashboardLayout() {
       </aside>
 
       {/* Mobile Header */}
-      <div className="sticky top-0 z-dropdown border-b border-wood-200 bg-cream-50 lg:hidden">
+      <div className="sticky top-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 -ml-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+            className="flex h-11 w-11 items-center justify-center -ml-2 text-wood-600 hover:bg-cream-200 rounded-lg"
             aria-label="Buka menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link to="/dashboard" className="flex h-11 items-center">
             <Logo size="sm" variant="full" className="h-7" />
           </Link>
           {canCreateTransaction && (
             <Link
               to="/transactions/new"
-              className="p-2 -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+              className="flex h-11 w-11 items-center justify-center -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
               aria-label="Transaksi baru"
             >
               <Plus className="h-5 w-5" />
@@ -321,13 +321,13 @@ export function DashboardLayout() {
       <dialog
         ref={mobileDialogRef}
         onClose={handleDialogClose}
-        className="fixed inset-0 z-modal m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent lg:hidden"
+        className="fixed inset-0 z-[var(--z-modal)] m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent lg:hidden"
         aria-label="Menu navigasi"
       >
         <button type="button" aria-label="Tutup menu" className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0" onClick={() => mobileDialogRef.current?.close()} />
         <div className="ledger-drawer absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-wood-700 shadow-xl">
           <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-wood-600">
-            <Logo size="md" variant="full" className="h-8" />
+            <Logo size="md" variant="full" color="white" className="h-8" />
             <button
               type="button"
               onClick={() => mobileDialogRef.current?.close()}
@@ -446,13 +446,13 @@ export function DashboardLayout() {
         showBottomNav && "pb-20 lg:pb-0",
         sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
       )}>
-        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
+        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-24 md:pb-24 lg:pb-8">
           <Outlet />
         </div>
       </main>
       {showBottomNav && (
       <nav
-        className="fixed bottom-0 inset-x-0 z-sticky border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
+        className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
         aria-label="Navigasi mobile"
       >
         <div className="flex items-stretch justify-around">

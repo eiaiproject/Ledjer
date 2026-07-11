@@ -196,6 +196,33 @@ export async function getBalanceSheet(
          )
        GROUP BY a.id, a.code, a.name, a.account_type, a.is_active
      ),
+     -- ponytail: Per-party AR/AP netting. Split negative asset balances into
+     -- liability and positive liability balances into asset.
+     party_net AS (
+       SELECT
+         a.id, CAST(a.code AS INTEGER) AS code, a.name, a.account_type,
+         pl.party_id,
+         COALESCE(SUM(pl.debit_minor - pl.credit_minor), 0) AS party_balance
+       FROM accounts a
+       LEFT JOIN posted_lines pl ON pl.account_id = a.id
+       WHERE a.organization_id = ?
+         AND a.account_type IN ('asset', 'liability')
+         AND pl.party_id IS NOT NULL
+       GROUP BY a.id, a.code, a.name, a.account_type, pl.party_id
+     ),
+     reclassified AS (
+       SELECT
+         id, code, name, account_type,
+         CASE
+           WHEN account_type = 'asset' AND party_balance >= 0 THEN 'asset'
+           WHEN account_type = 'asset' AND party_balance < 0 THEN 'liability'
+           WHEN account_type = 'liability' AND party_balance <= 0 THEN 'liability'
+           WHEN account_type = 'liability' AND party_balance > 0 THEN 'asset'
+         END AS section,
+         ABS(party_balance) AS amount
+       FROM party_net
+       WHERE party_balance != 0
+     ),
      net_income AS (
        SELECT -COALESCE(SUM(balance), 0) AS net
        FROM account_balances
@@ -208,6 +235,7 @@ export async function getBalanceSheet(
        balance AS amount
      FROM account_balances
      WHERE account_type = 'asset' AND balance != 0
+       AND NOT EXISTS (SELECT 1 FROM party_net pn WHERE pn.id = account_balances.id)
 
      UNION ALL
 
@@ -218,6 +246,14 @@ export async function getBalanceSheet(
        -balance
      FROM account_balances
      WHERE account_type = 'liability' AND balance != 0
+       AND NOT EXISTS (SELECT 1 FROM party_net pn WHERE pn.id = account_balances.id)
+
+     UNION ALL
+
+     -- Per-party reclassified amounts
+     SELECT section, code, name, SUM(amount)
+     FROM reclassified
+     GROUP BY section, code, name
 
      UNION ALL
 
@@ -242,7 +278,7 @@ export async function getBalanceSheet(
      WHERE net != 0
 
      ORDER BY section, account_code`,
-    [organizationId, date, organizationId],
+    [organizationId, date, organizationId, organizationId],
   );
 }
 

@@ -72,6 +72,7 @@ test.describe("Secrets exposure", () => {
 test.describe("Admin surface", () => {
   test("admin dashboard is not exposed in the public client router", async ({ page }) => {
     await page.goto("/admin");
+    await page.waitForLoadState("networkidle");
     await expect(page.getByRole("heading", { name: /halaman tidak ditemukan/i })).toBeVisible();
     await expect(page.getByText(/admin dashboard/i)).toHaveCount(0);
   });
@@ -102,7 +103,10 @@ test.describe("Security headers", () => {
 test.describe("Error message safety", () => {
   test("login error does not leak internal details", async ({ page }) => {
     await page.goto("/login");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("textbox", { name: /email/i }).fill("nonexistent@test.com");
+    await expect(page.locator('input[type="password"]')).toBeVisible({ timeout: 15_000 });
     await page.locator('input[type="password"]').fill("WrongPass1!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
 

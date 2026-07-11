@@ -62,7 +62,7 @@ export function BalanceSheetPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="ledger-page space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Neraca (Balance Sheet)</h1>
         <p className="text-sm text-text-secondary mt-1">Posisi keuangan per {formatDate(asOfDate)}</p>
@@ -110,11 +110,11 @@ export function BalanceSheetPage() {
               <h2 className="text-lg font-semibold text-text-primary">Aset</h2>
             </CardHeader>
             <div className="ledger-scroll-x">
-              <table className="ledger-table min-w-[520px]">
+              <table className="ledger-table min-w-0 sm:min-w-[520px]">
                 <tbody>
                   {assets.map((item) => (
                     <tr key={item.account_code} className="border-b border-wood-50">
-                      <td className="min-w-[260px] max-w-[420px] break-words px-5 py-2 text-wood-600">
+                      <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 text-wood-600">
                         <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
                         {item.account_name}
                       </td>
@@ -136,7 +136,7 @@ export function BalanceSheetPage() {
               <h2 className="text-lg font-semibold text-text-primary">Kewajiban & Ekuitas</h2>
             </CardHeader>
             <div className="ledger-scroll-x">
-              <table className="ledger-table min-w-[560px]">
+              <table className="ledger-table min-w-0 sm:min-w-[560px]">
                 <tbody>
                   {liabilities.length > 0 && (
                     <>
@@ -145,7 +145,7 @@ export function BalanceSheetPage() {
                       </tr>
                       {liabilities.map((item) => (
                         <tr key={item.account_code} className="border-b border-wood-50">
-                          <td className="min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
+                          <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
                             <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
                             {item.account_name}
                           </td>
@@ -161,7 +161,7 @@ export function BalanceSheetPage() {
                       </tr>
                       {equity.map((item) => (
                         <tr key={item.account_code} className="border-b border-wood-50">
-                          <td className="min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
+                          <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
                             <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
                             {item.account_name}
                           </td>

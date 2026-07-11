@@ -36,7 +36,7 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
     <dialog
       ref={dialogRef}
       className={cn(
-        "m-auto w-[calc(100%-2rem)] rounded-xl bg-surface p-0 text-left shadow-xl outline-none backdrop:bg-wood-900/50 backdrop:backdrop-blur-[1px] [animation:modal-content-in_var(--duration-base)_var(--ease-out)]",
+        "m-auto max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-xl bg-surface p-0 text-left shadow-xl outline-none backdrop:bg-wood-900/50 backdrop:backdrop-blur-[1px] [animation:modal-content-in_var(--duration-base)_var(--ease-out)]",
         sizeStyles[size],
         className
       )}

@@ -14,8 +14,9 @@ elif [[ "$local_arg" != "" ]]; then
 fi
 
 section() {
+  local title="$1"
   echo ""
-  echo "==> $1"
+  echo "==> $title"
 }
 
 if ! command -v pnpm >/dev/null 2>&1; then
