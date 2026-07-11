@@ -62,7 +62,17 @@ for i in "${!LABELS[@]}"; do
   if [[ -n "$matched_files" ]]; then
     leaked=0
     for f in $matched_files; do
-      if grep -nE "$pattern" "$f" 2>/dev/null | grep -vE 'c\.env\.|process\.env\.|VITE_' | grep -q .; then
+      # Skip .dev.vars files entirely (separate check below catches them)
+      if [[ "$f" == *.dev.vars ]]; then
+        continue
+      fi
+      # Check for actual leaked values (not just env var name references in Worker code).
+      # Worker code references env vars as c.env.GOOGLE_CLIENT_SECRET etc.
+      # Those are identifier names, not leaked values. Only flag if we find
+      # an actual value assignment or placeholder replacement.
+      if grep -nE "$pattern" "$f" 2>/dev/null | \
+         grep -vE 'c\.env\.|process\.env\.|VITE_|env\.|bindings\.' | \
+         grep -qE "$pattern"; then
         leaked=1
         break
       fi
@@ -70,7 +80,9 @@ for i in "${!LABELS[@]}"; do
     if [[ "$leaked" -ne 0 ]]; then
       echo "❌ FOUND: $label"
       echo "$matched_files" | head -3 | while read -r f; do
-        echo "   in: $f"
+        if [[ "$f" != *.dev.vars ]]; then
+          echo "   in: $f"
+        fi
       done
       FAIL=1
     fi
