@@ -49,14 +49,14 @@ function formatDateRange(from: string, to: string): string {
   const toParts = to.split("-");
   if (fromParts.length < 3 || toParts.length < 3) return `${from} — ${to}`;
   const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-  const fromMonth = months[parseInt(fromParts[1], 10) - 1];
-  const toMonth = months[parseInt(toParts[1], 10) - 1];
+  const fromMonth = months[Number.parseInt(fromParts[1], 10) - 1];
+  const toMonth = months[Number.parseInt(toParts[1], 10) - 1];
   const fromYear = fromParts[0];
   const toYear = toParts[0];
   if (fromYear === toYear) {
-    return `${parseInt(fromParts[2])} ${fromMonth} — ${parseInt(toParts[2])} ${toMonth} ${toYear}`;
+    return `${Number.parseInt(fromParts[2])} ${fromMonth} — ${Number.parseInt(toParts[2])} ${toMonth} ${toYear}`;
   }
-  return `${parseInt(fromParts[2])} ${fromMonth} ${fromYear} — ${parseInt(toParts[2])} ${toMonth} ${toYear}`;
+  return `${Number.parseInt(fromParts[2])} ${fromMonth} ${fromYear} — ${Number.parseInt(toParts[2])} ${toMonth} ${toYear}`;
 }
 
 /* ------------------------------------------------------------------ */

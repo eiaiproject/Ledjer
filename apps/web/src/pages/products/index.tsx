@@ -355,9 +355,8 @@ export function ProductsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
-        <PageSpinner />
-      ) : !products?.length ? (
+      {isLoading && <PageSpinner />}
+      {!isLoading && !products?.length && (
         /* Empty state — no products at all */
         <div className="flex min-h-[320px] items-center justify-center p-8">
           <div className="mx-auto max-w-sm text-center">
@@ -374,7 +373,8 @@ export function ProductsPage() {
             )}
           </div>
         </div>
-      ) : !filteredProducts.length ? (
+      )}
+      {!isLoading && products?.length && !filteredProducts.length && (
         /* No results — filters active but no match */
         <div className="flex min-h-[240px] items-center justify-center p-8">
           <div className="mx-auto max-w-sm text-center">
@@ -394,7 +394,8 @@ export function ProductsPage() {
             </Button>
           </div>
         </div>
-      ) : (
+      )}
+      {!isLoading && filteredProducts.length > 0 && (
         <>
           {/* Mobile: Card stack */}
           <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated lg:hidden">
