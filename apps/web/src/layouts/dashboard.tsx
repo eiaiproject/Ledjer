@@ -19,6 +19,7 @@ import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrgan
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
+import { OfflineBanner } from "@/components/ui/offline-banner";
 
 type NavItem =
   | { to: string; label: string; icon: LucideIcon; children?: never }
@@ -446,6 +447,7 @@ export function DashboardLayout() {
         showBottomNav && "pb-20 lg:pb-0",
         sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
       )}>
+        <OfflineBanner />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-24 md:pb-24 lg:pb-8">
           <Outlet />
         </div>

@@ -23,6 +23,7 @@ import {
   getTransaction,
   listTransactionJournal,
   voidTransaction,
+  settleTransaction,
 } from "@/lib/api/transactions";
 
 export function TransactionDetailPage() {
@@ -31,6 +32,8 @@ export function TransactionDetailPage() {
   const { data: orgData } = useOrganization();
   const { canViewReports, canVoidTransaction } = useOrgPermissions();
   const [showVoidForm, setShowVoidForm] = useState(false);
+  const [showSettleForm, setShowSettleForm] = useState(false);
+  const [settleCashAccountId, setSettleCashAccountId] = useState("");
   const [voidReason, setVoidReason] = useState("");
   const [showJournal, setShowJournal] = useState(false);
   const voidTokenRef = useRef(createClientToken());
@@ -67,6 +70,22 @@ export function TransactionDetailPage() {
       // P1.5: void reverses stock, COGS, balances → invalidate everything
       invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
       setShowVoidForm(false);
+    },
+    onError: (err) => toast.error(translateError(err)),
+  });
+
+  const settleMutation = useMutation({
+    mutationFn: async (cashAccountId: string) => {
+      if (!id || !orgData?.organization?.id) throw new Error("Missing data");
+      return settleTransaction(id, cashAccountId, voidTokenRef.current);
+    },
+    onSuccess: (result) => {
+      voidTokenRef.current = createClientToken();
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
+      invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
+      toast.success(`Sisa tagihan dilunasi: ${result.settle_transaction_number}`);
+      setShowSettleForm(false);
+      setSettleCashAccountId("");
     },
     onError: (err) => toast.error(translateError(err)),
   });
@@ -164,6 +183,58 @@ export function TransactionDetailPage() {
           </div>
         </dl>
       </div>
+
+      {/* Settle Section — for partially paid credit transactions */}
+      {transaction.status === "posted" && (transaction.transaction_type === "credit_sale" || transaction.transaction_type === "credit_purchase") && transaction.payment_status === "partial" && (
+        <div className="mt-4">
+          {!showSettleForm ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowSettleForm(true)}
+              className="border-leaf-400 text-leaf-700 hover:bg-leaf-50"
+            >
+              Lunasi Sisa Tagihan
+            </Button>
+          ) : (
+            <div className="rounded-lg border border-leaf-200 bg-leaf-50 p-4">
+              <h3 className="text-sm font-medium text-leaf-700">Lunasi Sisa Tagihan</h3>
+              <p className="mt-1 text-xs text-leaf-600">
+                Catat pelunasan sisa tagihan transaksi ini. Setelah dilunasi, transaksi dapat dibatalkan jika diperlukan.
+              </p>
+              <div className="mt-3">
+                <select
+                  value={settleCashAccountId}
+                  onChange={(e) => setSettleCashAccountId(e.target.value)}
+                  className="h-11 min-h-[44px] w-full rounded-md border border-wood-200 bg-surface px-3 text-sm text-text-primary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
+                  aria-label="Pilih akun kas/bank"
+                >
+                  <option value="">Pilih akun kas/bank...</option>
+                  {/* Cash accounts would be populated from a listAccounts query */}
+                </select>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setShowSettleForm(false); setSettleCashAccountId(""); }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => settleMutation.mutate(settleCashAccountId)}
+                  disabled={!settleCashAccountId || settleMutation.isPending}
+                  loading={settleMutation.isPending}
+                >
+                  Lunasi
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Void Section */}
       {transaction.status === "posted" && canVoidTransaction && (

@@ -239,6 +239,7 @@ describe("Organization API", () => {
         headers: {
           Cookie: `ledjer_session=${token}`,
           "Content-Type": "application/json",
+          Origin: "http://localhost:5173",
         },
         body: JSON.stringify({
           organizationName: "New Org",

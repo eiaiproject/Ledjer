@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import { ErrorState } from "@/components/ui/error-state";
-import { PageSpinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
@@ -843,7 +843,11 @@ export function AccountsPage() {
 
       {/* Content */}
       {isLoading ? (
-        <PageSpinner />
+        <div className="space-y-4">
+          {Array.from({ length: 6 }, (_, i) => `sk-acct-${i}`).map((key) => (
+            <Skeleton key={key} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
       ) : (
         <>
           {/* Kas & Bank Tab */}

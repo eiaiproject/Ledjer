@@ -1,5 +1,5 @@
 import { execute, queryAll, queryFirst } from "../db/client";
-import { conflict, forbidden, unauthorized } from "../http/errors";
+import { forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 import {
@@ -46,12 +46,18 @@ export async function registerUser(
   pepper?: string,
 ): Promise<RegisterResult> {
   const email = input.email.trim().toLowerCase();
+  const current = Date.now();
   const existing = await findUserByEmail(db, email);
   if (existing) {
-    throw conflict("email_already_registered", "Email is already registered");
+    // ponytail: Prevent email enumeration — silently log and create verification email.
+    await createEmailVerification(db, existing.id, email);
+    await logDuplicateRegistration(db, email, current);
+    return {
+      userId: existing.id,
+      needsEmailConfirmation: true,
+    };
   }
 
-  const current = Date.now();
   const userId = generateId();
   await execute(
     db,
@@ -291,6 +297,21 @@ async function isLoginRateLimited(
   );
 
   return rows.length >= LOGIN_MAX_FAILURES;
+}
+
+async function logDuplicateRegistration(
+  db: D1Database,
+  email: string,
+  current: number,
+): Promise<void> {
+  await execute(
+    db,
+    `INSERT INTO audit_logs (
+       id, organization_id, actor_user_id, entity_type, entity_id, action,
+       before_json, after_json, reason, created_at
+     ) VALUES (?, NULL, NULL, 'auth', ?, 'duplicate_registration', NULL, NULL, ?, ?)`,
+    [generateId(), email, `Duplicate registration attempt for ${email}`, current],
+  );
 }
 
 async function recordLoginAttempt(

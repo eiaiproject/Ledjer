@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PageSpinner } from "@/components/ui/spinner";
+import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
@@ -88,7 +88,7 @@ export function TrialBalancePage() {
       </Card>
 
       {isLoading && (
-        <PageSpinner />
+        <ReportSkeleton rows={8} cols={4} />
       )}
       {!isLoading && !data?.length && (
         <EmptyState

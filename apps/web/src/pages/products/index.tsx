@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/error-state";
-import { PageSpinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
@@ -355,7 +355,14 @@ export function ProductsPage() {
       </div>
 
       {/* Content */}
-      {isLoading && <PageSpinner />}
+      {isLoading && (
+        <div className="space-y-3">
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+        </div>
+      )}
       {!isLoading && !products?.length && (
         /* Empty state — no products at all */
         <div className="flex min-h-[320px] items-center justify-center p-8">

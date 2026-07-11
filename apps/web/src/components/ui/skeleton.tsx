@@ -63,3 +63,40 @@ export function TransactionListSkeleton() {
     </div>
   );
 }
+
+/** Reusable skeleton for report pages with a summary bar and table rows */
+export function ReportSkeleton({ rows = 6, cols = 4 }: { readonly rows?: number; readonly cols?: number }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-wood-200 bg-surface-elevated">
+      {/* Skeleton summary bar */}
+      <div className="flex items-center gap-4 border-b border-wood-100 px-5 py-3">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+      {/* Skeleton table */}
+      <table className="ledger-table">
+        <thead>
+          <tr className="border-b border-wood-100">
+            {Array.from({ length: cols }, (_, i) => `sk-th-${i}`).map((key) => (
+              <th key={key} className="px-5 py-3">
+                <Skeleton className="h-4 w-20" />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rows }, (_, rowIdx) => (
+            <tr key={`sk-row-${rowIdx}`} className="border-b border-wood-50">
+              {Array.from({ length: cols }, (_, colIdx) => (
+                <td key={`sk-cell-${rowIdx}-${colIdx}`} className="px-5 py-3">
+                  <Skeleton className="h-4" />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

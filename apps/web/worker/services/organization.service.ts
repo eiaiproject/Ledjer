@@ -99,14 +99,15 @@ interface DefaultAccount {
   isCashAccount: boolean;
   cashAccountType?: "cash" | "bank" | "qris";
   reportGroup: string;
+  accountSubtype?: string;
 }
 
 const DEFAULT_ACCOUNTS: readonly DefaultAccount[] = [
   { code: "1110", name: "Kas", accountType: "asset", normalBalance: "debit", isLocked: true, isCashAccount: true, cashAccountType: "cash", reportGroup: "Kas" },
   { code: "1120", name: "Bank", accountType: "asset", normalBalance: "debit", isLocked: true, isCashAccount: true, cashAccountType: "bank", reportGroup: "Bank" },
-  { code: "1200", name: "Piutang Usaha", accountType: "asset", normalBalance: "debit", isLocked: true, isCashAccount: false, reportGroup: "Piutang Usaha" },
+  { code: "1200", name: "Piutang Usaha", accountType: "asset", normalBalance: "debit", isLocked: true, isCashAccount: false, reportGroup: "Piutang Usaha", accountSubtype: "accounts_receivable" },
   { code: "1300", name: "Persediaan Sederhana", accountType: "asset", normalBalance: "debit", isLocked: false, isCashAccount: false, reportGroup: "Persediaan" },
-  { code: "2100", name: "Utang Usaha", accountType: "liability", normalBalance: "credit", isLocked: true, isCashAccount: false, reportGroup: "Utang Usaha" },
+  { code: "2100", name: "Utang Usaha", accountType: "liability", normalBalance: "credit", isLocked: true, isCashAccount: false, reportGroup: "Utang Usaha", accountSubtype: "accounts_payable" },
   { code: "2200", name: "Beban Masih Harus Dibayar", accountType: "liability", normalBalance: "credit", isLocked: false, isCashAccount: false, reportGroup: "Beban Belum Dibayar" },
   { code: "3100", name: "Modal Pemilik", accountType: "equity", normalBalance: "credit", isLocked: true, isCashAccount: false, reportGroup: "Modal" },
   { code: "3200", name: "Saldo Awal", accountType: "equity", normalBalance: "credit", isLocked: true, isCashAccount: false, reportGroup: "Saldo Awal" },
@@ -368,8 +369,8 @@ async function createDefaultAccounts(
   for (const account of DEFAULT_ACCOUNTS) {
     await execute(
       db,
-      `INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, is_system, is_locked, is_active, is_cash_account, cash_account_type, report_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?)`,
-      [generateId(), organizationId, account.code, account.name, account.accountType, account.normalBalance, account.isLocked, account.isCashAccount, account.cashAccountType, account.reportGroup, current, current],
+      `INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, is_system, is_locked, is_active, is_cash_account, cash_account_type, report_group, account_subtype, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?, ?)`,
+      [generateId(), organizationId, account.code, account.name, account.accountType, account.normalBalance, account.isLocked, account.isCashAccount, account.cashAccountType, account.reportGroup, account.accountSubtype ?? null, current, current],
     );
   }
 }
