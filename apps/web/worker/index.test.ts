@@ -58,7 +58,7 @@ describe("Worker API", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
-      error: { code: "request_rejected" },
+      error: { code: "csrf_invalid" },
     });
   });
 });

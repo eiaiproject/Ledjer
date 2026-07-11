@@ -292,7 +292,7 @@ describe('getSubmitLabel', () => {
     expect(label).toContain('Catat Pembelian');
   });
 
-  it('shows generic label for other types', () => {
+  it('shows labeled button for expense_payment', () => {
     const label = getSubmitLabel({
       transactionType: 'expense_payment',
       amount: 25000,
@@ -300,7 +300,7 @@ describe('getSubmitLabel', () => {
       loading: false,
       successId: null,
     });
-    expect(label).toContain('Catat Transaksi');
+    expect(label).toContain('Catat Beban');
   });
 
   it('shows generic label when amount is 0', () => {

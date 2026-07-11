@@ -78,13 +78,20 @@ describe("account safety rules", () => {
     });
   });
 
-  it("blocks renaming locked accounts", async () => {
+  it("allows renaming locked accounts (user-named banks)", async () => {
+    const db = dbWithAccount(account());
+    await expect(
+      patchAccount(db, "org-1", "user-1", "account-1", { name: "Kas Baru" }),
+    ).resolves.toBeDefined();
+  });
+
+  it("blocks deactivating locked accounts", async () => {
     const db = dbWithAccount(account());
 
     await expect(
-      patchAccount(db, "org-1", "user-1", "account-1", { name: "Kas Baru" }),
+      patchAccount(db, "org-1", "user-1", "account-1", { isActive: false }),
     ).rejects.toMatchObject({
-      code: "account_locked",
+      code: "account_protected",
       status: 403,
     });
   });
