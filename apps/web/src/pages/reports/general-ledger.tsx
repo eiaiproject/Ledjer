@@ -398,7 +398,7 @@ export function GeneralLedgerPage() {
                   ))}
                 </div>
               )}
-              {(!ledger || ledger.length === 0) && (
+              {(!ledger?.length) && (
                 <EmptyLedgerState />
               )}
             </div>
@@ -413,7 +413,7 @@ export function GeneralLedgerPage() {
               {(ledger?.length ?? 0) > 0 && (!showAllAccounts || !accountGroups) && (
                 <SingleAccountTable entries={entriesWithBalance || []} />
               )}
-              {(!ledger || ledger.length === 0) && (
+              {(!ledger?.length) && (
                 <EmptyLedgerState />
               )}
             </div>
