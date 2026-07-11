@@ -50,14 +50,14 @@ test.describe("Static asset performance", () => {
 });
 
 test.describe("Bundle size", () => {
-  test("main bundle is under 500KB", async ({ page }) => {
-    const scriptSizes: { url: string; size: number }[] = [];
+  test("main bundle is under 750 KB (raw size)", async ({ page }) => {
+    const scriptSizes: { url: string; rawSize: number }[] = [];
 
     page.on("response", async (response) => {
       if (response.url().endsWith(".js")) {
         try {
           const body = await response.body();
-          scriptSizes.push({ url: response.url(), size: body.length });
+          scriptSizes.push({ url: response.url(), rawSize: body.length });
         } catch {
           // Response body may not be available
         }
@@ -67,21 +67,15 @@ test.describe("Bundle size", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    // Budget measures gzipped transfer size (what the browser actually receives).
-    // 750 KB gzipped ≈ 1.5 MB raw — current main chunk is ~611 KB raw / ~180 KB gz.
-    // Set to 750 KB to leave headroom for new features; revisit via code-splitting
-    // when raw main exceeds 1 MB.
+    // Budget measures the raw (uncompressed) JS size as served by Vite preview.
+    // The Vite preview server may or may not compress responses, so we measure
+    // raw size which is deterministic regardless of server compression config.
+    // Current main chunk is ~611 KB raw. Budget set to 750 KB to leave headroom.
     const mainBundle = scriptSizes.find(
       (s) => s.url.includes("index") || s.url.includes("main"),
     );
     if (mainBundle) {
-      // Re-request the bundle with gzip Accept-Encoding to measure real transfer size
-      const gz = await page.evaluate(async (url) => {
-        const r = await fetch(url, { headers: { "Accept-Encoding": "gzip" } });
-        const buf = await r.arrayBuffer();
-        return buf.byteLength;
-      }, mainBundle.url);
-      expect(gz).toBeLessThan(750 * 1024);
+      expect(mainBundle.rawSize).toBeLessThan(750 * 1024);
     }
   });
 });
