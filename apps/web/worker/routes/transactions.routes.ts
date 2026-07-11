@@ -12,6 +12,7 @@ import {
   listJournalEntriesForTransaction,
   listTransactions,
   postTransaction,
+  settleAndVoidTransaction,
   voidTransaction,
 } from "../services/transactions.service";
 
@@ -55,6 +56,11 @@ const postTransactionSchema = z.object({
 const voidTransactionSchema = z.object({
   reason: z.string().min(5).max(500),
   voidDate: dateSchema.nullable().optional(),
+  idempotencyKey: z.string().min(8).max(160),
+});
+
+const settleTransactionSchema = z.object({
+  cashAccountId: z.string(),
   idempotencyKey: z.string().min(8).max(160),
 });
 
@@ -120,6 +126,21 @@ transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:
     context.member.user_id,
     c.req.param("transactionId"),
     body,
+    c.get("requestId"),
+  );
+  return c.json(result);
+});
+
+transactionsRoutes.post("/:transactionId/settle", requirePermission("transactions:create"), async (c) => {
+  const context = c.get("organizationContext");
+  const body = await readJson(c, settleTransactionSchema);
+  const result = await settleAndVoidTransaction(
+    c.env.DB,
+    context.organization.id,
+    context.member.user_id,
+    c.req.param("transactionId"),
+    body.cashAccountId,
+    body.idempotencyKey,
     c.get("requestId"),
   );
   return c.json(result);

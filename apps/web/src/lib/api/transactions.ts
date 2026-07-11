@@ -98,6 +98,13 @@ export interface VoidTransactionResult {
   status: "voided";
 }
 
+export interface SettleTransactionResult {
+  settle_transaction_id: string;
+  settle_transaction_number: string;
+  journal_entry_id: string;
+  status: "settled";
+}
+
 interface TransactionsResponse {
   transactions: Transaction[];
 }
@@ -153,5 +160,16 @@ export function voidTransaction(
   return apiRequest<VoidTransactionResult>(`/api/transactions/${transactionId}/void`, {
     method: "POST",
     body: JSON.stringify({ reason, idempotencyKey }),
+  });
+}
+
+export function settleTransaction(
+  transactionId: string,
+  cashAccountId: string,
+  idempotencyKey: string,
+): Promise<SettleTransactionResult> {
+  return apiRequest<SettleTransactionResult>(`/api/transactions/${transactionId}/settle`, {
+    method: "POST",
+    body: JSON.stringify({ cashAccountId, idempotencyKey }),
   });
 }
