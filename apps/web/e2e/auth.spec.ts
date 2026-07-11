@@ -7,20 +7,31 @@ import { test, expect } from "@playwright/test";
 const LOGIN_TIMEOUT = 20_000;
 
 test.describe("Login", () => {
-  test("login with wrong password shows error", async ({ page }) => {
+  test("login with wrong credentials shows generic error (no account enumeration)", async ({ page }) => {
     await page.goto("/login");
     await page.getByRole("textbox", { name: /email/i }).fill("nonexistent@test.com");
     await page.locator('input[type="password"]').fill("WrongPassword999!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
-    await expect(page.locator("[role='alert']")).toBeVisible({ timeout: LOGIN_TIMEOUT });
+    const alert = page.locator("[role='alert']");
+    await expect(alert).toBeVisible({ timeout: LOGIN_TIMEOUT });
+    // Verify generic error message does not reveal whether email exists
+    const alertText = await alert.textContent();
+    expect(alertText).not.toContain("registered");
+    expect(alertText).not.toContain("exist");
+    expect(alertText).not.toContain("found");
+    expect(alertText).not.toContain("tidak terdaftar");
   });
 
-  test("login with invalid email shows error", async ({ page }) => {
+  test("login with syntactically invalid email shows browser validation error", async ({ page }) => {
     await page.goto("/login");
-    await page.getByRole("textbox", { name: /email/i }).fill("nonexistent@test.com");
+    const emailInput = page.getByRole("textbox", { name: /email/i });
+    // Use a syntactically invalid email (not just a non-existent one)
+    await emailInput.fill("not-an-email");
     await page.locator('input[type="password"]').fill("SomePassword1!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
-    await expect(page.locator("[role='alert']")).toBeVisible({ timeout: LOGIN_TIMEOUT });
+    // Browser-native validity check should fire before form submission
+    await expect.poll(async () => emailInput.evaluate((input) => (input as HTMLInputElement).validity.typeMismatch)).toBe(true);
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test("login with empty fields shows validation error", async ({ page }) => {

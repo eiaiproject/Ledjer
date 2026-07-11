@@ -18,13 +18,13 @@ test.describe("Landing page", () => {
     page.on("console", (msg) => {
       if (msg.type() === "error") {
         const text = msg.text();
-        // Filter out known third-party / non-critical errors
+        // Only ignore documented third-party noise identified by domain + exact pattern.
+        // Application-level errors (chunk load failure, CSP violation, dynamic import
+        // failure) are real failures that must be caught.
         const isNoise = [
-          "sentry", "Sentry", "analytics", "Failed to load resource",
-          "net::ERR", "ResizeObserver", "Non-Error promise rejection",
-          "hydrat", "chunk", "Loading CSS chunk", "dynamically imported",
-          "Content Security Policy", "frame-ancestors", "meta element",
-        ].some((p) => text.toLowerCase().includes(p.toLowerCase()));
+          // Sentry: third-party error reporting, fails independently
+          /sentry\.io/i.test(text) && /failed|error/i.test(text),
+        ].some(Boolean);
         if (!isNoise) errors.push(text);
       }
     });
@@ -37,7 +37,9 @@ test.describe("Landing page", () => {
     const failed: string[] = [];
     page.on("requestfailed", (req) => {
       const url = req.url();
-      if (/sentry|analytics|google|font/i.test(url)) return;
+      // Only ignore known third-party endpoints. Chunk, asset, and API failures
+      // are application-level failures.
+      if (/sentry\.io/i.test(url) && /failed|error/i.test(url)) return;
       failed.push(url);
     });
     await page.goto("/");

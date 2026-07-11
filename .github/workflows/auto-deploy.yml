@@ -12,17 +12,23 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      branch:
-        description: "Branch to deploy (default: main)"
+      commit:
+        description: "Commit SHA to deploy (default: latest main)"
         required: false
-        default: main
+        default: ""
 
+# ── Stable production concurrency group ─────────────────────
+# Do NOT cancel a migration in progress. Use a fixed group name
+# so that all production deployments serialize safely.
 concurrency:
-  group: deploy-production-${{ github.sha }}
-  cancel-in-progress: true
+  group: deploy-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
+
+env:
+  DEPLOY_SHA: ${{ inputs.commit || github.sha }}
 
 jobs:
   # ─── 1. Quality gate ─────────────────────────────────────────
@@ -32,6 +38,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -65,13 +73,16 @@ jobs:
       - name: Scan build output for leaked secrets
         run: bash scripts/check-build-secrets.sh
 
-  # ─── 2. D1 migrations ────────────────────────────────────────
+  # ─── 2. D1 migrations (requires quality gate first) ──────────
   migrations:
     name: "D1 migrations"
+    needs: [quality]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -103,7 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: ${{ inputs.branch || github.ref_name }}
+          ref: ${{ env.DEPLOY_SHA }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
@@ -131,12 +142,56 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bash scripts/deploy.sh --deploy-only
 
+      # ── Post-deploy smoke verification ─────────────────────
+      - name: Post-deploy smoke check
+        id: post-deploy-smoke
+        env:
+          PRODUCTION_URL: https://ledjer.id
+        run: |
+          echo "Verifying production deployment..."
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$PRODUCTION_URL")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Production URL returned HTTP $HTTP_STATUS"
+            echo "smoke_passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "✅ Production URL returned HTTP 200"
+
+          # Quick health endpoint check
+          HEALTH_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$PRODUCTION_URL/api/health")
+          if [ "$HEALTH_STATUS" != "200" ]; then
+            echo "❌ Health endpoint returned HTTP $HEALTH_STATUS"
+            echo "smoke_passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "✅ Health endpoint returned HTTP 200"
+          echo "smoke_passed=true" >> $GITHUB_OUTPUT
+
+      # ── Recovery / rollback procedure ──────────────────────
+      - name: Recovery instructions
+        if: failure()
+        run: |
+          echo "### ⚠️ Deployment failed or smoke check failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run the following commands to roll back:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo '# 1. Roll back the Worker to the last stable version' >> $GITHUB_STEP_SUMMARY
+          echo 'npx wrangler rollback' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '# 2. D1 migrations are additive-only — no rollback needed.' >> $GITHUB_STEP_SUMMARY
+          echo '#    New migrations are NOT destructive, but if you need to' >> $GITHUB_STEP_SUMMARY
+          echo '#    undo, run a new migration to revert.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment metadata" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ env.DEPLOY_SHA }}\`" >> $GITHUB_STEP_SUMMARY
+
       - name: Summary
         run: |
           echo "### 🚀 Deployed to Cloudflare Workers" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`${{ inputs.branch || github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ env.DEPLOY_SHA }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** https://ledjer.id" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> Both frontend (SPA) and backend (Worker API + D1) deployed." >> $GITHUB_STEP_SUMMARY

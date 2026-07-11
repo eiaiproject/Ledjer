@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 
 /**
  * Accessibility E2E tests.
- * Manual checks + axe-core automated audits.
+ * Automated axe-core audits + manual semantic/flow checks.
  */
 
 test.describe("axe-core automated audits", () => {
@@ -15,7 +15,7 @@ test.describe("axe-core automated audits", () => {
   ];
 
   for (const p of publicPages) {
-    test(`${p.name} has no critical axe violations`, async ({ page }) => {
+    test(`${p.name} has no critical or serious axe violations`, async ({ page }) => {
       await page.goto(p.url);
       await page.waitForLoadState("networkidle");
 
@@ -23,17 +23,19 @@ test.describe("axe-core automated audits", () => {
         .withTags(["wcag2a", "wcag2aa", "best-practice"])
         .analyze();
 
-      // Fail only on critical violations
-      const criticalOnly = results.violations.filter((v) => v.impact === "critical");
+      // Fail on critical AND serious violations
+      const violations = results.violations.filter(
+        (v) => v.impact === "critical" || v.impact === "serious",
+      );
 
-      if (criticalOnly.length > 0) {
-        const msg = criticalOnly
-          .map((v) => `${v.id}: ${v.description} (${v.nodes.length} elements)`)
+      if (violations.length > 0) {
+        const msg = violations
+          .map((v) => `${v.id} (${v.impact}): ${v.description} (${v.nodes.length} elements)`)
           .join("\n");
-        console.error(`Critical axe violations on ${p.name}:\n${msg}`);
+        console.error(`Axe violations on ${p.name}:\n${msg}`);
       }
 
-      expect(criticalOnly).toHaveLength(0);
+      expect(violations).toHaveLength(0);
     });
   }
 });
@@ -53,15 +55,13 @@ test.describe("HTML semantics", () => {
       await expect(html).toHaveAttribute("lang", "id");
     });
 
-    test(`${p.name} page has proper heading hierarchy`, async ({ page }) => {
+    test(`${p.name} page has a semantic h1 heading`, async ({ page }) => {
       await page.goto(p.url);
       await page.waitForLoadState("networkidle");
-      // App uses div-based headings; check for visible heading-like elements
-      const headings = page.locator(
-        "h1, h2, h3, [class*='heading'], [class*='title'], [role='heading']",
-      );
-      const count = await headings.count();
-      expect(count).toBeGreaterThanOrEqual(1);
+      // Verify there is at least one <h1> element (semantic heading)
+      const h1 = page.locator("h1");
+      const h1Count = await h1.count();
+      expect(h1Count).toBeGreaterThanOrEqual(1);
     });
   }
 });
