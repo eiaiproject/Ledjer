@@ -4,6 +4,15 @@
 # When LEDJER_CSP_LOCAL=1, also relax for local E2E (unsafe-inline, localhost).
 set -euo pipefail
 
+# Clean up .dev.vars from dist/ledjer/ — it is a dev-only artifact that
+# @cloudflare/vite-plugin copies from the project root into the build output.
+# Keeping it in the bundle would leak secrets to production deployments.
+DEV_VARS="dist/ledjer/.dev.vars"
+if [[ -f "$DEV_VARS" ]]; then
+  rm -f "$DEV_VARS"
+  echo "[clean] removed $DEV_VARS from build output"
+fi
+
 HTML="dist/client/index.html"
 [[ -f "$HTML" ]] || { echo "[csp] $HTML not found"; exit 0; }
 

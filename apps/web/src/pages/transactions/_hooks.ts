@@ -4,7 +4,8 @@ import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClientToken } from "@/lib/utils";
+import { createClientToken, formatIDR } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
 
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { listAccounts } from "@/lib/api/accounts";
@@ -13,6 +14,7 @@ import { listProducts } from "@/lib/api/products";
 import {
   postTransaction as postTransactionApi,
   type PostTransactionInput,
+  type PostTransactionResult,
 } from "@/lib/api/transactions";
 import {
   usesCashAccount,
@@ -614,7 +616,7 @@ export function useTransactionMutation(params: {
     mutationFn: async (data: TransactionSubmission) => {
       if (!orgId) throw new Error("Organisasi tidak ditemukan");
       const params = buildTransactionParams(data, expenseCogsAccounts);
-      return postTransactionApi(params) as Promise<{ transaction_id: string; impact: ImpactSummary }>;
+      return postTransactionApi(params) as Promise<PostTransactionResult>;
     },
     onSuccess: (result, variables) => {
       if (variables.cashAccountId) {
@@ -627,6 +629,7 @@ export function useTransactionMutation(params: {
       setTimeout(() => {
         invalidateTransactionFinancialCaches(queryClient, orgId);
       }, 500);
+      toast.success(`Transaksi ${result.transaction_number} berhasil dicatat ${formatIDR(variables.amount)}`);
     },
     onSettled: () => {
       submitInFlightRef.current = false;
