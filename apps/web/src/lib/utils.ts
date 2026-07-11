@@ -5,15 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Format number as Indonesian Rupiah */
+/** Format number as Indonesian Rupiah.
+ *  Returns "—" (em dash) for null/undefined to signal missing data.
+ *  Returns "Rp 0" for zero amounts. */
 export function formatIDR(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined || Number.isNaN(amount)) return "Rp 0";
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return "—";
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/** Like formatIDR but shows "Rp 0" instead of "—" when value is null/undefined. */
+export function formatIDROrZero(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return "Rp 0";
+  return formatIDR(amount);
 }
 
 /** Format number with Indonesian thousand separators */

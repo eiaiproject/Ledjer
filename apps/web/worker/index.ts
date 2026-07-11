@@ -28,9 +28,26 @@ app.use("*", secureHeaders());
 app.use("/api/*", async (c, next) => {
   const method = c.req.method;
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
+
+  // ponytail 2.3: In production, if APP_ORIGIN is unset, throw at boot (fail-closed).
+  // For state-changing methods, if Origin header is missing AND the request has
+  // a session cookie, reject with 403. Same-origin browser requests always send
+  // Origin on mutations. Allow Origin-less requests only when no session cookie
+  // is present (e.g. public health check, login endpoint pre-auth).
   const origin = c.req.header("Origin") || c.req.header("Referer");
-  if (!origin) return next(); // same-origin or non-browser
   const allowed = c.env.APP_ORIGIN;
+
+  if (!origin) {
+    const cookie = c.req.header("Cookie");
+    if (cookie && (cookie.includes("ledjer_session=") || cookie.includes("__Host-ledjer_session="))) {
+      if (allowed) {
+        return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
+      }
+      return c.json({ error: { code: "csrf_missing_origin", message: "Missing Origin header with session cookie" } }, 403);
+    }
+    return next(); // No session cookie — public endpoint (health, login)
+  }
+
   if (!allowed) return next(); // dev mode: allow all
   const ok = origin === allowed || origin.startsWith(allowed + "/");
   if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
