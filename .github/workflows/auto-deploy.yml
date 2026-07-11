@@ -149,13 +149,13 @@ jobs:
           PRODUCTION_URL: https://ledjer.id
         run: |
           echo "Verifying production deployment..."
-          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$PRODUCTION_URL")
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 15 "$PRODUCTION_URL")
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "❌ Production URL returned HTTP $HTTP_STATUS"
             echo "smoke_passed=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-          echo "✅ Production URL returned HTTP 200"
+          echo "✅ Production URL returned HTTP $HTTP_STATUS"
 
           # Quick health endpoint check
           HEALTH_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$PRODUCTION_URL/api/health")
