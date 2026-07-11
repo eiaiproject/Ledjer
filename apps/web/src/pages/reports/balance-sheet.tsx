@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PageSpinner } from "@/components/ui/spinner";
+import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
@@ -96,7 +96,7 @@ export function BalanceSheetPage() {
       </Card>
 
       {isLoading && (
-        <PageSpinner />
+        <ReportSkeleton rows={8} cols={2} />
       )}
       {!isLoading && !data?.length && (
         <EmptyState
@@ -105,82 +105,154 @@ export function BalanceSheetPage() {
         />
       )}
       {!isLoading && data?.length && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Assets */}
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-semibold text-text-primary">Aset</h2>
-            </CardHeader>
-            <div className="ledger-scroll-x">
-              <table className="ledger-table min-w-0 sm:min-w-[520px]">
-                <tbody>
-                  {assets.map((item) => (
-                    <tr key={item.account_code} className="border-b border-wood-50">
-                      <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 text-wood-600">
-                        <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
-                        {item.account_name}
-                      </td>
-                      <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-leaf-50 font-bold">
-                    <td className="px-5 py-3 text-leaf-800">Total Aset</td>
-                    <td className="px-5 py-3 text-right tabular-nums text-leaf-800">{formatIDR(totalAssets)}</td>
-                  </tr>
-                </tbody>
-              </table>
+        <>
+          {/* Mobile: cards */}
+          <div className="space-y-4 sm:hidden ledger-mobile-card-stack">
+            {/* Assets */}
+            <div className="overflow-hidden rounded-lg border border-wood-200">
+              <div className="bg-cream-100/50 px-4 py-2.5">
+                <p className="text-sm font-semibold text-wood-700">Aset</p>
+              </div>
+              <div className="divide-y divide-wood-100">
+                {assets.map((item) => (
+                  <div key={item.account_code} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm text-wood-600">{item.account_name}</p>
+                      <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+                    </div>
+                    <span className="shrink-0 num-mono text-sm text-wood-800">{formatIDR(item.amount)}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between bg-leaf-50 px-4 py-3">
+                  <span className="text-sm font-bold text-leaf-800">Total Aset</span>
+                  <span className="num-mono text-sm font-bold text-leaf-800">{formatIDR(totalAssets)}</span>
+                </div>
+              </div>
             </div>
-          </Card>
 
-          {/* Liabilities & Equity */}
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-semibold text-text-primary">Kewajiban & Ekuitas</h2>
-            </CardHeader>
-            <div className="ledger-scroll-x">
-              <table className="ledger-table min-w-0 sm:min-w-[560px]">
-                <tbody>
-                  {liabilities.length > 0 && (
-                    <>
-                      <tr className="bg-cream-100/50">
-                        <td colSpan={2} className="px-5 py-2 font-semibold text-wood-700">Kewajiban</td>
-                      </tr>
-                      {liabilities.map((item) => (
-                        <tr key={item.account_code} className="border-b border-wood-50">
-                          <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
-                            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
-                            {item.account_name}
-                          </td>
-                          <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
-                        </tr>
-                      ))}
-                    </>
-                  )}
-                  {equity.length > 0 && (
-                    <>
-                      <tr className="bg-cream-100/50">
-                        <td colSpan={2} className="px-5 py-2 font-semibold text-wood-700">Ekuitas</td>
-                      </tr>
-                      {equity.map((item) => (
-                        <tr key={item.account_code} className="border-b border-wood-50">
-                          <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
-                            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
-                            {item.account_name}
-                          </td>
-                          <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
-                        </tr>
-                      ))}
-                    </>
-                  )}
-                  <tr className="bg-sky-500/10 font-bold">
-                    <td className="px-5 py-3 text-sky-700">Total Kewajiban & Ekuitas</td>
-                    <td className="px-5 py-3 text-right tabular-nums text-sky-700">{formatIDR(totalLiabEquity)}</td>
-                  </tr>
-                </tbody>
-              </table>
+            {/* Liabilities & Equity */}
+            <div className="overflow-hidden rounded-lg border border-wood-200">
+              {liabilities.length > 0 && (
+                <>
+                  <div className="bg-cream-100/50 px-4 py-2.5">
+                    <p className="text-sm font-semibold text-wood-700">Kewajiban</p>
+                  </div>
+                  <div className="divide-y divide-wood-100">
+                    {liabilities.map((item) => (
+                      <div key={item.account_code} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words text-sm text-wood-600">{item.account_name}</p>
+                          <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+                        </div>
+                        <span className="shrink-0 num-mono text-sm text-wood-800">{formatIDR(item.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {equity.length > 0 && (
+                <>
+                  <div className="bg-cream-100/50 px-4 py-2.5 border-t border-wood-100">
+                    <p className="text-sm font-semibold text-wood-700">Ekuitas</p>
+                  </div>
+                  <div className="divide-y divide-wood-100">
+                    {equity.map((item) => (
+                      <div key={item.account_code} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words text-sm text-wood-600">{item.account_name}</p>
+                          <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+                        </div>
+                        <span className="shrink-0 num-mono text-sm text-wood-800">{formatIDR(item.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="flex items-center justify-between bg-sky-500/10 px-4 py-3 border-t border-wood-100">
+                <span className="text-sm font-bold text-sky-700">Total Kewajiban & Ekuitas</span>
+                <span className="num-mono text-sm font-bold text-sky-700">{formatIDR(totalLiabEquity)}</span>
+              </div>
             </div>
-          </Card>
-        </div>
+          </div>
+
+          {/* Desktop: tables */}
+          <div className="hidden sm:grid gap-6 lg:grid-cols-2">
+            {/* Assets */}
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-semibold text-text-primary">Aset</h2>
+              </CardHeader>
+              <div className="ledger-scroll-x">
+                <table className="ledger-table min-w-0 sm:min-w-[520px]">
+                  <tbody>
+                    {assets.map((item) => (
+                      <tr key={item.account_code} className="border-b border-wood-50">
+                        <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 text-wood-600">
+                          <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
+                          {item.account_name}
+                        </td>
+                        <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-leaf-50 font-bold">
+                      <td className="px-5 py-3 text-leaf-800">Total Aset</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-leaf-800">{formatIDR(totalAssets)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* Liabilities & Equity */}
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-semibold text-text-primary">Kewajiban & Ekuitas</h2>
+              </CardHeader>
+              <div className="ledger-scroll-x">
+                <table className="ledger-table min-w-0 sm:min-w-[560px]">
+                  <tbody>
+                    {liabilities.length > 0 && (
+                      <>
+                        <tr className="bg-cream-100/50">
+                          <td colSpan={2} className="px-5 py-2 font-semibold text-wood-700">Kewajiban</td>
+                        </tr>
+                        {liabilities.map((item) => (
+                          <tr key={item.account_code} className="border-b border-wood-50">
+                            <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
+                              <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
+                              {item.account_name}
+                            </td>
+                            <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
+                          </tr>
+                        ))}
+                      </>
+                    )}
+                    {equity.length > 0 && (
+                      <>
+                        <tr className="bg-cream-100/50">
+                          <td colSpan={2} className="px-5 py-2 font-semibold text-wood-700">Ekuitas</td>
+                        </tr>
+                        {equity.map((item) => (
+                          <tr key={item.account_code} className="border-b border-wood-50">
+                            <td className="min-w-0 sm:min-w-[260px] max-w-[420px] break-words px-5 py-2 pl-8 text-wood-600">
+                              <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
+                              {item.account_name}
+                            </td>
+                            <td className="px-5 py-2 text-right tabular-nums text-wood-800">{formatIDR(item.amount)}</td>
+                          </tr>
+                        ))}
+                      </>
+                    )}
+                    <tr className="bg-sky-500/10 font-bold">
+                      <td className="px-5 py-3 text-sky-700">Total Kewajiban & Ekuitas</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-sky-700">{formatIDR(totalLiabEquity)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Balance Check */}

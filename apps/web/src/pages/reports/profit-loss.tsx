@@ -5,8 +5,9 @@ import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PageSpinner } from "@/components/ui/spinner";
+import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
@@ -147,38 +148,66 @@ export function ProfitLossPage() {
         <ErrorState message="Perbaiki rentang tanggal untuk melihat laporan laba rugi." />
       )}
       {!dateRangeInvalid && isLoading && (
-        <PageSpinner />
+        <ReportSkeleton rows={10} cols={2} />
       )}
-      {!dateRangeInvalid && !isLoading && (
-        <Card>
-          <div className="ledger-scroll-x">
-            <table className="ledger-table min-w-0 sm:min-w-[680px]">
-              <thead>
-                <tr className="border-b border-wood-200">
-                  <th className="px-5 py-3 text-left font-medium text-wood-600">Akun</th>
-                  <th className="px-5 py-3 text-right font-medium text-wood-600">Jumlah</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sections.map((section) => {
-                  const sectionInfo = SECTION_LABELS[section.key];
-                  if (section.items.length === 0 && !sectionInfo) return null;
+      {!dateRangeInvalid && !isLoading && (!data?.length) && (
+        <EmptyState
+          title="Belum ada data laba rugi"
+          description="Tidak ada aktivitas pendapatan atau beban pada periode ini."
+        />
+      )}
+      {!dateRangeInvalid && !isLoading && (data?.length ?? 0) > 0 && (
+        <>
+          {/* Mobile: cards */}
+          <div className="space-y-3 sm:hidden ledger-mobile-card-stack">
+            {sections.map((section) => {
+              const sectionInfo = SECTION_LABELS[section.key];
+              if (section.items.length === 0 && !sectionInfo) return null;
 
-                  return (
-                    <SectionBlock
-                      key={section.key}
-                      section={section.key}
-                      label={sectionInfo?.label || section.key}
-                      color={sectionInfo?.color || ""}
-                      items={section.items}
-                      totalOverride={section.total}
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
+              return (
+                <ProfitLossMobileSection
+                  key={section.key}
+                  section={section.key}
+                  label={sectionInfo?.label || section.key}
+                  color={sectionInfo?.color || ""}
+                  items={section.items}
+                  totalOverride={section.total}
+                />
+              );
+            })}
           </div>
-        </Card>
+
+          {/* Desktop: table */}
+          <Card className="hidden sm:block">
+            <div className="ledger-scroll-x">
+              <table className="ledger-table min-w-0 sm:min-w-[680px]">
+                <thead>
+                  <tr className="border-b border-wood-200">
+                    <th className="px-5 py-3 text-left font-medium text-wood-600">Akun</th>
+                    <th className="px-5 py-3 text-right font-medium text-wood-600">Jumlah</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sections.map((section) => {
+                    const sectionInfo = SECTION_LABELS[section.key];
+                    if (section.items.length === 0 && !sectionInfo) return null;
+
+                    return (
+                      <SectionBlock
+                        key={section.key}
+                        section={section.key}
+                        label={sectionInfo?.label || section.key}
+                        color={sectionInfo?.color || ""}
+                        items={section.items}
+                        totalOverride={section.total}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
     </div>
   );
@@ -223,5 +252,48 @@ function SectionBlock({
         </tr>
       )}
     </>
+  );
+}
+
+/* Mobile section card for profit/loss */
+function ProfitLossMobileSection({
+  section,
+  label,
+  color,
+  items,
+  totalOverride,
+}: {
+  readonly section: string;
+  readonly label: string;
+  readonly color: string;
+  readonly items: ProfitLossItem[];
+  readonly totalOverride?: number;
+}) {
+  const total = totalOverride ?? items.reduce((sum, item) => sum + item.amount, 0);
+  const isSummaryRow = section === "gross_profit" || section === "operating_profit" || section === "net_income";
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-wood-200">
+      <div className="bg-cream-100/50 px-4 py-2.5">
+        <p className="text-sm font-semibold text-wood-700">{label}</p>
+      </div>
+      {items.map((item) => (
+        <div key={item.account_code} className="flex items-center justify-between gap-3 border-t border-wood-100 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm text-wood-600">{item.account_name}</p>
+            <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+          </div>
+          <span className={`shrink-0 text-right num-mono text-sm ${color}`}>
+            {formatIDR(item.amount)}
+          </span>
+        </div>
+      ))}
+      {isSummaryRow && (
+        <div className={`flex items-center justify-between border-t border-wood-200 px-4 py-3 ${color}`}>
+          <span className="text-sm font-bold">Total {label}</span>
+          <span className="num-mono text-sm font-bold">{formatIDR(total)}</span>
+        </div>
+      )}
+    </div>
   );
 }
