@@ -1,0 +1,31 @@
+// Mirror of apps/web/wrangler.jsonc using repo-root-relative paths.
+// The Cloudflare Workers CI/CD runs deploy (npx wrangler versions upload)
+// from the repo root, so it needs its own config rather than the one in
+// apps/web/. Keep in sync when modifying the original.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ledjer",
+  "main": "apps/web/dist/ledjer/index.js",
+  "compatibility_date": "2026-07-07",
+  "assets": {
+    "directory": "apps/web/dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ledjer-production",
+      "database_id": "37eff57a-d152-4235-8344-9379c7ad4cf2",
+      "preview_database_id": "37eff57a-d152-4235-8344-9379c7ad4cf2",
+      "migrations_dir": "apps/web/worker/db/migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
+  "vars": {
+    "APP_ORIGIN": "https://ledjer.id"
+  }
+}
