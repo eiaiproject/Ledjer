@@ -80,12 +80,12 @@ export async function getDashboardSummary(
          ELSE 0
        END), 0) AS expense_current_period,
        COALESCE(SUM(CASE
-         WHEN a.account_type = 'asset' AND a.code = '1200'
+         WHEN a.account_subtype = 'accounts_receivable'
            THEN pb.debit_balance
          ELSE 0
        END), 0) AS accounts_receivable,
        COALESCE(SUM(CASE
-         WHEN a.account_type = 'liability' AND a.code = '2100'
+         WHEN a.account_subtype = 'accounts_payable'
            THEN pb.credit_balance
          ELSE 0
        END), 0) AS accounts_payable
@@ -125,6 +125,13 @@ export function currentMonthPeriod(date: Date): {
 }
 
 function isoDate(date: Date): string {
-  // ponytail: toLocaleDateString('en-CA') gives YYYY-MM-DD in local tz.
-  return date.toLocaleDateString("en-CA");
+  return orgDate(date);
+}
+
+/**
+ * Format a Date as YYYY-MM-DD in the given timezone.
+ * Defaults to 'Asia/Jakarta' (WIB) for server-side usage.
+ */
+function orgDate(date: Date, tz = 'Asia/Jakarta'): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date);
 }
