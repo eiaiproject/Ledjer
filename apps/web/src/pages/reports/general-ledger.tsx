@@ -386,8 +386,8 @@ export function GeneralLedgerPage() {
           <Card>
             {/* Mobile: grouped cards */}
             <div className="space-y-4 p-4 lg:hidden">
-              {(ledger?.length ?? 0) > 0 && showAllAccounts && accountGroups && (
-                accountGroups.map((group) => (
+              {(ledger?.length ?? 0) > 0 && showAllAccounts && (
+                accountGroups?.map((group) => (
                   <AccountGroupSection key={group.code} group={group} showAccount />
                 ))
               )}
@@ -405,8 +405,8 @@ export function GeneralLedgerPage() {
 
             {/* Desktop: table per account group */}
             <div className="hidden lg:block space-y-4">
-              {(ledger?.length ?? 0) > 0 && showAllAccounts && accountGroups && (
-                accountGroups.map((group) => (
+              {(ledger?.length ?? 0) > 0 && showAllAccounts && (
+                accountGroups?.map((group) => (
                   <AccountGroupTableSection key={group.code} group={group} />
                 ))
               )}
