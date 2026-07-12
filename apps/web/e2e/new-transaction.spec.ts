@@ -1,0 +1,391 @@
+import { test, expect } from "@playwright/test";
+
+/**
+ * New Transaction page E2E tests.
+ * Auth-dependent tests gracefully skip when unauthenticated (redirect to /login).
+ */
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+/** Navigate to /transactions/new and return true if we landed on the page (not login). */
+async function gotoNewTransaction(page: import("@playwright/test").Page, width = 375, height = 812) {
+  await page.setViewportSize({ width, height });
+  await page.goto("/transactions/new");
+  await page.waitForLoadState("networkidle");
+  // If redirected to login, the page won't have our content
+  const url = page.url();
+  if (url.includes("/login")) return false;
+  return true;
+}
+
+// ── Viewports ──────────────────────────────────────────────────────
+
+const viewports = [
+  { name: "Mobile 320", width: 320, height: 800 },
+  { name: "Mobile 375", width: 375, height: 812 },
+  { name: "Mobile 390", width: 390, height: 844 },
+  { name: "Mobile 430", width: 430, height: 932 },
+  { name: "Tablet 768", width: 768, height: 1024 },
+  { name: "Tablet 1024", width: 1024, height: 768 },
+  { name: "Desktop 1280", width: 1280, height: 800 },
+  { name: "Desktop 1440", width: 1440, height: 900 },
+  { name: "Desktop 1920", width: 1920, height: 1080 },
+];
+
+// ── Page basics (work unauthenticated) ─────────────────────────────
+
+test.describe("New Transaction page basics", () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test("page loads without crash", async ({ page }) => {
+    await page.goto("/transactions/new");
+    await page.waitForLoadState("networkidle");
+    const title = await page.title();
+    expect(title).toMatch(/Ledjer/i);
+  });
+
+  test("no horizontal overflow at 320px", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto("/transactions/new");
+    await page.waitForLoadState("networkidle");
+    const hasOverflow = await page.evaluate(() => {
+      return document.body.scrollWidth > window.innerWidth;
+    });
+    expect(hasOverflow).toBeFalsy();
+  });
+});
+
+// ── Authenticated page tests ───────────────────────────────────────
+
+test.describe("Transaction type selector (auth required)", () => {
+  test("radio inputs exist for priority types", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const radios = page.locator('input[type="radio"][name="transactionType"]');
+    const count = await radios.count();
+    expect(count).toBeGreaterThanOrEqual(3);
+  });
+
+  test("only one radio can be checked at a time", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const radios = page.locator('input[type="radio"][name="transactionType"]');
+    const count = await radios.count();
+    if (count < 2) return;
+
+    await radios.nth(0).check({ force: true });
+    expect(await radios.nth(0).isChecked()).toBeTruthy();
+
+    await radios.nth(1).check({ force: true });
+    expect(await radios.nth(1).isChecked()).toBeTruthy();
+    expect(await radios.nth(0).isChecked()).toBeFalsy();
+  });
+
+  test("fieldset and legend exist for type selector", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const fieldset = page.locator("fieldset").first();
+    await expect(fieldset).toBeAttached();
+    const legend = fieldset.locator("legend");
+    await expect(legend).toBeAttached();
+  });
+
+  test("radiogroup role exists", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const radiogroup = page.locator('[role="radiogroup"]');
+    await expect(radiogroup.first()).toBeAttached();
+  });
+});
+
+test.describe("Disclosure: Lihat jenis transaksi lainnya", () => {
+  test("disclosure button has aria-expanded=false initially", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const btn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    await expect(btn).toBeAttached();
+    await expect(btn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("disclosure button has aria-controls pointing to a real element", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const btn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    const controlsId = await btn.getAttribute("aria-controls");
+    expect(controlsId).toBeTruthy();
+    const target = page.locator(`#${controlsId}`);
+    await expect(target).toBeAttached();
+  });
+
+  test("clicking disclosure shows additional types and updates label", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const btn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    await btn.click();
+
+    const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+    await expect(hideBtn).toBeVisible();
+    await expect(hideBtn).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("clicking hide collapses the additional types", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const expandBtn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    await expandBtn.click();
+
+    const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+    await hideBtn.click();
+
+    const reExpand = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    await expect(reExpand).toBeVisible();
+    await expect(reExpand).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("selecting a type from additional list auto-expands", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const expandBtn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    await expandBtn.click();
+
+    const additionalRadio = page.locator('input[type="radio"][name="transactionType"][value="credit_sale"], input[type="radio"][name="transactionType"][value="owner_capital"]');
+    if (await additionalRadio.count() > 0) {
+      await additionalRadio.first().check({ force: true });
+      const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+      await expect(hideBtn).toBeVisible();
+    }
+  });
+});
+
+test.describe("Page copy (auth required)", () => {
+  test("h1 shows Transaksi Baru", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const h1 = page.locator("h1");
+    await expect(h1).toContainText("Transaksi Baru");
+  });
+
+  test("exactly one h1 exists", async ({ page }) => {
+    await page.goto("/transactions/new");
+    await page.waitForLoadState("networkidle");
+    const h1Count = await page.locator("h1").count();
+    expect(h1Count).toBe(1);
+  });
+
+  test("description does not contain 'Isi dari atas ke bawah'", async ({ page }) => {
+    await page.goto("/transactions/new");
+    await page.waitForLoadState("networkidle");
+    const body = page.locator("body");
+    await expect(body).not.toContainText("Isi dari atas ke bawah");
+  });
+
+  test("default section title is 'Pilih jenis transaksi'", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const sectionTitle = page.getByRole("heading", { name: /pilih jenis transaksi/i });
+    await expect(sectionTitle).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe("Submit button disabled state (auth required)", () => {
+  test("submit button is disabled before type selection", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const submitBtn = page.getByRole("button", { name: /catat transaksi/i });
+    await expect(submitBtn).toBeDisabled();
+  });
+
+  test("explanation text visible when no type selected", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const explanation = page.getByText("Pilih jenis transaksi untuk melanjutkan.");
+    await expect(explanation).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe("No duplicate transaction types (auth required)", () => {
+  test("Penjualan Tunai appears exactly once in initial selector", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const labels = page.locator('label:has-text("Penjualan Tunai")');
+    const count = await labels.count();
+    expect(count).toBe(1);
+  });
+
+  test("Pembelian Tunai appears exactly once in initial selector", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const labels = page.locator('label:has-text("Pembelian Tunai")');
+    const count = await labels.count();
+    expect(count).toBe(1);
+  });
+
+  test("no aria-pressed buttons exist in type selector", async ({ page }) => {
+    await page.goto("/transactions/new");
+    await page.waitForLoadState("networkidle");
+    const pressedButtons = page.locator('[role="radiogroup"] button[aria-pressed]');
+    const count = await pressedButtons.count();
+    expect(count).toBe(0);
+  });
+});
+
+test.describe("Mobile header on new transaction (auth required)", () => {
+  test("header shows X/close button instead of plus", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const closeBtn = page.getByRole("link", { name: /batalkan transaksi/i });
+    await expect(closeBtn).toBeVisible({ timeout: 5000 });
+
+    const plusLink = page.getByRole("link", { name: /^transaksi baru$/i });
+    const plusCount = await plusLink.count();
+    expect(plusCount).toBe(0);
+  });
+
+  test("close button links to /transactions", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const closeBtn = page.getByRole("link", { name: /batalkan transaksi/i });
+    const href = await closeBtn.getAttribute("href");
+    expect(href).toBe("/transactions");
+  });
+});
+
+// ── Responsive viewports (auth-independent) ────────────────────────
+
+for (const vp of viewports) {
+  test.describe(`Responsive: ${vp.name} (${vp.width}px)`, () => {
+    test.use({ viewport: { width: vp.width, height: vp.height } });
+
+    test("no horizontal overflow", async ({ page }) => {
+      await page.goto("/transactions/new");
+      await page.waitForLoadState("networkidle");
+      const hasOverflow = await page.evaluate(() => {
+        return document.body.scrollWidth > window.innerWidth;
+      });
+      expect(hasOverflow).toBeFalsy();
+    });
+
+    test("type selector cards have min-height (if on page)", async ({ page }) => {
+      const onPage = await gotoNewTransaction(page, vp.width, vp.height);
+      if (!onPage) { test.skip(); return; }
+
+      const firstCard = page.locator('input[type="radio"][name="transactionType"]').first();
+      if (await firstCard.count() > 0) {
+        const label = page.locator(`label[for="${await firstCard.getAttribute("id")}"]`);
+        const box = await label.boundingBox();
+        if (box) {
+          expect(box.height).toBeGreaterThanOrEqual(44);
+        }
+      }
+    });
+
+    test("logo is centered in mobile header", async ({ page }) => {
+      if (vp.width >= 1024) { test.skip(); return; }
+
+      await page.goto("/transactions/new");
+      await page.waitForLoadState("networkidle");
+
+      const logo = page.locator('a[href="/dashboard"]').first();
+      if (await logo.count() > 0) {
+        const logoBox = await logo.boundingBox();
+        if (logoBox) {
+          const centerX = logoBox.x + logoBox.width / 2;
+          const viewportCenter = vp.width / 2;
+          expect(Math.abs(centerX - viewportCenter)).toBeLessThan(50);
+        }
+      }
+    });
+  });
+}
+
+// ── Keyboard navigation (auth required) ────────────────────────────
+
+test.describe("Keyboard navigation", () => {
+  test("arrow keys navigate between radio options", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
+    if (await firstRadio.count() === 0) { test.skip(); return; }
+
+    await firstRadio.focus();
+    expect(await firstRadio.isChecked()).toBeTruthy();
+
+    await page.keyboard.press("ArrowDown");
+    const secondRadio = page.locator('input[type="radio"][name="transactionType"]').nth(1);
+    if (await secondRadio.count() > 0) {
+      expect(await secondRadio.isChecked()).toBeTruthy();
+    }
+  });
+
+  test("space selects focused radio", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
+    if (await firstRadio.count() === 0) { test.skip(); return; }
+
+    await firstRadio.focus();
+    await page.keyboard.press("Space");
+    expect(await firstRadio.isChecked()).toBeTruthy();
+  });
+});
+
+// ── Accessibility (auth required) ──────────────────────────────────
+
+test.describe("Accessibility", () => {
+  test("all interactive elements have accessible names", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const buttons = page.locator("button");
+    const count = await buttons.count();
+    for (let i = 0; i < count; i++) {
+      const btn = buttons.nth(i);
+      const name = await btn.getAttribute("aria-label");
+      const text = await btn.textContent();
+      expect(name || text?.trim()).toBeTruthy();
+    }
+  });
+
+  test("decorative icons have aria-hidden", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const icons = page.locator('[role="radiogroup"] [aria-hidden="true"]');
+    const count = await icons.count();
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test("form fields have visible labels", async ({ page }) => {
+    const onPage = await gotoNewTransaction(page);
+    if (!onPage) { test.skip(); return; }
+
+    const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
+    if (await firstRadio.count() > 0) {
+      await firstRadio.check({ force: true });
+      await page.waitForTimeout(500);
+
+      const labels = page.locator("label");
+      const labelCount = await labels.count();
+      expect(labelCount).toBeGreaterThan(0);
+    }
+  });
+});
