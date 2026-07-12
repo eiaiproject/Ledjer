@@ -306,13 +306,22 @@ export function DashboardLayout() {
           <Link to="/dashboard" className="flex h-11 items-center">
             <Logo size="sm" variant="full" className="h-7" />
           </Link>
-          {canCreateTransaction && (
+          {canCreateTransaction && location.pathname !== '/transactions/new' && (
             <Link
               to="/transactions/new"
               className="flex h-11 w-11 items-center justify-center -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
               aria-label="Transaksi baru"
             >
               <Plus className="h-5 w-5" />
+            </Link>
+          )}
+          {location.pathname === '/transactions/new' && (
+            <Link
+              to="/transactions"
+              className="flex h-11 w-11 items-center justify-center -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+              aria-label="Batalkan transaksi"
+            >
+              <X className="h-5 w-5" />
             </Link>
           )}
         </div>
@@ -445,11 +454,11 @@ export function DashboardLayout() {
       <main className={cn(
         "bg-background transition-[padding] duration-300 ease-out",
         "pt-14 lg:pt-0",
-        showBottomNav && "pb-20 lg:pb-0",
+        showBottomNav && "pb-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] lg:pb-0",
         sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
       )}>
         <OfflineBanner />
-        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-24 md:pb-24 lg:pb-8">
+        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
           <Outlet />
         </div>
       </main>
@@ -468,14 +477,22 @@ export function DashboardLayout() {
                 to={item.to!}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-h-[56px]",
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors min-h-[56px] relative",
                   active
                     ? "text-wood-800"
                     : "text-wood-500 hover:text-wood-700"
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "text-wood-700")} />
-                <span>{item.label}</span>
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[3px] bg-wood-700 rounded-full" aria-hidden="true" />
+                )}
+                <div className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                  active ? "bg-wood-100 text-wood-800" : ""
+                )}>
+                  <Icon className={cn("h-5 w-5", active && "text-wood-700 font-semibold")} />
+                </div>
+                <span className={cn(active && "font-semibold")}>{item.label}</span>
               </Link>
             );
           })}
@@ -483,10 +500,12 @@ export function DashboardLayout() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-wood-500 min-h-[56px]"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-wood-500 min-h-[56px]"
               aria-label="Menu lainnya"
             >
-              <Menu className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center">
+                <Menu className="h-5 w-5" />
+              </div>
               <span>Lainnya</span>
             </button>
           )}
