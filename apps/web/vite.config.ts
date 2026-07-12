@@ -24,6 +24,7 @@ function relaxCspForDev(): Plugin {
         "img-src 'self' data:; " +
         "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*; " +
         "base-uri 'self'; form-action 'self'";
+      // Run last — replaces any Sentry-injected CSP placeholders with clean dev CSP
       return html.replace(
         /<meta http-equiv="Content-Security-Policy"[^>]*>/,
         `<meta http-equiv="Content-Security-Policy" content="${devCsp}">`,
@@ -34,7 +35,6 @@ function relaxCspForDev(): Plugin {
 
 export default defineConfig({
   plugins: [
-    relaxCspForDev(),
     react(),
     cloudflare(),
     tailwindcss(),
@@ -49,6 +49,8 @@ export default defineConfig({
           }),
         ]
       : []),
+    // MUST run last — replaces any Sentry-injected CSP with clean dev CSP
+    relaxCspForDev(),
   ],
   resolve: {
     alias: {
