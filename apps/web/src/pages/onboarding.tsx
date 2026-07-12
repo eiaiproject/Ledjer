@@ -379,7 +379,7 @@ export function OnboardingPage() {
                               label="Saldo Awal"
                               type="text"
                               inputMode="numeric"
-                              value={formatAmountInput(field.value)}
+                              value={formatAmountInput(field.value, true)}
                               onBlur={field.onBlur}
                               onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                               placeholder="0"
@@ -417,7 +417,7 @@ export function OnboardingPage() {
                         label="Piutang Usaha (belum tertagih dari pelanggan)"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value)}
+                        value={formatAmountInput(field.value, true)}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
@@ -434,7 +434,7 @@ export function OnboardingPage() {
                         label="Utang Usaha (belum dibayar ke pemasok)"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value)}
+                        value={formatAmountInput(field.value, true)}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
@@ -451,7 +451,7 @@ export function OnboardingPage() {
                         label="Modal Pemilik"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value)}
+                        value={formatAmountInput(field.value, true)}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
