@@ -44,7 +44,7 @@ function transactionHint(type: string | null): string {
   if (type === "credit_sale") return "Catat penjualan yang belum dibayar.";
   if (type === "cash_purchase") return "Catat pembelian yang langsung dibayar.";
   if (type === "credit_purchase") return "Catat pembelian dengan utang.";
-  return "Catat transaksi bisnis Anda. Isi dari atas ke bawah.";
+  return "Catat transaksi bisnis Anda dengan memilih jenis transaksi terlebih dahulu.";
 }
 
 function amountLabel(isSale: boolean, isProduct: boolean): string {
@@ -273,7 +273,7 @@ export function NewTransactionPage() {
 
   /* -- Render -- */
   return (
-    <div className="ledger-page mx-auto max-w-6xl px-4 py-6 sm:py-8">
+    <div className="ledger-page mx-auto max-w-6xl py-6 sm:py-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -309,10 +309,10 @@ export function NewTransactionPage() {
             className="min-w-0 space-y-4"
             noValidate
           >
-          {/* Section 1: Detail utama */}
+          {/* Section 1: Pilih jenis transaksi */}
           <SectionCard
             id="section-type"
-            title={SECTION_LABELS[selectedType]?.detail || "Detail utama"}
+            title={SECTION_LABELS[selectedType]?.detail || "Pilih jenis transaksi"}
             step={1}
           >
             {/* Full type selector: shown when no type selected or user explicitly expands */}
@@ -594,21 +594,28 @@ export function NewTransactionPage() {
             />
           )}
 
-          {/* Submit bar */}
-          <div className="sticky bottom-0 z-[var(--z-sticky)] -mx-4 border-t border-wood-100 bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
-            <SubmitBar
-              loading={postMutation.isPending}
-              disabled={postMutation.isPending || !selectedType}
-              successId={successTransactionId}
-              label={getSubmitLabel({
-                transactionType: selectedType,
-                amount: selectedAmount,
-                isEditing: false,
-                loading: postMutation.isPending,
-                successId: successTransactionId,
-              })}
-            />
-          </div>
+            {/* Disabled submit explanation */}
+            {!selectedType && !postMutation.isPending && !successTransactionId && (
+              <p className="text-center text-sm text-text-tertiary">
+                Pilih jenis transaksi untuk melanjutkan.
+              </p>
+            )}
+
+            {/* Submit bar */}
+            <div className="sticky bottom-0 z-[var(--z-sticky)] -mx-4 border-t border-wood-100 bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:pb-0">
+              <SubmitBar
+                loading={postMutation.isPending}
+                disabled={postMutation.isPending || !selectedType}
+                successId={successTransactionId}
+                label={getSubmitLabel({
+                  transactionType: selectedType,
+                  amount: selectedAmount,
+                  isEditing: false,
+                  loading: postMutation.isPending,
+                  successId: successTransactionId,
+                })}
+              />
+            </div>
         </form>
 
         {/* Desktop sidebar: Review Panel */}
