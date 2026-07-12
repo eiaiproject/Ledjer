@@ -1,5 +1,5 @@
 import { generateId } from "../auth/tokens";
-import { execute, queryAll, queryFirst } from "../db/client";
+import { queryAll, queryFirst, statement, executeBatch } from "../db/client";
 import { badRequest, conflict, notFound } from "../http/errors";
 
 export interface PeriodLock {
@@ -19,6 +19,7 @@ export interface CreatePeriodLockInput {
 /**
  * Create a period lock. Blocks all transactions on or before the locked date.
  * Only owners and admins can create period locks.
+ * Creates an immutable audit event.
  */
 export async function createPeriodLock(
   db: D1Database,
@@ -29,11 +30,12 @@ export async function createPeriodLock(
   const date = normalizeDate(input.lockedThroughDate, "locked_date_invalid");
 
   // Check for existing lock on or after this date
-  const existing = await queryFirst<{ id: string }>(
+  const existing = await queryFirst<{ id: string; locked_through_date: string }>(
     db,
-    `SELECT id FROM period_locks
+    `SELECT id, locked_through_date FROM period_locks
      WHERE organization_id = ?
        AND locked_through_date >= ?
+     ORDER BY locked_through_date DESC
      LIMIT 1`,
     [organizationId, date],
   );
@@ -47,29 +49,48 @@ export async function createPeriodLock(
 
   const current = Date.now();
   const id = generateId();
+  const reason = input.reason?.trim() || null;
 
-  await execute(
+  // Find current effective lock for audit context
+  const previousLock = await queryFirst<{ locked_through_date: string }>(
     db,
-    `INSERT INTO period_locks (
-       id, organization_id, locked_through_date, reason,
-       locked_by, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      organizationId,
-      date,
-      input.reason?.trim() || null,
-      userId,
-      current,
-      current,
-    ],
+    `SELECT locked_through_date FROM period_locks
+     WHERE organization_id = ?
+     ORDER BY locked_through_date DESC
+     LIMIT 1`,
+    [organizationId],
   );
+
+  const batchStatements = [
+    statement(
+      db,
+      `INSERT INTO period_locks (
+         id, organization_id, locked_through_date, reason,
+         locked_by, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, organizationId, date, reason, userId, current, current],
+    ),
+    insertAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityId: id,
+      action: previousLock ? "period_lock_extended" : "period_lock_created",
+      before: previousLock
+        ? { locked_through_date: previousLock.locked_through_date }
+        : undefined,
+      after: { locked_through_date: date, reason },
+      reason,
+      current,
+    }),
+  ];
+
+  await executeBatch(db, batchStatements);
 
   return {
     id,
     organizationId,
     lockedThroughDate: date,
-    reason: input.reason?.trim() || null,
+    reason,
     lockedBy: userId,
     createdAt: new Date(current).toISOString(),
   };
@@ -109,17 +130,19 @@ export async function listPeriodLocks(
 }
 
 /**
- * Delete a period lock. Only the lock creator (or owner) can delete it.
- * Deleting a period lock unblocks the previously locked period.
+ * Delete (reopen) a period lock. Only owners and admins can reopen.
+ * Creates an immutable audit event preserving the original lock history.
  */
 export async function deletePeriodLock(
   db: D1Database,
   organizationId: string,
   lockId: string,
+  userId: string,
+  reason?: string,
 ): Promise<void> {
-  const lock = await queryFirst<{ id: string }>(
+  const lock = await queryFirst<{ id: string; locked_through_date: string }>(
     db,
-    `SELECT id FROM period_locks
+    `SELECT id, locked_through_date FROM period_locks
      WHERE id = ? AND organization_id = ?`,
     [lockId, organizationId],
   );
@@ -128,11 +151,38 @@ export async function deletePeriodLock(
     throw notFound("period_lock_not_found", "Period lock not found");
   }
 
-  await execute(
+  // Find the next effective lock after deletion
+  const remainingLock = await queryFirst<{ locked_through_date: string }>(
     db,
-    `DELETE FROM period_locks WHERE id = ? AND organization_id = ?`,
-    [lockId, organizationId],
+    `SELECT locked_through_date FROM period_locks
+     WHERE organization_id = ?
+       AND id != ?
+     ORDER BY locked_through_date DESC
+     LIMIT 1`,
+    [organizationId, lockId],
   );
+
+  const batchStatements = [
+    statement(
+      db,
+      `DELETE FROM period_locks WHERE id = ? AND organization_id = ?`,
+      [lockId, organizationId],
+    ),
+    insertAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityId: lockId,
+      action: "period_lock_reopened",
+      before: { locked_through_date: lock.locked_through_date },
+      after: remainingLock
+        ? { locked_through_date: remainingLock.locked_through_date }
+        : { locked_through_date: null },
+      reason: reason?.trim() || null,
+      current: Date.now(),
+    }),
+  ];
+
+  await executeBatch(db, batchStatements);
 }
 
 function normalizeDate(input: string, code: string): string {
@@ -141,4 +191,38 @@ function normalizeDate(input: string, code: string): string {
     throw badRequest(code, "Date must use YYYY-MM-DD format");
   }
   return value;
+}
+
+function insertAuditStatement(
+  db: D1Database,
+  input: {
+    organizationId: string;
+    actorUserId: string;
+    entityId: string;
+    action: string;
+    before?: unknown;
+    after?: unknown;
+    reason: string | null;
+    current: number;
+  },
+) {
+  return statement(
+    db,
+    `INSERT INTO audit_logs (
+       id, organization_id, actor_user_id, entity_type, entity_id, action,
+       before_json, after_json, reason, request_id, created_at
+     ) VALUES (?, ?, ?, 'period_lock', ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      generateId(),
+      input.organizationId,
+      input.actorUserId,
+      input.entityId,
+      input.action,
+      input.before ? JSON.stringify(input.before) : null,
+      input.after ? JSON.stringify(input.after) : null,
+      input.reason,
+      null,
+      input.current,
+    ],
+  );
 }
