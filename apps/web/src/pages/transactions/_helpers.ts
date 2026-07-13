@@ -10,7 +10,8 @@ import {
   ShoppingCart,
   Wallet,
 } from "lucide-react";
-import { formatIDR } from "@/lib/utils";
+import { formatIDR, localDate } from "@/lib/utils";
+export { localDate };
 import { TRANSACTION_LABELS } from "@/lib/transactions";
 
 export interface PreviewLine {
@@ -248,13 +249,6 @@ export function addRecentTransactionType(type: string): string[] {
   return updated;
 }
 
-export function localDate(offsetDays = 0): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  // ponytail: toLocaleDateString('en-CA') gives YYYY-MM-DD in local tz.
-  // Avoids UTC drift from toISOString().slice(0, 10).
-  return date.toLocaleDateString("en-CA");
-}
 
 export function buildPreview({
   transactionType,

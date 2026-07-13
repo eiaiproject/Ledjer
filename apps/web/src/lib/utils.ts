@@ -49,6 +49,12 @@ export function formatDateInputValue(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function localDate(offsetDays = 0): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toLocaleDateString("en-CA");
+}
+
 /** Format date as DD/MM/YYYY (Indonesian) */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "-";

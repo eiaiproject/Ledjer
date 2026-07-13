@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { cn, formatIDR, formatShortDate } from "@/lib/utils";
+import { cn, formatIDR, formatShortDate, localDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,15 +25,6 @@ import {
   statusVariant,
   statusLabel,
 } from "@/lib/transactions";
-
-function localDate(offsetDays = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 /** Status badge with icon for accessibility */
 function StatusBadge({ status }: { readonly status: string }) {
