@@ -1,5 +1,6 @@
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 import { execute, queryAll, queryFirst } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import type { Role } from "../db/schema";
 import { badRequest, conflict, forbidden, notFound } from "../http/errors";
 import {
@@ -52,23 +53,7 @@ export interface InvitationAcceptResult {
   role: Role;
 }
 
-export interface TeamInvitationEmailInput {
-  email: string;
-  role: InvitableRole;
-  organizationName: string;
-  inviterName: string;
-  acceptUrl: string;
-}
 
-export interface TeamInvitationEmailSender {
-  sendInvitation(input: TeamInvitationEmailInput): Promise<void>;
-}
-
-export const devTeamInvitationEmailSender: TeamInvitationEmailSender = {
-  async sendInvitation() {
-    // Dev stub: production wiring can replace this with a provider-backed sender.
-  },
-};
 
 interface TeamMemberRow {
   id: string;
@@ -236,7 +221,7 @@ export async function createTeamInvitation(
       ],
     );
 
-    await writeTeamAudit(db, {
+    writeAuditStatement(db, {
       organizationId: input.organizationId,
       actorUserId: input.invitedByUserId,
       entityType: "invitation",
@@ -281,7 +266,7 @@ export async function createTeamInvitation(
     ],
   );
 
-  await writeTeamAudit(db, {
+  writeAuditStatement(db, {
     organizationId: input.organizationId,
     actorUserId: input.invitedByUserId,
     entityType: "invitation",
@@ -421,7 +406,7 @@ export async function acceptTeamInvitation(
     invitation.organization_id,
   );
 
-  await writeTeamAudit(db, {
+  writeAuditStatement(db, {
     organizationId: invitation.organization_id,
     actorUserId: session.user_id,
     entityType: "invitation",
@@ -480,7 +465,7 @@ export async function revokeTeamInvitation(
     [current, current, input.invitationId, input.organizationId],
   );
 
-  await writeTeamAudit(db, {
+  writeAuditStatement(db, {
     organizationId: input.organizationId,
     actorUserId: input.actorUserId,
     entityType: "invitation",
@@ -522,7 +507,7 @@ export async function updateTeamMemberRole(
       [input.role, current, input.memberId, input.organizationId],
     );
 
-    await writeTeamAudit(db, {
+    writeAuditStatement(db, {
       organizationId: input.organizationId,
       actorUserId: input.actorUserId,
       entityType: "organization_member",
@@ -570,7 +555,7 @@ export async function removeTeamMember(
     [current, input.memberId, input.organizationId],
   );
 
-  await writeTeamAudit(db, {
+  writeAuditStatement(db, {
     organizationId: input.organizationId,
     actorUserId: input.actorUserId,
     entityType: "organization_member",
@@ -715,37 +700,3 @@ function toPublicTeamMember(row: TeamMemberRow): PublicTeamMember {
   };
 }
 
-async function writeTeamAudit(
-  db: D1Database,
-  input: {
-    organizationId: string;
-    actorUserId: string;
-    entityType: string;
-    entityId: string;
-    action: string;
-    before?: unknown;
-    after?: unknown;
-    requestId?: string;
-    current: number;
-  },
-): Promise<void> {
-  await execute(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, request_id, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      input.organizationId,
-      input.actorUserId,
-      input.entityType,
-      input.entityId,
-      input.action,
-      input.before ? JSON.stringify(input.before) : null,
-      input.after ? JSON.stringify(input.after) : null,
-      input.requestId,
-      input.current,
-    ],
-  );
-}

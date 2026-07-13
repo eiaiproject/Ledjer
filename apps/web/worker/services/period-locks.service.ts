@@ -1,6 +1,8 @@
 import { generateId } from "../auth/tokens";
 import { queryAll, queryFirst, statement, executeBatch } from "../db/client";
-import { badRequest, conflict, notFound } from "../http/errors";
+import { writeAuditStatement } from "../http/audit";
+import { normalizeDate } from "../http/date";
+import { conflict, notFound } from "../http/errors";
 
 export interface PeriodLock {
   id: string;
@@ -70,9 +72,10 @@ export async function createPeriodLock(
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [id, organizationId, date, reason, userId, current, current],
     ),
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "period_lock",
       entityId: id,
       action: previousLock ? "period_lock_extended" : "period_lock_created",
       before: previousLock
@@ -168,9 +171,10 @@ export async function deletePeriodLock(
       `DELETE FROM period_locks WHERE id = ? AND organization_id = ?`,
       [lockId, organizationId],
     ),
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "period_lock",
       entityId: lockId,
       action: "period_lock_reopened",
       before: { locked_through_date: lock.locked_through_date },
@@ -185,44 +189,3 @@ export async function deletePeriodLock(
   await executeBatch(db, batchStatements);
 }
 
-function normalizeDate(input: string, code: string): string {
-  const value = input.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw badRequest(code, "Date must use YYYY-MM-DD format");
-  }
-  return value;
-}
-
-function insertAuditStatement(
-  db: D1Database,
-  input: {
-    organizationId: string;
-    actorUserId: string;
-    entityId: string;
-    action: string;
-    before?: unknown;
-    after?: unknown;
-    reason: string | null;
-    current: number;
-  },
-) {
-  return statement(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, reason, request_id, created_at
-     ) VALUES (?, ?, ?, 'period_lock', ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      input.organizationId,
-      input.actorUserId,
-      input.entityId,
-      input.action,
-      input.before ? JSON.stringify(input.before) : null,
-      input.after ? JSON.stringify(input.after) : null,
-      input.reason,
-      null,
-      input.current,
-    ],
-  );
-}

@@ -6,6 +6,8 @@ import {
   statement,
   type D1Input,
 } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
+import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
 import { badRequest, conflict, notFound } from "../http/errors";
 
@@ -542,9 +544,10 @@ export async function postTransaction(
   }
 
   statements.push(
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "transaction",
       entityId: transactionId,
       action: "post",
       after: {
@@ -553,7 +556,6 @@ export async function postTransaction(
         journal_entry_id: journalEntryId,
         product_id: product?.id ?? null,
       },
-      reason: null,
       requestId,
       current,
     }),
@@ -716,14 +718,14 @@ export async function settleAndVoidTransaction(
       2,
       current,
     ),
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "transaction",
       entityId: settleTransactionId,
       action: "settle",
       before: { original_transaction_id: transactionId, remaining_minor: remainingMinor },
       after: { settle_transaction_type: settleType },
-      reason: null,
       requestId,
       current,
     }),
@@ -951,9 +953,10 @@ export async function voidTransaction(
         organizationId,
       ],
     ),
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "transaction",
       entityId: transactionId,
       action: "void",
       before: {
@@ -1763,41 +1766,6 @@ function insertStockMovementStatement(
   );
 }
 
-function insertAuditStatement(
-  db: D1Database,
-  input: {
-    organizationId: string;
-    actorUserId: string;
-    entityId: string;
-    action: string;
-    before?: unknown;
-    after?: unknown;
-    reason: string | null;
-    requestId?: string;
-    current: number;
-  },
-): D1PreparedStatement {
-  return statement(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, reason, request_id, created_at
-     ) VALUES (?, ?, ?, 'transaction', ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      input.organizationId,
-      input.actorUserId,
-      input.entityId,
-      input.action,
-      input.before ? JSON.stringify(input.before) : null,
-      input.after ? JSON.stringify(input.after) : null,
-      input.reason,
-      input.requestId,
-      input.current,
-    ],
-  );
-}
-
 async function generateTransactionNumber(
   db: D1Database,
   organizationId: string,
@@ -1905,14 +1873,6 @@ function normalizeTransactionType(type: string): TransactionType {
     throw badRequest("transaction_type_unsupported", "Transaction type is not supported");
   }
   return type as TransactionType;
-}
-
-function normalizeDate(input: string, code: string): string {
-  const value = input.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw badRequest(code, "Date must use YYYY-MM-DD format");
-  }
-  return value;
 }
 
 function normalizeIdempotencyKey(input: string): string {

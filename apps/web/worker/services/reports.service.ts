@@ -1,4 +1,5 @@
 import { queryAll } from "../db/client";
+import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
 
 export interface TrialBalanceRow {
@@ -381,13 +382,6 @@ export function assertTrialBalanceBalanced(rows: readonly TrialBalanceRow[]): bo
   return debit === credit;
 }
 
-function normalizeDate(input: string, code: string): string {
-  const value = input.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw badRequest(code, "Date must use YYYY-MM-DD format");
-  }
-  return value;
-}
 
 function assertDateRange(fromDate: string, toDate: string): void {
   if (fromDate > toDate) {

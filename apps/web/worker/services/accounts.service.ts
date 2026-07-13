@@ -1,5 +1,6 @@
 import { generateId } from "../auth/tokens";
 import { execute, queryAll, queryFirst } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import {
   ACCOUNT_TYPE_VALUES,
   NORMAL_BALANCE_VALUES,
@@ -175,10 +176,11 @@ export async function createCashBankAccount(
     ],
   );
 
-  await writeAccountAudit(db, {
+  await writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
-    accountId,
+    entityType: "account",
+    entityId: accountId,
     action: "create",
     after: { code, name, kind },
     requestId,
@@ -231,10 +233,11 @@ export async function createAccount(
     ],
   );
 
-  await writeAccountAudit(db, {
+  await writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
-    accountId,
+    entityType: "account",
+    entityId: accountId,
     action: "create",
     after: { code, name, accountType: input.accountType },
     requestId,
@@ -290,10 +293,11 @@ export async function patchAccount(
   );
 
   const after = await getAccount(db, organizationId, accountId);
-  await writeAccountAudit(db, {
+  await writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
-    accountId,
+    entityType: "account",
+    entityId: accountId,
     action: "update",
     before,
     after,
@@ -323,10 +327,11 @@ export async function deleteAccount(
     [accountId, organizationId],
   );
 
-  await writeAccountAudit(db, {
+  await writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
-    accountId,
+    entityType: "account",
+    entityId: accountId,
     action: "delete",
     before: toPublicAccount(existing),
     requestId,
@@ -478,35 +483,3 @@ function accountTypeRange(accountType: AccountType): [number, number] {
   }
 }
 
-async function writeAccountAudit(
-  db: D1Database,
-  input: {
-    organizationId: string;
-    actorUserId: string;
-    accountId: string;
-    action: string;
-    before?: unknown;
-    after?: unknown;
-    requestId?: string;
-    current: number;
-  },
-): Promise<void> {
-  await execute(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, request_id, created_at
-     ) VALUES (?, ?, ?, 'account', ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      input.organizationId,
-      input.actorUserId,
-      input.accountId,
-      input.action,
-      input.before ? JSON.stringify(input.before) : null,
-      input.after ? JSON.stringify(input.after) : null,
-      input.requestId,
-      input.current,
-    ],
-  );
-}
