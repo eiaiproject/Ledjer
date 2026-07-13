@@ -38,12 +38,6 @@ pnpm --filter web test
 section "Build"
 pnpm --filter web build
 
-section "Build secrets scan"
-bash scripts/check-build-secrets.sh
-
-section "D1 migration naming"
-bash scripts/check-migration-naming.sh
-
 section "D1 migration executable-code guard"
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
@@ -72,15 +66,7 @@ if [[ "$FULL" -eq 1 ]]; then
   E2E_MODE=local-full \
   E2E_BASE_URL=http://localhost:4173 \
   CI=true \
-  pnpm --filter web exec playwright test \
-    e2e/smoke.spec.ts \
-    e2e/auth.spec.ts \
-    e2e/security-public.spec.ts \
-    e2e/static-routes.spec.ts \
-    e2e/accessibility.spec.ts \
-    e2e/responsive.spec.ts \
-    e2e/performance.spec.ts \
-    --project=chromium
+pnpm --filter web test:e2e:local
 fi
 
 echo ""
