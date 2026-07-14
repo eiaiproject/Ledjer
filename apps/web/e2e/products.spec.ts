@@ -139,6 +139,8 @@ test.describe("Export (auth required)", () => {
 
   test("mobile export has accessible label in Indonesian", async ({ page }) => {
     await gotoProducts(page);
+    const btn = page.getByRole("button", { name: /ekspor/i });
+    await expect(btn.first()).toBeAttached();
   });
 });
 
@@ -287,7 +289,8 @@ test.describe("Empty state (auth required)", () => {
 test.describe("Markup indicator (auth required)", () => {
   test("markup text appears in product cards", async ({ page }) => {
     await gotoProducts(page);
-    // Check if markup indicators exist (they contain % symbol)
-    // At least the structure exists
+    // Product cards should exist
+    const cards = page.locator("[class*='rounded-xl']");
+    await expect(cards.first()).toBeAttached();
   });
 });

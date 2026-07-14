@@ -116,6 +116,8 @@ test.describe("Date apply behavior (auth required)", () => {
 test.describe("Export (auth required)", () => {
   test("export button has Indonesian accessible name", async ({ page }) => {
     await gotoBalanceSheet(page);
+    const btn = page.getByRole("button", { name: /ekspor/i });
+    await expect(btn.first()).toBeAttached();
   });
 
   test("export button text is Ekspor on mobile", async ({ page }) => {

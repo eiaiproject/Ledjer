@@ -154,13 +154,67 @@ function useProductForm() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Product mutations hook                                             */
+/* ------------------------------------------------------------------ */
+
+function useProductMutations({ orgId, form, editingProduct, setEditingProduct, setModalOpen, setDeleteDialogOpen, setSelectedProduct }: {
+  orgId: string | undefined;
+  form: ReturnType<typeof useProductForm>;
+  editingProduct: Product | null;
+  setEditingProduct: (p: Product | null) => void;
+  setModalOpen: (v: boolean) => void;
+  setDeleteDialogOpen: (v: boolean) => void;
+  setSelectedProduct: (p: Product | null) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: ProductFormData) => {
+      if (!orgId) throw new Error("Organisasi tidak ditemukan");
+      const basePayload = {
+        code: data.code.trim(), name: data.name.trim(),
+        description: data.description.trim() || null, unit: data.unit,
+        sellingPrice: data.selling_price, minStock: data.min_stock,
+      };
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, basePayload);
+      } else {
+        await createProduct({ ...basePayload, purchasePrice: data.purchase_price, currentStock: data.current_stock });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId ?? "") });
+      toast.success(editingProduct ? "Produk berhasil diperbarui." : "Produk berhasil ditambahkan.");
+      setModalOpen(false); setEditingProduct(null); form.resetForm();
+    },
+    onError: (err) => toast.error(translateError(err)),
+    onSettled: () => setLoading(false),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (product: Product) => {
+      if (!orgId) throw new Error("Organisasi tidak ditemukan");
+      await deactivateProduct(product.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId ?? "") });
+      toast.success("Produk berhasil dinonaktifkan.");
+      setDeleteDialogOpen(false); setSelectedProduct(null);
+    },
+    onError: (err) => toast.error(translateError(err)),
+  });
+
+  return { loading, setLoading, saveMutation, deleteMutation };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
 export function ProductsPage() {
   const { data: orgData } = useOrganization();
   const { canManageProducts, canCreateExports } = useOrgPermissions();
-  const queryClient = useQueryClient();
   const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
   const form = useProductForm();
 
@@ -170,11 +224,16 @@ export function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchLabelId = useId();
   const filterGroupId = useId();
+
+  const { loading, setLoading, saveMutation, deleteMutation } = useProductMutations({
+    orgId: orgData?.organization?.id,
+    form, editingProduct, setEditingProduct, setModalOpen, setDeleteDialogOpen, setSelectedProduct,
+  });
+  const formBusy = loading || saveMutation.isPending;
 
   const { data: products, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.products.fullList(orgData?.organization?.id ?? ""),
@@ -187,12 +246,9 @@ export function ProductsPage() {
 
   const allProducts = useMemo(() => products || [], [products]);
 
-  // Counts — from unfiltered dataset
   const stockCounts = useMemo(() => {
     const counts: Record<StockFilter, number> = { all: allProducts.length, in_stock: 0, low: 0, out: 0 };
-    for (const p of allProducts) {
-      counts[getStockStatus(p)]++;
-    }
+    for (const p of allProducts) counts[getStockStatus(p)]++;
     return counts;
   }, [allProducts]);
 
@@ -213,43 +269,6 @@ export function ProductsPage() {
   const isEmpty = !isLoading && allProducts.length === 0;
   const isSearchEmpty = !isLoading && allProducts.length > 0 && filteredProducts.length === 0;
 
-  const saveMutation = useMutation({
-    mutationFn: async (data: ProductFormData) => {
-      if (!orgData?.organization?.id) throw new Error("Organisasi tidak ditemukan");
-      const basePayload = {
-        code: data.code.trim(), name: data.name.trim(),
-        description: data.description.trim() || null, unit: data.unit,
-        sellingPrice: data.selling_price, minStock: data.min_stock,
-      };
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, basePayload);
-      } else {
-        await createProduct({ ...basePayload, purchasePrice: data.purchase_price, currentStock: data.current_stock });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
-      toast.success(editingProduct ? "Produk berhasil diperbarui." : "Produk berhasil ditambahkan.");
-      setModalOpen(false); setEditingProduct(null); form.resetForm();
-    },
-    onError: (err) => toast.error(translateError(err)),
-    onSettled: () => setLoading(false),
-  });
-  const formBusy = loading || saveMutation.isPending;
-
-  const deleteMutation = useMutation({
-    mutationFn: async (product: Product) => {
-      if (!orgData?.organization?.id) throw new Error("Organisasi tidak ditemukan");
-      await deactivateProduct(product.id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
-      toast.success("Produk berhasil dinonaktifkan.");
-      setDeleteDialogOpen(false); setSelectedProduct(null);
-    },
-    onError: (err) => toast.error(translateError(err)),
-  });
-
   const openCreateModal = useCallback(() => { form.resetForm(); setEditingProduct(null); setModalOpen(true); }, [form]);
   const openEditModal = useCallback((product: Product) => { form.loadProduct(product); setEditingProduct(product); setModalOpen(true); }, [form]);
   const handleSave = useCallback(() => {
@@ -257,7 +276,7 @@ export function ProductsPage() {
     const errors = form.validate();
     if (Object.keys(errors).length > 0) { form.setFormErrors(errors); toast.error("Periksa kembali data produk."); return; }
     setLoading(true); saveMutation.mutate(form.formData);
-  }, [form, formBusy, saveMutation]);
+  }, [form, formBusy, saveMutation, setLoading]);
 
   const handleExport = useCallback(async () => {
     if (!canCreateExports || isExporting) return;

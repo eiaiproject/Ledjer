@@ -93,7 +93,8 @@ test.describe("Date apply behavior (auth required)", () => {
 test.describe("Export (auth required)", () => {
   test("export button has Indonesian accessible name", async ({ page }) => {
     await gotoTrialBalance(page);
-    // May not be visible on mobile (uses short text), but should exist
+    const btn = page.getByRole("button", { name: /ekspor/i });
+    await expect(btn.first()).toBeAttached();
   });
 
   test("export button disabled when no data", async ({ page }) => {

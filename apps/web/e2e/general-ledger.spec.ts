@@ -121,6 +121,8 @@ test.describe("Export (auth required)", () => {
 
   test("mobile export has accessible label in Indonesian", async ({ page }) => {
     await gotoLedger(page);
+    const btn = page.getByRole("button", { name: /ekspor/i });
+    await expect(btn.first()).toBeAttached();
   });
 });
 
