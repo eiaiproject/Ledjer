@@ -180,39 +180,3 @@ jobs:
           path: apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
-
-  # ── SonarCloud scan ─────────────────────────────────────────────────
-  # Runs only on PRs (or push to main) when SONAR_TOKEN is configured.
-  # The official SonarCloud GitHub App auto-creates a check-run but uses
-  # stale analysis data; this job forces a fresh scan per commit.
-  #
-  # ponytail: job has continue-on-error: true so missing SONAR_TOKEN
-  # secret does not fail the build. To enable: add SONAR_TOKEN via
-  # https://sonarcloud.io → Account → Security, then bind it to this
-  # repo (https://github.com/eiaiproject/Ledjer/settings/secrets/actions).
-  sonarcloud:
-    name: SonarCloud scan
-    needs: quality
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          fetch-depth: 0
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8 # v5.0.0
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectBaseDir: apps/web
-          args: >
-            -Dsonar.organization=eiaiproject
-            -Dsonar.projectKey=eiaiproject_Ledjer2
-            -Dsonar.sources=src
-            -Dsonar.tests=e2e
-            -Dsonar.test.inclusions=e2e/**/*.spec.ts
-            -Dsonar.exclusions=src/**/__tests__/**,src/**/*.test.ts,src/**/*.test.tsx,dist/**
