@@ -106,6 +106,54 @@ function MarkupIndicator({ purchase, selling }: { readonly purchase: number; rea
 }
 
 /* ------------------------------------------------------------------ */
+/*  Product form hook                                                  */
+/* ------------------------------------------------------------------ */
+
+const EMPTY_FORM: ProductFormData = {
+  code: "", name: "", description: "", unit: "pcs",
+  purchase_price: 0, selling_price: 0, current_stock: 0, min_stock: 0,
+};
+
+function useProductForm() {
+  const [formData, setFormData] = useState<ProductFormData>(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState<ProductFormErrors>({});
+
+  const resetForm = useCallback(() => { setFormData(EMPTY_FORM); setFormErrors({}); }, []);
+
+  const setField = useCallback(<K extends keyof ProductFormData>(field: K, value: ProductFormData[K]) => {
+    setFormData((c) => ({ ...c, [field]: value }));
+    setFormErrors((c) => { if (!c[field]) return c; const n = { ...c }; delete n[field]; return n; });
+  }, []);
+
+  const validate = useCallback(() => {
+    const e: ProductFormErrors = {};
+    if (!formData.code.trim()) e.code = "Kode produk wajib diisi.";
+    else if (formData.code.trim().length > 40) e.code = "Kode produk maksimal 40 karakter.";
+    if (!formData.name.trim()) e.name = "Nama produk wajib diisi.";
+    else if (formData.name.trim().length > 120) e.name = "Nama produk maksimal 120 karakter.";
+    if (formData.description.length > 500) e.description = "Deskripsi maksimal 500 karakter.";
+    if (!formData.unit.trim()) e.unit = "Satuan wajib dipilih.";
+    if (formData.purchase_price < 0) e.purchase_price = "Harga beli tidak boleh negatif.";
+    if (formData.selling_price < 0) e.selling_price = "Harga jual tidak boleh negatif.";
+    if (formData.current_stock < 0) e.current_stock = "Stok awal tidak boleh negatif.";
+    if (formData.min_stock < 0) e.min_stock = "Stok minimum tidak boleh negatif.";
+    return e;
+  }, [formData]);
+
+  const loadProduct = useCallback((product: Product) => {
+    setFormErrors({});
+    setFormData({
+      code: product.code, name: product.name, description: product.description || "",
+      unit: product.unit || "pcs", purchase_price: product.purchase_price ?? 0,
+      selling_price: product.selling_price ?? 0, current_stock: product.current_stock ?? 0,
+      min_stock: product.min_stock ?? 0,
+    });
+  }, []);
+
+  return { formData, formErrors, setFormErrors, resetForm, setField, validate, loadProduct };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -114,6 +162,7 @@ export function ProductsPage() {
   const { canManageProducts, canCreateExports } = useOrgPermissions();
   const queryClient = useQueryClient();
   const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
+  const form = useProductForm();
 
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
@@ -121,11 +170,6 @@ export function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<ProductFormData>({
-    code: "", name: "", description: "", unit: "pcs",
-    purchase_price: 0, selling_price: 0, current_stock: 0, min_stock: 0,
-  });
-  const [formErrors, setFormErrors] = useState<ProductFormErrors>({});
   const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -186,7 +230,7 @@ export function ProductsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
       toast.success(editingProduct ? "Produk berhasil diperbarui." : "Produk berhasil ditambahkan.");
-      setModalOpen(false); setEditingProduct(null); resetForm();
+      setModalOpen(false); setEditingProduct(null); form.resetForm();
     },
     onError: (err) => toast.error(translateError(err)),
     onSettled: () => setLoading(false),
@@ -206,55 +250,14 @@ export function ProductsPage() {
     onError: (err) => toast.error(translateError(err)),
   });
 
-  const resetForm = useCallback(() => {
-    setFormData({ code: "", name: "", description: "", unit: "pcs", purchase_price: 0, selling_price: 0, current_stock: 0, min_stock: 0 });
-    setFormErrors({});
-  }, []);
-
-  const updateFormField = useCallback(<K extends keyof ProductFormData>(field: K, value: ProductFormData[K]) => {
-    setFormData((c) => ({ ...c, [field]: value }));
-    setFormErrors((c) => {
-      if (!c[field]) return c;
-      const n = { ...c };
-      delete n[field];
-      return n;
-    });
-  }, []);
-
-  const validateForm = useCallback(() => {
-    const errors: ProductFormErrors = {};
-    if (!formData.code.trim()) errors.code = "Kode produk wajib diisi.";
-    if (formData.code.trim().length > 40) errors.code = "Kode produk maksimal 40 karakter.";
-    if (!formData.name.trim()) errors.name = "Nama produk wajib diisi.";
-    if (formData.name.trim().length > 120) errors.name = "Nama produk maksimal 120 karakter.";
-    if (formData.description.length > 500) errors.description = "Deskripsi maksimal 500 karakter.";
-    if (!formData.unit.trim()) errors.unit = "Satuan wajib dipilih.";
-    if (formData.purchase_price < 0) errors.purchase_price = "Harga beli tidak boleh negatif.";
-    if (formData.selling_price < 0) errors.selling_price = "Harga jual tidak boleh negatif.";
-    if (formData.current_stock < 0) errors.current_stock = "Stok awal tidak boleh negatif.";
-    if (formData.min_stock < 0) errors.min_stock = "Stok minimum tidak boleh negatif.";
-    return errors;
-  }, [formData]);
-
-  const openCreateModal = useCallback(() => { resetForm(); setEditingProduct(null); setModalOpen(true); }, [resetForm]);
-
-  const openEditModal = useCallback((product: Product) => {
-    setFormErrors({});
-    setFormData({
-      code: product.code, name: product.name, description: product.description || "",
-      unit: product.unit || "pcs", purchase_price: product.purchase_price ?? 0,
-      selling_price: product.selling_price ?? 0, current_stock: product.current_stock ?? 0,
-      min_stock: product.min_stock ?? 0,
-    });
-    setEditingProduct(product); setModalOpen(true);
-  }, []);
-
+  const openCreateModal = useCallback(() => { form.resetForm(); setEditingProduct(null); setModalOpen(true); }, [form]);
+  const openEditModal = useCallback((product: Product) => { form.loadProduct(product); setEditingProduct(product); setModalOpen(true); }, [form]);
   const handleSave = useCallback(() => {
     if (formBusy) return;
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) { setFormErrors(errors); toast.error("Periksa kembali data produk."); return; }
-    setLoading(true); saveMutation.mutate(formData);
-  }, [formBusy, validateForm, saveMutation, formData]);
+    const errors = form.validate();
+    if (Object.keys(errors).length > 0) { form.setFormErrors(errors); toast.error("Periksa kembali data produk."); return; }
+    setLoading(true); saveMutation.mutate(form.formData);
+  }, [form, formBusy, saveMutation]);
 
   const handleExport = useCallback(async () => {
     if (!canCreateExports || isExporting) return;
@@ -518,35 +521,35 @@ export function ProductsPage() {
         title={editingProduct ? "Edit Produk" : "Tambah Produk"} size="md">
         <ModalContent>
           <div className="space-y-4">
-            <Input label="Kode Produk" value={formData.code} onChange={(e) => updateFormField("code", e.target.value)}
-              placeholder="e.g., PRD-001" error={formErrors.code} maxLength={40} disabled={formBusy} />
-            <Input label="Nama Produk" value={formData.name} onChange={(e) => updateFormField("name", e.target.value)}
-              placeholder="Nama produk" error={formErrors.name} maxLength={120} disabled={formBusy} />
-            <Input label="Deskripsi" value={formData.description} onChange={(e) => updateFormField("description", e.target.value)}
-              placeholder="Detail singkat produk" error={formErrors.description} maxLength={500} disabled={formBusy} />
-            <Select label="Satuan" value={formData.unit} onChange={(e) => updateFormField("unit", e.target.value)}
-              options={UNITS.map((u) => ({ value: u, label: u }))} error={formErrors.unit} disabled={formBusy} />
+            <Input label="Kode Produk" value={form.formData.code} onChange={(e) => form.setField("code", e.target.value)}
+              placeholder="e.g., PRD-001" error={form.formErrors.code} maxLength={40} disabled={formBusy} />
+            <Input label="Nama Produk" value={form.formData.name} onChange={(e) => form.setField("name", e.target.value)}
+              placeholder="Nama produk" error={form.formErrors.name} maxLength={120} disabled={formBusy} />
+            <Input label="Deskripsi" value={form.formData.description} onChange={(e) => form.setField("description", e.target.value)}
+              placeholder="Detail singkat produk" error={form.formErrors.description} maxLength={500} disabled={formBusy} />
+            <Select label="Satuan" value={form.formData.unit} onChange={(e) => form.setField("unit", e.target.value)}
+              options={UNITS.map((u) => ({ value: u, label: u }))} error={form.formErrors.unit} disabled={formBusy} />
             <Input label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
-              value={formatAmountInput(formData.purchase_price)}
-              onChange={(e) => updateFormField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
-              readOnly={!!editingProduct} isCurrency error={formErrors.purchase_price} disabled={formBusy} />
+              value={formatAmountInput(form.formData.purchase_price)}
+              onChange={(e) => form.setField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
+              readOnly={!!editingProduct} isCurrency error={form.formErrors.purchase_price} disabled={formBusy} />
             {editingProduct && <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>}
-            <Input label="Harga Jual" value={formatAmountInput(formData.selling_price)}
-              onChange={(e) => updateFormField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
-              isCurrency error={formErrors.selling_price} disabled={formBusy} />
+            <Input label="Harga Jual" value={formatAmountInput(form.formData.selling_price)}
+              onChange={(e) => form.setField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
+              isCurrency error={form.formErrors.selling_price} disabled={formBusy} />
             {!editingProduct && !onboardingCompleted && (
-              <Input label="Stok Awal" type="number" min={0} value={formData.current_stock || ""}
-                onChange={(e) => updateFormField("current_stock", Number(e.target.value))}
-                placeholder="0" error={formErrors.current_stock} disabled={formBusy} />
+              <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
+                onChange={(e) => form.setField("current_stock", Number(e.target.value))}
+                placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
             )}
             {!editingProduct && onboardingCompleted && (
               <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">
                 Stok ditambahkan otomatis melalui alur pembelian atau stok resmi.
               </div>
             )}
-            <Input label="Stok Minimum" type="number" min={0} value={formData.min_stock || ""}
-              onChange={(e) => updateFormField("min_stock", Number(e.target.value))}
-              placeholder="0" error={formErrors.min_stock} disabled={formBusy}
+            <Input label="Stok Minimum" type="number" min={0} value={form.formData.min_stock || ""}
+              onChange={(e) => form.setField("min_stock", Number(e.target.value))}
+              placeholder="0" error={form.formErrors.min_stock} disabled={formBusy}
               helperText="Ketika stok tersisa sampai angka ini, produk akan ditandai stok menipis." />
           </div>
         </ModalContent>
