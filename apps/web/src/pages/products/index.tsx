@@ -122,7 +122,12 @@ function useProductForm() {
 
   const setField = useCallback(<K extends keyof ProductFormData>(field: K, value: ProductFormData[K]) => {
     setFormData((c) => ({ ...c, [field]: value }));
-    setFormErrors((c) => { if (!c[field]) return c; const n = { ...c }; delete n[field]; return n; });
+    setFormErrors((c) => {
+      if (!c[field]) return c;
+      const n = { ...c };
+      delete n[field];
+      return n;
+    });
   }, []);
 
   const validate = useCallback(() => {
