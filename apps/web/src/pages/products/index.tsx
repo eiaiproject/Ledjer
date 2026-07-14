@@ -209,6 +209,66 @@ function useProductMutations({ orgId, form, editingProduct, setEditingProduct, s
 }
 
 /* ------------------------------------------------------------------ */
+/*  Filter component (reduce cognitive complexity)                    */
+/* ------------------------------------------------------------------ */
+
+function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchInputRef, hasSearch, hasFilter, stockCounts, filterGroupId, onClearSearch, onResetAll, allProducts, filterLabels, filterValues }: {
+  search: string;
+  setSearch: (v: string) => void;
+  stockFilter: StockFilter;
+  setStockFilter: (v: StockFilter) => void;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  hasSearch: boolean;
+  hasFilter: boolean;
+  stockCounts: Record<StockFilter, number>;
+  filterGroupId: string;
+  onClearSearch: () => void;
+  onResetAll: () => void;
+  allProducts: Product[];
+  filterLabels: Record<StockFilter, string>;
+  filterValues: StockFilter[];
+}) {
+  return (
+    <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
+      <div className="relative">
+        <label htmlFor="product-search" className="sr-only">Cari produk</label>
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" aria-hidden="true" />
+        <input ref={searchInputRef} id="product-search" type="search" placeholder="Cari kode atau nama produk..."
+          value={search} onChange={(e) => setSearch(e.target.value)}
+          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-10 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0" />
+        {hasSearch && (
+          <button type="button" onClick={onClearSearch}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Hapus pencarian">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <fieldset id={filterGroupId} className="mt-3 border-0 p-0 m-0">
+        <legend className="sr-only">Filter status stok</legend>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+          {filterValues.map((f) => (
+            <Button key={f} type="button"
+              variant={stockFilter === f ? "primary" : "outline"} size="sm"
+              onClick={() => setStockFilter(f)}
+              aria-pressed={stockFilter === f}>
+              {filterLabels[f]}{allProducts.length > 0 && f !== "all" ? ` (${stockCounts[f]})` : ""}
+            </Button>
+          ))}
+        </div>
+      </fieldset>
+      {(hasSearch || hasFilter) && (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-wood-100 pt-3">
+          {hasSearch && <Button type="button" variant="outline" size="sm" onClick={onClearSearch}>Hapus pencarian</Button>}
+          {hasFilter && <Button type="button" variant="outline" size="sm" onClick={() => setStockFilter("all")}>Tampilkan semua stok</Button>}
+          {hasSearch && hasFilter && <Button type="button" variant="outline" size="sm" onClick={onResetAll}>Reset pencarian dan filter</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -226,7 +286,6 @@ export function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchLabelId = useId();
   const filterGroupId = useId();
 
   const { loading, setLoading, saveMutation, deleteMutation } = useProductMutations({
@@ -354,37 +413,15 @@ export function ProductsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <label htmlFor="product-search" className="sr-only" id={searchLabelId}>Cari produk</label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" aria-hidden="true" />
-        <input ref={searchInputRef} id="product-search" type="search" placeholder="Cari kode atau nama produk..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          aria-labelledby={searchLabelId}
-          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-10 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0" />
-        {hasSearch && (
-          <button type="button" onClick={handleClearSearch}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Hapus pencarian">
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Stock filter */}
-      <fieldset id={filterGroupId}>
-        <legend className="sr-only">Filter status stok</legend>
-        <fieldset className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2 border-0 p-0 m-0">
-          {filterValues.map((f) => (
-            <Button key={f} type="button"
-              variant={stockFilter === f ? "primary" : "outline"} size="sm"
-              onClick={() => setStockFilter(f)}
-              aria-pressed={stockFilter === f}>
-              {filterLabels[f]}{allProducts.length > 0 && f !== "all" ? ` (${stockCounts[f]})` : ""}
-            </Button>
-          ))}
-        </fieldset>
-      </fieldset>
+      {/* Search + Filter */}
+      <ProductFilter
+        search={search} setSearch={setSearch}
+        stockFilter={stockFilter} setStockFilter={setStockFilter}
+        searchInputRef={searchInputRef} hasSearch={hasSearch} hasFilter={hasFilter}
+        stockCounts={stockCounts} filterGroupId={filterGroupId}
+        onClearSearch={handleClearSearch} onResetAll={handleResetAll}
+        allProducts={allProducts} filterLabels={filterLabels} filterValues={filterValues}
+      />
 
       {/* Search-result feedback */}
       {isSearching && !isEmpty && (
