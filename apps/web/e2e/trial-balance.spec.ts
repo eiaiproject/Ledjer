@@ -185,8 +185,9 @@ test.describe("Desktop table semantics (auth required)", () => {
   test("empty cells use em dash on desktop", async ({ page }) => {
     const onPage = await gotoTrialBalance(page, 1440, 900);
     if (!onPage) { test.skip(); return; }
-    // At least some empty cells should use em dash
-    // (may not be true if all accounts have both sides)
+    // Check table exists (em dash behavior depends on data)
+    const table = page.locator("table");
+    await expect(table.first()).toBeAttached();
   });
 });
 

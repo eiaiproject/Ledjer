@@ -136,9 +136,8 @@ test.describe("Date apply behavior (auth required)", () => {
     await fromInput.fill(tomorrowStr);
     await toInput.fill(new Date().toISOString().split("T")[0]);
 
-    // Check validation error appears
-    // Check validation error appears
-    // The error might be shown differently
+    // Verify inputs exist and can be filled
+    await expect(fromInput).toHaveValue(tomorrowStr);
   });
 
   test("refresh button has aria-label", async ({ page }) => {
@@ -253,7 +252,7 @@ test.describe("Result labels (auth required)", () => {
       return;
     }
     const grossLabel = page.getByText(/laba kotor|rugi kotor|hasil kotor/i);
-    void grossLabel; // May or may not exist depending on data
+    await expect(grossLabel.first()).toBeAttached();
   });
 
   test("net result row exists", async ({ page }) => {
@@ -264,7 +263,7 @@ test.describe("Result labels (auth required)", () => {
       return;
     }
     const netLabel = page.getByText(/laba bersih|rugi bersih|hasil bersih/i);
-    void netLabel; // May or may not exist depending on data
+    await expect(netLabel.first()).toBeAttached();
   });
 });
 
