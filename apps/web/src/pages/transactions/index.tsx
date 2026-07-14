@@ -229,7 +229,7 @@ export function TransactionListPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void handleExport()}
+              onClick={() => { handleExport(); }}
               disabled={exporting}
               className="hidden sm:inline-flex"
             >
@@ -251,7 +251,7 @@ export function TransactionListPage() {
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => void handleExport()}
+              onClick={() => { handleExport(); }}
               disabled={exporting}
               className="sm:hidden min-h-[44px] min-w-[44px]"
               aria-label="Ekspor transaksi"
@@ -465,7 +465,7 @@ export function TransactionListPage() {
             <ErrorState
               error={error}
               message="Periksa koneksi Anda, lalu coba lagi."
-              onRetry={() => void refetch()}
+              onRetry={() => { refetch(); }}
             />
           </div>
         )}

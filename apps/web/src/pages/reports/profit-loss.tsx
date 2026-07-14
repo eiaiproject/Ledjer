@@ -624,10 +624,7 @@ function ResultRowDesktop({
     variant === "final"
       ? "font-bold text-text-primary"
       : "font-semibold text-wood-700";
-  const valueClass =
-    variant === "final"
-      ? "font-bold text-wood-800 tabular-nums"
-      : "font-bold text-wood-800 tabular-nums";
+  const valueClass = "font-bold text-wood-800 tabular-nums";
 
   return (
     <tr className={`${borderClass} ${bgClass}`}>

@@ -254,7 +254,7 @@ export function GeneralLedgerPage() {
         </div>
         <div className="flex items-center gap-2">
           {canCreateExports && (
-            <Button type="button" variant="outline" size="sm" onClick={() => void handleExport()}
+            <Button type="button" variant="outline" size="sm" onClick={() => { handleExport(); }}
               disabled={!ledger?.length || dateRangeInvalid || isExporting}
               className="hidden sm:inline-flex" aria-busy={isExporting || undefined}>
               <Download className="h-4 w-4" aria-hidden="true" />
@@ -262,7 +262,7 @@ export function GeneralLedgerPage() {
             </Button>
           )}
           {canCreateExports && (
-            <Button type="button" variant="outline" size="icon" onClick={() => void handleExport()}
+            <Button type="button" variant="outline" size="icon" onClick={() => { handleExport(); }}
               disabled={!ledger?.length || dateRangeInvalid || isExporting}
               className="sm:hidden min-h-[44px] min-w-[44px]"
               aria-label={isExporting ? "Mengekspor buku besar ke CSV" : "Ekspor buku besar ke CSV"}

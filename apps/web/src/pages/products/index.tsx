@@ -265,7 +265,7 @@ export function ProductsPage() {
       <div className="space-y-4">
         <div><h1 className="text-2xl font-bold text-text-primary">Produk</h1>
         <p className="mt-1 text-sm text-text-secondary">Kelola produk, harga, dan ketersediaan stok.</p></div>
-        <ErrorState error={error} message="Periksa koneksi Anda, lalu coba lagi." onRetry={() => void refetch()} />
+        <ErrorState error={error} message="Periksa koneksi Anda, lalu coba lagi." onRetry={() => { refetch(); }} />
       </div>
     );
   }
@@ -300,7 +300,7 @@ export function ProductsPage() {
         </div>
         <div className="flex items-center gap-2">
           {canCreateExports && (
-            <Button type="button" variant="outline" size="sm" onClick={() => void handleExport()}
+            <Button type="button" variant="outline" size="sm" onClick={() => { handleExport(); }}
               disabled={!allProducts.length || isExporting} className="hidden sm:inline-flex"
               aria-busy={isExporting || undefined}>
               <Download className="h-4 w-4" aria-hidden="true" />
@@ -308,7 +308,7 @@ export function ProductsPage() {
             </Button>
           )}
           {canCreateExports && (
-            <Button type="button" variant="outline" size="icon" onClick={() => void handleExport()}
+            <Button type="button" variant="outline" size="icon" onClick={() => { handleExport(); }}
               disabled={!allProducts.length || isExporting} className="sm:hidden min-h-[44px] min-w-[44px]"
               aria-label={isExporting ? "Mengekspor produk ke CSV" : "Ekspor produk ke CSV"}
               aria-busy={isExporting || undefined}>

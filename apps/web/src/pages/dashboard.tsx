@@ -13,6 +13,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatShortDate } from "@/lib/utils";
 import { getDashboardSummary } from "@/lib/api/dashboard";
 
+type ProfitState = {
+  isZero: boolean;
+  label: string;
+  tone: "leaf" | "clay" | "wood";
+  icon: typeof TrendingUp;
+};
+
+function computeProfitState(value: number | null | undefined): ProfitState {
+  if (value == null || value === 0) {
+    return { isZero: true, label: "Laba/Rugi", tone: "wood", icon: BarChart3 };
+  }
+  if (value > 0) {
+    return { isZero: false, label: "Laba Bersih", tone: "leaf", icon: TrendingUp };
+  }
+  return { isZero: false, label: "Rugi Bersih", tone: "clay", icon: TrendingDown };
+}
+
 /** Format period as readable Indonesian: "Ringkasan 1–12 Juli 2026" */
 function formatPeriodRange(from: string, to: string): string {
   const start = new Date(from);
@@ -91,13 +108,8 @@ export function DashboardPage() {
   }
 
   // Determine profit/loss semantic state
-  const profitValue = summary?.net_profit_current_period;
-  const isProfit = profitValue !== null && profitValue !== undefined && profitValue > 0;
-  const isLoss = profitValue !== null && profitValue !== undefined && profitValue < 0;
-  const isZero = profitValue !== null && profitValue !== undefined && profitValue === 0;
-  const profitLabel = isProfit ? "Laba Bersih" : isLoss ? "Rugi Bersih" : "Laba/Rugi";
-  const profitTone = isProfit ? "leaf" : isLoss ? "clay" : "wood";
-  const profitIcon = isProfit ? TrendingUp : isLoss ? TrendingDown : BarChart3;
+  const profitState = computeProfitState(summary?.net_profit_current_period);
+  const { label: profitLabel, tone: profitTone, icon: profitIcon } = profitState;
 
   // Summary-level error: individual metrics unavailable
   const metricError = !!error;
@@ -191,7 +203,7 @@ export function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <StatCard
               label="Saldo Kas/Bank"
-              value={summary?.cash_balance ?? (isLoading ? null : null)}
+              value={summary?.cash_balance ?? null}
               icon={Wallet}
               tone="leaf"
               hero
@@ -199,12 +211,12 @@ export function DashboardPage() {
             />
             <StatCard
               label={profitLabel}
-              value={summary?.net_profit_current_period ?? (isLoading ? null : null)}
+              value={summary?.net_profit_current_period ?? null}
               icon={profitIcon}
               tone={profitTone}
               hero
               href="/reports/profit-loss"
-              ariaDescription={isZero ? "Belum ada aktivitas pada periode ini" : undefined}
+              ariaDescription={profitState.isZero ? "Belum ada aktivitas pada periode ini" : undefined}
             />
           </div>
 

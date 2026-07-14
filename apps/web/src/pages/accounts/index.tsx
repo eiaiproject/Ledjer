@@ -763,7 +763,7 @@ export function AccountsPage() {
         <ErrorState
           error={error}
           message="Periksa koneksi Anda, lalu coba lagi."
-          onRetry={() => void refetch()}
+          onRetry={() => { refetch(); }}
         />
       </div>
     );
@@ -825,7 +825,7 @@ export function AccountsPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void handleExport()}
+              onClick={() => { handleExport(); }}
               disabled={!allAccounts.length || isExporting}
               className="hidden sm:inline-flex"
               aria-busy={isExporting || undefined}
@@ -839,7 +839,7 @@ export function AccountsPage() {
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => void handleExport()}
+              onClick={() => { handleExport(); }}
               disabled={!allAccounts.length || isExporting}
               className="sm:hidden min-h-[44px] min-w-[44px]"
               aria-label={isExporting ? "Mengekspor akun ke CSV" : "Ekspor akun ke CSV"}
