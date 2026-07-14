@@ -274,6 +274,23 @@ function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchI
 }
 
 /* ------------------------------------------------------------------ */
+/*  Product list hook                                                  */
+/* ------------------------------------------------------------------ */
+
+function useProductList(orgId: string | undefined) {
+  const { data: products, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.products.fullList(orgId ?? ""),
+    queryFn: async () => {
+      if (!orgId) return [];
+      return listProducts();
+    },
+    enabled: !!orgId,
+  });
+  const allProducts = useMemo(() => products || [], [products]);
+  return { allProducts, isLoading, error, refetch };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -282,7 +299,6 @@ export function ProductsPage() {
   const { canManageProducts, canCreateExports } = useOrgPermissions();
   const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
   const form = useProductForm();
-
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -299,16 +315,7 @@ export function ProductsPage() {
   });
   const formBusy = loading || saveMutation.isPending;
 
-  const { data: products, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.products.fullList(orgData?.organization?.id ?? ""),
-    queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return listProducts();
-    },
-    enabled: !!orgData?.organization?.id,
-  });
-
-  const allProducts = useMemo(() => products || [], [products]);
+  const { allProducts, isLoading, error, refetch } = useProductList(orgData?.organization?.id);
 
   const stockCounts = useMemo(() => {
     const counts: Record<StockFilter, number> = { all: allProducts.length, in_stock: 0, low: 0, out: 0 };
