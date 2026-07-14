@@ -579,6 +579,49 @@ export async function postTransaction(
  * original transaction. The original must have payment_status = 'partial' and
  * be of type credit_sale or credit_purchase.
  */
+async function validateSettlementTarget(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  cashAccountId: string,
+) {
+  const original = await getTransactionRow(db, organizationId, transactionId);
+  if (!original) throw notFound("transaction_not_found", "Transaction not found");
+  if (original.status !== "posted") {
+    throw conflict("transaction_not_posted", "Only posted transactions can be settled");
+  }
+  if (original.payment_status !== "partial") {
+    throw conflict("transaction_not_partial", "Only partially paid credit transactions can be settled");
+  }
+  if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
+    throw conflict("transaction_not_credit", "Only credit transactions can be settled");
+  }
+  await assertPeriodOpen(db, organizationId, original.transaction_date);
+  const cashAccount = await getAccountById(db, organizationId, cashAccountId);
+  assertCashAccount(cashAccount, "cash_account_invalid");
+  return original;
+}
+
+async function calculateSettlementRemaining(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  cashAccountId: string,
+  originalAmountMinor: number,
+  originalCashAccountId: string,
+) {
+  const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
+  const partialAmountDebit = originalLines.find(
+    (l) => l.account_id === cashAccountId || originalCashAccountId === cashAccountId,
+  );
+  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
+  const remainingMinor = originalAmountMinor - partialAmountMinor;
+  if (remainingMinor <= 0) {
+    throw badRequest("already_fully_paid", "This transaction is already fully paid");
+  }
+  return remainingMinor;
+}
+
 export async function settleAndVoidTransaction(
   db: D1Database,
   organizationId: string,
@@ -602,35 +645,8 @@ export async function settleAndVoidTransaction(
     throw conflict("idempotency_key_conflict", "Idempotency key is already used");
   }
 
-  const original = await getTransactionRow(db, organizationId, transactionId);
-  if (!original) throw notFound("transaction_not_found", "Transaction not found");
-  if (original.status !== "posted") {
-    throw conflict("transaction_not_posted", "Only posted transactions can be settled");
-  }
-  if (original.payment_status !== "partial") {
-    throw conflict("transaction_not_partial", "Only partially paid credit transactions can be settled");
-  }
-  if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
-    throw conflict("transaction_not_credit", "Only credit transactions can be settled");
-  }
-
-  await assertPeriodOpen(db, organizationId, original.transaction_date);
-
-  const cashAccount = await getAccountById(db, organizationId, cashAccountId);
-  assertCashAccount(cashAccount, "cash_account_invalid");
-
-  // Calculate remaining amount (original amount - already paid partial)
-  const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
-  const partialAmountDebit = originalLines.find(
-    (l) => l.account_id === cashAccountId || original.cash_account_id === cashAccountId,
-  );
-  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
-  const remainingMinor = original.amount_minor - partialAmountMinor;
-
-  if (remainingMinor <= 0) {
-    throw badRequest("already_fully_paid", "This transaction is already fully paid");
-  }
-
+  const original = await validateSettlementTarget(db, organizationId, transactionId, cashAccountId);
+  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, original.cash_account_id);
   const current = Date.now();
   const settleTransactionId = generateId();
   const journalEntryId = generateId();
