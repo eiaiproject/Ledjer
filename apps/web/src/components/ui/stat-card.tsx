@@ -64,7 +64,11 @@ export function StatCard({
   const displayValue = isError ? null : formatValue(value, format);
   const isZero = typeof value === "number" && value === 0;
 
-  const statusText = isLoading ? "sedang dimuat" : isError ? "data belum tersedia" : null;
+  const statusText = (() => {
+    if (isLoading) return "sedang dimuat";
+    if (isError) return "data belum tersedia";
+    return null;
+  })();
   const accessibleLabel = [label, ariaDescription, statusText].filter(Boolean).join(", ");
 
   const valueContent = (() => {

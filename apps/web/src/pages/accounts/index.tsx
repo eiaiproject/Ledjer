@@ -992,12 +992,15 @@ export function AccountsPage() {
                 icon={<Wallet className="h-7 w-7 text-wood-400" aria-hidden="true" />}
                 title="Belum ada akun kas atau bank"
                 description="Tambahkan tempat penyimpanan uang bisnis Anda."
-                action={canManageAccounts ? (
-                  <Button type="button" onClick={() => setAddModalOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                    Tambah Kas/Bank
-                  </Button>
-                ) : undefined}
+                action={(() => {
+                  if (!canManageAccounts) return undefined;
+                  return (
+                    <Button type="button" onClick={() => setAddModalOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Tambah Kas/Bank
+                    </Button>
+                  );
+                })()}
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
@@ -1022,39 +1025,27 @@ export function AccountsPage() {
         aria-labelledby={tabIds.all}
         hidden={activeTab !== "all"}
       >
-        {activeTab === "all" && (
-          <>
-            {allEmpty && hasSearch ? (
-              <EmptyState
-                icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+        {activeTab === "all" && (() => {
+          if (allEmpty && hasSearch) {
+            return (
+              <EmptyState icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
                 title="Akun tidak ditemukan"
                 description={`Tidak ada akun yang cocok dengan "${search}".`}
-                action={
-                  <Button type="button" variant="outline" size="sm" onClick={handleClearSearch}>
-                    Hapus pencarian
-                  </Button>
-                }
-              />
-            ) : allEmpty && typeFilter !== "all" ? (
-              <EmptyState
-                icon={<BookOpen className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+                action={<Button type="button" variant="outline" size="sm" onClick={handleClearSearch}>Hapus pencarian</Button>} />
+            );
+          }
+          if (allEmpty && typeFilter !== "all") {
+            return (
+              <EmptyState icon={<BookOpen className="h-7 w-7 text-wood-400" aria-hidden="true" />}
                 title="Tidak ada akun dalam kategori ini"
                 description="Pilih kategori lain atau lihat semua akun."
-                action={
-                  <Button type="button" variant="outline" size="sm" onClick={() => setTypeFilter("all")}>
-                    Lihat semua akun
-                  </Button>
-                }
-              />
-            ) : (
-              <AccountsTable
-                accounts={filteredAccounts}
-                onEdit={handleEdit}
-                canEdit={canManageAccounts}
-              />
-            )}
-          </>
-        )}
+                action={<Button type="button" variant="outline" size="sm" onClick={() => setTypeFilter("all")}>Lihat semua akun</Button>} />
+            );
+          }
+          return (
+            <AccountsTable accounts={filteredAccounts} onEdit={handleEdit} canEdit={canManageAccounts} />
+          );
+        })()}
       </div>
 
       {/* Add Cash/Bank Modal */}
