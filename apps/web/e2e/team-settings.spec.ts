@@ -21,12 +21,14 @@ async function gotoTeam(
 
 test.describe("Team page basics", () => {
   test("page loads without crash", async ({ page }) => {
+    await gotoTeam(page);
     await page.goto("/settings/team");
     await page.waitForLoadState("networkidle");
     expect(await page.title()).toMatch(/Ledjer/i);
   });
 
   test("no horizontal overflow at 320px", async ({ page }) => {
+    await gotoTeam(page);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/settings/team");
     await page.waitForLoadState("networkidle");
@@ -36,39 +38,23 @@ test.describe("Team page basics", () => {
   });
 
   test("exactly one h1 exists", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     expect(await page.locator("h1").count()).toBe(1);
   });
 
   test("page title says Tim dan izin", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     await expect(page.locator("h1")).toContainText("Tim dan izin");
   });
 
   test("page title does NOT use ampersand", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const text = await page.locator("h1").textContent();
     expect(text).not.toContain("&");
   });
 
   test("description uses Indonesian", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const desc = page.locator("p.text-text-secondary").first();
     await expect(desc).toBeVisible();
     const text = await desc.textContent();
@@ -80,21 +66,13 @@ test.describe("Team page basics", () => {
 
 test.describe("Owner section (auth required)", () => {
   test("has Pemilik section heading", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const heading = page.getByText("Pemilik").first();
     await expect(heading).toBeAttached();
   });
 
   test("owner card shows Pemilik badge", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const badge = page.locator(".bg-honey-50").first();
     if (await badge.count() > 0) {
       await expect(badge).toBeVisible();
@@ -106,21 +84,13 @@ test.describe("Owner section (auth required)", () => {
 
 test.describe("Staff section (auth required)", () => {
   test("has Anggota Tim heading", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const heading = page.getByText("Anggota Tim").first();
     await expect(heading).toBeAttached();
   });
 
   test("staff count badge is present", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const badge = page.locator(".bg-wood-100").filter({ hasText: /anggota/ }).first();
     if (await badge.count() > 0) {
       await expect(badge).toBeAttached();
@@ -132,21 +102,13 @@ test.describe("Staff section (auth required)", () => {
 
 test.describe("Invitation form (auth required)", () => {
   test("form heading says Buat link undangan", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const heading = page.getByText("Buat link undangan").first();
     await expect(heading).toBeAttached();
   });
 
   test("email field exists", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const emailInput = page.locator('input[type="email"]');
     if (await emailInput.count() > 0) {
       await expect(emailInput.first()).toBeAttached();
@@ -154,11 +116,7 @@ test.describe("Invitation form (auth required)", () => {
   });
 
   test("role select exists with correct options", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const roleSelect = page.locator("#invite-role");
     if (await roleSelect.count() > 0) {
       const options = roleSelect.locator("option");
@@ -168,11 +126,7 @@ test.describe("Invitation form (auth required)", () => {
   });
 
   test("default role is Staf (member)", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+  await gotoTeam(page);
     const roleSelect = page.locator("#invite-role");
     if (await roleSelect.count() > 0) {
       const value = await roleSelect.inputValue();
@@ -181,11 +135,7 @@ test.describe("Invitation form (auth required)", () => {
   });
 
   test("submit button says Buat link undangan", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const submitBtn = page.getByRole("button", { name: /buat link undangan/i });
     if (await submitBtn.count() > 0) {
       await expect(submitBtn.first()).toBeVisible();
@@ -193,11 +143,7 @@ test.describe("Invitation form (auth required)", () => {
   });
 
   test("form uses native form submit", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const form = page.locator("form").first();
     if (await form.count() > 0) {
       await expect(form).toBeAttached();
@@ -205,11 +151,7 @@ test.describe("Invitation form (auth required)", () => {
   });
 
   test("role select has label", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const label = page.locator("label[for='invite-role']");
     if (await label.count() > 0) {
       await expect(label).toBeAttached();
@@ -221,21 +163,13 @@ test.describe("Invitation form (auth required)", () => {
 
 test.describe("Role comparison guide (auth required)", () => {
   test("has role comparison heading", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const heading = page.getByText("Perbandingan hak akses role").first();
     await expect(heading).toBeAttached();
   });
 
   test("role comparison is collapsible", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const details = page.locator("details").first();
     if (await details.count() > 0) {
       await expect(details).toBeAttached();
@@ -243,11 +177,7 @@ test.describe("Role comparison guide (auth required)", () => {
   });
 
   test("role comparison shows Admin, Staf, Viewer", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const details = page.locator("details").first();
     if (await details.count() > 0) {
       // Open the details
@@ -263,11 +193,7 @@ test.describe("Role comparison guide (auth required)", () => {
 
 test.describe("Member actions (auth required)", () => {
   test("member card has Izin button", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const izinBtn = page.getByRole("button", { name: /izin/i }).first();
     if (await izinBtn.count() > 0) {
       await expect(izinBtn).toBeVisible();
@@ -275,11 +201,7 @@ test.describe("Member actions (auth required)", () => {
   });
 
   test("Izin button toggles permission display", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     const izinBtn = page.getByRole("button", { name: /izin/i }).first();
     if (await izinBtn.count() > 0) {
       await izinBtn.click();
@@ -294,11 +216,7 @@ test.describe("Member actions (auth required)", () => {
 
 test.describe("Empty state (auth required)", () => {
   test("shows empty state when no members", async ({ page }) => {
-    const onPage = await gotoTeam(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoTeam(page);
     // Check if empty state is shown (may or may not be depending on data)
     const emptyState = page.getByText("Belum ada anggota").first();
     const hasEmptyState = (await emptyState.count()) > 0;
@@ -325,6 +243,7 @@ for (const vp of viewports) {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
     test("no horizontal overflow", async ({ page }) => {
+    await gotoTeam(page);
       await page.goto("/settings/team");
       await page.waitForLoadState("networkidle");
       expect(

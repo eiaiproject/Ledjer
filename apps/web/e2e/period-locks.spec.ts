@@ -21,12 +21,14 @@ async function gotoPeriodLocks(
 
 test.describe("Period locks page basics", () => {
   test("page loads without crash", async ({ page }) => {
+    await gotoPeriodLocks(page);
     await page.goto("/settings/period-locks");
     await page.waitForLoadState("networkidle");
     expect(await page.title()).toMatch(/Ledjer/i);
   });
 
   test("no horizontal overflow at 320px", async ({ page }) => {
+    await gotoPeriodLocks(page);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/settings/period-locks");
     await page.waitForLoadState("networkidle");
@@ -36,29 +38,17 @@ test.describe("Period locks page basics", () => {
   });
 
   test("exactly one h1 exists", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     expect(await page.locator("h1").count()).toBe(1);
   });
 
   test("page title says Kunci Periode", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     await expect(page.locator("h1")).toContainText("Kunci Periode");
   });
 
   test("description mentions cumulative lock", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const desc = page.locator("p.text-text-secondary").first();
     await expect(desc).toBeVisible();
     const text = await desc.textContent();
@@ -70,21 +60,13 @@ test.describe("Period locks page basics", () => {
 
 test.describe("Effective lock section (auth required)", () => {
   test("has Periode aktif heading", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const heading = page.getByText("Periode aktif").first();
     await expect(heading).toBeAttached();
   });
 
   test("effective lock shows Dikunci hingga text", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const lockText = page.getByText(/Dikunci hingga/).first();
     if (await lockText.count() > 0) {
       await expect(lockText).toBeVisible();
@@ -96,71 +78,43 @@ test.describe("Effective lock section (auth required)", () => {
 
 test.describe("Create form (auth required)", () => {
   test("has Tambah kunci periode heading", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const heading = page.getByText("Tambah kunci periode").first();
     await expect(heading).toBeAttached();
   });
 
   test("form heading has id matching aria-labelledby", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const heading = page.locator("#create-lock-heading");
     await expect(heading).toBeAttached();
   });
 
   test("has date input", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const dateInput = page.locator("#lock-date");
     await expect(dateInput).toBeAttached();
   });
 
   test("date input has associated label", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const label = page.locator("label[for='lock-date']");
     await expect(label).toBeAttached();
   });
 
   test("has reason textarea", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const textarea = page.locator("#alasan-kunci");
     await expect(textarea).toBeAttached();
   });
 
   test("reason textarea has associated label", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const label = page.locator("label[for='alasan-kunci']");
     await expect(label).toBeAttached();
   });
 
   test("submit button exists", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const submitBtn = page.getByRole("button", { name: /kunci hingga tanggal ini/i });
     if (await submitBtn.count() > 0) {
       await expect(submitBtn.first()).toBeVisible();
@@ -168,11 +122,7 @@ test.describe("Create form (auth required)", () => {
   });
 
   test("form uses native form submit", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const form = page.locator("form").first();
     if (await form.count() > 0) {
       await expect(form).toBeAttached();
@@ -180,11 +130,7 @@ test.describe("Create form (auth required)", () => {
   });
 
   test("date input has help text", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const helpText = page.locator("#lock-date-help");
     if (await helpText.count() > 0) {
       await expect(helpText).toContainText("Semua transaksi");
@@ -192,11 +138,7 @@ test.describe("Create form (auth required)", () => {
   });
 
   test("default date is end of previous month", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const dateInput = page.locator("#lock-date");
     const value = await dateInput.inputValue();
     // Should be YYYY-MM-DD format
@@ -207,21 +149,13 @@ test.describe("Create form (auth required)", () => {
   });
 
   test("impact warning shows Apa yang terjadi setelah dikunci", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const warning = page.getByText("Apa yang terjadi setelah dikunci?").first();
     await expect(warning).toBeVisible();
   });
 
   test("warning list uses semantic list markup", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const list = page.locator("ul.list-disc").first();
     if (await list.count() > 0) {
       await expect(list).toBeAttached();
@@ -233,21 +167,13 @@ test.describe("Create form (auth required)", () => {
 
 test.describe("Lock history (auth required)", () => {
   test("has Histori kunci periode heading", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const heading = page.getByText("Histori kunci periode").first();
     await expect(heading).toBeAttached();
   });
 
   test("desktop table has scope attributes", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page, 1280, 800);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const table = page.locator("table.ledger-table").first();
     if (await table.count() > 0) {
       const headers = table.locator("th[scope='col']");
@@ -256,11 +182,7 @@ test.describe("Lock history (auth required)", () => {
   });
 
   test("history shows Aktif or Digantikan badges", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const badges = page.locator(".bg-success\\/10, .bg-wood-100").filter({ hasText: /Aktif|Digantikan/ });
     // May or may not have locks
     const count = await badges.count();
@@ -272,11 +194,7 @@ test.describe("Lock history (auth required)", () => {
 
 test.describe("Empty state (auth required)", () => {
   test("shows empty state when no locks", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     // Check if empty state is present (may or may not be depending on data)
     const emptyState = page.getByText("Belum ada periode terkunci").first();
     const hasEmpty = (await emptyState.count()) > 0;
@@ -286,11 +204,7 @@ test.describe("Empty state (auth required)", () => {
   });
 
   test("empty state description mentions user permissions", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const desc = page.getByText("Transaksi masih dapat diposting dan dibatalkan sesuai izin pengguna").first();
     if (await desc.count() > 0) {
       await expect(desc).toBeVisible();
@@ -302,11 +216,7 @@ test.describe("Empty state (auth required)", () => {
 
 test.describe("Permission denied state (auth required)", () => {
   test("shows read-only notice for non-admin users", async ({ page }) => {
-    const onPage = await gotoPeriodLocks(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoPeriodLocks(page);
     const notice = page.getByText("Anda dapat melihat kunci periode, tetapi tidak memiliki izin").first();
     // May or may not be visible depending on user role
     const count = await notice.count();
@@ -331,6 +241,7 @@ for (const vp of viewports) {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
     test("no horizontal overflow", async ({ page }) => {
+    await gotoPeriodLocks(page);
       await page.goto("/settings/period-locks");
       await page.waitForLoadState("networkidle");
       expect(
@@ -339,11 +250,7 @@ for (const vp of viewports) {
     });
 
     test("h1 is visible", async ({ page }) => {
-      const onPage = await gotoPeriodLocks(page, vp.width, vp.height);
-      if (!onPage) {
-        test.skip();
-        return;
-      }
+    await gotoPeriodLocks(page);
       await expect(page.locator("h1")).toBeVisible();
     });
   });

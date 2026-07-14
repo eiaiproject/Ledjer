@@ -23,12 +23,14 @@ test.describe("Profit & Loss page basics", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("page loads without crash", async ({ page }) => {
+    await gotoProfitLoss(page);
     await page.goto("/reports/profit-loss");
     await page.waitForLoadState("networkidle");
     expect(await page.title()).toMatch(/Ledjer/i);
   });
 
   test("no horizontal overflow at 320px", async ({ page }) => {
+    await gotoProfitLoss(page);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/reports/profit-loss");
     await page.waitForLoadState("networkidle");
@@ -38,24 +40,17 @@ test.describe("Profit & Loss page basics", () => {
   });
 
   test("exactly one h1 exists", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     expect(await page.locator("h1").count()).toBe(1);
   });
 
   test("page title says Laba Rugi", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     await expect(page.locator("h1")).toContainText("Laba Rugi");
   });
 
   test("no duplicate ledger-page animation", async ({ page }) => {
+    await gotoProfitLoss(page);
     await page.goto("/reports/profit-loss");
     await page.waitForLoadState("networkidle");
     const count = await page.locator(".ledger-page").count();
@@ -67,11 +62,7 @@ test.describe("Profit & Loss page basics", () => {
 
 test.describe("Date display (auth required)", () => {
   test("subtitle uses localized Indonesian date range", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const subtitle = page.locator("p[aria-live='polite']").first();
     await expect(subtitle).toBeVisible();
     const text = await subtitle.textContent();
@@ -82,11 +73,7 @@ test.describe("Date display (auth required)", () => {
   });
 
   test("subtitle does not say Periode:", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const subtitle = page.locator("p[aria-live='polite']").first();
     const text = await subtitle.textContent();
     expect(text).not.toContain("Periode:");
@@ -97,21 +84,13 @@ test.describe("Date display (auth required)", () => {
 
 test.describe("Date apply behavior (auth required)", () => {
   test("apply button says Tampilkan laporan", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const applyBtn = page.getByRole("button", { name: /tampilkan laporan/i });
     await expect(applyBtn.first()).toBeVisible();
   });
 
   test("date fields have Indonesian labels", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const dariLabel = page.locator("label").filter({ hasText: /dari tanggal/i });
     const sampaiLabel = page.locator("label").filter({ hasText: /sampai tanggal/i });
     await expect(dariLabel.first()).toBeAttached();
@@ -119,12 +98,7 @@ test.describe("Date apply behavior (auth required)", () => {
   });
 
   test("date fields have aria-invalid when invalid", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page, 1440, 900);
-    if (!onPage) {
-      test.skip();
-
-      return;
-    }
+    await gotoProfitLoss(page);
     // Set from date after to date
     const fromInput = page.locator('input[type="date"]').first();
     const toInput = page.locator('input[type="date"]').nth(1);
@@ -141,12 +115,7 @@ test.describe("Date apply behavior (auth required)", () => {
   });
 
   test("refresh button has aria-label", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-
-      return;
-    }
+    await gotoProfitLoss(page);
     const refreshBtn = page.getByRole("button", { name: /muat ulang data/i });
     await expect(refreshBtn.first()).toBeAttached();
   });
@@ -156,11 +125,7 @@ test.describe("Date apply behavior (auth required)", () => {
 
 test.describe("Export (auth required)", () => {
   test("export button has Indonesian accessible name", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const exportBtn = page.getByRole("button", {
       name: /ekspor laporan laba rugi ke csv/i,
     });
@@ -168,11 +133,7 @@ test.describe("Export (auth required)", () => {
   });
 
   test("export button text is Ekspor on mobile", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page, 375, 812);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const exportBtn = page.getByRole("button", { name: /ekspor/i });
     if (await exportBtn.count() > 0) {
       const text = await exportBtn.first().textContent();
@@ -185,11 +146,7 @@ test.describe("Export (auth required)", () => {
 
 test.describe("Inactive accounts toggle (auth required)", () => {
   test("toggle label exists in Indonesian", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const toggle = page
       .locator("label")
       .filter({ hasText: /tampilkan akun tanpa aktivitas/i });
@@ -197,11 +154,7 @@ test.describe("Inactive accounts toggle (auth required)", () => {
   });
 
   test("toggle is a checkbox", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const checkbox = page.locator(
       'input[type="checkbox"]',
     );
@@ -213,11 +166,7 @@ test.describe("Inactive accounts toggle (auth required)", () => {
 
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page, 1440, 900);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
@@ -228,11 +177,7 @@ test.describe("Desktop table semantics (auth required)", () => {
   });
 
   test("headers have scope=col", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page, 1440, 900);
-    if (!onPage) {
-      test.skip();
-      return;
-    }
+    await gotoProfitLoss(page);
     const scopedHeaders = page.locator('th[scope="col"]');
     const count = await scopedHeaders.count();
     if (count > 0) {
@@ -245,23 +190,13 @@ test.describe("Desktop table semantics (auth required)", () => {
 
 test.describe("Result labels (auth required)", () => {
   test("gross result row exists", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page, 1440, 900);
-    if (!onPage) {
-      test.skip();
-
-      return;
-    }
+    await gotoProfitLoss(page);
     const grossLabel = page.getByText(/laba kotor|rugi kotor|hasil kotor/i);
     await expect(grossLabel.first()).toBeAttached();
   });
 
   test("net result row exists", async ({ page }) => {
-    const onPage = await gotoProfitLoss(page, 1440, 900);
-    if (!onPage) {
-      test.skip();
-
-      return;
-    }
+    await gotoProfitLoss(page);
     const netLabel = page.getByText(/laba bersih|rugi bersih|hasil bersih/i);
     await expect(netLabel.first()).toBeAttached();
   });
@@ -284,6 +219,7 @@ for (const vp of viewports) {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
     test("no horizontal overflow", async ({ page }) => {
+    await gotoProfitLoss(page);
       await page.goto("/reports/profit-loss");
       await page.waitForLoadState("networkidle");
       expect(

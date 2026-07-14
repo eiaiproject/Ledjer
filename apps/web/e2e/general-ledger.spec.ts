@@ -19,12 +19,14 @@ test.describe("General Ledger page basics", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("page loads without crash", async ({ page }) => {
+    await gotoLedger(page);
     await page.goto("/reports/general-ledger");
     await page.waitForLoadState("networkidle");
     expect(await page.title()).toMatch(/Ledjer/i);
   });
 
   test("no horizontal overflow at 320px", async ({ page }) => {
+    await gotoLedger(page);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/reports/general-ledger");
     await page.waitForLoadState("networkidle");
@@ -32,14 +34,12 @@ test.describe("General Ledger page basics", () => {
   });
 
   test("exactly one h1 exists", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     expect(await page.locator("h1").count()).toBe(1);
   });
 
   test("page title says Buku Besar", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     await expect(page.locator("h1")).toContainText("Buku Besar");
   });
 });
@@ -48,8 +48,7 @@ test.describe("General Ledger page basics", () => {
 
 test.describe("Filter disclosure (auth required)", () => {
   test("filter button has aria-expanded", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const filterBtn = page.getByRole("button", { name: /filter/i });
     await expect(filterBtn.first()).toBeAttached();
     const expanded = await filterBtn.first().getAttribute("aria-expanded");
@@ -57,8 +56,7 @@ test.describe("Filter disclosure (auth required)", () => {
   });
 
   test("filter button has aria-controls", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const filterBtn = page.getByRole("button", { name: /filter/i }).first();
     const controlsId = await filterBtn.getAttribute("aria-controls");
     expect(controlsId).toBeTruthy();
@@ -67,8 +65,7 @@ test.describe("Filter disclosure (auth required)", () => {
   });
 
   test("clicking filter toggles panel visibility", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const filterBtn = page.getByRole("button", { name: /filter/i }).first();
     await filterBtn.click();
     await expect(filterBtn).toHaveAttribute("aria-expanded", "true");
@@ -81,9 +78,7 @@ test.describe("Filter disclosure (auth required)", () => {
 
 test.describe("Account selector (auth required)", () => {
   test("no duplicate Semua Akun / placeholder option", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoLedger(page);
     // Open filter to see account selector
     const filterBtn = page.getByRole("button", { name: /filter/i }).first();
     await filterBtn.click();
@@ -107,9 +102,7 @@ test.describe("Account selector (auth required)", () => {
 
 test.describe("Date labels (auth required)", () => {
   test("date fields have correct labels", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoLedger(page);
     const fromDateLabel = page.locator("label").filter({ hasText: /dari tanggal/i });
     const toDateLabel = page.locator("label").filter({ hasText: /sampai tanggal/i });
     await expect(fromDateLabel.first()).toBeAttached();
@@ -121,8 +114,7 @@ test.describe("Date labels (auth required)", () => {
 
 test.describe("Export (auth required)", () => {
   test("desktop export shows Indonesian text", async ({ page }) => {
-    const onPage = await gotoLedger(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const exportBtn = page.locator('button:has-text("Ekspor CSV")').first();
     if (await exportBtn.count() > 0) {
       await expect(exportBtn).toBeVisible();
@@ -130,8 +122,7 @@ test.describe("Export (auth required)", () => {
   });
 
   test("mobile export has accessible label in Indonesian", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const exportBtn = page.getByRole("button", { name: /ekspor buku besar ke csv/i });
     expect(await exportBtn.count()).toBeGreaterThanOrEqual(0);
   });
@@ -141,6 +132,7 @@ test.describe("Export (auth required)", () => {
 
 test.describe("No duplicate animation (auth-independent)", () => {
   test("only one ledger-page element exists", async ({ page }) => {
+    await gotoLedger(page);
     await page.goto("/reports/general-ledger");
     await page.waitForLoadState("networkidle");
     const count = await page.locator(".ledger-page").count();
@@ -152,8 +144,7 @@ test.describe("No duplicate animation (auth-independent)", () => {
 
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
-    const onPage = await gotoLedger(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
@@ -165,8 +156,7 @@ test.describe("Desktop table semantics (auth required)", () => {
   });
 
   test("headers have scope=col", async ({ page }) => {
-    const onPage = await gotoLedger(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const scopedHeaders = page.locator("th[scope='col']");
     const count = await scopedHeaders.count();
     if (count > 0) {
@@ -179,8 +169,7 @@ test.describe("Desktop table semantics (auth required)", () => {
 
 test.describe("Account disclosure (auth required)", () => {
   test("account triggers have aria-expanded", async ({ page }) => {
-    const onPage = await gotoLedger(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const triggers = page.locator("button[aria-expanded][aria-controls]");
     const count = await triggers.count();
     // May be 0 if no accounts loaded
@@ -188,8 +177,7 @@ test.describe("Account disclosure (auth required)", () => {
   });
 
   test("account panels have matching IDs", async ({ page }) => {
-    const onPage = await gotoLedger(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     const triggers = page.locator("button[aria-expanded][aria-controls]");
     const count = await triggers.count();
     for (let i = 0; i < count; i++) {
@@ -205,8 +193,7 @@ test.describe("Account disclosure (auth required)", () => {
 
 test.describe("Bottom navigation", () => {
   test("no bottom nav item has aria-current=page for reports", async ({ page }) => {
-    const onPage = await gotoLedger(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoLedger(page);
     // Reports are not in bottom nav, so no bottom nav item should be active
     const activeLinks = page.locator('nav[aria-label="Navigasi mobile"] a[aria-current="page"]');
     const count = await activeLinks.count();
@@ -231,6 +218,7 @@ for (const vp of viewports) {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
     test("no horizontal overflow", async ({ page }) => {
+    await gotoLedger(page);
       await page.goto("/reports/general-ledger");
       await page.waitForLoadState("networkidle");
       expect(await page.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();

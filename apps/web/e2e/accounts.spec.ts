@@ -19,6 +19,7 @@ test.describe("Accounts page basics", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
   test("page loads without crash", async ({ page }) => {
+    await gotoAccounts(page);
     await page.goto("/accounts");
     await page.waitForLoadState("networkidle");
     const title = await page.title();
@@ -26,6 +27,7 @@ test.describe("Accounts page basics", () => {
   });
 
   test("no horizontal overflow at 320px", async ({ page }) => {
+    await gotoAccounts(page);
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/accounts");
     await page.waitForLoadState("networkidle");
@@ -34,22 +36,19 @@ test.describe("Accounts page basics", () => {
   });
 
   test("exactly one h1 exists", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoAccounts(page);
     const h1Count = await page.locator("h1").count();
     expect(h1Count).toBe(1);
   });
 
   test("page title says Akun", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoAccounts(page);
     const h1 = page.locator("h1");
     await expect(h1).toContainText("Akun");
   });
 
   test("description mentions akun pembukuan", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
+    await gotoAccounts(page);
     const body = page.locator("body");
     await expect(body).toContainText("akun pembukuan");
   });
@@ -59,42 +58,32 @@ test.describe("Accounts page basics", () => {
 
 test.describe("Tab semantics (auth required)", () => {
   test("tablist with role=tab exists", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const tablist = page.locator('[role="tablist"]');
     await expect(tablist.first()).toBeAttached();
   });
 
   test("two tabs exist with role=tab", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const tabs = page.locator('[role="tab"]');
     const count = await tabs.count();
     expect(count).toBe(2);
   });
 
   test("Kas & Bank tab has aria-selected=true initially", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const kasTab = page.locator('[role="tab"]').first();
     await expect(kasTab).toHaveAttribute("aria-selected", "true");
   });
 
   test("Semua akun tab has aria-selected=false initially", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const semuaTab = page.locator('[role="tab"]').nth(1);
     await expect(semuaTab).toHaveAttribute("aria-selected", "false");
   });
 
   test("tabs have aria-controls pointing to tabpanels", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const tabs = page.locator('[role="tab"]');
     const count = await tabs.count();
     for (let i = 0; i < count; i++) {
@@ -106,18 +95,14 @@ test.describe("Tab semantics (auth required)", () => {
   });
 
   test("tabpanels have role=tabpanel", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const panels = page.locator('[role="tabpanel"]');
     const count = await panels.count();
     expect(count).toBe(2);
   });
 
   test("clicking Semua akun switches tab selection", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const semuaTab = page.locator('[role="tab"]').nth(1);
     await semuaTab.click();
 
@@ -127,9 +112,7 @@ test.describe("Tab semantics (auth required)", () => {
   });
 
   test("clicking Kas & Bank returns to first tab", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     // Switch to all
     const semuaTab = page.locator('[role="tab"]').nth(1);
     await semuaTab.click();
@@ -142,9 +125,7 @@ test.describe("Tab semantics (auth required)", () => {
   });
 
   test("keyboard arrow keys navigate tabs", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const kasTab = page.locator('[role="tab"]').first();
     await kasTab.focus();
     await page.keyboard.press("ArrowRight");
@@ -158,26 +139,20 @@ test.describe("Tab semantics (auth required)", () => {
 
 test.describe("Search (auth required)", () => {
   test("search input has sr-only label", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const label = page.locator('label[for="account-search"]');
     await expect(label).toBeAttached();
     await expect(label).toHaveText("Cari akun");
   });
 
   test("search has correct placeholder", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const search = page.locator("#account-search");
     await expect(search).toHaveAttribute("placeholder", "Cari nama atau kode akun...");
   });
 
   test("clear button appears when typing", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const search = page.locator("#account-search");
     await search.fill("test");
 
@@ -186,9 +161,7 @@ test.describe("Search (auth required)", () => {
   });
 
   test("clear button removes text and focuses search", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const search = page.locator("#account-search");
     await search.fill("test");
 
@@ -200,9 +173,7 @@ test.describe("Search (auth required)", () => {
   });
 
   test("search icon has aria-hidden", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const icon = page.locator("#account-search").locator("..").locator("svg[aria-hidden='true']");
     await expect(icon).toBeAttached();
   });
@@ -212,9 +183,7 @@ test.describe("Search (auth required)", () => {
 
 test.describe("View selector copy (auth required)", () => {
   test("tabs show sentence case labels", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const kasTab = page.locator('[role="tab"]').first();
     const text = await kasTab.textContent();
     expect(text).toMatch(/Kas & Bank/);
@@ -229,9 +198,7 @@ test.describe("View selector copy (auth required)", () => {
 
 test.describe("Export (auth required)", () => {
   test("desktop export button shows Indonesian text", async ({ page }) => {
-    const onPage = await gotoAccounts(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const exportBtn = page.locator('button:has-text("Ekspor CSV")').first();
     if (await exportBtn.count() > 0) {
       await expect(exportBtn).toBeVisible();
@@ -239,9 +206,7 @@ test.describe("Export (auth required)", () => {
   });
 
   test("mobile export has accessible label in Indonesian", async ({ page }) => {
-    const onPage = await gotoAccounts(page, 375, 812);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const exportBtn = page.getByRole("button", { name: /ekspor akun ke csv/i });
     // May be hidden if no accounts
     const count = await exportBtn.count();
@@ -253,17 +218,13 @@ test.describe("Export (auth required)", () => {
 
 test.describe("Page copy (auth required)", () => {
   test("page title says Akun", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const h1 = page.locator("h1");
     await expect(h1).toContainText("Akun");
   });
 
   test("description mentions kas, bank, akun pembukuan", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const body = page.locator("body");
     await expect(body).toContainText("kas");
     await expect(body).toContainText("bank");
@@ -289,6 +250,7 @@ for (const vp of viewports) {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
     test("no horizontal overflow", async ({ page }) => {
+    await gotoAccounts(page);
       await page.goto("/accounts");
       await page.waitForLoadState("networkidle");
       const hasOverflow = await page.evaluate(() => document.body.scrollWidth > window.innerWidth);
@@ -301,9 +263,7 @@ for (const vp of viewports) {
 
 test.describe("Bottom navigation", () => {
   test("Akun link has aria-current=page", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     // Check bottom nav (mobile only)
     const akunLink = page.locator('nav[aria-label="Navigasi mobile"] a[href="/accounts"]');
     const count = await akunLink.count();
@@ -317,18 +277,14 @@ test.describe("Bottom navigation", () => {
 
 test.describe("Tab accessibility (auth required)", () => {
   test("no aria-pressed on tab buttons", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const pressedTabs = page.locator('[role="tab"][aria-pressed]');
     const count = await pressedTabs.count();
     expect(count).toBe(0);
   });
 
   test("tabs use aria-selected not aria-pressed", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const tabs = page.locator('[role="tab"]');
     const count = await tabs.count();
     for (let i = 0; i < count; i++) {
@@ -342,6 +298,7 @@ test.describe("Tab accessibility (auth required)", () => {
 
 test.describe("Loading state", () => {
   test("page header visible during load", async ({ page }) => {
+    await gotoAccounts(page);
     await page.goto("/accounts");
     // Check immediately before networkidle
     const h1 = page.locator("h1");
@@ -353,9 +310,7 @@ test.describe("Loading state", () => {
 
 test.describe("Empty state (auth required)", () => {
   test("empty state has proper heading level", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     // Check if there's an empty state (h3 inside empty state)
     const emptyH3 = page.locator("h3");
     const count = await emptyH3.count();
@@ -368,9 +323,7 @@ test.describe("Empty state (auth required)", () => {
 
 test.describe("Edit modal (auth required)", () => {
   test("edit modal title is Edit Nama Akun", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     // Find an edit button and click it
     const editBtn = page.locator('button[aria-label^="Edit nama akun"]').first();
     if (await editBtn.count() > 0) {
@@ -383,9 +336,7 @@ test.describe("Edit modal (auth required)", () => {
   });
 
   test("edit modal has code and type read-only fields", async ({ page }) => {
-    const onPage = await gotoAccounts(page);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const editBtn = page.locator('button[aria-label^="Edit nama akun"]').first();
     if (await editBtn.count() > 0) {
       await editBtn.click();
@@ -407,9 +358,7 @@ test.describe("Edit modal (auth required)", () => {
 
 test.describe("Add modal (auth required)", () => {
   test("add modal title is Tambah Kas/Bank", async ({ page }) => {
-    const onPage = await gotoAccounts(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const addBtn = page.getByRole("button", { name: /tambah kas\/bank/i });
     if (await addBtn.count() > 0) {
       await addBtn.click();
@@ -421,9 +370,7 @@ test.describe("Add modal (auth required)", () => {
   });
 
   test("add modal has kind selection with 4 options", async ({ page }) => {
-    const onPage = await gotoAccounts(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const addBtn = page.getByRole("button", { name: /tambah kas\/bank/i });
     if (await addBtn.count() > 0) {
       await addBtn.click();
@@ -442,6 +389,7 @@ test.describe("Add modal (auth required)", () => {
 
 test.describe("No duplicate animation (auth-independent)", () => {
   test("only one ledger-page element exists", async ({ page }) => {
+    await gotoAccounts(page);
     await page.goto("/accounts");
     await page.waitForLoadState("networkidle");
 
@@ -455,9 +403,7 @@ test.describe("No duplicate animation (auth-independent)", () => {
 
 test.describe("All accounts table (auth required)", () => {
   test("clicking Semua akun shows grouped sections", async ({ page }) => {
-    const onPage = await gotoAccounts(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const semuaTab = page.locator('[role="tab"]').nth(1);
     await semuaTab.click();
 
@@ -469,9 +415,7 @@ test.describe("All accounts table (auth required)", () => {
   });
 
   test("section headers have aria-expanded", async ({ page }) => {
-    const onPage = await gotoAccounts(page, 1440, 900);
-    if (!onPage) { test.skip(); return; }
-
+    await gotoAccounts(page);
     const semuaTab = page.locator('[role="tab"]').nth(1);
     await semuaTab.click();
 
