@@ -67,27 +67,29 @@ export function StatCard({
   const statusText = isLoading ? "sedang dimuat" : isError ? "data belum tersedia" : null;
   const accessibleLabel = [label, ariaDescription, statusText].filter(Boolean).join(", ");
 
+  const valueContent = (() => {
+    if (isLoading) return <div className="h-6 w-32 animate-pulse rounded bg-white/15" />;
+    if (isError) return <span className="text-sm italic text-current opacity-70">Data belum tersedia</span>;
+    return (
+      <span
+        className={cn(
+          "inline-flex max-w-full items-baseline leading-none tracking-tight break-all",
+          isCurrency ? "num-mono text-[clamp(1rem,3.5vw,1.5rem)] font-bold tabular-nums sm:text-2xl" : "font-sans text-xl font-bold sm:text-2xl",
+          hero ? "" : "text-text-primary",
+        )}
+      >
+        {displayValue}
+      </span>
+    );
+  })();
+
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className={cn("break-words text-sm", hero ? "opacity-85" : "text-text-secondary")}>{label}</p>
           <div className="mt-1.5">
-            {isLoading ? (
-              <div className="h-6 w-32 animate-pulse rounded bg-white/15" />
-            ) : isError ? (
-              <span className="text-sm italic text-current opacity-70">Data belum tersedia</span>
-            ) : (
-              <span
-                className={cn(
-                  "inline-flex max-w-full items-baseline leading-none tracking-tight break-all",
-                  isCurrency ? "num-mono text-[clamp(1rem,3.5vw,1.5rem)] font-bold tabular-nums sm:text-2xl" : "font-sans text-xl font-bold sm:text-2xl",
-                  hero ? "" : "text-text-primary",
-                )}
-              >
-                {displayValue}
-              </span>
-            )}
+            {valueContent}
           </div>
           {isZero && zeroLabel && !isLoading && !isError && (
             <p className="mt-1 text-xs text-current opacity-60">{zeroLabel}</p>
@@ -129,8 +131,8 @@ export function StatCard({
   }
 
   return (
-    <div className={base} role="group" aria-label={accessibleLabel} style={heroStyle}>
+    <section className={base} aria-label={accessibleLabel} style={heroStyle}>
       {inner}
-    </div>
+    </section>
   );
 }

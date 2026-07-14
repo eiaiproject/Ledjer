@@ -92,7 +92,11 @@ function MarkupIndicator({ purchase, selling }: { readonly purchase: number; rea
   const isPositive = diff > 0;
   const isNegative = diff < 0;
 
-  const colorClass = isPositive ? "text-leaf-600" : isNegative ? "text-error" : "text-text-tertiary";
+  const colorClass = (() => {
+    if (isPositive) return "text-leaf-600";
+    if (isNegative) return "text-error";
+    return "text-text-tertiary";
+  })();
 
   return (
     <span className={cn("text-xs font-medium", colorClass)}>
@@ -209,7 +213,12 @@ export function ProductsPage() {
 
   const updateFormField = useCallback(<K extends keyof ProductFormData>(field: K, value: ProductFormData[K]) => {
     setFormData((c) => ({ ...c, [field]: value }));
-    setFormErrors((c) => { if (!c[field]) return c; const n = { ...c }; delete n[field]; return n; });
+    setFormErrors((c) => {
+      if (!c[field]) return c;
+      const n = { ...c };
+      delete n[field];
+      return n;
+    });
   }, []);
 
   const validateForm = useCallback(() => {
@@ -343,7 +352,7 @@ export function ProductsPage() {
       {/* Stock filter */}
       <fieldset id={filterGroupId}>
         <legend className="sr-only">Filter status stok</legend>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2" role="group" aria-labelledby={filterGroupId}>
+        <fieldset className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2 border-0 p-0 m-0">
           {filterValues.map((f) => (
             <Button key={f} type="button"
               variant={stockFilter === f ? "primary" : "outline"} size="sm"
@@ -352,7 +361,7 @@ export function ProductsPage() {
               {filterLabels[f]}{allProducts.length > 0 && f !== "all" ? ` (${stockCounts[f]})` : ""}
             </Button>
           ))}
-        </div>
+        </fieldset>
       </fieldset>
 
       {/* Search-result feedback */}

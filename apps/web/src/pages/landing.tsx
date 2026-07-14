@@ -301,7 +301,6 @@ function FaqAccordion({ items }: { readonly items: ReadonlyArray<{ readonly q: s
             </dt>
             <dd
               id={panelId}
-              role="region"
               aria-labelledby={buttonId}
               hidden={!isOpen}
               className={cn(

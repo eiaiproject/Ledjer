@@ -327,12 +327,12 @@ export function ProfitLossPage() {
       {!isLoading && showResults && (
         <>
           {/* ── Mobile ──────────────────────────────────────── */}
-          <div className="space-y-4 sm:hidden" role="list" aria-label="Laporan laba rugi">
+          <ul className="space-y-4 sm:hidden list-none p-0 m-0" aria-label="Laporan laba rugi">
             <ReportMobile
               sections={visibleSections}
               report={report}
             />
-          </div>
+          </ul>
 
           {/* ── Desktop table ───────────────────────────────── */}
           <Card className="hidden sm:block">
@@ -422,7 +422,7 @@ function SectionMobile({
 }) {
   const total = section.items.reduce((s, i) => s + i.amount, 0);
   return (
-    <div className="rounded-lg border border-wood-200 overflow-hidden" role="listitem">
+    <li className="rounded-lg border border-wood-200 overflow-hidden list-none">
       <div className="bg-cream-100/50 px-4 py-2.5">
         <p className="text-sm font-semibold text-wood-700">{section.label}</p>
       </div>
@@ -455,7 +455,7 @@ function SectionMobile({
           </span>
         </div>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -481,13 +481,12 @@ function ResultRow({
       : "text-sm font-bold text-wood-800 tabular-nums";
 
   return (
-    <div
-      className={`flex items-center justify-between px-4 py-3 rounded-lg border border-wood-200 ${borderClass} ${bgClass}`}
-      role="listitem"
+    <li
+      className={`flex items-center justify-between px-4 py-3 rounded-lg border border-wood-200 ${borderClass} ${bgClass} list-none`}
     >
       <span className={textClass}>{label}</span>
       <span className={valueClass}>{formatIDR(value)}</span>
-    </div>
+    </li>
   );
 }
 

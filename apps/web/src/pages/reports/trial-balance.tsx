@@ -200,12 +200,12 @@ export function TrialBalancePage() {
       {!isLoading && displayData.length > 0 && (
         <Card>
           {/* Mobile: compact rows */}
-          <div className="space-y-px px-4 py-4 sm:hidden" role="list" aria-label="Daftar neraca saldo">
+          <ul className="space-y-px px-4 py-4 sm:hidden list-none p-0 m-0" aria-label="Daftar neraca saldo">
             {displayData.map((item) => {
               const hasDebit = item.ending_debit > 0;
               const hasCredit = item.ending_credit > 0;
               return (
-                <div key={item.account_id} className="py-3 border-b border-wood-100 last:border-0" role="listitem">
+                <li key={item.account_id} className="py-3 border-b border-wood-100 last:border-0 list-none">
                   <div className="flex items-baseline gap-2 mb-1">
                     <span className="font-mono text-xs text-wood-500 shrink-0">{item.account_code}</span>
                     <span className="text-sm font-medium text-wood-800 break-words min-w-0">{item.account_name}</span>
@@ -222,10 +222,10 @@ export function TrialBalancePage() {
                       {hasCredit ? formatIDR(item.ending_credit) : "—"}
                     </span>
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
 
           {/* Desktop: semantic table */}
           <div className="hidden ledger-scroll-x sm:block">

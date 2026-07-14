@@ -434,12 +434,12 @@ function AccountGroupSection({ group }: { readonly group: AccountGroup }) {
       </button>
 
       {expanded && (
-        <div id={panelId} role="region" aria-labelledby={triggerId} className="divide-y divide-wood-100 border-t border-wood-200">
+        <section id={panelId} aria-labelledby={triggerId} className="divide-y divide-wood-100 border-t border-wood-200">
           {group.entries.map((entry) => (
             <LedgerMobileCard key={`${group.code}-${entry.journal_entry_id}`} entry={entry} />
           ))}
           <MobileSubtotalRow group={group} />
-        </div>
+        </section>
       )}
     </div>
   );
@@ -533,7 +533,7 @@ function AccountGroupTableSection({ group }: { readonly group: AccountGroup }) {
       </button>
 
       {expanded && (
-        <div id={panelId} role="region" aria-labelledby={triggerId}>
+        <section id={panelId} aria-labelledby={triggerId}>
           <table className="ledger-table w-full">
             <caption className="sr-only">Buku besar akun {group.code} — {group.name}</caption>
             <thead>
@@ -564,7 +564,7 @@ function AccountGroupTableSection({ group }: { readonly group: AccountGroup }) {
               </tr>
             </tbody>
           </table>
-        </div>
+        </section>
       )}
     </section>
   );
