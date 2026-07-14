@@ -1,6 +1,59 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+
+/* ------------------------------------------------------------------ */
+/*  Empty state helper (reduce cognitive complexity)                   */
+/* ------------------------------------------------------------------ */
+
+function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty, isDatasetEmpty, canCreateTransaction, search, resetSearch, resetFilters }: {
+  isSearchAndFilterEmpty: boolean;
+  isSearchEmpty: boolean;
+  isFilterEmpty: boolean;
+  isDatasetEmpty: boolean;
+  canCreateTransaction: boolean;
+  search: string;
+  resetSearch: () => void;
+  resetFilters: () => void;
+}): ReactNode {
+  if (isSearchAndFilterEmpty) {
+    return (
+      <EmptyState icon={<Filter className="h-8 w-8" />}
+        title="Tidak ada transaksi yang sesuai"
+        description="Coba ubah pencarian atau filter yang digunakan."
+        action={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={resetSearch}>Hapus pencarian</Button><Button type="button" variant="outline" size="sm" onClick={resetFilters}>Reset filter</Button></div>} />
+    );
+  }
+  if (isSearchEmpty) {
+    return (
+      <EmptyState icon={<Search className="h-8 w-8" />}
+        title="Transaksi tidak ditemukan"
+        description={`Tidak ada transaksi yang cocok dengan "${search}".`}
+        action={<Button type="button" variant="outline" size="sm" onClick={resetSearch}>Hapus pencarian</Button>} />
+    );
+  }
+  if (isFilterEmpty) {
+    return (
+      <EmptyState icon={<Filter className="h-8 w-8" />}
+        title="Tidak ada transaksi yang sesuai"
+        description="Coba ubah tanggal, status, atau filter yang dipilih."
+        action={<Button type="button" variant="outline" size="sm" onClick={resetFilters}>Reset filter</Button>} />
+    );
+  }
+  if (isDatasetEmpty) {
+    return (
+      <EmptyState icon={<Receipt className="h-8 w-8" />}
+        title="Belum ada transaksi"
+        description="Catat transaksi pertama untuk mulai membentuk jurnal."
+        action={canCreateTransaction ? (
+          <Link to="/transactions/new" className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600">
+            Catat transaksi pertama
+          </Link>
+        ) : undefined} />
+    );
+  }
+  return null;
+}
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { cn, formatIDR, formatShortDate, localDate } from "@/lib/utils";
@@ -139,77 +192,10 @@ export function TransactionListPage() {
   };
 
   // Empty state content based on state
-  let emptyContent: ReactNode = null;
-
-  if (isSearchAndFilterEmpty) {
-    emptyContent = (
-      <EmptyState
-        icon={<Filter className="h-8 w-8" />}
-        title="Tidak ada transaksi yang sesuai"
-        description="Coba ubah pencarian atau filter yang digunakan."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={resetSearch}>
-              Hapus pencarian
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
-              Reset filter
-            </Button>
-          </div>
-        }
-      />
-    );
-  } else if (isSearchEmpty) {
-    emptyContent = (
-      <EmptyState
-        icon={<Search className="h-8 w-8" />}
-        title="Transaksi tidak ditemukan"
-        description={`Tidak ada transaksi yang cocok dengan "${search}".`}
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={resetSearch}>
-            Hapus pencarian
-          </Button>
-        }
-      />
-    );
-  } else if (isFilterEmpty) {
-    emptyContent = (
-      <EmptyState
-        icon={<Filter className="h-8 w-8" />}
-        title="Tidak ada transaksi yang sesuai"
-        description="Coba ubah tanggal, status, atau filter yang dipilih."
-        action={
-          <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
-            Reset filter
-          </Button>
-        }
-      />
-    );
-  } else if (isDatasetEmpty && canCreateTransaction) {
-    emptyContent = (
-      <EmptyState
-        icon={<Receipt className="h-8 w-8" />}
-        title="Belum ada transaksi"
-        description="Catat transaksi pertama untuk mulai membentuk jurnal."
-        action={
-          <Link
-            to="/transactions/new"
-            className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600"
-          >
-            Catat transaksi pertama
-          </Link>
-        }
-      />
-    );
-  } else if (isDatasetEmpty) {
-    emptyContent = (
-      <EmptyState
-        icon={<Receipt className="h-8 w-8" />}
-        title="Belum ada transaksi"
-        description="Catat transaksi pertama untuk mulai membentuk jurnal."
-      />
-    );
-  }
+  const emptyContent = getEmptyContent({
+    isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty, isDatasetEmpty,
+    canCreateTransaction, search, resetSearch, resetFilters,
+  });
 
   return (
     <div className="space-y-4">

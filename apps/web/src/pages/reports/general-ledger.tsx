@@ -158,6 +158,63 @@ function LedgerSkeleton() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Sub-components (reduce cognitive complexity)                       */
+/* ------------------------------------------------------------------ */
+
+function ExportButtons({ disabled, isExporting, onExport }: {
+  readonly disabled: boolean;
+  readonly isExporting: boolean;
+  readonly onExport: () => void;
+}) {
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={onExport}
+        disabled={disabled} className="hidden sm:inline-flex" aria-busy={isExporting || undefined}>
+        <Download className="h-4 w-4" aria-hidden="true" />
+        {isExporting ? "Mengekspor..." : "Ekspor CSV"}
+      </Button>
+      <Button type="button" variant="outline" size="icon" onClick={onExport}
+        disabled={disabled} className="sm:hidden min-h-[44px] min-w-[44px]"
+        aria-label={isExporting ? "Mengekspor buku besar ke CSV" : "Ekspor buku besar ke CSV"}
+        aria-busy={isExporting || undefined}>
+        <Download className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    </>
+  );
+}
+
+function SummaryBar({ ledger, totals, isGlobalScope, isBalanced }: {
+  readonly ledger: LedgerEntry[] | undefined;
+  readonly totals: { debit: number; credit: number };
+  readonly isGlobalScope: boolean;
+  readonly isBalanced: boolean;
+}) {
+  if ((ledger?.length ?? 0) === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-wood-200 bg-surface-elevated px-4 py-2.5">
+      <span className="text-xs text-text-tertiary">{ledger?.length} entri</span>
+      <span className="text-xs text-text-tertiary">
+        Debit: <span className="font-mono font-medium text-text-primary">{formatIDR(totals.debit)}</span>
+      </span>
+      <span className="text-xs text-text-tertiary">
+        Kredit: <span className="font-mono font-medium text-text-primary">{formatIDR(totals.credit)}</span>
+      </span>
+      {isGlobalScope ? (
+        <span className={cn("text-xs font-medium", isBalanced ? "text-success" : "text-error")}>
+          {isBalanced ? "Total jurnal seimbang" : "Total jurnal tidak seimbang"}
+        </span>
+      ) : (
+        <span className="text-xs text-text-tertiary">
+          Perubahan bersih: <span className={cn("font-mono font-medium", (totals.debit - totals.credit) >= 0 ? "text-text-primary" : "text-clay-600")}>
+            {formatIDR(totals.debit - totals.credit)}
+          </span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -254,21 +311,11 @@ export function GeneralLedgerPage() {
         </div>
         <div className="flex items-center gap-2">
           {canCreateExports && (
-            <Button type="button" variant="outline" size="sm" onClick={() => { handleExport(); }}
+            <ExportButtons
               disabled={!ledger?.length || dateRangeInvalid || isExporting}
-              className="hidden sm:inline-flex" aria-busy={isExporting || undefined}>
-              <Download className="h-4 w-4" aria-hidden="true" />
-              {isExporting ? "Mengekspor..." : "Ekspor CSV"}
-            </Button>
-          )}
-          {canCreateExports && (
-            <Button type="button" variant="outline" size="icon" onClick={() => { handleExport(); }}
-              disabled={!ledger?.length || dateRangeInvalid || isExporting}
-              className="sm:hidden min-h-[44px] min-w-[44px]"
-              aria-label={isExporting ? "Mengekspor buku besar ke CSV" : "Ekspor buku besar ke CSV"}
-              aria-busy={isExporting || undefined}>
-              <Download className="h-4 w-4" aria-hidden="true" />
-            </Button>
+              isExporting={isExporting}
+              onExport={handleExport}
+            />
           )}
         </div>
       </div>
@@ -332,31 +379,7 @@ export function GeneralLedgerPage() {
       {!dateRangeInvalid && !isLoading && (
         <>
           {/* Summary bar */}
-          {(ledger?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-wood-200 bg-surface-elevated px-4 py-2.5">
-              <span className="text-xs text-text-tertiary">{ledger?.length} entri</span>
-              <span className="text-xs text-text-tertiary">
-                Debit: <span className="font-mono font-medium text-text-primary">{formatIDR(totals.debit)}</span>
-              </span>
-              <span className="text-xs text-text-tertiary">
-                Kredit: <span className="font-mono font-medium text-text-primary">{formatIDR(totals.credit)}</span>
-              </span>
-              {/* Only show balance status for all-accounts scope */}
-              {isGlobalScope && (
-                <span className={cn("text-xs font-medium", isBalanced ? "text-success" : "text-error")}>
-                  {isBalanced ? "Total jurnal seimbang" : "Total jurnal tidak seimbang"}
-                </span>
-              )}
-              {/* Single-account: show net movement */}
-              {!isGlobalScope && (
-                <span className="text-xs text-text-tertiary">
-                  Perubahan bersih: <span className={cn("font-mono font-medium", (totals.debit - totals.credit) >= 0 ? "text-text-primary" : "text-clay-600")}>
-                    {formatIDR(totals.debit - totals.credit)}
-                  </span>
-                </span>
-              )}
-            </div>
-          )}
+          <SummaryBar ledger={ledger} totals={totals} isGlobalScope={isGlobalScope} isBalanced={isBalanced} />
 
           {/* Empty state */}
           {(!ledger || ledger.length === 0) && (
