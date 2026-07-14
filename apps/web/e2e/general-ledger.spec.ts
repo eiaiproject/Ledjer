@@ -49,7 +49,6 @@ test.describe("General Ledger page basics", () => {
 test.describe("Filter disclosure (auth required)", () => {
   test("filter button has aria-expanded", async ({ page }) => {
     await gotoLedger(page);
-    const filterBtn = page.getByRole("button", { name: /filter/i });
     await expect(filterBtn.first()).toBeAttached();
     const expanded = await filterBtn.first().getAttribute("aria-expanded");
     expect(expanded).toBeTruthy();
@@ -60,7 +59,6 @@ test.describe("Filter disclosure (auth required)", () => {
     const filterBtn = page.getByRole("button", { name: /filter/i }).first();
     const controlsId = await filterBtn.getAttribute("aria-controls");
     expect(controlsId).toBeTruthy();
-    const panel = page.locator(`#${controlsId}`);
     await expect(panel).toBeAttached();
   });
 
@@ -123,8 +121,6 @@ test.describe("Export (auth required)", () => {
 
   test("mobile export has accessible label in Indonesian", async ({ page }) => {
     await gotoLedger(page);
-    const exportBtn = page.getByRole("button", { name: /ekspor buku besar ke csv/i });
-    expect(await exportBtn.count()).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -145,7 +141,6 @@ test.describe("No duplicate animation (auth-independent)", () => {
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoLedger(page);
-    const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
       // All captions should be sr-only
@@ -157,7 +152,6 @@ test.describe("Desktop table semantics (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoLedger(page);
-    const scopedHeaders = page.locator("th[scope='col']");
     const count = await scopedHeaders.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(6);
@@ -170,7 +164,6 @@ test.describe("Desktop table semantics (auth required)", () => {
 test.describe("Account disclosure (auth required)", () => {
   test("account triggers have aria-expanded", async ({ page }) => {
     await gotoLedger(page);
-    const triggers = page.locator("button[aria-expanded][aria-controls]");
     const count = await triggers.count();
     // May be 0 if no accounts loaded
     expect(count).toBeGreaterThanOrEqual(0);
@@ -178,13 +171,11 @@ test.describe("Account disclosure (auth required)", () => {
 
   test("account panels have matching IDs", async ({ page }) => {
     await gotoLedger(page);
-    const triggers = page.locator("button[aria-expanded][aria-controls]");
     const count = await triggers.count();
     for (let i = 0; i < count; i++) {
       const controlsId = await triggers.nth(i).getAttribute("aria-controls");
       expect(controlsId).toBeTruthy();
-      const panel = page.locator(`#${controlsId}`);
-      await expect(panel).toBeAttached();
+        await expect(panel).toBeAttached();
     }
   });
 });
@@ -195,7 +186,6 @@ test.describe("Bottom navigation", () => {
   test("no bottom nav item has aria-current=page for reports", async ({ page }) => {
     await gotoLedger(page);
     // Reports are not in bottom nav, so no bottom nav item should be active
-    const activeLinks = page.locator('nav[aria-label="Navigasi mobile"] a[aria-current="page"]');
     const count = await activeLinks.count();
     expect(count).toBe(0);
   });

@@ -71,7 +71,6 @@ test.describe("Date display (auth required)", () => {
 test.describe("Date apply behavior (auth required)", () => {
   test("apply button says Tampilkan laporan", async ({ page }) => {
     await gotoTrialBalance(page);
-    const applyBtn = page.getByRole("button", { name: /tampilkan laporan/i });
     await expect(applyBtn.first()).toBeVisible();
   });
 
@@ -83,10 +82,8 @@ test.describe("Date apply behavior (auth required)", () => {
 
   test("date input has aria-describedby", async ({ page }) => {
     await gotoTrialBalance(page);
-    const dateInput = page.locator('input[type="date"]');
     const describedby = await dateInput.getAttribute("aria-describedby");
     expect(describedby).toBeTruthy();
-    const hint = page.locator(`#${describedby}`);
     await expect(hint).toBeAttached();
   });
 });
@@ -96,15 +93,12 @@ test.describe("Date apply behavior (auth required)", () => {
 test.describe("Export (auth required)", () => {
   test("export button has Indonesian accessible name", async ({ page }) => {
     await gotoTrialBalance(page);
-    const exportBtn = page.getByRole("button", { name: /ekspor neraca saldo ke csv/i });
     // May not be visible on mobile (uses short text), but should exist
-    expect(await exportBtn.count()).toBeGreaterThanOrEqual(0);
   });
 
   test("export button disabled when no data", async ({ page }) => {
     await gotoTrialBalance(page);
     // If data is loaded, export should be enabled
-    const exportBtn = page.getByRole("button", { name: /ekspor/i });
     if (await exportBtn.count() > 0) {
       const disabled = await exportBtn.first().getAttribute("disabled");
       // Should either be enabled or disabled depending on data
@@ -118,7 +112,6 @@ test.describe("Export (auth required)", () => {
 test.describe("Refresh button (auth required)", () => {
   test("refresh button has aria-label Muat ulang data", async ({ page }) => {
     await gotoTrialBalance(page);
-    const refreshBtn = page.getByRole("button", { name: /muat ulang data/i });
     await expect(refreshBtn.first()).toBeAttached();
   });
 });
@@ -134,8 +127,7 @@ test.describe("Zero-balance toggle (auth required)", () => {
 
   test("toggle is a checkbox", async ({ page }) => {
     await gotoTrialBalance(page);
-    const checkbox = page.locator('input[type="checkbox"]');
-    expect(await checkbox.count()).toBeGreaterThanOrEqual(1);
+    await expect(checkbox.first()).toBeAttached();
   });
 });
 
@@ -144,7 +136,6 @@ test.describe("Zero-balance toggle (auth required)", () => {
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoTrialBalance(page);
-    const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
       for (let i = 0; i < count; i++) {
@@ -155,7 +146,6 @@ test.describe("Desktop table semantics (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoTrialBalance(page);
-    const scopedHeaders = page.locator("th[scope='col']");
     const count = await scopedHeaders.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(4);
@@ -164,7 +154,6 @@ test.describe("Desktop table semantics (auth required)", () => {
 
   test("total row uses th scope=row colspan=2", async ({ page }) => {
     await gotoTrialBalance(page);
-    const totalHeader = page.locator('tfoot th[scope="row"]');
     const count = await totalHeader.count();
     if (count > 0) {
       await expect(totalHeader.first()).toHaveAttribute("colspan", "2");
@@ -174,7 +163,6 @@ test.describe("Desktop table semantics (auth required)", () => {
   test("empty cells use em dash on desktop", async ({ page }) => {
     await gotoTrialBalance(page);
     // Check table exists (em dash behavior depends on data)
-    const table = page.locator("table");
     await expect(table.first()).toBeAttached();
   });
 });
@@ -206,7 +194,6 @@ test.describe("Balance status (auth required)", () => {
 test.describe("Bottom navigation", () => {
   test("no bottom nav item active for reports", async ({ page }) => {
     await gotoTrialBalance(page);
-    const activeLinks = page.locator('nav[aria-label="Navigasi mobile"] a[aria-current="page"]');
     const count = await activeLinks.count();
     expect(count).toBe(0);
   });

@@ -91,14 +91,12 @@ test.describe("Date display (auth required)", () => {
 test.describe("Date apply behavior (auth required)", () => {
   test("apply button says Tampilkan laporan", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const applyBtn = page.getByRole("button", { name: /tampilkan laporan/i });
     await expect(applyBtn.first()).toBeVisible();
   });
 
   test("apply button does NOT say Muat Ulang", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const muatBtn = page.getByRole("button", { name: /muat ulang$/i });
-    expect(await muatBtn.count()).toBe(0);
+    await expect(muatBtn).toHaveCount(0);
   });
 
   test("date field has Indonesian label", async ({ page }) => {
@@ -109,7 +107,6 @@ test.describe("Date apply behavior (auth required)", () => {
 
   test("refresh button has aria-label", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const refreshBtn = page.getByRole("button", { name: /muat ulang data/i });
     await expect(refreshBtn.first()).toBeAttached();
   });
 });
@@ -119,15 +116,10 @@ test.describe("Date apply behavior (auth required)", () => {
 test.describe("Export (auth required)", () => {
   test("export button has Indonesian accessible name", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const exportBtn = page.getByRole("button", {
-      name: /ekspor neraca ke csv/i,
-    });
-    expect(await exportBtn.count()).toBeGreaterThanOrEqual(0);
   });
 
   test("export button text is Ekspor on mobile", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const exportBtn = page.getByRole("button", { name: /ekspor/i });
     if (await exportBtn.count() > 0) {
       const text = await exportBtn.first().textContent();
       expect(text).not.toContain("Export");
@@ -148,8 +140,7 @@ test.describe("Zero-balance toggle (auth required)", () => {
 
   test("toggle is a checkbox", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const checkbox = page.locator('input[type="checkbox"]');
-    expect(await checkbox.count()).toBeGreaterThanOrEqual(1);
+    await expect(checkbox.first()).toBeAttached();
   });
 });
 
@@ -158,7 +149,6 @@ test.describe("Zero-balance toggle (auth required)", () => {
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
       for (let i = 0; i < count; i++) {
@@ -169,7 +159,6 @@ test.describe("Desktop table semantics (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoBalanceSheet(page);
-    const scopedHeaders = page.locator('th[scope="col"]');
     const count = await scopedHeaders.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(2);

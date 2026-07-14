@@ -177,7 +177,7 @@ test.describe("Lock history (auth required)", () => {
     const table = page.locator("table.ledger-table").first();
     if (await table.count() > 0) {
       const headers = table.locator("th[scope='col']");
-      expect(await headers.count()).toBeGreaterThan(0);
+      await expect(headers.first()).toBeAttached();
     }
   });
 

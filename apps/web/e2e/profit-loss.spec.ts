@@ -85,7 +85,6 @@ test.describe("Date display (auth required)", () => {
 test.describe("Date apply behavior (auth required)", () => {
   test("apply button says Tampilkan laporan", async ({ page }) => {
     await gotoProfitLoss(page);
-    const applyBtn = page.getByRole("button", { name: /tampilkan laporan/i });
     await expect(applyBtn.first()).toBeVisible();
   });
 
@@ -116,7 +115,6 @@ test.describe("Date apply behavior (auth required)", () => {
 
   test("refresh button has aria-label", async ({ page }) => {
     await gotoProfitLoss(page);
-    const refreshBtn = page.getByRole("button", { name: /muat ulang data/i });
     await expect(refreshBtn.first()).toBeAttached();
   });
 });
@@ -126,15 +124,10 @@ test.describe("Date apply behavior (auth required)", () => {
 test.describe("Export (auth required)", () => {
   test("export button has Indonesian accessible name", async ({ page }) => {
     await gotoProfitLoss(page);
-    const exportBtn = page.getByRole("button", {
-      name: /ekspor laporan laba rugi ke csv/i,
-    });
-    expect(await exportBtn.count()).toBeGreaterThanOrEqual(0);
   });
 
   test("export button text is Ekspor on mobile", async ({ page }) => {
     await gotoProfitLoss(page);
-    const exportBtn = page.getByRole("button", { name: /ekspor/i });
     if (await exportBtn.count() > 0) {
       const text = await exportBtn.first().textContent();
       expect(text).not.toContain("Export");
@@ -155,10 +148,7 @@ test.describe("Inactive accounts toggle (auth required)", () => {
 
   test("toggle is a checkbox", async ({ page }) => {
     await gotoProfitLoss(page);
-    const checkbox = page.locator(
-      'input[type="checkbox"]',
-    );
-    expect(await checkbox.count()).toBeGreaterThanOrEqual(1);
+    await expect(checkbox.first()).toBeAttached();
   });
 });
 
@@ -167,7 +157,6 @@ test.describe("Inactive accounts toggle (auth required)", () => {
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoProfitLoss(page);
-    const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
       for (let i = 0; i < count; i++) {
@@ -178,7 +167,6 @@ test.describe("Desktop table semantics (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoProfitLoss(page);
-    const scopedHeaders = page.locator('th[scope="col"]');
     const count = await scopedHeaders.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(2);

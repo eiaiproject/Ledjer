@@ -45,7 +45,6 @@ test.describe("Products page basics", () => {
 
   test("description mentions harga and stok", async ({ page }) => {
     await gotoProducts(page);
-    const body = page.locator("body");
     await expect(body).toContainText("harga");
     await expect(body).toContainText("stok");
   });
@@ -56,27 +55,23 @@ test.describe("Products page basics", () => {
 test.describe("Search (auth required)", () => {
   test("search input has sr-only label", async ({ page }) => {
     await gotoProducts(page);
-    const label = page.locator('label[for="product-search"]');
     await expect(label).toBeAttached();
     await expect(label).toHaveText("Cari produk");
   });
 
   test("search is type=search", async ({ page }) => {
     await gotoProducts(page);
-    const search = page.locator("#product-search");
     await expect(search).toHaveAttribute("type", "search");
   });
 
   test("clear button appears when typing", async ({ page }) => {
     await gotoProducts(page);
     await page.locator("#product-search").fill("test");
-    const clearBtn = page.getByRole("button", { name: /hapus pencarian/i });
     await expect(clearBtn).toBeVisible();
   });
 
   test("clear button removes text and focuses search", async ({ page }) => {
     await gotoProducts(page);
-    const search = page.locator("#product-search");
     await search.fill("test");
     await page.getByRole("button", { name: /hapus pencarian/i }).click();
     await expect(search).toHaveValue("");
@@ -86,8 +81,7 @@ test.describe("Search (auth required)", () => {
   test("search icon has aria-hidden", async ({ page }) => {
     await gotoProducts(page);
     const icon = page.locator('#product-search ~ svg[aria-hidden="true"], #product-search').locator('..').locator('svg[aria-hidden="true"]');
-    // At least one decorative icon
-    expect(await icon.count()).toBeGreaterThanOrEqual(0);
+    await expect(icon.first()).toBeAttached();
   });
 });
 
@@ -96,23 +90,19 @@ test.describe("Search (auth required)", () => {
 test.describe("Stock filter (auth required)", () => {
   test("fieldset and legend exist", async ({ page }) => {
     await gotoProducts(page);
-    const fieldset = page.locator("fieldset");
     await expect(fieldset.first()).toBeAttached();
-    const legend = page.locator("fieldset legend.sr-only");
     await expect(legend.first()).toBeAttached();
   });
 
   test("legend text is Filter status stok", async ({ page }) => {
     await gotoProducts(page);
-    const legend = page.locator("fieldset legend");
     await expect(legend.first()).toContainText("Filter status stok");
   });
 
   test("four filter buttons exist", async ({ page }) => {
     await gotoProducts(page);
-    const group = page.locator('[role="group"]');
     const buttons = group.locator("button");
-    expect(await buttons.count()).toBe(4);
+    await expect(buttons).toHaveCount(4);
   });
 
   test("Semua is active by default", async ({ page }) => {
@@ -123,8 +113,7 @@ test.describe("Stock filter (auth required)", () => {
 
   test("only one button has aria-pressed=true at a time", async ({ page }) => {
     await gotoProducts(page);
-    const buttons = page.locator('[role="group"] button[aria-pressed="true"]');
-    expect(await buttons.count()).toBe(1);
+    await expect(buttons).toHaveCount(1);
   });
 
   test("clicking Aman switches selection", async ({ page }) => {
@@ -150,8 +139,6 @@ test.describe("Export (auth required)", () => {
 
   test("mobile export has accessible label in Indonesian", async ({ page }) => {
     await gotoProducts(page);
-    const exportBtn = page.getByRole("button", { name: /ekspor produk ke csv/i });
-    expect(await exportBtn.count()).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -160,7 +147,6 @@ test.describe("Export (auth required)", () => {
 test.describe("Desktop table (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoProducts(page);
-    const caption = page.locator("table caption");
     const count = await caption.count();
     if (count > 0) {
       await expect(caption.first()).toHaveText("Daftar produk");
@@ -169,7 +155,6 @@ test.describe("Desktop table (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoProducts(page);
-    const headers = page.locator("table th[scope='col']");
     const count = await headers.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(5);
@@ -195,7 +180,6 @@ test.describe("Desktop table (auth required)", () => {
 test.describe("Action accessible names (auth required)", () => {
   test("edit buttons have product-specific names", async ({ page }) => {
     await gotoProducts(page);
-    const editBtns = page.locator('button[aria-label^="Edit produk"]');
     const count = await editBtns.count();
     // All edit buttons should have product-specific names
     for (let i = 0; i < count; i++) {
@@ -206,7 +190,6 @@ test.describe("Action accessible names (auth required)", () => {
 
   test("deactivate buttons have product-specific names", async ({ page }) => {
     await gotoProducts(page);
-    const deactivateBtns = page.locator('button[aria-label^="Nonaktifkan produk"]');
     const count = await deactivateBtns.count();
     for (let i = 0; i < count; i++) {
       const label = await deactivateBtns.nth(i).getAttribute("aria-label");
@@ -223,8 +206,7 @@ test.describe("Deactivate dialog (auth required)", () => {
     const deleteBtn = page.locator('button[aria-label^="Nonaktifkan produk"]').first();
     if (await deleteBtn.count() > 0) {
       await deleteBtn.click();
-      const dialog = page.locator("dialog[open]");
-      await expect(dialog).toBeVisible({ timeout: 5000 });
+        await expect(dialog).toBeVisible({ timeout: 5000 });
       await expect(dialog).toContainText("Nonaktifkan produk?");
     }
   });
@@ -234,8 +216,7 @@ test.describe("Deactivate dialog (auth required)", () => {
     const deleteBtn = page.locator('button[aria-label^="Nonaktifkan produk"]').first();
     if (await deleteBtn.count() > 0) {
       await deleteBtn.click();
-      const dialog = page.locator("dialog[open]");
-      await expect(dialog).toBeVisible({ timeout: 5000 });
+        await expect(dialog).toBeVisible({ timeout: 5000 });
       await expect(dialog.getByRole("button", { name: /batal/i })).toBeVisible();
       await expect(dialog.getByRole("button", { name: /nonaktifkan/i })).toBeVisible();
     }
@@ -259,7 +240,6 @@ test.describe("No duplicate animation (auth-independent)", () => {
 test.describe("Bottom navigation", () => {
   test("Produk link has aria-current=page", async ({ page }) => {
     await gotoProducts(page);
-    const produkLink = page.locator('nav[aria-label="Navigasi mobile"] a[href="/products"]');
     if (await produkLink.count() > 0) {
       await expect(produkLink.first()).toHaveAttribute("aria-current", "page");
     }
@@ -297,7 +277,6 @@ for (const vp of viewports) {
 test.describe("Empty state (auth required)", () => {
   test("empty state has proper heading", async ({ page }) => {
     await gotoProducts(page);
-    const emptyH3 = page.locator("h3");
     const count = await emptyH3.count();
     expect(count).toBeLessThanOrEqual(5);
   });
@@ -309,8 +288,6 @@ test.describe("Markup indicator (auth required)", () => {
   test("markup text appears in product cards", async ({ page }) => {
     await gotoProducts(page);
     // Check if markup indicators exist (they contain % symbol)
-    const markupIndicators = page.locator("text=/%/ ");
     // At least the structure exists
-    expect(await markupIndicators.count()).toBeGreaterThanOrEqual(0);
   });
 });
