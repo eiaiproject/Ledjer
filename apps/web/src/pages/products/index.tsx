@@ -97,7 +97,7 @@ function MarkupIndicator({ purchase, selling }: { readonly purchase: number; rea
       "text-xs font-medium",
       isPositive ? "text-leaf-600" : isNegative ? "text-error" : "text-text-tertiary"
     )}>
-      {isPositive ? "+" : ""}{formatIDR(diff)} / {isNegative ? "" : ""}{pct}%
+      {isPositive ? "+" : ""}{formatIDR(diff)} / {pct}%
     </span>
   );
 }
