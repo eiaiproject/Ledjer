@@ -992,15 +992,12 @@ export function AccountsPage() {
                 icon={<Wallet className="h-7 w-7 text-wood-400" aria-hidden="true" />}
                 title="Belum ada akun kas atau bank"
                 description="Tambahkan tempat penyimpanan uang bisnis Anda."
-                action={(() => {
-                  if (!canManageAccounts) return undefined;
-                  return (
-                    <Button type="button" onClick={() => setAddModalOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                      Tambah Kas/Bank
-                    </Button>
-                  );
-                })()}
+                action={canManageAccounts ? (
+                  <Button type="button" onClick={() => setAddModalOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Tambah Kas/Bank
+                  </Button>
+                ) : undefined}
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
