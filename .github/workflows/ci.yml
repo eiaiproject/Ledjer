@@ -142,6 +142,10 @@ jobs:
     needs: e2e-public
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # ponytail: e2e/visual.spec.ts is not implemented yet (see issue tracking baseline
+    # generation workflow). Job is wired in so the dependency chain is visible, but
+    # marked continue-on-error to avoid blocking PRs. Remove when visual.spec.ts lands.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
