@@ -161,7 +161,7 @@ export function TrialBalancePage() {
                 onChange={(e) => setShowZeroBalances(e.target.checked)}
                 className="rounded border-wood-300"
               />
-              Tampilkan akun saldo nol
+              <span>Tampilkan akun saldo nol</span>
             </label>
             {canCreateExports && (
               <Button

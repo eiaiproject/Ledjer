@@ -646,7 +646,7 @@ export async function settleAndVoidTransaction(
   }
 
   const original = await validateSettlementTarget(db, organizationId, transactionId, cashAccountId);
-  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, original.cash_account_id);
+  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, original.cash_account_id ?? cashAccountId);
   const current = Date.now();
   const settleTransactionId = generateId();
   const journalEntryId = generateId();

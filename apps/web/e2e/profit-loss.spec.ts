@@ -122,7 +122,7 @@ test.describe("Date apply behavior (auth required)", () => {
     const onPage = await gotoProfitLoss(page, 1440, 900);
     if (!onPage) {
       test.skip();
-      expect(true).toBe(true); // explicit no-op assertion (S2699)
+
       return;
     }
     // Set from date after to date
@@ -145,7 +145,7 @@ test.describe("Date apply behavior (auth required)", () => {
     const onPage = await gotoProfitLoss(page);
     if (!onPage) {
       test.skip();
-      expect(true).toBe(true); // explicit no-op assertion (S2699)
+
       return;
     }
     const refreshBtn = page.getByRole("button", { name: /muat ulang data/i });
@@ -249,7 +249,7 @@ test.describe("Result labels (auth required)", () => {
     const onPage = await gotoProfitLoss(page, 1440, 900);
     if (!onPage) {
       test.skip();
-      expect(true).toBe(true); // explicit no-op assertion (S2699)
+
       return;
     }
     const grossLabel = page.getByText(/laba kotor|rugi kotor|hasil kotor/i);
@@ -260,7 +260,7 @@ test.describe("Result labels (auth required)", () => {
     const onPage = await gotoProfitLoss(page, 1440, 900);
     if (!onPage) {
       test.skip();
-      expect(true).toBe(true); // explicit no-op assertion (S2699)
+
       return;
     }
     const netLabel = page.getByText(/laba bersih|rugi bersih|hasil bersih/i);

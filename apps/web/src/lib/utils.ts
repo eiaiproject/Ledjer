@@ -55,8 +55,10 @@ export function localDate(offsetDays = 0): string {
   return date.toLocaleDateString("en-CA");
 }
 
+type DateInput = string | Date | null | undefined;
+
 /** Format date as DD/MM/YYYY (Indonesian) */
-export function formatDate(date: string | Date | null | undefined): string {
+export function formatDate(date: DateInput): string {
   if (!date) return "-";
   const d = parseDateValue(date);
   if (Number.isNaN(d.getTime())) return "-";

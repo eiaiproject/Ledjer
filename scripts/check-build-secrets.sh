@@ -35,6 +35,7 @@ for dir in "${scan_dirs[@]}"; do
       # Skip source maps (.map) — they may contain inline source.
       case "$f" in
         *.map) continue ;;
+        *) ;; # ponytail: no-op default, satisfies sonar S131
       esac
       if grep -aE -o -- "$pat" "$f" >/dev/null 2>&1; then
         # Filter false positives:

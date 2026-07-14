@@ -290,7 +290,7 @@ export function ProfitLossPage() {
                 onChange={(e) => setShowInactive(e.target.checked)}
                 className="rounded border-wood-300"
               />
-              Tampilkan akun tanpa aktivitas
+              <span>Tampilkan akun tanpa aktivitas</span>
             </label>
             {canCreateExports && (
               <Button

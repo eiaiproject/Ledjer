@@ -24,8 +24,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast";
-import { formatShortDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatShortDate, cn } from "@/lib/utils";
 import {
   UserPlus,
   Shield,

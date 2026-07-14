@@ -10,8 +10,8 @@ import {
   ShoppingCart,
   Wallet,
 } from "lucide-react";
-import { formatIDR, localDate } from "@/lib/utils";
-export { localDate };
+import { formatIDR } from "@/lib/utils";
+export { localDate } from "@/lib/utils";
 import { TRANSACTION_LABELS } from "@/lib/transactions";
 
 export interface PreviewLine {

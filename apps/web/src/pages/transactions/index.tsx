@@ -236,7 +236,7 @@ export function TransactionListPage() {
               {exporting ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Mengekspor...
+                  <span>Mengekspor...</span>
                 </>
               ) : (
                 <>
@@ -454,7 +454,7 @@ export function TransactionListPage() {
       {isRefreshing && (
         <div className="flex items-center gap-2 text-xs text-text-tertiary" role="status" aria-live="polite">
           <span className="h-3 w-3 animate-spin rounded-full border-2 border-wood-300 border-t-wood-600" />
-          Memperbarui...
+          <span>Memperbarui...</span>
         </div>
       )}
 

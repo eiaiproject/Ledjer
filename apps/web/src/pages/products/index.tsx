@@ -92,11 +92,10 @@ function MarkupIndicator({ purchase, selling }: { readonly purchase: number; rea
   const isPositive = diff > 0;
   const isNegative = diff < 0;
 
+  const colorClass = isPositive ? "text-leaf-600" : isNegative ? "text-error" : "text-text-tertiary";
+
   return (
-    <span className={cn(
-      "text-xs font-medium",
-      isPositive ? "text-leaf-600" : isNegative ? "text-error" : "text-text-tertiary"
-    )}>
+    <span className={cn("text-xs font-medium", colorClass)}>
       {isPositive ? "+" : ""}{formatIDR(diff)} / {pct}%
     </span>
   );

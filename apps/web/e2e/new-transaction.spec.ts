@@ -381,11 +381,9 @@ test.describe("Accessibility", () => {
     const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
     if (await firstRadio.count() > 0) {
       await firstRadio.check({ force: true });
-      await page.waitForTimeout(500);
 
       const labels = page.locator("label");
-      const labelCount = await labels.count();
-      expect(labelCount).toBeGreaterThan(0);
+      await expect(labels.first()).toBeAttached();
     }
   });
 });

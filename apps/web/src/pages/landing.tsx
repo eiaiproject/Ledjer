@@ -279,7 +279,7 @@ function FaqAccordion({ items }: { readonly items: ReadonlyArray<{ readonly q: s
         const buttonId = `faq-button-${index}`;
 
         return (
-          <div key={index} className="py-1.5">
+          <div key={item.q} className="py-1.5">
             <dt>
               <button
                 id={buttonId}

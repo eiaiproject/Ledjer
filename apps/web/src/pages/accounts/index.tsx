@@ -165,7 +165,7 @@ function accountMatchesSearch(a: Account, search: string): boolean {
   return (
     a.code.toString().includes(q) ||
     a.name.toLowerCase().includes(q) ||
-    (rg !== null && rg.toLowerCase().includes(q))
+    (rg?.toLowerCase().includes(q) ?? false)
   );
 }
 
@@ -720,7 +720,6 @@ export function AccountsPage() {
   const cashBankEmpty = !isLoading && cashBankAccounts.length === 0;
   const allEmpty = !isLoading && filteredAccounts.length === 0;
   const isCashBankEmpty = !isLoading && allAccounts.length > 0 && cashBankCount === 0;
-  const isAllEmpty = !isLoading && totalCount === 0;
 
   const handleClearSearch = useCallback(() => {
     setSearch("");
@@ -961,14 +960,10 @@ export function AccountsPage() {
       {/* Search result feedback */}
       {hasSearch && !isLoading && (
         <p id="search-results-count" className="text-sm text-text-secondary" aria-live="polite">
-          {activeTab === "cashbank"
-            ? cashBankAccounts.length === 0
-              ? "Tidak ada akun ditemukan"
-              : `${cashBankAccounts.length} akun ditemukan`
-            : filteredAccounts.length === 0
-              ? "Tidak ada akun ditemukan"
-              : `${filteredAccounts.length} akun ditemukan`
-          }
+          {(() => {
+            const count = activeTab === "cashbank" ? cashBankAccounts.length : filteredAccounts.length;
+            return count === 0 ? "Tidak ada akun ditemukan" : `${count} akun ditemukan`;
+          })()}
         </p>
       )}
 
@@ -1052,12 +1047,6 @@ export function AccountsPage() {
                     Lihat semua akun
                   </Button>
                 }
-              />
-            ) : allEmpty && isAllEmpty ? (
-              <EmptyState
-                icon={<BookOpen className="h-7 w-7 text-wood-400" aria-hidden="true" />}
-                title="Belum ada akun pembukuan"
-                description="Selesaikan onboarding untuk membuat bagan akun awal."
               />
             ) : (
               <AccountsTable
