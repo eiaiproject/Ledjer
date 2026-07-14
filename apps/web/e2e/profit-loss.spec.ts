@@ -41,7 +41,7 @@ test.describe("Profit & Loss page basics", () => {
 
   test("exactly one h1 exists", async ({ page }) => {
     await gotoProfitLoss(page);
-    expect(await page.locator("h1").count()).toBe(1);
+    await expect(page.locator("h1")).toHaveCount(1);
   });
 
   test("page title says Laba Rugi", async ({ page }) => {

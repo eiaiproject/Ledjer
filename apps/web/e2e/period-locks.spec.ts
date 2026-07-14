@@ -39,7 +39,7 @@ test.describe("Period locks page basics", () => {
 
   test("exactly one h1 exists", async ({ page }) => {
     await gotoPeriodLocks(page);
-    expect(await page.locator("h1").count()).toBe(1);
+    await expect(page.locator("h1")).toHaveCount(1);
   });
 
   test("page title says Kunci Periode", async ({ page }) => {

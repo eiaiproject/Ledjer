@@ -35,7 +35,7 @@ test.describe("Trial Balance page basics", () => {
 
   test("exactly one h1 exists", async ({ page }) => {
     await gotoTrialBalance(page);
-    expect(await page.locator("h1").count()).toBe(1);
+    await expect(page.locator("h1")).toHaveCount(1);
   });
 
   test("page title says Neraca Saldo", async ({ page }) => {

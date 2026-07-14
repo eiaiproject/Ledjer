@@ -218,20 +218,20 @@ function useProductMutations({ orgId, form, editingProduct, setEditingProduct, s
 /* ------------------------------------------------------------------ */
 
 function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchInputRef, hasSearch, hasFilter, stockCounts, filterGroupId, onClearSearch, onResetAll, allProducts, filterLabels, filterValues }: {
-  search: string;
-  setSearch: (v: string) => void;
-  stockFilter: StockFilter;
-  setStockFilter: (v: StockFilter) => void;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
-  hasSearch: boolean;
-  hasFilter: boolean;
-  stockCounts: Record<StockFilter, number>;
-  filterGroupId: string;
-  onClearSearch: () => void;
-  onResetAll: () => void;
-  allProducts: Product[];
-  filterLabels: Record<StockFilter, string>;
-  filterValues: StockFilter[];
+  readonly search: string;
+  readonly setSearch: (v: string) => void;
+  readonly stockFilter: StockFilter;
+  readonly setStockFilter: (v: StockFilter) => void;
+  readonly searchInputRef: React.RefObject<HTMLInputElement | null>;
+  readonly hasSearch: boolean;
+  readonly hasFilter: boolean;
+  readonly stockCounts: Record<StockFilter, number>;
+  readonly filterGroupId: string;
+  readonly onClearSearch: () => void;
+  readonly onResetAll: () => void;
+  readonly allProducts: Product[];
+  readonly filterLabels: Record<StockFilter, string>;
+  readonly filterValues: StockFilter[];
 }) {
   return (
     <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
