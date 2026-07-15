@@ -853,6 +853,94 @@ function restoreStockForVoid(ctx: VoidStockCtx): void {
   );
 }
 
+type VoidValidation = {
+  original: NonNullable<Awaited<ReturnType<typeof getTransactionRow>>>;
+  voidDate: string;
+  reason: string;
+};
+
+async function validateVoidableTransaction(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  input: VoidTransactionInput,
+): Promise<VoidValidation> {
+  const original = await getTransactionRow(db, organizationId, transactionId);
+  if (!original) throw notFound("transaction_not_found", "Transaction not found");
+  if (original.status !== "posted") {
+    throw conflict("transaction_not_posted", "Only posted transactions can be voided");
+  }
+  if (original.original_transaction_id) {
+    throw conflict("reversal_not_voidable", "Reversal transactions cannot be voided");
+  }
+  if (
+    (original.transaction_type === "credit_sale" || original.transaction_type === "credit_purchase")
+    && original.payment_status === "partial"
+  ) {
+    throw conflict(
+      "partial_void_not_supported",
+      "Partially paid credit transactions cannot be voided directly",
+    );
+  }
+  const reason = normalizeRequiredText(input.reason, "void_reason_required");
+  const voidDate = input.voidDate
+    ? normalizeDate(input.voidDate, "void_date_invalid")
+    // ponytail: Use Intl.DateTimeFormat with WIB timezone for correct date.
+    : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
+  await assertPeriodOpen(db, organizationId, original.transaction_date);
+  await assertPeriodOpen(db, organizationId, voidDate);
+  return { original, voidDate, reason };
+}
+
+function buildReversalStatements(
+  ctx: {
+    db: D1Database; organizationId: string; reversalTransactionId: string;
+    reversalJournalEntryId: string; reversalTransactionNumber: string;
+    reversalEntryNumber: string; voidDate: string; original: VoidValidation['original'];
+    originalJournalLines: { journal_entry_id: string | null; account_id: string; debit_minor: number; credit_minor: number; description: string }[];
+    reason: string; idempotencyKey: string; current: number; userId: string; transactionId: string;
+  },
+): D1PreparedStatement[] {
+  const { db, organizationId, reversalTransactionId, reversalJournalEntryId, reversalTransactionNumber, reversalEntryNumber, voidDate, original, originalJournalLines, reason, idempotencyKey, current, userId, transactionId } = ctx;
+  return [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, organization_id, transaction_number, transaction_date,
+         transaction_type, amount_minor, party_id, category_name,
+         cash_account_id, destination_cash_account_id, payment_status, due_date,
+         description, notes, status, idempotency_key, posted_at, posted_by,
+         original_transaction_id, created_by, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reversalTransactionId, organizationId, reversalTransactionNumber, voidDate,
+        original.transaction_type, original.amount_minor, original.party_id, original.category_name,
+        original.cash_account_id, original.destination_cash_account_id, original.payment_status, original.due_date,
+        `Pembatalan: ${original.description}`, reason, idempotencyKey, current, userId,
+        transactionId, userId, current, current,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, entry_number, entry_date, entry_type,
+         transaction_id, description, status, reversed_entry_id, reversal_reason,
+         posted_at, posted_by, created_at
+       ) VALUES (?, ?, ?, ?, 'reversal', ?, ?, 'posted', ?, ?, ?, ?, ?)`,
+      [
+        reversalJournalEntryId, organizationId, reversalEntryNumber, voidDate,
+        reversalTransactionId, `Pembatalan: ${original.description}`,
+        originalJournalLines[0]?.journal_entry_id ?? null, reason, current, userId, current,
+      ],
+    ),
+    ...originalJournalLines.map((line, index) => insertJournalLineStatement(
+      db, organizationId, reversalJournalEntryId,
+      { accountId: line.account_id, debitMinor: line.credit_minor, creditMinor: line.debit_minor, description: `Reversal: ${line.description}` },
+      index + 1, current,
+    )),
+  ];
+}
+
 export async function voidTransaction(
   db: D1Database,
   organizationId: string,
@@ -875,31 +963,7 @@ export async function voidTransaction(
     throw conflict("idempotency_key_conflict", "Idempotency key is already used");
   }
 
-  const original = await getTransactionRow(db, organizationId, transactionId);
-  if (!original) throw notFound("transaction_not_found", "Transaction not found");
-  if (original.status !== "posted") {
-    throw conflict("transaction_not_posted", "Only posted transactions can be voided");
-  }
-  if (original.original_transaction_id) {
-    throw conflict("reversal_not_voidable", "Reversal transactions cannot be voided");
-  }
-  if (
-    (original.transaction_type === "credit_sale" || original.transaction_type === "credit_purchase")
-    && original.payment_status === "partial"
-  ) {
-    throw conflict(
-      "partial_void_not_supported",
-      "Partially paid credit transactions cannot be voided directly",
-    );
-  }
-
-  const reason = normalizeRequiredText(input.reason, "void_reason_required");
-  const voidDate = input.voidDate
-    ? normalizeDate(input.voidDate, "void_date_invalid")
-    // ponytail: Use Intl.DateTimeFormat with WIB timezone for correct date.
-    : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date())
-  await assertPeriodOpen(db, organizationId, original.transaction_date);
-  await assertPeriodOpen(db, organizationId, voidDate);
+  const { original, voidDate, reason } = await validateVoidableTransaction(db, organizationId, transactionId, input);
 
   const originalJournalLines = await journalLinesForTransaction(db, organizationId, transactionId);
   if (!originalJournalLines.length) {
@@ -919,75 +983,11 @@ export async function voidTransaction(
   const reversalJournalEntryId = generateId();
   const reversalTransactionNumber = await generateTransactionNumber(db, organizationId, voidDate);
   const reversalEntryNumber = await generateEntryNumber(db, organizationId);
-  const statements: D1PreparedStatement[] = [
-    statement(
-      db,
-      `INSERT INTO transactions (
-         id, organization_id, transaction_number, transaction_date,
-         transaction_type, amount_minor, party_id, category_name,
-         cash_account_id, destination_cash_account_id, payment_status, due_date,
-         description, notes, status, idempotency_key, posted_at, posted_by,
-         original_transaction_id, created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        reversalTransactionId,
-        organizationId,
-        reversalTransactionNumber,
-        voidDate,
-        original.transaction_type,
-        original.amount_minor,
-        original.party_id,
-        original.category_name,
-        original.cash_account_id,
-        original.destination_cash_account_id,
-        original.payment_status,
-        original.due_date,
-        `Pembatalan: ${original.description}`,
-        reason,
-        idempotencyKey,
-        current,
-        userId,
-        transactionId,
-        userId,
-        current,
-        current,
-      ],
-    ),
-    statement(
-      db,
-      `INSERT INTO journal_entries (
-         id, organization_id, entry_number, entry_date, entry_type,
-         transaction_id, description, status, reversed_entry_id, reversal_reason,
-         posted_at, posted_by, created_at
-       ) VALUES (?, ?, ?, ?, 'reversal', ?, ?, 'posted', ?, ?, ?, ?, ?)`,
-      [
-        reversalJournalEntryId,
-        organizationId,
-        reversalEntryNumber,
-        voidDate,
-        reversalTransactionId,
-        `Pembatalan: ${original.description}`,
-        originalJournalLines[0]?.journal_entry_id ?? null,
-        reason,
-        current,
-        userId,
-        current,
-      ],
-    ),
-    ...originalJournalLines.map((line, index) => insertJournalLineStatement(
-      db,
-      organizationId,
-      reversalJournalEntryId,
-      {
-        accountId: line.account_id,
-        debitMinor: line.credit_minor,
-        creditMinor: line.debit_minor,
-        description: `Reversal: ${line.description}`,
-      },
-      index + 1,
-      current,
-    )),
-  ];
+
+  const statements: D1PreparedStatement[] = buildReversalStatements({
+    db, organizationId, reversalTransactionId, reversalJournalEntryId, reversalTransactionNumber,
+    reversalEntryNumber, voidDate, original, originalJournalLines, reason, idempotencyKey, current, userId, transactionId,
+  });
 
   if (product && productLine?.quantity_milli != null) {
     restoreStockForVoid({ db, statements, original, product, productLine: { quantity_milli: productLine.quantity_milli, unit_price_minor: productLine.unit_price_minor ?? product.average_cost_minor }, stockMovement: stockMovement ? { unit_cost_minor: stockMovement.unit_cost_minor ?? product.average_cost_minor } : null, organizationId, reversalTransactionId, voidDate, reason, userId, current });

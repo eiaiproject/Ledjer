@@ -20,184 +20,96 @@ describe('buildPreview', () => {
     productName: '',
   };
 
-  it('cash_sale: debit cash, credit revenue', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'cash_sale',
+  it.each([
+    {
+      name: 'cash_sale: debit cash, credit revenue',
+      input: { transactionType: 'cash_sale' as const },
+      expectedDebit: [{ account: '1110 - Kas', amount: 1000000, direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: 'Pendapatan Usaha', amount: 1000000, direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'credit_sale unpaid: debit receivable, credit revenue',
+      input: { transactionType: 'credit_sale' as const, paymentStatus: 'unpaid' },
+      expectedDebit: [{ account: 'Piutang Usaha', amount: 1000000 }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: 'Pendapatan Usaha' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'cash_purchase: debit expense, credit cash',
+      input: { transactionType: 'cash_purchase' as const },
+      expectedDebit: [{ account: 'Sewa', direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: '1110 - Kas', direction: 'decrease' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'pay_payable: debit payable, credit cash',
+      input: { transactionType: 'pay_payable' as const },
+      expectedDebit: [{ account: 'Utang Usaha', direction: 'decrease' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: '1110 - Kas', direction: 'decrease' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'owner_capital: debit cash, credit modal',
+      input: { transactionType: 'owner_capital' as const },
+      expectedDebit: [{ account: '1110 - Kas', direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: 'Modal Pemilik', direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'owner_draw: debit prive, credit cash',
+      input: { transactionType: 'owner_draw' as const },
+      expectedDebit: [{ account: 'Prive Pemilik', direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: '1110 - Kas', direction: 'decrease' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'cash_transfer: debit destination, credit source',
+      input: { transactionType: 'cash_transfer' as const },
+      expectedDebit: [{ account: '1120 - Bank BCA' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: '1110 - Kas' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'expense_payment: debit expense, credit cash',
+      input: { transactionType: 'expense_payment' as const },
+      expectedDebit: [{ account: 'Sewa', direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: '1110 - Kas', direction: 'decrease' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'receive_receivable: debit cash, credit receivable',
+      input: { transactionType: 'receive_receivable' as const },
+      expectedDebit: [{ account: '1110 - Kas', direction: 'increase' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: 'Piutang Usaha', direction: 'decrease' }] as { account: string; amount?: number; direction?: string }[],
+    },
+    {
+      name: 'credit_purchase unpaid: debit expense, credit payable',
+      input: { transactionType: 'credit_purchase' as const, paymentStatus: 'unpaid' },
+      expectedDebit: [{ account: 'Sewa' }] as { account: string; amount?: number; direction?: string }[],
+      expectedCredit: [{ account: 'Utang Usaha' }] as { account: string; amount?: number; direction?: string }[],
+    },
+  ])('$name', ({ input, expectedDebit, expectedCredit }) => {
+    const result = buildPreview({ ...baseArgs, ...input });
+    expectedDebit.forEach((exp, i) => {
+      expect(result.debit[i].account).toBe(exp.account);
+      if (exp.amount !== undefined) expect(result.debit[i].amount).toBe(exp.amount);
+      if (exp.direction) expect(result.debit[i].direction).toBe(exp.direction);
     });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('1110 - Kas');
-    expect(result.debit[0].amount).toBe(1000000);
-    expect(result.debit[0].direction).toBe('increase');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('Pendapatan Usaha');
-    expect(result.credit[0].amount).toBe(1000000);
-    expect(result.credit[0].direction).toBe('increase');
-  });
-
-  it('credit_sale unpaid: debit receivable, credit revenue', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'credit_sale',
-      paymentStatus: 'unpaid',
+    expectedCredit.forEach((exp, i) => {
+      expect(result.credit[i].account).toBe(exp.account);
+      if (exp.amount !== undefined) expect(result.credit[i].amount).toBe(exp.amount);
+      if (exp.direction) expect(result.credit[i].direction).toBe(exp.direction);
     });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('Piutang Usaha');
-    expect(result.debit[0].amount).toBe(1000000);
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('Pendapatan Usaha');
   });
 
   it('credit_sale partial: split debit into cash + receivable', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'credit_sale',
-      paymentStatus: 'partial',
-      partialAmount: 600000,
-    });
-
+    const result = buildPreview({ ...baseArgs, transactionType: 'credit_sale', paymentStatus: 'partial', partialAmount: 600000 });
     expect(result.debit).toHaveLength(2);
     expect(result.debit[0].account).toBe('1110 - Kas');
     expect(result.debit[0].amount).toBe(600000);
     expect(result.debit[1].account).toBe('Piutang Usaha');
     expect(result.debit[1].amount).toBe(400000);
-
     expect(result.credit).toHaveLength(1);
     expect(result.credit[0].amount).toBe(1000000);
   });
 
-  it('cash_purchase: debit expense, credit cash', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'cash_purchase',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('Sewa');
-    expect(result.debit[0].direction).toBe('increase');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('1110 - Kas');
-    expect(result.credit[0].direction).toBe('decrease');
-  });
-
-  it('pay_payable: debit payable, credit cash', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'pay_payable',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('Utang Usaha');
-    expect(result.debit[0].direction).toBe('decrease');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('1110 - Kas');
-    expect(result.credit[0].direction).toBe('decrease');
-  });
-
-  it('owner_capital: debit cash, credit modal', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'owner_capital',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('1110 - Kas');
-    expect(result.debit[0].direction).toBe('increase');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('Modal Pemilik');
-    expect(result.credit[0].direction).toBe('increase');
-  });
-
-  it('owner_draw: debit prive, credit cash', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'owner_draw',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('Prive Pemilik');
-    expect(result.debit[0].direction).toBe('increase');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('1110 - Kas');
-    expect(result.credit[0].direction).toBe('decrease');
-  });
-
-  it('cash_transfer: debit destination, credit source', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'cash_transfer',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('1120 - Bank BCA');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('1110 - Kas');
-  });
-
-  it('expense_payment: debit expense, credit cash', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'expense_payment',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('Sewa');
-    expect(result.debit[0].direction).toBe('increase');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('1110 - Kas');
-    expect(result.credit[0].direction).toBe('decrease');
-  });
-
-  it('receive_receivable: debit cash, credit receivable', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'receive_receivable',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('1110 - Kas');
-    expect(result.debit[0].direction).toBe('increase');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('Piutang Usaha');
-    expect(result.credit[0].direction).toBe('decrease');
-  });
-
-  it('credit_purchase unpaid: debit expense, credit payable', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'credit_purchase',
-      paymentStatus: 'unpaid',
-    });
-
-    expect(result.debit).toHaveLength(1);
-    expect(result.debit[0].account).toBe('Sewa');
-
-    expect(result.credit).toHaveLength(1);
-    expect(result.credit[0].account).toBe('Utang Usaha');
-  });
-
   it('credit_purchase partial: split credit into cash + payable', () => {
-    const result = buildPreview({
-      ...baseArgs,
-      transactionType: 'credit_purchase',
-      paymentStatus: 'partial',
-      partialAmount: 500000,
-    });
-
+    const result = buildPreview({ ...baseArgs, transactionType: 'credit_purchase', paymentStatus: 'partial', partialAmount: 500000 });
     expect(result.debit).toHaveLength(1);
     expect(result.debit[0].amount).toBe(1000000);
-
     expect(result.credit).toHaveLength(2);
     expect(result.credit[0].account).toBe('1110 - Kas');
     expect(result.credit[0].amount).toBe(500000);
