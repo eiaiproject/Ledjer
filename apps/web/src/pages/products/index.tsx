@@ -274,6 +274,43 @@ function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchI
 }
 
 /* ------------------------------------------------------------------ */
+/*  Error/Loading states (reduce cognitive complexity)                 */
+/* ------------------------------------------------------------------ */
+
+function ProductsHeader() {
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-text-primary">Produk</h1>
+      <p className="mt-1 text-sm text-text-secondary">Kelola produk, harga, dan ketersediaan stok.</p>
+    </div>
+  );
+}
+
+function ProductsErrorState({ onRetry }: { readonly onRetry: () => void }) {
+  return (
+    <div className="space-y-4">
+      <ProductsHeader />
+      <ErrorState error={null} message="Periksa koneksi Anda, lalu coba lagi." onRetry={onRetry} />
+    </div>
+  );
+}
+
+function ProductsLoadingSkeleton() {
+  return (
+    <div className="space-y-4">
+      <ProductsHeader />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-2"><Skeleton className="h-10 w-28 rounded-md" /><Skeleton className="h-10 w-28 rounded-md" /></div>
+        <div className="flex gap-2"><Skeleton className="h-10 w-28 rounded-md" /><Skeleton className="h-10 w-36 rounded-md" /></div>
+      </div>
+      <Skeleton className="h-11 w-full rounded-lg" />
+      <div className="flex gap-2"><Skeleton className="h-9 w-16 rounded-full" /><Skeleton className="h-9 w-16 rounded-full" /><Skeleton className="h-9 w-16 rounded-full" /><Skeleton className="h-9 w-16 rounded-full" /></div>
+      <div className="space-y-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Product list hook                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -362,30 +399,12 @@ export function ProductsPage() {
 
   // ── Error ──
   if (error) {
-    return (
-      <div className="space-y-4">
-        <div><h1 className="text-2xl font-bold text-text-primary">Produk</h1>
-        <p className="mt-1 text-sm text-text-secondary">Kelola produk, harga, dan ketersediaan stok.</p></div>
-        <ErrorState error={error} message="Periksa koneksi Anda, lalu coba lagi." onRetry={() => { refetch(); }} />
-      </div>
-    );
+    return <ProductsErrorState onRetry={refetch} />;
   }
 
   // ── Loading ──
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div><h1 className="text-2xl font-bold text-text-primary">Produk</h1>
-        <p className="mt-1 text-sm text-text-secondary">Kelola produk, harga, dan ketersediaan stok.</p></div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-2"><Skeleton className="h-10 w-28 rounded-md" /><Skeleton className="h-10 w-28 rounded-md" /></div>
-          <div className="flex gap-2"><Skeleton className="h-10 w-28 rounded-md" /><Skeleton className="h-10 w-36 rounded-md" /></div>
-        </div>
-        <Skeleton className="h-11 w-full rounded-lg" />
-        <div className="flex gap-2"><Skeleton className="h-9 w-16 rounded-full" /><Skeleton className="h-9 w-16 rounded-full" /><Skeleton className="h-9 w-16 rounded-full" /><Skeleton className="h-9 w-16 rounded-full" /></div>
-        <div className="space-y-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>
-      </div>
-    );
+    return <ProductsLoadingSkeleton />;
   }
 
   const filterLabels: Record<StockFilter, string> = { all: "Semua", in_stock: "Aman", low: "Menipis", out: "Habis" };
