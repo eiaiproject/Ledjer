@@ -385,20 +385,24 @@ async function reserveStockForTransaction(
   return { nextStock, unitCost, nextAverage };
 }
 
-function insertStockStatements(
-  db: D1Database,
-  statements: D1PreparedStatement[],
-  reservedStock: { nextStock: number; unitCost: number; nextAverage: number },
-  product: { id: string; current_stock_milli: number },
-  organizationId: string,
-  transactionId: string,
-  transactionDate: string,
-  transactionType: string,
-  quantityMilli: number,
-  description: string,
-  userId: string,
-  current: number,
-): void {
+type StockStatementCtx = {
+  db: D1Database;
+  statements: D1PreparedStatement[];
+  reservedStock: { nextStock: number; unitCost: number; nextAverage: number };
+  product: { id: string; current_stock_milli: number };
+  organizationId: string;
+  transactionId: string;
+  transactionDate: string;
+  transactionType: string;
+  quantityMilli: number;
+  description: string;
+  userId: string;
+  current: number;
+};
+
+// ponytail: Options object to satisfy S107 max-params.
+function insertStockStatements(ctx: StockStatementCtx): void {
+  const { db, statements, reservedStock, product, organizationId, transactionId, transactionDate, transactionType, quantityMilli, description, userId, current } = ctx;
   const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
   const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
   statements.push(
@@ -564,7 +568,7 @@ export async function postTransaction(
   ];
 
   if (reservedStock && product && quantityMilli !== null) {
-    insertStockStatements(db, statements, reservedStock, product, organizationId, transactionId, transactionDate, transactionType, quantityMilli, description, userId, current);
+    insertStockStatements({ db, statements, reservedStock, product, organizationId, transactionId, transactionDate, transactionType, quantityMilli, description, userId, current });
   }
 
   statements.push(
@@ -805,20 +809,24 @@ export async function settleAndVoidTransaction(
   };
 }
 
-function restoreStockForVoid(
-  db: D1Database,
-  statements: D1PreparedStatement[],
-  original: { transaction_type: string },
-  product: ProductRow,
-  productLine: { quantity_milli: number; unit_price_minor: number },
-  stockMovement: { unit_cost_minor: number } | null,
-  organizationId: string,
-  reversalTransactionId: string,
-  voidDate: string,
-  reason: string,
-  userId: string,
-  current: number,
-): void {
+type VoidStockCtx = {
+  db: D1Database;
+  statements: D1PreparedStatement[];
+  original: { transaction_type: string };
+  product: ProductRow;
+  productLine: { quantity_milli: number; unit_price_minor: number };
+  stockMovement: { unit_cost_minor: number } | null;
+  organizationId: string;
+  reversalTransactionId: string;
+  voidDate: string;
+  reason: string;
+  userId: string;
+  current: number;
+};
+
+// ponytail: Options object to satisfy S107 max-params.
+function restoreStockForVoid(ctx: VoidStockCtx): void {
+  const { db, statements, original, product, productLine, stockMovement, organizationId, reversalTransactionId, voidDate, reason, userId, current } = ctx;
   const isSale = original.transaction_type === "cash_sale" || original.transaction_type === "credit_sale";
   const isPurchase = original.transaction_type === "cash_purchase" || original.transaction_type === "credit_purchase";
   if (!isSale && !isPurchase) return;
@@ -982,7 +990,7 @@ export async function voidTransaction(
   ];
 
   if (product && productLine?.quantity_milli != null) {
-    restoreStockForVoid(db, statements, original, product, { quantity_milli: productLine.quantity_milli, unit_price_minor: productLine.unit_price_minor ?? product.average_cost_minor }, stockMovement ? { unit_cost_minor: stockMovement.unit_cost_minor ?? product.average_cost_minor } : null, organizationId, reversalTransactionId, voidDate, reason, userId, current);
+    restoreStockForVoid({ db, statements, original, product, productLine: { quantity_milli: productLine.quantity_milli, unit_price_minor: productLine.unit_price_minor ?? product.average_cost_minor }, stockMovement: stockMovement ? { unit_cost_minor: stockMovement.unit_cost_minor ?? product.average_cost_minor } : null, organizationId, reversalTransactionId, voidDate, reason, userId, current });
   }
 
   statements.push(
