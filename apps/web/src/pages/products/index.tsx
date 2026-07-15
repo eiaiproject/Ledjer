@@ -286,6 +286,41 @@ function ProductsHeader() {
   );
 }
 
+function ProductsEmptyStates({ isEmpty, isSearchEmpty, hasSearch, hasFilter, search, canManageProducts, onClearSearch, onResetFilters, onSetStockFilter, onCreate }: {
+  readonly isEmpty: boolean;
+  readonly isSearchEmpty: boolean;
+  readonly hasSearch: boolean;
+  readonly hasFilter: boolean;
+  readonly search: string;
+  readonly canManageProducts: boolean;
+  readonly onClearSearch: () => void;
+  readonly onResetFilters: () => void;
+  readonly onSetStockFilter: (v: StockFilter) => void;
+  readonly onCreate: () => void;
+}) {
+  if (isEmpty) {
+    return (
+      <EmptyState icon={<Package className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+        title="Belum ada produk"
+        description="Tambahkan produk pertama untuk mulai mencatat stok dan penjualan."
+        action={canManageProducts ? <Button onClick={onCreate} className="min-h-[44px]"><Plus className="mr-2 h-4 w-4" aria-hidden="true" />Tambah Produk Pertama</Button> : undefined} />
+    );
+  }
+  if (isSearchEmpty) {
+    return (
+      <EmptyState icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+        title={hasSearch && hasFilter ? "Tidak ada produk yang sesuai" : "Produk tidak ditemukan"}
+        description={hasSearch && hasFilter ? "Coba ubah pencarian atau status stok yang dipilih." : `Tidak ada produk yang cocok dengan "${search}".`}
+        action={<div className="flex flex-wrap justify-center gap-2">
+          {hasSearch && <Button type="button" variant="outline" size="sm" onClick={onClearSearch}>Hapus pencarian</Button>}
+          {hasFilter && <Button type="button" variant="outline" size="sm" onClick={() => onSetStockFilter("all")}>Tampilkan semua stok</Button>}
+          {hasSearch && hasFilter && <Button type="button" variant="outline" size="sm" onClick={onResetFilters}>Reset pencarian dan filter</Button>}
+        </div>} />
+    );
+  }
+  return null;
+}
+
 function ProductsPageHeader({ canCreateExports, canManageProducts, isExporting, allProductsLength, onExport, onCreate }: {
   readonly canCreateExports: boolean;
   readonly canManageProducts: boolean;
@@ -480,33 +515,19 @@ export function ProductsPage() {
         </p>
       )}
 
-      {/* Empty — no products at all */}
-      {isEmpty && (
-        <EmptyState
-          icon={<Package className="h-7 w-7 text-wood-400" aria-hidden="true" />}
-          title="Belum ada produk"
-          description="Tambahkan produk pertama untuk mulai mencatat stok dan penjualan."
-          action={canManageProducts ? <Button onClick={openCreateModal} className="min-h-[44px]"><Plus className="mr-2 h-4 w-4" aria-hidden="true" />Tambah Produk Pertama</Button> : undefined}
-        />
-      )}
-
-      {/* Search-empty — products exist but no match */}
-      {isSearchEmpty && (
-        <EmptyState
-          icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
-          title={hasSearch && hasFilter ? "Tidak ada produk yang sesuai" : "Produk tidak ditemukan"}
-          description={hasSearch && hasFilter
-            ? "Coba ubah pencarian atau status stok yang dipilih."
-            : `Tidak ada produk yang cocok dengan "${search}".`}
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              {hasSearch && <Button type="button" variant="outline" size="sm" onClick={handleClearSearch}>Hapus pencarian</Button>}
-              {hasFilter && <Button type="button" variant="outline" size="sm" onClick={() => setStockFilter("all")}>Tampilkan semua stok</Button>}
-              {hasSearch && hasFilter && <Button type="button" variant="outline" size="sm" onClick={handleResetAll}>Reset pencarian dan filter</Button>}
-            </div>
-          }
-        />
-      )}
+      {/* Empty states */}
+      <ProductsEmptyStates
+        isEmpty={isEmpty}
+        isSearchEmpty={isSearchEmpty}
+        hasSearch={hasSearch}
+        hasFilter={hasFilter}
+        search={search}
+        canManageProducts={canManageProducts}
+        onClearSearch={handleClearSearch}
+        onResetFilters={handleResetAll}
+        onSetStockFilter={setStockFilter}
+        onCreate={openCreateModal}
+      />
 
       {/* Product list */}
       {!isEmpty && !isSearchEmpty && (
