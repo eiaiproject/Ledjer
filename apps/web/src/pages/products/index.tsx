@@ -273,6 +273,60 @@ function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchI
   );
 }
 
+function ProductFormModal({ open, formBusy, editingProduct, form, onClosing, onSave, onboardingCompleted }: {
+  readonly open: boolean;
+  readonly formBusy: boolean;
+  readonly editingProduct: Product | null;
+  readonly form: ReturnType<typeof useProductForm>;
+  readonly onClosing: () => void;
+  readonly onSave: () => void;
+  readonly onboardingCompleted: boolean;
+}) {
+  return (
+    <Modal open={open} onClose={formBusy ? () => {} : onClosing}
+      title={editingProduct ? "Edit Produk" : "Tambah Produk"} size="md">
+      <ModalContent>
+        <div className="space-y-4">
+          <Input label="Kode Produk" value={form.formData.code} onChange={(e) => form.setField("code", e.target.value)}
+            placeholder="e.g., PRD-001" error={form.formErrors.code} maxLength={40} disabled={formBusy} />
+          <Input label="Nama Produk" value={form.formData.name} onChange={(e) => form.setField("name", e.target.value)}
+            placeholder="Nama produk" error={form.formErrors.name} maxLength={120} disabled={formBusy} />
+          <Input label="Deskripsi" value={form.formData.description} onChange={(e) => form.setField("description", e.target.value)}
+            placeholder="Detail singkat produk" error={form.formErrors.description} maxLength={500} disabled={formBusy} />
+          <Select label="Satuan" value={form.formData.unit} onChange={(e) => form.setField("unit", e.target.value)}
+            options={UNITS.map((u) => ({ value: u, label: u }))} error={form.formErrors.unit} disabled={formBusy} />
+          <Input label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
+            value={formatAmountInput(form.formData.purchase_price)}
+            onChange={(e) => form.setField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
+            readOnly={!!editingProduct} isCurrency error={form.formErrors.purchase_price} disabled={formBusy} />
+          {editingProduct && <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>}
+          <Input label="Harga Jual" value={formatAmountInput(form.formData.selling_price)}
+            onChange={(e) => form.setField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
+            isCurrency error={form.formErrors.selling_price} disabled={formBusy} />
+          {!editingProduct && !onboardingCompleted && (
+            <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
+              onChange={(e) => form.setField("current_stock", Number(e.target.value))}
+              placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
+          )}
+          {!editingProduct && onboardingCompleted && (
+            <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">
+              Stok ditambahkan otomatis melalui alur pembelian atau stok resmi.
+            </div>
+          )}
+          <Input label="Stok Minimum" type="number" min={0} value={form.formData.min_stock || ""}
+            onChange={(e) => form.setField("min_stock", Number(e.target.value))}
+            placeholder="0" error={form.formErrors.min_stock} disabled={formBusy}
+            helperText="Ketika stok tersisa sampai angka ini, produk akan ditandai stok menipis." />
+        </div>
+      </ModalContent>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClosing} disabled={formBusy}>Batal</Button>
+        <Button onClick={onSave} loading={formBusy} disabled={formBusy}>{editingProduct ? "Simpan" : "Tambah"}</Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Error/Loading states (reduce cognitive complexity)                 */
 /* ------------------------------------------------------------------ */
@@ -644,47 +698,15 @@ export function ProductsPage() {
       )}
 
       {/* Create/Edit Modal */}
-      <Modal open={modalOpen} onClose={formBusy ? () => {} : () => setModalOpen(false)}
-        title={editingProduct ? "Edit Produk" : "Tambah Produk"} size="md">
-        <ModalContent>
-          <div className="space-y-4">
-            <Input label="Kode Produk" value={form.formData.code} onChange={(e) => form.setField("code", e.target.value)}
-              placeholder="e.g., PRD-001" error={form.formErrors.code} maxLength={40} disabled={formBusy} />
-            <Input label="Nama Produk" value={form.formData.name} onChange={(e) => form.setField("name", e.target.value)}
-              placeholder="Nama produk" error={form.formErrors.name} maxLength={120} disabled={formBusy} />
-            <Input label="Deskripsi" value={form.formData.description} onChange={(e) => form.setField("description", e.target.value)}
-              placeholder="Detail singkat produk" error={form.formErrors.description} maxLength={500} disabled={formBusy} />
-            <Select label="Satuan" value={form.formData.unit} onChange={(e) => form.setField("unit", e.target.value)}
-              options={UNITS.map((u) => ({ value: u, label: u }))} error={form.formErrors.unit} disabled={formBusy} />
-            <Input label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
-              value={formatAmountInput(form.formData.purchase_price)}
-              onChange={(e) => form.setField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
-              readOnly={!!editingProduct} isCurrency error={form.formErrors.purchase_price} disabled={formBusy} />
-            {editingProduct && <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>}
-            <Input label="Harga Jual" value={formatAmountInput(form.formData.selling_price)}
-              onChange={(e) => form.setField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
-              isCurrency error={form.formErrors.selling_price} disabled={formBusy} />
-            {!editingProduct && !onboardingCompleted && (
-              <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
-                onChange={(e) => form.setField("current_stock", Number(e.target.value))}
-                placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
-            )}
-            {!editingProduct && onboardingCompleted && (
-              <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">
-                Stok ditambahkan otomatis melalui alur pembelian atau stok resmi.
-              </div>
-            )}
-            <Input label="Stok Minimum" type="number" min={0} value={form.formData.min_stock || ""}
-              onChange={(e) => form.setField("min_stock", Number(e.target.value))}
-              placeholder="0" error={form.formErrors.min_stock} disabled={formBusy}
-              helperText="Ketika stok tersisa sampai angka ini, produk akan ditandai stok menipis." />
-          </div>
-        </ModalContent>
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={formBusy}>Batal</Button>
-          <Button onClick={handleSave} loading={formBusy} disabled={formBusy}>{editingProduct ? "Simpan" : "Tambah"}</Button>
-        </ModalFooter>
-      </Modal>
+      <ProductFormModal
+        open={modalOpen}
+        formBusy={formBusy}
+        editingProduct={editingProduct}
+        form={form}
+        onClosing={() => setModalOpen(false)}
+        onSave={handleSave}
+        onboardingCompleted={onboardingCompleted}
+      />
 
       {/* Deactivate confirmation */}
       <ConfirmDialog
