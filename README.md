@@ -4,6 +4,18 @@ Sistem pembukuan double-entry untuk UMKM Indonesia. Ledjer berjalan sebagai apli
 
 [![CI](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml/badge.svg)](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml)
 
+## Screenshots
+
+| Landing | Login | Register |
+|---------|-------|----------|
+| ![Landing](docs/screenshots/screenshot-landing.png) | ![Login](docs/screenshots/screenshot-login.png) | ![Register](docs/screenshots/screenshot-register.png) |
+
+## Requirements
+
+- Node.js 24+
+- pnpm 10 (`corepack enable && corepack prepare pnpm@10 --activate`)
+- Cloudflare account with Workers + D1
+
 ## Tech Stack
 
 | Layer | Teknologi |
@@ -94,9 +106,17 @@ Pastikan juga:
 - Wrangler config ada di `apps/web/wrangler.jsonc` (sudah)
 - Command dijalankan dari direktori yang benar di CI/CD workflows
 
-### Production Secrets
+## Environment Variables
 
-Worker vars/secrets dikonfigurasi di Cloudflare Dashboard atau via `wrangler secret put`. Jangan pernah menaruh Worker secrets di `VITE_*` variables — `VITE_*` di-embed ke browser bundle.
+### Frontend (`apps/web/.env.local`)
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `VITE_API_BASE_URL` | API base URL (empty if same-origin) | `""` |
+
+### Worker (Cloudflare Dashboard / `wrangler secret put`)
+
+Worker secrets dikonfigurasi di Cloudflare Dashboard atau via CLI. Jangan menaruh Worker secrets di `VITE_*` variables — `VITE_*` di-embed ke browser bundle.
 
 ## Current Scope
 
@@ -109,6 +129,18 @@ Worker vars/secrets dikonfigurasi di Cloudflare Dashboard atau via `wrangler sec
 - Team invitations
 - CSV exports
 - Dashboard summary through Worker API
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+Jika menemukan vulnerability, jangan buka public issue. Email ke maintainer langsung atau gunakan GitHub Security Advisories.
+
+## License
+
+Proprietary. All rights reserved. Tidak boleh didistribusikan, dimodifikasi, atau digunakan tanpa izin tertulis dari pemilik.
 
 ## Testing
 
