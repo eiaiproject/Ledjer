@@ -1,45 +1,50 @@
 #!/usr/bin/env bash
-# =============================================================================
-# deploy.sh — Build & deploy Ledjer to Cloudflare Workers
-# =============================================================================
-# Usage:
-#   bash scripts/deploy.sh                  # full build + deploy
-#   bash scripts/deploy.sh --deploy-only    # skip build (CI: build already done)
+# Cloudflare Workers deploy helper.
+# Used by Cloudflare Pages CI/CD (deploy step).
 #
-# Expects CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in env (or wrangler
-# configured via wrangler.toml / ~/.wrangler).
-# =============================================================================
+# Usage:
+#   bash scripts/deploy.sh --deploy-only     # upload + activate (default)
+#   bash scripts/deploy.sh --upload-only     # upload new version, do not activate
+#
+# ponytail: this script assumes the build step has already produced
+# apps/web/dist/{ledjer,client} (Vite + @cloudflare/vite-plugin). Add
+# `--upload-only` once you have manual approval workflow for prod.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/apps/web"
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
 
-DEPLOY_ONLY=0
-for arg in "$@"; do
-  case "$arg" in
-    --deploy-only) DEPLOY_ONLY=1 ;;
-    *) ;;
-  esac
-done
+mode="deploy"
+case "${1:-}" in
+  --deploy-only|"") mode="deploy" ;;
+  --upload-only)    mode="upload" ;;
+  -h|--help)
+    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  *)
+    echo "Unknown arg: $1" >&2
+    exit 2
+    ;;
+esac
 
-# ── Preflight: wrangler auth check ──────────────────────────────
-echo "==> Checking wrangler authentication..."
-if ! pnpm exec wrangler whoami &>/dev/null; then
-  echo "❌ wrangler whoami failed. Check CLOUDFLARE_API_TOKEN or run 'wrangler login'."
+# Sanity: build output must exist.
+if [[ ! -f "apps/web/dist/ledjer/index.js" ]]; then
+  echo "ERROR: apps/web/dist/ledjer/index.js missing. Run 'pnpm --filter web build' first." >&2
   exit 1
 fi
-echo "✅ wrangler authenticated"
 
-# ── Build ────────────────────────────────────────────────────────
-if [[ "$DEPLOY_ONLY" -eq 0 ]]; then
-  echo "==> Building..."
-  pnpm build
-  echo "✅ Build complete"
-else
-  echo "==> Skipping build (--deploy-only)"
+# Prefer CI-provided token; fall back to wrangler's stored OAuth credentials.
+if [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+  export CLOUDFLARE_API_TOKEN
+fi
+if [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+  export CLOUDFLARE_ACCOUNT_ID
 fi
 
-# ── Deploy ────────────────────────────────────────────────────────
-echo "==> Deploying to Cloudflare Workers..."
-pnpm exec wrangler deploy
-echo "✅ Deploy complete"
+if [[ "$mode" == "upload" ]]; then
+  exec npx wrangler versions upload
+fi
+
+# Default: deploy (upload + activate 100% traffic).
+exec npx wrangler deploy

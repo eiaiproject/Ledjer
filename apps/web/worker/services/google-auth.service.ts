@@ -163,6 +163,14 @@ async function linkOAuthAccount(
      ) VALUES (?, ?, 'google', ?, ?, ?, ?)`,
     [generateId(), userId, googleId, null, current, current],
   );
+
+  // Google verifies email — mark verified when linking existing account
+  await execute(
+    db,
+    `UPDATE users SET email_verified_at = ?, updated_at = ?
+     WHERE id = ? AND email_verified_at IS NULL`,
+    [current, current, userId],
+  );
 }
 
 /**

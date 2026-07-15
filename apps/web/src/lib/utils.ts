@@ -49,8 +49,16 @@ export function formatDateInputValue(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function localDate(offsetDays = 0): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toLocaleDateString("en-CA");
+}
+
+type DateInput = string | Date | null | undefined;
+
 /** Format date as DD/MM/YYYY (Indonesian) */
-export function formatDate(date: string | Date | null | undefined): string {
+export function formatDate(date: DateInput): string {
   if (!date) return "-";
   const d = parseDateValue(date);
   if (Number.isNaN(d.getTime())) return "-";
@@ -62,6 +70,18 @@ export function formatDate(date: string | Date | null | undefined): string {
 }
 
 
+
+/** Format long Indonesian date (e.g., "12 Juli 2026") */
+export function formatDateLong(date: string | Date | null | undefined): string {
+  if (!date) return "-";
+  const d = parseDateValue(date);
+  if (Number.isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d);
+}
 
 /** Format short date (e.g., "15 Jun 2026") */
 export function formatShortDate(date: string | Date | null | undefined): string {
@@ -76,6 +96,31 @@ export function formatShortDate(date: string | Date | null | undefined): string 
 }
 
 
+
+/** Format date range in Indonesian (e.g., "1–12 Juli 2026", "25 Juni–12 Juli 2026") */
+export function formatDateRange(fromDate: string, toDate: string): string {
+  const from = parseDateValue(fromDate);
+  const to = parseDateValue(toDate);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "-";
+
+  const sameYear = from.getFullYear() === to.getFullYear();
+  const sameMonth = sameYear && from.getMonth() === to.getMonth();
+
+  const dayMonthYear = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(to);
+
+  if (sameMonth) {
+    // 1–12 Juli 2026
+    return `${from.getDate()}–${dayMonthYear}`;
+  }
+  if (sameYear) {
+    // 25 Juni–12 Juli 2026
+    const fromMonth = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long" }).format(from);
+    return `${fromMonth}–${dayMonthYear}`;
+  }
+  // 20 Desember 2025–12 Januari 2026
+  const fromFull = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(from);
+  return `${fromFull}–${dayMonthYear}`;
+}
 
 export function createClientToken(): string {
   return crypto.randomUUID();

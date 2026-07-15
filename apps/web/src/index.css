@@ -249,11 +249,45 @@ body {
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Make every anchor target sit below the sticky header.
+   Header height is exposed as --header-h by the sticky <header> element
+   (mobile: 72px when the sub-nav is below, desktop: 60px). */
+:where(section[id], div[id]) {
+  scroll-margin-top: calc(var(--header-h, 72px) + 12px);
+}
+
 /* Standardized horizontal scroll wrapper for tables */
 .ledger-scroll-x {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+}
+
+/* Scrollable strip that keeps scroll but hides the scrollbar */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Fades both edges of a horizontal strip to hint off-screen content */
+.ledger-fade-x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 14px,
+    #000 calc(100% - 14px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 14px,
+    #000 calc(100% - 14px),
+    transparent
+  );
 }
 
 /* Standardized table helper */
@@ -328,9 +362,7 @@ h1, h2, h3, h4 {
   text-wrap: balance;
 }
 
-h1 { font-size: var(--text-2xl); }
-h2 { font-size: var(--text-xl); }
-h3 { font-size: var(--text-lg); }
+/* ponytail: removed base h1/h2/h3 font-size — Tailwind utilities now control sizing per-component */
 
 p, li {
   text-wrap: pretty;

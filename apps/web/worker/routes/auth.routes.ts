@@ -27,6 +27,12 @@ import {
 const emailSchema = z.string().email().transform((value) => value.trim().toLowerCase());
 const passwordSchema = z.string().min(8).max(72);
 
+// ponytail: cookies are Secure only on https origins; localhost http requires Secure=false.
+function isSecureRequest(c: Context): boolean {
+  const origin = (c.env.APP_ORIGIN || "").split(",")[0].trim() || new URL(c.req.url).origin;
+  return origin.startsWith("https://");
+}
+
 const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
@@ -88,7 +94,7 @@ authRoutes.post("/login", async (c) => {
     httpOnly: true,
     path: "/",
     sameSite: "Lax",
-    secure: true,
+    secure: isSecureRequest(c),
   });
   return c.json({ ok: true });
 });
@@ -101,7 +107,7 @@ authRoutes.post("/logout", async (c) => {
   deleteCookie(c, "ledjer_session", {
     domain: c.env.COOKIE_DOMAIN,
     path: "/",
-    secure: true,
+    secure: isSecureRequest(c),
   });
   return c.json({ ok: true });
 });
@@ -115,7 +121,7 @@ authRoutes.get("/me", async (c) => {
     deleteCookie(c, "ledjer_session", {
       domain: c.env.COOKIE_DOMAIN,
       path: "/",
-      secure: true,
+      secure: isSecureRequest(c),
     });
     return c.json({ user: null, session: null });
   }
@@ -149,7 +155,7 @@ authRoutes.post("/verify-email", async (c) => {
       httpOnly: true,
       path: "/",
       sameSite: "Lax",
-      secure: true,
+      secure: isSecureRequest(c),
     });
     return c.json({ ok: true });
   }
@@ -172,7 +178,7 @@ authRoutes.post("/reset-password", async (c) => {
   deleteCookie(c, "ledjer_session", {
     domain: c.env.COOKIE_DOMAIN,
     path: "/",
-    secure: true,
+    secure: isSecureRequest(c),
   });
   return c.json({ ok: true });
 });
@@ -190,7 +196,7 @@ authRoutes.post("/change-password", async (c) => {
   deleteCookie(c, "ledjer_session", {
     domain: c.env.COOKIE_DOMAIN,
     path: "/",
-    secure: true,
+    secure: isSecureRequest(c),
   });
   return c.json({ ok: true });
 });
@@ -223,12 +229,14 @@ authRoutes.get("/google/start", (c) => {
     httpOnly: true,
     path: "/",
     sameSite: "Lax",
-    secure: true,
+    secure: isSecureRequest(c),
   });
 
-  // Build redirect URI (worker callback endpoint)
-  const origin = c.env.APP_ORIGIN || new URL(c.req.url).origin;
-  const redirectUri = `${origin}/api/auth/google/callback`;
+  // Build redirect URI (worker callback endpoint).
+  // ponytail: use only the first origin from comma-separated APP_ORIGIN list;
+  // OAuth provider only accepts a single redirect_uri.
+  const firstOrigin = (c.env.APP_ORIGIN || new URL(c.req.url).origin).split(",")[0].trim();
+  const redirectUri = `${firstOrigin}/api/auth/google/callback`;
 
   const url = buildGoogleAuthUrl(clientId, redirectUri, state);
   return c.json({ url });
@@ -257,7 +265,7 @@ authRoutes.get("/google/callback", async (c) => {
   deleteCookie(c, "google_oauth_state", {
     domain: c.env.COOKIE_DOMAIN,
     path: "/",
-    secure: true,
+    secure: isSecureRequest(c),
   });
 
   const clientId = c.env.GOOGLE_CLIENT_ID;
@@ -268,7 +276,8 @@ authRoutes.get("/google/callback", async (c) => {
   }
 
   try {
-    const origin = c.env.APP_ORIGIN || new URL(c.req.url).origin;
+    // ponytail: use only the first origin — same as /google/start.
+    const origin = (c.env.APP_ORIGIN || new URL(c.req.url).origin).split(",")[0].trim();
     const redirectUri = `${origin}/api/auth/google/callback`;
 
     const session = await completeGoogleAuth(
@@ -286,7 +295,7 @@ authRoutes.get("/google/callback", async (c) => {
       httpOnly: true,
       path: "/",
       sameSite: "Lax",
-      secure: true,
+      secure: isSecureRequest(c),
     });
     return c.redirect("/auth/callback?success=true");
   } catch (err) {
@@ -304,7 +313,7 @@ async function requireSession(c: Context<AppContext>) {
     deleteCookie(c, "ledjer_session", {
       domain: c.env.COOKIE_DOMAIN,
       path: "/",
-      secure: true,
+      secure: isSecureRequest(c),
     });
     throw unauthorized();
   }

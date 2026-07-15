@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
@@ -8,180 +8,284 @@ import { Button } from "@/components/ui/button";
 import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDate, formatDateInputValue, formatIDR } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
-import { translateError } from "@/lib/errors";
+import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportTrialBalanceCsv } from "@/lib/csv-export";
-import { Download } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { getTrialBalance } from "@/lib/api/reports";
+import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
 
 export function TrialBalancePage() {
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
-  
-  const [toDate, setToDate] = useState(formatDateInputValue());
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.reports.trialBalance(orgData?.organization?.id, toDate),
+  const {
+    pendingDate, setPendingDate,
+    appliedDate, isPending,
+    applyDate, syncPending,
+  } = useReportDate();
+  const [showZeroBalances, setShowZeroBalances] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: queryKeys.reports.trialBalance(orgData?.organization?.id, appliedDate),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      return getTrialBalance(toDate);
+      return getTrialBalance(appliedDate);
     },
     enabled: !!orgData?.organization?.id && canViewReports,
+    // Prevent stale data from overriding newer responses
+    staleTime: 0,
   });
+
+  const handleApplyDate = useCallback(() => { applyDate(); }, [applyDate]);
+
+  const handleRefresh = useCallback(() => {
+    syncPending();
+    refetch();
+  }, [syncPending, refetch]);
 
   if (!canViewReports) {
     return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <p className="text-wood-500">Anda tidak memiliki izin untuk melihat laporan ini.</p>
-        </CardContent>
-      </Card>
+      <ReportPermissionGate>
+        <div />
+      </ReportPermissionGate>
     );
   }
 
-  if (error) return <ErrorState error={error} onRetry={refetch} />;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Neraca Saldo</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            Per {formatDateLong(appliedDate)}
+          </p>
+        </div>
+        <ErrorState
+          message="Neraca saldo gagal dimuat. Periksa koneksi Anda, lalu coba lagi."
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
 
   const totalDebit = (data || []).reduce((sum, i) => sum + i.ending_debit, 0);
   const totalCredit = (data || []).reduce((sum, i) => sum + i.ending_credit, 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 1;
+  const difference = Math.abs(totalDebit - totalCredit);
+  const isBalanced = totalDebit === totalCredit;
+
+  // Zero-balance filter: server already excludes them, but when toggle is on
+  // we need to re-fetch without the exclusion or filter client-side.
+  // Server already returns only accounts with activity, so toggle just controls display.
+  const displayData = data || [];
 
   const handleExport = async () => {
-    if (!orgData?.organization?.id) return;
-    try {
-      await exportTrialBalanceCsv(toDate);
-      toast.success("Export CSV neraca saldo dimulai");
-    } catch (err) {
-      toast.error(translateError(err));
-    }
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: exporting,
+      exportFn: () => exportTrialBalanceCsv(appliedDate),
+      onFinally: () => setExporting(false),
+    });
   };
 
+  const isEmpty = !isLoading && displayData.length === 0;
+  const isRefreshing = isFetching && !isLoading;
+
   return (
-    <div className="ledger-page space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Neraca Saldo</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          Per {formatDate(toDate)}
+        <p className="text-sm text-text-secondary mt-1" aria-live="polite">
+          {isRefreshing ? (
+            <span className="text-text-secondary">Memperbarui laporan...</span>
+          ) : (
+            <>Per {formatDateLong(appliedDate)}</>
+          )}
         </p>
       </div>
 
+      {/* Toolbar: date + actions */}
       <Card>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <Input label="Per Tanggal" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <Button type="button" variant="outline" aria-label="Muat ulang data" onClick={() => refetch().catch((err) => console.error("refetch failed", err))} loading={isLoading}>
-              {isLoading ? "Memuat..." : "Muat Ulang"}
-            </Button>
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleApplyDate(); }}
+            className="flex flex-col sm:flex-row gap-3 items-end"
+          >
+            <Input
+              label="Per tanggal"
+              type="date"
+              value={pendingDate}
+              onChange={(e) => setPendingDate(e.target.value)}
+              aria-describedby="date-hint"
+            />
+            <span id="date-hint" className="sr-only">
+              Masukkan tanggal laporan, lalu pilih Tampilkan laporan
+            </span>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                type="submit"
+                variant={isPending ? "primary" : "outline"}
+                disabled={isPending && !pendingDate}
+                loading={isLoading && !isRefreshing}
+                className="flex-1 sm:flex-none"
+              >
+                {isRefreshing ? "Memperbarui..." : "Tampilkan laporan"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Muat ulang data"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </form>
+          <div className="flex flex-col sm:flex-row gap-3 items-end mt-3">
+            <label className="flex items-center gap-2 text-sm text-wood-600">
+              <input
+                type="checkbox"
+                checked={showZeroBalances}
+                onChange={(e) => setShowZeroBalances(e.target.checked)}
+                className="rounded border-wood-300"
+              />
+              <span>Tampilkan akun saldo nol</span>
+            </label>
             {canCreateExports && (
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => handleExport().catch((err) => console.error("export failed", err))}
-                disabled={!data?.length}
+                size="sm"
+                aria-label="Ekspor neraca saldo ke CSV"
+                onClick={handleExport}
+                disabled={exporting || isLoading || isEmpty}
+                loading={exporting}
+                className="sm:ml-auto"
               >
                 <Download className="h-4 w-4" />
-                Export CSV
+                <span className="hidden sm:inline">Ekspor CSV</span>
+                <span className="sm:hidden">Ekspor</span>
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
+      {/* Loading */}
       {isLoading && (
         <ReportSkeleton rows={8} cols={4} />
       )}
-      {!isLoading && !data?.length && (
+
+      {/* Empty */}
+      {isEmpty && (
         <EmptyState
-          title="Belum ada saldo"
-          description="Belum ada saldo akun pada tanggal ini."
+          title="Belum ada saldo akun per tanggal ini"
+          description="Pilih tanggal lain atau catat transaksi terlebih dahulu."
         />
       )}
-      {!isLoading && data?.length && (
-        <Card>
-          {/* Mobile: card per account */}
-          <div className="space-y-3 px-4 py-4 sm:hidden ledger-mobile-card-stack">
-            {(data || []).map((item) => (
-              <div key={item.account_code} className="overflow-hidden rounded-lg border border-wood-200">
-                <div className="px-4 py-3">
-                  <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
-                  <p className="break-words text-sm font-medium text-wood-800">{item.account_name}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-px border-t border-wood-100 bg-wood-100">
-                  <div className="bg-surface-elevated px-4 py-2">
-                    <p className="text-[11px] uppercase tracking-wide text-wood-500">Debit</p>
-                    <p className="num-mono text-sm font-medium text-wood-800">
-                      {item.ending_debit > 0 ? formatIDR(item.ending_debit) : "—"}
-                    </p>
-                  </div>
-                  <div className="bg-surface-elevated px-4 py-2">
-                    <p className="text-[11px] uppercase tracking-wide text-wood-500">Kredit</p>
-                    <p className="num-mono text-sm font-medium text-wood-800">
-                      {item.ending_credit > 0 ? formatIDR(item.ending_credit) : "—"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className={`overflow-hidden rounded-lg border-2 ${isBalanced ? "border-leaf-300" : "border-error"}`}>
-              <div className="grid grid-cols-2 gap-px bg-wood-100">
-                <div className={`px-4 py-2 ${isBalanced ? "bg-leaf-50" : "bg-error/10"}`}>
-                  <p className="text-[11px] uppercase tracking-wide text-wood-500">Total Debit</p>
-                  <p className="num-mono text-sm font-bold text-wood-800">{formatIDR(totalDebit)}</p>
-                </div>
-                <div className={`px-4 py-2 ${isBalanced ? "bg-leaf-50" : "bg-error/10"}`}>
-                  <p className="text-[11px] uppercase tracking-wide text-wood-500">Total Kredit</p>
-                  <p className="num-mono text-sm font-bold text-wood-800">{formatIDR(totalCredit)}</p>
-                </div>
-              </div>
-              <p className={`px-4 py-2 text-center text-sm font-medium ${isBalanced ? "bg-leaf-50 text-leaf-600" : "bg-error/10 text-error"}`}>
-                {isBalanced ? "Neraca saldo seimbang" : `Selisih: ${formatIDR(Math.abs(totalDebit - totalCredit))}`}
-              </p>
-            </div>
-          </div>
 
-          {/* Desktop: table */}
+      {/* Data */}
+      {!isLoading && displayData.length > 0 && (
+        <Card>
+          {/* Mobile: compact rows */}
+          <ul className="space-y-px px-4 py-4 sm:hidden list-none p-0 m-0" aria-label="Daftar neraca saldo">
+            {displayData.map((item) => {
+              const hasDebit = item.ending_debit > 0;
+              const hasCredit = item.ending_credit > 0;
+              return (
+                <li key={item.account_id} className="py-3 border-b border-wood-100 last:border-0 list-none">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="font-mono text-xs text-wood-500 shrink-0">{item.account_code}</span>
+                    <span className="text-sm font-medium text-wood-800 break-words min-w-0">{item.account_name}</span>
+                  </div>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-wood-500 shrink-0">Debit</span>
+                    <span className="font-mono text-wood-800 tabular-nums ml-auto">
+                      {hasDebit ? formatIDR(item.ending_debit) : "—"}
+                    </span>
+                  </div>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-wood-500 shrink-0">Kredit</span>
+                    <span className="font-mono text-wood-800 tabular-nums ml-auto">
+                      {hasCredit ? formatIDR(item.ending_credit) : "—"}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Desktop: semantic table */}
           <div className="hidden ledger-scroll-x sm:block">
-            <table className="ledger-table min-w-0 sm:min-w-[720px]">
+            <table className="ledger-table min-w-0 sm:min-w-[600px]">
+              <caption className="sr-only">
+                Neraca saldo per {formatDateLong(appliedDate)}
+              </caption>
               <thead>
                 <tr className="border-b border-wood-200">
-                  <th className="px-5 py-3 text-left font-medium text-wood-600">Kode</th>
-                  <th className="px-5 py-3 text-left font-medium text-wood-600">Nama Akun</th>
-                  <th className="px-5 py-3 text-right font-medium text-wood-600">Debit</th>
-                  <th className="px-5 py-3 text-right font-medium text-wood-600">Kredit</th>
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-wood-600 w-20">Kode</th>
+                  <th scope="col" className="px-5 py-3 text-left font-medium text-wood-600">Nama Akun</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium text-wood-600 w-36">Debit</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium text-wood-600 w-36">Kredit</th>
                 </tr>
               </thead>
               <tbody>
-                {(data || []).map((item) => (
-                  <tr key={item.account_code} className="border-b border-wood-50 hover:bg-cream-100/50">
-                    <td className="px-5 py-2 font-mono text-wood-600">{item.account_code}</td>
-                    <td className="min-w-0 sm:min-w-[240px] max-w-[420px] break-words px-5 py-2 text-wood-800">{item.account_name}</td>
+                {displayData.map((item) => (
+                  <tr key={item.account_id} className="border-b border-wood-50 hover:bg-cream-100/50">
+                    <td className="px-5 py-2 font-mono text-wood-600 tabular-nums">{item.account_code}</td>
+                    <td className="min-w-0 sm:min-w-[200px] max-w-[400px] break-words px-5 py-2 text-wood-800">{item.account_name}</td>
                     <td className="px-5 py-2 text-right tabular-nums text-wood-800">
-                      {item.ending_debit > 0 ? formatIDR(item.ending_debit) : ""}
+                      {item.ending_debit > 0 ? formatIDR(item.ending_debit) : "\u2014"}
                     </td>
                     <td className="px-5 py-2 text-right tabular-nums text-wood-800">
-                      {item.ending_credit > 0 ? formatIDR(item.ending_credit) : ""}
+                      {item.ending_credit > 0 ? formatIDR(item.ending_credit) : "\u2014"}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className={`font-bold border-t-2 ${isBalanced ? "border-leaf-300 bg-leaf-50" : "border-error bg-error/10"}`}>
-                  <td colSpan={2} className="px-5 py-3 text-wood-800">Total</td>
+                  <th scope="row" colSpan={2} className="px-5 py-3 text-left text-wood-800">Total</th>
                   <td className="px-5 py-3 text-right tabular-nums text-wood-800">{formatIDR(totalDebit)}</td>
                   <td className="px-5 py-3 text-right tabular-nums text-wood-800">{formatIDR(totalCredit)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
-          <CardContent className="hidden sm:block">
+
+          {/* Desktop: status bar (integrated with table, not a separate panel) */}
+          <div className="hidden sm:block px-5 py-3 border-t border-wood-100" aria-live="polite">
             {isBalanced ? (
               <p className="text-sm font-medium text-leaf-600">Neraca saldo seimbang</p>
             ) : (
-              <p className="text-sm text-error font-medium">
-                Selisih: {formatIDR(Math.abs(totalDebit - totalCredit))}
+              <p className="text-sm font-medium text-error">
+                Neraca saldo tidak seimbang. Selisih: {formatIDR(difference)}
               </p>
             )}
-          </CardContent>
+          </div>
+
+          {/* Mobile: summary */}
+          <div className={`sm:hidden border-t-2 ${isBalanced ? "border-leaf-300" : "border-error"}`} aria-live="polite">
+            <div className="grid grid-cols-2 gap-px bg-wood-100">
+              <div className="bg-surface-elevated px-4 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-wood-500">Total Debit</p>
+                <p className="num-mono text-sm font-bold text-wood-800 tabular-nums">{formatIDR(totalDebit)}</p>
+              </div>
+              <div className="bg-surface-elevated px-4 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-wood-500">Total Kredit</p>
+                <p className="num-mono text-sm font-bold text-wood-800 tabular-nums">{formatIDR(totalCredit)}</p>
+              </div>
+            </div>
+            <div className={`px-4 py-2 text-center text-sm font-medium ${isBalanced ? "bg-leaf-50 text-leaf-600" : "bg-error/10 text-error"}`}>
+              {isBalanced ? (
+                "Neraca saldo seimbang"
+              ) : (
+                <>Neraca saldo tidak seimbang. Selisih: {formatIDR(difference)}</>
+              )}
+            </div>
+          </div>
         </Card>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { generateId } from "../auth/tokens";
 import { execute, queryAll, queryFirst } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import { badRequest, conflict, notFound } from "../http/errors";
 
 export type StockMovementType = "opening" | "purchase" | "sale" | "adjustment" | "void";
@@ -93,10 +94,6 @@ interface StockMovementRow {
   notes: string | null;
   created_by: string | null;
   created_at: number;
-}
-
-interface AccountIdRow {
-  id: string;
 }
 
 export async function listProducts(
@@ -195,10 +192,11 @@ export async function createProduct(
   }
 
   const product = await getProduct(db, organizationId, productId);
-  await writeProductAudit(db, {
+  await writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
-    productId,
+    entityType: "product",
+    entityId: productId,
     action: "create",
     after: product,
     requestId,
@@ -268,10 +266,11 @@ export async function patchProduct(
   );
 
   const after = await getProduct(db, organizationId, productId);
-  await writeProductAudit(db, {
+  await writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
-    productId,
+    entityType: "product",
+    entityId: productId,
     action: "update",
     before,
     after,
@@ -602,58 +601,17 @@ async function productAccountIds(
   cogsAccountId: string | null;
   revenueAccountId: string | null;
 }> {
-  const inventory = await accountByCode(db, organizationId, "1300");
-  const cogs = await accountByCode(db, organizationId, "5100");
-  const revenue = await accountByCode(db, organizationId, "4100")
-    ?? await accountByCode(db, organizationId, "4200");
-  return {
-    inventoryAccountId: inventory?.id ?? null,
-    cogsAccountId: cogs?.id ?? null,
-    revenueAccountId: revenue?.id ?? null,
+  const findId = async (code: string) => {
+    const row = await queryFirst<{ id: string }>(
+      db,
+      "SELECT id FROM accounts WHERE organization_id = ? AND code = ?",
+      [organizationId, code],
+    );
+    return row?.id ?? null;
   };
+  const inventoryAccountId = await findId("1300");
+  const cogsAccountId = await findId("5100");
+  const revenueAccountId = await findId("4100") ?? await findId("4200");
+  return { inventoryAccountId, cogsAccountId, revenueAccountId };
 }
 
-async function accountByCode(
-  db: D1Database,
-  organizationId: string,
-  code: string,
-): Promise<AccountIdRow | null> {
-  return queryFirst<AccountIdRow>(
-    db,
-    "SELECT id FROM accounts WHERE organization_id = ? AND code = ?",
-    [organizationId, code],
-  );
-}
-
-async function writeProductAudit(
-  db: D1Database,
-  input: {
-    organizationId: string;
-    actorUserId: string;
-    productId: string;
-    action: string;
-    before?: unknown;
-    after?: unknown;
-    requestId?: string;
-    current: number;
-  },
-): Promise<void> {
-  await execute(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, request_id, created_at
-     ) VALUES (?, ?, ?, 'product', ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      input.organizationId,
-      input.actorUserId,
-      input.productId,
-      input.action,
-      input.before ? JSON.stringify(input.before) : null,
-      input.after ? JSON.stringify(input.after) : null,
-      input.requestId,
-      input.current,
-    ],
-  );
-}

@@ -6,6 +6,8 @@ import {
   statement,
   type D1Input,
 } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
+import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
 import { badRequest, conflict, notFound } from "../http/errors";
 
@@ -542,9 +544,10 @@ export async function postTransaction(
   }
 
   statements.push(
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "transaction",
       entityId: transactionId,
       action: "post",
       after: {
@@ -553,7 +556,6 @@ export async function postTransaction(
         journal_entry_id: journalEntryId,
         product_id: product?.id ?? null,
       },
-      reason: null,
       requestId,
       current,
     }),
@@ -577,6 +579,49 @@ export async function postTransaction(
  * original transaction. The original must have payment_status = 'partial' and
  * be of type credit_sale or credit_purchase.
  */
+async function validateSettlementTarget(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  cashAccountId: string,
+) {
+  const original = await getTransactionRow(db, organizationId, transactionId);
+  if (!original) throw notFound("transaction_not_found", "Transaction not found");
+  if (original.status !== "posted") {
+    throw conflict("transaction_not_posted", "Only posted transactions can be settled");
+  }
+  if (original.payment_status !== "partial") {
+    throw conflict("transaction_not_partial", "Only partially paid credit transactions can be settled");
+  }
+  if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
+    throw conflict("transaction_not_credit", "Only credit transactions can be settled");
+  }
+  await assertPeriodOpen(db, organizationId, original.transaction_date);
+  const cashAccount = await getAccountById(db, organizationId, cashAccountId);
+  assertCashAccount(cashAccount, "cash_account_invalid");
+  return original;
+}
+
+async function calculateSettlementRemaining(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  cashAccountId: string,
+  originalAmountMinor: number,
+  originalCashAccountId: string,
+) {
+  const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
+  const partialAmountDebit = originalLines.find(
+    (l) => l.account_id === cashAccountId || originalCashAccountId === cashAccountId,
+  );
+  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
+  const remainingMinor = originalAmountMinor - partialAmountMinor;
+  if (remainingMinor <= 0) {
+    throw badRequest("already_fully_paid", "This transaction is already fully paid");
+  }
+  return remainingMinor;
+}
+
 export async function settleAndVoidTransaction(
   db: D1Database,
   organizationId: string,
@@ -600,35 +645,8 @@ export async function settleAndVoidTransaction(
     throw conflict("idempotency_key_conflict", "Idempotency key is already used");
   }
 
-  const original = await getTransactionRow(db, organizationId, transactionId);
-  if (!original) throw notFound("transaction_not_found", "Transaction not found");
-  if (original.status !== "posted") {
-    throw conflict("transaction_not_posted", "Only posted transactions can be settled");
-  }
-  if (original.payment_status !== "partial") {
-    throw conflict("transaction_not_partial", "Only partially paid credit transactions can be settled");
-  }
-  if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
-    throw conflict("transaction_not_credit", "Only credit transactions can be settled");
-  }
-
-  await assertPeriodOpen(db, organizationId, original.transaction_date);
-
-  const cashAccount = await getAccountById(db, organizationId, cashAccountId);
-  assertCashAccount(cashAccount, "cash_account_invalid");
-
-  // Calculate remaining amount (original amount - already paid partial)
-  const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
-  const partialAmountDebit = originalLines.find(
-    (l) => l.account_id === cashAccountId || original.cash_account_id === cashAccountId,
-  );
-  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
-  const remainingMinor = original.amount_minor - partialAmountMinor;
-
-  if (remainingMinor <= 0) {
-    throw badRequest("already_fully_paid", "This transaction is already fully paid");
-  }
-
+  const original = await validateSettlementTarget(db, organizationId, transactionId, cashAccountId);
+  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, original.cash_account_id ?? cashAccountId);
   const current = Date.now();
   const settleTransactionId = generateId();
   const journalEntryId = generateId();
@@ -716,14 +734,14 @@ export async function settleAndVoidTransaction(
       2,
       current,
     ),
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "transaction",
       entityId: settleTransactionId,
       action: "settle",
       before: { original_transaction_id: transactionId, remaining_minor: remainingMinor },
       after: { settle_transaction_type: settleType },
-      reason: null,
       requestId,
       current,
     }),
@@ -951,9 +969,10 @@ export async function voidTransaction(
         organizationId,
       ],
     ),
-    insertAuditStatement(db, {
+    writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
+      entityType: "transaction",
       entityId: transactionId,
       action: "void",
       before: {
@@ -1763,41 +1782,6 @@ function insertStockMovementStatement(
   );
 }
 
-function insertAuditStatement(
-  db: D1Database,
-  input: {
-    organizationId: string;
-    actorUserId: string;
-    entityId: string;
-    action: string;
-    before?: unknown;
-    after?: unknown;
-    reason: string | null;
-    requestId?: string;
-    current: number;
-  },
-): D1PreparedStatement {
-  return statement(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, reason, request_id, created_at
-     ) VALUES (?, ?, ?, 'transaction', ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      input.organizationId,
-      input.actorUserId,
-      input.entityId,
-      input.action,
-      input.before ? JSON.stringify(input.before) : null,
-      input.after ? JSON.stringify(input.after) : null,
-      input.reason,
-      input.requestId,
-      input.current,
-    ],
-  );
-}
-
 async function generateTransactionNumber(
   db: D1Database,
   organizationId: string,
@@ -1905,14 +1889,6 @@ function normalizeTransactionType(type: string): TransactionType {
     throw badRequest("transaction_type_unsupported", "Transaction type is not supported");
   }
   return type as TransactionType;
-}
-
-function normalizeDate(input: string, code: string): string {
-  const value = input.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw badRequest(code, "Date must use YYYY-MM-DD format");
-  }
-  return value;
 }
 
 function normalizeIdempotencyKey(input: string): string {

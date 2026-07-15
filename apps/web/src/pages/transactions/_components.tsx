@@ -1,8 +1,10 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -23,7 +25,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field } from "@/components/ui/field";
 import {
   addRecentTransactionType,
-  getRecentTransactionTypes,
   localDate,
   MOBILE_PRIORITY_TYPES,
   TRANSACTION_GROUPS,
@@ -161,200 +162,147 @@ interface TransactionTypeSelectorProps {
 }
 
 export function TransactionTypeSelector({ value, onChange, error }: TransactionTypeSelectorProps) {
-  const [recentTypes, setRecentTypes] = useState<string[]>(() => getRecentTransactionTypes());
   const [showAll, setShowAll] = useState(false);
+  const fieldId = useId();
+  const errorId = `${fieldId}-error`;
+  const listboxId = `${fieldId}-options`;
+  const additionalId = `${fieldId}-additional`;
 
   const handleSelect = useCallback(
     (type: string) => {
       onChange(type);
-      setRecentTypes(addRecentTransactionType(type));
+      addRecentTransactionType(type);
     },
     [onChange]
   );
 
-  const recentMeta = useMemo(
-    () => recentTypes.filter((t) => TRANSACTION_META[t]).map((t) => ({ type: t, ...TRANSACTION_META[t] })),
-    [recentTypes]
+  // Unified list: priority types first, then remaining grouped
+  const priorityTypes = MOBILE_PRIORITY_TYPES;
+  const additionalGroups = useMemo(
+    () => TRANSACTION_GROUPS.map((g) => ({
+      ...g,
+      types: g.types.filter((t) => !priorityTypes.includes(t)),
+    })).filter((g) => g.types.length > 0),
+    [priorityTypes]
   );
-
-  // Types NOT in priority list (shown when expanded)
-  const hiddenTypes = useMemo(
-    () => TRANSACTION_GROUPS.flatMap((g) => g.types).filter((t) => !MOBILE_PRIORITY_TYPES.includes(t)),
-    []
-  );
+  const hasAdditional = additionalGroups.length > 0;
 
   // Auto-expand if a hidden type is selected
-  const selectedInHidden = value && hiddenTypes.includes(value);
+  const selectedInAdditional = value && additionalGroups.some((g) => g.types.includes(value));
+  const shouldShowAdditional = showAll || selectedInAdditional;
 
-  // Priority types in recent list (to avoid duplication)
-  const priorityRecent = useMemo(
-    () => recentMeta.filter((r) => MOBILE_PRIORITY_TYPES.includes(r.type)),
-    [recentMeta]
-  );
+  const renderTypeCard = (type: string) => {
+    const meta = TRANSACTION_META[type];
+    if (!meta) return null;
+    const Icon = meta.icon;
+    const selected = value === type;
+    const inputId = `tx-type-${type}`;
+    return (
+      <div key={type} className="relative">
+        <input
+          type="radio"
+          id={inputId}
+          name="transactionType"
+          value={type}
+          checked={selected}
+          onChange={() => handleSelect(type)}
+          className="peer sr-only"
+          aria-describedby={`${inputId}-desc`}
+        />
+        <label
+          htmlFor={inputId}
+          className={cn(
+            "ledger-interactive group flex min-h-[76px] cursor-pointer items-start gap-3 rounded-lg border p-3 text-left",
+            "focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-wood-500",
+            selected
+              ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
+              : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-100"
+          )}
+        >
+          <div
+            className={cn(
+              "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+              selected ? "bg-leaf-100 text-leaf-600" : "bg-cream-200 text-wood-500 group-hover:bg-cream-300"
+            )}
+            aria-hidden="true"
+          >
+            <Icon className="h-4 w-4" />
+          </div>
+          <span className="min-w-0 flex-1">
+            <span className="block break-words text-sm font-medium text-text-primary">
+              {meta.label}
+            </span>
+            <span id={`${inputId}-desc`} className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
+              {meta.description}
+            </span>
+          </span>
+          {selected && (
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
+          )}
+        </label>
+      </div>
+    );
+  };
 
   return (
-    <div>
+    <fieldset className="border-0 p-0 m-0">
+      <legend className="sr-only">Jenis transaksi</legend>
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-text-secondary">Jenis Transaksi</p>
         {error && (
-          <p className="flex items-center gap-1 text-xs text-error" role="alert">
+          <p className="flex items-center gap-1 text-xs text-error" role="alert" id={errorId}>
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             {error}
           </p>
         )}
       </div>
 
-      {/* Recently used — non-priority only */}
-      {priorityRecent.length > 0 && (
-        <div className="mb-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-normal text-text-tertiary">
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Sering Digunakan
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {priorityRecent.map(({ type, label, icon: Icon }) => (
-              <Button
-                key={type}
-                type="button"
-                variant={value === type ? "primary" : "secondary"}
-                size="sm"
-                onClick={() => handleSelect(type)}
-                aria-pressed={value === type}
-                className="gap-1.5"
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Priority types — always visible */}
-      <div className="grid gap-2 sm:grid-cols-2">
-        {MOBILE_PRIORITY_TYPES.map((type) => {
-          const meta = TRANSACTION_META[type];
-          const Icon = meta.icon;
-          const selected = value === type;
-          return (
-            <button
-              key={type}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => handleSelect(type)}
-              className={cn(
-                "ledger-interactive group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
-                selected
-                  ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
-                  : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-100"
-              )}
-            >
-              <div
-                className={cn(
-                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
-                  selected ? "bg-leaf-100 text-leaf-600" : "bg-cream-200 text-wood-500 group-hover:bg-cream-300"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </div>
-              <span className="min-w-0 flex-1">
-                <span className="block break-words text-sm font-medium text-text-primary">
-                  {meta.label}
-                </span>
-                <span className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
-                  {meta.description}
-                </span>
-              </span>
-              {selected && (
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" />
-              )}
-            </button>
-          );
-        })}
+      {/* Unified type grid — priority types always visible */}
+      <div id={listboxId} className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Jenis transaksi" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined}>
+        {priorityTypes.map((type) => renderTypeCard(type))}
       </div>
 
       {/* Expandable: other types */}
-      {!showAll && !selectedInHidden && (
+      {hasAdditional && !shouldShowAdditional && (
         <button
           type="button"
           onClick={() => setShowAll(true)}
+          aria-expanded="false"
+          aria-controls={additionalId}
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-wood-300 bg-cream-50 py-2.5 text-sm font-medium text-wood-600 hover:bg-cream-100 hover:text-wood-700 min-h-[44px]"
         >
-          Lihat Jenis Transaksi Lainnya
-          <ChevronDown className="h-4 w-4" />
+          Lihat jenis transaksi lainnya
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
         </button>
       )}
 
-      {showAll && (
-        <div className="mt-4 space-y-4 border-t border-wood-100 pt-4">
+      {hasAdditional && shouldShowAdditional && (
+        <div id={additionalId} className="mt-4 space-y-4 border-t border-wood-100 pt-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-normal text-text-tertiary">Semua Jenis</p>
             <button
               type="button"
-              onClick={() => setShowAll(false)}
+              onClick={() => { if (!selectedInAdditional) setShowAll(false); }}
+              aria-expanded="true"
+              aria-controls={additionalId}
               className="text-xs font-medium text-wood-500 hover:text-wood-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
-              Sembunyikan
+              Sembunyikan jenis transaksi lainnya
             </button>
           </div>
-          {TRANSACTION_GROUPS.map((group) => (
+          {additionalGroups.map((group) => (
             <div key={group.label}>
               <p className="mb-2 text-xs font-semibold uppercase tracking-normal text-text-tertiary">
                 {group.label}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {group.types
-                  .filter((t) => !MOBILE_PRIORITY_TYPES.includes(t))
-                  .map((type) => {
-                    const meta = TRANSACTION_META[type];
-                    const Icon = meta.icon;
-                    const selected = value === type;
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => handleSelect(type)}
-                        className={cn(
-                          "ledger-interactive group flex min-h-[76px] items-start gap-3 rounded-lg border p-3 text-left",
-                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
-                          selected
-                            ? "border-leaf-500 bg-leaf-50 shadow-sm ring-1 ring-leaf-500/20"
-                            : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-100"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
-                            selected ? "bg-leaf-100 text-leaf-600" : "bg-cream-200 text-wood-500 group-hover:bg-cream-300"
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <span className="min-w-0 flex-1">
-                          <span className="block break-words text-sm font-medium text-text-primary">
-                            {meta.label}
-                          </span>
-                          <span className="mt-0.5 block break-words text-xs leading-relaxed text-text-tertiary">
-                            {meta.description}
-                          </span>
-                        </span>
-                        {selected && (
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" />
-                        )}
-                      </button>
-                    );
-                  })}
+                {group.types.map((type) => renderTypeCard(type))}
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </fieldset>
   );
 }
 
@@ -484,6 +432,16 @@ export function ProductDetailFields({
   } else if (stockAfterSale === 0) {
     stockBadgeClass = "border border-warning-border bg-warning-bg text-warning";
   }
+
+  const qtyRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = qtyRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => e.preventDefault();
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
   return (
     <div className="min-w-0 space-y-4 rounded-lg border border-wood-100 bg-cream-100 p-4">
       <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
@@ -494,6 +452,7 @@ export function ProductDetailFields({
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Kuantitas" error={quantityError} htmlFor="product-quantity" feedbackId="product-quantity-feedback">
           <input
+            ref={qtyRef}
             id="product-quantity"
             type="number"
             min="1"
@@ -647,6 +606,14 @@ export function ReviewPanel({
                 <span className="text-text-secondary">Beban bertambah</span>
                 <span className="shrink-0 text-right num-mono font-medium text-error">+{formatIDR(amount)}</span>
               </div>
+              {stockWarning !== null && (
+                <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                  <span className="text-text-secondary">Stok bertambah</span>
+                  <span className="shrink-0 text-right num-mono font-medium text-text-primary">
+                    {productName || "Produk"}: +{formatNumber(stockWarning)}
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -905,10 +872,10 @@ export function UnsavedChangesDialog({ open, onConfirm, onCancel, loading }: Uns
       open={open}
       onClose={onCancel}
       onConfirm={onConfirm}
-      title="Tinggalkan halaman?"
-      message="Anda memiliki perubahan yang belum disimpan. Jika Anda meninggalkan halaman ini, semua perubahan akan hilang."
-      confirmLabel="Ya, Tinggalkan"
-      cancelLabel="Tetap di sini"
+      title="Batalkan transaksi?"
+      message="Perubahan yang belum disimpan akan hilang."
+      confirmLabel="Batalkan transaksi"
+      cancelLabel="Tetap mengisi"
       variant="danger"
       loading={loading}
     />

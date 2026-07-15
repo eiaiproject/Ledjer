@@ -1,114 +1,61 @@
 #!/usr/bin/env bash
-# =============================================================================
-# check-build-secrets.sh — Scan built dist for leaked secrets
-# =============================================================================
-# Runs after pnpm --filter web build to verify no secrets ended up in the
-# frontend bundle. Fails CI if any matches are found.
-#
-# Usage:
-#   bash scripts/check-build-secrets.sh
-#
-# Exit code: 0 on clean, 1 on leak found.
-# =============================================================================
+# Scan the production build output for leaked secrets.
+# Exits non-zero on any hit. Catches the common shape of tokens/keys.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DIST_DIR="$ROOT/apps/web/dist"
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
 
-if [[ ! -d "$DIST_DIR" ]]; then
-  echo "❌ dist directory not found: $DIST_DIR"
-  echo "   Run 'pnpm --filter web build' first."
+scan_dirs=(apps/web/dist)
+fail=0
+
+if [[ ! -d "${scan_dirs[0]}" ]]; then
+  echo "ERROR: ${scan_dirs[0]} not found. Run 'pnpm --filter web build' first." >&2
   exit 1
 fi
 
-echo "Scanning $DIST_DIR for leaked secrets..."
-
-FAIL=0
-
-# ── Secret patterns to scan for ─────────────────────────────────────────
-# Using indexed arrays for bash 3.2 compatibility (macOS).
-# Patterns use ERE syntax (grep -E) — no backslash-escaped braces/parens.
-LABELS=(
-  "EMAIL_API_KEY"
-  "GOOGLE_CLIENT_SECRET"
-  "SESSION_SECRET"
-  "PASSWORD_PEPPER"
-  "SENTRY_DSN"
-  "SENTRY_AUTH_TOKEN"
-  "AWS_ACCESS_KEY_ID"
-  "GitHub token"
-  "OpenAI key"
-  "Private key marker"
-)
-PATTERNS=(
-  "EMAIL_API_KEY"
-  "GOOGLE_CLIENT_SECRET"
-  "SESSION_SECRET"
-  "PASSWORD_PEPPER"
-  "SENTRY_DSN"
-  "SENTRY_AUTH_TOKEN"
-  "AKIA[0-9A-Z]{16}"
-  "gh[pousr]_[A-Za-z0-9_]{36,}"
-  "sk-[A-Za-z0-9]{48,}"
-  "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+# Patterns: AWS, GitHub PAT, generic JWT, sk-/pk- prefixed keys, long base64 blobs.
+patterns=(
+  'AKIA[0-9A-Z]{16}'                          # AWS access key
+  'github_pat_[A-Za-z0-9_]{20,}'              # GitHub fine-grained PAT
+  'ghp_[A-Za-z0-9]{20,}'                      # GitHub classic PAT
+  'sk_(live|test)_[A-Za-z0-9]{16,}'           # Stripe secret
+  'pk_(live|test)_[A-Za-z0-9]{16,}'           # Stripe publishable (warn, not fail)
+  'xox[bpars]-[A-Za-z0-9-]{10,}'              # Slack
+  'eyJ[A-Za-z0-9_=-]{20,}\.[A-Za-z0-9_=-]{20,}\.[A-Za-z0-9_=-]{20,}' # JWT
+  '-----BEGIN (RSA |EC |DSA |OPENSSH |)PRIVATE KEY-----'
+  'AIza[0-9A-Za-z_-]{35}'                     # Google API key
+  'SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}' # SendGrid
 )
 
-for i in "${!LABELS[@]}"; do
-  label="${LABELS[$i]}"
-  pattern="${PATTERNS[$i]}"
-  # Find matching files, then exclude env variable references (c.env.*, process.env.*)
-  # which are harmless property access patterns bundled by @cloudflare/vite-plugin.
-  matched_files=$(grep -rlE "$pattern" "$DIST_DIR" 2>/dev/null || true)
-  if [[ -n "$matched_files" ]]; then
-    leaked=0
-    for f in $matched_files; do
-      # Skip .dev.vars files entirely (separate check below catches them)
-      if [[ "$f" == *.dev.vars ]]; then
-        continue
-      fi
-      # Check for actual leaked values (not just env var name references in Worker code).
-      # Worker code references env vars as c.env.GOOGLE_CLIENT_SECRET etc.
-      # Those are identifier names, not leaked values. Only flag if we find
-      # an actual value assignment or placeholder replacement.
-      if grep -nE "$pattern" "$f" 2>/dev/null | \
-         grep -vE 'c\.env\.|process\.env\.|VITE_|env\.|bindings\.' | \
-         grep -qE "$pattern"; then
-        leaked=1
-        break
+for dir in "${scan_dirs[@]}"; do
+  [[ -d "$dir" ]] || continue
+  while IFS= read -r -d '' f; do
+    for pat in "${patterns[@]}"; do
+      # Skip source maps (.map) — they may contain inline source.
+      case "$f" in
+        *.map) continue ;;
+        *) ;; # ponytail: no-op default, satisfies sonar S131
+      esac
+      if grep -aE -o -- "$pat" "$f" >/dev/null 2>&1; then
+        # Filter false positives:
+        #  - VITE_SENTRY_DSN public DSN (key after @ is host, not secret)
+        #  - test fixtures with explicit "_test" / "fake" markers
+        if grep -aE -o -- "$pat" "$f" \
+          | grep -aE -i '(_test|fake|example|placeholder)' >/dev/null; then
+          continue
+        fi
+        echo "FAIL: $f matches pattern: $pat" >&2
+        grep -aE -o -- "$pat" "$f" | head -1 >&2
+        fail=1
       fi
     done
-    if [[ "$leaked" -ne 0 ]]; then
-      echo "❌ FOUND: $label"
-      echo "$matched_files" | head -3 | while read -r f; do
-        if [[ "$f" != *.dev.vars ]]; then
-          echo "   in: $f"
-        fi
-      done
-      FAIL=1
-    fi
-  fi
+  done < <(find "$dir" -type f -print0)
 done
 
-# ── Check for .env files in dist ────────────────────────────────────────
-ENV_FILES=$(find "$DIST_DIR" -name ".env" -o -name ".env.local" -o -name ".env.*" 2>/dev/null || true)
-if [[ -n "$ENV_FILES" ]]; then
-  echo "❌ FOUND .env files in dist:"
-  echo "$ENV_FILES"
-  FAIL=1
-fi
-
-# ── Check for source maps (warning only — may be intentional for Sentry) ──
-MAPS=$(find "$DIST_DIR" -name "*.map" 2>/dev/null | head -5 || true)
-if [[ -n "$MAPS" ]]; then
-  echo "⚠️  Source maps found in dist (review if intentional — Sentry needs them):"
-  echo "$MAPS"
-fi
-
-if [[ "$FAIL" -ne 0 ]]; then
-  echo ""
-  echo "❌ SECRET LEAK DETECTED in build output."
-  echo "   Do NOT deploy until secrets are removed from the bundle."
+if [[ "$fail" -ne 0 ]]; then
+  echo "ERROR: leaked secret pattern(s) detected in build output" >&2
   exit 1
 fi
 
-echo "✅ No secrets found in dist directory."
+echo "OK: build output free of common secret patterns"

@@ -1,11 +1,12 @@
 import { cn, formatIDR } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 interface StatCardProps {
   label: string;
-  value: number | string;
+  /** null | undefined = loading skeleton, 'error' = unavailable */
+  value: number | string | null | undefined;
   icon: LucideIcon;
   tone?: "wood" | "leaf" | "clay" | "sky" | "honey";
   format?: "currency" | "number" | "text";
@@ -14,6 +15,10 @@ interface StatCardProps {
   href?: string;
   /** Filled, high-emphasis treatment for primary metrics (Saldo, Laba/Rugi). */
   hero?: boolean;
+  /** Explicit zero label — shown when value is 0. */
+  zeroLabel?: string;
+  /** Accessible description appended to the accessible name. */
+  ariaDescription?: string;
 }
 
 const colorStyles = {
@@ -32,15 +37,55 @@ const heroStyles = {
   honey: "bg-honey-500",
 };
 
-function formatValue(value: number | string, format: StatCardProps["format"]) {
+function formatValue(value: number | string | null | undefined, format: StatCardProps["format"]) {
+  if (value === null || value === undefined) return null;
   if (format === "text") return String(value);
   if (format === "number") return typeof value === "number" ? new Intl.NumberFormat("id-ID").format(value) : value;
   return typeof value === "number" ? formatIDR(value) : value;
 }
 
-export function StatCard({ label, value, icon: Icon, tone = "wood", format = "currency", className, href, hero = false }: Readonly<StatCardProps>) {
+
+export function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "wood",
+  format = "currency",
+  className,
+  href,
+  hero = false,
+  zeroLabel,
+  ariaDescription,
+}: Readonly<StatCardProps>) {
   const colors = colorStyles[tone];
   const isCurrency = format !== "text";
+  const isLoading = value === null || value === undefined;
+  const isError = value === "error";
+  const displayValue = isError ? null : formatValue(value, format);
+  const isZero = typeof value === "number" && value === 0;
+
+  const statusText = (() => {
+    if (isLoading) return "sedang dimuat";
+    if (isError) return "data belum tersedia";
+    return null;
+  })();
+  const accessibleLabel = [label, ariaDescription, statusText].filter(Boolean).join(", ");
+
+  const valueContent = (() => {
+    if (isLoading) return <div className="h-6 w-32 animate-pulse rounded bg-white/15" />;
+    if (isError) return <span className="text-sm italic text-current opacity-70">Data belum tersedia</span>;
+    return (
+      <span
+        className={cn(
+          "inline-flex max-w-full items-baseline leading-none tracking-tight break-all",
+          isCurrency ? "num-mono text-[clamp(1rem,3.5vw,1.5rem)] font-bold tabular-nums sm:text-2xl" : "font-sans text-xl font-bold sm:text-2xl",
+          hero ? "" : "text-text-primary",
+        )}
+      >
+        {displayValue}
+      </span>
+    );
+  })();
 
   const inner = (
     <>
@@ -48,34 +93,30 @@ export function StatCard({ label, value, icon: Icon, tone = "wood", format = "cu
         <div className="min-w-0 flex-1">
           <p className={cn("break-words text-sm", hero ? "opacity-85" : "text-text-secondary")}>{label}</p>
           <div className="mt-1.5">
-            <span
-              className={cn(
-                "inline-flex max-w-full items-baseline whitespace-nowrap leading-none tracking-tight",
-                isCurrency ? "num-mono text-[clamp(1.25rem,1.6vw,1.5rem)] font-bold tabular-nums sm:text-2xl" : "font-sans text-xl font-bold sm:text-2xl",
-                hero ? "" : "text-text-primary",
-              )}
-            >
-              {formatValue(value, format)}
-            </span>
+            {valueContent}
           </div>
+          {isZero && zeroLabel && !isLoading && !isError && (
+            <p className="mt-1 text-xs text-current opacity-60">{zeroLabel}</p>
+          )}
         </div>
         <div className={cn("ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", hero ? "bg-white/15" : colors.bg)}>
           <Icon className={cn("h-5 w-5", hero ? "" : colors.icon)} />
         </div>
       </div>
       {href && (
-        <ArrowUpRight
+        <ChevronRight
           className={cn(
-            "mt-3 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5",
+            "mt-3 h-4 w-4 shrink-0 text-right transition-transform duration-200 group-hover:translate-x-0.5",
             hero ? "opacity-80" : "text-wood-400",
           )}
+          aria-hidden="true"
         />
       )}
     </>
   );
 
   const base = cn(
-    "relative block h-full min-h-[104px] rounded-xl border p-4 transition-[border-color,box-shadow,transform] duration-200 ease-out sm:min-h-[112px] sm:p-5",
+    "relative block h-full min-h-[104px] rounded-xl border p-3 sm:p-4 transition-[border-color,box-shadow,transform] duration-200 ease-out sm:min-h-[112px]",
     hero ? heroStyles[tone] : cn("bg-surface-elevated", colors.border),
     href && "group cursor-pointer hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 active:scale-[0.98]",
     className,
@@ -87,11 +128,15 @@ export function StatCard({ label, value, icon: Icon, tone = "wood", format = "cu
 
   if (href) {
     return (
-      <Link to={href} className={base} aria-label={label} style={heroStyle}>
+      <Link to={href} className={base} aria-label={accessibleLabel} style={heroStyle}>
         {inner}
       </Link>
     );
   }
 
-  return <div className={base} style={heroStyle}>{inner}</div>;
+  return (
+    <section className={base} aria-label={accessibleLabel} style={heroStyle}>
+      {inner}
+    </section>
+  );
 }

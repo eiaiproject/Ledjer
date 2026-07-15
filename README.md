@@ -63,26 +63,15 @@ docs/
   testing.md                Testing guide
   production/               Monitoring and incident response
 scripts/
-  deploy.sh                 Build + deploy script
   ci-local.sh               Run CI checks locally
-  check-build-secrets.sh    Scan dist for leaked secrets
-  check-migration-naming.sh Validate D1 migration filenames
-  verify-env.sh             Check environment variables
 ```
 
 ## Deployment
 
 ```bash
-# Full build + deploy (from root)
-pnpm deploy
-
-# Or step-by-step:
+# Build + deploy (Wrangler)
 pnpm --filter web build
 pnpm --filter web deploy
-
-# Using the deploy script:
-bash scripts/deploy.sh           # build + deploy
-bash scripts/deploy.sh --deploy-only  # deploy only (build already done)
 ```
 
 D1 migrations (production):

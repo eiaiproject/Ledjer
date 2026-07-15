@@ -23,8 +23,12 @@ export async function createPeriodLock(input: {
   });
 }
 
-export async function deletePeriodLock(lockId: string): Promise<{ success: boolean }> {
+export async function deletePeriodLock(
+  lockId: string,
+  reason: string,
+): Promise<{ success: boolean }> {
   return apiRequest(`/api/period-locks/${lockId}`, {
     method: "DELETE",
+    body: JSON.stringify({ reason }),
   });
 }

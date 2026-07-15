@@ -49,7 +49,9 @@ app.use("/api/*", async (c, next) => {
   }
 
   if (!allowed) return next(); // dev mode: allow all
-  const ok = origin === allowed || origin.startsWith(allowed + "/");
+  // ponytail: accept comma-separated origins (e.g. "http://localhost:5173,http://localhost:4173").
+  const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
+  const ok = allowedList.some((a) => origin === a || origin.startsWith(a + "/"));
   if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
   return next();
 });

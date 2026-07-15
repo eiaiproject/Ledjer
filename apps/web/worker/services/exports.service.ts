@@ -1,4 +1,5 @@
 import { queryAll, type D1Input } from "../db/client";
+import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
 import { listAccounts } from "./accounts.service";
 import { listProducts } from "./products.service";
@@ -331,10 +332,3 @@ function sanitizeSearch(input: string): string {
   return value ? `%${value}%` : "";
 }
 
-function normalizeDate(input: string, code: string): string {
-  const value = input.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw badRequest(code, "Date must use YYYY-MM-DD format");
-  }
-  return value;
-}

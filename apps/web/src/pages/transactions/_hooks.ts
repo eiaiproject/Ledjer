@@ -408,7 +408,11 @@ export function useTransactionDerived(params: {
   const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
   const productSubtotal = selectedProductId && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
   const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
-  const stockAfterSale = selectedProduct && selectedQuantity ? (selectedProduct.current_stock ?? 0) - selectedQuantity : null;
+  const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
+  const stockAdjustment = isSaleType ? -selectedQuantity! : selectedQuantity!;
+  const stockAfterSale = selectedProduct && selectedQuantity
+    ? (selectedProduct.current_stock ?? 0) + stockAdjustment
+    : null;
 
   // ponytail: derive account name for preview from CoA or fallback to category/product name
   const debitAccountName = (() => {

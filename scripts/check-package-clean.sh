@@ -1,105 +1,82 @@
 #!/usr/bin/env bash
-# =============================================================================
-# check-package-clean.sh — local packaging guard for source archives
-# =============================================================================
-# Fails with a clear error if any forbidden path is present in a source
-# archive created with `git ls-files` or `git archive`.
-#
-# Usage:
-#   ./scripts/check-package-clean.sh [path-to-zip-or-tarball]
-#
-# If no argument is supplied:
-#   - Git repo: inspects `git ls-files`
-#   - Non-git dir: falls back to `find` (excludes .git, node_modules, dist, etc.)
-#   - Not a directory: exits with usage error
-#
-# Forbidden paths:
-#   - .env, .env.local, .env.*  EXCEPT .env.example (which is committed intentionally)
-#   - .git (and any .git/*)
-#   - node_modules
-#   - dist (and any */dist/*)
-#   - __MACOSX, .DS_Store
-#   - *.log
-#   - test-results, playwright-report, coverage
-#   - *.pem, *.key (private key files)
-#   - sourcemaps (*.map files outside of dist)
-# =============================================================================
-
+# Verify that a git archive contains only the tracked file set
+# and excludes junk (node_modules, dist, secrets, .git, etc.).
+# Args: <archive>  (tar.gz or zip)
 set -euo pipefail
 
-# Build the forbidden regex. Allow .env.example explicitly.
-FORBIDDEN_REGEX='(^|/)(\.git|node_modules|dist|__MACOSX|\.DS_Store|\.temp|\.branches|test-results|playwright-report|coverage)(/|$)|(^|/)test-results(/|$)|(^|/)playwright-report(/|$)|(^|/)coverage(/|$)|(^|/)\\.env(\\.local)?(\\.[^/]+)?(/|$)'
-
-fail=0
-
-if [[ $# -gt 0 ]]; then
-  archive="$1"
-  if [[ ! -f "$archive" ]]; then
-    echo "ERROR: archive not found: $archive" >&2
-    exit 2
-  fi
-  case "$archive" in
-    *.zip)
-      if ! command -v unzip >/dev/null 2>&1; then
-        echo "ERROR: unzip not installed (cannot inspect zip: $archive)" >&2
-        exit 2
-      fi
-      echo "Inspecting zip: $archive"
-      FILES=$(unzip -Z1 "$archive")
-      ;;
-    *.tar.gz|*.tgz|*.tar)
-      echo "Inspecting tarball: $archive"
-      FILES=$(tar -tzf "$archive")
-      ;;
-    *)
-      echo "ERROR: unknown archive format: $archive" >&2
-      exit 2
-      ;;
-  esac
-elif [[ -d .git ]]; then
-  echo "Inspecting git ls-files in: $(pwd)"
-  FILES=$(git ls-files)
-elif [[ -d . ]]; then
-  # Non-git directory: fall back to find, excluding common build/vendored dirs
-  echo "Warning: not a git repo. Falling back to find in: $(pwd)" >&2
-  FILES=$(find . -type f \
-    -not -path './.git/*' \
-    -not -path '*/node_modules/*' \
-    -not -path '*/dist/*' \
-    -not -path '*/.turbo/*' \
-    -not -path '*/.next/*' \
-    -not -path '*/coverage/*' \
-    -not -path '*/.DS_Store' \
-    -not -name '*.log' \
-    | sed 's|^\./||')
-else
-  echo "ERROR: not in a directory. Provide an archive argument or run from a project directory." >&2
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <archive.tar.gz|archive.zip>" >&2
   exit 2
 fi
 
-fail=0
-while IFS= read -r f; do
-  [[ -z "$f" ]] && continue
-  # Allow .env.example explicitly (it's a documented template, no secrets).
-  case "$f" in
-    */.env.example|.env.example) continue ;;
-    *) ;;
-  esac
-  if [[ "$f" =~ $FORBIDDEN_REGEX ]]; then
-    echo "FORBIDDEN: $f" >&2
-    fail=1
-  fi
-done <<EOF
-$FILES
-EOF
+archive="$1"
 
-if [[ $fail -ne 0 ]]; then
-  echo "" >&2
-  echo "ERROR: forbidden path(s) detected. See list above." >&2
-  echo "Regenerate the archive from a clean checkout using:" >&2
-  echo "  git archive --format=tar.gz --output=ledjer-src.tar.gz HEAD" >&2
-  echo "  git ls-files | zip -@ ledjer-src.zip" >&2
+if [[ ! -f "$archive" ]]; then
+  echo "FAIL: archive not found: $archive" >&2
   exit 1
 fi
 
-echo "OK: no forbidden paths in archive."
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
+
+tracked="$(mktemp)"
+listed="$(mktemp)"
+trap 'rm -f "$tracked" "$listed"' EXIT
+
+git ls-files | sort > "$tracked"
+
+# Normalize archive listing: strip leading "./" and any path prefix
+# that exists in tracked files (git archive stores relative paths
+# with a "./" prefix).
+list_archive() {
+  case "$archive" in
+    *.tar.gz|*.tgz)
+      # tar lists directories as separate entries — drop them.
+      tar -tzf "$archive" | sed 's|^\./||' | grep -v '/$' | sort | sed '/^$/d'
+      ;;
+    *.zip)
+      unzip -Z1 "$archive" | sed 's|^\./||' | sort | sed '/^$/d'
+      ;;
+    *)
+      echo "FAIL: unsupported archive format: $archive" >&2
+      exit 1
+      ;;
+  esac
+}
+
+list_archive > "$listed"
+
+fail=0
+
+# Diff the two sets. Use comm to catch any tracked-only or archive-only entries.
+if ! cmp -s "$tracked" "$listed"; then
+  echo "FAIL: archive contents differ from git ls-files" >&2
+  # Show only first 20 diff lines for brevity.
+  diff "$tracked" "$listed" | head -40 >&2
+  echo "(diff truncated)" >&2
+  fail=1
+fi
+
+# Forbidden: archive must not contain any of these, even if "tracked".
+# (Defence in depth — these should already be gitignored.)
+forbidden_re='(^|/)(node_modules|\.git|\.dev\.vars|dist|playwright-report|\.wrangler)(/|$)'
+hits="$(grep -E "$forbidden_re" "$listed" || true)"
+if [[ -n "$hits" ]]; then
+  echo "FAIL: archive contains forbidden paths:" >&2
+  echo "$hits" >&2
+  fail=1
+fi
+
+# Required: lockfile must be present (reproducible builds).
+for must in package.json pnpm-lock.yaml; do
+  if ! grep -qx "$must" "$listed"; then
+    echo "FAIL: archive missing required file: $must" >&2
+    fail=1
+  fi
+done
+
+if [[ "$fail" -ne 0 ]]; then
+  exit 1
+fi
+
+echo "OK: package clean ($archive: $(wc -l < "$tracked") files match)"

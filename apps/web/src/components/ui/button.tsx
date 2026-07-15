@@ -1,6 +1,7 @@
 import { type ElementType, type ComponentPropsWithoutRef } from "react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "./spinner";
+import { SIZE_STYLES } from "./size-styles";
 
 type ButtonVariant = "primary" | "secondary" | "success" | "danger" | "ghost" | "outline" | "link";
 type ButtonSize = "xs" | "sm" | "md" | "lg" | "icon";
@@ -26,13 +27,6 @@ const variantStyles: Record<ButtonVariant, string> = {
   link: "text-wood-600 underline-offset-4 hover:underline p-0 h-auto",
 };
 
-const sizeStyles: Record<ButtonSize, string> = {
-  xs: "min-h-[44px] h-7 px-2.5 text-xs gap-1 rounded-md sm:h-7 sm:min-h-0",
-  sm: "min-h-[44px] h-8 px-3 text-sm gap-1.5 rounded-md sm:h-8 sm:min-h-0",
-  md: "min-h-[44px] h-10 px-4 text-sm gap-2 rounded-md sm:h-10 sm:min-h-0",
-  lg: "h-12 px-6 text-base gap-2 rounded-lg",
-  icon: "h-10 w-10 p-0 justify-center rounded-md min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0",
-};
 
 export function Button<C extends ElementType = "button">({
   as,
@@ -54,7 +48,12 @@ export function Button<C extends ElementType = "button">({
         "ledger-pressable inline-flex items-center justify-center font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
         "disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50",
-        sizeStyles[size],
+        size === "xs" && "min-h-[44px] h-7 px-2.5 text-xs gap-1 rounded-md sm:h-7 sm:min-h-0",
+        size === "icon" && "h-10 w-10 p-0 justify-center rounded-md min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0",
+        size === "sm" && "gap-1.5 rounded-md",
+        size === "md" && "gap-2 rounded-md",
+        size === "lg" && "gap-2 rounded-lg",
+        (size !== "xs" && size !== "icon") && SIZE_STYLES[size],
         variantStyles[variant],
         fullWidth && "w-full",
         className

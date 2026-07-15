@@ -16,7 +16,9 @@ const createPeriodLockSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-
+const reopenPeriodLockSchema = z.object({
+  reason: z.string().min(1, "Alasan pembukaan kembali wajib diisi").max(500),
+});
 
 export const periodLocksRoutes = new Hono<AppContext>();
 
@@ -48,6 +50,15 @@ periodLocksRoutes.delete("/:lockId", async (c) => {
   const { member } = c.get("organizationContext");
   requirePermission(member, "organization:update");
 
-  await deletePeriodLock(c.env.DB, member.organization_id, c.req.param("lockId"));
+  const session = c.get("session");
+  const body = await readJson(c, reopenPeriodLockSchema);
+
+  await deletePeriodLock(
+    c.env.DB,
+    member.organization_id,
+    c.req.param("lockId"),
+    session.user_id,
+    body.reason,
+  );
   return c.json({ success: true });
 });

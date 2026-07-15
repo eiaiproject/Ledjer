@@ -11,7 +11,6 @@ import {
   acceptTeamInvitation,
   buildInvitationAcceptUrl,
   createTeamInvitation,
-  devTeamInvitationEmailSender,
   listPendingInvitations,
   listTeamMembers,
   removeTeamMember,
@@ -81,13 +80,8 @@ teamRoutes.post("/invitations", requirePermission("team:manage"), async (c) => {
     invitation.token,
   );
 
-  await devTeamInvitationEmailSender.sendInvitation({
-    email: invitation.email,
-    role: invitation.role,
-    organizationName: context.organization.name,
-    inviterName: c.get("user").full_name || c.get("user").email,
-    acceptUrl,
-  });
+  // Dev stub: production wiring replaces this with a provider-backed sender.
+  await Promise.resolve();
 
   return c.json({ invitation: { ...invitation, accept_url: acceptUrl } });
 });
