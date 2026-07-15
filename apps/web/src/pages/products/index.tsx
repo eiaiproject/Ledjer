@@ -543,6 +543,18 @@ function ProductsLoadingSkeleton() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Filter helper (extracted to reduce S3776 complexity)               */
+/* ------------------------------------------------------------------ */
+
+function filterProducts(products: Product[], search: string, stockFilter: StockFilter): Product[] {
+  const q = search.toLowerCase();
+  return products.filter((p) => {
+    if (q && !p.code.toLowerCase().includes(q) && !p.name.toLowerCase().includes(q)) return false;
+    return stockFilter === "all" || getStockStatus(p) === stockFilter;
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Product list hook                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -591,16 +603,10 @@ export function ProductsPage() {
   const isSearching = hasSearch || hasFilter;
   const isEmpty = !isLoading && allProducts.length === 0;
 
-  const filteredProducts = useMemo(() => {
-    return allProducts.filter((p) => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (!p.code.toLowerCase().includes(q) && !p.name.toLowerCase().includes(q)) return false;
-      }
-      if (stockFilter !== "all" && getStockStatus(p) !== stockFilter) return false;
-      return true;
-    });
-  }, [allProducts, search, stockFilter]);
+  const filteredProducts = useMemo(
+    () => filterProducts(allProducts, search, stockFilter),
+    [allProducts, search, stockFilter],
+  );
   const isSearchEmpty = !isLoading && allProducts.length > 0 && filteredProducts.length === 0;
 
   const stockCounts = useMemo(() => {
