@@ -360,6 +360,110 @@ function ProductsPageHeader({ canCreateExports, canManageProducts, isExporting, 
   );
 }
 
+function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete }: {
+  readonly filteredProducts: Product[];
+  readonly canManageProducts: boolean;
+  readonly onEdit: (p: Product) => void;
+  readonly onDelete: (p: Product) => void;
+}) {
+  return (
+    <>
+      {/* Mobile: Card stack */}
+      <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated lg:hidden">
+        {filteredProducts.map((product) => (
+          <div key={product.id} className="px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xs text-wood-500">{product.code}</p>
+                <h2 className="mt-0.5 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
+                {product.description && <p className="mt-0.5 line-clamp-1 text-xs text-text-tertiary">{product.description}</p>}
+              </div>
+              <StockBadge product={product} />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <p className="text-xs text-text-tertiary">Beli</p>
+                <p className="num-mono font-medium text-text-secondary">{formatIDR(product.purchase_price)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-text-tertiary">Jual</p>
+                <p className="num-mono font-semibold text-text-primary">{formatIDR(product.selling_price)}</p>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
+              <span className="num-mono text-xs text-text-tertiary">Stok: {formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
+            </div>
+            {canManageProducts && (
+              <div className="mt-3 flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px]">
+                  <Edit2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => onDelete(product)} aria-label={`Nonaktifkan produk ${product.name}`} className="min-h-[44px] min-w-[44px] text-error hover:bg-error-bg">
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: Table */}
+      <div className="hidden lg:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
+        <table className="w-full text-sm">
+          <caption className="sr-only">Daftar produk</caption>
+          <thead className="border-b border-wood-100 bg-cream-100/50">
+            <tr>
+              <th scope="col" className="px-4 py-3 text-left font-medium text-wood-600">Kode</th>
+              <th scope="col" className="px-4 py-3 text-left font-medium text-wood-600">Nama</th>
+              <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Status Stok</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Beli</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Jual</th>
+              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Markup</th>
+              {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Aksi</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-wood-50">
+            {filteredProducts.map((product) => (
+              <tr key={product.id} className="transition-colors hover:bg-cream-50">
+                <td className="whitespace-nowrap px-4 py-3 font-mono text-wood-600">{product.code}</td>
+                <td className="min-w-[200px] max-w-[320px] px-4 py-3">
+                  <div className="break-words font-medium text-wood-800">{product.name}</div>
+                  {product.description && <div className="line-clamp-1 break-words text-xs text-wood-500">{product.description}</div>}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <StockBadge product={product} />
+                    <span className="num-mono text-xs text-wood-500">{formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
+                    {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-400">Min: {formatNumber(product.min_stock)}</span>}
+                  </div>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatIDR(product.purchase_price)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right num-mono font-medium text-wood-800">{formatIDR(product.selling_price)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right">
+                  <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
+                </td>
+                {canManageProducts && (
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-wood-500 hover:text-wood-600">
+                        <Edit2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(product)} aria-label={`Nonaktifkan produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-wood-500 hover:text-error hover:bg-error-bg">
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 function ProductsErrorState({ onRetry }: { readonly onRetry: () => void }) {
   return (
     <div className="space-y-4">
@@ -531,114 +635,12 @@ export function ProductsPage() {
 
       {/* Product list */}
       {!isEmpty && !isSearchEmpty && (
-        <>
-          {/* Mobile: Card stack */}
-          <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated lg:hidden">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-mono text-xs text-wood-500">{product.code}</p>
-                    <h2 className="mt-0.5 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
-                    {product.description && <p className="mt-0.5 line-clamp-1 text-xs text-text-tertiary">{product.description}</p>}
-                  </div>
-                  <StockBadge product={product} />
-                </div>
-
-                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-xs text-text-tertiary">Beli</p>
-                    <p className="num-mono font-medium text-text-secondary">{formatIDR(product.purchase_price)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-text-tertiary">Jual</p>
-                    <p className="num-mono font-semibold text-text-primary">{formatIDR(product.selling_price)}</p>
-                  </div>
-                </div>
-
-                <div className="mt-2 flex items-center justify-between">
-                  <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
-                  <span className="num-mono text-xs text-text-tertiary">
-                    Stok: {formatNumber(product.current_stock)} {product.unit || "pcs"}
-                  </span>
-                </div>
-
-                {canManageProducts && (
-                  <div className="mt-3 flex justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => openEditModal(product)}
-                      aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px]">
-                      <Edit2 className="h-4 w-4" aria-hidden="true" />
-                    </Button>
-                    <Button type="button" variant="outline" size="sm"
-                      onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }}
-                      aria-label={`Nonaktifkan produk ${product.name}`}
-                      className="min-h-[44px] min-w-[44px] text-error hover:bg-error-bg">
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop: Table */}
-          <div className="hidden lg:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Daftar produk</caption>
-              <thead className="border-b border-wood-100 bg-cream-100/50">
-                <tr>
-                  <th scope="col" className="px-4 py-3 text-left font-medium text-wood-600">Kode</th>
-                  <th scope="col" className="px-4 py-3 text-left font-medium text-wood-600">Nama</th>
-                  <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Status Stok</th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Beli</th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Jual</th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Markup</th>
-                  {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Aksi</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-wood-50">
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="transition-colors hover:bg-cream-50">
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-wood-600">{product.code}</td>
-                    <td className="min-w-[200px] max-w-[320px] px-4 py-3">
-                      <div className="break-words font-medium text-wood-800">{product.name}</div>
-                      {product.description && <div className="line-clamp-1 break-words text-xs text-wood-500">{product.description}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <StockBadge product={product} />
-                        <span className="num-mono text-xs text-wood-500">{formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
-                        {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-400">Min: {formatNumber(product.min_stock)}</span>}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatIDR(product.purchase_price)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right num-mono font-medium text-wood-800">{formatIDR(product.selling_price)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
-                    </td>
-                    {canManageProducts && (
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => openEditModal(product)}
-                            aria-label={`Edit produk ${product.name}`}
-                            className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-wood-500 hover:text-wood-600">
-                            <Edit2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                          <Button type="button" variant="ghost" size="icon"
-                            onClick={() => { setSelectedProduct(product); setDeleteDialogOpen(true); }}
-                            aria-label={`Nonaktifkan produk ${product.name}`}
-                            className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-wood-500 hover:text-error hover:bg-error-bg">
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <ProductListView
+          filteredProducts={filteredProducts}
+          canManageProducts={canManageProducts}
+          onEdit={openEditModal}
+          onDelete={(p) => { setSelectedProduct(p); setDeleteDialogOpen(true); }}
+        />
       )}
 
       {/* Create/Edit Modal */}
