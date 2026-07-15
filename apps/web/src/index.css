@@ -211,10 +211,6 @@ html {
   scroll-behavior: smooth;
   text-rendering: optimizeLegibility;
   min-width: 320px;
-  /* Move horizontal clipping to the root: a non-root element with
-     overflow-x:hidden becomes its own (non-scrolling) scroll container and
-     silently breaks vertical page scrolling on mobile. The root propagates
-     overflow to the viewport, so vertical scroll keeps working. */
   overflow-x: hidden;
 }
 

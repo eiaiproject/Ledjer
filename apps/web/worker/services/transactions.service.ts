@@ -368,6 +368,29 @@ function isStockTransactionType(type: string): boolean {
     || type === "cash_sale" || type === "credit_sale";
 }
 
+// ponytail: Common journal entry insert to reduce duplication.
+function insertJournalEntryStatement(
+  db: D1Database,
+  ctx: {
+    journalEntryId: string; organizationId: string; entryNumber: string;
+    entryDate: string; entryType: string; transactionId: string;
+    description: string; current: number; userId: string;
+    reversedEntryId?: string | null; reversalReason?: string | null;
+  },
+): D1PreparedStatement {
+  const { journalEntryId, organizationId, entryNumber, entryDate, entryType, transactionId, description, current, userId, reversedEntryId, reversalReason } = ctx;
+  const hasReversal = entryType === 'reversal';
+  return statement(
+    db,
+    hasReversal
+      ? `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, transaction_id, description, status, reversed_entry_id, reversal_reason, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?)`
+      : `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, transaction_id, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?)`,
+    hasReversal
+      ? [journalEntryId, organizationId, entryNumber, entryDate, entryType, transactionId, description, reversedEntryId ?? null, reversalReason ?? null, current, userId, current]
+      : [journalEntryId, organizationId, entryNumber, entryDate, entryType, transactionId, description, current, userId, current],
+  );
+}
+
 // ponytail: Extracted stock reservation to reduce postTransaction complexity.
 async function reserveStockForTransaction(
   transactionType: string,
@@ -527,24 +550,10 @@ export async function postTransaction(
         current,
       ],
     ),
-    statement(
-      db,
-      `INSERT INTO journal_entries (
-         id, organization_id, entry_number, entry_date, entry_type,
-         transaction_id, description, status, posted_at, posted_by, created_at
-       ) VALUES (?, ?, ?, ?, 'normal', ?, ?, 'posted', ?, ?, ?)`,
-      [
-        journalEntryId,
-        organizationId,
-        entryNumber,
-        transactionDate,
-        transactionId,
-        description,
-        current,
-        userId,
-        current,
-      ],
-    ),
+    insertJournalEntryStatement(db, {
+      journalEntryId, organizationId, entryNumber, entryDate: transactionDate,
+      entryType: 'normal', transactionId, description, current, userId,
+    }),
     ...journalLines.map((line, index) => insertJournalLineStatement(
       db,
       organizationId,
@@ -716,24 +725,12 @@ export async function settleAndVoidTransaction(
         current,
       ],
     ),
-    statement(
-      db,
-      `INSERT INTO journal_entries (
-         id, organization_id, entry_number, entry_date, entry_type,
-         transaction_id, description, status, posted_at, posted_by, created_at
-       ) VALUES (?, ?, ?, ?, 'normal', ?, ?, 'posted', ?, ?, ?)`,
-      [
-        journalEntryId,
-        organizationId,
-        settleEntryNumber,
-        original.transaction_date,
-        settleTransactionId,
-        `Pelunasan sisa: ${formatIDRMinor(remainingMinor)}`,
-        current,
-        userId,
-        current,
-      ],
-    ),
+    insertJournalEntryStatement(db, {
+      journalEntryId, organizationId, entryNumber: settleEntryNumber,
+      entryDate: original.transaction_date, entryType: 'normal',
+      transactionId: settleTransactionId,
+      description: `Pelunasan sisa: ${formatIDRMinor(remainingMinor)}`, current, userId,
+    }),
     // Debit cash account, credit AR/AP for remaining amount
     insertJournalLineStatement(
       db,
@@ -920,19 +917,12 @@ function buildReversalStatements(
         transactionId, userId, current, current,
       ],
     ),
-    statement(
-      db,
-      `INSERT INTO journal_entries (
-         id, organization_id, entry_number, entry_date, entry_type,
-         transaction_id, description, status, reversed_entry_id, reversal_reason,
-         posted_at, posted_by, created_at
-       ) VALUES (?, ?, ?, ?, 'reversal', ?, ?, 'posted', ?, ?, ?, ?, ?)`,
-      [
-        reversalJournalEntryId, organizationId, reversalEntryNumber, voidDate,
-        reversalTransactionId, `Pembatalan: ${original.description}`,
-        originalJournalLines[0]?.journal_entry_id ?? null, reason, current, userId, current,
-      ],
-    ),
+    insertJournalEntryStatement(db, {
+      journalEntryId: reversalJournalEntryId, organizationId, entryNumber: reversalEntryNumber,
+      entryDate: voidDate, entryType: 'reversal', transactionId: reversalTransactionId,
+      description: `Pembatalan: ${original.description}`, current, userId,
+      reversedEntryId: originalJournalLines[0]?.journal_entry_id ?? null, reversalReason: reason,
+    }),
     ...originalJournalLines.map((line, index) => insertJournalLineStatement(
       db, organizationId, reversalJournalEntryId,
       { accountId: line.account_id, debitMinor: line.credit_minor, creditMinor: line.debit_minor, description: `Reversal: ${line.description}` },
