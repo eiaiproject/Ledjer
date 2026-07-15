@@ -286,6 +286,45 @@ function ProductsHeader() {
   );
 }
 
+function ProductsPageHeader({ canCreateExports, canManageProducts, isExporting, allProductsLength, onExport, onCreate }: {
+  readonly canCreateExports: boolean;
+  readonly canManageProducts: boolean;
+  readonly isExporting: boolean;
+  readonly allProductsLength: number;
+  readonly onExport: () => void;
+  readonly onCreate: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <ProductsHeader />
+      <div className="flex items-center gap-2">
+        {canCreateExports && (
+          <Button type="button" variant="outline" size="sm" onClick={onExport}
+            disabled={!allProductsLength || isExporting} className="hidden sm:inline-flex"
+            aria-busy={isExporting || undefined}>
+            <Download className="h-4 w-4" aria-hidden="true" />
+            {isExporting ? "Mengekspor..." : "Ekspor CSV"}
+          </Button>
+        )}
+        {canCreateExports && (
+          <Button type="button" variant="outline" size="icon" onClick={onExport}
+            disabled={!allProductsLength || isExporting} className="sm:hidden min-h-[44px] min-w-[44px]"
+            aria-label={isExporting ? "Mengekspor produk ke CSV" : "Ekspor produk ke CSV"}
+            aria-busy={isExporting || undefined}>
+            <Download className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
+        {canManageProducts && (
+          <Button onClick={onCreate} className="min-h-[44px]">
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+            Tambah Produk
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProductsErrorState({ onRetry }: { readonly onRetry: () => void }) {
   return (
     <div className="space-y-4">
@@ -413,36 +452,14 @@ export function ProductsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Produk</h1>
-          <p className="mt-1 text-sm text-text-secondary">Kelola produk, harga, dan ketersediaan stok.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canCreateExports && (
-            <Button type="button" variant="outline" size="sm" onClick={() => { handleExport(); }}
-              disabled={!allProducts.length || isExporting} className="hidden sm:inline-flex"
-              aria-busy={isExporting || undefined}>
-              <Download className="h-4 w-4" aria-hidden="true" />
-              {isExporting ? "Mengekspor..." : "Ekspor CSV"}
-            </Button>
-          )}
-          {canCreateExports && (
-            <Button type="button" variant="outline" size="icon" onClick={() => { handleExport(); }}
-              disabled={!allProducts.length || isExporting} className="sm:hidden min-h-[44px] min-w-[44px]"
-              aria-label={isExporting ? "Mengekspor produk ke CSV" : "Ekspor produk ke CSV"}
-              aria-busy={isExporting || undefined}>
-              <Download className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          )}
-          {canManageProducts && (
-            <Button onClick={openCreateModal} className="min-h-[44px]">
-              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-              Tambah Produk
-            </Button>
-          )}
-        </div>
-      </div>
+      <ProductsPageHeader
+        canCreateExports={canCreateExports}
+        canManageProducts={canManageProducts}
+        isExporting={isExporting}
+        allProductsLength={allProducts.length}
+        onExport={handleExport}
+        onCreate={openCreateModal}
+      />
 
       {/* Search + Filter */}
       <ProductFilter
