@@ -336,8 +336,6 @@ export function ProductsPage() {
   const { canManageProducts, canCreateExports } = useOrgPermissions();
   const onboardingCompleted = orgData?.organization?.onboarding_status === 'completed';
   const form = useProductForm();
-  const [search, setSearch] = useState("");
-  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -354,11 +352,12 @@ export function ProductsPage() {
 
   const { allProducts, isLoading, error, refetch } = useProductList(orgData?.organization?.id);
 
-  const stockCounts = useMemo(() => {
-    const counts: Record<StockFilter, number> = { all: allProducts.length, in_stock: 0, low: 0, out: 0 };
-    for (const p of allProducts) counts[getStockStatus(p)]++;
-    return counts;
-  }, [allProducts]);
+  const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  const hasSearch = search.trim().length > 0;
+  const hasFilter = stockFilter !== "all";
+  const isSearching = hasSearch || hasFilter;
+  const isEmpty = !isLoading && allProducts.length === 0;
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter((p) => {
@@ -370,12 +369,13 @@ export function ProductsPage() {
       return true;
     });
   }, [allProducts, search, stockFilter]);
-
-  const hasSearch = search.trim().length > 0;
-  const hasFilter = stockFilter !== "all";
-  const isSearching = hasSearch || hasFilter;
-  const isEmpty = !isLoading && allProducts.length === 0;
   const isSearchEmpty = !isLoading && allProducts.length > 0 && filteredProducts.length === 0;
+
+  const stockCounts = useMemo(() => {
+    const counts: Record<StockFilter, number> = { all: allProducts.length, in_stock: 0, low: 0, out: 0 };
+    for (const p of allProducts) counts[getStockStatus(p)]++;
+    return counts;
+  }, [allProducts]);
 
   const openCreateModal = useCallback(() => { form.resetForm(); setEditingProduct(null); setModalOpen(true); }, [form]);
   const openEditModal = useCallback((product: Product) => { form.loadProduct(product); setEditingProduct(product); setModalOpen(true); }, [form]);
