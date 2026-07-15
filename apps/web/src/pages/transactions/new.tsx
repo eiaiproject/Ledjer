@@ -53,15 +53,17 @@ function amountLabel(isSale: boolean, isProduct: boolean): string {
   return "Nominal";
 }
 
-function getTransactionFormError(
-  data: TransactionForm,
-  formState: ReturnType<typeof useTransactionForm>,
-  selectedProduct: { current_stock?: number } | undefined,
-  stockAfterSale: number | null,
-): { field: string; message: string } | null {
-  if (formState.showParty && !data.partyName?.trim()) {
+function validatePartyField(showParty: boolean, partyName: string | null | undefined): { field: string; message: string } | null {
+  if (showParty && !partyName?.trim()) {
     return { field: "partyName", message: "Isi nama pihak" };
   }
+  return null;
+}
+
+function validateAccountFields(
+  formState: ReturnType<typeof useTransactionForm>,
+  data: TransactionForm,
+): { field: string; message: string } | null {
   const needsCashAccount = formState.showCashAccount || (formState.showPaymentStatus && data.paymentStatus !== "unpaid");
   if (needsCashAccount && !data.cashAccountId) {
     return { field: "cashAccountId", message: "Pilih akun kas/bank" };
@@ -75,12 +77,28 @@ function getTransactionFormError(
   if (data.transactionType === "cash_transfer" && data.cashAccountId === data.destinationCashAccountId) {
     return { field: "destinationCashAccountId", message: "Akun tujuan harus berbeda dari sumber" };
   }
+  return null;
+}
+
+function validatePaymentFields(
+  formState: ReturnType<typeof useTransactionForm>,
+  data: TransactionForm,
+): { field: string; message: string } | null {
   if (formState.showPaymentStatus && data.paymentStatus === "partial" && (!data.partialAmount || data.partialAmount <= 0)) {
     return { field: "partialAmount", message: "Isi jumlah pembayaran sebagian" };
   }
   if (formState.showPaymentStatus && data.paymentStatus === "partial" && (data.partialAmount ?? 0) >= data.amount) {
     return { field: "partialAmount", message: "Jumlah pembayaran sebagian harus lebih kecil dari nominal transaksi" };
   }
+  return null;
+}
+
+function validateProductFields(
+  data: TransactionForm,
+  formState: ReturnType<typeof useTransactionForm>,
+  selectedProduct: { current_stock?: number } | undefined,
+  stockAfterSale: number | null,
+): { field: string; message: string } | null {
   if (data.productId && (!data.quantity || data.quantity <= 0)) {
     return { field: "quantity", message: "Isi kuantitas produk (minimal 1)" };
   }
@@ -94,6 +112,18 @@ function getTransactionFormError(
     };
   }
   return null;
+}
+
+function getTransactionFormError(
+  data: TransactionForm,
+  formState: ReturnType<typeof useTransactionForm>,
+  selectedProduct: { current_stock?: number } | undefined,
+  stockAfterSale: number | null,
+): { field: string; message: string } | null {
+  return validatePartyField(formState.showParty, data.partyName)
+    ?? validateAccountFields(formState, data)
+    ?? validatePaymentFields(formState, data)
+    ?? validateProductFields(data, formState, selectedProduct, stockAfterSale);
 }
 
 /* ------------------------------------------------------------------ */

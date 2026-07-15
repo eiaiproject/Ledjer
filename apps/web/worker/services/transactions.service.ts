@@ -363,6 +363,60 @@ export async function listJournalEntriesForTransaction(
   return nestJournalRows(rows);
 }
 
+function isStockTransactionType(type: string): boolean {
+  return type === "cash_purchase" || type === "credit_purchase"
+    || type === "cash_sale" || type === "credit_sale";
+}
+
+// ponytail: Extracted stock reservation to reduce postTransaction complexity.
+async function reserveStockForTransaction(
+  transactionType: string,
+  product: ProductRow,
+  quantityMilli: number,
+  unitPriceMinor: number,
+): Promise<{ nextStock: number; unitCost: number; nextAverage: number }> {
+  const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+  const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
+  const nextStock = product.current_stock_milli + quantityDelta;
+  if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
+  const unitCost = isPurchase ? unitPriceMinor : productCostMinor(product);
+  if (!isPurchase && unitCost <= 0) throw badRequest("product_zero_cost", "Product cost must be set before sale");
+  const nextAverage = isPurchase ? nextAverageCostMinor(product, quantityMilli, unitPriceMinor) : product.average_cost_minor;
+  return { nextStock, unitCost, nextAverage };
+}
+
+function insertStockStatements(
+  db: D1Database,
+  statements: D1PreparedStatement[],
+  reservedStock: { nextStock: number; unitCost: number; nextAverage: number },
+  product: { id: string; current_stock_milli: number },
+  organizationId: string,
+  transactionId: string,
+  transactionDate: string,
+  transactionType: string,
+  quantityMilli: number,
+  description: string,
+  userId: string,
+  current: number,
+): void {
+  const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+  const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
+  statements.push(
+    statement(
+      db,
+      `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+      [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product.id, organizationId, product.current_stock_milli],
+    ),
+    insertStockMovementStatement(db, {
+      organizationId, productId: product.id, transactionId,
+      movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
+      quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
+      stockAfterMilli: reservedStock.nextStock, notes: description, userId, current,
+    }),
+  );
+}
+
 export async function postTransaction(
   db: D1Database,
   organizationId: string,
@@ -404,23 +458,9 @@ export async function postTransaction(
   }
 
   // ponytail: Atomic stock reservation via optimistic lock on current_stock_milli.
-  // Prevents race-condition overselling: two concurrent requests cannot both pass
-  // the WHERE current_stock_milli = ? check.
-  // The UPDATE is added to the executeBatch statements array below so stock
-  // mutation and journal inserts succeed or fail together atomically.
   let reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null = null;
-  const isStockTxn = product && quantityMilli !== null && unitPriceMinor !== null
-    && (transactionType === "cash_purchase" || transactionType === "credit_purchase"
-        || transactionType === "cash_sale" || transactionType === "credit_sale");
-  if (isStockTxn) {
-    const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
-    const quantityDelta = isPurchase ? quantityMilli! : -quantityMilli!;
-    const nextStock = product!.current_stock_milli + quantityDelta;
-    if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
-    const unitCost = isPurchase ? unitPriceMinor! : productCostMinor(product!);
-    if (!isPurchase && unitCost <= 0) throw badRequest("product_zero_cost", "Product cost must be set before sale");
-    const nextAverage = isPurchase ? nextAverageCostMinor(product!, quantityMilli!, unitPriceMinor!) : product!.average_cost_minor;
-    reservedStock = { nextStock, unitCost, nextAverage: nextAverage };
+  if (product && quantityMilli !== null && unitPriceMinor !== null && isStockTransactionType(transactionType)) {
+    reservedStock = await reserveStockForTransaction(transactionType, product, quantityMilli, unitPriceMinor);
   }
 
   const resolved = await resolvePostingAccounts(db, organizationId, transactionType, {
@@ -523,24 +563,8 @@ export async function postTransaction(
     }),
   ];
 
-  // Stock UPDATE (optimistic lock) + INSERT stock_movements inside the batch
-  if (reservedStock && product) {
-    const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
-    const quantityDelta = isPurchase ? quantityMilli! : -quantityMilli!;
-    statements.push(
-      statement(
-        db,
-        `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
-         WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-        [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product.id, organizationId, product.current_stock_milli],
-      ),
-      insertStockMovementStatement(db, {
-        organizationId, productId: product.id, transactionId,
-        movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
-        quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
-        stockAfterMilli: reservedStock.nextStock, notes: description, userId, current,
-      }),
-    );
+  if (reservedStock && product && quantityMilli !== null) {
+    insertStockStatements(db, statements, reservedStock, product, organizationId, transactionId, transactionDate, transactionType, quantityMilli, description, userId, current);
   }
 
   statements.push(
@@ -564,8 +588,7 @@ export async function postTransaction(
   try {
     await executeBatch(db, statements);
   } catch (e) {
-    // ponytail: If batch fails due to idempotency race (two concurrent requests
-    // both passed the pre-check), return the existing transaction instead of error.
+    // ponytail: If batch fails due to idempotency race, return existing transaction.
     const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
     if (retry) return buildPostResult(db, organizationId, retry.id);
     throw e;
@@ -782,6 +805,46 @@ export async function settleAndVoidTransaction(
   };
 }
 
+function restoreStockForVoid(
+  db: D1Database,
+  statements: D1PreparedStatement[],
+  original: { transaction_type: string },
+  product: ProductRow,
+  productLine: { quantity_milli: number; unit_price_minor: number },
+  stockMovement: { unit_cost_minor: number } | null,
+  organizationId: string,
+  reversalTransactionId: string,
+  voidDate: string,
+  reason: string,
+  userId: string,
+  current: number,
+): void {
+  const isSale = original.transaction_type === "cash_sale" || original.transaction_type === "credit_sale";
+  const isPurchase = original.transaction_type === "cash_purchase" || original.transaction_type === "credit_purchase";
+  if (!isSale && !isPurchase) return;
+
+  const quantityDelta = isSale ? productLine.quantity_milli : -productLine.quantity_milli;
+  const nextStock = product.current_stock_milli + quantityDelta;
+  if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
+  const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
+  const unitCostMinor = stockMovement?.unit_cost_minor ?? productLine.unit_price_minor ?? product.average_cost_minor;
+
+  statements.push(
+    statement(
+      db,
+      `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+      [nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli],
+    ),
+    insertStockMovementStatement(db, {
+      organizationId, productId: product.id, transactionId: reversalTransactionId,
+      movementDate: voidDate, movementType: "void",
+      quantityMilli: quantityDelta, unitCostMinor, stockAfterMilli: nextStock,
+      notes: reason, userId, current,
+    }),
+  );
+}
+
 export async function voidTransaction(
   db: D1Database,
   organizationId: string,
@@ -918,34 +981,8 @@ export async function voidTransaction(
     )),
   ];
 
-  if (product && productLine?.quantity_milli) {
-    // ponytail: Atomic stock restore via optimistic lock — UPDATE is in the
-    // executeBatch statements array so stock mutation and reversal journal
-    // inserts succeed or fail together atomically.
-    const isSale = original.transaction_type === "cash_sale" || original.transaction_type === "credit_sale";
-    const isPurchase = original.transaction_type === "cash_purchase" || original.transaction_type === "credit_purchase";
-    if (isSale || isPurchase) {
-      const quantityDelta = isSale ? productLine.quantity_milli : -productLine.quantity_milli;
-      const nextStock = product.current_stock_milli + quantityDelta;
-      if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
-      const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
-      const unitCostMinor = stockMovement?.unit_cost_minor ?? productLine.unit_price_minor ?? product.average_cost_minor;
-      // Add stock UPDATE to the batch statements array
-      statements.push(
-        statement(
-          db,
-          `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
-           WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-          [nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli],
-        ),
-        insertStockMovementStatement(db, {
-          organizationId, productId: product.id, transactionId: reversalTransactionId,
-          movementDate: voidDate, movementType: "void",
-          quantityMilli: quantityDelta, unitCostMinor, stockAfterMilli: nextStock,
-          notes: reason, userId, current,
-        }),
-      );
-    }
+  if (product && productLine?.quantity_milli != null) {
+    restoreStockForVoid(db, statements, original, product, { quantity_milli: productLine.quantity_milli, unit_price_minor: productLine.unit_price_minor ?? product.average_cost_minor }, stockMovement ? { unit_cost_minor: stockMovement.unit_cost_minor ?? product.average_cost_minor } : null, organizationId, reversalTransactionId, voidDate, reason, userId, current);
   }
 
   statements.push(
