@@ -9,12 +9,12 @@ import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, formatDateInputValue, formatIDR, formatShortDate } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
+import { cn, formatIDR, formatShortDate } from "@/lib/utils";
 import { exportGeneralLedgerCsv } from "@/lib/csv-export";
 import { Download, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
 import { listAccounts } from "@/lib/api/accounts";
 import { getGeneralLedger, type LedgerEntry } from "@/lib/api/reports";
+import { useReportDateRange, ReportPermissionGate, handleReportExport } from "./_components";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Helpers                                                    */
@@ -224,14 +224,15 @@ export function GeneralLedgerPage() {
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
 
-  const today = new Date();
-  const firstDayOfMonth = formatDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1));
+  const {
+    pendingFrom, setPendingFrom,
+    pendingTo, setPendingTo,
+    appliedFrom, appliedTo,
+    dateRangeInvalid,
+  } = useReportDateRange();
   const [accountId, setAccountId] = useState("all");
-  const [fromDate, setFromDate] = useState(firstDayOfMonth);
-  const [toDate, setToDate] = useState(formatDateInputValue(today));
   const [showFilters, setShowFilters] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const dateRangeInvalid = fromDate > toDate;
 
   const { data: accounts, isLoading: accountsLoading, error: accountsError, refetch: refetchAccounts } = useQuery({
     queryKey: queryKeys.accounts.ledgerOptions(orgData?.organization?.id ?? ""),
@@ -243,10 +244,10 @@ export function GeneralLedgerPage() {
   });
 
   const { data: ledger, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.reports.generalLedger(orgData?.organization?.id, accountId, fromDate, toDate),
+    queryKey: queryKeys.reports.generalLedger(orgData?.organization?.id, accountId, appliedFrom, appliedTo),
     queryFn: async () => {
       if (!orgData?.organization?.id) return [];
-      return getGeneralLedger({ accountId: accountId === "all" ? undefined : accountId, fromDate, toDate });
+      return getGeneralLedger({ accountId: accountId === "all" ? undefined : accountId, fromDate: appliedFrom, toDate: appliedTo });
     },
     enabled: !!orgData?.organization?.id && canViewReports && !dateRangeInvalid,
   });
@@ -270,30 +271,22 @@ export function GeneralLedgerPage() {
   const isBalanced = totals.debit === totals.credit;
 
   const handleExport = useCallback(async () => {
-    if (!orgData?.organization?.id || dateRangeInvalid || isExporting) return;
-    setIsExporting(true);
-    try {
-      await exportGeneralLedgerCsv(accountId, fromDate, toDate);
-      toast.success("Ekspor buku besar ke CSV dimulai.");
-    } catch {
-      toast.error("Buku besar belum berhasil diekspor. Coba lagi.");
-    } finally {
-      setIsExporting(false);
-    }
-  }, [orgData?.organization?.id, dateRangeInvalid, isExporting, accountId, fromDate, toDate]);
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: dateRangeInvalid || isExporting,
+      exportFn: () => exportGeneralLedgerCsv(accountId, appliedFrom, appliedTo),
+      onFinally: () => setIsExporting(false),
+    });
+  }, [orgData?.organization?.id, dateRangeInvalid, isExporting, accountId, appliedFrom, appliedTo]);
 
   const toggleFilters = useCallback(() => setShowFilters((s) => !s), []);
 
   // ── Permission guard ──
   if (!canViewReports) {
     return (
-      <div className="space-y-4">
-        <div><h1 className="text-2xl font-bold text-text-primary">Buku Besar</h1>
-        <p className="mt-1 text-sm text-text-secondary">Rincian transaksi per akun</p></div>
-        <Card><CardContent className="text-center py-8">
-          <p className="text-text-secondary">Anda tidak memiliki izin untuk melihat laporan ini.</p>
-        </CardContent></Card>
-      </div>
+      <ReportPermissionGate>
+        <div />
+      </ReportPermissionGate>
     );
   }
 
@@ -326,7 +319,7 @@ export function GeneralLedgerPage() {
           <div>
             <p className="text-xs text-text-tertiary">Periode</p>
             <p className="text-sm font-medium text-text-primary">
-              {dateRangeInvalid ? "Rentang tidak valid" : formatDateRange(fromDate, toDate)}
+              {dateRangeInvalid ? "Rentang tidak valid" : formatDateRange(appliedFrom, appliedTo)}
             </p>
             {!showAllAccounts && selectedAccount ? (
               <p className="mt-0.5 font-mono text-xs text-text-tertiary">{selectedAccount.code} — {selectedAccount.name}</p>
@@ -355,12 +348,12 @@ export function GeneralLedgerPage() {
                 { value: "all", label: "Semua akun" },
                 ...(accounts || []).map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
               ]} />
-            <Input label="Dari tanggal" type="date" value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+            <Input label="Dari tanggal" type="date" value={pendingFrom}
+              onChange={(e) => setPendingFrom(e.target.value)}
               error={dateRangeInvalid ? "Tanggal awal tidak boleh setelah tanggal akhir." : undefined}
               aria-invalid={dateRangeInvalid || undefined} />
-            <Input label="Sampai tanggal" type="date" value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+            <Input label="Sampai tanggal" type="date" value={pendingTo}
+              onChange={(e) => setPendingTo(e.target.value)}
               error={dateRangeInvalid ? "Tanggal akhir tidak valid." : undefined}
               aria-invalid={dateRangeInvalid || undefined} />
           </div>

@@ -8,12 +8,11 @@ import { Button } from "@/components/ui/button";
 import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateInputValue, formatDateRange, formatIDR } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
-import { translateError } from "@/lib/errors";
+import { formatDateRange, formatIDR } from "@/lib/utils";
 import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Download, RefreshCw } from "lucide-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
+import { useReportDateRange, handleReportExport } from "./_components";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -114,21 +113,15 @@ export function ProfitLossPage() {
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
 
-  const today = new Date();
-  const firstDayOfMonth = formatDateInputValue(
-    new Date(today.getFullYear(), today.getMonth(), 1),
-  );
-
-  // Pending = what user typed, Applied = what's displayed
-  const [pendingFrom, setPendingFrom] = useState(firstDayOfMonth);
-  const [pendingTo, setPendingTo] = useState(formatDateInputValue(today));
-  const [appliedFrom, setAppliedFrom] = useState(firstDayOfMonth);
-  const [appliedTo, setAppliedTo] = useState(formatDateInputValue(today));
+  const {
+    pendingFrom, setPendingFrom,
+    pendingTo, setPendingTo,
+    appliedFrom, appliedTo,
+    dateRangeInvalid, isPending,
+    applyDate, syncPending,
+  } = useReportDateRange();
   const [showInactive, setShowInactive] = useState(false);
   const [exporting, setExporting] = useState(false);
-
-  const dateRangeInvalid = pendingFrom > pendingTo;
-  const isPending = pendingFrom !== appliedFrom || pendingTo !== appliedTo;
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.reports.profitLoss(
@@ -144,17 +137,12 @@ export function ProfitLossPage() {
     staleTime: 0,
   });
 
-  const handleApply = useCallback(() => {
-    if (dateRangeInvalid || !pendingFrom || !pendingTo) return;
-    setAppliedFrom(pendingFrom);
-    setAppliedTo(pendingTo);
-  }, [pendingFrom, pendingTo, dateRangeInvalid, setAppliedFrom, setAppliedTo]);
+  const handleApply = useCallback(() => { applyDate(); }, [applyDate]);
 
   const handleRefresh = useCallback(() => {
-    setPendingFrom(appliedFrom);
-    setPendingTo(appliedTo);
+    syncPending();
     refetch();
-  }, [appliedFrom, appliedTo, refetch, setPendingFrom, setPendingTo]);
+  }, [syncPending, refetch]);
 
   if (!canViewReports) {
     return (
@@ -203,16 +191,12 @@ export function ProfitLossPage() {
   const showResults = report.hasData || totalVisibleAccounts > 0;
 
   const handleExport = async () => {
-    if (!orgData?.organization?.id || dateRangeInvalid || exporting) return;
-    setExporting(true);
-    try {
-      await exportProfitLossCsv(appliedFrom, appliedTo);
-      toast.success("Ekspor laporan laba rugi ke CSV dimulai");
-    } catch (err) {
-      toast.error(translateError(err));
-    } finally {
-      setExporting(false);
-    }
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: dateRangeInvalid || exporting,
+      exportFn: () => exportProfitLossCsv(appliedFrom, appliedTo),
+      onFinally: () => setExporting(false),
+    });
   };
 
   return (

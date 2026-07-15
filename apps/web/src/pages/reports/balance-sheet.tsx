@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
@@ -8,12 +8,11 @@ import { Button } from "@/components/ui/button";
 import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateInputValue, formatDateLong, formatIDR } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
-import { translateError } from "@/lib/errors";
+import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportBalanceSheetCsv } from "@/lib/csv-export";
-import { Download, RefreshCw } from "lucide-react";
+import { RefreshCw, Download } from "lucide-react";
 import { getBalanceSheet, type BalanceSheetItem } from "@/lib/api/reports";
+import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -88,14 +87,13 @@ export function BalanceSheetPage() {
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
 
-  // Pending = what user typed, Applied = what's displayed
-  const [pendingDate, setPendingDate] = useState(formatDateInputValue());
-  const [appliedDate, setAppliedDate] = useState(formatDateInputValue());
+  const {
+    pendingDate, setPendingDate,
+    appliedDate, dateInvalid, isPending,
+    applyDate, syncPending,
+  } = useReportDate();
   const [showZero, setShowZero] = useState(false);
   const [exporting, setExporting] = useState(false);
-
-  const dateInvalid = !pendingDate || !/^\d{4}-\d{2}-\d{2}$/.test(pendingDate);
-  const isPending = pendingDate !== appliedDate;
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.reports.balanceSheet(
@@ -110,25 +108,12 @@ export function BalanceSheetPage() {
     staleTime: 0,
   });
 
-  const handleApply = useCallback(() => {
-    if (dateInvalid || !pendingDate) return;
-    setAppliedDate(pendingDate);
-  }, [pendingDate, dateInvalid, setAppliedDate]);
+  const handleApply = useCallback(() => { applyDate(); }, [applyDate]);
 
   const handleRefresh = useCallback(() => {
-    setPendingDate(appliedDate);
+    syncPending();
     refetch();
-  }, [appliedDate, refetch, setPendingDate]);
-
-  if (!canViewReports) {
-    return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <p className="text-wood-500">Anda tidak memiliki izin untuk melihat laporan ini.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  }, [syncPending, refetch]);
 
   if (error) {
     return (
@@ -162,19 +147,16 @@ export function BalanceSheetPage() {
   const showResults = report.hasData || visibleSections.some((s) => s.items.length > 0);
 
   const handleExport = async () => {
-    if (!orgData?.organization?.id || dateInvalid || exporting) return;
-    setExporting(true);
-    try {
-      await exportBalanceSheetCsv(appliedDate);
-      toast.success("Ekspor neraca ke CSV dimulai");
-    } catch (err) {
-      toast.error(translateError(err));
-    } finally {
-      setExporting(false);
-    }
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: dateInvalid || exporting,
+      exportFn: () => exportBalanceSheetCsv(appliedDate),
+      onFinally: () => setExporting(false),
+    });
   };
 
   return (
+    <ReportPermissionGate>
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -309,6 +291,7 @@ export function BalanceSheetPage() {
         </>
       )}
     </div>
+    </ReportPermissionGate>
   );
 }
 

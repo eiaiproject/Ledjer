@@ -8,24 +8,23 @@ import { Button } from "@/components/ui/button";
 import { ReportSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateInputValue, formatDateLong, formatIDR } from "@/lib/utils";
-import { toast } from "@/components/ui/toast";
-import { translateError } from "@/lib/errors";
+import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportTrialBalanceCsv } from "@/lib/csv-export";
 import { Download, RefreshCw } from "lucide-react";
 import { getTrialBalance } from "@/lib/api/reports";
+import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
 
 export function TrialBalancePage() {
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
-  // Pending date = what user has typed but not yet applied.
-  // Applied date = what the displayed data corresponds to.
-  const [pendingDate, setPendingDate] = useState(formatDateInputValue());
-  const [appliedDate, setAppliedDate] = useState(formatDateInputValue());
+
+  const {
+    pendingDate, setPendingDate,
+    appliedDate, isPending,
+    applyDate, syncPending,
+  } = useReportDate();
   const [showZeroBalances, setShowZeroBalances] = useState(false);
   const [exporting, setExporting] = useState(false);
-
-  const isPending = pendingDate !== appliedDate;
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.reports.trialBalance(orgData?.organization?.id, appliedDate),
@@ -38,23 +37,18 @@ export function TrialBalancePage() {
     staleTime: 0,
   });
 
-  const handleApplyDate = useCallback(() => {
-    if (!pendingDate) return;
-    setAppliedDate(pendingDate);
-  }, [pendingDate]);
+  const handleApplyDate = useCallback(() => { applyDate(); }, [applyDate]);
 
   const handleRefresh = useCallback(() => {
-    setPendingDate(appliedDate);
+    syncPending();
     refetch();
-  }, [appliedDate, refetch]);
+  }, [syncPending, refetch]);
 
   if (!canViewReports) {
     return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <p className="text-wood-500">Anda tidak memiliki izin untuk melihat laporan ini.</p>
-        </CardContent>
-      </Card>
+      <ReportPermissionGate>
+        <div />
+      </ReportPermissionGate>
     );
   }
 
@@ -86,16 +80,12 @@ export function TrialBalancePage() {
   const displayData = data || [];
 
   const handleExport = async () => {
-    if (!orgData?.organization?.id || exporting) return;
-    setExporting(true);
-    try {
-      await exportTrialBalanceCsv(appliedDate);
-      toast.success("Ekspor neraca saldo ke CSV dimulai");
-    } catch (err) {
-      toast.error(translateError(err));
-    } finally {
-      setExporting(false);
-    }
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: exporting,
+      exportFn: () => exportTrialBalanceCsv(appliedDate),
+      onFinally: () => setExporting(false),
+    });
   };
 
   const isEmpty = !isLoading && displayData.length === 0;
