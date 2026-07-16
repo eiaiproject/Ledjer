@@ -25,6 +25,7 @@ import {
   voidTransaction,
   settleTransaction,
 } from "@/lib/api/transactions";
+import { listCashBankAccounts } from "@/lib/api/accounts";
 
 export function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +57,12 @@ export function TransactionDetailPage() {
       return listTransactionJournal(id);
     },
     enabled: !!id && !!orgData?.organization?.id,
+  });
+
+  const { data: cashAccounts } = useQuery({
+    queryKey: ["cash-bank-accounts"],
+    queryFn: listCashBankAccounts,
+    enabled: !!orgData?.organization?.id,
   });
 
   const voidMutation = useMutation({
@@ -210,7 +217,11 @@ export function TransactionDetailPage() {
                   aria-label="Pilih akun kas/bank"
                 >
                   <option value="">Pilih akun kas/bank...</option>
-                  {/* Cash accounts would be populated from a listAccounts query */}
+                  {cashAccounts?.map((acct) => (
+                    <option key={acct.id} value={acct.id}>
+                      {acct.code} — {acct.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="mt-3 flex gap-2">
