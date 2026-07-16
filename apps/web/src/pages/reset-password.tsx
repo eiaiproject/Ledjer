@@ -5,6 +5,7 @@ import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { passwordSchema } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,10 +15,7 @@ import { resetPassword } from "@/lib/api/auth";
 
 const resetSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, "Password minimal 8 karakter")
-      .max(72, "Password maksimal 72 karakter"),
+    password: passwordSchema,
     confirm: z.string(),
   })
   .refine((d) => d.password === d.confirm, {

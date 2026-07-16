@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { passwordSchema } from "@/lib/validations/auth";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +20,7 @@ import { Lock, Mail, User } from "lucide-react";
 const registerSchema = z.object({
   fullName: z.string().min(2, "Nama harus minimal 2 karakter"),
   email: z.string().email("Email tidak valid"),
-  password: z
-    .string()
-    .min(8, "Password harus minimal 8 karakter")
-    .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
-    .regex(/\d/, "Password harus mengandung minimal 1 angka"),
+  password: passwordSchema,
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Password tidak cocok",
