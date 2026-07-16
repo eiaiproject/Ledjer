@@ -121,6 +121,7 @@ export interface PostTransactionResult {
   journal_entry_id: string;
   entry_number: string;
   impact: TransactionImpact;
+  replayed?: boolean;
 }
 
 export interface VoidTransactionResult {
@@ -273,7 +274,6 @@ export async function listTransactions(
   const conditions = [
     "t.organization_id = ?",
     "t.original_transaction_id IS NULL",
-    "t.transaction_type NOT LIKE 'opening_%'",
   ];
   const values: D1Input[] = [organizationId];
 
@@ -454,7 +454,8 @@ export async function postTransaction(
 ): Promise<PostTransactionResult> {
   const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
   const existing = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-  if (existing) return buildPostResult(db, organizationId, existing.id);
+  // ponytail: Return header set in route handler via buildPostResult
+  if (existing) return buildPostResult(db, organizationId, existing.id, true);
 
   const transactionType = normalizeTransactionType(input.transactionType);
   const transactionDate = normalizeDate(input.transactionDate, "transaction_date_invalid");
@@ -1198,6 +1199,7 @@ async function buildPostResult(
   db: D1Database,
   organizationId: string,
   transactionId: string,
+  replayed?: boolean,
 ): Promise<PostTransactionResult> {
   const transaction = await getTransactionRow(db, organizationId, transactionId);
   if (!transaction) throw notFound("transaction_not_found", "Transaction not found");
@@ -1210,6 +1212,7 @@ async function buildPostResult(
   if (!debit || !credit) throw conflict("journal_not_found", "Posted journal lines were not found");
 
   return {
+    replayed,
     transaction_id: transaction.id,
     transaction_number: transaction.transaction_number,
     journal_entry_id: entry.id,
@@ -1839,6 +1842,9 @@ function validateProductIntent(
   }
   if (quantityMilli <= 0) throw badRequest("quantity_invalid", "Product quantity must be greater than zero");
   if (unitPriceMinor < 0) throw badRequest("money_invalid", "Unit price is invalid");
+  if (quantityMilli > Number.MAX_SAFE_INTEGER / unitPriceMinor) {
+    throw badRequest("overflow", "Quantity × unit price would overflow");
+  }
   const expectedAmount = Math.round((quantityMilli * unitPriceMinor) / 1000);
   if (expectedAmount !== amountMinor) {
     throw badRequest("product_amount_mismatch", "Transaction amount must equal quantity times unit price");

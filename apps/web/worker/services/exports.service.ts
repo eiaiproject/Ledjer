@@ -275,7 +275,6 @@ async function listTransactionsForExport(
   const conditions = [
     "t.organization_id = ?",
     "t.original_transaction_id IS NULL",
-    "t.transaction_type NOT LIKE 'opening_%'",
   ];
   const values: D1Input[] = [organizationId];
 

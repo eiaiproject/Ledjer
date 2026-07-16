@@ -304,7 +304,7 @@ async function postOpeningBalances(
     if (!cashAccountId) throw badRequest("account_not_found", "Cash account (1110) not found");
 
     const entryId = generateId();
-    const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
+    const entryNumber = `JE-${String(entriesCount++).padStart(6, "0")}`;
 
     statements.push(
       statement(db,
@@ -350,7 +350,7 @@ async function postOpeningBalances(
     const offsetCredit = isCreditNormal ? 0 : amount;
 
     const entryId = generateId();
-    const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
+    const entryNumber = `JE-${String(entriesCount++).padStart(6, "0")}`;
 
     statements.push(
       statement(db,

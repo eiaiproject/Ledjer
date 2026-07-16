@@ -94,6 +94,7 @@ transactionsRoutes.post("/", requirePermission("transactions:create"), async (c)
     body,
     c.get("requestId"),
   );
+  if (result.replayed) c.header("Idempotent-Replay", "true");
   return c.json(result);
 });
 

@@ -109,9 +109,9 @@ describe("product inventory service", () => {
       notes: "Pembelian",
     });
 
-    expect(movement.quantity).toBe(5);
-    expect(movement.stock_after).toBe(15);
-    expect(reconcileStock(15_000, [10_000, movement.quantity * 1000])).toBe(true);
+    expect(movement.quantity).toBe("5.000");
+    expect(movement.stock_after).toBe("15.000");
+    expect(reconcileStock(15_000, [10_000, Number(movement.quantity) * 1000])).toBe(true);
   });
 
   it("updates weighted average cost on purchase movements", async () => {

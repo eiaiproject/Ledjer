@@ -2,6 +2,8 @@ import { queryAll } from "../db/client";
 import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
 
+const NET_INCOME_ACCOUNT_CODE = 3500;
+
 export interface TrialBalanceRow {
   account_id: string;
   account_code: number;
@@ -265,14 +267,14 @@ export async function getBalanceSheet(
        -balance
      FROM account_balances
      WHERE account_type = 'equity'
-       AND code != 3500
+       AND code != ${NET_INCOME_ACCOUNT_CODE}
        AND balance != 0
 
      UNION ALL
 
      SELECT
        'equity',
-       3500,
+       ${NET_INCOME_ACCOUNT_CODE},
        'Laba Tahun Berjalan',
        net
      FROM net_income
