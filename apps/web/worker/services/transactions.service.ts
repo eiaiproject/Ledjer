@@ -1588,6 +1588,11 @@ function saleCogsLines(
 ): JournalLineInput[] {
   if (transactionType !== "cash_sale" && transactionType !== "credit_sale") return [];
   if (!input.product || input.quantityMilli === null) return [];
+  // ponytail: MVP only supports whole-unit quantities. Fractional qty leads to
+  // COGS rounding drift (Math.round on (cost×qty)/1000). Lift when needed.
+  if (input.quantityMilli % 1000 !== 0) {
+    throw badRequest("fractional_quantity_unsupported", "Fractional product quantities are not supported yet");
+  }
   const costMinor = productCostMinor(input.product);
   const cogsAmount = Math.round((costMinor * input.quantityMilli) / 1000);
   if (cogsAmount <= 0) return [];
