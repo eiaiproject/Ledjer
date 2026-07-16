@@ -98,6 +98,9 @@ serupa di masa depan.
 
 | Role | Contact |
 |------|---------|
-| Primary responder | [owner name, email] |
-| Backup responder | [backup name, email] |
+| Primary responder | (not yet staffed) |
+| Backup responder | (not yet staffed) |
 | Cloudflare support | Via Cloudflare dashboard |
+
+> **Note:** On-call is not yet staffed. Incident response is best-effort.
+> Track staffing as a future P1 item in the remediation backlog.
