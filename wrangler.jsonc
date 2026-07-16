@@ -18,7 +18,8 @@
       "binding": "DB",
       "database_name": "ledjer-production",
       "database_id": "37eff57a-d152-4235-8344-9379c7ad4cf2",
-      "preview_database_id": "37eff57a-d152-4235-8344-9379c7ad4cf2",
+      // TODO: Create preview DB and set this ID before enabling preview deployments.
+      "preview_database_id": "",
       "migrations_dir": "apps/web/worker/db/migrations"
     }
   ],
