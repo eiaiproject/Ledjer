@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Mail, MessageCircle, BookOpen, Bug } from "lucide-react";
+import { Mail, BookOpen, Bug } from "lucide-react";
 
 /**
  * Contact / Support page.
@@ -12,13 +12,6 @@ const contactMethods = [
     description: "Untuk pertanyaan umum, masalah akun, atau bantuan teknis.",
     action: "support@ledjer.id",
     href: "mailto:support@ledjer.id",
-  },
-  {
-    icon: MessageCircle,
-    title: "WhatsApp",
-    description: "Chat langsung untuk pertanyaan cepat.",
-    action: "Chat via WhatsApp",
-    href: "https://wa.me/6281234567890",
   },
   {
     icon: Bug,
