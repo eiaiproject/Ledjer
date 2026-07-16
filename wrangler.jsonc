@@ -26,6 +26,7 @@
     "crons": ["0 3 * * *"]
   },
   "vars": {
+    "APP_ENV": "production",
     "APP_ORIGIN": "https://ledjer.id"
   }
 }

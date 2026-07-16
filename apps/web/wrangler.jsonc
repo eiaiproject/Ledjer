@@ -26,6 +26,7 @@
   // Routes managed via Cloudflare Dashboard > Workers > ledjer > Settings > Domains & Routes
   // Custom domain routes in wrangler conflict with Dashboard-managed zone-level routes.
   "vars": {
+    "APP_ENV": "production",
     "APP_ORIGIN": "https://ledjer.id"
   }
 }

@@ -48,7 +48,13 @@ app.use("/api/*", async (c, next) => {
     return next(); // No session cookie — public endpoint (health, login)
   }
 
-  if (!allowed) return next(); // dev mode: allow all
+  if (!allowed) {
+    // In production, APP_ORIGIN must be configured — deny all origins if missing
+    if (c.env.APP_ENV === "production") {
+      return c.json({ error: { code: "csrf_misconfigured", message: "Server misconfigured" } }, 500);
+    }
+    return next(); // dev mode: allow all
+  }
   // ponytail: accept comma-separated origins (e.g. "http://localhost:5173,http://localhost:4173").
   const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
   const ok = allowedList.some((a) => origin === a || origin.startsWith(a + "/"));
