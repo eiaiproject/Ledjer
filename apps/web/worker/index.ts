@@ -93,12 +93,12 @@ app.notFound((c) => {
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
-export { app };
+import { withSentry } from "@sentry/cloudflare";
 
-export default {
-  fetch(request: Request, env: AppContext["Bindings"], ctx?: ExecutionContext) {
-    return app.fetch(request, env, ctx);
-  },
+// ponytail: wrappedHandler wraps the Hono app with Sentry for Cloudflare Workers.
+// Tests import { app } directly (unwrapped) so they don't need ExecutionContext.
+const worker: ExportedHandler<AppContext["Bindings"]> = {
+  fetch: (request, env, ctx) => app.fetch(request, env, ctx),
   async scheduled(
     _controller: ScheduledController,
     env: AppContext["Bindings"],
@@ -106,3 +106,20 @@ export default {
     await cleanupExpiredRows(env.DB);
   },
 };
+
+const wrappedHandler = withSentry(
+  (env: AppContext["Bindings"]) => {
+    const dsn = env.SENTRY_DSN;
+    if (!dsn) return { enabled: false };
+    return {
+      dsn,
+      environment: env.APP_ENV ?? "development",
+      release: (env as any).GIT_SHA,
+      tracesSampleRate: 0.1,
+    };
+  },
+  worker,
+);
+
+export { app, wrappedHandler };
+export default wrappedHandler;

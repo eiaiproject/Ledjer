@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hashToken } from "./auth/tokens";
 import type { Env } from "./env";
-import app from "./index";
+import { app } from "./index";
 import { FakeD1Database } from "./test/fake-d1";
 
 interface FakeSession {
