@@ -21,7 +21,12 @@ import { cleanupExpiredRows } from "./services/maintenance.service";
 const app = new Hono<AppContext>();
 
 app.onError(errorHandler);
-app.use("*", async (c, next) => { c.set("requestId", crypto.randomUUID()); await next(); });
+app.use("*", async (c, next) => {
+  const requestId = c.req.header("X-Request-Id") || crypto.randomUUID();
+  c.set("requestId", requestId);
+  await next();
+  c.header("X-Request-Id", requestId);
+});
 app.use("*", secureHeaders());
 // ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
 // Built-in csrf() can't access c.env at config time.
