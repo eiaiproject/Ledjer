@@ -286,6 +286,9 @@ async function postOpeningBalances(
   input: CreateOrganizationInput,
   current: number,
 ): Promise<void> {
+  // ponytail: assertBooksOpen is deliberately skipped here because opening balances
+  // are posted at books_start_date — the boundary itself. assertPeriodOpen is also
+  // skipped because no period lock can exist before an org's creation.
   const openingBalanceAccountId = await findAccountIdByCode(db, organizationId, "3200");
   if (!openingBalanceAccountId) {
     throw badRequest("account_not_found", "Opening balance account (3200) not found");

@@ -679,6 +679,7 @@ async function validateSettlementTarget(
   if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
     throw conflict("transaction_not_credit", "Only credit transactions can be settled");
   }
+  await assertBooksOpen(db, organizationId, original.transaction_date);
   await assertPeriodOpen(db, organizationId, original.transaction_date);
   const cashAccount = await getAccountById(db, organizationId, cashAccountId);
   assertCashAccount(cashAccount, "cash_account_invalid");
