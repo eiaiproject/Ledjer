@@ -1973,6 +1973,10 @@ async function generateEntryNumber(
   return `JE-${String(next).padStart(6, "0")}`;
 }
 
+// ponytail: Counters run before executeBatch. If the batch fails, the counter
+// has already advanced — gap in numbering. This is acceptable: gaps are not
+// accounting errors. Move counter UPSERT into the batch when D1's RETURNING
+// from executeBatch is needed for upstream systems that require gapless sequences.
 async function nextCounter(
   db: D1Database,
   organizationId: string,
