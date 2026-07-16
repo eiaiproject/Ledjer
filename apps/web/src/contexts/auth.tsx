@@ -21,13 +21,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   useEffect(() => {
     let cancelled = false;
-    const timeoutId = setTimeout(() => {
-      // Fail-open: if getSession() doesn't resolve within 3 seconds,
-      // treat as guest so public pages render immediately.
-      if (!cancelled) {
-        setLoading(false);
-      }
-    }, 3_000);
 
     getMe()
       .then(({ session, user }) => {
@@ -35,18 +28,15 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         setSession(session);
         setUser(user);
         setLoading(false);
-        clearTimeout(timeoutId);
       })
       .catch((err) => {
         if (cancelled) return;
         setError(err instanceof Error ? err : new Error(String(err)));
         setLoading(false);
-        clearTimeout(timeoutId);
       });
 
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
     };
   }, [queryClient]);
 
