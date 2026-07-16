@@ -60,6 +60,9 @@ AUDIT-AND-REMEDIATION.md
 # Personal worklog
 worklog.md
 
+# Screenshots (binary bloat, not essential for development)
+docs/screenshots/
+
 # Codex hooks (local paths, not portable)
 .codex/hooks.json
 
