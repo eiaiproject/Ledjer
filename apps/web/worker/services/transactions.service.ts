@@ -1060,6 +1060,13 @@ export async function voidTransaction(
         organizationId,
       ],
     ),
+    statement(
+      db,
+      `UPDATE journal_entries
+       SET status = 'voided', updated_at = ?
+       WHERE transaction_id = ? AND organization_id = ? AND status = 'posted'`,
+      [current, transactionId, organizationId],
+    ),
     writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
