@@ -3,7 +3,7 @@
   "name": "ledjer",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-07",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_als"],
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",
