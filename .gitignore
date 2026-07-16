@@ -60,6 +60,12 @@ AUDIT-AND-REMEDIATION.md
 # Personal worklog
 worklog.md
 
+# Project meta docs (not source code)
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+SECURITY.md
+
 # Screenshots (binary bloat, not essential for development)
 docs/screenshots/
 
