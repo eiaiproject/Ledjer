@@ -12,7 +12,7 @@ import {
   listJournalEntriesForTransaction,
   listTransactions,
   postTransaction,
-  settleAndVoidTransaction,
+  settlePartialTransaction,
   voidTransaction,
 } from "../services/transactions.service";
 
@@ -134,7 +134,7 @@ transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:
 transactionsRoutes.post("/:transactionId/settle", requirePermission("transactions:create"), async (c) => {
   const context = c.get("organizationContext");
   const body = await readJson(c, settleTransactionSchema);
-  const result = await settleAndVoidTransaction(
+  const result = await settlePartialTransaction(
     c.env.DB,
     context.organization.id,
     context.member.user_id,

@@ -715,7 +715,14 @@ export async function calculateSettlementRemaining(
   return remainingMinor;
 }
 
-export async function settleAndVoidTransaction(
+/**
+ * Settle a partial credit_sale or credit_purchase transaction by posting
+ * a receive_receivable or pay_payable for the remaining amount.
+ *
+ * Despite the original name, this function does NOT void — it only settles.
+ * Voiding partially paid transactions is blocked by validateVoidableTransaction.
+ */
+export async function settlePartialTransaction(
   db: D1Database,
   organizationId: string,
   userId: string,
