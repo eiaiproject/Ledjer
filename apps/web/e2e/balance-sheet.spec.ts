@@ -91,12 +91,12 @@ test.describe("Date display (auth required)", () => {
 test.describe("Date apply behavior (auth required)", () => {
   test("apply button says Tampilkan laporan", async ({ page }) => {
     await gotoBalanceSheet(page);
-    await expect(applyBtn.first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /tampilkan laporan/i })).toBeVisible();
   });
 
   test("apply button does NOT say Muat Ulang", async ({ page }) => {
     await gotoBalanceSheet(page);
-    await expect(muatBtn).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /muat ulang/i })).toHaveCount(0);
   });
 
   test("date field has Indonesian label", async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe("Date apply behavior (auth required)", () => {
 
   test("refresh button has aria-label", async ({ page }) => {
     await gotoBalanceSheet(page);
-    await expect(refreshBtn.first()).toBeAttached();
+    await expect(page.locator("button[aria-label*='refresh' i]").first()).toBeAttached();
   });
 });
 
@@ -122,8 +122,9 @@ test.describe("Export (auth required)", () => {
 
   test("export button text is Ekspor on mobile", async ({ page }) => {
     await gotoBalanceSheet(page);
-    if (await exportBtn.count() > 0) {
-      const text = await exportBtn.first().textContent();
+    const eksporBtn = page.getByRole("button", { name: /ekspor/i });
+    if (await eksporBtn.count() > 0) {
+      const text = await eksporBtn.first().textContent();
       expect(text).not.toContain("Export");
     }
   });
@@ -142,7 +143,7 @@ test.describe("Zero-balance toggle (auth required)", () => {
 
   test("toggle is a checkbox", async ({ page }) => {
     await gotoBalanceSheet(page);
-    await expect(checkbox.first()).toBeAttached();
+    await expect(page.locator("input[type='checkbox']").first()).toBeAttached();
   });
 });
 
@@ -151,6 +152,7 @@ test.describe("Zero-balance toggle (auth required)", () => {
 test.describe("Desktop table semantics (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoBalanceSheet(page);
+    const captions = page.locator("table caption");
     const count = await captions.count();
     if (count > 0) {
       for (let i = 0; i < count; i++) {
@@ -161,6 +163,7 @@ test.describe("Desktop table semantics (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoBalanceSheet(page);
+    const scopedHeaders = page.locator("th[scope]");
     const count = await scopedHeaders.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(2);
