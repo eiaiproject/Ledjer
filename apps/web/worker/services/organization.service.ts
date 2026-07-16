@@ -2,6 +2,7 @@ import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
 import type { AccountType, NormalBalance, Role } from "../db/schema";
 import { badRequest, forbidden } from "../http/errors";
+import { logAuthEvent } from "./auth-audit.service";
 import {
   setSessionCurrentOrganization,
   type CurrentSessionRow,
@@ -231,6 +232,7 @@ export async function createOrganization(
     await postOpeningBalances(db, organizationId, session.user_id, input, current);
   }
 
+  await logAuthEvent(db, session.user_id, organizationId, "organization_created", { name: organizationName });
   await setSessionCurrentOrganization(db, session.session_id, organizationId);
 
   const context = await getOrganizationContextForUser(db, session.user_id, organizationId);
@@ -284,6 +286,9 @@ async function postOpeningBalances(
   input: CreateOrganizationInput,
   current: number,
 ): Promise<void> {
+  // ponytail: assertBooksOpen is deliberately skipped here because opening balances
+  // are posted at books_start_date — the boundary itself. assertPeriodOpen is also
+  // skipped because no period lock can exist before an org's creation.
   const openingBalanceAccountId = await findAccountIdByCode(db, organizationId, "3200");
   if (!openingBalanceAccountId) {
     throw badRequest("account_not_found", "Opening balance account (3200) not found");
@@ -299,7 +304,7 @@ async function postOpeningBalances(
     if (!cashAccountId) throw badRequest("account_not_found", "Cash account (1110) not found");
 
     const entryId = generateId();
-    const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
+    const entryNumber = `JE-${String(entriesCount++).padStart(6, "0")}`;
 
     statements.push(
       statement(db,
@@ -330,8 +335,22 @@ async function postOpeningBalances(
         : undefined);
     if (!accountId) continue;
 
+    // Look up normal_balance to determine posting direction
+    const account = await queryFirst<{ normal_balance: string }>(
+      db,
+      `SELECT normal_balance FROM accounts WHERE id = ? AND organization_id = ?`,
+      [accountId, organizationId],
+    );
+    const isCreditNormal = account?.normal_balance === 'credit';
+    // For debit-normal accounts: Dr Account / Cr Saldo Awal (3200)
+    // For credit-normal accounts: Cr Account / Dr Saldo Awal (3200)
+    const accountDebit = isCreditNormal ? 0 : amount;
+    const accountCredit = isCreditNormal ? amount : 0;
+    const offsetDebit = isCreditNormal ? amount : 0;
+    const offsetCredit = isCreditNormal ? 0 : amount;
+
     const entryId = generateId();
-    const entryNumber = `JE-OB-${String(entriesCount++).padStart(6, "0")}`;
+    const entryNumber = `JE-${String(entriesCount++).padStart(6, "0")}`;
 
     statements.push(
       statement(db,
@@ -339,12 +358,12 @@ async function postOpeningBalances(
         [entryId, organizationId, entryNumber, input.booksStartDate, extra.description ?? 'Saldo awal', current, userId, current],
       ),
       statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, 1, ?)`,
-        [generateId(), organizationId, entryId, accountId, amount, extra.description ?? 'Saldo awal', current],
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        [generateId(), organizationId, entryId, accountId, accountDebit, accountCredit, extra.description ?? 'Saldo awal', current],
       ),
       statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, ?, 2, ?)`,
-        [generateId(), organizationId, entryId, openingBalanceAccountId, amount, extra.description ?? 'Saldo awal', current],
+        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 2, ?)`,
+        [generateId(), organizationId, entryId, openingBalanceAccountId, offsetDebit, offsetCredit, extra.description ?? 'Saldo awal', current],
       ),
     );
 

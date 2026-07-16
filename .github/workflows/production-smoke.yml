@@ -46,12 +46,12 @@ jobs:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          echo "Checking production URL: ${{ env.PRODUCTION_URL }}"
+          echo "Checking production URL: ${PRODUCTION_URL}"
           AUTH_ARGS=()
           if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
-          curl -fsS "${AUTH_ARGS[@]}" "${{ env.PRODUCTION_URL }}" -o /dev/null --max-time 15
+          curl -fsS "${AUTH_ARGS[@]}" "${PRODUCTION_URL}" -o /dev/null --max-time 15
           echo "✅ Production URL is reachable"
 
       # Ensure smoke tests never mutate production financial data:
@@ -60,15 +60,11 @@ jobs:
       - name: Run production smoke tests (read-only enforcement)
         env:
           E2E_MODE: deploy-smoke
-          E2E_BASE_URL: ${{ env.PRODUCTION_URL }}
+          E2E_BASE_URL: ${PRODUCTION_URL}
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           CI: true
         run: |
-          # Pre-check: the deploy-smoke mode only includes read-only test files
-          # (smoke.spec.ts, security-public.spec.ts, static-routes.spec.ts)
-          # Auth tests (auth.spec.ts) are excluded in deploy-smoke mode.
-          # We add a runtime guard that fails if any non-GET request is detected.
           pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts --project=chromium
 
       - name: Upload smoke report
@@ -100,12 +96,12 @@ jobs:
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
 
-          RESPONSE=$(curl -sI "${AUTH_ARGS[@]}" "${{ env.PRODUCTION_URL }}")
+          RESPONSE=$(curl -sI "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
           CSP=$(echo "$RESPONSE" | grep -i content-security-policy || true)
 
           if [ -z "$CSP" ]; then
             # Fall back: check for CSP meta tag in HTML body
-            HTML=$(curl -s "${AUTH_ARGS[@]}" "${{ env.PRODUCTION_URL }}")
+            HTML=$(curl -s "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
             META_CSP=$(echo "$HTML" | grep -i 'http-equiv="Content-Security-Policy"' || true)
             if [ -z "$META_CSP" ]; then
               echo "❌ No CSP found in HTTP headers or meta tag"
@@ -156,8 +152,8 @@ jobs:
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
 
-          FINAL_URL=$(curl -sS -o /dev/null -w "%{redirect_url}" --max-time 15 "${AUTH_ARGS[@]}" "${{ env.PRODUCTION_URL }}")
-          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${{ env.PRODUCTION_URL }}")
+          FINAL_URL=$(curl -sS -o /dev/null -w "%{redirect_url}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
 
           echo "Final HTTP status: $HTTP_STATUS"
           if [ -n "$FINAL_URL" ]; then

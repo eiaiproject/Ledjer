@@ -1,5 +1,6 @@
 import { generateId } from "../auth/tokens";
 import {
+  execute,
   executeBatch,
   queryAll,
   queryFirst,
@@ -9,7 +10,7 @@ import {
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
-import { badRequest, conflict, notFound } from "../http/errors";
+import { badRequest, conflict, HttpError, notFound } from "../http/errors";
 
 export type TransactionType =
   | "cash_sale"
@@ -120,6 +121,7 @@ export interface PostTransactionResult {
   journal_entry_id: string;
   entry_number: string;
   impact: TransactionImpact;
+  replayed?: boolean;
 }
 
 export interface VoidTransactionResult {
@@ -272,7 +274,6 @@ export async function listTransactions(
   const conditions = [
     "t.organization_id = ?",
     "t.original_transaction_id IS NULL",
-    "t.transaction_type NOT LIKE 'opening_%'",
   ];
   const values: D1Input[] = [organizationId];
 
@@ -412,7 +413,7 @@ type StockStatementCtx = {
   db: D1Database;
   statements: D1PreparedStatement[];
   reservedStock: { nextStock: number; unitCost: number; nextAverage: number };
-  product: { id: string; current_stock_milli: number };
+  product: { id: string; current_stock_milli: number; purchase_price_minor: number };
   organizationId: string;
   transactionId: string;
   transactionDate: string;
@@ -433,7 +434,7 @@ function insertStockStatements(ctx: StockStatementCtx): void {
       db,
       `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
        WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-      [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product.id, organizationId, product.current_stock_milli],
+      [reservedStock.nextStock, reservedStock.nextAverage, isPurchase ? reservedStock.unitCost : product.purchase_price_minor, current, product.id, organizationId, product.current_stock_milli],
     ),
     insertStockMovementStatement(db, {
       organizationId, productId: product.id, transactionId,
@@ -453,7 +454,8 @@ export async function postTransaction(
 ): Promise<PostTransactionResult> {
   const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
   const existing = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-  if (existing) return buildPostResult(db, organizationId, existing.id);
+  // ponytail: Return header set in route handler via buildPostResult
+  if (existing) return buildPostResult(db, organizationId, existing.id, true);
 
   const transactionType = normalizeTransactionType(input.transactionType);
   const transactionDate = normalizeDate(input.transactionDate, "transaction_date_invalid");
@@ -598,15 +600,61 @@ export async function postTransaction(
     }),
   );
 
-  try {
-    await executeBatch(db, statements);
-  } catch (e) {
-    // ponytail: If batch fails due to idempotency race, return existing transaction.
-    const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-    if (retry) return buildPostResult(db, organizationId, retry.id);
-    throw e;
+  // ponytail: Retry loop for optimistic stock-lock failures (max 3 attempts).
+  // Track index of stock UPDATE statement to check meta.changes after batch.
+  // ponytail: Index of UPDATE products statement in the batch.
+  // After building: [tx, je, jl..., tl, UPDATE_products, INSERT_stock, audit_log]
+  const stockUpdateIndex = reservedStock ? statements.length - 3 : -1;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const results = await executeBatch(db, statements);
+      if (stockUpdateIndex >= 0 && results[stockUpdateIndex]) {
+        const changes = results[stockUpdateIndex].meta.changes;
+        if (changes === 0) {
+          if (attempt < 3) {
+            // Re-read product and re-reserve stock, then retry
+            const freshProduct = await queryFirst<ProductRow>(
+              db,
+              `SELECT * FROM products WHERE id = ? AND organization_id = ?`,
+              [product!.id, organizationId],
+            );
+            if (freshProduct && quantityMilli !== null && unitPriceMinor !== null) {
+              reservedStock = await reserveStockForTransaction(transactionType, freshProduct, quantityMilli, unitPriceMinor);
+              const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+              const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
+              // Rebuild stock statements at same indices
+              statements[stockUpdateIndex] = statement(
+                db,
+                `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+                 WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+                [reservedStock.nextStock, reservedStock.nextAverage, isPurchase ? reservedStock.unitCost : product!.purchase_price_minor, current, product!.id, organizationId, freshProduct.current_stock_milli],
+              );
+              statements[stockUpdateIndex + 1] = insertStockMovementStatement(db, {
+                organizationId, productId: product!.id, transactionId,
+                movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
+                quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
+                stockAfterMilli: reservedStock.nextStock, notes: description, userId, current,
+              });
+            }
+            // Exponential backoff
+            await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+            continue;
+          }
+          throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
+        }
+      }
+      return buildPostResult(db, organizationId, transactionId);
+    } catch (e) {
+      // If already a known conflict error, rethrow
+      if (e instanceof HttpError && e.code === "stock_concurrent_modify") throw e;
+      // ponytail: If batch fails due to idempotency race, return existing transaction.
+      const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+      if (retry) return buildPostResult(db, organizationId, retry.id);
+      if (attempt === 3) throw e;
+      await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+    }
   }
-  return buildPostResult(db, organizationId, transactionId);
+  throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
 }
 
 /**
@@ -632,33 +680,51 @@ async function validateSettlementTarget(
   if (original.transaction_type !== "credit_sale" && original.transaction_type !== "credit_purchase") {
     throw conflict("transaction_not_credit", "Only credit transactions can be settled");
   }
+  await assertBooksOpen(db, organizationId, original.transaction_date);
   await assertPeriodOpen(db, organizationId, original.transaction_date);
   const cashAccount = await getAccountById(db, organizationId, cashAccountId);
   assertCashAccount(cashAccount, "cash_account_invalid");
   return original;
 }
 
-async function calculateSettlementRemaining(
+export async function calculateSettlementRemaining(
   db: D1Database,
   organizationId: string,
   transactionId: string,
   cashAccountId: string,
   originalAmountMinor: number,
-  originalCashAccountId: string,
+  isSale: boolean,
+  originalCashAccountId?: string,
 ) {
   const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
-  const partialAmountDebit = originalLines.find(
-    (l) => l.account_id === cashAccountId || originalCashAccountId === cashAccountId,
+  const partialCashLines = originalLines.filter(
+    (l) => (l.account_id === cashAccountId || l.account_id === originalCashAccountId) && (
+      (isSale && l.debit_minor > 0) ||
+      (!isSale && l.credit_minor > 0)
+    ),
   );
-  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
+  const partialAmountMinor = partialCashLines.reduce(
+    (sum, l) => sum + (isSale ? l.debit_minor : l.credit_minor),
+    0,
+  );
   const remainingMinor = originalAmountMinor - partialAmountMinor;
-  if (remainingMinor <= 0) {
-    throw badRequest("already_fully_paid", "This transaction is already fully paid");
+  if (remainingMinor < 0) {
+    throw conflict("over_settlement", "Settlement exceeds remaining amount");
+  }
+  if (remainingMinor === 0) {
+    throw conflict("already_fully_paid", "This transaction is already fully paid");
   }
   return remainingMinor;
 }
 
-export async function settleAndVoidTransaction(
+/**
+ * Settle a partial credit_sale or credit_purchase transaction by posting
+ * a receive_receivable or pay_payable for the remaining amount.
+ *
+ * Despite the original name, this function does NOT void — it only settles.
+ * Voiding partially paid transactions is blocked by validateVoidableTransaction.
+ */
+export async function settlePartialTransaction(
   db: D1Database,
   organizationId: string,
   userId: string,
@@ -682,14 +748,13 @@ export async function settleAndVoidTransaction(
   }
 
   const original = await validateSettlementTarget(db, organizationId, transactionId, cashAccountId);
-  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, original.cash_account_id ?? cashAccountId);
+  const isSale = original.transaction_type === "credit_sale";
+  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, isSale, original.cash_account_id ?? undefined);
   const current = Date.now();
   const settleTransactionId = generateId();
   const journalEntryId = generateId();
   const settleTransactionNumber = await generateTransactionNumber(db, organizationId, original.transaction_date);
   const settleEntryNumber = await generateEntryNumber(db, organizationId);
-
-  const isSale = original.transaction_type === "credit_sale";
   const settleType = isSale ? "receive_receivable" : "pay_payable";
   const arApAccountCode = isSale ? "1200" : "2100";
   const arApAccount = await accountByCode(db, organizationId, arApAccountCode);
@@ -839,7 +904,7 @@ function restoreStockForVoid(ctx: VoidStockCtx): void {
       db,
       `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
        WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-      [nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli],
+      [nextStock, nextAverage, product.purchase_price_minor, current, product.id, organizationId, product.current_stock_milli],
     ),
     insertStockMovementStatement(db, {
       organizationId, productId: product.id, transactionId: reversalTransactionId,
@@ -1004,6 +1069,13 @@ export async function voidTransaction(
         organizationId,
       ],
     ),
+    statement(
+      db,
+      `UPDATE journal_entries
+       SET status = 'voided', updated_at = ?
+       WHERE transaction_id = ? AND organization_id = ? AND status = 'posted'`,
+      [current, transactionId, organizationId],
+    ),
     writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
@@ -1035,6 +1107,11 @@ export async function voidTransaction(
       };
     }
     throw e;
+  }
+
+  // Recalculate WAC for products affected by this void
+  if (product && productLine?.quantity_milli != null) {
+    await recalculateProductAverageCost(db, organizationId, product.id);
   }
 
   return {
@@ -1122,6 +1199,7 @@ async function buildPostResult(
   db: D1Database,
   organizationId: string,
   transactionId: string,
+  replayed?: boolean,
 ): Promise<PostTransactionResult> {
   const transaction = await getTransactionRow(db, organizationId, transactionId);
   if (!transaction) throw notFound("transaction_not_found", "Transaction not found");
@@ -1134,6 +1212,7 @@ async function buildPostResult(
   if (!debit || !credit) throw conflict("journal_not_found", "Posted journal lines were not found");
 
   return {
+    replayed,
     transaction_id: transaction.id,
     transaction_number: transaction.transaction_number,
     journal_entry_id: entry.id,
@@ -1512,6 +1591,11 @@ function saleCogsLines(
 ): JournalLineInput[] {
   if (transactionType !== "cash_sale" && transactionType !== "credit_sale") return [];
   if (!input.product || input.quantityMilli === null) return [];
+  // ponytail: MVP only supports whole-unit quantities. Fractional qty leads to
+  // COGS rounding drift (Math.round on (cost×qty)/1000). Lift when needed.
+  if (input.quantityMilli % 1000 !== 0) {
+    throw badRequest("fractional_quantity_unsupported", "Fractional product quantities are not supported yet");
+  }
   const costMinor = productCostMinor(input.product);
   const cogsAmount = Math.round((costMinor * input.quantityMilli) / 1000);
   if (cogsAmount <= 0) return [];
@@ -1571,6 +1655,63 @@ async function productLineForTransaction(
      LIMIT 1`,
     [organizationId, transactionId],
   );
+}
+
+/**
+ * Recalculate a product's average cost (WAC) by replaying all stock movements
+ * in chronological order.
+ *
+ * WAC formula:
+ *   - opening/purchase: newAvg = round((stock × avg + qty × unit_cost) / new_stock)
+ *   - sale/void/adjustment: avg unchanged (quantity-only)
+ */
+interface StockMovementForWac {
+  movement_type: string;
+  quantity_milli: number;
+  unit_cost_minor: number | null;
+}
+
+export async function recalculateProductAverageCost(
+  db: D1Database,
+  organizationId: string,
+  productId: string,
+): Promise<{ average_cost_minor: number; current_stock_milli: number }> {
+  const movements = await queryAll<StockMovementForWac>(
+    db,
+    `SELECT movement_type, quantity_milli, unit_cost_minor
+     FROM stock_movements
+     WHERE organization_id = ? AND product_id = ?
+     ORDER BY movement_date ASC, created_at ASC`,
+    [organizationId, productId],
+  );
+
+  let stock = 0;
+  let avg = 0;
+
+  for (const m of movements) {
+    if (m.movement_type === "opening" || m.movement_type === "purchase") {
+      const qty = m.quantity_milli;
+      const cost = m.unit_cost_minor ?? 0;
+      const newStock = stock + qty;
+      if (newStock > 0) {
+        avg = Math.round((stock * avg + qty * cost) / newStock);
+      }
+      stock = newStock;
+    } else {
+      // sale, void, adjustment: avg unchanged
+      stock += m.quantity_milli;
+      if (stock < 0) stock = 0; // safety clamp, should not happen
+    }
+  }
+
+  await execute(
+    db,
+    `UPDATE products SET average_cost_minor = ?, current_stock_milli = ?, updated_at = ?
+     WHERE id = ? AND organization_id = ?`,
+    [avg, stock, Date.now(), productId, organizationId],
+  );
+
+  return { average_cost_minor: avg, current_stock_milli: stock };
 }
 
 async function stockMovementForTransaction(
@@ -1701,6 +1842,9 @@ function validateProductIntent(
   }
   if (quantityMilli <= 0) throw badRequest("quantity_invalid", "Product quantity must be greater than zero");
   if (unitPriceMinor < 0) throw badRequest("money_invalid", "Unit price is invalid");
+  if (quantityMilli > Number.MAX_SAFE_INTEGER / unitPriceMinor) {
+    throw badRequest("overflow", "Quantity × unit price would overflow");
+  }
   const expectedAmount = Math.round((quantityMilli * unitPriceMinor) / 1000);
   if (expectedAmount !== amountMinor) {
     throw badRequest("product_amount_mismatch", "Transaction amount must equal quantity times unit price");
@@ -1835,6 +1979,10 @@ async function generateEntryNumber(
   return `JE-${String(next).padStart(6, "0")}`;
 }
 
+// ponytail: Counters run before executeBatch. If the batch fails, the counter
+// has already advanced — gap in numbering. This is acceptable: gaps are not
+// accounting errors. Move counter UPSERT into the batch when D1's RETURNING
+// from executeBatch is needed for upstream systems that require gapless sequences.
 async function nextCounter(
   db: D1Database,
   organizationId: string,

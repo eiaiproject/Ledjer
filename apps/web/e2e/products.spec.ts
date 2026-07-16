@@ -45,8 +45,8 @@ test.describe("Products page basics", () => {
 
   test("description mentions harga and stok", async ({ page }) => {
     await gotoProducts(page);
-    await expect(body).toContainText("harga");
-    await expect(body).toContainText("stok");
+    await expect(page.locator("body")).toContainText("harga");
+    await expect(page.locator("body")).toContainText("stok");
   });
 });
 
@@ -55,27 +55,27 @@ test.describe("Products page basics", () => {
 test.describe("Search (auth required)", () => {
   test("search input has sr-only label", async ({ page }) => {
     await gotoProducts(page);
-    await expect(label).toBeAttached();
-    await expect(label).toHaveText("Cari produk");
+    await expect(page.locator("label[for='product-search']")).toBeAttached();
+    await expect(page.locator("label[for='product-search']")).toHaveText("Cari produk");
   });
 
   test("search is type=search", async ({ page }) => {
     await gotoProducts(page);
-    await expect(search).toHaveAttribute("type", "search");
+    await expect(page.locator("#product-search")).toHaveAttribute("type", "search");
   });
 
   test("clear button appears when typing", async ({ page }) => {
     await gotoProducts(page);
     await page.locator("#product-search").fill("test");
-    await expect(clearBtn).toBeVisible();
+    await expect(page.getByRole("button", { name: /hapus pencarian/i })).toBeVisible();
   });
 
   test("clear button removes text and focuses search", async ({ page }) => {
     await gotoProducts(page);
-    await search.fill("test");
+    await page.locator("#product-search").fill("test");
     await page.getByRole("button", { name: /hapus pencarian/i }).click();
-    await expect(search).toHaveValue("");
-    await expect(search).toBeFocused();
+    await expect(page.locator("#product-search")).toHaveValue("");
+    await expect(page.locator("#product-search")).toBeFocused();
   });
 
   test("search icon has aria-hidden", async ({ page }) => {
@@ -90,17 +90,18 @@ test.describe("Search (auth required)", () => {
 test.describe("Stock filter (auth required)", () => {
   test("fieldset and legend exist", async ({ page }) => {
     await gotoProducts(page);
-    await expect(fieldset.first()).toBeAttached();
-    await expect(legend.first()).toBeAttached();
+    await expect(page.locator("fieldset").first()).toBeAttached();
+    await expect(page.locator("legend").first()).toBeAttached();
   });
 
   test("legend text is Filter status stok", async ({ page }) => {
     await gotoProducts(page);
-    await expect(legend.first()).toContainText("Filter status stok");
+    await expect(page.locator("legend").first()).toContainText("Filter status stok");
   });
 
   test("four filter buttons exist", async ({ page }) => {
     await gotoProducts(page);
+    const group = page.locator('[role="group"]');
     const buttons = group.locator("button");
     await expect(buttons).toHaveCount(4);
   });
@@ -113,7 +114,7 @@ test.describe("Stock filter (auth required)", () => {
 
   test("only one button has aria-pressed=true at a time", async ({ page }) => {
     await gotoProducts(page);
-    await expect(buttons).toHaveCount(1);
+    await expect(page.locator('[role="group"] button[aria-pressed="true"]')).toHaveCount(1);
   });
 
   test("clicking Aman switches selection", async ({ page }) => {
@@ -149,6 +150,7 @@ test.describe("Export (auth required)", () => {
 test.describe("Desktop table (auth required)", () => {
   test("table has caption", async ({ page }) => {
     await gotoProducts(page);
+    const caption = page.locator("table caption");
     const count = await caption.count();
     if (count > 0) {
       await expect(caption.first()).toHaveText("Daftar produk");
@@ -157,6 +159,7 @@ test.describe("Desktop table (auth required)", () => {
 
   test("headers have scope=col", async ({ page }) => {
     await gotoProducts(page);
+    const headers = page.locator("th[scope]");
     const count = await headers.count();
     if (count > 0) {
       expect(count).toBeGreaterThanOrEqual(5);
@@ -182,6 +185,7 @@ test.describe("Desktop table (auth required)", () => {
 test.describe("Action accessible names (auth required)", () => {
   test("edit buttons have product-specific names", async ({ page }) => {
     await gotoProducts(page);
+    const editBtns = page.locator('button[aria-label^="Edit produk"]');
     const count = await editBtns.count();
     // All edit buttons should have product-specific names
     for (let i = 0; i < count; i++) {
@@ -192,6 +196,7 @@ test.describe("Action accessible names (auth required)", () => {
 
   test("deactivate buttons have product-specific names", async ({ page }) => {
     await gotoProducts(page);
+    const deactivateBtns = page.locator('button[aria-label^="Nonaktifkan produk"]');
     const count = await deactivateBtns.count();
     for (let i = 0; i < count; i++) {
       const label = await deactivateBtns.nth(i).getAttribute("aria-label");
@@ -208,7 +213,8 @@ test.describe("Deactivate dialog (auth required)", () => {
     const deleteBtn = page.locator('button[aria-label^="Nonaktifkan produk"]').first();
     if (await deleteBtn.count() > 0) {
       await deleteBtn.click();
-        await expect(dialog).toBeVisible({ timeout: 5000 });
+      const dialog = page.locator('[role="alertdialog"], [role="dialog"]').first();
+      await expect(dialog).toBeVisible({ timeout: 5000 });
       await expect(dialog).toContainText("Nonaktifkan produk?");
     }
   });
@@ -218,7 +224,8 @@ test.describe("Deactivate dialog (auth required)", () => {
     const deleteBtn = page.locator('button[aria-label^="Nonaktifkan produk"]').first();
     if (await deleteBtn.count() > 0) {
       await deleteBtn.click();
-        await expect(dialog).toBeVisible({ timeout: 5000 });
+      const dialog = page.locator('[role="alertdialog"], [role="dialog"]').first();
+      await expect(dialog).toBeVisible({ timeout: 5000 });
       await expect(dialog.getByRole("button", { name: /batal/i })).toBeVisible();
       await expect(dialog.getByRole("button", { name: /nonaktifkan/i })).toBeVisible();
     }
@@ -242,6 +249,7 @@ test.describe("No duplicate animation (auth-independent)", () => {
 test.describe("Bottom navigation", () => {
   test("Produk link has aria-current=page", async ({ page }) => {
     await gotoProducts(page);
+    const produkLink = page.locator('[aria-current="page"]');
     if (await produkLink.count() > 0) {
       await expect(produkLink.first()).toHaveAttribute("aria-current", "page");
     }
@@ -279,6 +287,7 @@ for (const vp of viewports) {
 test.describe("Empty state (auth required)", () => {
   test("empty state has proper heading", async ({ page }) => {
     await gotoProducts(page);
+    const emptyH3 = page.locator("h3");
     const count = await emptyH3.count();
     expect(count).toBeLessThanOrEqual(5);
   });

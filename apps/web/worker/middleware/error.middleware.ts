@@ -1,3 +1,4 @@
+import { captureException } from "@sentry/cloudflare";
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { AppContext } from "../env";
@@ -31,6 +32,13 @@ export const errorHandler: ErrorHandler<AppContext> = (error, c) => {
       error.status,
     );
   }
+
+  // Send unexpected errors to Sentry
+  captureException(error, {
+    tags: { requestId },
+    extra: { code: error instanceof HttpError ? error.code : "internal_error" },
+    level: "error",
+  });
 
   console.error("Unhandled Worker error", {
     message: error instanceof Error ? error.message : String(error),

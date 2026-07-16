@@ -52,6 +52,23 @@ apps/web/test-results/
 # Pi agent / Impeccable (local-only design artifacts)
 .impeccable
 
+# Internal remediation/audit files (not for public consumption)
+LEDJER_MASTER_REMEDIATION_PROMPT.md
+AUDIT-AND-REMEDIATION.md
+*.remediation.md
+
+# Personal worklog
+worklog.md
+
+# Project meta docs (not source code)
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+SECURITY.md
+
+# Screenshots (binary bloat, not essential for development)
+docs/screenshots/
+
 # Codex hooks (local paths, not portable)
 .codex/hooks.json
 

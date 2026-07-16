@@ -30,3 +30,7 @@ export function notFound(code: string, message: string): HttpError {
 export function conflict(code: string, message: string): HttpError {
   return new HttpError(409, code, message);
 }
+
+export function tooManyRequests(message = "Too many requests"): HttpError {
+  return new HttpError(429, "rate_limited", message);
+}

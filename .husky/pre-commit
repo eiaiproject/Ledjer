@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Pre-commit hook: run typecheck on staged files.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ts$' || true)
+if [[ -z "$STAGED_TS" ]]; then
+  exit 0
+fi
+
+echo "[pre-commit] Running typecheck on staged files..."
+cd apps/web
+if ! npx tsc --noEmit 2>&1; then
+  echo "[pre-commit] TypeScript errors found. Fix before committing."
+  exit 1
+fi

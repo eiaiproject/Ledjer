@@ -9,7 +9,6 @@ export const CORE_TABLES = [
   "organization_members",
   "organization_invitations",
   "accounts",
-  "account_mappings",
   "parties",
   "products",
   "transactions",
@@ -20,14 +19,12 @@ export const CORE_TABLES = [
   "period_locks",
   "organization_document_counters",
   "audit_logs",
-  "export_jobs",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [
   "organization_members",
   "organization_invitations",
   "accounts",
-  "account_mappings",
   "parties",
   "products",
   "transactions",
@@ -38,7 +35,6 @@ export const TENANT_SCOPED_TABLES = [
   "period_locks",
   "organization_document_counters",
   "audit_logs",
-  "export_jobs",
 ] as const;
 
 export const CORE_INDEXES = [

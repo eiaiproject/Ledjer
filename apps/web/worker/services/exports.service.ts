@@ -13,6 +13,8 @@ import {
 export interface ExportResponse {
   csv: string;
   filename: string;
+  truncated?: boolean;
+  totalRows?: number;
 }
 
 export interface TransactionExportFilters {
@@ -225,32 +227,31 @@ export async function exportGeneralLedgerCsv(
 ): Promise<ExportResponse> {
   // ponytail: Cap at 50k rows to prevent Worker OOM/timeout.
   const ledger = await getGeneralLedger(db, organizationId, filters);
-  const capped = ledger.slice(0, 50_000);
+  const MAX_ROWS = 50_000;
+  const truncated = ledger.length > MAX_ROWS;
+  const capped = ledger.slice(0, MAX_ROWS);
+  const rows = capped.map((row) => [
+    row.entry_date,
+    row.transaction_number ?? row.entry_number,
+    row.account_id,
+    row.account_code,
+    row.account_name,
+    row.description,
+    row.debit,
+    row.credit,
+    row.running_balance,
+  ]);
+  if (truncated) {
+    const note: (string | number)[] = [`# NOTE: Hasil dipotong ke ${MAX_ROWS} baris dari total ${ledger.length}`];
+    rows.unshift(note);
+  }
   return {
+    truncated,
+    totalRows: ledger.length,
     filename: filenameFor("buku_besar"),
     csv: toCsv(
-      [
-        "Tanggal",
-        "No Ref",
-        "Account ID",
-        "Kode Akun",
-        "Nama Akun",
-        "Keterangan",
-        "Debit",
-        "Kredit",
-        "Saldo",
-      ],
-      capped.map((row) => [
-        row.entry_date,
-        row.transaction_number ?? row.entry_number,
-        row.account_id,
-        row.account_code,
-        row.account_name,
-        row.description,
-        row.debit,
-        row.credit,
-        row.running_balance,
-      ]),
+      ["Tanggal", "No Ref", "Account ID", "Kode Akun", "Nama Akun", "Keterangan", "Debit", "Kredit", "Saldo"],
+      rows,
     ),
   };
 }
@@ -274,7 +275,6 @@ async function listTransactionsForExport(
   const conditions = [
     "t.organization_id = ?",
     "t.original_transaction_id IS NULL",
-    "t.transaction_type NOT LIKE 'opening_%'",
   ];
   const values: D1Input[] = [organizationId];
 

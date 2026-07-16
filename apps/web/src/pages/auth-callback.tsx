@@ -56,6 +56,10 @@ export function AuthCallbackPage() {
       if (verifiedRef.current) return;
       verifiedRef.current = true;
 
+      // Strip query params from URL to prevent leaking OAuth error tokens
+      // to browser history, Referer headers, or server logs.
+      window.history.replaceState(null, "", "/auth/callback");
+
       // OAuth flow: backend redirects here with ?success=true or ?error=...
       const oauthSuccess = searchParams.get("success");
       const oauthError = searchParams.get("error");
@@ -121,12 +125,27 @@ export function AuthCallbackPage() {
     verify();
   }, [searchParams, navigate]);
 
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) {
+        clearInterval(cooldownRef.current);
+        cooldownRef.current = null;
+      }
+    };
+  }, []);
+
   const startResendCooldown = (seconds: number) => {
     setResendCooldown(seconds);
-    const interval = setInterval(() => {
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
       setResendCooldown((prev) => {
         if (prev <= 1) {
-          clearInterval(interval);
+          if (cooldownRef.current) {
+            clearInterval(cooldownRef.current);
+            cooldownRef.current = null;
+          }
           return 0;
         }
         return prev - 1;

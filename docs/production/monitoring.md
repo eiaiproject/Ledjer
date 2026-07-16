@@ -1,85 +1,20 @@
-# Production Monitoring & Observability
+# Monitoring & Data Retention — Ledjer
 
-Last updated: 2026-07-07
+## Table Retention
 
-## Error Tracking — Sentry
+| Table                  | Retention     | Policy                            |
+|------------------------|---------------|-----------------------------------|
+| sessions               | Until expiry  | Deleted when `expires_at <= now`  |
+| email_verifications    | Until use     | Deleted when `used_at IS NOT NULL` or expired |
+| password_reset_tokens  | Until use     | Deleted when `used_at IS NOT NULL` or expired |
+| export_jobs            | Configurable  | Deleted when `expires_at` passed  |
+| login_attempts         | 90 days       | Configured in `cleanupExpiredRows` |
+| audit_logs             | 7 years       | Configured via `AUDIT_RETENTION_DAYS` env |
 
-**Status:** ✅ Configured (behind `VITE_SENTRY_DSN`)
+The daily cron trigger at 03:00 WIB runs `cleanupExpiredRows` to purge expired rows.
 
-- Frontend errors tracked via `@sentry/react`
-- Performance traces at 10% sampling
-- CSP allows Sentry ingest (`connect-src: https://*.ingest.sentry.io`)
-- Replay integration: `maskAllText: true`, `blockAllMedia: true`, `maskAllInputs: true` — PII masked
-- `beforeSend` sanitization: URL query params/hash stripped; `request.headers` scrubbed (Authorization, Cookie, Set-Cookie, x-auth-token, api-key)
+## Observability
 
-### Required Setup
-1. Create Sentry project at sentry.io
-2. Set `VITE_SENTRY_DSN` in production env
-3. Configure alerts in Sentry dashboard:
-   - Error spike: ≥10 errors in 5 min
-   - New error type notification
-   - Performance regression: P95 latency > 2s
-
-## Uptime Monitoring
-
-**Status:** ⚠️ Not configured — requires setup
-
-### Recommended Tools
-- UptimeRobot (free tier available)
-- Checkly (browser-level checks)
-
-### What to Monitor
-| URL | Check Type | Interval |
-|-----|-----------|----------|
-| `https://ledjer.id` | HTTP 200 | 5 min |
-| `https://ledjer.id/login` | Page load | 15 min |
-
-### Alert Contacts
-- Primary: [owner email]
-- Secondary: [backup email]
-
-## Worker/D1 Health
-
-**Status:** ⚠️ Manual monitoring via Cloudflare dashboard
-
-### Key Metrics to Watch (Cloudflare Dashboard → Workers & Pages)
-- Worker error rate and latency
-- D1 query failures
-- D1 storage and write volume
-- Worker CPU time usage
-
-### Cloudflare Dashboard URLs
-- Workers overview: https://dash.cloudflare.com → Workers & Pages
-- D1 database: https://dash.cloudflare.com → D1 SQL Database
-
-## Auth Monitoring
-
-- Login attempts tracked in `login_attempts` table (D1)
-- Rate limiting active on auth endpoints (5 failed attempts → 15 min lockout)
-- Failed login alerts: configure via Sentry or custom alerting
-
-## Frontend Performance
-
-- Sentry traces capture page load, navigation, and API call timing
-- Performance E2E tests cover Web Vitals (`e2e/performance.spec.ts`, `pnpm test:perf`)
-
-## Log Aggregation
-
-**Status:** ⚠️ Not configured
-
-For production, consider:
-- Cloudflare Worker logs (via `wrangler tail` or Cloudflare dashboard)
-- Sentry frontend errors
-- Structured server logging when added
-
-## Alerting Rules
-
-| Condition | Severity | Action |
-|-----------|----------|--------|
-| Frontend error spike | High | Check Sentry, investigate |
-| D1 query failures | Critical | Check Worker logs and recent migrations |
-| Worker 5xx rate | Critical | Check Cloudflare dashboard, rollback if needed |
-| Auth failure spike | Medium | Check for brute force (login_attempts table) |
-| Uptime check failure | Critical | Investigate service status |
-| Slow query > 5s | Medium | Optimize or add index |
-| D1 storage > 80% | High | Clean up or scale |
+- Sentry: errors captured via `@sentry/cloudflare` in the Worker entry point.
+- Structured logs: request bodies logged as JSON to stdout (password fields redacted).
+- Health endpoint: `GET /api/health` returns 503 when DB unreachable.

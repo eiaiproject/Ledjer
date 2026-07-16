@@ -1,7 +1,11 @@
 {
   "name": "Ledjer",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ledjer — Double-entry bookkeeping",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
   "main": "index.js",
   "scripts": {
     "dev": "pnpm --filter web dev",

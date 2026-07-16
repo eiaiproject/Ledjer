@@ -13,8 +13,8 @@ export interface PublicProduct {
   unit: string;
   purchase_price: number;
   selling_price: number;
-  current_stock: number;
-  min_stock: number;
+  current_stock: string;
+  min_stock: string;
   is_active: boolean;
 }
 
@@ -54,10 +54,10 @@ export interface PublicStockMovement {
   product_id: string;
   movement_date: string;
   movement_type: StockMovementType;
-  quantity: number;
+  quantity: string;
   unit_cost: number | null;
   transaction_id: string | null;
-  stock_after: number;
+  stock_after: string;
   notes: string | null;
   created_by: string | null;
   created_at: number;
@@ -298,6 +298,12 @@ export async function deactivateProduct(
   );
 }
 
+/**
+ * INTERNAL USE ONLY. Stock movements should go through postTransaction
+ * so that journal_entries and journal_lines are created atomically.
+ * Called once from createProduct for initial-stock recording.
+ * TODO: remove this function when initial stock is also posted via postTransaction.
+ */
 export async function recordStockMovement(
   db: D1Database,
   organizationId: string,
@@ -535,8 +541,8 @@ function toSignedQuantityMilli(value: number): number {
   return Math.round(value * 1000);
 }
 
-function fromQuantityMilli(value: number): number {
-  return value / 1000;
+function fromQuantityMilli(value: number): string {
+  return (value / 1000).toFixed(3);
 }
 
 function nextAverageCostMinor(

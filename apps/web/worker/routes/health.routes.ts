@@ -13,10 +13,15 @@ healthRoutes.get("/", async (c) => {
     }
   })();
 
+  if (!dbOk) {
+    return c.json(
+      { status: "unhealthy", database: "down" },
+      503,
+    );
+  }
+
   return c.json({
-    ok: true,
-    service: "ledjer-api",
-    runtime: "cloudflare-workers",
-    db: dbOk ? "connected" : "error",
+    status: "healthy",
+    database: "up",
   });
 });

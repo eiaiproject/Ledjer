@@ -2,6 +2,8 @@ import { queryAll } from "../db/client";
 import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
 
+const NET_INCOME_ACCOUNT_CODE = 3500;
+
 export interface TrialBalanceRow {
   account_id: string;
   account_code: number;
@@ -265,14 +267,14 @@ export async function getBalanceSheet(
        -balance
      FROM account_balances
      WHERE account_type = 'equity'
-       AND code != 3500
+       AND code != ${NET_INCOME_ACCOUNT_CODE}
        AND balance != 0
 
      UNION ALL
 
      SELECT
        'equity',
-       3500,
+       ${NET_INCOME_ACCOUNT_CODE},
        'Laba Tahun Berjalan',
        net
      FROM net_income
@@ -290,6 +292,8 @@ export async function getGeneralLedger(
     accountId?: string;
     fromDate: string;
     toDate: string;
+    limit?: number;
+    offset?: number;
   },
 ): Promise<GeneralLedgerRow[]> {
   const from = normalizeDate(input.fromDate, "from_date_invalid");
@@ -369,10 +373,11 @@ export async function getGeneralLedger(
        running_balance
      FROM ledger_running
      WHERE entry_date >= ?
-     ORDER BY account_code, entry_date, entry_created_at, line_order, journal_entry_id`,
+     ORDER BY account_code, entry_date, entry_created_at, line_order, journal_entry_id
+     LIMIT ? OFFSET ?`,
     input.accountId
-      ? [organizationId, to, input.accountId, from]
-      : [organizationId, to, from],
+      ? [organizationId, to, input.accountId, from, input.limit ?? 5000, input.offset ?? 0]
+      : [organizationId, to, from, input.limit ?? 5000, input.offset ?? 0],
   );
 }
 

@@ -4,6 +4,7 @@ import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { accountsRoutes } from "./routes/accounts.routes";
+import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
 import { dashboardRoutes } from "./routes/dashboard.routes";
 import { exportsRoutes } from "./routes/exports.routes";
@@ -21,7 +22,12 @@ import { cleanupExpiredRows } from "./services/maintenance.service";
 const app = new Hono<AppContext>();
 
 app.onError(errorHandler);
-app.use("*", async (c, next) => { c.set("requestId", crypto.randomUUID()); await next(); });
+app.use("*", async (c, next) => {
+  const requestId = c.req.header("X-Request-Id") || crypto.randomUUID();
+  c.set("requestId", requestId);
+  await next();
+  c.header("X-Request-Id", requestId);
+});
 app.use("*", secureHeaders());
 // ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
 // Built-in csrf() can't access c.env at config time.
@@ -48,7 +54,13 @@ app.use("/api/*", async (c, next) => {
     return next(); // No session cookie — public endpoint (health, login)
   }
 
-  if (!allowed) return next(); // dev mode: allow all
+  if (!allowed) {
+    // In production, APP_ORIGIN must be configured — deny all origins if missing
+    if (c.env.APP_ENV === "production") {
+      return c.json({ error: { code: "csrf_misconfigured", message: "Server misconfigured" } }, 500);
+    }
+    return next(); // dev mode: allow all
+  }
   // ponytail: accept comma-separated origins (e.g. "http://localhost:5173,http://localhost:4173").
   const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
   const ok = allowedList.some((a) => origin === a || origin.startsWith(a + "/"));
@@ -56,6 +68,7 @@ app.use("/api/*", async (c, next) => {
   return next();
 });
 
+app.route("/api/audit-logs", auditLogsRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
 app.route("/api/dashboard", dashboardRoutes);
@@ -87,12 +100,12 @@ app.notFound((c) => {
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
-export { app };
+import { withSentry } from "@sentry/cloudflare";
 
-export default {
-  fetch(request: Request, env: AppContext["Bindings"], ctx?: ExecutionContext) {
-    return app.fetch(request, env, ctx);
-  },
+// ponytail: wrappedHandler wraps the Hono app with Sentry for Cloudflare Workers.
+// Tests import { app } directly (unwrapped) so they don't need ExecutionContext.
+const worker: ExportedHandler<AppContext["Bindings"]> = {
+  fetch: (request, env, ctx) => app.fetch(request, env, ctx),
   async scheduled(
     _controller: ScheduledController,
     env: AppContext["Bindings"],
@@ -100,3 +113,20 @@ export default {
     await cleanupExpiredRows(env.DB);
   },
 };
+
+const wrappedHandler = withSentry(
+  (env: AppContext["Bindings"]) => {
+    const dsn = env.SENTRY_DSN;
+    if (!dsn) return { enabled: false };
+    return {
+      dsn,
+      environment: env.APP_ENV ?? "development",
+      release: env.GIT_SHA,
+      tracesSampleRate: 0.1,
+    };
+  },
+  worker,
+);
+
+export { app, wrappedHandler };
+export default wrappedHandler;
