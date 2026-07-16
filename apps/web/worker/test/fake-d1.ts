@@ -4,14 +4,15 @@ interface FakeD1Handlers {
   first?: (sql: string, values: unknown[]) => MaybePromise<unknown>;
   all?: (sql: string, values: unknown[]) => MaybePromise<unknown[]>;
   run?: (sql: string, values: unknown[]) => MaybePromise<D1Result | void>;
+  batch?: (statements: { sql: string; values: unknown[] }[]) => MaybePromise<D1Result[]>;
 }
 
 export class FakeD1Statement {
-  private values: unknown[] = [];
+  values: unknown[] = [];
 
   constructor(
     private readonly db: FakeD1Database,
-    private readonly sql: string,
+    readonly sql: string,
   ) {}
 
   bind(...values: unknown[]): this {
@@ -53,6 +54,13 @@ export class FakeD1Database {
 
   async run(sql: string, values: unknown[]): Promise<D1Result> {
     this.statements.push({ sql, values });
-    return (await this.handlers.run?.(sql, values)) ?? { success: true } as D1Result;
+    return (await this.handlers.run?.(sql, values)) ?? { success: true, meta: { changes: 1 } } as D1Result;
+  }
+
+  async batch(statements: FakeD1Statement[]): Promise<D1Result[]> {
+    if (this.handlers.batch) {
+      return this.handlers.batch(statements.map((s) => ({ sql: s.sql, values: s.values })));
+    }
+    return Promise.all(statements.map((s) => s.run()));
   }
 }

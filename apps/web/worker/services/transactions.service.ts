@@ -9,7 +9,7 @@ import {
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
-import { badRequest, conflict, notFound } from "../http/errors";
+import { badRequest, conflict, HttpError, notFound } from "../http/errors";
 
 export type TransactionType =
   | "cash_sale"
@@ -598,15 +598,61 @@ export async function postTransaction(
     }),
   );
 
-  try {
-    await executeBatch(db, statements);
-  } catch (e) {
-    // ponytail: If batch fails due to idempotency race, return existing transaction.
-    const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-    if (retry) return buildPostResult(db, organizationId, retry.id);
-    throw e;
+  // ponytail: Retry loop for optimistic stock-lock failures (max 3 attempts).
+  // Track index of stock UPDATE statement to check meta.changes after batch.
+  // ponytail: Index of UPDATE products statement in the batch.
+  // After building: [tx, je, jl..., tl, UPDATE_products, INSERT_stock, audit_log]
+  const stockUpdateIndex = reservedStock ? statements.length - 3 : -1;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const results = await executeBatch(db, statements);
+      if (stockUpdateIndex >= 0 && results[stockUpdateIndex]) {
+        const changes = (results[stockUpdateIndex] as any).meta?.changes;
+        if (changes === 0) {
+          if (attempt < 3) {
+            // Re-read product and re-reserve stock, then retry
+            const freshProduct = await queryFirst<ProductRow>(
+              db,
+              `SELECT * FROM products WHERE id = ? AND organization_id = ?`,
+              [product!.id, organizationId],
+            );
+            if (freshProduct && quantityMilli !== null && unitPriceMinor !== null) {
+              reservedStock = await reserveStockForTransaction(transactionType, freshProduct, quantityMilli, unitPriceMinor);
+              const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+              const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
+              // Rebuild stock statements at same indices
+              statements[stockUpdateIndex] = statement(
+                db,
+                `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
+                 WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+                [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product!.id, organizationId, freshProduct.current_stock_milli],
+              );
+              statements[stockUpdateIndex + 1] = insertStockMovementStatement(db, {
+                organizationId, productId: product!.id, transactionId,
+                movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
+                quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
+                stockAfterMilli: reservedStock.nextStock, notes: description, userId, current,
+              });
+            }
+            // Exponential backoff
+            await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+            continue;
+          }
+          throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
+        }
+      }
+      return buildPostResult(db, organizationId, transactionId);
+    } catch (e) {
+      // If already a known conflict error, rethrow
+      if (e instanceof HttpError && e.code === "stock_concurrent_modify") throw e;
+      // ponytail: If batch fails due to idempotency race, return existing transaction.
+      const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+      if (retry) return buildPostResult(db, organizationId, retry.id);
+      if (attempt === 3) throw e;
+      await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+    }
   }
-  return buildPostResult(db, organizationId, transactionId);
+  throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
 }
 
 /**
