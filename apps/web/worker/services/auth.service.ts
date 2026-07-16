@@ -2,6 +2,7 @@ import { execute, queryAll, queryFirst } from "../db/client";
 import { forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
+import { logAuthEvent } from "./auth-audit.service";
 import {
   createSession,
   revokeAllUserSessions,
@@ -74,6 +75,7 @@ export async function registerUser(
     ],
   );
   await createEmailVerification(db, userId, email);
+  await logAuthEvent(db, userId, userId, "registration", { email });
 
   return {
     userId,
@@ -112,6 +114,7 @@ export async function loginUser(
   }
 
   await recordLoginAttempt(db, email, request, true);
+  await logAuthEvent(db, user.id, user.id, "login_success", { email });
   return createSession(db, user.id, request);
 }
 
@@ -145,6 +148,7 @@ export async function verifyEmailToken(
     "UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?",
     [current, current, row.user_id],
   );
+  await logAuthEvent(db, row.user_id, row.user_id, "email_verification_completed", {});
 
   return createSession(db, row.user_id, request);
 }
@@ -226,6 +230,7 @@ export async function resetPassword(
     [await hashPassword(password, pepper), current, userId],
   );
   await revokeAllUserSessions(db, userId);
+  await logAuthEvent(db, userId, userId, "password_reset_completed", {});
 }
 
 export async function changePassword(

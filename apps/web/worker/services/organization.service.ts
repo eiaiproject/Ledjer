@@ -2,6 +2,7 @@ import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
 import type { AccountType, NormalBalance, Role } from "../db/schema";
 import { badRequest, forbidden } from "../http/errors";
+import { logAuthEvent } from "./auth-audit.service";
 import {
   setSessionCurrentOrganization,
   type CurrentSessionRow,
@@ -231,6 +232,7 @@ export async function createOrganization(
     await postOpeningBalances(db, organizationId, session.user_id, input, current);
   }
 
+  await logAuthEvent(db, session.user_id, organizationId, "organization_created", { name: organizationName });
   await setSessionCurrentOrganization(db, session.session_id, organizationId);
 
   const context = await getOrganizationContextForUser(db, session.user_id, organizationId);

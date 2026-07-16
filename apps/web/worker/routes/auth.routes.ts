@@ -107,7 +107,14 @@ authRoutes.post("/login", async (c) => {
 authRoutes.post("/logout", async (c) => {
   const token = getCookie(c, "ledjer_session");
   if (token) {
+    const row = await getSessionByToken(c.env.DB, token);
     await revokeSessionToken(c.env.DB, token);
+    if (row) {
+      // Fire-and-forget audit — no need to await for the response
+      import("../services/auth-audit.service").then(({ logAuthEvent }) =>
+        logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {})
+      );
+    }
   }
   deleteCookie(c, "ledjer_session", {
     domain: c.env.COOKIE_DOMAIN,

@@ -8,6 +8,7 @@ import {
 import { badRequest, conflict, unauthorized } from "../http/errors";
 import { writeAuditStatement } from "../http/audit";
 import { hashPassword } from "../auth/password";
+import { logAuthEvent } from "./auth-audit.service";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -322,5 +323,6 @@ export async function completeGoogleAuth(
   }
 
   // Create session
+  await logAuthEvent(db, user.id, user.id, "oauth_login", { provider: "google" });
   return createSession(db, user.id, request);
 }
