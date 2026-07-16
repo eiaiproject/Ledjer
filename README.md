@@ -4,6 +4,19 @@ Sistem pembukuan double-entry untuk UMKM Indonesia. Ledjer berjalan sebagai apli
 
 [![CI](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml/badge.svg)](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml)
 
+## Features
+
+- **Double-entry bookkeeping** — posting, void, settle (AR/AP) with audit trail
+- **Chart of accounts** — asset, liability, equity, revenue, expense, COGS, configurable
+- **Inventory management** — weighted average cost (WAC), stock movements, auto-COGS
+- **Financial reports** — trial balance, P&L, balance sheet, general ledger
+- **Indonesian-first** — UI in Bahasa Indonesia, IDR currency, Indonesian tax concepts
+- **UMKM-ready** — simple_trading and service business types, zero accounting knowledge required
+- **OAuth Google** — sign in with Google, auto-link existing accounts
+- **Team collaboration** — roles (owner/admin/member/viewer), invitations, granular permissions
+- **CSV exports** — transactions, accounts, products, all financial reports
+- **Cloudflare-native** — Workers + D1, zero server management, global edge deployment
+
 ## Screenshots
 
 | Landing | Login | Register |
