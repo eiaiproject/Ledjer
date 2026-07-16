@@ -24,16 +24,20 @@ export function requireAuth(): MiddlewareHandler<AppContext> {
 export async function getAuthenticatedSession(
   c: Context<AppContext>,
 ): Promise<CurrentSessionRow> {
-  const token = getCookie(c, "ledjer_session");
+  // Try __Host- prefix first (production), fall back to un-prefixed (dev)
+  const token = getCookie(c, "__Host-ledjer_session")
+    ?? getCookie(c, "ledjer_session");
   if (!token) throw unauthorized();
 
   const session = await getSessionByToken(c.env.DB, token);
   if (!session) {
-    deleteCookie(c, "ledjer_session", {
-      domain: c.env.COOKIE_DOMAIN,
-      path: "/",
-      secure: true,
-    });
+    for (const name of ["__Host-ledjer_session", "ledjer_session"]) {
+      deleteCookie(c, name, {
+        domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
+        path: "/",
+        secure: true,
+      });
+    }
     throw unauthorized();
   }
 

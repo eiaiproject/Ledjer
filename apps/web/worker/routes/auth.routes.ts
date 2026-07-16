@@ -3,6 +3,10 @@ import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import type { AppContext } from "../env";
+
+function cookieName(c: Context): string {
+  return c.env.APP_ENV === "production" ? "__Host-ledjer_session" : "ledjer_session";
+}
 import { badRequest, tooManyRequests, unauthorized } from "../http/errors";
 import { readJson } from "../http/json";
 import {
@@ -93,8 +97,8 @@ authRoutes.post("/login", async (c) => {
     c.env.PASSWORD_PEPPER,
   );
 
-  setCookie(c, "ledjer_session", session.token, {
-    domain: c.env.COOKIE_DOMAIN,
+  setCookie(c, cookieName(c), session.token, {
+    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
     expires: new Date(session.expiresAt),
     httpOnly: true,
     path: "/",
@@ -105,7 +109,7 @@ authRoutes.post("/login", async (c) => {
 });
 
 authRoutes.post("/logout", async (c) => {
-  const token = getCookie(c, "ledjer_session");
+  const token = getCookie(c, cookieName(c));
   if (token) {
     const row = await getSessionByToken(c.env.DB, token);
     await revokeSessionToken(c.env.DB, token);
@@ -116,8 +120,8 @@ authRoutes.post("/logout", async (c) => {
       );
     }
   }
-  deleteCookie(c, "ledjer_session", {
-    domain: c.env.COOKIE_DOMAIN,
+  deleteCookie(c, cookieName(c), {
+    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
     path: "/",
     secure: isSecureRequest(c),
   });
@@ -125,13 +129,13 @@ authRoutes.post("/logout", async (c) => {
 });
 
 authRoutes.get("/me", async (c) => {
-  const token = getCookie(c, "ledjer_session");
+  const token = getCookie(c, cookieName(c));
   if (!token) return c.json({ user: null, session: null });
 
   const row = await getSessionByToken(c.env.DB, token);
   if (!row) {
-    deleteCookie(c, "ledjer_session", {
-      domain: c.env.COOKIE_DOMAIN,
+    deleteCookie(c, cookieName(c), {
+      domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
       path: "/",
       secure: isSecureRequest(c),
     });
@@ -161,8 +165,8 @@ authRoutes.post("/verify-email", async (c) => {
     const session = body.type === "recovery"
       ? await verifyPasswordResetToken(c.env.DB, body.token, c.req.raw)
       : await verifyEmailToken(c.env.DB, body.token, c.req.raw);
-    setCookie(c, "ledjer_session", session.token, {
-      domain: c.env.COOKIE_DOMAIN,
+    setCookie(c, cookieName(c), session.token, {
+      domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
       expires: new Date(session.expiresAt),
       httpOnly: true,
       path: "/",
@@ -199,8 +203,8 @@ authRoutes.post("/reset-password", async (c) => {
   const body = await readJson(c, resetPasswordSchema);
   const row = await requireSession(c);
   await resetPassword(c.env.DB, row.user_id, body.password, c.env.PASSWORD_PEPPER);
-  deleteCookie(c, "ledjer_session", {
-    domain: c.env.COOKIE_DOMAIN,
+  deleteCookie(c, cookieName(c), {
+    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
     path: "/",
     secure: isSecureRequest(c),
   });
@@ -217,8 +221,8 @@ authRoutes.post("/change-password", async (c) => {
     body.password,
     c.env.PASSWORD_PEPPER,
   );
-  deleteCookie(c, "ledjer_session", {
-    domain: c.env.COOKIE_DOMAIN,
+  deleteCookie(c, cookieName(c), {
+    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
     path: "/",
     secure: isSecureRequest(c),
   });
