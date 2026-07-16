@@ -290,6 +290,8 @@ export async function getGeneralLedger(
     accountId?: string;
     fromDate: string;
     toDate: string;
+    limit?: number;
+    offset?: number;
   },
 ): Promise<GeneralLedgerRow[]> {
   const from = normalizeDate(input.fromDate, "from_date_invalid");
@@ -369,10 +371,11 @@ export async function getGeneralLedger(
        running_balance
      FROM ledger_running
      WHERE entry_date >= ?
-     ORDER BY account_code, entry_date, entry_created_at, line_order, journal_entry_id`,
+     ORDER BY account_code, entry_date, entry_created_at, line_order, journal_entry_id
+     LIMIT ? OFFSET ?`,
     input.accountId
-      ? [organizationId, to, input.accountId, from]
-      : [organizationId, to, from],
+      ? [organizationId, to, input.accountId, from, input.limit ?? 5000, input.offset ?? 0]
+      : [organizationId, to, from, input.limit ?? 5000, input.offset ?? 0],
   );
 }
 
