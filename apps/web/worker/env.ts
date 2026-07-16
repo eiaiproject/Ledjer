@@ -13,6 +13,7 @@ export interface Env {
   SENTRY_DSN?: string;
   SESSION_SECRET?: string;
   APP_ENV?: string;
+  GIT_SHA?: string;
 }
 
 export interface AppContext {

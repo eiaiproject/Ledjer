@@ -121,7 +121,7 @@ const wrappedHandler = withSentry(
     return {
       dsn,
       environment: env.APP_ENV ?? "development",
-      release: (env as any).GIT_SHA,
+      release: env.GIT_SHA,
       tracesSampleRate: 0.1,
     };
   },

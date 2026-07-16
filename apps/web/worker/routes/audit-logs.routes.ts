@@ -23,7 +23,19 @@ auditLogsRoutes.get("/", async (c) => {
     values.push(action);
   }
 
-  const rows = await queryAll<any>(
+  interface AuditLogRow {
+    id: string;
+    actor_user_id: string;
+    actor_email: string;
+    entity_type: string;
+    entity_id: string;
+    action: string;
+    before_json: string | null;
+    after_json: string | null;
+    reason: string | null;
+    created_at: string;
+  }
+  const rows = await queryAll<AuditLogRow>(
     c.env.DB,
     `SELECT al.id, al.actor_user_id, u.email AS actor_email,
             al.entity_type, al.entity_id, al.action,

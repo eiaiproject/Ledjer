@@ -609,7 +609,7 @@ export async function postTransaction(
     try {
       const results = await executeBatch(db, statements);
       if (stockUpdateIndex >= 0 && results[stockUpdateIndex]) {
-        const changes = (results[stockUpdateIndex] as any).meta?.changes;
+        const changes = results[stockUpdateIndex].meta.changes;
         if (changes === 0) {
           if (attempt < 3) {
             // Re-read product and re-reserve stock, then retry

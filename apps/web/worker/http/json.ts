@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { ZodError, type ZodType } from "zod";
+import type { AppContext } from "../env";
 import { badRequest } from "./errors";
 
 /**
@@ -21,13 +22,13 @@ export function redactedBody(body: unknown): unknown {
   return body;
 }
 
-function logRequest(c: Context, body: unknown): void {
+function logRequest(c: Context<AppContext>, body: unknown): void {
   const env = c.env as { APP_ENV?: string } | undefined;
   if (env?.APP_ENV === "test") return;
 
   const log = {
     level: "info",
-    requestId: (c as any).get?.("requestId") ?? undefined,
+    requestId: c.get("requestId") ?? undefined,
     method: c.req.method,
     path: c.req.path,
     body: redactedBody(body),
