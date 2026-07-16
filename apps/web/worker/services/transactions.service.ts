@@ -1,5 +1,6 @@
 import { generateId } from "../auth/tokens";
 import {
+  execute,
   executeBatch,
   queryAll,
   queryFirst,
@@ -1092,6 +1093,11 @@ export async function voidTransaction(
     throw e;
   }
 
+  // Recalculate WAC for products affected by this void
+  if (product && productLine?.quantity_milli != null) {
+    await recalculateProductAverageCost(db, organizationId, product.id);
+  }
+
   return {
     original_transaction_id: transactionId,
     reversal_transaction_id: reversalTransactionId,
@@ -1626,6 +1632,63 @@ async function productLineForTransaction(
      LIMIT 1`,
     [organizationId, transactionId],
   );
+}
+
+/**
+ * Recalculate a product's average cost (WAC) by replaying all stock movements
+ * in chronological order.
+ *
+ * WAC formula:
+ *   - opening/purchase: newAvg = round((stock × avg + qty × unit_cost) / new_stock)
+ *   - sale/void/adjustment: avg unchanged (quantity-only)
+ */
+interface StockMovementForWac {
+  movement_type: string;
+  quantity_milli: number;
+  unit_cost_minor: number | null;
+}
+
+export async function recalculateProductAverageCost(
+  db: D1Database,
+  organizationId: string,
+  productId: string,
+): Promise<{ average_cost_minor: number; current_stock_milli: number }> {
+  const movements = await queryAll<StockMovementForWac>(
+    db,
+    `SELECT movement_type, quantity_milli, unit_cost_minor
+     FROM stock_movements
+     WHERE organization_id = ? AND product_id = ?
+     ORDER BY movement_date ASC, created_at ASC`,
+    [organizationId, productId],
+  );
+
+  let stock = 0;
+  let avg = 0;
+
+  for (const m of movements) {
+    if (m.movement_type === "opening" || m.movement_type === "purchase") {
+      const qty = m.quantity_milli;
+      const cost = m.unit_cost_minor ?? 0;
+      const newStock = stock + qty;
+      if (newStock > 0) {
+        avg = Math.round((stock * avg + qty * cost) / newStock);
+      }
+      stock = newStock;
+    } else {
+      // sale, void, adjustment: avg unchanged
+      stock += m.quantity_milli;
+      if (stock < 0) stock = 0; // safety clamp, should not happen
+    }
+  }
+
+  await execute(
+    db,
+    `UPDATE products SET average_cost_minor = ?, current_stock_milli = ?, updated_at = ?
+     WHERE id = ? AND organization_id = ?`,
+    [avg, stock, Date.now(), productId, organizationId],
+  );
+
+  return { average_cost_minor: avg, current_stock_milli: stock };
 }
 
 async function stockMovementForTransaction(
