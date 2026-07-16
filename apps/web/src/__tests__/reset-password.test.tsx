@@ -82,10 +82,10 @@ describe('ResetPasswordPage', () => {
     renderAt('/reset-password');
 
     fireEvent.change(screen.getByLabelText(/^password baru$/i), {
-      target: { value: 'newpassword123' },
+      target: { value: 'Newpass123' },
     });
     fireEvent.change(screen.getByLabelText(/konfirmasi password/i), {
-      target: { value: 'different123' },
+      target: { value: 'Different12' },
     });
     fireEvent.click(screen.getByRole('button', { name: /perbarui password/i }));
 
@@ -101,15 +101,15 @@ describe('ResetPasswordPage', () => {
     renderAt('/reset-password');
 
     fireEvent.change(screen.getByLabelText(/^password baru$/i), {
-      target: { value: 'short' },
+      target: { value: 'Sh0rt' },
     });
     fireEvent.change(screen.getByLabelText(/konfirmasi password/i), {
-      target: { value: 'short' },
+      target: { value: 'Sh0rt' },
     });
     fireEvent.click(screen.getByRole('button', { name: /perbarui password/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/password minimal 8 karakter/i)).toBeTruthy();
+      expect(screen.getByText(/minimal 8 karakter/i)).toBeTruthy();
     });
     expect(mocks.resetPassword).not.toHaveBeenCalled();
   });
@@ -122,15 +122,15 @@ describe('ResetPasswordPage', () => {
     renderAt('/reset-password');
 
     fireEvent.change(screen.getByLabelText(/^password baru$/i), {
-      target: { value: 'newpassword123' },
+      target: { value: 'Newpass123' },
     });
     fireEvent.change(screen.getByLabelText(/konfirmasi password/i), {
-      target: { value: 'newpassword123' },
+      target: { value: 'Newpass123' },
     });
     fireEvent.click(screen.getByRole('button', { name: /perbarui password/i }));
 
     await waitFor(() => {
-      expect(mocks.resetPassword).toHaveBeenCalledWith('newpassword123');
+      expect(mocks.resetPassword).toHaveBeenCalledWith('Newpass123');
     });
 
     await act(async () => {
@@ -152,10 +152,10 @@ describe('ResetPasswordPage', () => {
     renderAt('/reset-password');
 
     fireEvent.change(screen.getByLabelText(/^password baru$/i), {
-      target: { value: 'newpassword123' },
+      target: { value: 'Newpass123' },
     });
     fireEvent.change(screen.getByLabelText(/konfirmasi password/i), {
-      target: { value: 'newpassword123' },
+      target: { value: 'Newpass123' },
     });
     fireEvent.click(screen.getByRole('button', { name: /perbarui password/i }));
 
