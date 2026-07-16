@@ -13,18 +13,16 @@ function testEnv(): Env {
 }
 
 describe("Worker API", () => {
-  it("returns health status", async () => {
+  it("returns 503 when DB is unreachable", async () => {
     const response = await app.fetch(
       new Request("http://localhost/api/health"),
       testEnv(),
     );
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({
-      ok: true,
-      service: "ledjer-api",
-      runtime: "cloudflare-workers",
-      db: "error",
+      status: "unhealthy",
+      database: "down",
     });
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
   });
