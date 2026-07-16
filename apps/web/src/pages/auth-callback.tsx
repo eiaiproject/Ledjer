@@ -56,6 +56,10 @@ export function AuthCallbackPage() {
       if (verifiedRef.current) return;
       verifiedRef.current = true;
 
+      // Strip query params from URL to prevent leaking OAuth error tokens
+      // to browser history, Referer headers, or server logs.
+      window.history.replaceState(null, "", "/auth/callback");
+
       // OAuth flow: backend redirects here with ?success=true or ?error=...
       const oauthSuccess = searchParams.get("success");
       const oauthError = searchParams.get("error");
