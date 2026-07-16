@@ -24,6 +24,31 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+import { queryClient } from "../query-client";
+import { toast } from "@/components/ui/toast";
+
+let isRedirectingToLogin = false;
+
+/**
+ * Paths where a 401 should NOT redirect to login (e.g., auth pages).
+ */
+const PUBLIC_AUTH_PATHS = new Set([
+  "/login", "/register", "/forgot-password", "/reset-password",
+  "/auth/callback", "/invitations/accept",
+]);
+
+function handleUnauthorized(): void {
+  if (isRedirectingToLogin) return;
+  if (PUBLIC_AUTH_PATHS.has(window.location.pathname)) return;
+
+  isRedirectingToLogin = true;
+  queryClient.clear();
+  toast.error("Sesi Anda telah berakhir. Silakan masuk kembali.");
+
+  const from = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.href = `/login?from=${from}`;
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -40,6 +65,10 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
+
     let body: ApiErrorBody | undefined;
     try {
       body = (await response.json()) as ApiErrorBody;
