@@ -3,6 +3,7 @@
   "name": "ledjer",
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-07",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "dist",
     "binding": "ASSETS",
@@ -14,9 +15,7 @@
       "binding": "DB",
       "database_name": "ledjer-production",
       "database_id": "37eff57a-d152-4235-8344-9379c7ad4cf2",
-      // TODO: Create a separate preview D1 database via `wrangler d1 create --name ledjer-preview`
-      // then replace the empty string below with the preview database ID.
-      "preview_database_id": "",
+      "preview_database_id": "304c2ea3-7368-420e-92fa-64a06411f3bf",
       "migrations_dir": "worker/db/migrations"
     }
   ],
