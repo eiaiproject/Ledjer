@@ -413,7 +413,7 @@ type StockStatementCtx = {
   db: D1Database;
   statements: D1PreparedStatement[];
   reservedStock: { nextStock: number; unitCost: number; nextAverage: number };
-  product: { id: string; current_stock_milli: number };
+  product: { id: string; current_stock_milli: number; purchase_price_minor: number };
   organizationId: string;
   transactionId: string;
   transactionDate: string;
@@ -434,7 +434,7 @@ function insertStockStatements(ctx: StockStatementCtx): void {
       db,
       `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
        WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-      [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product.id, organizationId, product.current_stock_milli],
+      [reservedStock.nextStock, reservedStock.nextAverage, isPurchase ? reservedStock.unitCost : product.purchase_price_minor, current, product.id, organizationId, product.current_stock_milli],
     ),
     insertStockMovementStatement(db, {
       organizationId, productId: product.id, transactionId,
@@ -626,7 +626,7 @@ export async function postTransaction(
                 db,
                 `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
                  WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-                [reservedStock.nextStock, reservedStock.nextAverage, reservedStock.nextAverage, current, product!.id, organizationId, freshProduct.current_stock_milli],
+                [reservedStock.nextStock, reservedStock.nextAverage, isPurchase ? reservedStock.unitCost : product!.purchase_price_minor, current, product!.id, organizationId, freshProduct.current_stock_milli],
               );
               statements[stockUpdateIndex + 1] = insertStockMovementStatement(db, {
                 organizationId, productId: product!.id, transactionId,
@@ -903,7 +903,7 @@ function restoreStockForVoid(ctx: VoidStockCtx): void {
       db,
       `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
        WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-      [nextStock, nextAverage, nextAverage, current, product.id, organizationId, product.current_stock_milli],
+      [nextStock, nextAverage, product.purchase_price_minor, current, product.id, organizationId, product.current_stock_milli],
     ),
     insertStockMovementStatement(db, {
       organizationId, productId: product.id, transactionId: reversalTransactionId,
