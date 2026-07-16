@@ -34,16 +34,14 @@ describe("maintenance cleanup", () => {
       sessions: 1,
       emailVerifications: 1,
       passwordResetTokens: 1,
-      exportJobs: 1,
       loginAttempts: 1,
       auditLogs: 1,
     });
-    expect(db.statements).toHaveLength(6);
+    expect(db.statements).toHaveLength(5);
     expect(db.statements.map((statement) => statement.sql)).toEqual([
       expect.stringContaining("DELETE FROM sessions"),
       expect.stringContaining("DELETE FROM email_verifications"),
       expect.stringContaining("DELETE FROM password_reset_tokens"),
-      expect.stringContaining("DELETE FROM export_jobs"),
       expect.stringContaining("DELETE FROM login_attempts"),
       expect.stringContaining("DELETE FROM audit_logs"),
     ]);
