@@ -29,7 +29,8 @@ case "${1:-}" in
 esac
 
 # Sanity: build output must exist.
-if [[ ! -f "apps/web/dist/ledjer/index.js" ]]; then
+webDir="${root}/apps/web"
+if [[ ! -f "${webDir}/dist/ledjer/index.js" ]]; then
   echo "ERROR: apps/web/dist/ledjer/index.js missing. Run 'pnpm --filter web build' first." >&2
   exit 1
 fi
@@ -43,8 +44,8 @@ if [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
 fi
 
 if [[ "$mode" == "upload" ]]; then
-  exec npx wrangler versions upload
+  cd "${webDir}" && exec npx wrangler versions upload
 fi
 
 # Default: deploy (upload + activate 100% traffic).
-exec npx wrangler deploy
+cd "${webDir}" && exec npx wrangler deploy
