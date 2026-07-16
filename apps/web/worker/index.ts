@@ -4,6 +4,7 @@ import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { accountsRoutes } from "./routes/accounts.routes";
+import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
 import { dashboardRoutes } from "./routes/dashboard.routes";
 import { exportsRoutes } from "./routes/exports.routes";
@@ -67,6 +68,7 @@ app.use("/api/*", async (c, next) => {
   return next();
 });
 
+app.route("/api/audit-logs", auditLogsRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
 app.route("/api/dashboard", dashboardRoutes);
