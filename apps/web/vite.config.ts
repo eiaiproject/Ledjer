@@ -34,6 +34,9 @@ function relaxCspForDev(): Plugin {
 }
 
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 750,
+  },
   plugins: [
     react(),
     cloudflare(),
