@@ -77,15 +77,9 @@ describe("Golden Accounting Scenarios", () => {
       expect(nextAverage).toBe(150);
     });
 
-    it("weighted average: void sale does not change average cost", () => {
-      // The invariant is that when stock > 0 after void, average cost stays
-      // the same. This is enforced by the production code path in
-      // transactions.service.ts appendVoidStockStatements which uses:
-      //   nextAverage = nextStock === 0 ? 0 : input.product.average_cost_minor
-      // We verify the precondition (stock > 0) so the invariant holds.
-      const stockAfterVoid = 30_000; // 20 units + 10 voided units
-      expect(stockAfterVoid).toBeGreaterThan(0);
-    });
+    // TODO: weighted-average void test needs FakeD1Database with seeded
+    // products, transactions, and stock movements. Call voidTransaction
+    // and verify average_cost_minor is unchanged (or recalculated per P1-2).
   });
 
   describe("Accounting invariant assertions", () => {
