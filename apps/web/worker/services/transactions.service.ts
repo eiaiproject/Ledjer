@@ -638,22 +638,32 @@ async function validateSettlementTarget(
   return original;
 }
 
-async function calculateSettlementRemaining(
+export async function calculateSettlementRemaining(
   db: D1Database,
   organizationId: string,
   transactionId: string,
   cashAccountId: string,
   originalAmountMinor: number,
-  originalCashAccountId: string,
+  isSale: boolean,
+  originalCashAccountId?: string,
 ) {
   const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
-  const partialAmountDebit = originalLines.find(
-    (l) => l.account_id === cashAccountId || originalCashAccountId === cashAccountId,
+  const partialCashLines = originalLines.filter(
+    (l) => (l.account_id === cashAccountId || l.account_id === originalCashAccountId) && (
+      (isSale && l.debit_minor > 0) ||
+      (!isSale && l.credit_minor > 0)
+    ),
   );
-  const partialAmountMinor = partialAmountDebit ? partialAmountDebit.debit_minor + partialAmountDebit.credit_minor : 0;
+  const partialAmountMinor = partialCashLines.reduce(
+    (sum, l) => sum + (isSale ? l.debit_minor : l.credit_minor),
+    0,
+  );
   const remainingMinor = originalAmountMinor - partialAmountMinor;
-  if (remainingMinor <= 0) {
-    throw badRequest("already_fully_paid", "This transaction is already fully paid");
+  if (remainingMinor < 0) {
+    throw conflict("over_settlement", "Settlement exceeds remaining amount");
+  }
+  if (remainingMinor === 0) {
+    throw conflict("already_fully_paid", "This transaction is already fully paid");
   }
   return remainingMinor;
 }
@@ -682,14 +692,13 @@ export async function settleAndVoidTransaction(
   }
 
   const original = await validateSettlementTarget(db, organizationId, transactionId, cashAccountId);
-  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, original.cash_account_id ?? cashAccountId);
+  const isSale = original.transaction_type === "credit_sale";
+  const remainingMinor = await calculateSettlementRemaining(db, organizationId, transactionId, cashAccountId, original.amount_minor, isSale, original.cash_account_id ?? undefined);
   const current = Date.now();
   const settleTransactionId = generateId();
   const journalEntryId = generateId();
   const settleTransactionNumber = await generateTransactionNumber(db, organizationId, original.transaction_date);
   const settleEntryNumber = await generateEntryNumber(db, organizationId);
-
-  const isSale = original.transaction_type === "credit_sale";
   const settleType = isSale ? "receive_receivable" : "pay_payable";
   const arApAccountCode = isSale ? "1200" : "2100";
   const arApAccount = await accountByCode(db, organizationId, arApAccountCode);
