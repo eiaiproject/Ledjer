@@ -1,4 +1,5 @@
-import { TENANT_SCOPED_TABLES } from "./schema";
+import { TENANT_SCOPED_TABLES, type TenantScopedTable } from "./schema";
+import type { D1Input } from "./client";
 
 /**
  * TenantScopedRepository enforces organization_id scoping on all queries
@@ -35,7 +36,7 @@ export class TenantScopedRepository {
     values: readonly unknown[],
     config: TenantScopeConfig,
   ): void {
-    if (!TENANT_SCOPED_TABLES.includes(config.table as any)) {
+    if (!TENANT_SCOPED_TABLES.includes(config.table as TenantScopedTable)) {
       return; // Non-tenant tables (users, sessions, etc.) don't need org scoping
     }
 
@@ -58,7 +59,7 @@ export class TenantScopedRepository {
     this.assertScoped(sql, values, config);
     const result = await this.db
       .prepare(sql)
-      .bind(...(values as any[]))
+      .bind(...(values as D1Input[]))
       .all<T>();
     return result.results ?? [];
   }
@@ -71,7 +72,7 @@ export class TenantScopedRepository {
     this.assertScoped(sql, values, config);
     return this.db
       .prepare(sql)
-      .bind(...(values as any[]))
+      .bind(...(values as D1Input[]))
       .first<T | null>();
   }
 
@@ -83,7 +84,7 @@ export class TenantScopedRepository {
     this.assertScoped(sql, values, config);
     return this.db
       .prepare(sql)
-      .bind(...(values as any[]))
+      .bind(...(values as D1Input[]))
       .run();
   }
 
@@ -98,7 +99,7 @@ export class TenantScopedRepository {
       this.assertScoped(stmt.sql, stmt.values, stmt.config);
     }
     return this.db.batch(
-      statements.map((s) => this.db.prepare(s.sql).bind(...(s.values as any[]))),
+      statements.map((s) => this.db.prepare(s.sql).bind(...(s.values as D1Input[]))),
     );
   }
 }
