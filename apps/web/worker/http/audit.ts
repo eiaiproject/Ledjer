@@ -2,7 +2,7 @@ import { statement } from "../db/client";
 import { generateId } from "../auth/tokens";
 
 export interface WriteAuditInput {
-  organizationId: string;
+  organizationId: string | null;
   actorUserId: string;
   entityType: string;
   entityId: string;

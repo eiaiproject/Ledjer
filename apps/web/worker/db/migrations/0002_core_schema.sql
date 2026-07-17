@@ -395,7 +395,7 @@ CREATE TABLE IF NOT EXISTS organization_document_counters (
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY,
-  organization_id TEXT NOT NULL,
+  organization_id TEXT,
   actor_user_id TEXT,
   entity_type TEXT NOT NULL,
   entity_id TEXT NOT NULL,

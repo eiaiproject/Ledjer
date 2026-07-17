@@ -258,7 +258,7 @@ export async function completeGoogleAuth(
       // Link Google account to existing user
       await linkOAuthAccount(db, user.id, googleUser.id);
       await writeAuditStatement(db, {
-        organizationId: "",
+        organizationId: null,
         actorUserId: user.id,
         entityType: "auth",
         entityId: user.id,

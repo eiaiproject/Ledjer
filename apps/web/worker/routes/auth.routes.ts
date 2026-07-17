@@ -116,7 +116,7 @@ authRoutes.post("/logout", async (c) => {
     const row = await getSessionByToken(c.env.DB, token);
     await revokeSessionToken(c.env.DB, token);
     if (row) {
-      logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {}).catch(() => {});
+      logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {});
     }
   }
   deleteCookie(c, cookieName(c), cookieOptions(c));
