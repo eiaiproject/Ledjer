@@ -28,7 +28,17 @@ app.use("*", async (c, next) => {
   await next();
   c.header("X-Request-Id", requestId);
 });
-app.use("*", secureHeaders());
+app.use("*", secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    frameAncestors: ["'none'"],
+    formAction: ["'self'"],
+  },
+}));
 // ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
 // Built-in csrf() can't access c.env at config time.
 app.use("/api/*", async (c, next) => {
