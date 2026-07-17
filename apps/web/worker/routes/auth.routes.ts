@@ -77,13 +77,17 @@ const changePasswordSchema = z.object({
 
 export const authRoutes = new Hono<AppContext>();
 
+function emailOriginUrl(c: Context): string {
+  return (c.env.APP_ORIGIN || new URL(c.req.url).origin).split(",")[0].trim();
+}
+
 authRoutes.post("/register", async (c) => {
   const body = await readJson(c, registerSchema);
   const ip = c.req.header("CF-Connecting-IP") || "unknown";
   if (await checkRateLimit(c.env.DB, "register", ip, { max: 5, windowMs: 3600000 })) {
     throw tooManyRequests("Too many registration attempts. Please try again later.");
   }
-  const result = await registerUser(c.env.DB, body, c.env.PASSWORD_PEPPER);
+  const result = await registerUser(c.env.DB, body, c.env.PASSWORD_PEPPER, c.env.EMAIL_API_KEY, emailOriginUrl(c));
 
   return c.json({
     user: { id: result.userId, email: body.email, fullName: body.fullName },
@@ -169,7 +173,7 @@ authRoutes.post("/resend-verification", async (c) => {
   const emailKey = body.email.toLowerCase();
   if (!await checkRateLimit(c.env.DB, "email_verify", emailKey, { max: 3, windowMs: 3600000 })
       && !await checkRateLimit(c.env.DB, "email_verify", ip, { max: 10, windowMs: 3600000 })) {
-    await resendEmailVerification(c.env.DB, body.email);
+    await resendEmailVerification(c.env.DB, body.email, c.env.EMAIL_API_KEY, emailOriginUrl(c));
   }
   return c.json({ ok: true });
 });
@@ -181,7 +185,7 @@ authRoutes.post("/forgot-password", async (c) => {
   const emailKey = body.email.toLowerCase();
   if (!await checkRateLimit(c.env.DB, "password_reset", emailKey, { max: 3, windowMs: 3600000 })
       && !await checkRateLimit(c.env.DB, "password_reset", ip, { max: 10, windowMs: 3600000 })) {
-    await createPasswordReset(c.env.DB, body.email);
+    await createPasswordReset(c.env.DB, body.email, c.env.EMAIL_API_KEY, emailOriginUrl(c));
   }
   return c.json({ ok: true });
 });

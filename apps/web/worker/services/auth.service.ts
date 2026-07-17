@@ -3,6 +3,7 @@ import { forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 import { logAuthEvent } from "./auth-audit.service";
+import { sendEmail } from "./email.service";
 import {
   createSession,
   revokeAllUserSessions,
@@ -45,13 +46,15 @@ export async function registerUser(
   db: D1Database,
   input: RegisterInput,
   pepper?: string,
+  emailApiKey?: string,
+  originUrl?: string,
 ): Promise<RegisterResult> {
   const email = input.email.trim().toLowerCase();
   const current = Date.now();
   const existing = await findUserByEmail(db, email);
   if (existing) {
     // ponytail: Prevent email enumeration — silently log and create verification email.
-    await createEmailVerification(db, existing.id, email);
+    await createEmailVerification(db, existing.id, email, emailApiKey, originUrl);
     await logDuplicateRegistration(db, email, current);
     return {
       userId: existing.id,
@@ -74,7 +77,7 @@ export async function registerUser(
       current,
     ],
   );
-  await createEmailVerification(db, userId, email);
+  await createEmailVerification(db, userId, email, emailApiKey, originUrl);
   await logAuthEvent(db, userId, userId, "registration", { email });
 
   return {
@@ -156,16 +159,20 @@ export async function verifyEmailToken(
 export async function resendEmailVerification(
   db: D1Database,
   emailInput: string,
+  emailApiKey?: string,
+  originUrl?: string,
 ): Promise<void> {
   const email = emailInput.trim().toLowerCase();
   const user = await findUserByEmail(db, email);
   if (!user || user.email_verified_at) return;
-  await createEmailVerification(db, user.id, email);
+  await createEmailVerification(db, user.id, email, emailApiKey, originUrl);
 }
 
 export async function createPasswordReset(
   db: D1Database,
   emailInput: string,
+  emailApiKey?: string,
+  originUrl?: string,
 ): Promise<void> {
   const email = emailInput.trim().toLowerCase();
   const user = await findUserByEmail(db, email);
@@ -186,6 +193,16 @@ export async function createPasswordReset(
       current,
     ],
   );
+
+  // Send password reset email if configured
+  if (emailApiKey && originUrl) {
+    const link = `${originUrl}/auth/callback?token=${token}&type=recovery`;
+    sendEmail(emailApiKey, {
+      to: email,
+      subject: "Atur ulang password — Ledjer",
+      html: `<p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
+    }).catch((err) => console.error("Failed to send password reset email", err));
+  }
 }
 
 export async function verifyPasswordResetToken(
@@ -265,6 +282,8 @@ async function createEmailVerification(
   db: D1Database,
   userId: string,
   email: string,
+  emailApiKey?: string,
+  originUrl?: string,
 ): Promise<void> {
   const token = generateToken();
   const current = Date.now();
@@ -282,6 +301,16 @@ async function createEmailVerification(
       current,
     ],
   );
+
+  // Send verification email if configured
+  if (emailApiKey && originUrl) {
+    const link = `${originUrl}/auth/callback?token=${token}&type=signup`;
+    sendEmail(emailApiKey, {
+      to: email,
+      subject: "Konfirmasi email Anda — Ledjer",
+      html: `<p>Klik tautan berikut untuk mengkonfirmasi email Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 24 jam.</p>`,
+    }).catch((err) => console.error("Failed to send verification email", err));
+  }
 }
 
 async function isLoginRateLimited(
