@@ -11,7 +11,6 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   PASSWORD_PEPPER?: string;
   SENTRY_DSN?: string;
-  SESSION_SECRET?: string;
   APP_ENV?: string;
   GIT_SHA?: string;
 }

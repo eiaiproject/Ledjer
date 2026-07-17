@@ -7,6 +7,15 @@ import type { AppContext } from "../env";
 function cookieName(c: Context): string {
   return c.env.APP_ENV === "production" ? "__Host-ledjer_session" : "ledjer_session";
 }
+
+function cookieOptions(c: Context) {
+  return {
+    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
+    path: "/",
+    sameSite: "Lax" as const,
+    secure: isSecureRequest(c),
+  };
+}
 import { badRequest, tooManyRequests, unauthorized } from "../http/errors";
 import { readJson } from "../http/json";
 import {
@@ -28,14 +37,13 @@ import {
   getSessionByToken,
   revokeSessionToken,
 } from "../services/session.service";
+import { logAuthEvent } from "../services/auth-audit.service";
 
 const emailSchema = z.string().email().transform((value) => value.trim().toLowerCase());
-const passwordSchema = z.string().min(8).max(72);
+const passwordSchema = z.string().min(8).max(72).regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar").regex(/\d/, "Password harus mengandung minimal 1 angka");
 
-// ponytail: cookies are Secure only on https origins; localhost http requires Secure=false.
 function isSecureRequest(c: Context): boolean {
-  const origin = (c.env.APP_ORIGIN || "").split(",")[0].trim() || new URL(c.req.url).origin;
-  return origin.startsWith("https://");
+  return new URL(c.req.url).protocol === "https:";
 }
 
 const registerSchema = z.object({
@@ -50,11 +58,8 @@ const loginSchema = z.object({
 });
 
 const verifyEmailSchema = z.object({
-  email: emailSchema.optional(),
-  token: z.string().min(16).optional(),
+  token: z.string().min(16),
   type: z.enum(["signup", "recovery"]).default("signup"),
-}).refine((value) => value.email || value.token, {
-  message: "email or token is required",
 });
 
 const forgotPasswordSchema = z.object({
@@ -98,12 +103,9 @@ authRoutes.post("/login", async (c) => {
   );
 
   setCookie(c, cookieName(c), session.token, {
-    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
+    ...cookieOptions(c),
     expires: new Date(session.expiresAt),
     httpOnly: true,
-    path: "/",
-    sameSite: "Lax",
-    secure: isSecureRequest(c),
   });
   return c.json({ ok: true });
 });
@@ -114,17 +116,10 @@ authRoutes.post("/logout", async (c) => {
     const row = await getSessionByToken(c.env.DB, token);
     await revokeSessionToken(c.env.DB, token);
     if (row) {
-      // Fire-and-forget audit — no need to await for the response
-      import("../services/auth-audit.service").then(({ logAuthEvent }) =>
-        logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {})
-      );
+      logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {}).catch(() => {});
     }
   }
-  deleteCookie(c, cookieName(c), {
-    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-    path: "/",
-    secure: isSecureRequest(c),
-  });
+  deleteCookie(c, cookieName(c), cookieOptions(c));
   return c.json({ ok: true });
 });
 
@@ -134,11 +129,7 @@ authRoutes.get("/me", async (c) => {
 
   const row = await getSessionByToken(c.env.DB, token);
   if (!row) {
-    deleteCookie(c, cookieName(c), {
-      domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-      path: "/",
-      secure: isSecureRequest(c),
-    });
+    deleteCookie(c, cookieName(c), cookieOptions(c));
     return c.json({ user: null, session: null });
   }
 
@@ -160,23 +151,19 @@ authRoutes.get("/me", async (c) => {
 
 authRoutes.post("/verify-email", async (c) => {
   const body = await readJson(c, verifyEmailSchema);
+  const session = body.type === "recovery"
+    ? await verifyPasswordResetToken(c.env.DB, body.token, c.req.raw)
+    : await verifyEmailToken(c.env.DB, body.token, c.req.raw);
+  setCookie(c, cookieName(c), session.token, {
+    ...cookieOptions(c),
+    expires: new Date(session.expiresAt),
+    httpOnly: true,
+  });
+  return c.json({ ok: true });
+});
 
-  if (body.token) {
-    const session = body.type === "recovery"
-      ? await verifyPasswordResetToken(c.env.DB, body.token, c.req.raw)
-      : await verifyEmailToken(c.env.DB, body.token, c.req.raw);
-    setCookie(c, cookieName(c), session.token, {
-      domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-      expires: new Date(session.expiresAt),
-      httpOnly: true,
-      path: "/",
-      sameSite: "Lax",
-      secure: isSecureRequest(c),
-    });
-    return c.json({ ok: true });
-  }
-
-  if (!body.email) throw badRequest("email_required", "Email is required");
+authRoutes.post("/resend-verification", async (c) => {
+  const body = await readJson(c, z.object({ email: emailSchema }));
   // Always return 200 to avoid email enumeration. Rate limit the actual send.
   const ip = c.req.header("CF-Connecting-IP") || "unknown";
   const emailKey = body.email.toLowerCase();
@@ -203,11 +190,7 @@ authRoutes.post("/reset-password", async (c) => {
   const body = await readJson(c, resetPasswordSchema);
   const row = await requireSession(c);
   await resetPassword(c.env.DB, row.user_id, body.password, c.env.PASSWORD_PEPPER);
-  deleteCookie(c, cookieName(c), {
-    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-    path: "/",
-    secure: isSecureRequest(c),
-  });
+  deleteCookie(c, cookieName(c), cookieOptions(c));
   return c.json({ ok: true });
 });
 
@@ -221,11 +204,7 @@ authRoutes.post("/change-password", async (c) => {
     body.password,
     c.env.PASSWORD_PEPPER,
   );
-  deleteCookie(c, cookieName(c), {
-    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-    path: "/",
-    secure: isSecureRequest(c),
-  });
+  deleteCookie(c, cookieName(c), cookieOptions(c));
   return c.json({ ok: true });
 });
 
@@ -252,12 +231,9 @@ authRoutes.get("/google/start", (c) => {
 
   // Store state in cookie (5 min expiry)
   setCookie(c, "google_oauth_state", state, {
-    domain: c.env.COOKIE_DOMAIN,
+    ...cookieOptions(c),
     expires: new Date(current + 5 * 60 * 1000),
     httpOnly: true,
-    path: "/",
-    sameSite: "Lax",
-    secure: isSecureRequest(c),
   });
 
   // Build redirect URI (worker callback endpoint).
@@ -290,11 +266,7 @@ authRoutes.get("/google/callback", async (c) => {
   }
 
   // Clear state cookie
-  deleteCookie(c, "google_oauth_state", {
-    domain: c.env.COOKIE_DOMAIN,
-    path: "/",
-    secure: isSecureRequest(c),
-  });
+  deleteCookie(c, "google_oauth_state", cookieOptions(c));
 
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
@@ -318,12 +290,9 @@ authRoutes.get("/google/callback", async (c) => {
     );
 
     setCookie(c, cookieName(c), session.token, {
-      domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
+      ...cookieOptions(c),
       expires: new Date(session.expiresAt),
       httpOnly: true,
-      path: "/",
-      sameSite: "Lax",
-      secure: isSecureRequest(c),
     });
     return c.redirect("/auth/callback?success=true");
   } catch (err) {
@@ -338,11 +307,7 @@ async function requireSession(c: Context<AppContext>) {
 
   const row = await getSessionByToken(c.env.DB, token);
   if (!row) {
-    deleteCookie(c, cookieName(c), {
-      domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-      path: "/",
-      secure: isSecureRequest(c),
-    });
+    deleteCookie(c, cookieName(c), cookieOptions(c));
     throw unauthorized();
   }
 

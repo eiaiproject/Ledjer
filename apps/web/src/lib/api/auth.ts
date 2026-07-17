@@ -70,9 +70,9 @@ export function verifyEmail(
 }
 
 export function resendVerification(email: string): Promise<{ ok: true }> {
-  return apiRequest<{ ok: true }>("/api/auth/verify-email", {
+  return apiRequest<{ ok: true }>("/api/auth/resend-verification", {
     method: "POST",
-    body: JSON.stringify({ email, type: "signup" }),
+    body: JSON.stringify({ email }),
   });
 }
 

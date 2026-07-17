@@ -187,29 +187,23 @@ async function createUserFromGoogle(
   const current = Date.now();
   const userId = generateId();
 
+  // Generate random high-entropy password so password-login is impossible without reset
+  const passwordHash = await hashPassword(bytesToBase64(randomBytes(32)));
+
   await execute(
     db,
     `INSERT INTO users (
        id, email, password_hash, full_name, status, email_verified_at, created_at, updated_at
-     ) VALUES (?, ?, '', ?, 'active', ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`,
     [
       userId,
       googleUser.email,
+      passwordHash,
       googleUser.name || googleUser.email,
       current, // email_verified_at (Google verifies email)
       current,
       current,
     ],
-  );
-
-  // Generate random high-entropy password so password-login is impossible without reset
-  const randomPassword = bytesToBase64(randomBytes(32));
-  const passwordHash = await hashPassword(randomPassword);
-
-  await execute(
-    db,
-    `UPDATE users SET password_hash = ? WHERE id = ?`,
-    [passwordHash, userId],
   );
 
   // Link OAuth account

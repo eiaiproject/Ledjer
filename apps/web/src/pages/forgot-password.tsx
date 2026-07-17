@@ -49,23 +49,11 @@ export function ForgotPasswordPage() {
     setError(null);
     try {
       await forgotPassword(email);
-      // Move to "check your inbox" view regardless of whether the email
-      // actually exists — prevents account enumeration.
       setSubmittedEmail(email);
     } catch (err) {
-      // Auth-level errors that could reveal account existence → show
-      // success view anyway to prevent account enumeration.
-      const msg = String((err as Error)?.message ?? '').toLowerCase();
-      const isAuthEnumLeak = [
-        'user not found', 'user_not_found', 'email not found',
-        'email_not_confirmed', 'not confirmed', 'signup disabled',
-        'signups not allowed', 'email address .* is invalid',
-      ].some((p) => msg.includes(p));
-      if (isAuthEnumLeak) {
-        setSubmittedEmail(email);
-      } else {
-        setError(translateError(err));
-      }
+      // Server always returns 200 for found/not-found. Only real errors
+      // (network, 5xx) reach here. Show them, never reveal account existence.
+      setError(translateError(err));
     } finally {
       setLoading(false);
     }

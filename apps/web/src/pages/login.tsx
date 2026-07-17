@@ -23,12 +23,6 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
-const LOGIN_LOCKOUT_MINUTES = 15;
-
-function getRateLimitDeadline(): number {
-  return Date.now() + LOGIN_LOCKOUT_MINUTES * 60_000 + 500;
-}
-
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,23 +31,6 @@ export function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
-  const [rateLimitUntil, setRateLimitUntil] = useState(0);
-
-  useEffect(() => {
-    if (!rateLimitUntil) return;
-    const ms = rateLimitUntil - Date.now();
-    if (ms <= 0) {
-      queueMicrotask(() => {
-        setRateLimited(false);
-        setRateLimitUntil(0);
-      });
-    }
-    const id = setTimeout(() => {
-      setRateLimited(false);
-      setRateLimitUntil(0);
-    }, ms);
-    return () => clearTimeout(id);
-  }, [rateLimitUntil]);
 
   // Email-not-confirmed state
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -84,7 +61,6 @@ export function LoginPage() {
 
       if (isApiError(err) && err.code === "rate_limited") {
         setRateLimited(true);
-        setRateLimitUntil(getRateLimitDeadline());
       }
 
       // Detect "email not confirmed" so we can offer a resend action.

@@ -7,9 +7,7 @@ import { translateError } from "@/lib/errors";
 import { getSafeRedirectPath } from "@/lib/redirect";
 import { ApiError } from "@/lib/api/client";
 import {
-  forgotPassword,
   getMe,
-  resendVerification,
   verifyEmail,
 } from "@/lib/api/auth";
 import { AlertTriangle, ArrowRight, CheckCircle2, Mail } from "lucide-react";
@@ -45,11 +43,7 @@ export function AuthCallbackPage() {
   // Persist the verified callback type for success CTA and resend flow.
   const [callbackType, setCallbackType] = useState<string | null>(null);
 
-  // Resend state (used for "error" / "invalid" recovery).
-  const [resendEmail, setResendEmail] = useState("");
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
 
   useEffect(() => {
     const verify = async () => {
@@ -125,58 +119,7 @@ export function AuthCallbackPage() {
     verify();
   }, [searchParams, navigate]);
 
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (cooldownRef.current) {
-        clearInterval(cooldownRef.current);
-        cooldownRef.current = null;
-      }
-    };
-  }, []);
-
-  const startResendCooldown = (seconds: number) => {
-    setResendCooldown(seconds);
-    if (cooldownRef.current) clearInterval(cooldownRef.current);
-    cooldownRef.current = setInterval(() => {
-      setResendCooldown((prev) => {
-        if (prev <= 1) {
-          if (cooldownRef.current) {
-            clearInterval(cooldownRef.current);
-            cooldownRef.current = null;
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const handleResend = async () => {
-    if (!resendEmail || resendLoading || resendCooldown > 0) return;
-    setResendLoading(true);
-    setResendMessage(null);
-    setErrorMessage(null);
-    try {
-      const isRecovery = callbackType === "recovery";
-      if (isRecovery) {
-        await forgotPassword(resendEmail.trim().toLowerCase());
-      } else {
-        await resendVerification(resendEmail.trim().toLowerCase());
-      }
-      setResendMessage(
-        isRecovery
-          ? "Tautan pemulihan telah dikirim ulang. Cek kotak masuk (atau folder spam) Anda."
-          : "Email konfirmasi telah dikirim ulang. Cek kotak masuk (atau folder spam) Anda."
-      );
-      startResendCooldown(60);
-    } catch (err) {
-      setErrorMessage(translateError(err));
-    } finally {
-      setResendLoading(false);
-    }
-  };
 
   const copy = STATUS_COPY[status];
 
@@ -206,50 +149,12 @@ export function AuthCallbackPage() {
                   </div>
                 )}
 
-                {resendMessage && (
-                  <output
-                    className="rounded-lg bg-success/10 p-3 text-sm text-success"
-                  >
-                    {resendMessage}
-                  </output>
-                )}
-
-                <div className="space-y-3">
-                  <label className="block text-left text-sm">
-                    <span className="mb-1.5 block font-medium text-text-secondary">
-                      Kirim ulang ke email
-                    </span>
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      placeholder="email@contoh.com"
-                      value={resendEmail}
-                      onChange={(e) => setResendEmail(e.target.value)}
-                      className="block w-full rounded-md border border-wood-200 bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-wood-400 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-500/20"
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    fullWidth
-                    onClick={handleResend}
-                    loading={resendLoading}
-                    disabled={resendLoading || resendCooldown > 0 || !resendEmail}
-                  >
-                    {resendCooldown > 0
-                      ? `Kirim ulang (${resendCooldown}s)`
-                      : "Kirim ulang email"}
-                  </Button>
-                </div>
-
-                <div className="text-center text-sm text-wood-500">
-                  Sudah diverifikasi?{" "}
-                  <Link
-                    to="/login"
-                    className="font-medium text-wood-600 hover:text-wood-800"
-                  >
-                    Masuk
-                  </Link>
-                </div>
+                <Link
+                  to="/login"
+                  className="mt-3 block text-center text-sm font-medium text-wood-600 hover:text-wood-800"
+                >
+                  Kembali ke halaman masuk
+                </Link>
               </div>
             )}
 

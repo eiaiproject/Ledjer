@@ -6,15 +6,11 @@ import { AuthCallbackPage } from '@/pages/auth-callback';
 // Use vi.hoisted so the mocks are created before vi.mock factory runs.
 const mocks = vi.hoisted(() => ({
   verifyEmail: vi.fn(),
-  resendVerification: vi.fn(),
-  forgotPassword: vi.fn(),
   getMe: vi.fn(),
 }));
 
 vi.mock('@/lib/api/auth', () => ({
   verifyEmail: (...args: unknown[]) => mocks.verifyEmail(...args),
-  resendVerification: (...args: unknown[]) => mocks.resendVerification(...args),
-  forgotPassword: (...args: unknown[]) => mocks.forgotPassword(...args),
   getMe: (...args: unknown[]) => mocks.getMe(...args),
 }));
 
@@ -47,8 +43,6 @@ describe('AuthCallbackPage', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mocks.verifyEmail.mockReset();
-    mocks.resendVerification.mockReset();
-    mocks.forgotPassword.mockReset();
     mocks.getMe.mockReset();
   });
 
@@ -130,26 +124,7 @@ describe('AuthCallbackPage', () => {
     expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
   });
 
-  it('resends confirmation email successfully', async () => {
-    mocks.verifyEmail.mockRejectedValue(new Error('expired'));
-    mocks.resendVerification.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token=stale&type=signup');
-
-    expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
-
-    const emailInput = (await screen.findByPlaceholderText(/email@contoh\.com/i)) as HTMLInputElement;
-    fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
-
-    const resendButton = screen.getByRole('button', { name: /kirim ulang email/i });
-    fireEvent.click(resendButton);
-
-    await waitFor(() => {
-      expect(mocks.resendVerification).toHaveBeenCalledWith('user@example.com');
-    });
-
-    expect(await screen.findByText(/email konfirmasi telah dikirim ulang/i)).toBeTruthy();
-  });
 
   it('redirects to onboarding when session exists but no code/token', async () => {
     mocks.getMe.mockResolvedValue({
@@ -211,45 +186,7 @@ describe('AuthCallbackPage', () => {
     expect(screen.queryByTestId('onboarding')).toBeNull();
   });
 
-  it('expired recovery resend calls forgotPassword (not resendVerification)', async () => {
-    mocks.verifyEmail.mockRejectedValue(new Error('Token has expired'));
-    mocks.forgotPassword.mockResolvedValue({ ok: true });
 
-    renderWithSearchParams('?token=expired&type=recovery');
 
-    expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
 
-    const emailInput = screen.getByPlaceholderText(/email@contoh\.com/i) as HTMLInputElement;
-    fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
-
-    const resendButton = screen.getByRole('button', { name: /kirim ulang email/i });
-    fireEvent.click(resendButton);
-
-    await waitFor(() => {
-      expect(mocks.forgotPassword).toHaveBeenCalledWith('user@example.com');
-    });
-    // Must NOT call the generic signup resend
-    expect(mocks.resendVerification).not.toHaveBeenCalled();
-    expect(await screen.findByText(/tautan pemulihan telah dikirim ulang/i)).toBeTruthy();
-  });
-
-  it('expired signup resend calls resendVerification (not forgotPassword)', async () => {
-    mocks.verifyEmail.mockRejectedValue(new Error('Token has expired'));
-    mocks.resendVerification.mockResolvedValue({ ok: true });
-
-    renderWithSearchParams('?token=expired&type=signup');
-
-    expect(await screen.findByText(/verifikasi gagal/i)).toBeTruthy();
-
-    const emailInput = screen.getByPlaceholderText(/email@contoh\.com/i) as HTMLInputElement;
-    fireEvent.change(emailInput, { target: { value: 'user@example.com' } });
-
-    const resendButton = screen.getByRole('button', { name: /kirim ulang email/i });
-    fireEvent.click(resendButton);
-
-    await waitFor(() => {
-      expect(mocks.resendVerification).toHaveBeenCalledWith('user@example.com');
-    });
-    expect(mocks.forgotPassword).not.toHaveBeenCalled();
-  });
 });
