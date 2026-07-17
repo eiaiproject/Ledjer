@@ -333,10 +333,9 @@ export function TransactionListPage() {
                   />
                 </div>
                 <div className="xl:col-span-4">
-                  <label htmlFor="jenis-filter" className="mb-1.5 block text-sm font-medium text-text-secondary">Jenis</label>
                   <Select
+                    label="Jenis"
                     id="jenis-filter"
-                    aria-label="Filter jenis transaksi"
                     value={typeFilter}
                     onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
                     placeholder="Semua Jenis"
@@ -344,10 +343,9 @@ export function TransactionListPage() {
                   />
                 </div>
                 <div className="xl:col-span-2">
-                  <label htmlFor="status-filter" className="mb-1.5 block text-sm font-medium text-text-secondary">Status</label>
                   <Select
+                    label="Status"
                     id="status-filter"
-                    aria-label="Filter status transaksi"
                     value={statusFilter}
                     onChange={(e) => { setStatusFilter(e.target.value as TransactionStatus | ""); setPage(0); }}
                     placeholder="Semua Status"

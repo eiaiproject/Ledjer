@@ -200,11 +200,16 @@ export async function createPasswordReset(
   // Send password reset email if configured
   if (emailApiKey && originUrl) {
     const link = `${originUrl}/auth/callback?token=${token}&type=recovery`;
-    sendEmail(emailApiKey, {
-      to: email,
-      subject: "Atur ulang password — Ledjer",
-      html: `<p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
-    }, emailFrom).catch((err) => console.error("Failed to send password reset email", err));
+    try {
+      await sendEmail(emailApiKey, {
+        to: email,
+        subject: "Atur ulang password — Ledjer",
+        html: `<p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
+      }, emailFrom);
+    } catch (err) {
+      console.error("Failed to send password reset email", err);
+      throw err;
+    }
   }
 }
 
@@ -309,11 +314,16 @@ async function createEmailVerification(
   // Send verification email if configured
   if (emailApiKey && originUrl) {
     const link = `${originUrl}/auth/callback?token=${token}&type=signup`;
-    sendEmail(emailApiKey, {
-      to: email,
-      subject: "Konfirmasi email Anda — Ledjer",
-      html: `<p>Klik tautan berikut untuk mengkonfirmasi email Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 24 jam.</p>`,
-    }, emailFrom).catch((err) => console.error("Failed to send verification email", err));
+    try {
+      await sendEmail(emailApiKey, {
+        to: email,
+        subject: "Konfirmasi email Anda — Ledjer",
+        html: `<p>Klik tautan berikut untuk mengkonfirmasi email Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 24 jam.</p>`,
+      }, emailFrom);
+    } catch (err) {
+      console.error("Failed to send verification email", err);
+      throw err;
+    }
   }
 }
 
