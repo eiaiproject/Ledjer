@@ -46,10 +46,11 @@ fi
 # Check no gaps in the contiguous sequence from 1
 max=0
 for n in "${nums[@]}"; do
-  (( n > max )) && max=$n
+  n_dec=$((10#$n))
+  (( n_dec > max )) && max=$n_dec
 done
 expected="$(seq -f '%04g' 1 "$max" | sort)"
-have="$(printf '%04d\n' "${nums[@]}" | sort -u)"
+have="$(for n in "${nums[@]}"; do printf '%04d\n' "$((10#$n))"; done | sort -u)"
 if [[ "$expected" != "$have" ]]; then
   echo "FAIL: gaps in migration sequence." >&2
   diff <(echo "$expected") <(echo "$have") >&2 || true
