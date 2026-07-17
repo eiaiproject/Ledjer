@@ -171,7 +171,6 @@ describe("Accounting Invariants", () => {
 
     it("zero stock after sale results in zero average", () => {
       const stockBefore = 10_000;
-      const avgBefore = 150;
       const qtyMilli = -10_000; // sell all
 
       const nextStock = stockBefore + qtyMilli;
