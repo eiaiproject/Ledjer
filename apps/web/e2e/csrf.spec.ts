@@ -16,7 +16,7 @@ test.describe("CSRF Protection", () => {
   test("POST with invalid Origin and session cookie is rejected with 403", async ({ request, context }) => {
     await context.addCookies([
       {
-        name: "ledjer_session",
+        name: "__Host-ledjer_session",
         value: "fake-session-token-abc123",
         domain: new URL(API_BASE).hostname,
         path: "/",
@@ -34,7 +34,7 @@ test.describe("CSRF Protection", () => {
   test("POST with missing Origin and session cookie is rejected", async ({ request, context }) => {
     await context.addCookies([
       {
-        name: "ledjer_session",
+        name: "__Host-ledjer_session",
         value: "fake-session-token-abc123",
         domain: new URL(API_BASE).hostname,
         path: "/",
@@ -67,7 +67,7 @@ test.describe("CSRF Protection", () => {
     // (browsers add it automatically for same-origin)
     await context.addCookies([
       {
-        name: "ledjer_session",
+        name: "__Host-ledjer_session",
         value: "fake-session-token-abc123",
         domain: new URL(API_BASE).hostname,
         path: "/",
