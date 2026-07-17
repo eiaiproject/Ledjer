@@ -85,6 +85,12 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     []
   );
 
+  const refreshSession = useCallback(async () => {
+    const next = await getMe();
+    setSession(next.session);
+    setUser(next.user);
+  }, []);
+
   const resendConfirmationEmail = useCallback(
     async (email: string) => {
       await resendVerification(email);
@@ -102,8 +108,9 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       signUp,
       resendConfirmationEmail,
       signOut,
+      refreshSession,
     }),
-    [session, user, loading, error, signIn, signUp, resendConfirmationEmail, signOut]
+    [session, user, loading, error, signIn, signUp, resendConfirmationEmail, signOut, refreshSession]
   );
 
   // Auth errors are exposed via context (error field) instead of blocking

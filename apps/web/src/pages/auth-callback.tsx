@@ -6,6 +6,7 @@ import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
 import { getSafeRedirectPath } from "@/lib/redirect";
 import { ApiError } from "@/lib/api/client";
+import { useAuth } from "@/contexts/auth-context";
 import {
   getMe,
   verifyEmail,
@@ -36,6 +37,7 @@ const STATUS_COPY: Record<Status, { title: string; subtitle: string }> = {
 export function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { refreshSession } = useAuth();
   const [status, setStatus] = useState<Status>("verifying");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Guard against React.StrictMode double-invoke (development).
@@ -97,13 +99,10 @@ export function AuthCallbackPage() {
         }
 
         setStatus("success");
+        // Refresh auth context so ProtectedRoute sees the new session.
+        await refreshSession();
         // Brief delay so user sees the success state before redirect.
         setTimeout(() => {
-          // Decide destination based on the OTP type.
-          // - recovery → password-reset page so the user can set a new password
-          //   (do NOT send them to /settings/team — that is unrelated).
-          // - signup / magiclink / email_change → onboarding so they can
-          //   create or resume their business.
           if (type === "recovery") {
             navigate("/reset-password", { replace: true });
           } else {

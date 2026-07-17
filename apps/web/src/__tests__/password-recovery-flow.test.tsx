@@ -58,6 +58,7 @@ vi.mock('@/contexts/auth-context', () => ({
     signUp: vi.fn(),
     resendConfirmationEmail: vi.fn(),
     signOut: (...args: unknown[]) => mocks.signOut(...args),
+    refreshSession: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 

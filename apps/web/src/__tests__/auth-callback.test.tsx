@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { AuthContext, type AuthContextType } from '@/contexts/auth-context';
 import { AuthCallbackPage } from '@/pages/auth-callback';
 
 // Use vi.hoisted so the mocks are created before vi.mock factory runs.
@@ -20,9 +22,26 @@ function LocationCapture() {
   return <div data-testid="current-path">{location.pathname}</div>;
 }
 
+// Default mock auth context
+function mockAuthContext(overrides?: Partial<AuthContextType>): AuthContextType {
+  return {
+    session: null,
+    user: null,
+    loading: false,
+    error: null,
+    signIn: vi.fn().mockResolvedValue(undefined),
+    signUp: vi.fn().mockResolvedValue({ session: null, user: null, needsEmailConfirmation: false }),
+    resendConfirmationEmail: vi.fn().mockResolvedValue(undefined),
+    signOut: vi.fn().mockResolvedValue(undefined),
+    refreshSession: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
 // Helper: render AuthCallbackPage with controlled search params.
-function renderWithSearchParams(search: string) {
+function renderWithSearchParams(search: string, authOverrides?: Partial<AuthContextType>) {
   return render(
+    <AuthContext.Provider value={mockAuthContext(authOverrides)}>
     <MemoryRouter initialEntries={[`/auth/callback${search}`]}>
       <LocationCapture />
       <Routes>
@@ -32,7 +51,8 @@ function renderWithSearchParams(search: string) {
         <Route path="/settings/team" element={<div data-testid="team" />} />
         <Route path="/reset-password" element={<div data-testid="reset-password" />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
+    </AuthContext.Provider>,
   );
 }
 

@@ -16,6 +16,7 @@ export interface AuthContextType {
   readonly signUp: (email: string, password: string, fullName: string, redirectTo?: string) => Promise<SignUpResult>;
   readonly resendConfirmationEmail: (email: string) => Promise<void>;
   readonly signOut: () => Promise<void>;
+  readonly refreshSession: () => Promise<void>;
 }
 
 // ponytail: defaults are never reachable — Provider always wraps consumers.
