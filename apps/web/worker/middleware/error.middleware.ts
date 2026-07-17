@@ -42,6 +42,8 @@ export const errorHandler: ErrorHandler<AppContext> = (error, c) => {
 
   console.error("Unhandled Worker error", {
     message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    name: error instanceof Error ? error.name : typeof error,
     requestId,
   });
 
