@@ -77,9 +77,8 @@ describe("Golden Accounting Scenarios", () => {
       expect(nextAverage).toBe(150);
     });
 
-    // TODO: weighted-average void test needs FakeD1Database with seeded
-    // products, transactions, and stock movements. Call voidTransaction
-    // and verify average_cost_minor is unchanged (or recalculated per P1-2).
+    // Covered in worker/__tests__/accounting-invariants.test.ts:
+    // - WAC purchase, sale, void, recalculate tests
   });
 
   describe("Accounting invariant assertions", () => {

@@ -36,6 +36,9 @@ supabase/functions/.env
 .vscode
 .idea
 
+# Husky hooks
+.husky/
+
 # CI / tooling cache
 .eslintcache
 .parcel-cache
@@ -44,6 +47,9 @@ supabase/functions/.env
 **/.wrangler
 coverage
 .pnpm-store/
+
+# Load tests
+load-tests/
 
 # Playwright
 apps/web/playwright-report/
@@ -67,6 +73,7 @@ LICENSE
 SECURITY.md
 
 # Screenshots (binary bloat, not essential for development)
+docs/
 docs/screenshots/
 
 # Codex hooks (local paths, not portable)

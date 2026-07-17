@@ -1,0 +1,623 @@
+openapi: 3.1.0
+info:
+  title: Ledjer API
+  description: Double-entry accounting API for Indonesian SMEs
+  version: 1.0.0
+  contact:
+    name: Ledjer Team
+    url: https://ledjer.id
+
+servers:
+  - url: https://ledjer.id
+    description: Production
+  - url: http://localhost:5173
+    description: Development
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-ledjer_session
+      description: Session cookie (HttpOnly, Secure, SameSite=Lax)
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        full_name: { type: string }
+        email_verified_at: { type: integer, nullable: true }
+
+    Organization:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        business_type: { type: string, enum: [service, simple_trading] }
+        base_currency: { type: string }
+        books_start_date: { type: string, format: date }
+        onboarding_status: { type: string }
+        created_by: { type: string }
+
+    OrganizationMember:
+      type: object
+      properties:
+        id: { type: string }
+        organization_id: { type: string }
+        user_id: { type: string }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        status: { type: string }
+
+    Account:
+      type: object
+      properties:
+        id: { type: string }
+        code: { type: integer }
+        name: { type: string }
+        account_type: { type: string }
+        normal_balance: { type: string, enum: [debit, credit] }
+        is_active: { type: boolean }
+        is_cash_account: { type: boolean }
+
+    Transaction:
+      type: object
+      properties:
+        id: { type: string }
+        transaction_number: { type: string }
+        transaction_date: { type: string, format: date }
+        transaction_type: { type: string }
+        amount: { type: integer }
+        description: { type: string }
+        status: { type: string, enum: [posted, voided] }
+        payment_status: { type: string, enum: [paid, unpaid, partial] }
+
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        unit: { type: string }
+        purchase_price: { type: integer }
+        selling_price: { type: integer }
+        current_stock: { type: string }
+        is_active: { type: boolean }
+
+    JournalEntry:
+      type: object
+      properties:
+        id: { type: string }
+        entry_number: { type: string }
+        entry_date: { type: string, format: date }
+        entry_type: { type: string }
+        description: { type: string }
+        status: { type: string }
+        journal_lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalLine'
+
+    JournalLine:
+      type: object
+      properties:
+        id: { type: string }
+        account_id: { type: string }
+        debit: { type: integer }
+        credit: { type: integer }
+        description: { type: string }
+
+    Pagination:
+      type: object
+      properties:
+        limit: { type: integer }
+        offset: { type: integer }
+        total: { type: integer }
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      tags: [Health]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  timestamp: { type: integer }
+
+  /api/auth/register:
+    post:
+      summary: Register new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                fullName: { type: string, minLength: 2 }
+      responses:
+        '200':
+          description: Registration initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+                  needsEmailConfirmation: { type: boolean }
+        '429':
+          description: Rate limited
+
+  /api/auth/login:
+    post:
+      summary: Login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful, session cookie set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        '401':
+          description: Invalid credentials
+        '429':
+          description: Rate limited
+
+  /api/auth/logout:
+    post:
+      summary: Logout
+      tags: [Auth]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logged out
+
+  /api/auth/me:
+    get:
+      summary: Get current user
+      tags: [Auth]
+      responses:
+        '200':
+          description: User info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+                  session: { type: object }
+
+  /api/organizations:
+    get:
+      summary: List user's organizations
+      tags: [Organizations]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Organization list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organizations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+    post:
+      summary: Create organization
+      tags: [Organizations]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationName, businessType, booksStartDate]
+              properties:
+                organizationName: { type: string }
+                businessType: { type: string, enum: [service, simple_trading] }
+                booksStartDate: { type: string, format: date }
+      responses:
+        '200':
+          description: Organization created
+
+  /api/accounts:
+    get:
+      summary: List accounts
+      tags: [Accounts]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Account'
+    post:
+      summary: Create account
+      tags: [Accounts]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, accountType, normalBalance]
+              properties:
+                name: { type: string }
+                accountType: { type: string }
+                normalBalance: { type: string, enum: [debit, credit] }
+      responses:
+        '201':
+          description: Account created
+
+  /api/transactions:
+    get:
+      summary: List transactions
+      tags: [Transactions]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+        - name: transactionType
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Transaction list
+    post:
+      summary: Post transaction
+      tags: [Transactions]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transactionType, amount, description, idempotencyKey]
+              properties:
+                transactionDate: { type: string, format: date }
+                transactionType: { type: string }
+                amount: { type: integer }
+                description: { type: string }
+                idempotencyKey: { type: string }
+      responses:
+        '200':
+          description: Transaction posted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id: { type: string }
+                  transaction_number: { type: string }
+                  journal_entry_id: { type: string }
+                  entry_number: { type: string }
+                  impact: { type: object }
+
+  /api/transactions/{id}/void:
+    post:
+      summary: Void transaction
+      tags: [Transactions]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, idempotencyKey]
+              properties:
+                reason: { type: string }
+                idempotencyKey: { type: string }
+      responses:
+        '200':
+          description: Transaction voided
+
+  /api/transactions/{id}/settle:
+    post:
+      summary: Settle partial transaction
+      tags: [Transactions]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Transaction settled
+
+  /api/products:
+    get:
+      summary: List products
+      tags: [Products]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+    post:
+      summary: Create product
+      tags: [Products]
+      security:
+        - cookieAuth: []
+      responses:
+        '201':
+          description: Product created
+
+  /api/reports/trial-balance:
+    get:
+      summary: Trial balance
+      tags: [Reports]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: asOfDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Trial balance report
+
+  /api/reports/profit-loss:
+    get:
+      summary: Profit and loss
+      tags: [Reports]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: fromDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Profit and loss report
+
+  /api/reports/balance-sheet:
+    get:
+      summary: Balance sheet
+      tags: [Reports]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: asOfDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Balance sheet report
+
+  /api/reports/general-ledger:
+    get:
+      summary: General ledger
+      tags: [Reports]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: accountId
+          in: query
+          schema: { type: string }
+        - name: fromDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: General ledger report
+
+  /api/team:
+    get:
+      summary: List team members
+      tags: [Team]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Team member list
+
+  /api/team/invitations:
+    post:
+      summary: Invite team member
+      tags: [Team]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [admin, member, viewer] }
+      responses:
+        '201':
+          description: Invitation created
+
+  /api/exports/transactions.csv:
+    get:
+      summary: Export transactions CSV
+      tags: [Exports]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /api/exports/reports/general-ledger.csv:
+    get:
+      summary: Export general ledger CSV
+      tags: [Exports]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: fromDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: CSV file (max 50,000 rows, may be truncated)
+
+  /api/dashboard:
+    get:
+      summary: Dashboard summary
+      tags: [Dashboard]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+
+  /api/period-locks:
+    get:
+      summary: List period locks
+      tags: [Period Locks]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Period lock list
+    post:
+      summary: Create period lock
+      tags: [Period Locks]
+      security:
+        - cookieAuth: []
+      responses:
+        '201':
+          description: Period lock created
+
+  /api/audit-logs:
+    get:
+      summary: List audit logs
+      tags: [Audit]
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: action
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Audit log list

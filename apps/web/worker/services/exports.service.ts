@@ -41,6 +41,9 @@ interface ExportTransactionRow {
   status: string;
 }
 
+/** Maximum rows for any CSV export, preventing Worker OOM. */
+const MAX_EXPORT_ROWS = 50_000;
+
 export function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") {
@@ -142,20 +145,27 @@ export async function exportTransactionsCsv(
   filters: TransactionExportFilters = {},
 ): Promise<ExportResponse> {
   const rows = await listTransactionsForExport(db, organizationId, filters);
+  const truncated = rows.length > MAX_EXPORT_ROWS;
+  const capped = rows.slice(0, MAX_EXPORT_ROWS);
+  const result = toCsv(
+    ["Tanggal", "No Transaksi", "Jenis", "Partai", "Deskripsi", "Nominal", "Status"],
+    capped.map((transaction) => [
+      transaction.transaction_date,
+      transaction.transaction_number,
+      transaction.transaction_type,
+      transaction.party_name ?? "",
+      transaction.description,
+      transaction.amount,
+      transaction.status,
+    ]),
+  );
   return {
     filename: filenameFor("transaksi"),
-    csv: toCsv(
-      ["Tanggal", "No Transaksi", "Jenis", "Partai", "Deskripsi", "Nominal", "Status"],
-      rows.map((transaction) => [
-        transaction.transaction_date,
-        transaction.transaction_number,
-        transaction.transaction_type,
-        transaction.party_name ?? "",
-        transaction.description,
-        transaction.amount,
-        transaction.status,
-      ]),
-    ),
+    csv: truncated
+      ? `# NOTE: Hasil dipotong ke ${MAX_EXPORT_ROWS} baris dari total ${rows.length}\n${result}`
+      : result,
+    truncated,
+    totalRows: rows.length,
   };
 }
 
@@ -225,11 +235,9 @@ export async function exportGeneralLedgerCsv(
   organizationId: string,
   filters: GeneralLedgerExportFilters,
 ): Promise<ExportResponse> {
-  // ponytail: Cap at 50k rows to prevent Worker OOM/timeout.
   const ledger = await getGeneralLedger(db, organizationId, filters);
-  const MAX_ROWS = 50_000;
-  const truncated = ledger.length > MAX_ROWS;
-  const capped = ledger.slice(0, MAX_ROWS);
+  const truncated = ledger.length > MAX_EXPORT_ROWS;
+  const capped = ledger.slice(0, MAX_EXPORT_ROWS);
   const rows = capped.map((row) => [
     row.entry_date,
     row.transaction_number ?? row.entry_number,
@@ -242,7 +250,7 @@ export async function exportGeneralLedgerCsv(
     row.running_balance,
   ]);
   if (truncated) {
-    const note: (string | number)[] = [`# NOTE: Hasil dipotong ke ${MAX_ROWS} baris dari total ${ledger.length}`];
+    const note: (string | number)[] = [`# NOTE: Hasil dipotong ke ${MAX_EXPORT_ROWS} baris dari total ${ledger.length}`];
     rows.unshift(note);
   }
   return {

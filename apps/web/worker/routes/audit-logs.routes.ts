@@ -1,14 +1,19 @@
 import { Hono } from "hono";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
-import { requirePermission } from "../middleware/organization.middleware";
+import {
+  loadCurrentOrganization,
+  requirePermission,
+} from "../middleware/organization.middleware";
 import type { D1Input } from "../db/client";
 import { queryAll } from "../db/client";
 
 
 export const auditLogsRoutes = new Hono<AppContext>();
 
-auditLogsRoutes.use("*", requireAuth(), requirePermission("team:manage"));
+auditLogsRoutes.use("*", requireAuth());
+auditLogsRoutes.use("*", loadCurrentOrganization());
+auditLogsRoutes.use("*", requirePermission("team:manage"));
 
 auditLogsRoutes.get("/", async (c) => {
   const context = c.get("organizationContext");

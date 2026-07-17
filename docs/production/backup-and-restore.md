@@ -1,54 +1,76 @@
-# Backup & Restore — Ledjer D1 Database
+# Backup and Restore
 
-## Backup
+## Current State
 
-### Automated (via cron)
+Automated D1 backups are not yet implemented. This document describes the
+target architecture and manual restore procedure.
 
-The `scripts/backup-d1.sh` script exports the production D1 database to a timestamped SQL file.
+## Target Architecture
 
-```bash
-bash scripts/backup-d1.sh          # remote (production)
-bash scripts/backup-d1.sh --local  # local (dev)
-```
+- **Schedule**: Daily at 03:00 WIB (via Worker cron trigger).
+- **Destination**: Cloudflare R2 bucket `ledjer-backups`.
+- **Format**: SQL dump via `wrangler d1 export`.
+- **Checksum**: SHA-256 per backup file.
+- **Retention**:
+  - Daily backups: 30 days.
+  - Monthly backups: 12 months.
+- **Verification**: Monthly automated restore drill with row-count and
+  accounting-invariant checks.
 
-**Recommendation:** Schedule daily via Cloudflare Cron Trigger or external cron at 03:00 WIB.
-
-### Manual
-
-```bash
-npx wrangler d1 export ledjer-production --remote --output=backup-$(date +%Y%m%d-%H%M).sql
-```
-
-**Retention:** Keep daily backups for 30 days. Older backups may be archived or deleted.
-
-## Restore
-
-### From a backup SQL file
+## Manual Backup (Current)
 
 ```bash
-npx wrangler d1 execute ledjer-production --remote --file=backup-20250101-0300.sql
+# Requires wrangler CLI and Cloudflare credentials
+# Replace <database-name> with the actual D1 database name
+
+# Export to SQL
+npx wrangler d1 export <database-name> --output /tmp/ledjer-backup-$(date +%Y%m%d).sql
+
+# Generate checksum
+sha256sum /tmp/ledjer-backup-$(date +%Y%m%d).sql > /tmp/ledjer-backup-$(date +%Y%m%d).sha256
+
+# Upload to R2 (requires R2 bucket configured)
+# npx wrangler r2 object put ledjer-backups/$(date +%Y%m%d)/backup.sql --file /tmp/ledjer-backup-$(date +%Y%m%d).sql
 ```
 
-### Restore checklist
+## Manual Restore
 
-1. **Stop the app** — disable the Worker route in Cloudflare dashboard or set `maintenance` mode.
-2. **Verify the backup file** — check file size > 0 and SQL syntax (`head -5 backup.sql`).
-3. **Run restore** — `wrangler d1 execute ledjer-production --remote --file=<backup>.sql`.
-4. **Verify** — `wrangler d1 execute ledjer-production --remote --command="SELECT count(*) FROM users;"`
-5. **Re-enable the app.**
+```bash
+# 1. Download backup from R2
+npx wrangler r2 object get ledjer-backups/<date>/backup.sql --file /tmp/restore.sql
 
-## RPO / RTO Targets
+# 2. Verify checksum
+sha256sum -c /tmp/restore-backup-<date>.sha256
 
-| Metric | Target      |
-|--------|-------------|
-| RPO    | ≤ 24 hours  |
-| RTO    | ≤ 1 hour    |
+# 3. Restore to D1 (warning: overwrites current data)
+# wrangler d1 execute <database-name> --file /tmp/restore.sql
 
-## Cron Trigger (Cloudflare Worker)
+# 4. Verify row counts match expected
+# 5. Run accounting invariant checks
+# 6. Run tenant isolation checks
+# 7. Run smoke tests
+```
 
-The Worker's `scheduled` handler (defined in `apps/web/worker/index.ts`) runs `cleanupExpiredRows` daily at 03:00 WIB. Backup is **not** live-migrated — use the CLI script or R2 upload separately until automated R2 backup is implemented.
+## Restore Verification
 
-## Future
+After any restore:
+1. Check row count for each major table matches backup manifest.
+2. Verify trial balance balances (Σdebit = Σcredit).
+3. Verify balance sheet equation (Assets = Liabilities + Equity).
+4. Verify no cross-tenant data leaks.
+5. Run smoke tests against the restored database.
 
-- [ ] Store backups in R2 via a dedicated cron Worker.
-- [ ] Monitor backup success/failure via Sentry.
+## R2 Bucket Setup
+
+```bash
+# Create bucket (one-time)
+npx wrangler r2 bucket create ledjer-backups
+
+# Add R2 binding to wrangler.jsonc
+```
+
+## Backup Alerts
+
+- Backup age > 36 hours → Critical alert.
+- Backup checksum mismatch → Critical alert.
+- Restore drill failure → High alert.

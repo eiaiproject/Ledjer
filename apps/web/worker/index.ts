@@ -3,6 +3,8 @@ import type { AppContext } from "./env";
 import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
+import { requestLogger } from "./middleware/request-logger";
+import { metricsMiddleware, metricsHandler } from "./middleware/metrics";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
@@ -28,7 +30,19 @@ app.use("*", async (c, next) => {
   await next();
   c.header("X-Request-Id", requestId);
 });
-app.use("*", secureHeaders());
+app.use("*", requestLogger());
+app.use("*", metricsMiddleware());
+app.use("*", secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    frameAncestors: ["'none'"],
+    formAction: ["'self'"],
+  },
+}));
 // ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
 // Built-in csrf() can't access c.env at config time.
 app.use("/api/*", async (c, next) => {
@@ -71,6 +85,7 @@ app.use("/api/*", async (c, next) => {
 app.route("/api/audit-logs", auditLogsRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
+app.get("/api/metrics", metricsHandler);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/organizations", organizationRoutes);
 app.route("/api/accounts", accountsRoutes);
