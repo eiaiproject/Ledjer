@@ -48,13 +48,14 @@ export async function registerUser(
   pepper?: string,
   emailApiKey?: string,
   originUrl?: string,
+  emailFrom?: string,
 ): Promise<RegisterResult> {
   const email = input.email.trim().toLowerCase();
   const current = Date.now();
   const existing = await findUserByEmail(db, email);
   if (existing) {
     // ponytail: Prevent email enumeration — silently log and create verification email.
-    await createEmailVerification(db, existing.id, email, emailApiKey, originUrl);
+    await createEmailVerification(db, existing.id, email, emailApiKey, originUrl, emailFrom);
     await logDuplicateRegistration(db, email, current);
     return {
       userId: existing.id,
@@ -77,7 +78,7 @@ export async function registerUser(
       current,
     ],
   );
-  await createEmailVerification(db, userId, email, emailApiKey, originUrl);
+  await createEmailVerification(db, userId, email, emailApiKey, originUrl, emailFrom);
   await logAuthEvent(db, userId, userId, "registration", { email });
 
   return {
@@ -161,11 +162,12 @@ export async function resendEmailVerification(
   emailInput: string,
   emailApiKey?: string,
   originUrl?: string,
+  emailFrom?: string,
 ): Promise<void> {
   const email = emailInput.trim().toLowerCase();
   const user = await findUserByEmail(db, email);
   if (!user || user.email_verified_at) return;
-  await createEmailVerification(db, user.id, email, emailApiKey, originUrl);
+  await createEmailVerification(db, user.id, email, emailApiKey, originUrl, emailFrom);
 }
 
 export async function createPasswordReset(
@@ -173,6 +175,7 @@ export async function createPasswordReset(
   emailInput: string,
   emailApiKey?: string,
   originUrl?: string,
+  emailFrom?: string,
 ): Promise<void> {
   const email = emailInput.trim().toLowerCase();
   const user = await findUserByEmail(db, email);
@@ -201,7 +204,7 @@ export async function createPasswordReset(
       to: email,
       subject: "Atur ulang password — Ledjer",
       html: `<p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
-    }).catch((err) => console.error("Failed to send password reset email", err));
+    }, emailFrom).catch((err) => console.error("Failed to send password reset email", err));
   }
 }
 
@@ -284,6 +287,7 @@ async function createEmailVerification(
   email: string,
   emailApiKey?: string,
   originUrl?: string,
+  emailFrom?: string,
 ): Promise<void> {
   const token = generateToken();
   const current = Date.now();
@@ -309,7 +313,7 @@ async function createEmailVerification(
       to: email,
       subject: "Konfirmasi email Anda — Ledjer",
       html: `<p>Klik tautan berikut untuk mengkonfirmasi email Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 24 jam.</p>`,
-    }).catch((err) => console.error("Failed to send verification email", err));
+    }, emailFrom).catch((err) => console.error("Failed to send verification email", err));
   }
 }
 

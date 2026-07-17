@@ -16,6 +16,7 @@ interface SendEmailInput {
 export async function sendEmail(
   apiKey: string,
   input: SendEmailInput,
+  from?: string,
 ): Promise<void> {
   if (!apiKey) {
     console.warn("EMAIL_API_KEY not set — skipping email send", { to: input.to, subject: input.subject });
@@ -29,7 +30,7 @@ export async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: FROM,
+      from: from || FROM,
       to: [input.to],
       subject: input.subject,
       html: input.html,
