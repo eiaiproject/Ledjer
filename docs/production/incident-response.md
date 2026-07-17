@@ -1,106 +1,71 @@
-# Incident Response Runbook
+# Incident Response
 
-Last updated: 2026-06-27
+## Severity Levels
 
-## Severity Definitions
+| Level | Label | Description | Response Time |
+|-------|-------|-------------|---------------|
+| SEV1 | Critical | Data loss, cross-tenant access, outage, financial data corruption | Immediate |
+| SEV2 | High | Degraded performance, feature outage, authentication failure | < 1 hour |
+| SEV3 | Medium | Non-critical bug, cosmetic issue, documentation gap | < 1 day |
+| SEV4 | Low | Enhancement, technical debt | Next sprint |
 
-| Severity | Description | Response Time | Example |
-|----------|-------------|---------------|---------|
-| **P0 — Critical** | Service down, data loss risk, security breach | Immediate (< 15 min) | Database outage, auth bypass, data deletion |
-| **P1 — High** | Major feature broken | < 1 hour | Transaction posting fails, login broken |
-| **P2 — Medium** | Minor feature degraded, workaround exists | < 4 hours | Report rendering slow, export failing |
-| **P3 — Low** | Cosmetic, minor UX issue | < 24 hours | UI glitch, typo, non-critical error |
+## Incident Workflow
 
-## Incident Response Steps
+### 1. Detection
+- Automated alert (monitoring dashboard, Sentry, cron failure)
+- User report (support email, in-app feedback)
+- Manual observation
 
-### 1. Detect & Confirm
-- Check Sentry for error spikes
-- Check uptime monitoring alerts
-- Check Cloudflare dashboard for Worker/D1 issues
-- Confirm the issue is real (not user error or local)
+### 2. Triage
+1. Acknowledge the alert.
+2. Determine severity (SEV1–SEV4).
+3. For SEV1: Immediately notify on-call engineer.
+4. Create an incident issue with: title, severity, time discovered, affected component, symptoms.
 
-### 2. Communicate
-- Notify team via [communication channel]
-- If user-facing: update status page or banner
-- For P0/P1: send email to affected users if possible
+### 3. Containment
+- **Security incident**: Revoke affected sessions, rotate secrets, block IPs if needed.
+- **Data corruption**: Stop all transactions, restore from backup.
+- **Performance degradation**: Scale Workers, throttle abusive clients.
 
-### 3. Mitigate
-- **Service down:** Check hosting platform status, restart if needed
-- **Database issue:** Check D1 status, recent migrations, and Worker logs
-- **Auth issue:** Check Worker auth logs and session/token tables
-- **Security breach:** Rotate keys immediately, check audit logs
+### 4. Investigation
+- Check Sentry for error traces.
+- Check Worker logs for request patterns.
+- Check D1 query performance.
+- Check recent deployments.
 
-### 4. Resolve
-- Apply fix (code change, config change, or rollback)
-- Verify fix in production
-- Monitor for recurrence
+### 5. Resolution
+- Apply fix (forward-only migration, code rollback, config change).
+- Verify through health checks and smoke tests.
+- Monitor for 15 minutes after fix.
 
-### 5. Postmortem
-- Document root cause
-- Document timeline
-- Document what went well and what to improve
-- Create action items to prevent recurrence
+### 6. Postmortem
+For SEV1 and SEV2 incidents, write a postmortem within 48 hours:
+1. Summary
+2. Timeline
+3. Root cause
+4. Impact (users affected, data affected, duration)
+5. Action items with owners and deadlines
+6. Prevention
 
-## Rollback Procedure
+## Communication
 
-### Worker Rollback
-```bash
-pnpm --filter web exec wrangler deployments list
-cd apps/web && pnpm exec wrangler rollback
-```
+| Channel | Purpose |
+|---------|---------|
+| GitHub Issues | Incident tracking, postmortems |
+| Email | Customer notification (data breach: within 72 hours per UU PDP) |
+| Status page | Public outage communication |
 
-### Database Rollback
-⚠️ Database rollbacks are dangerous for accounting data. Prefer forward-fix.
+## Escalation
 
-```sql
--- Emergency: disable a problematic trigger
--- Prefer forward-fix migrations for accounting data.
--- For D1, restore from a verified backup/snapshot only after impact review.
-```
+1. Engineer → Senior Engineer → Architect → CTO
+2. Security incident → Add security team lead
+3. Legal impact → Add legal counsel
 
-### Environment Variable Rollback
-```bash
-# Revert to previous env vars in hosting platform dashboard
-# Never delete env vars — set to previous values
-```
+## Post-Recovery Verification
 
-## Specific Scenarios
-
-### Authentication Failure Spike
-1. Check `login_attempts` table for patterns
-2. Check for brute force attacks
-3. Tighten Worker auth throttling if needed
-4. Check session revocation and token cleanup
-
-## Communication Templates
-
-### Service Down Notice
-```
-Kami sedang mengalami gangguan layanan. Tim kami sedang bekerja
-untuk memulihkan layanan secepatnya. Kami akan memberikan update
-setiap 30 menit.
-
-— Tim Ledjer
-```
-
-### Post-Incident Notice
-```
-Layanan telah pulih sepenuhnya. Gangguan terjadi selama [duration]
-dan disebabkan oleh [brief description].
-
-Kami telah mengambil langkah pencegahan untuk mencegah kejadian
-serupa di masa depan.
-
-— Tim Ledjer
-```
-
-## Contacts
-
-| Role | Contact |
-|------|---------|
-| Primary responder | (not yet staffed) |
-| Backup responder | (not yet staffed) |
-| Cloudflare support | Via Cloudflare dashboard |
-
-> **Note:** On-call is not yet staffed. Incident response is best-effort.
-> Track staffing as a future P1 item in the remediation backlog.
+After any SEV1/SEV2 incident:
+1. Run tenant isolation tests
+2. Run accounting invariant tests
+3. Verify backup integrity
+4. Run smoke tests
+5. Confirm monitoring is operational

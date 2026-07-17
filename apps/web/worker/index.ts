@@ -3,6 +3,7 @@ import type { AppContext } from "./env";
 import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
+import { requestLogger } from "./middleware/request-logger";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
@@ -28,6 +29,7 @@ app.use("*", async (c, next) => {
   await next();
   c.header("X-Request-Id", requestId);
 });
+app.use("*", requestLogger());
 app.use("*", secureHeaders({
   contentSecurityPolicy: {
     defaultSrc: ["'self'"],

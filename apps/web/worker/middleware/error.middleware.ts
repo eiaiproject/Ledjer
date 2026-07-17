@@ -40,12 +40,15 @@ export const errorHandler: ErrorHandler<AppContext> = (error, c) => {
     level: "error",
   });
 
-  console.error("Unhandled Worker error", {
+  console.error(JSON.stringify({
+    time: new Date().toISOString(),
+    level: "error",
+    type: "unhandled_error",
     message: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
     name: error instanceof Error ? error.name : typeof error,
     requestId,
-  });
+    env: c.env.APP_ENV ?? "development",
+  }));
 
   return c.json(
     {
