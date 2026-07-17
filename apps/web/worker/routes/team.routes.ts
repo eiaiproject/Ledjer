@@ -17,6 +17,7 @@ import {
   revokeTeamInvitation,
   updateTeamMemberRole,
 } from "../services/team.service";
+import { sendEmail } from "../services/email.service";
 
 const invitationRoleSchema = z.enum(["admin", "member", "viewer"]);
 
@@ -80,8 +81,19 @@ teamRoutes.post("/invitations", requirePermission("team:manage"), async (c) => {
     invitation.token,
   );
 
-  // Dev stub: production wiring replaces this with a provider-backed sender.
-  await Promise.resolve();
+  // Send invitation email if email provider is configured
+  if (c.env.EMAIL_API_KEY) {
+    try {
+      await sendEmail(c.env.EMAIL_API_KEY, {
+        to: body.email,
+        subject: "Undangan bergabung — Ledjer",
+        html: `<p>Anda diundang untuk bergabung sebagai <strong>${invitation.role}</strong> di tim Ledjer.</p><p>Klik tautan berikut untuk menerima undangan:</p><p><a href="${acceptUrl}">${acceptUrl}</a></p><p>Tautan berlaku selama 7 hari.</p>`,
+      }, c.env.EMAIL_FROM);
+    } catch (err) {
+      console.error("Failed to send invitation email", err);
+      // Don't throw — invitation was created successfully, email failure is non-blocking
+    }
+  }
 
   return c.json({ invitation: { ...invitation, accept_url: acceptUrl } });
 });
