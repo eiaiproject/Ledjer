@@ -68,12 +68,10 @@ test.describe("CSRF Protection", () => {
         path: "/",
       },
     ]);
-    // Use the local dev server origin as valid Origin
-    const origin = API_BASE;
     const response = await request.post(`${API_BASE}/api/auth/logout`, {
       headers: {
         "Content-Type": "application/json",
-        Origin,
+        "Origin": API_BASE,
       },
     });
     // 401 means CSRF passed (session token is fake, so auth fails)
