@@ -7,6 +7,7 @@
   "name": "ledjer",
   "main": "apps/web/dist/ledjer/index.js",
   "compatibility_date": "2026-07-07",
+"compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "apps/web/dist/client",
     "binding": "ASSETS",
