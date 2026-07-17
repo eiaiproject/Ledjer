@@ -19,6 +19,13 @@
       "migrations_dir": "worker/db/migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "BACKUP_BUCKET",
+      "bucket_name": "ledjer-backups",
+      "preview_bucket_name": "ledjer-backups-preview"
+    }
+  ],
   "triggers": {
     "crons": ["0 3 * * *"]
   },
