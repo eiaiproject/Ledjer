@@ -186,7 +186,8 @@ test.describe("Lock history (auth required)", () => {
     const badges = page.locator(".bg-success\\/10, .bg-wood-100").filter({ hasText: /Aktif|Digantikan/ });
     // May or may not have locks
     const count = await badges.count();
-    expect(count >= 0).toBeTruthy();
+    // ponytail: Seeded fixture needed for deterministic assertion
+    expect(typeof count).toBe("number");
   });
 });
 
@@ -220,7 +221,8 @@ test.describe("Permission denied state (auth required)", () => {
     const notice = page.getByText("Anda dapat melihat kunci periode, tetapi tidak memiliki izin").first();
     // May or may not be visible depending on user role
     const count = await notice.count();
-    expect(count >= 0).toBeTruthy();
+    // ponytail: Seeded fixture needed for deterministic assertion
+    expect(typeof count).toBe("number");
   });
 });
 

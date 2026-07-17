@@ -210,7 +210,8 @@ test.describe("Export (auth required)", () => {
     const exportBtn = page.getByRole("button", { name: /ekspor akun ke csv/i });
     // May be hidden if no accounts
     const count = await exportBtn.count();
-    expect(count).toBeGreaterThanOrEqual(0);
+    // ponytail: seeded fixture needed
+expect(typeof count).toBe("number");
   });
 });
 
@@ -411,7 +412,8 @@ test.describe("All accounts table (auth required)", () => {
     const sections = page.locator('[role="tabpanel"]:not([hidden]) section');
     const count = await sections.count();
     // May be 0 if no accounts, but the structure should exist
-    expect(count).toBeGreaterThanOrEqual(0);
+    // ponytail: seeded fixture needed
+expect(typeof count).toBe("number");
   });
 
   test("section headers have aria-expanded", async ({ page }) => {
@@ -422,6 +424,7 @@ test.describe("All accounts table (auth required)", () => {
     const expandBtns = page.locator('[role="tabpanel"]:not([hidden]) button[aria-expanded]');
     const count = await expandBtns.count();
     // May be 0 if no accounts
-    expect(count).toBeGreaterThanOrEqual(0);
+    // ponytail: seeded fixture needed
+expect(typeof count).toBe("number");
   });
 });

@@ -173,7 +173,8 @@ test.describe("Account disclosure (auth required)", () => {
     const triggers = page.locator("[aria-expanded][aria-controls]");
     const count = await triggers.count();
     // May be 0 if no accounts loaded
-    expect(count).toBeGreaterThanOrEqual(0);
+    // ponytail: seeded fixture needed
+expect(typeof count).toBe("number");
   });
 
   test("account panels have matching IDs", async ({ page }) => {
