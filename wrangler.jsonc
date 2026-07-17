@@ -30,5 +30,21 @@
   "vars": {
     "APP_ENV": "production",
     "APP_ORIGIN": "https://ledjer.id"
+  },
+  "env": {
+    "staging": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ledjer-staging",
+          "database_id": "<replace-with-staging-db-id>",
+          "migrations_dir": "apps/web/worker/db/migrations"
+        }
+      ],
+      "vars": {
+        "APP_ENV": "staging",
+        "APP_ORIGIN": "https://staging.ledjer.id"
+      }
+    }
   }
 }
