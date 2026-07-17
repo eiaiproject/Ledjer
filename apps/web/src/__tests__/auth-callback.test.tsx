@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ReactNode } from 'react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { AuthContext, type AuthContextType } from '@/contexts/auth-context';
