@@ -16,7 +16,7 @@ function cookieOptions(c: Context) {
     secure: isSecureRequest(c),
   };
 }
-import { badRequest, tooManyRequests, unauthorized } from "../http/errors";
+import { tooManyRequests, unauthorized } from "../http/errors";
 import { readJson } from "../http/json";
 import {
   changePassword,
