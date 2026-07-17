@@ -24,9 +24,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   email_not_confirmed: 'Silakan verifikasi email Anda terlebih dahulu.',
   token_expired: 'Token telah kedaluwarsa atau tidak valid. Silakan minta ulang.',
   same_password: 'Password baru harus berbeda dari password lama.',
-  invitation_email_mismatch: 'Undangan ini untuk alamat email yang berbeda. Masuk dengan email yang menerima undangan.',
-  csrf_invalid: 'Permintaan ditolak karena asal tidak dikenal. Coba nonaktifkan ekstensi browser (ad blocker) lalu muat ulang.',
-  csrf_missing_origin: 'Permintaan ditolak. Coba nonaktifkan ekstensi browser (ad blocker) lalu muat ulang.',
+  invitation_email_mismatch: 'Undangan ini untuk email yang berbeda. Masuk dengan email yang menerima undangan.',
+  csrf_invalid: 'Permintaan ditolak karena asal tidak dikenal. Nonaktifkan ekstensi browser (ad blocker), lalu segarkan halaman.',
+  csrf_missing_origin: 'Permintaan ditolak. Nonaktifkan ekstensi browser (ad blocker), lalu segarkan halaman.',
 };
 
 // Compact fallback for common English API messages
