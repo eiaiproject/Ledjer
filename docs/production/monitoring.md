@@ -26,6 +26,20 @@ All API requests log structured JSON entries:
 }
 ```
 
+## Backup Age Alert
+
+The daily D1 backup cron runs at 03:00 WIB. Configure an alert on:
+
+- **Metric**: `backup_age_hours` — hours since last successful backup.
+- **Warning**: > 26 hours (missed one cycle).
+- **Critical**: > 50 hours (missed two cycles).
+- **Check**: Query R2 bucket `ledjer-backups` for latest object key, compare timestamp.
+
+```bash
+# Manual check
+npx wrangler r2 object list ledjer-backups --prefix ledjer-production/ --limit 1
+```
+
 ## Metrics to Collect
 
 | Metric | Source | Type |

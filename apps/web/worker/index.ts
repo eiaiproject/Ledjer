@@ -4,6 +4,7 @@ import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/request-logger";
+import { metricsMiddleware, metricsHandler } from "./middleware/metrics";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
@@ -30,6 +31,7 @@ app.use("*", async (c, next) => {
   c.header("X-Request-Id", requestId);
 });
 app.use("*", requestLogger());
+app.use("*", metricsMiddleware());
 app.use("*", secureHeaders({
   contentSecurityPolicy: {
     defaultSrc: ["'self'"],
@@ -83,6 +85,7 @@ app.use("/api/*", async (c, next) => {
 app.route("/api/audit-logs", auditLogsRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
+app.get("/api/metrics", metricsHandler);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/organizations", organizationRoutes);
 app.route("/api/accounts", accountsRoutes);

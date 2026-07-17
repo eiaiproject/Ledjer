@@ -1,0 +1,27 @@
+# Ledjer CODEOWNERS
+# Each line is a file pattern followed by owner(s).
+
+* @eiaiproject/ledjer-maintainers
+
+# Security-sensitive paths
+SECURITY.md @eiaiproject/ledjer-security
+docs/security/ @eiaiproject/ledjer-security
+worker/auth/ @eiaiproject/ledjer-security
+worker/middleware/ @eiaiproject/ledjer-security
+
+# Compliance docs
+docs/compliance/ @eiaiproject/ledjer-legal
+
+# Infrastructure
+wrangler.jsonc @eiaiproject/ledjer-infra
+.github/workflows/ @eiaiproject/ledjer-infra
+scripts/ @eiaiproject/ledjer-infra
+
+# Accounting domain
+worker/services/transactions.service.ts @eiaiproject/ledjer-accounting
+worker/services/reports.service.ts @eiaiproject/ledjer-accounting
+worker/services/inventory.service.ts @eiaiproject/ledjer-accounting
+worker/__tests__/accounting-invariants.test.ts @eiaiproject/ledjer-accounting
+
+# API
+docs/api/ @eiaiproject/ledjer-api

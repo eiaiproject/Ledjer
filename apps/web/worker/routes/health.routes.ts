@@ -25,3 +25,27 @@ healthRoutes.get("/", async (c) => {
     database: "up",
   });
 });
+
+/** Readiness check — verifies all upstream dependencies. */
+healthRoutes.get("/ready", async (c) => {
+  const checks: Record<string, string> = {};
+  let allOk = true;
+
+  // DB
+  try {
+    const r = await c.env.DB.prepare("SELECT 1 AS ok").first<{ ok: number }>();
+    checks.database = r?.ok === 1 ? "up" : "error";
+    if (r?.ok !== 1) allOk = false;
+  } catch {
+    checks.database = "down";
+    allOk = false;
+  }
+
+  // Sentry DSN configured (not validating the endpoint)
+  checks.sentry = c.env.SENTRY_DSN ? "configured" : "not-configured";
+
+  return c.json(
+    { status: allOk ? "ready" : "degraded", checks },
+    allOk ? 200 : 503,
+  );
+});
