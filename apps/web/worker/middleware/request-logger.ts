@@ -26,9 +26,18 @@ export function requestLogger(): MiddlewareHandler<AppContext> {
     const requestId = c.get("requestId") ?? "unknown";
 
     // Build structured log entry
+    let level: string;
+    if (status >= 500) {
+      level = "error";
+    } else if (status >= 400) {
+      level = "warn";
+    } else {
+      level = "info";
+    }
+
     const entry: Record<string, unknown> = {
       time: new Date().toISOString(),
-      level: status >= 500 ? "error" : status >= 400 ? "warn" : "info",
+      level,
       method,
       path,
       query: query || undefined,

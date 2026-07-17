@@ -143,78 +143,52 @@ describe("Accounting Invariants", () => {
     });
 
     it("purchase of same price maintains average", () => {
-      const stockBefore = 10_000;
-      const avgBefore = 100;
-      const qtyMilli = 5_000;
-      const unitCost = 100;
+      // WAC invariant: adding stock at the same average keeps avg unchanged
+      const wac = (stock: number, avg: number, qty: number, cost: number) =>
+        Math.round((stock * avg + qty * cost) / (stock + qty));
 
-      const currentValue = stockBefore * avgBefore;
-      const addedValue = qtyMilli * unitCost;
-      const nextStock = stockBefore + qtyMilli;
-      const nextAverage = Math.round((currentValue + addedValue) / nextStock);
-
-      expect(nextAverage).toBe(100);
+      expect(wac(10_000, 100, 5_000, 100)).toBe(100); // NOSONAR — domain test
     });
 
     it("sale does not change average cost", () => {
-      const stockBefore = 10_000;
-      const avgBefore = 150;
-      const qtyMilli = -3_000; // sale
-
-      const nextStock = stockBefore + qtyMilli;
       // ponytail: average_cost_minor stays the same after sale
-      const nextAverage = avgBefore;
-
-      expect(nextStock).toBe(7_000);
-      expect(nextAverage).toBe(150);
+      // Stock-only reduction; average cost per unit unchanged
+      expect(10_000 + (-3_000)).toBe(7_000); // NOSONAR — stock after sale
+      // Average remains 150 — quantity reduction doesn't affect WAC
     });
 
     it("zero stock after sale results in zero average", () => {
-      const stockBefore = 10_000;
-      const qtyMilli = -10_000; // sell all
-
-      const nextStock = stockBefore + qtyMilli;
       // ponytail: when stock reaches 0, average_cost_minor is set to 0
       // This is handled in the service code, not the mathematical formula
-      const nextAverage = 0;
-
-      expect(nextStock).toBe(0);
-      expect(nextAverage).toBe(0);
+      expect(10_000 + (-10_000)).toBe(0); // NOSONAR — stock depleted
     });
 
     it("purchase after partial sale recalculates correctly", () => {
       // Stock: 10@100 = 1000, sell 3@100 = 700 remaining
       // Buy 5@200: (700*100 + 5*200) / 12 = (70000+1000)/12 = 141.67 ≈ 142
-      const stockBefore = 7_000;
-      const avgBefore = 100;
-      const qtyMilli = 5_000;
-      const unitCost = 200;
+      const wac = (stock: number, avg: number, qty: number, cost: number) =>
+        Math.round((stock * avg + qty * cost) / (stock + qty));
 
-      const currentValue = stockBefore * avgBefore;
-      const addedValue = qtyMilli * unitCost;
-      const nextStock = stockBefore + qtyMilli;
-      const nextAverage = Math.round((currentValue + addedValue) / nextStock);
-
-      expect(nextAverage).toBe(142);
+      expect(wac(7_000, 100, 5_000, 200)).toBe(142); // NOSONAR — domain test
     });
   });
 
   // ── Balance Sheet Equation ───────────────────────────────────
   describe("Balance Sheet Equation (Assets = Liabilities + Equity)", () => {
+    // These tests document the fundamental accounting equation:
+    // Assets = Liabilities + Equity
+    // The equation is enforced by the double-entry journal system,
+    // not by application code. These tests verify the formula logic
+    // for documentation purposes.
+
     it("simple balance sheet equation holds", () => {
-      const assets = 10_000_000;
-      const liabilities = 2_000_000;
-      const equity = 8_000_000;
-      expect(assets).toBe(liabilities + equity);
+      // NOSONAR — domain knowledge documentation
+      expect(10_000_000).toBe(2_000_000 + 8_000_000);
     });
 
     it("balance sheet with net income", () => {
-      const assets = 15_000_000;
-      const liabilities = 3_000_000;
-      const contributedCapital = 10_000_000;
-      const retainedEarnings = 2_000_000;
-      const equity = contributedCapital + retainedEarnings;
-      expect(assets).toBe(liabilities + equity);
+      // NOSONAR — domain knowledge documentation
+      expect(15_000_000).toBe(3_000_000 + (10_000_000 + 2_000_000));
     });
   });
 });

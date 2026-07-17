@@ -1,4 +1,5 @@
-import { test, expect } from "./helpers/auth";
+import { test } from "./helpers/auth";
+import { expect } from "@playwright/test";
 
 const PAGES = [
   "/dashboard", "/transactions", "/transactions/new", "/accounts",
@@ -7,10 +8,6 @@ const PAGES = [
   "/settings/team", "/settings/organization", "/settings/period-locks",
   "/settings/audit-logs",
 ];
-
-const allConsoleErrors: string[] = [];
-const allPageErrors: string[] = [];
-const allFailedHttp: { url: string; status: number }[] = [];
 
 test.describe("Error Scan", () => {
   test("navigate all pages and capture errors", async ({ authPage }) => {

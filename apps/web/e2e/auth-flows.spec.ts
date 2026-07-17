@@ -1,4 +1,5 @@
-import { test, expect } from "./helpers/auth";
+import { test } from "./helpers/auth";
+import { expect } from "@playwright/test";
 
 test.describe("Authenticated API Flows", () => {
   test("GET /api/accounts returns accounts", async ({ authPage }) => {

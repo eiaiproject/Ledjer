@@ -1,4 +1,4 @@
-import { test as base, type Page, expect } from "@playwright/test";
+import { test as base, type Page } from "@playwright/test";
 
 export interface AuthFixtures {
   /** Authenticated page with a valid session, navigated to the app. */
@@ -6,8 +6,6 @@ export interface AuthFixtures {
   /** Org ID for the authenticated user's active org. */
   orgId: string;
 }
-
-export { expect };
 
 /**
  * Playwright fixture providing an authenticated browser session.
@@ -24,7 +22,7 @@ export { expect };
 export const test = base.extend<AuthFixtures>({
   orgId: "b7ad230e-e7a9-4c09-ad87-5a0599567c28",
 
-  authPage: async ({ browser }, use) => {
+  authPage: async ({ browser }, acceptFixture) => {
     const token = process.env.PLAYWRIGHT_SESSION_TOKEN;
     if (!token) {
       throw new Error(
@@ -55,7 +53,7 @@ export const test = base.extend<AuthFixtures>({
     const page = await context.newPage();
     // Navigate to establish session context (handles Cloudflare challenges)
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await use(page);
+    await acceptFixture(page);
     await context.close();
   },
 });
