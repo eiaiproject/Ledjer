@@ -3,7 +3,10 @@ import { randomBytes } from "./tokens";
 
 const HASH_NAME = "PBKDF2";
 const DIGEST = "SHA-256";
-const ITERATIONS = 210_000;
+// CF Workers limit: PBKDF2 max 100k iterations.
+// Existing hashes may use 210k (legacy, before 0008 migration).
+const ITERATIONS = 100_000;
+const LEGACY_ITERATIONS = 210_000;
 const KEY_LENGTH_BITS = 256;
 const SALT_BYTES = 16;
 const FORMAT = "pbkdf2-sha256";
@@ -12,7 +15,7 @@ function passwordMaterial(password: string, pepper = ""): Uint8Array {
   return utf8(`${password}\u0000${pepper}`);
 }
 
-async function derive(password: string, salt: Uint8Array, pepper?: string): Promise<Uint8Array> {
+async function derive(password: string, salt: Uint8Array, pepper?: string, iterations = ITERATIONS): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
     passwordMaterial(password, pepper),
@@ -25,7 +28,7 @@ async function derive(password: string, salt: Uint8Array, pepper?: string): Prom
       name: HASH_NAME,
       hash: DIGEST,
       salt,
-      iterations: ITERATIONS,
+      iterations,
     },
     key,
     KEY_LENGTH_BITS,
@@ -45,11 +48,12 @@ export async function verifyPassword(
   pepper?: string,
 ): Promise<boolean> {
   const [format, iterations, salt, expected] = storedHash.split("$");
-  if (format !== FORMAT || iterations !== String(ITERATIONS) || !salt || !expected) {
-    return false;
-  }
+  if (format !== FORMAT || !salt || !expected) return false;
 
-  const actual = await derive(password, base64ToBytes(salt), pepper);
+  const iters = Number(iterations);
+  if (iters !== ITERATIONS && iters !== LEGACY_ITERATIONS) return false;
+
+  const actual = await derive(password, base64ToBytes(salt), pepper, iters);
   return timingSafeEqual(bytesToBase64(actual), expected);
 }
 

@@ -83,22 +83,7 @@ authRoutes.post("/register", async (c) => {
   if (await checkRateLimit(c.env.DB, "register", ip, { max: 5, windowMs: 3600000 })) {
     throw tooManyRequests("Too many registration attempts. Please try again later.");
   }
-  let result;
-  try {
-    result = await registerUser(c.env.DB, body, c.env.PASSWORD_PEPPER);
-  } catch (e) {
-    console.error("REGISTER ERROR", {
-      message: e instanceof Error ? e.message : String(e),
-      stack: e instanceof Error ? e.stack : undefined,
-      email: body.email,
-    });
-    return c.json({
-      error: {
-        code: "internal_error",
-        message: e instanceof Error ? e.message : String(e),
-      },
-    }, 500);
-  }
+  const result = await registerUser(c.env.DB, body, c.env.PASSWORD_PEPPER);
 
   return c.json({
     user: { id: result.userId, email: body.email, fullName: body.fullName },
