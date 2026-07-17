@@ -8,6 +8,8 @@ test.describe("Security Headers", () => {
     const csp = headers["content-security-policy"] || "";
 
     expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("style-src 'self'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
