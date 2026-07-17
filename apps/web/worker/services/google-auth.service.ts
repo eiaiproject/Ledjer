@@ -225,40 +225,6 @@ async function createUserFromGoogle(
 }
 
 /**
- * Check if user has prior OAuth accounts.
- */
-async function findPriorOAuthAccounts(
-  db: D1Database,
-  userId: string,
-): Promise<boolean> {
-  const row = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) as count FROM oauth_accounts WHERE user_id = ?`,
-    [userId],
-  );
-  return (row?.count ?? 0) > 0;
-}
-
-/**
- * Audit an OAuth conflict decision.
- */
-async function auditOAuthConflict(
-  db: D1Database,
-  userId: string,
-  email: string,
-  reason: string,
-): Promise<void> {
-  await execute(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
-       before_json, after_json, reason, created_at
-     ) VALUES (?, NULL, NULL, 'auth', ?, 'oauth_link_conflict', NULL, NULL, ?, ?)`,
-    [generateId(), email, `OAuth link blocked: ${reason} for user ${userId} (${email})`, Date.now()],
-  );
-}
-
-/**
  * Complete Google OAuth flow: exchange code, find/create user, create session.
  */
 export async function completeGoogleAuth(
@@ -284,22 +250,15 @@ export async function completeGoogleAuth(
     user = await findUserByEmail(db, googleUser.email);
 
     if (user) {
-      // Only auto-link if Google email is verified, local email is verified,
-      // and user has prior OAuth accounts or has enabled Google sign-in
+      // Only auto-link if Google email is verified and local email is verified.
+      // Google's verified_email flag is trusted — email ownership is already
+      // proven by Google's account creation process.
       if (!googleUser.verified_email) {
-        await auditOAuthConflict(db, user.id, googleUser.email, "google_email_not_verified");
         throw conflict("oauth_email_conflict", "Google email is not verified. Sign in with your password first, then link Google account from settings.");
       }
 
       if (!user.email_verified_at) {
-        await auditOAuthConflict(db, user.id, googleUser.email, "local_email_not_verified");
         throw conflict("oauth_email_conflict", "Your email is not verified. Sign in with your password first, then link Google account from settings.");
-      }
-
-      const hasPriorOAuth = await findPriorOAuthAccounts(db, user.id);
-      if (!hasPriorOAuth) {
-        await auditOAuthConflict(db, user.id, googleUser.email, "no_prior_oauth");
-        throw conflict("oauth_email_conflict", "Sign in with your password first, then link Google account from settings.");
       }
 
       // Link Google account to existing user
@@ -310,7 +269,7 @@ export async function completeGoogleAuth(
         entityType: "auth",
         entityId: user.id,
         action: "oauth_link",
-        reason: `Auto-linked Google account ${googleUser.id} for existing user with prior OAuth`,
+        reason: `Auto-linked Google account ${googleUser.id} for existing user`,
       });
     } else {
       // Create new user
