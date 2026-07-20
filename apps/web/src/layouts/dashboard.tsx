@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { type ComponentType } from "react";
+import * as Sentry from "@sentry/react";
 import {
   Home,
   Receipt,
@@ -118,6 +119,14 @@ export function DashboardLayout() {
     await signOut();
     navigate("/login");
   };
+
+  // Sentry Feedback widget — only visible inside dashboard layout
+  useEffect(() => {
+    const feedback = Sentry.getFeedback() as { createWidget: (opts?: {}) => { remove: () => void } } | undefined;
+    if (!feedback) return;
+    const widget = feedback.createWidget();
+    return () => widget.remove();
+  }, []);
 
   const handleSkipToContent = () => {
     const main = document.getElementById('main-content');
