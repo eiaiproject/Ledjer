@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { type ComponentType } from "react";
+import * as Sentry from "@sentry/react";
 import {
   Home,
   Receipt,
@@ -89,15 +90,6 @@ export function DashboardLayout() {
     setMobileMenuOpen(false);
   }, []);
 
-  if (orgData?.needsOnboarding) {
-    return (
-      <div className="flex ledger-min-dvh items-center justify-center" role="status" aria-label="Memuat data organisasi">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <span className="sr-only">Memuat data organisasi...</span>
-      </div>
-    );
-  }
-
   // Filter nav items based on permissions
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (!item.requires) return true;
@@ -118,6 +110,23 @@ export function DashboardLayout() {
     await signOut();
     navigate("/login");
   };
+
+  // Sentry Feedback widget — only visible inside dashboard layout
+  useEffect(() => {
+    const feedback = Sentry.getFeedback() as { createWidget: (opts?: Record<string, unknown>) => { remove: () => void } } | undefined;
+    if (!feedback) return;
+    const widget = feedback.createWidget();
+    return () => widget.remove();
+  }, []);
+
+  if (orgData?.needsOnboarding) {
+    return (
+      <div className="flex ledger-min-dvh items-center justify-center" role="status" aria-label="Memuat data organisasi">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <span className="sr-only">Memuat data organisasi...</span>
+      </div>
+    );
+  }
 
   const handleSkipToContent = () => {
     const main = document.getElementById('main-content');

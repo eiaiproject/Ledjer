@@ -29,6 +29,23 @@ if (import.meta.env.VITE_SENTRY_DSN) {
         blockAllMedia: true,
         maskAllInputs: true,
       }),
+      // User Feedback — floating button for bug reports
+      Sentry.feedbackIntegration({
+        autoInject: false,
+        showBranding: false,
+        colorScheme: 'light',
+        buttonLabel: 'Laporkan Masalah',
+        formTitle: 'Laporkan Masalah',
+        submitButtonLabel: 'Kirim Laporan',
+        cancelButtonLabel: 'Batal',
+        successMessageText: 'Terima kasih! Laporan Anda telah terkirim.',
+        messagePlaceholder: 'Jelaskan masalah yang Anda alami...\n\n(opsional) Langkah apa yang dilakukan sebelum masalah muncul?',
+        requireName: false,
+        requireEmail: false,
+        isRequiredFieldMessage: 'Wajib diisi',
+        addScreenshotButtonLabel: 'Lampirkan screenshot',
+        removeScreenshotButtonLabel: 'Hapus screenshot',
+      }),
     ],
 
     // Tracing sample rates
