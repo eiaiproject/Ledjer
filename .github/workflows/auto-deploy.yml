@@ -150,8 +150,8 @@ jobs:
         run: |
           echo "Verifying production deployment..."
           # Tunggu propagasi edge — custom domain butuh waktu setelah deploy
-          for i in 1 2 3 4 5; do
-            HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 15 "$PRODUCTION_URL")
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            HTTP_STATUS=$(curl -sS -o /tmp/smoke_body -w "%{http_code}" -L --max-time 15 "$PRODUCTION_URL")
             if [ "$HTTP_STATUS" = "200" ]; then
               echo "✅ Production URL returned HTTP 200 (attempt $i)"
               break
@@ -161,7 +161,12 @@ jobs:
           done
 
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Production URL returned HTTP $HTTP_STATUS after 5 attempts"
+            echo "❌ Production URL returned HTTP $HTTP_STATUS after 10 attempts"
+            echo "--- Response body (first 500 chars) ---"
+            head -c 500 /tmp/smoke_body
+            echo ""
+            echo "--- Response headers ---"
+            curl -sS -I -L --max-time 15 "$PRODUCTION_URL" 2>&1 | head -20
             echo "smoke_passed=false" >> $GITHUB_OUTPUT
             exit 1
           fi
