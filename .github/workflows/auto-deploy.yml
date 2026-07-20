@@ -149,22 +149,40 @@ jobs:
           PRODUCTION_URL: https://ledjer.id
         run: |
           echo "Verifying production deployment..."
-          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 15 "$PRODUCTION_URL")
+          # Tunggu propagasi edge — custom domain butuh waktu setelah deploy
+          for i in 1 2 3 4 5; do
+            HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 15 "$PRODUCTION_URL")
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Production URL returned HTTP 200 (attempt $i)"
+              break
+            fi
+            echo "⚠️  Production URL returned HTTP $HTTP_STATUS (attempt $i), retrying in 5s..."
+            sleep 5
+          done
+
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ Production URL returned HTTP $HTTP_STATUS"
+            echo "❌ Production URL returned HTTP $HTTP_STATUS after 5 attempts"
             echo "smoke_passed=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-          echo "✅ Production URL returned HTTP $HTTP_STATUS"
 
           # Quick health endpoint check
-          HEALTH_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$PRODUCTION_URL/api/health")
+          for i in 1 2 3; do
+            HEALTH_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$PRODUCTION_URL/api/health")
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              echo "✅ Health endpoint returned HTTP 200 (attempt $i)"
+              break
+            fi
+            echo "⚠️  Health endpoint returned HTTP $HEALTH_STATUS (attempt $i), retrying in 5s..."
+            sleep 5
+          done
+
           if [ "$HEALTH_STATUS" != "200" ]; then
-            echo "❌ Health endpoint returned HTTP $HEALTH_STATUS"
+            echo "❌ Health endpoint returned HTTP $HEALTH_STATUS after 3 attempts"
             echo "smoke_passed=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-          echo "✅ Health endpoint returned HTTP 200"
+
           echo "smoke_passed=true" >> $GITHUB_OUTPUT
 
       # ── Recovery / rollback procedure ──────────────────────
