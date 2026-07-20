@@ -302,13 +302,15 @@ function FaqAccordion({ items }: { readonly items: ReadonlyArray<{ readonly q: s
             <dd
               id={panelId}
               aria-labelledby={buttonId}
-              hidden={!isOpen}
+              aria-hidden={!isOpen || undefined}
               className={cn(
-                "overflow-hidden transition-all duration-200 motion-reduce:transition-none",
-                isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                "grid transition-all duration-200 motion-reduce:transition-none",
+                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
               )}
             >
-              <p className="pb-2 pr-8 text-sm leading-relaxed text-wood-600">{item.a}</p>
+              <div className="overflow-hidden">
+                <p className="pb-2 pr-8 text-sm leading-relaxed text-wood-600">{item.a}</p>
+              </div>
             </dd>
           </div>
         );

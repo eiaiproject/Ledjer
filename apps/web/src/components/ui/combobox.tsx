@@ -182,6 +182,7 @@ export function Combobox({
           value={displayValue}
           placeholder={placeholderText}
           disabled={loading}
+          aria-busy={loading || undefined}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}

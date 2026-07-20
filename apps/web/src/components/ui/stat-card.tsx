@@ -126,16 +126,18 @@ export function StatCard({
   // apply via style to bypass the merge. Upgrade: fix twMerge config.
   const heroStyle: React.CSSProperties | undefined = hero ? { color: "var(--color-text-on-primary)" } : undefined;
 
+  const loadingAttrs = isLoading ? { role: "status" as const, "aria-live": "polite" as const } : {};
+
   if (href) {
     return (
-      <Link to={href} className={base} aria-label={accessibleLabel} style={heroStyle}>
+      <Link to={href} className={base} aria-label={accessibleLabel} style={heroStyle} {...loadingAttrs}>
         {inner}
       </Link>
     );
   }
 
   return (
-    <section className={base} aria-label={accessibleLabel} style={heroStyle}>
+    <section className={base} aria-label={accessibleLabel} style={heroStyle} {...loadingAttrs}>
       {inner}
     </section>
   );

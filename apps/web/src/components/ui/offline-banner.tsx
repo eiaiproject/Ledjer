@@ -42,10 +42,10 @@ export function OfflineBanner() {
       role="alert"
       aria-live="assertive"
       className={cn(
-        "fixed bottom-4 left-1/2 z-[var(--z-toast)] -translate-x-1/2",
+        "fixed left-1/2 z-[var(--z-toast)] -translate-x-1/2",
+        "bottom-[calc(16px+56px+env(safe-area-inset-bottom,0px))] lg:bottom-6",
         "animate-[ledger-page-in_200ms_var(--ease-out)]",
         "flex items-center gap-2.5 rounded-xl border border-error-border bg-error-bg px-5 py-3 shadow-lg",
-        "sm:bottom-6",
       )}
     >
       <WifiOff className="h-5 w-5 shrink-0 text-error" />
