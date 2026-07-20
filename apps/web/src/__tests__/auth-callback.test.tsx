@@ -169,7 +169,7 @@ describe('AuthCallbackPage', () => {
   });
 
   it('does not call real network directly; auth API module is the only entry point', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response('{}'));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
     mocks.verifyEmail.mockResolvedValue({ ok: true });
 
     renderWithSearchParams('?token=abc&type=signup');

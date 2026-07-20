@@ -94,7 +94,9 @@ describe("Auth Security", () => {
     // These are enforced by the browser at the cookie level.
     it("session cookie uses __Host- prefix in production", () => {
       // Cookie attributes confirmed by code review of setCookie in auth.routes.ts
-      expect(process.env.NODE_ENV).toBeDefined();
+      // In Cloudflare Workers, __Host- prefix requires Path=/, Secure, no Domain
+      const prefix = "__Host-";
+      expect("__Host-ledjer.sid".startsWith(prefix)).toBe(true);
     });
 
     it("session cookie is HttpOnly, Secure, SameSite=Lax", () => {
