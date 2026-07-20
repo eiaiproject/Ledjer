@@ -44,8 +44,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@cloudflare/vite-plugin": "^1.43.0",
-    "@cloudflare/workers-types": "^4.20260702.1",
+    "@cloudflare/vite-plugin": "^1.45.1",
+    "@cloudflare/workers-types": "^5.20260719.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@sentry/vite-plugin": "^5.4.0",
@@ -64,6 +64,6 @@
     "typescript-eslint": "^8.59.2",
     "vite": "^8.1.5",
     "vitest": "^3.1.0",
-    "wrangler": "^4.107.0"
+    "wrangler": "^4.112.0"
   }
 }
