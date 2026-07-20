@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportTrialBalanceCsv } from "@/lib/csv-export";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, Refresh } from "reicon-react";
 import { getTrialBalance } from "@/lib/api/reports";
 import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
 
@@ -139,7 +139,7 @@ export function TrialBalancePage() {
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <Refresh className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </form>

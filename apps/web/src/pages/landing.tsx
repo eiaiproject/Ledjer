@@ -3,22 +3,22 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Package,
-  BarChart3,
+  Chart,
   ChevronRight,
-  CheckCircle2,
+  CheckCircle,
   Users,
   FileText,
   Wallet,
   BookOpen,
   Scale,
-  TrendingUp,
+  TrendUp,
   Building2,
   Shield,
   Store,
-  UtensilsCrossed,
+  ForkKnife,
   Handshake,
   Truck,
-} from "lucide-react";
+} from "reicon-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -96,7 +96,7 @@ const demoDetailRows = [
 
 const benefits = [
   {
-    icon: TrendingUp,
+    icon: TrendUp,
     title: "Tahu laba usaha",
     desc: "Pendapatan, HPP, dan laba tersusun otomatis.",
     tone: "leaf" as Tone,
@@ -135,7 +135,7 @@ const businessTypes = [
   {
     id: "kuliner",
     label: "Kuliner",
-    icon: UtensilsCrossed,
+    icon: ForkKnife,
     items: ["Penjualan harian", "Pembelian bahan", "Beban operasional", "Laporan laba rugi"],
   },
   {
@@ -162,7 +162,7 @@ const reportTabs = [
   {
     id: "laba-rugi",
     label: "Laba Rugi",
-    icon: TrendingUp,
+    icon: TrendUp,
     question: "Apakah usaha saya untung bulan ini?",
     desc: "Pendapatan, HPP, beban, dan laba usaha tersaji otomatis.",
   },
@@ -611,7 +611,7 @@ export function LandingPage() {
                       <p className="text-xs text-wood-200">Transaksi menjadi laporan otomatis</p>
                     </div>
                     <div className="ledger-balance-stamp inline-flex shrink-0 items-center gap-1.5 rounded-full bg-leaf-100 px-3 py-1.5 text-xs font-semibold text-leaf-700">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <CheckCircle className="h-3.5 w-3.5" />
                       <span>Debit = Kredit</span>
                     </div>
                   </div>
@@ -758,7 +758,7 @@ export function LandingPage() {
                   n: "03",
                   title: "Laporan siap",
                   desc: "Stok, jurnal, dan laporan diperbarui otomatis.",
-                  icon: BarChart3,
+                  icon: Chart,
                   tone: "sky" as Tone,
                 },
               ].map((step, index) => (
@@ -926,7 +926,7 @@ export function LandingPage() {
               <ul className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
                 {activeBizPanel.items.map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-wood-700">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
+                    <CheckCircle className="h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
                     {item}
                   </li>
                 ))}
@@ -997,7 +997,7 @@ export function LandingPage() {
             <ul className="mt-5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
               {teamItems.map((item) => (
                 <li key={item.label} className="flex items-start gap-2 text-sm text-wood-700">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
                   <span>
                     <strong className="font-semibold text-wood-900">{item.label}.</strong>{" "}
                     {item.desc}
@@ -1077,7 +1077,7 @@ export function LandingPage() {
                   "Data dapat diekspor kapan saja.",
                 ].map((point) => (
                   <li key={point} className="flex items-start gap-2 text-sm text-wood-700">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
                     {point}
                   </li>
                 ))}

@@ -67,7 +67,7 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
-import { Receipt, Search, Download, ChevronDown, ChevronUp, Check, X, ArrowRight, Filter, XCircle } from "lucide-react";
+import { Receipt, Search, Download, ChevronDown, ChevronUp, Check, X, ArrowRight, Filter, XCircle } from "reicon-react";
 import {
   listTransactions,
   type TransactionStatus,

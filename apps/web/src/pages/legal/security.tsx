@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Lock, Eye, Database, Key, AlertTriangle } from "lucide-react";
+import { Shield, Lock, Eye, Database, Key, AlertTriangle } from "reicon-react";
 
 /**
  * Security Policy / Responsible Disclosure page.

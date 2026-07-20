@@ -15,7 +15,7 @@ import { getSafeRedirectPath } from "@/lib/redirect";
 import { useCooldown } from "@/hooks/useCooldown";
 import { isApiError } from "@/lib/api/client";
 import { startGoogleAuth } from "@/lib/api/auth";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Envelope } from "reicon-react";
 
 const loginSchema = z.object({
   email: z.string().email("Email tidak valid"),
@@ -168,7 +168,7 @@ export function LoginPage() {
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
-                  prefix={<Mail className="h-4 w-4 text-wood-400" />}
+                  prefix={<Envelope className="h-4 w-4 text-wood-400" />}
                   error={errors.email?.message}
                   disabled={rateLimited}
                   autoComplete="email"

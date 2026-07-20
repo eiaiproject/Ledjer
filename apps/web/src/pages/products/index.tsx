@@ -1,6 +1,6 @@
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "lucide-react";
+import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";

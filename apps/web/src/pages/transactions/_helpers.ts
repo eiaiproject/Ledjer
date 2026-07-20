@@ -1,15 +1,15 @@
 import {
-  ArrowRightLeft,
+  ArrowSwapHorizontal,
   ClipboardList,
   CreditCard,
   DollarSign,
   Download,
   FileText,
-  Landmark,
+  Bank,
   Receipt,
   ShoppingCart,
   Wallet,
-} from "lucide-react";
+} from "reicon-react";
 import { formatIDR } from "@/lib/utils";
 export { localDate } from "@/lib/utils";
 import { TRANSACTION_LABELS } from "@/lib/transactions";
@@ -73,7 +73,7 @@ export const TRANSACTION_META: Record<string, TransactionTypeMeta> = {
   owner_capital: {
     label: TRANSACTION_LABELS.owner_capital,
     description: "Setoran modal dari pemilik.",
-    icon: Landmark,
+    icon: Bank,
     hint: "Modal masuk ke usaha.",
   },
   owner_draw: {
@@ -85,7 +85,7 @@ export const TRANSACTION_META: Record<string, TransactionTypeMeta> = {
   cash_transfer: {
     label: TRANSACTION_LABELS.cash_transfer,
     description: "Pindah saldo antar rekening.",
-    icon: ArrowRightLeft,
+    icon: ArrowSwapHorizontal,
     hint: "Misal: dari Kas ke Bank BCA.",
   },
 };

@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState, useEffect, useCallback } from "react";
-import { ChevronDown, Check, Loader2 } from "lucide-react";
+import { ChevronDown, Check, Loader } from "reicon-react";
 import { cn } from "@/lib/utils";
 import { Field } from "./field";
 
@@ -197,7 +197,7 @@ export function Combobox({
           )}
         />
         <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-wood-400">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronDown className="h-4 w-4" />}
+          {loading ? <Loader className="h-4 w-4 animate-spin" /> : <ChevronDown className="h-4 w-4" />}
         </span>
 
         {/* Dropdown */}

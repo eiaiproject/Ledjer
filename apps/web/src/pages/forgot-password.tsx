@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail } from "lucide-react";
+import { Envelope } from "reicon-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,7 +84,7 @@ export function ForgotPasswordPage() {
               <CardContent>
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
-                    <Mail className="h-6 w-6" />
+                    <Envelope className="h-6 w-6" />
                   </div>
                   <h1 className="text-xl font-bold text-text-primary">
                     Cek email Anda
@@ -168,7 +168,7 @@ export function ForgotPasswordPage() {
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
-                  prefix={<Mail className="h-4 w-4 text-wood-400" />}
+                  prefix={<Envelope className="h-4 w-4 text-wood-400" />}
                   error={errors.email?.message}
                   disabled={loading}
                   autoComplete="email"

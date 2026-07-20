@@ -7,16 +7,16 @@ import {
   Edit2,
   Search,
   Wallet,
-  Landmark,
+  Bank,
   CreditCard,
   AlertCircle,
-  QrCode,
+  Qr,
   Plus,
   Download,
   Check,
   X,
   Shield,
-} from "lucide-react";
+} from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -109,8 +109,8 @@ function getCashBankKind(account: { code: number; name: string; is_cash_account:
 
 const CASH_BANK_KINDS: { kind: CashBankKind; label: string; icon: typeof Wallet; placeholder: string }[] = [
   { kind: "cash", label: "Kas", icon: Wallet, placeholder: "Kas Toko" },
-  { kind: "bank", label: "Bank", icon: Landmark, placeholder: "BCA / Mandiri / BRI" },
-  { kind: "qris", label: "QRIS", icon: QrCode, placeholder: "QRIS BRI" },
+  { kind: "bank", label: "Bank", icon: Bank, placeholder: "BCA / Mandiri / BRI" },
+  { kind: "qris", label: "QRIS", icon: Qr, placeholder: "QRIS BRI" },
   { kind: "ewallet", label: "E-wallet", icon: CreditCard, placeholder: "GoPay / ShopeePay" },
 ];
 
@@ -153,8 +153,8 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
 
 const CASH_BANK_META: Record<CashBankKind, { label: string; icon: typeof Wallet; bgClass: string; iconClass: string }> = {
   cash: { label: "Kas", icon: Wallet, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
-  bank: { label: "Bank", icon: Landmark, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
-  qris: { label: "QRIS", icon: QrCode, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
+  bank: { label: "Bank", icon: Bank, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
+  qris: { label: "QRIS", icon: Qr, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
   ewallet: { label: "E-wallet", icon: CreditCard, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
 };
 

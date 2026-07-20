@@ -26,7 +26,7 @@ import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast";
 import { formatShortDate, cn } from "@/lib/utils";
 import {
-  UserPlus,
+  UserAdd,
   Shield,
   Trash2,
   ChevronDown,
@@ -37,10 +37,10 @@ import {
   X,
   Copy,
   Link2,
-  MailCheck,
+  EnvelopeCheck,
   Ban,
-  Info,
-} from "lucide-react";
+  InfoCircle,
+} from "reicon-react";
 
 // ── Canonical role and permission model ─────────────────────────────
 // Backend source of truth: organization.service.ts ROLE_PERMISSIONS
@@ -546,7 +546,7 @@ export function TeamSettingsPage() {
                   />
                 ) : (
                   <div className="flex items-start gap-2 rounded-lg border border-wood-200 bg-cream-100 px-4 py-3 text-sm text-wood-600">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-wood-500" />
+                    <InfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-wood-500" />
                     <span className="min-w-0 break-words">
                       Memuat status undangan...
                     </span>
@@ -657,7 +657,7 @@ function InvitationForm({
   return (
     <div className="rounded-lg border border-dashed border-leaf-300 bg-leaf-50/50 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <UserPlus className="h-4 w-4 text-leaf-600" />
+        <UserAdd className="h-4 w-4 text-leaf-600" />
         <p className="text-sm font-medium text-leaf-800">Buat link undangan</p>
       </div>
       <p className="mb-3 text-xs text-leaf-700/80">
@@ -732,7 +732,7 @@ function InvitationForm({
         {/* Admin warning */}
         {isAdminWarning && (
           <div className="mt-3 flex items-start gap-2 rounded-md border border-honey-200 bg-honey-50 px-3 py-2 text-xs text-honey-800">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <InfoCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>Admin memiliki akses pengelolaan yang luas, termasuk mengelola anggota dan membatalkan transaksi.</span>
           </div>
         )}
@@ -768,7 +768,7 @@ function PendingInvitationCard({
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
-            <MailCheck className="h-5 w-5" />
+            <EnvelopeCheck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -1150,7 +1150,7 @@ function RoleChangeDialog({
 
           {isAdminPromotion && (
             <div className="flex items-start gap-2 rounded-md border border-honey-200 bg-honey-50 px-3 py-2 text-xs text-honey-800">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <InfoCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>Admin memiliki akses pengelolaan yang luas, termasuk mengelola anggota dan membatalkan transaksi.</span>
             </div>
           )}

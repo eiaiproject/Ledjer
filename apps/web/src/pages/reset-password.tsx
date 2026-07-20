@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock } from "lucide-react";
+import { Lock } from "reicon-react";
 import { useAuth } from "@/contexts/auth-context";
 import { passwordSchema } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";

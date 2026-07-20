@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { type ComponentType } from "react";
 import {
   Home,
   Receipt,
   BookOpen,
   Package,
-  BarChart3,
+  Chart,
   Settings,
   Plus,
-  LogOut,
+  Logout,
   Menu,
   X,
   ChevronDown,
-  ChevronsLeft,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+  AnglesLeft,
+} from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -22,8 +22,8 @@ import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 
 type NavItem =
-  | { to: string; label: string; icon: LucideIcon; children?: never }
-  | { label: string; icon: LucideIcon; children: { to: string; label: string }[]; to?: never };
+  | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
+  | { label: string; icon: ComponentType<{ className?: string }>; children: { to: string; label: string }[]; to?: never };
 
 type NavItemWithPerm = NavItem & { requires?: string };
 
@@ -34,7 +34,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
   {
     label: "Laporan",
-    icon: BarChart3,
+    icon: Chart,
     requires: "canViewReports",
     children: [
       { to: "/reports/general-ledger", label: "Buku Besar" },
@@ -152,7 +152,7 @@ export function DashboardLayout() {
               className="p-2 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Ciutkan sidebar"
             >
-              <ChevronsLeft className="h-4 w-4" />
+              <AnglesLeft className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -274,7 +274,7 @@ export function DashboardLayout() {
                   className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Keluar"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <Logout className="h-4 w-4" />
                 </button>
               </>
             )}
@@ -286,7 +286,7 @@ export function DashboardLayout() {
               className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center min-h-[44px]"
               aria-label="Keluar"
             >
-              <LogOut className="h-4 w-4" />
+              <Logout className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -443,7 +443,7 @@ export function DashboardLayout() {
                 className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label="Keluar"
               >
-                <LogOut className="h-4 w-4" />
+                <Logout className="h-4 w-4" />
               </button>
             </div>
           </div>

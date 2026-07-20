@@ -15,7 +15,7 @@ import { translateError } from "@/lib/errors";
 import { buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
 import { startGoogleAuth } from "@/lib/api/auth";
 import { useCooldown } from "@/hooks/useCooldown";
-import { Lock, Mail, User } from "lucide-react";
+import { Lock, Envelope, User } from "reicon-react";
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Nama harus minimal 2 karakter"),
@@ -137,7 +137,7 @@ export function RegisterPage() {
               <CardContent>
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
-                    <Mail className="h-6 w-6" />
+                    <Envelope className="h-6 w-6" />
                   </div>
                   <h1 className="text-xl font-bold text-text-primary">
                     Cek email Anda
@@ -262,7 +262,7 @@ export function RegisterPage() {
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
-                  prefix={<Mail className="h-4 w-4 text-wood-400" />}
+                  prefix={<Envelope className="h-4 w-4 text-wood-400" />}
                   error={errors.email?.message}
                   autoComplete="email"
                 />

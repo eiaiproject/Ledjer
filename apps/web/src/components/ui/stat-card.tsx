@@ -1,13 +1,13 @@
+import { type ComponentType } from "react";
 import { cn, formatIDR } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "reicon-react";
 
 interface StatCardProps {
   label: string;
   /** null | undefined = loading skeleton, 'error' = unavailable */
   value: number | string | null | undefined;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   tone?: "wood" | "leaf" | "clay" | "sky" | "honey";
   format?: "currency" | "number" | "text";
   className?: string;

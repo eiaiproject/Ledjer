@@ -18,7 +18,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "reicon-react";
 import {
   getTransaction,
   listTransactionJournal,
