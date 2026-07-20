@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatIDR, formatShortDate } from "@/lib/utils";
 import { exportGeneralLedgerCsv } from "@/lib/csv-export";
-import { Download, ChevronDown, ChevronRight, BookOpen } from "lucide-react";
+import { Download, ChevronDown, ChevronRight, BookOpen } from "reicon-react";
 import { listAccounts } from "@/lib/api/accounts";
 import { getGeneralLedger, type LedgerEntry } from "@/lib/api/reports";
 import { useReportDateRange, ReportPermissionGate, handleReportExport } from "./_components";

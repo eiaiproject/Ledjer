@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { type ComponentType } from "react";
 import {
   Home,
   Receipt,
   BookOpen,
   Package,
-  BarChart3,
+  Chart,
   Settings,
   Plus,
-  LogOut,
+  Logout,
   Menu,
   X,
   ChevronDown,
-  ChevronsLeft,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+  AnglesLeft,
+} from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -22,8 +22,8 @@ import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 
 type NavItem =
-  | { to: string; label: string; icon: LucideIcon; children?: never }
-  | { label: string; icon: LucideIcon; children: { to: string; label: string }[]; to?: never };
+  | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
+  | { label: string; icon: ComponentType<{ className?: string }>; children: { to: string; label: string }[]; to?: never };
 
 type NavItemWithPerm = NavItem & { requires?: string };
 
@@ -34,7 +34,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
   {
     label: "Laporan",
-    icon: BarChart3,
+    icon: Chart,
     requires: "canViewReports",
     children: [
       { to: "/reports/general-ledger", label: "Buku Besar" },
@@ -91,8 +91,9 @@ export function DashboardLayout() {
 
   if (orgData?.needsOnboarding) {
     return (
-      <div className="flex ledger-min-dvh items-center justify-center">
+      <div className="flex ledger-min-dvh items-center justify-center" role="status" aria-label="Memuat data organisasi">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <span className="sr-only">Memuat data organisasi...</span>
       </div>
     );
   }
@@ -118,12 +119,28 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
+  const handleSkipToContent = () => {
+    const main = document.getElementById('main-content');
+    if (main) {
+      main.focus();
+      main.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const showBottomNav = location.pathname !== '/transactions/new';
 
   const sidebarWidth = sidebarCollapsed ? "w-16" : "w-60";
 
   return (
     <div className="ledger-min-dvh bg-background">
+      {/* Skip to content link — WCAG 2.4.1 */}
+      <a
+        href="#main-content"
+        onClick={(e) => { e.preventDefault(); handleSkipToContent(); }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[var(--z-toast)] focus:rounded-lg focus:bg-cream-50 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-wood-900 focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-wood-500"
+      >
+        Langsung ke konten utama
+      </a>
       {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-[var(--z-drawer)] lg:flex lg:flex-col",
@@ -152,7 +169,7 @@ export function DashboardLayout() {
               className="p-2 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Ciutkan sidebar"
             >
-              <ChevronsLeft className="h-4 w-4" />
+              <AnglesLeft className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -274,7 +291,7 @@ export function DashboardLayout() {
                   className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Keluar"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <Logout className="h-4 w-4" />
                 </button>
               </>
             )}
@@ -286,7 +303,7 @@ export function DashboardLayout() {
               className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center min-h-[44px]"
               aria-label="Keluar"
             >
-              <LogOut className="h-4 w-4" />
+              <Logout className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -443,7 +460,7 @@ export function DashboardLayout() {
                 className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label="Keluar"
               >
-                <LogOut className="h-4 w-4" />
+                <Logout className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -451,12 +468,16 @@ export function DashboardLayout() {
       </dialog>
 
       {/* Main Content */}
-      <main className={cn(
-        "bg-background transition-[padding] duration-300 ease-out",
-        "pt-14 lg:pt-0",
-        showBottomNav && "pb-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] lg:pb-0",
-        sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
-      )}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={cn(
+          "bg-background transition-[padding] duration-300 ease-out outline-none",
+          "pt-14 lg:pt-0",
+          showBottomNav && "pb-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] lg:pb-0",
+          sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
+        )}
+      >
         <OfflineBanner />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
           <Outlet />
@@ -464,11 +485,11 @@ export function DashboardLayout() {
       </main>
       {showBottomNav && (
       <nav
-        className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
+        className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom ledger-scroll-x no-scrollbar"
         aria-label="Navigasi mobile"
       >
-        <div className="flex items-stretch justify-around">
-          {visibleNavItems.filter((item) => !item.children).slice(0, 4).map((item) => {
+        <div className="mx-auto flex items-stretch justify-center gap-1 px-2">
+          {visibleNavItems.filter((item) => !item.children).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.to!);
             return (
@@ -477,7 +498,7 @@ export function DashboardLayout() {
                 to={item.to!}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors min-h-[56px] relative",
+                  "flex shrink-0 flex-col items-center justify-center gap-0.5 py-2 px-3 text-[11px] font-medium transition-colors min-h-[56px] relative",
                   active
                     ? "text-wood-800"
                     : "text-wood-500 hover:text-wood-700"
@@ -496,11 +517,11 @@ export function DashboardLayout() {
               </Link>
             );
           })}
-          {visibleNavItems.filter((item) => !item.children).length > 4 && (
+          {visibleNavItems.filter((item) => !item.children).length > 0 && (
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-wood-500 min-h-[56px]"
+              className="flex shrink-0 flex-col items-center justify-center gap-0.5 py-2 px-3 text-[11px] font-medium text-wood-500 min-h-[56px]"
               aria-label="Menu lainnya"
             >
               <div className="flex h-9 w-9 items-center justify-center">

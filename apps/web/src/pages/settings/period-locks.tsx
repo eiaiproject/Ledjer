@@ -22,9 +22,9 @@ import {
   Unlock,
   Calendar,
   AlertTriangle,
-  Info,
+  InfoCircle,
   ShieldCheck,
-} from "lucide-react";
+} from "reicon-react";
 
 /* ─── Helpers ────────────────────────────────────────────────────── */
 
@@ -831,7 +831,7 @@ export function PeriodLocksPage() {
       {/* Read-only notice */}
       {!canManageTeam && (
         <div className="flex items-start gap-2 rounded-lg border border-wood-100 bg-cream-50 px-4 py-3 text-xs text-wood-500">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-wood-400" />
+          <InfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-wood-400" />
           <span>
             Anda dapat melihat kunci periode, tetapi tidak memiliki izin untuk mengubahnya.
           </span>

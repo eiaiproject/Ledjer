@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Mail, BookOpen, Bug } from "lucide-react";
+import { Envelope, BookOpen, Bug } from "reicon-react";
 
 /**
  * Contact / Support page.
@@ -7,7 +7,7 @@ import { Mail, BookOpen, Bug } from "lucide-react";
 
 const contactMethods = [
   {
-    icon: Mail,
+    icon: Envelope,
     title: "Email Support",
     description: "Untuk pertanyaan umum, masalah akun, atau bantuan teknis.",
     action: "support@ledjer.id",

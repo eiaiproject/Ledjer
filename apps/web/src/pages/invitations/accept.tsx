@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowRight, CheckCircle2, LogIn, MailCheck, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle, Login, EnvelopeCheck, UserAdd } from "reicon-react";
 import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import { buildRedirectSearch } from "@/lib/redirect";
@@ -96,7 +96,7 @@ export function AcceptInvitationPage() {
               {token && status === "success" && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-100 text-leaf-700">
-                    <CheckCircle2 className="h-6 w-6" />
+                    <CheckCircle className="h-6 w-6" />
                   </div>
                   <h1 className="text-xl font-bold text-text-primary">Undangan diterima</h1>
                   <p className="mt-2 text-sm text-text-secondary">
@@ -127,7 +127,7 @@ export function AcceptInvitationPage() {
               {token && status !== "success" && !session && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-700">
-                    <MailCheck className="h-6 w-6" />
+                    <EnvelopeCheck className="h-6 w-6" />
                   </div>
                   <h1 className="text-xl font-bold text-text-primary">Masuk untuk menerima undangan</h1>
                   <p className="mt-2 text-sm text-text-secondary">
@@ -135,11 +135,11 @@ export function AcceptInvitationPage() {
                   </p>
                   <div className="mt-6 grid w-full gap-2 sm:grid-cols-2">
                     <Button as={Link} to={`/login?${authSearch}`} fullWidth>
-                      <LogIn className="h-4 w-4" />
+                      <Login className="h-4 w-4" />
                       Masuk
                     </Button>
                     <Button as={Link} to={`/register?${authSearch}`} variant="secondary" fullWidth>
-                      <UserPlus className="h-4 w-4" />
+                      <UserAdd className="h-4 w-4" />
                       Daftar
                     </Button>
                   </div>
@@ -148,7 +148,7 @@ export function AcceptInvitationPage() {
               {token && status !== "success" && session && (
                 <div className="flex flex-col items-center text-center">
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-100 text-leaf-700">
-                    <MailCheck className="h-6 w-6" />
+                    <EnvelopeCheck className="h-6 w-6" />
                   </div>
                   <h1 className="text-xl font-bold text-text-primary">Terima undangan staf?</h1>
                   <p className="mt-2 text-sm text-text-secondary">

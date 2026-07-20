@@ -15,7 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   Package,
-} from "lucide-react";
+} from "reicon-react";
 import type { FieldErrors } from "react-hook-form";
 import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";

@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Wallet, TrendingUp, TrendingDown, BarChart3,
+  Wallet, TrendUp, TrendDown, Chart,
   ArrowUpRight, ArrowDownRight, Plus, BookOpen,
   Receipt, AlertCircle,
-} from "lucide-react";
+} from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
@@ -17,17 +17,17 @@ type ProfitState = {
   isZero: boolean;
   label: string;
   tone: "leaf" | "clay" | "wood";
-  icon: typeof TrendingUp;
+  icon: typeof TrendUp;
 };
 
 function computeProfitState(value: number | null | undefined): ProfitState {
   if (value == null || value === 0) {
-    return { isZero: true, label: "Laba/Rugi", tone: "wood", icon: BarChart3 };
+    return { isZero: true, label: "Laba/Rugi", tone: "wood", icon: Chart };
   }
   if (value > 0) {
-    return { isZero: false, label: "Laba Bersih", tone: "leaf", icon: TrendingUp };
+    return { isZero: false, label: "Laba Bersih", tone: "leaf", icon: TrendUp };
   }
-  return { isZero: false, label: "Rugi Bersih", tone: "clay", icon: TrendingDown };
+  return { isZero: false, label: "Rugi Bersih", tone: "clay", icon: TrendDown };
 }
 
 /** Format period as readable Indonesian: "Ringkasan 1–12 Juli 2026" */
@@ -160,7 +160,7 @@ export function DashboardPage() {
                   aria-label="Lihat Laba Rugi"
                 >
                   <div className="shrink-0 rounded-xl bg-wood-100 p-2.5">
-                    <BarChart3 className="h-5 w-5 text-wood-600" />
+                    <Chart className="h-5 w-5 text-wood-600" />
                   </div>
                   <p className="break-words text-sm font-medium text-wood-800 group-hover:text-wood-700">
                     Laba Rugi
@@ -172,7 +172,7 @@ export function DashboardPage() {
                   aria-label="Lihat Neraca Saldo"
                 >
                   <div className="shrink-0 rounded-xl bg-honey-100 p-2.5">
-                    <TrendingUp className="h-5 w-5 text-honey-600" />
+                    <TrendUp className="h-5 w-5 text-honey-600" />
                   </div>
                   <p className="break-words text-sm font-medium text-wood-800 group-hover:text-honey-700">
                     Neraca Saldo
@@ -225,14 +225,14 @@ export function DashboardPage() {
             <StatCard
               label="Pendapatan"
               value={metricError ? "error" : summary?.revenue_current_period ?? null}
-              icon={TrendingUp}
+              icon={TrendUp}
               tone="wood"
               href="/reports/profit-loss"
             />
             <StatCard
               label="Beban"
               value={metricError ? "error" : summary?.expense_current_period ?? null}
-              icon={TrendingDown}
+              icon={TrendDown}
               tone="clay"
               href="/reports/profit-loss"
             />

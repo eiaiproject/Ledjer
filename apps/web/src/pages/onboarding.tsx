@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
-import { CheckCircle, Info, Trash2 } from "lucide-react";
+import { CheckCircle, InfoCircle, Trash2 } from "reicon-react";
 
 const businessSchema = z.object({
   organizationName: z.string().min(2, "Nama bisnis harus minimal 2 karakter"),
@@ -315,7 +315,7 @@ export function OnboardingPage() {
                       className="mt-2 inline-flex items-center gap-1.5 text-xs text-text-tertiary"
                       title="Tanggal ini menjadi hari pertama pencatatan dan dasar perhitungan saldo awal."
                     >
-                      <Info className="h-3.5 w-3.5" />
+                      <InfoCircle className="h-3.5 w-3.5" />
                       Dasar saldo awal
                     </span>
                   </div>

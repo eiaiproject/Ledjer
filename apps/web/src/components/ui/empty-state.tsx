@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText } from "reicon-react";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {

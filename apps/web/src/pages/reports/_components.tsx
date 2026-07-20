@@ -9,7 +9,7 @@ import { useState, useCallback } from "react";
 import { useOrgPermissions } from "@/hooks/useOrganization";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download } from "reicon-react";
 import { formatDateInputValue } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 

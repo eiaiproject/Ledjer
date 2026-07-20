@@ -1,13 +1,13 @@
+import { type ComponentType } from "react";
 import { cn, formatIDR } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "reicon-react";
 
 interface StatCardProps {
   label: string;
   /** null | undefined = loading skeleton, 'error' = unavailable */
   value: number | string | null | undefined;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   tone?: "wood" | "leaf" | "clay" | "sky" | "honey";
   format?: "currency" | "number" | "text";
   className?: string;
@@ -126,16 +126,18 @@ export function StatCard({
   // apply via style to bypass the merge. Upgrade: fix twMerge config.
   const heroStyle: React.CSSProperties | undefined = hero ? { color: "var(--color-text-on-primary)" } : undefined;
 
+  const loadingAttrs = isLoading ? { role: "status" as const, "aria-live": "polite" as const } : {};
+
   if (href) {
     return (
-      <Link to={href} className={base} aria-label={accessibleLabel} style={heroStyle}>
+      <Link to={href} className={base} aria-label={accessibleLabel} style={heroStyle} {...loadingAttrs}>
         {inner}
       </Link>
     );
   }
 
   return (
-    <section className={base} aria-label={accessibleLabel} style={heroStyle}>
+    <section className={base} aria-label={accessibleLabel} style={heroStyle} {...loadingAttrs}>
       {inner}
     </section>
   );

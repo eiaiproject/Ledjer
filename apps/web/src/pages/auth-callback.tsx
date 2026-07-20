@@ -11,7 +11,7 @@ import {
   getMe,
   verifyEmail,
 } from "@/lib/api/auth";
-import { AlertTriangle, ArrowRight, CheckCircle2, Mail } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle, Envelope } from "reicon-react";
 
 type Status = "verifying" | "success" | "error" | "invalid";
 
@@ -223,7 +223,7 @@ function StatusIcon({ status }: { readonly status: Status }) {
         className="flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700"
         aria-hidden="true"
       >
-        <CheckCircle2 className="h-6 w-6" />
+        <CheckCircle className="h-6 w-6" />
       </div>
     );
   }
@@ -233,7 +233,7 @@ function StatusIcon({ status }: { readonly status: Status }) {
         className="flex h-12 w-12 items-center justify-center rounded-full bg-cream-200 text-wood-600"
         aria-hidden="true"
       >
-        <Mail className="h-6 w-6" />
+        <Envelope className="h-6 w-6" />
       </div>
     );
   }

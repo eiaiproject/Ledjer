@@ -10,7 +10,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateRange, formatIDR } from "@/lib/utils";
 import { exportProfitLossCsv } from "@/lib/csv-export";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 import { useReportDateRange, handleReportExport } from "./_components";
 
@@ -262,7 +262,7 @@ export function ProfitLossPage() {
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <Refresh className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </form>

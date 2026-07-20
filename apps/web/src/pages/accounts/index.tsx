@@ -7,16 +7,16 @@ import {
   Edit2,
   Search,
   Wallet,
-  Landmark,
+  Bank,
   CreditCard,
   AlertCircle,
-  QrCode,
+  Qr,
   Plus,
   Download,
   Check,
   X,
   Shield,
-} from "lucide-react";
+} from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -109,8 +109,8 @@ function getCashBankKind(account: { code: number; name: string; is_cash_account:
 
 const CASH_BANK_KINDS: { kind: CashBankKind; label: string; icon: typeof Wallet; placeholder: string }[] = [
   { kind: "cash", label: "Kas", icon: Wallet, placeholder: "Kas Toko" },
-  { kind: "bank", label: "Bank", icon: Landmark, placeholder: "BCA / Mandiri / BRI" },
-  { kind: "qris", label: "QRIS", icon: QrCode, placeholder: "QRIS BRI" },
+  { kind: "bank", label: "Bank", icon: Bank, placeholder: "BCA / Mandiri / BRI" },
+  { kind: "qris", label: "QRIS", icon: Qr, placeholder: "QRIS BRI" },
   { kind: "ewallet", label: "E-wallet", icon: CreditCard, placeholder: "GoPay / ShopeePay" },
 ];
 
@@ -153,8 +153,8 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
 
 const CASH_BANK_META: Record<CashBankKind, { label: string; icon: typeof Wallet; bgClass: string; iconClass: string }> = {
   cash: { label: "Kas", icon: Wallet, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
-  bank: { label: "Bank", icon: Landmark, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
-  qris: { label: "QRIS", icon: QrCode, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
+  bank: { label: "Bank", icon: Bank, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
+  qris: { label: "QRIS", icon: Qr, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
   ewallet: { label: "E-wallet", icon: CreditCard, bgClass: "bg-leaf-100", iconClass: "text-leaf-600" },
 };
 
@@ -875,13 +875,13 @@ export function AccountsPage() {
           onChange={(e) => setSearch(e.target.value)}
           aria-labelledby={searchLabelId}
           aria-describedby={hasSearch ? "search-results-count" : undefined}
-          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-10 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
+          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
         />
         {hasSearch && (
           <button
             type="button"
             onClick={handleClearSearch}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Hapus pencarian"
           >
             <X className="h-4 w-4" />

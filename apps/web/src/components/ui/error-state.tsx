@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "reicon-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
