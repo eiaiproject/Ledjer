@@ -84,3 +84,4 @@ temporary.md
 *.local.md
 .env.local.md
 supabase-credentials.*
+graphify-out/

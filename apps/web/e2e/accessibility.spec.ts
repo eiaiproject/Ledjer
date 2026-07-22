@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { test as authTest } from "./helpers/auth";
 import AxeBuilder from "@axe-core/playwright";
 
 /**
@@ -6,7 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
  * Automated axe-core audits + manual semantic/flow checks.
  */
 
-test.describe("axe-core automated audits", () => {
+test.describe("axe-core automated audits (public pages)", () => {
   const publicPages = [
     { url: "/", name: "Landing" },
     { url: "/login", name: "Login" },
@@ -129,4 +130,38 @@ test.describe("Error announcements", () => {
     const alert = page.locator("[role='alert']");
     await expect(alert).toBeVisible({ timeout: 15_000 });
   });
+});
+
+authTest.describe("axe-core automated audits (authenticated pages)", () => {
+  const authedPages = [
+    { url: "/dashboard", name: "Dashboard" },
+    { url: "/transactions", name: "Transactions" },
+    { url: "/accounts", name: "Accounts" },
+    { url: "/products", name: "Products" },
+    { url: "/reports/trial-balance", name: "Trial Balance" },
+  ];
+
+  for (const p of authedPages) {
+    authTest(`${p.name} has no critical or serious axe violations`, async ({ authPage }) => {
+      await authPage.goto(p.url);
+      await authPage.waitForLoadState("networkidle");
+
+      const results = await new AxeBuilder({ page: authPage })
+        .withTags(["wcag2a", "wcag2aa", "best-practice"])
+        .analyze();
+
+      const violations = results.violations.filter(
+        (v) => v.impact === "critical" || v.impact === "serious",
+      );
+
+      if (violations.length > 0) {
+        const msg = violations
+          .map((v) => `${v.id} (${v.impact}): ${v.description} (${v.nodes.length} elements)`)
+          .join("\n");
+        console.error(`Axe violations on ${p.name}:\n${msg}`);
+      }
+
+      expect(violations).toHaveLength(0);
+    });
+  }
 });

@@ -74,9 +74,9 @@ test.describe("Authenticated API Flows", () => {
 
   test("GET /api/audit-logs returns audit logs", async ({ authPage }) => {
     const res = await authPage.request.get("/api/audit-logs?limit=10");
-    expect([200, 500]).toContain(res.status());
-    // Note: 500 is temporary — production hasn't been deployed with the
-    // loadCurrentOrganization fix for audit-logs routes yet.
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toBeDefined();
   });
 
   test("GET /api/organizations/current returns org details", async ({ authPage }) => {

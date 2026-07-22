@@ -43,7 +43,7 @@
         {
           "binding": "DB",
           "database_name": "ledjer-staging",
-          "database_id": "<replace-with-staging-db-id>",
+          "database_id": "<replace-with-staging-db-id>",  // 🔁 Replace with real staging DB UUID before staging deploy
           "migrations_dir": "apps/web/worker/db/migrations"
         }
       ],

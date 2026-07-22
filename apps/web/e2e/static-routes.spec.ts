@@ -2,13 +2,64 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Static routes E2E tests.
- * Placeholder — real tests TBD.
- * @see P0-3 follow-up in §8
+ *
+ * Enumerates all expected public routes and verifies they:
+ * 1. Return HTTP 200 (not a redirect or error)
+ * 2. Have a meaningful page title
+ * 3. Render expected content elements
+ *
+ * Protected routes are tested separately (see auth.spec.ts, explore.spec.ts).
  */
-test.describe("Static routes (placeholder)", () => {
-  test("placeholder: static routes load", async ({ page }) => {
-    await page.goto("/");
+
+const PUBLIC_ROUTES = [
+  { path: "/", title: /Ledjer/i, content: "Ledjer" },
+  { path: "/login", title: /Ledjer/i, content: /email/i },
+  { path: "/register", title: /Ledjer/i, content: /email/i },
+  { path: "/forgot-password", title: /Ledjer/i, content: /email/i },
+  { path: "/privacy", title: /Ledjer/i, content: /privasi|data|pribadi/i },
+  { path: "/terms", title: /Ledjer/i, content: /ketentuan|syarat/i },
+  { path: "/contact", title: /Ledjer/i, content: /kontak|email/i },
+];
+
+test.describe("Public static routes", () => {
+  for (const route of PUBLIC_ROUTES) {
+    test(`${route.path} loads with expected content`, async ({ page }) => {
+      const resp = await page.goto(route.path, { waitUntil: "networkidle", timeout: 15000 });
+      expect(resp?.status()).toBe(200);
+
+      const title = await page.title();
+      expect(title).toMatch(route.title);
+
+      await expect(page.locator("body")).toContainText(route.content);
+    });
+  }
+});
+
+test.describe("Protected route redirects", () => {
+  const protectedRoutes = [
+    "/dashboard",
+    "/transactions",
+    "/products",
+    "/accounts",
+    "/reports/general-ledger",
+    "/reports/trial-balance",
+    "/reports/profit-loss",
+    "/reports/balance-sheet",
+    "/settings/team",
+  ];
+
+  for (const route of protectedRoutes) {
+    test(`unauthenticated user redirected from ${route} to login`, async ({ page }) => {
+      await page.goto(route, { timeout: 30000 });
+      await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
+    });
+  }
+});
+
+test.describe("404 handling", () => {
+  test("unknown route shows not-found page", async ({ page }) => {
+    await page.goto("/nonexistent-page-12345");
     await page.waitForLoadState("networkidle");
-    expect(await page.title()).toMatch(/Ledjer/i);
+    await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
   });
 });

@@ -18,7 +18,7 @@
 | Parties | Until no transactions reference | Never if transaction exists | Deactivate (is_active=0) | |
 | Stock movements | Permanent | Never | Never | Audit trail |
 | Period locks | Permanent | Never | Never | Audit trail |
-| Audit logs | 5 years | After 5 years | Archival to cold storage | Regulatory compliance |
+| Audit logs | 7 years (configurable) | After retention period | Configurable via maintenance cron (`auditRetentionDays`) | 5+ years for regulatory compliance. Default 7 years in `maintenance.service.ts`. Adjust via env/config. |
 | Exports | Until expired (24h) | After expiry | Automatic | |
 | Rate limits | 1 hour | After 1 hour | Automatic | |
 

@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test.describe("CSRF Protection", () => {
   const API_BASE = process.env.E2E_BASE_URL || "http://localhost:4173";
+  // Use APP_ORIGIN env var (set by CI) or derive from API_BASE; fallback to ledjer.id for preview
+  const TEST_ORIGIN = process.env.E2E_APP_ORIGIN || (API_BASE.startsWith("http://localhost") ? API_BASE : "https://ledjer.id");
 
   test("POST without Origin and without session cookie proceeds (public endpoint)", async ({ request }) => {
     // Public endpoints (no session cookie) should not be CSRF-blocked
@@ -77,7 +79,7 @@ test.describe("CSRF Protection", () => {
       headers: {
         "Content-Type": "application/json",
         // Use the configured APP_ORIGIN
-        "Origin": "https://ledjer.id",
+        "Origin": TEST_ORIGIN,
       },
     });
     // 401 means CSRF passed, auth failed (expected with fake token)

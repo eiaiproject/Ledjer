@@ -9,11 +9,15 @@ function cookieName(c: Context): string {
 }
 
 function cookieOptions(c: Context) {
+  const isHostPrefix = c.env.APP_ENV === "production";
   return {
-    domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
+    domain: isHostPrefix ? undefined : c.env.COOKIE_DOMAIN,
     path: "/",
     sameSite: "Lax" as const,
-    secure: isSecureRequest(c),
+    // __Host- prefix requires Secure flag unconditionally.
+    // In production the app always serves over HTTPS (Cloudflare).
+    secure: isHostPrefix ? true : isSecureRequest(c),
+    partitioned: true,
   };
 }
 import { tooManyRequests, unauthorized } from "../http/errors";

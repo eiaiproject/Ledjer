@@ -4,20 +4,22 @@ import { test, expect } from "@playwright/test";
  * Tenant Isolation E2E Tests
  *
  * These tests verify that authenticated users cannot access resources
- * belonging to a different organization. They use the API directly
- * since seeded multi-tenant data requires backend fixtures.
+ * belonging to a different organization.
  *
- * Tests assume:
- * 1. Two organizations exist with different data
- * 2. A test user has membership in both organizations
+ * Prerequisites:
+ *   - Staging env with seeded data for at least 2 orgs
+ *   - PLAYWRIGHT_SESSION_TOKEN_A and PLAYWRIGHT_SESSION_TOKEN_B set
  *
- * Note: These tests require properly seeded test data.
- * Run against a test environment with pre-seeded multi-tenant data.
+ * Cross-tenant verification pattern:
+ *   1. Auth as User in OrgA using PLAYWRIGHT_SESSION_TOKEN_A
+ *   2. Attempt to read OrgB resources — expect 403
+ *   3. Auth as User in OrgB using PLAYWRIGHT_SESSION_TOKEN_B
+ *   4. Attempt to read OrgA resources — expect 403
  */
 
-test.describe("Tenant Isolation (API-level)", () => {
-  const API_BASE = process.env.E2E_BASE_URL || "http://localhost:4173";
+const API_BASE = process.env.E2E_BASE_URL || "http://localhost:4173";
 
+test.describe("Tenant Isolation (API-level)", () => {
   test("unauthenticated requests to tenant-scoped endpoints return 401", async ({ request }) => {
     const endpoints = [
       "/api/accounts",
@@ -36,7 +38,7 @@ test.describe("Tenant Isolation (API-level)", () => {
   test("request with invalid session returns 401", async ({ request, context }) => {
     await context.addCookies([
       {
-        name: "ledjer_session",
+        name: "__Host-ledjer_session",
         value: "invalid-session-token",
         domain: new URL(API_BASE).hostname,
         path: "/",
@@ -47,11 +49,93 @@ test.describe("Tenant Isolation (API-level)", () => {
     expect(response.status()).toBe(401);
   });
 
-  test("switching organization changes scoped data", async ({ request }) => {
-    // Verify that /api/organizations lists available orgs
+  test("cross-tenant access blocked: OrgA cannot read OrgB accounts", async ({ request, context }) => {
+    const token = process.env.PLAYWRIGHT_SESSION_TOKEN_A;
+    if (!token) {
+      test.skip(!!token, "PLAYWRIGHT_SESSION_TOKEN_A not set — cross-tenant E2E requires seeded data");
+      return;
+    }
+
+    // Authenticate as OrgA user
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: token,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
+
+    // Attempt to read Org B's accounts by supplying Org B's org ID
+    // Assumes OrgB ID is provided via env var
+    const orgBId = process.env.PLAYWRIGHT_ORG_B_ID;
+    if (!orgBId) {
+      test.skip(true, "PLAYWRIGHT_ORG_B_ID not set");
+      return;
+    }
+
+    // Read OrgB accounts while authenticated as OrgA
+    const response = await request.get(`${API_BASE}/api/accounts`, {
+      headers: { "x-org-id": orgBId },
+    });
+    // Orginization middleware should scope to user's org, not the x-org-id header
+    // The response should either be 403 or empty results from OrgA's context
+    expect(response.status()).not.toBe(200);
+  });
+
+  test("cross-tenant access blocked: OrgB cannot read OrgA reports", async ({ request, context }) => {
+    const token = process.env.PLAYWRIGHT_SESSION_TOKEN_B;
+    if (!token) {
+      test.skip(!!token, "PLAYWRIGHT_SESSION_TOKEN_B not set");
+      return;
+    }
+
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: token,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
+
+    // Attempt to read a report in OrgA's context while authed as OrgB user
+    const orgAId = process.env.PLAYWRIGHT_ORG_A_ID;
+    if (!orgAId) {
+      test.skip(true, "PLAYWRIGHT_ORG_A_ID not set");
+      return;
+    }
+
+    const response = await request.get(`${API_BASE}/api/reports/trial-balance?asOfDate=2026-01-31`, {
+      headers: { "x-org-id": orgAId },
+    });
+    expect(response.status()).not.toBe(200);
+  });
+
+  test("org list only shows the user's member orgs", async ({ request, context }) => {
+    const token = process.env.PLAYWRIGHT_SESSION_TOKEN_A;
+    if (!token) {
+      test.skip(!!token, "PLAYWRIGHT_SESSION_TOKEN_A not set");
+      return;
+    }
+
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: token,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
+
     const response = await request.get(`${API_BASE}/api/organizations`);
-    // Without auth, this fails — but with auth, would list only
-    // organizations the user is a member of
-    expect([401, 200]).toContain(response.status());
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    // Should be a list of orgs the user belongs to (not all orgs)
+    expect(Array.isArray(body)).toBe(true);
+    // If Org A user is not a member of any other org, list should have 1 entry
+    // This is a soft assertion — the exact count depends on seed data
+    expect(body.length).toBeGreaterThanOrEqual(1);
   });
 });

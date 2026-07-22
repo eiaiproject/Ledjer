@@ -212,9 +212,7 @@ CI pipeline: typecheck → lint → unit tests → production build → D1 migra
 
 ## Contributing
 
-> **⚠️ Placeholder:** `CONTRIBUTING.md` does not exist yet.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines. In the meantime:
+> **ℹ️ Note:** Contribution guidelines are still being drafted.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/my-feature`)

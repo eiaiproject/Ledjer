@@ -65,8 +65,8 @@ test.describe("Full App Exploration", () => {
       expect(title).toBeTruthy();
 
       // Check for key interactive elements
-      const bodyText = await authPage.evaluate(() => document.body?.innerText?.substring(0, 100) || "");
-      expect(bodyText).toBeTruthy();
+      const bodyText = await authPage.evaluate(() => document.body?.innerText || "");
+      expect(bodyText.length).toBeGreaterThan(0);
 
       // Collect errors
       const errors = {
