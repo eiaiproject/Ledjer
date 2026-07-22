@@ -34,7 +34,7 @@ export async function sendEmail(
       to: [input.to],
       subject: input.subject,
       html: input.html,
-      text: input.text ?? input.html.replace(/<[^>]*>/g, ""),
+      text: input.text ?? input.html.replace(/<[^>]+>/g, ""),
     }),
   });
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 const encoder = new TextEncoder();
 const utf8 = v => encoder.encode(v);
-const b64 = b => { let s=''; for(const x of b) s+=String.fromCodePoint(x); return btoa(s); };
-const b64ToBytes = v => { const s=atob(v); const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.codePointAt(i)??0; return b; };
+const b64 = b => { let s=''; for(const x of b) { s+=String.fromCodePoint(x); } return btoa(s); };
+const b64ToBytes = v => { const s=atob(v); const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) { b[i]=s.codePointAt(i)??0; } return b; };
 
 async function derive(pwd, salt, pep='') {
   const k = await crypto.subtle.importKey('raw', utf8(`${pwd}\u0000${pep}`), 'PBKDF2', false, ['deriveBits']);

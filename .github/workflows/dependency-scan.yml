@@ -37,6 +37,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Dependency audit with exception handling
         run: bash scripts/check-dependency-audit.sh

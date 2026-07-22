@@ -31,7 +31,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: pnpm audit
         run: bash scripts/check-dependency-audit.sh
@@ -79,7 +79,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Apply D1 migrations
         run: pnpm --filter web db:migrations:apply:local -- --persist-to "$RUNNER_TEMP/ledjer-d1"
@@ -122,7 +122,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps

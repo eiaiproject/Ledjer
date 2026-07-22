@@ -121,10 +121,10 @@ export function DashboardLayout() {
 
   if (orgData?.needsOnboarding) {
     return (
-      <div className="flex ledger-min-dvh items-center justify-center" role="status" aria-label="Memuat data organisasi">
+      <output className="flex ledger-min-dvh items-center justify-center" aria-label="Memuat data organisasi">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <span className="sr-only">Memuat data organisasi...</span>
-      </div>
+      </output>
     );
   }
 
@@ -526,7 +526,7 @@ export function DashboardLayout() {
               </Link>
             );
           })}
-          {visibleNavItems.filter((item) => !item.children).length > 0 && (
+          {visibleNavItems.some((item) => !item.children) && (
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}

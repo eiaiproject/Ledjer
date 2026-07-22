@@ -45,6 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
               : "Terjadi kesalahan yang tidak terduga. Silakan muat ulang halaman atau hubungi admin."}
           </p>
           <button
+            type="button"
             onClick={() => {
               this.setState({ hasError: false, error: null });
               window.location.reload();

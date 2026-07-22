@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS audit_logs_v2 (
   FOREIGN KEY (actor_user_id) REFERENCES users(id)
 );
 
-INSERT INTO audit_logs_v2 SELECT * FROM audit_logs;
+INSERT INTO audit_logs_v2 (id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, request_id, created_at) SELECT id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, request_id, created_at FROM audit_logs;
 
 DROP TABLE IF EXISTS audit_logs;
 

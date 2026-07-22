@@ -279,6 +279,58 @@ function hasPositiveOpeningBalances(input: CreateOrganizationInput): boolean {
   return (input.extraOpeningBalances ?? []).some((b) => (b.amount ?? b.openingBalance ?? 0) > 0);
 }
 
+async function postExtraOpeningBalance(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  openingBalanceAccountId: string,
+  extra: ExtraOpeningBalanceInput,
+  booksStartDate: string,
+  entriesCount: number,
+  statements: D1PreparedStatement[],
+  current: number,
+): Promise<number> {
+  const amount = Math.round(extra.amount ?? extra.openingBalance ?? 0);
+  if (amount <= 0) return entriesCount;
+
+  const accountId = extra.accountId
+    ?? (extra.accountCode
+      ? await findAccountIdByCode(db, organizationId, extra.accountCode)
+      : undefined);
+  if (!accountId) return entriesCount;
+
+  const account = await queryFirst<{ normal_balance: string }>(
+    db,
+    `SELECT normal_balance FROM accounts WHERE id = ? AND organization_id = ?`,
+    [accountId, organizationId],
+  );
+  const isCreditNormal = account?.normal_balance === 'credit';
+  const accountDebit = isCreditNormal ? 0 : amount;
+  const accountCredit = isCreditNormal ? amount : 0;
+  const offsetDebit = isCreditNormal ? amount : 0;
+  const offsetCredit = isCreditNormal ? 0 : amount;
+
+  const entryId = generateId();
+  const entryNumber = `JE-${String(entriesCount).padStart(6, "0")}`;
+
+  statements.push(
+    statement(db,
+      `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', ?, 'posted', ?, ?, ?)`,
+      [entryId, organizationId, entryNumber, booksStartDate, extra.description ?? 'Saldo awal', current, userId, current],
+    ),
+    statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      [generateId(), organizationId, entryId, accountId, accountDebit, accountCredit, extra.description ?? 'Saldo awal', current],
+    ),
+    statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 2, ?)`,
+      [generateId(), organizationId, entryId, openingBalanceAccountId, offsetDebit, offsetCredit, extra.description ?? 'Saldo awal', current],
+    ),
+  );
+
+  return entriesCount + 1;
+}
+
 async function postOpeningBalances(
   db: D1Database,
   organizationId: string,
@@ -325,48 +377,7 @@ async function postOpeningBalances(
 
   // Post extra opening balances
   for (const extra of input.extraOpeningBalances ?? []) {
-    const amount = Math.round(extra.amount ?? extra.openingBalance ?? 0);
-    if (amount <= 0) continue;
-
-    // Resolve account ID — prefer accountCode from frontend, fall back to accountId
-    const accountId = extra.accountId
-      ?? (extra.accountCode
-        ? await findAccountIdByCode(db, organizationId, extra.accountCode)
-        : undefined);
-    if (!accountId) continue;
-
-    // Look up normal_balance to determine posting direction
-    const account = await queryFirst<{ normal_balance: string }>(
-      db,
-      `SELECT normal_balance FROM accounts WHERE id = ? AND organization_id = ?`,
-      [accountId, organizationId],
-    );
-    const isCreditNormal = account?.normal_balance === 'credit';
-    // For debit-normal accounts: Dr Account / Cr Saldo Awal (3200)
-    // For credit-normal accounts: Cr Account / Dr Saldo Awal (3200)
-    const accountDebit = isCreditNormal ? 0 : amount;
-    const accountCredit = isCreditNormal ? amount : 0;
-    const offsetDebit = isCreditNormal ? amount : 0;
-    const offsetCredit = isCreditNormal ? 0 : amount;
-
-    const entryId = generateId();
-    const entryNumber = `JE-${String(entriesCount++).padStart(6, "0")}`;
-
-    statements.push(
-      statement(db,
-        `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', ?, 'posted', ?, ?, ?)`,
-        [entryId, organizationId, entryNumber, input.booksStartDate, extra.description ?? 'Saldo awal', current, userId, current],
-      ),
-      statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-        [generateId(), organizationId, entryId, accountId, accountDebit, accountCredit, extra.description ?? 'Saldo awal', current],
-      ),
-      statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 2, ?)`,
-        [generateId(), organizationId, entryId, openingBalanceAccountId, offsetDebit, offsetCredit, extra.description ?? 'Saldo awal', current],
-      ),
-    );
-
+    entriesCount = await postExtraOpeningBalance(db, organizationId, userId, openingBalanceAccountId, extra, input.booksStartDate, entriesCount, statements, current);
   }
 
   if (statements.length > 0) {

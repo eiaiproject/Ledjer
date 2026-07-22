@@ -8,7 +8,7 @@
  *
  * Requires: wrangler authenticated
  */
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
 import { writeFileSync, unlinkSync } from "node:fs";
 

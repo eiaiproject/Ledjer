@@ -47,12 +47,12 @@ async function verifyPassword(password, storedHash, pepper = "") {
   if (format !== FORMAT || !salt || !expected) return false;
   const iters = Number(iterations);
   if (iters !== ITERATIONS) return false;
-  const actual = await derive(password, base64ToBytes(salt), pepper, iters);
+  const actual = await derive(password, base64ToBytes(salt), pepper);
   return bytesToBase64(actual) === expected;
 }
 
 // Test
-const password = "TestPass123";
+const password = process.env.TEST_PASSWORD || "TestPass123";
 const pepper = "";
 
 console.log("=== Self-consistency test ===");

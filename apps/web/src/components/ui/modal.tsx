@@ -53,6 +53,7 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
             {title}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600"
             aria-label="Tutup"

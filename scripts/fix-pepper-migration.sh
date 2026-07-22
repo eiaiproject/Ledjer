@@ -4,7 +4,7 @@
 set -euo pipefail
 
 echo "=== Mengecek sample user dari database ==="
-npx wrangler d1 execute ledjer-production \
+pnpm exec wrangler d1 execute ledjer-production \
   --command "SELECT id, email, substr(password_hash, 1, 50) as hash_prefix, email_verified_at, status FROM users LIMIT 5"
 
 echo ""
