@@ -220,7 +220,7 @@ const PARTIES: SeedParty[] = [
   { id: FIXTURE_IDS.parties.supplierA, organization_id: FIXTURE_IDS.orgs.a, name: "Pemasok A", party_type: "supplier", is_active: 1, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.parties.customerB, organization_id: FIXTURE_IDS.orgs.b, name: "Pelanggan B", party_type: "customer", is_active: 1, created_at: NOW, updated_at: NOW },
 ];
-void PARTIES; // Suppress TS unused warning — used in handler closure
+PARTIES satisfies SeedParty[]; // Used in handler closure
 
 const TRANSACTIONS: SeedTransaction[] = [
   { id: FIXTURE_IDS.transactions.cashSaleA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202601-000001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-cashsale-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Penjualan tunai widget" },
@@ -231,14 +231,14 @@ const TRANSACTIONS: SeedTransaction[] = [
   { id: FIXTURE_IDS.transactions.expenseA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202602-000003", transaction_date: "2026-02-10", transaction_type: "expense_payment", amount_minor: 100000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-expns-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Pembayaran beban sewa" },
   { id: FIXTURE_IDS.transactions.capitalA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202601-000004", transaction_date: "2026-01-10", transaction_type: "owner_capital", amount_minor: 5000000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-captl-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Setoran modal awal" },
 ];
-void TRANSACTIONS; // Referenced in handler closure
+TRANSACTIONS satisfies SeedTransaction[]; // Referenced in handler closure
 
 const JOURNAL_ENTRIES: SeedJournalEntry[] = [
   { id: FIXTURE_IDS.journalEntries.cashSaleA, organization_id: FIXTURE_IDS.orgs.a, entry_number: "JE-000001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: FIXTURE_IDS.transactions.cashSaleA, status: "posted", posted_at: NOW, created_at: NOW },
   { id: FIXTURE_IDS.journalEntries.creditSaleA, organization_id: FIXTURE_IDS.orgs.a, entry_number: "JE-000002", entry_date: "2026-01-20", entry_type: "normal", transaction_id: FIXTURE_IDS.transactions.creditSaleA, status: "posted", posted_at: NOW, created_at: NOW },
   { id: FIXTURE_IDS.journalEntries.partialCreditA, organization_id: FIXTURE_IDS.orgs.a, entry_number: "JE-000003", entry_date: "2026-01-25", entry_type: "normal", transaction_id: FIXTURE_IDS.transactions.partialCreditA, status: "posted", posted_at: NOW, created_at: NOW },
 ];
-void JOURNAL_ENTRIES; // Referenced in handler closure
+JOURNAL_ENTRIES satisfies SeedJournalEntry[]; // Referenced in handler closure
 
 const JOURNAL_LINES: SeedJournalLine[] = [
   // Cash sale: Dr Cash 500k, Cr Revenue 500k
@@ -262,152 +262,164 @@ const AUDIT_LOGS: SeedAuditLog[] = [
   { id: "audit-orga-post-002", organization_id: FIXTURE_IDS.orgs.a, actor_user_id: FIXTURE_IDS.users.ownerA, entity_type: "transaction", entity_id: FIXTURE_IDS.transactions.creditSaleA, action: "post", created_at: NOW },
   { id: "audit-orga-lock-001", organization_id: FIXTURE_IDS.orgs.a, actor_user_id: FIXTURE_IDS.users.ownerA, entity_type: "period_lock", entity_id: FIXTURE_IDS.periodLocks.lockA, action: "period_lock_created", created_at: NOW },
 ];
-void AUDIT_LOGS;
+AUDIT_LOGS satisfies SeedAuditLog[];
 
 // ponytail: Counter tracking for nextCounter (INSERT ... RETURNING current_value)
 const counters: Record<string, number> = {};
 
 // ── Handlers ───────────────────────────────────────────────────
 
+// ── Query handler extractors (reduce cognitive complexity of createFirstHandler) ──
+
+function handleUserQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM users WHERE")) return undefined;
+  const user = USERS.find(u => u.id === values[0] || u.email === values[0]);
+  return user ? { ...user } : null;
+}
+
+function handleSessionQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM sessions s")) return undefined;
+  const tokenHash = values[0] as string;
+  const session = SESSIONS.find(s => s.token_hash === tokenHash);
+  if (!session) return null;
+  const user = USERS.find(u => u.id === session.user_id);
+  if (!user) return null;
+  return {
+    session_id: session.id,
+    user_id: session.user_id,
+    expires_at: session.expires_at,
+    current_organization_id: session.current_organization_id,
+    email: user.email,
+    full_name: user.full_name,
+    email_verified_at: user.email_verified_at,
+  };
+}
+
+function handleOrganizationMemberQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM organization_members m")) return undefined;
+  const userId = values[0] as string;
+  const orgId = values[1] as string | undefined;
+  return MEMBERS.find(m => m.user_id === userId && (!orgId || m.organization_id === orgId)) ?? null;
+}
+
+function handleOrganizationQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM organizations")) return undefined;
+  return ORGS.find(o => o.id === values[0]) ?? null;
+}
+
+function handleAccountQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM accounts") || !sql.includes("WHERE")) return undefined;
+  if (sql.includes("code = ?")) {
+    return ACCOUNTS.find(a => a.organization_id === values[0] && a.code === values[1]) ?? null;
+  }
+  if (sql.includes("organization_id = ? AND id =") || sql.includes("organization_id = ? and id =")) {
+    return ACCOUNTS.find(a => a.organization_id === values[0] && a.id === values[1]) ?? null;
+  }
+  if (sql.includes("id = ? AND organization_id")) {
+    return ACCOUNTS.find(a => a.id === values[0] && a.organization_id === values[1]) ?? null;
+  }
+  return ACCOUNTS.find(a => a.id === values[0]) ?? null;
+}
+
+function handleProductQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM products") || !sql.includes("WHERE")) return undefined;
+  return PRODUCTS.find(p => p.id === values[0]) ?? null;
+}
+
+function handlePartyQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM parties") || !sql.includes("is_active")) return undefined;
+  return PARTIES.find(p => p.id === values[0]) ?? null;
+}
+
+function handlePeriodLockQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("period_locks") || (!sql.includes("SELECT") && !sql.includes("FROM"))) return undefined;
+  if (!sql.includes("locked_through_date") || !Array.isArray(values) || values.length < 2) return undefined;
+  const orgId = values[0] as string;
+  const checkDate = values[1] as string;
+  const lock = PERIOD_LOCKS.find(l => l.organization_id === orgId && l.locked_through_date >= checkDate);
+  return lock ? { id: lock.id, locked_through_date: lock.locked_through_date } : null;
+}
+
+function handleTransactionReadbackQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("FROM transactions t") || !sql.includes("LEFT JOIN") || !sql.includes("t.id =")) return undefined;
+  const txnId = values[0] as string;
+  const orgId = values[1] as string;
+  return {
+    id: txnId,
+    organization_id: orgId,
+    transaction_number: "TRX-TEST",
+    transaction_date: "2026-02-15",
+    transaction_type: "cash_sale",
+    amount_minor: 500000,
+    party_id: null, party_name: null,
+    category_name: null,
+    cash_account_id: null,
+    destination_cash_account_id: null,
+    payment_status: "paid", due_date: null,
+    description: "Synthetic readback", notes: null,
+    status: "posted",
+    idempotency_key: null,
+    posted_at: Date.now(), voided_at: null, void_reason: null,
+    original_transaction_id: null, reversal_transaction_id: null,
+    created_by: FIXTURE_IDS.users.ownerA,
+    created_by_name: "Owner A",
+    created_at: Date.now(),
+  };
+}
+
+function handleTransactionIdempotencyQuery(sql: string) {
+  if (!sql.includes("FROM transactions t") || !sql.includes("WHERE") || !sql.includes("t.idempotency_key")) return undefined;
+  return null;
+}
+
+function handleTransactionNumberQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("MAX(transaction_number")) return undefined;
+  const last = TRANSACTIONS.filter(t => t.organization_id === values[0])
+    .reduce((max, t) => Math.max(max, Number.parseInt(t.transaction_number)), 0);
+  return { "MAX(transaction_number)": last || 0 };
+}
+
+function handleEntryNumberQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("MAX(entry_number")) return undefined;
+  const last = JOURNAL_ENTRIES.filter(e => e.organization_id === values[0])
+    .reduce((max, e) => Math.max(max, Number.parseInt(e.entry_number)), 0);
+  return { "MAX(entry_number)": last || 0 };
+}
+
+function handleCounterInsertQuery(sql: string, values: unknown[]) {
+  if (!sql.includes("organization_document_counters") || !sql.includes("RETURNING current_value")) return undefined;
+  const key = `${values[0] as string}:${values[1] as string}`;
+  counters[key] = (counters[key] ?? 0) + 1;
+  return { current_value: counters[key] };
+}
+
+function handleSchemaQuery(sql: string) {
+  if (!sql.includes("app_metadata") && !sql.includes("SELECT 1")) return undefined;
+  return { ok: 1, value: "9" };
+}
+
 function createFirstHandler() {
-  // Normalize SQL whitespace for robust string matching
   const norm = (sql: string) => sql.replace(/\s+/g, " ");
 
   return (sql: string, values: unknown[]) => {
     const s = norm(sql);
-    // Users
-    if (s.includes("FROM users WHERE")) {
-      const user = USERS.find(u => u.id === values[0] || u.email === values[0]);
-      return user ? { ...user } : null;
-    }
-    // Sessions
-    if (s.includes("FROM sessions s")) {
-      const tokenHash = values[0] as string;
-      const session = SESSIONS.find(s => s.token_hash === tokenHash);
-      if (!session) return null;
-      const user = USERS.find(u => u.id === session.user_id);
-      if (!user) return null;
-      return {
-        session_id: session.id,
-        user_id: session.user_id,
-        expires_at: session.expires_at,
-        current_organization_id: session.current_organization_id,
-        email: user.email,
-        full_name: user.full_name,
-        email_verified_at: user.email_verified_at,
-      };
-    }
-    // Organization members
-    if (s.includes("FROM organization_members m")) {
-      const userId = values[0] as string;
-      const orgId = values[1] as string | undefined;
-      return MEMBERS.find(m => m.user_id === userId && (!orgId || m.organization_id === orgId)) ?? null;
-    }
-    // Organization by ID (assertBooksOpen)
-    if (s.includes("FROM organizations")) {
-      return ORGS.find(o => o.id === values[0]) ?? null;
-    }
-    // Accounts by ID or code
-    if (s.includes("FROM accounts") && s.includes("WHERE")) {
-      if (s.includes("code = ?")) {
-        const orgId = values[0] as string;
-        const code = values[1] as string;
-        return ACCOUNTS.find(a => a.organization_id === orgId && a.code === code) ?? null;
-      }
-      if (s.includes("organization_id = ? AND id =") || s.includes("organization_id = ? and id =")) {
-        const orgId = values[0] as string;
-        const acctId = values[1] as string;
-        return ACCOUNTS.find(a => a.organization_id === orgId && a.id === acctId) ?? null;
-      }
-      // getAccountById: id = ? AND organization_id = ?
-      if (s.includes("id = ? AND organization_id")) {
-        const acctId = values[0] as string;
-        const orgId = values[1] as string;
-        return ACCOUNTS.find(a => a.id === acctId && a.organization_id === orgId) ?? null;
-      }
-      // Generic fallback: try first value as ID
-      return ACCOUNTS.find(a => a.id === values[0]) ?? null;
-    }
-    // Products by ID
-    if (s.includes("FROM products") && s.includes("WHERE")) {
-      const prodId = values[0] as string;
-      return PRODUCTS.find(p => p.id === prodId) ?? null;
-    }
-    // Parties by ID + org (resolveParty)
-    if (s.includes("FROM parties") && s.includes("is_active")) {
-      const partyId = values[0] as string;
-      return PARTIES.find(p => p.id === partyId) ?? null;
-    }
-    // Period locks — match on table name, check org + date condition
-    if (s.includes("period_locks") && (s.includes("SELECT") || s.includes("FROM"))) {
-      if (s.includes("locked_through_date") && Array.isArray(values) && values.length >= 2) {
-        const orgId = values[0] as string;
-        const checkDate = values[1] as string;
-        const lock = PERIOD_LOCKS.find(l => l.organization_id === orgId && l.locked_through_date >= checkDate);
-        if (lock) {
-          return { id: lock.id, locked_through_date: lock.locked_through_date };
-        }
-      }
-    }
-    // Transaction readback (getTransactionRow in buildPostResult)
-    // MUST come before idempotency check — specific pattern with t.id = ?
-    if (s.includes("FROM transactions t") && s.includes("LEFT JOIN") && s.includes("t.id =")) {
-      const txnId = values[0] as string;
-      const orgId = values[1] as string;
-      // Return a synthetic transaction for any readback request.
-      // The actual INSERT was executed by the batch handler; the readback
-      // occurs in buildPostResult. We fabricate the response since FakeD1
-      // doesn't persist data.
-      return {
-        id: txnId,
-        organization_id: orgId,
-        transaction_number: "TRX-TEST",
-        transaction_date: "2026-02-15",
-        transaction_type: "cash_sale",
-        amount_minor: 500000,
-        party_id: null, party_name: null,
-        category_name: null,
-        cash_account_id: null,
-        destination_cash_account_id: null,
-        payment_status: "paid", due_date: null,
-        description: "Synthetic readback", notes: null,
-        status: "posted",
-        idempotency_key: null,
-        posted_at: Date.now(), voided_at: null, void_reason: null,
-        original_transaction_id: null, reversal_transaction_id: null,
-        created_by: FIXTURE_IDS.users.ownerA,
-        created_by_name: "Owner A",
-        created_at: Date.now(),
-      };
-    }
-    // Idempotency key check (postTransaction) — matches t.idempotency_key in WHERE
-    if (s.includes("FROM transactions t") && s.includes("WHERE") && s.includes("t.idempotency_key")) {
-      return null;
-    }
-    // Transaction number generation
-    if (s.includes("MAX(transaction_number")) {
-      const last = TRANSACTIONS.filter(t => t.organization_id === values[0])
-        .reduce((max, t) => Math.max(max, parseInt(t.transaction_number)), 0);
-      return { "MAX(transaction_number)": last || 0 };
-    }
-    // Entry number generation
-    if (s.includes("MAX(entry_number")) {
-      const last = JOURNAL_ENTRIES.filter(e => e.organization_id === values[0])
-        .reduce((max, e) => Math.max(max, parseInt(e.entry_number)), 0);
-      return { "MAX(entry_number)": last || 0 };
-    }
-    // Counter INSERTS (nextCounter in generateTransactionNumber/generateEntryNumber)
-    if (s.includes("organization_document_counters") && s.includes("RETURNING current_value")) {
-      // Build a unique key from org + counter name
-      const key = `${values[0] as string}:${values[1] as string}`;
-      counters[key] = (counters[key] ?? 0) + 1;
-      return { current_value: counters[key] };
-    }
-    // Schema check
-    if (s.includes("app_metadata") || s.includes("SELECT 1")) {
-      return { ok: 1, value: "9" };
-    }
-    return null;
+    return (
+      handleUserQuery(s, values) ??
+      handleSessionQuery(s, values) ??
+      handleOrganizationMemberQuery(s, values) ??
+      handleOrganizationQuery(s, values) ??
+      handleAccountQuery(s, values) ??
+      handleProductQuery(s, values) ??
+      handlePartyQuery(s, values) ??
+      handlePeriodLockQuery(s, values) ??
+      handleTransactionReadbackQuery(s, values) ??
+      handleTransactionIdempotencyQuery(s) ??
+      handleTransactionNumberQuery(s, values) ??
+      handleEntryNumberQuery(s, values) ??
+      handleCounterInsertQuery(s, values) ??
+      handleSchemaQuery(s) ??
+      null
+    );
   };
 }
 

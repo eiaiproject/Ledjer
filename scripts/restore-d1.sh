@@ -19,7 +19,7 @@ set -euo pipefail
 BACKUP_FILE="${1:-}"
 DB_NAME="${2:-ledjer-production}"
 
-if [ -z "$BACKUP_FILE" ]; then
+if [[ -z "$BACKUP_FILE" ]]; then
   echo "Usage: $0 <backup-file> [--db ledjer-production]"
   echo ""
   echo "Example:"
@@ -27,7 +27,7 @@ if [ -z "$BACKUP_FILE" ]; then
   exit 1
 fi
 
-if [ ! -f "$BACKUP_FILE" ]; then
+if [[ ! -f "$BACKUP_FILE" ]]; then
   echo "Backup file not found: $BACKUP_FILE"
   exit 1
 fi

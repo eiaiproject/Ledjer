@@ -51,73 +51,64 @@ test.describe("Tenant Isolation (API-level)", () => {
 
   test("cross-tenant access blocked: OrgA cannot read OrgB accounts", async ({ request, context }) => {
     const token = process.env.PLAYWRIGHT_SESSION_TOKEN_A;
-    if (!token) {
-      test.skip(!!token, "PLAYWRIGHT_SESSION_TOKEN_A not set — cross-tenant E2E requires seeded data");
-      return;
-    }
+    test.skip(!token, "PLAYWRIGHT_SESSION_TOKEN_A not set — cross-tenant E2E requires seeded data");
+
+    const orgBId = process.env.PLAYWRIGHT_ORG_B_ID;
+    test.skip(!orgBId, "PLAYWRIGHT_ORG_B_ID not set");
 
     // Authenticate as OrgA user
     await context.addCookies([
       {
         name: "__Host-ledjer_session",
-        value: token,
+        value: token!,
         domain: new URL(API_BASE).hostname,
         path: "/",
       },
     ]);
 
-    // Attempt to read Org B's accounts by supplying Org B's org ID
-    // Assumes OrgB ID is provided via env var
-    const orgBId = process.env.PLAYWRIGHT_ORG_B_ID;
-    if (!orgBId) {
-      test.skip(true, "PLAYWRIGHT_ORG_B_ID not set");
-      return;
-    }
-
     // Read OrgB accounts while authenticated as OrgA
     const response = await request.get(`${API_BASE}/api/accounts`, {
-      headers: { "x-org-id": orgBId },
+      headers: { "x-org-id": orgBId! },
     });
-    // Orginization middleware should scope to user's org, not the x-org-id header
+    // Organization middleware should scope to user's org, not the x-org-id header
     // The response should either be 403 or empty results from OrgA's context
     expect(response.status()).not.toBe(200);
   });
 
   test("cross-tenant access blocked: OrgB cannot read OrgA reports", async ({ request, context }) => {
     const token = process.env.PLAYWRIGHT_SESSION_TOKEN_B;
-    if (!token) {
-      test.skip(!!token, "PLAYWRIGHT_SESSION_TOKEN_B not set");
-      return;
-    }
+    test.skip(!token, "PLAYWRIGHT_SESSION_TOKEN_B not set");
+
+    const orgAId = process.env.PLAYWRIGHT_ORG_A_ID;
+    test.skip(!orgAId, "PLAYWRIGHT_ORG_A_ID not set");
 
     await context.addCookies([
       {
         name: "__Host-ledjer_session",
-        value: token,
+        value: token!,
         domain: new URL(API_BASE).hostname,
         path: "/",
       },
     ]);
 
-    // Attempt to read a report in OrgA's context while authed as OrgB user
-    const orgAId = process.env.PLAYWRIGHT_ORG_A_ID;
-    if (!orgAId) {
-      test.skip(true, "PLAYWRIGHT_ORG_A_ID not set");
-      return;
-    }
-
     const response = await request.get(`${API_BASE}/api/reports/trial-balance?asOfDate=2026-01-31`, {
-      headers: { "x-org-id": orgAId },
+      headers: { "x-org-id": orgAId! },
     });
     expect(response.status()).not.toBe(200);
   });
 
   test("org list only shows the user's member orgs", async ({ request, context }) => {
     const token = process.env.PLAYWRIGHT_SESSION_TOKEN_A;
-    if (!token) {
-      test.skip(!!token, "PLAYWRIGHT_SESSION_TOKEN_A not set");
-      return;
-    }
+    test.skip(!token, "PLAYWRIGHT_SESSION_TOKEN_A not set");
+
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: token!,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
 
     await context.addCookies([
       {
