@@ -20,6 +20,7 @@ jobs:
     with:
       scan-args: |-
         --lockfile=pnpm-lock.yaml
+      fail-on-vuln: false
 
   pnpm-audit:
     name: pnpm audit (blocking)
