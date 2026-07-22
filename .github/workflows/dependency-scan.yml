@@ -28,8 +28,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Run OSV Scanner
-        run: |
-          npx @google/osv-scanner --lockfile=pnpm-lock.yaml --format=markdown
+        uses: google/osv-scanner-action/scanner@v2.3.8
+        with:
+          lockfile: pnpm-lock.yaml
 
   pnpm-audit:
     name: pnpm audit (blocking)
