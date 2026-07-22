@@ -107,9 +107,9 @@ describe("Cross-Tenant Isolation", () => {
     //   getBalanceSheet(db, organizationId, ...)
     //   listPeriodLocks(db, organizationId)
     //   createPeriodLock(db, organizationId, userId, ...)
-    it("all services accept organizationId as first parameter after db", () => {
-      // Convention verified by code review — see comments above.
-    });
+    // All service functions accept organizationId as first parameter after db.
+    // Convention verified by code review — see comments above.
+    // This describe block serves as documentation of the required convention.
   });
 
   describe("Negative test: cross-org access patterns", () => {

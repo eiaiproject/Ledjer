@@ -242,20 +242,11 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
     });
   });
 
-  describe("G6: Settlement invariants", () => {
-    it("partial credit for 1M with 300k paid leaves 700k remaining", () => {
-      // From seeded data: partialCreditA = 1M with 300k paid via cash
-      const totalAmount = 1000000;
-      const cashPaid = 300000;
-      const remaining = totalAmount - cashPaid;
-      expect(remaining).toBe(700000);
-    });
-
-    it("full settlement leaves 0 remaining", () => {
-      const remainingAfterFullSettlement = 1000000 - 300000 - 700000;
-      expect(remainingAfterFullSettlement).toBe(0);
-    });
-  });
+  // G6: Settlement invariants
+  // From seeded data: partialCreditA = 1M (totalAmount), with 300k paid via cash.
+  // Full settlement: 1,000,000 - 300,000 - 700,000 = 0 remaining.
+  // These are documented accounting invariants verified by seed data structure;
+  // the actual settlement logic is tested in F-204 below.
 
   describe("G7: Idempotency invariants", () => {
     it("same idempotency key returns same transaction", () => {
