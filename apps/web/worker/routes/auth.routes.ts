@@ -43,7 +43,15 @@ import {
 } from "../services/session.service";
 import { logAuthEvent } from "../services/auth-audit.service";
 
-const emailSchema = z.string().email().transform((value) => value.trim().toLowerCase());
+// RFC 2606 reserved example domains — blocked to prevent email send errors
+const BLOCKED_EMAIL_DOMAINS = new Set(["example.com", "example.org", "example.net", "example.edu"]);
+
+const emailSchema = z.string().email()
+  .refine((val) => {
+    const domain = val.split("@")[1];
+    return domain ? !BLOCKED_EMAIL_DOMAINS.has(domain.toLowerCase()) : true;
+  }, "Email domain tidak diizinkan")
+  .transform((value) => value.trim().toLowerCase());
 const passwordSchema = z.string().min(8).max(72).regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar").regex(/\d/, "Password harus mengandung minimal 1 angka");
 
 function isSecureRequest(c: Context): boolean {
