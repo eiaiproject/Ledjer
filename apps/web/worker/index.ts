@@ -32,17 +32,10 @@ app.use("*", async (c, next) => {
 });
 app.use("*", requestLogger());
 app.use("*", metricsMiddleware());
-app.use("*", secureHeaders({
-  contentSecurityPolicy: {
-    defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
-    objectSrc: ["'none'"],
-    baseUri: ["'self'"],
-    frameAncestors: ["'none'"],
-    formAction: ["'self'"],
-  },
-}));
+// ponytail: CSP for static HTML SPA enforced via Cloudflare _headers file.
+// Worker does not set CSP headers — _headers is the single source of truth.
+// API JSON responses don't need CSP (no HTML execution context).
+app.use("*", secureHeaders({}));
 // ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
 // Built-in csrf() can't access c.env at config time.
 app.use("/api/*", async (c, next) => {

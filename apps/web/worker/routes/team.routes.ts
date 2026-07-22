@@ -19,10 +19,19 @@ import {
 } from "../services/team.service";
 import { sendEmail } from "../services/email.service";
 
+// Same blocked domains as auth.routes.ts
+const BLOCKED_EMAIL_DOMAINS = new Set(["example.com", "example.org", "example.net", "example.edu"]);
+
+const invitationEmailSchema = z.string().min(1).max(320)
+  .refine((val) => {
+    const domain = val.split("@")[1];
+    return domain ? !BLOCKED_EMAIL_DOMAINS.has(domain.toLowerCase()) : true;
+  }, "Email domain tidak diizinkan");
+
 const invitationRoleSchema = z.enum(["admin", "member", "viewer"]);
 
 const createInvitationSchema = z.object({
-  email: z.string().min(1).max(320),
+  email: invitationEmailSchema,
   role: invitationRoleSchema.default("member"),
 });
 

@@ -607,6 +607,10 @@ export async function postTransaction(
   const stockUpdateIndex = reservedStock ? statements.length - 3 : -1;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
+      // ponytail: Re-assert period open inside retry loop to minimize race window.
+      // Between the initial assertPeriodOpen (line ~472) and here, admin could have locked the period.
+      // D1 batch is atomic, so this check happens micros before commit.
+      await assertPeriodOpen(db, organizationId, transactionDate);
       const results = await executeBatch(db, statements);
       if (stockUpdateIndex >= 0 && results[stockUpdateIndex]) {
         const changes = results[stockUpdateIndex].meta.changes;
@@ -696,18 +700,40 @@ export async function calculateSettlementRemaining(
   isSale: boolean,
   originalCashAccountId?: string,
 ) {
+  // ponytail: Query settlement transactions (receive_receivable/pay_payable) linked
+  // by original_transaction_id, not the original transaction's journal lines.
+  // The original journal lines only reflect point-of-sale partial payments (e.g.,
+  // 30% down, 70% credit), not subsequent partial settlements which create separate
+  // transactions. Using original journal lines would miss partial settlements,
+  // causing over-settlement.
+  const paidViaSettlements = await queryFirst<{ total: number | null }>(
+    db,
+    `SELECT SUM(amount_minor) as total
+     FROM transactions
+     WHERE original_transaction_id = ?
+       AND organization_id = ?
+       AND status = 'posted'
+       AND transaction_type IN ('receive_receivable', 'pay_payable')`,
+    [transactionId, organizationId],
+  );
+  const settledAmount = paidViaSettlements?.total ?? 0;
+
+  // Also check original transaction's journal lines for point-of-sale partial payments
+  // (e.g., credit_sale with Dr Cash partial + Dr AR for remaining)
   const originalLines = await journalLinesForTransaction(db, organizationId, transactionId);
-  const partialCashLines = originalLines.filter(
-    (l) => (l.account_id === cashAccountId || l.account_id === originalCashAccountId) && (
+  const cashAccounts = [cashAccountId];
+  if (originalCashAccountId && !cashAccounts.includes(originalCashAccountId)) {
+    cashAccounts.push(originalCashAccountId);
+  }
+  const pointOfSaleCash = originalLines
+    .filter((l) => cashAccounts.includes(l.account_id) && (
       (isSale && l.debit_minor > 0) ||
       (!isSale && l.credit_minor > 0)
-    ),
-  );
-  const partialAmountMinor = partialCashLines.reduce(
-    (sum, l) => sum + (isSale ? l.debit_minor : l.credit_minor),
-    0,
-  );
-  const remainingMinor = originalAmountMinor - partialAmountMinor;
+    ))
+    .reduce((sum, l) => sum + (isSale ? l.debit_minor : l.credit_minor), 0);
+
+  const totalPaid = settledAmount + pointOfSaleCash;
+  const remainingMinor = originalAmountMinor - totalPaid;
   if (remainingMinor < 0) {
     throw conflict("over_settlement", "Settlement exceeds remaining amount");
   }
@@ -849,6 +875,8 @@ export async function settlePartialTransaction(
   );
 
   try {
+    // ponytail: Re-assert period open just before batch to minimize race window.
+    await assertPeriodOpen(db, organizationId, original.transaction_date);
     await executeBatch(db, statements);
   } catch (e) {
     const retry = await getTransactionByIdempotencyKey(db, organizationId, normalizedKey);
@@ -1095,6 +1123,9 @@ export async function voidTransaction(
   );
 
   try {
+    // ponytail: Re-assert period open just before batch to minimize race window.
+    await assertPeriodOpen(db, organizationId, voidDate);
+    await assertPeriodOpen(db, organizationId, original.transaction_date);
     await executeBatch(db, statements);
   } catch (e) {
     const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);

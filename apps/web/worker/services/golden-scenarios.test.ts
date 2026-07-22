@@ -63,22 +63,32 @@ describe("Golden Accounting Scenarios", () => {
   });
 
   describe("I1-I9: Inventory weighted average", () => {
-    it("weighted average: 10@100 + 10@200 = 150", () => {
-      const avgBefore = 100;
-      const stockBeforeMilli = 10000; // 10 units * 1000
-      const qtyMilli = 10000; // 10 units * 1000
-      const unitCost = 200;
+    const wac = (stock: number, avg: number, qty: number, cost: number) =>
+      Math.round((stock * avg + qty * cost) / (stock + qty));
 
-      const nextStockMilli = stockBeforeMilli + qtyMilli;
-      const currentValue = stockBeforeMilli * avgBefore;
-      const addedValue = qtyMilli * unitCost;
-      const nextAverage = Math.round((currentValue + addedValue) / nextStockMilli);
-
-      expect(nextAverage).toBe(150);
+    it("G-I1: WAC after 10@100 + 10@200 = 150", () => {
+      // (10*100 + 10*200) / 20 = 150
+      expect(wac(10_000, 100, 10_000, 200)).toBe(150);
     });
 
-    // Covered in worker/__tests__/accounting-invariants.test.ts:
-    // - WAC purchase, sale, void, recalculate tests
+    it("G-I2: WAC after purchase at same price is unchanged", () => {
+      expect(wac(10_000, 100, 5_000, 100)).toBe(100);
+    });
+
+    it("G-I3: WAC after buy 10@100, sell 5, buy 5@200 = 150", () => {
+      // Buy 10@100: avg=100, stock=10000
+      // Sell 5: stock=5000, avg=100
+      // Buy 5@200: (5000*100 + 5000*200) / 10000 = 150
+      expect(wac(5_000, 100, 5_000, 200)).toBe(150);
+    });
+
+    it("G-I4: WAC buy 10@100, sell 3, buy 5@200 = 142", () => {
+      // (7*100 + 5*200) / 12 = 141.67 ≈ 142
+      expect(wac(7_000, 100, 5_000, 200)).toBe(142);
+    });
+
+    // Full golden scenario with D1 operations is in golden-accounting.scenarios.ts
+    // These are lightweight WAC formula tests only
   });
 
   describe("Accounting invariant assertions", () => {

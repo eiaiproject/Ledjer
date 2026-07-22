@@ -1,3 +1,11 @@
+-- ponytail: Expand-contract migration to make organization_id nullable.
+-- D1 applies migrations atomically (single transaction), so if this fails
+-- mid-way the entire migration rolls back — no partial state.
+-- Coordination: deploy this migration BEFORE the Worker that expects
+-- nullable organization_id. The Worker referencing the old schema uses
+-- `audit_logs` (not `audit_logs_v2`), so it will work during the brief
+-- window before this file completes.
+-- Standard SQLite pattern: CREATE v2 → COPY → DROP v1 → RENAME v2 TO v1.
 PRAGMA foreign_keys = OFF;
 
 -- P1-1: Make audit_logs.organization_id nullable so auth-scoped events

@@ -116,7 +116,7 @@ export function AuthCallbackPage() {
     };
 
     verify();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, refreshSession]);
 
 
 
