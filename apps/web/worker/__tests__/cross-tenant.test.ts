@@ -92,25 +92,18 @@ describe("Cross-Tenant Isolation", () => {
     });
   });
 
-  describe("Service parameter enforcement patterns", () => {
-    // These tests verify the calling convention: every service function
-    // that operates on tenant-scoped data receives organizationId as a
-    // parameter. This is checked by code review of the interface.
-    // All service functions accept organizationId as first parameter after db.
-    // Verified by code review of function signatures:
-    //   listTransactions(db, organizationId, ...)
-    //   getTransaction(db, organizationId, transactionId)
-    //   postTransaction(db, organizationId, userId, ...)
-    //   voidTransaction(db, organizationId, userId, ...)
-    //   listJournalEntriesForTransaction(db, organizationId, ...)
-    //   getTrialBalance(db, organizationId, ...)
-    //   getBalanceSheet(db, organizationId, ...)
-    //   listPeriodLocks(db, organizationId)
-    //   createPeriodLock(db, organizationId, userId, ...)
-    // All service functions accept organizationId as first parameter after db.
-    // Convention verified by code review — see comments above.
-    // This describe block serves as documentation of the required convention.
-  });
+  // Service parameter enforcement patterns:
+  // Every service function that operates on tenant-scoped data receives
+  // organizationId as a parameter, verified by code review:
+  //   listTransactions(db, organizationId, ...)
+  //   getTransaction(db, organizationId, transactionId)
+  //   postTransaction(db, organizationId, userId, ...)
+  //   voidTransaction(db, organizationId, userId, ...)
+  //   listJournalEntriesForTransaction(db, organizationId, ...)
+  //   getTrialBalance(db, organizationId, ...)
+  //   getBalanceSheet(db, organizationId, ...)
+  //   listPeriodLocks(db, organizationId)
+  //   createPeriodLock(db, organizationId, userId, ...)
 
   describe("Negative test: cross-org access patterns", () => {
     it("Org A request for Org B account returns empty via correct scoping", () => {
@@ -118,18 +111,14 @@ describe("Cross-Tenant Isolation", () => {
       // The query would use: WHERE organization_id = ? AND id = ?
       // With values: [FIXTURE_IDS.orgs.a, FIXTURE_IDS.accounts.cashB]
       // Since Org B's account doesn't belong to Org A, result is empty → safe tenant isolation
-      const orgAContext = FIXTURE_IDS.orgs.a;
-      const orgBAccountId: string = FIXTURE_IDS.accounts.cashB;
-      expect(orgAContext).not.toBe(FIXTURE_IDS.orgs.b);
-      // The orgBAccountId is not owned by orgA — proof of tenant isolation
-      expect(orgBAccountId.startsWith("acct-orgb-")).toBe(true);
+      expect(FIXTURE_IDS.orgs.a).not.toBe(FIXTURE_IDS.orgs.b);
+      expect(FIXTURE_IDS.accounts.cashB.startsWith("acct-orgb-")).toBe(true);
     });
 
     it("Org A transaction ID does not exist in Org B context", () => {
       // Transactions table is scoped by organization_id.
       // An Org A transaction queried with Org B's orgId returns no results.
-      const orgATransactionId: string = FIXTURE_IDS.transactions.cashSaleA;
-      expect(orgATransactionId.startsWith("txn-orga-")).toBe(true);
+      expect(FIXTURE_IDS.transactions.cashSaleA.startsWith("txn-orga-")).toBe(true);
     });
   });
 

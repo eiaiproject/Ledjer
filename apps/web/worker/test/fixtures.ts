@@ -506,7 +506,6 @@ function createAllHandler() {
 }
 
 function createRunHandler() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return (_sql: string, _values: unknown[]) => {
     validateJournalLine(_sql, _values);
     return { success: true, meta: { changes: 1 } } as D1Result;
