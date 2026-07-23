@@ -279,17 +279,23 @@ function hasPositiveOpeningBalances(input: CreateOrganizationInput): boolean {
   return (input.extraOpeningBalances ?? []).some((b) => (b.amount ?? b.openingBalance ?? 0) > 0);
 }
 
+interface PostExtraOpeningBalanceCtx {
+  db: D1Database;
+  organizationId: string;
+  userId: string;
+  openingBalanceAccountId: string;
+  extra: ExtraOpeningBalanceInput;
+  booksStartDate: string;
+  entriesCount: number;
+  statements: D1PreparedStatement[];
+  current: number;
+}
+
 async function postExtraOpeningBalance(
-  db: D1Database,
-  organizationId: string,
-  userId: string,
-  openingBalanceAccountId: string,
-  extra: ExtraOpeningBalanceInput,
-  booksStartDate: string,
-  entriesCount: number,
-  statements: D1PreparedStatement[],
-  current: number,
+  ctx: PostExtraOpeningBalanceCtx,
 ): Promise<number> {
+  const { db, organizationId, userId, openingBalanceAccountId, extra, booksStartDate, statements, current } = ctx;
+  const { entriesCount } = ctx;
   const amount = Math.round(extra.amount ?? extra.openingBalance ?? 0);
   if (amount <= 0) return entriesCount;
 
@@ -377,7 +383,7 @@ async function postOpeningBalances(
 
   // Post extra opening balances
   for (const extra of input.extraOpeningBalances ?? []) {
-    entriesCount = await postExtraOpeningBalance(db, organizationId, userId, openingBalanceAccountId, extra, input.booksStartDate, entriesCount, statements, current);
+    entriesCount = await postExtraOpeningBalance({ db, organizationId, userId, openingBalanceAccountId, extra, booksStartDate: input.booksStartDate, entriesCount, statements, current });
   }
 
   if (statements.length > 0) {

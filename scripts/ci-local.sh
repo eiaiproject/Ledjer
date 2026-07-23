@@ -24,7 +24,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 section "Install"
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 
 section "Typecheck"
 pnpm --filter web typecheck

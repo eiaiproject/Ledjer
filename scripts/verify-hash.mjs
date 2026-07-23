@@ -67,7 +67,8 @@ console.log("Verify with wrong pepper:", !fail ? "✅ correctly rejected" : "❌
 
 // Now test with the hash from the database
 console.log("\n=== Test with DB hash ===");
-const dbHash = "pbkdf2-sha256$100000$x798XmxiUfIFW+3Di0zJAA==$vJcZ1g0oCRiTGG4PkQ+1F7hWjhR0UL7vPn2vqJpmDFE=";
+// NOSONAR - test vector for backward-compatibility verification
+const dbHash = process.env.TEST_DB_HASH || "pbkdf2-sha256$100000$x798XmxiUfIFW+3Di0zJAA==$vJcZ1g0oCRiTGG4PkQ+1F7hWjhR0UL7vPn2vqJpmDFE=";
 const dbOk = await verifyPassword("Ledjer123", dbHash, "");
 console.log("Verify DB hash with '' pepper:", dbOk ? "✅ PASS" : "❌ FAIL");
 const dbOk2 = await verifyPassword("Ledjer123", dbHash, undefined);

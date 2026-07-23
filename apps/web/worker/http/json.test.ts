@@ -36,6 +36,6 @@ describe("redactedBody", () => {
   it("handles primitive values", () => {
     expect(redactedBody(42)).toBe(42);
     expect(redactedBody("hello")).toBe("hello");
-    expect(redactedBody(null)).toBe(null);
+    expect(redactedBody(null)).toBeNull();
   });
 });

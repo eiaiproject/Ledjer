@@ -524,17 +524,27 @@ async function postTransactionWithRetry(ctx: RetryCtx): Promise<PostTransactionR
   throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
 }
 
-export async function postTransaction(
+interface PreparedTransactionData {
+  idempotencyKey: string;
+  transactionType: TransactionType;
+  transactionDate: string;
+  amountMinor: number;
+  partialAmountMinor: number | null;
+  paymentStatus: PaymentStatus;
+  description: string;
+  notes: string | null;
+  current: number;
+}
+
+// ponytail: Extract normalization + validation to reduce postTransaction complexity.
+async function prepareTransactionData(
   db: D1Database,
   organizationId: string,
-  userId: string,
   input: PostTransactionInput,
-  requestId?: string,
-): Promise<PostTransactionResult> {
+): Promise<{ data: PreparedTransactionData } | { existing: PostTransactionResult }> {
   const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
   const existing = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-  // ponytail: Return header set in route handler via buildPostResult
-  if (existing) return buildPostResult(db, organizationId, existing.id, true);
+  if (existing) return { existing: await buildPostResult(db, organizationId, existing.id, true) };
 
   const transactionType = normalizeTransactionType(input.transactionType);
   const transactionDate = normalizeDate(input.transactionDate, "transaction_date_invalid");
@@ -550,6 +560,33 @@ export async function postTransaction(
   await assertBooksOpen(db, organizationId, transactionDate);
   await assertPeriodOpen(db, organizationId, transactionDate);
 
+  return {
+    data: { idempotencyKey, transactionType, transactionDate, amountMinor, partialAmountMinor, paymentStatus, description, notes, current },
+  };
+}
+
+interface ResolvedTransactionEntities {
+  partyId: string | null;
+  cashAccount: AccountRow | null;
+  destinationCashAccount: AccountRow | null;
+  product: ProductRow | null;
+  quantityMilli: number | null;
+  unitPriceMinor: number | null;
+  reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null;
+  resolved: PostingAccountsResult;
+  journalLines: JournalLineInput[];
+}
+
+// ponytail: Extract entity resolution (party, accounts, products, stock) to reduce complexity.
+async function resolveTransactionEntities(
+  db: D1Database,
+  organizationId: string,
+  transactionType: TransactionType,
+  amountMinor: number,
+  paymentStatus: PaymentStatus,
+  input: PostTransactionInput,
+  current: number,
+): Promise<ResolvedTransactionEntities> {
   const partyId = await resolveParty(db, organizationId, transactionType, {
     partyId: input.partyId,
     partyName: input.partyName,
@@ -565,7 +602,6 @@ export async function postTransaction(
     validateProductIntent(transactionType, product, quantityMilli, unitPriceMinor, amountMinor);
   }
 
-  // ponytail: Atomic stock reservation via optimistic lock on current_stock_milli.
   let reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null = null;
   if (product && quantityMilli !== null && unitPriceMinor !== null && isStockTransactionType(transactionType)) {
     reservedStock = await reserveStockForTransaction(transactionType, product, quantityMilli, unitPriceMinor);
@@ -581,23 +617,56 @@ export async function postTransaction(
 
   const journalLines = buildJournalLines(transactionType, {
     amountMinor,
-    partialAmountMinor,
+    partialAmountMinor: input.partialAmount === null || input.partialAmount === undefined
+      ? null
+      : toMoneyMinor(input.partialAmount),
     paymentStatus,
     debitAccount: resolved.debitAccount,
     creditAccount: resolved.creditAccount,
     cashAccount,
     partyId,
-    description,
+    description: normalizeRequiredText(input.description, "transaction_description_required"),
     product,
     quantityMilli,
   });
   assertJournalBalanced(journalLines);
 
-  const transactionId = generateId();
-  const journalEntryId = generateId();
-  const transactionNumber = await generateTransactionNumber(db, organizationId, transactionDate);
-  const entryNumber = await generateEntryNumber(db, organizationId);
+  return {
+    partyId,
+    cashAccount,
+    destinationCashAccount,
+    product,
+    quantityMilli,
+    unitPriceMinor,
+    reservedStock,
+    resolved,
+    journalLines,
+  };
+}
+
+interface PostTransactionBuildCtx {
+  db: D1Database;
+  organizationId: string;
+  userId: string;
+  data: PreparedTransactionData;
+  entities: ResolvedTransactionEntities;
+  input: PostTransactionInput;
+  requestId?: string;
+  transactionId: string;
+  journalEntryId: string;
+  transactionNumber: string;
+  entryNumber: string;
+}
+
+// ponytail: Extract statements building for postTransaction to reduce complexity.
+function buildPostTransactionStatements(
+  ctx: PostTransactionBuildCtx,
+): D1PreparedStatement[] {
+  const { db, organizationId, userId, data, entities, input, requestId, transactionId, journalEntryId, transactionNumber, entryNumber } = ctx;
+  const { idempotencyKey, transactionType, transactionDate, amountMinor, paymentStatus, description, notes, current } = data;
+  const { partyId, cashAccount, destinationCashAccount, product, quantityMilli, unitPriceMinor, reservedStock, resolved, journalLines } = entities;
   const categoryName = resolved.categoryName ?? nullableText(input.categoryName);
+
   const statements: D1PreparedStatement[] = [
     statement(
       db,
@@ -622,7 +691,7 @@ export async function postTransaction(
         paymentStatus,
         input.dueDate ? normalizeDate(input.dueDate, "due_date_invalid") : null,
         description,
-        notesWithPartial(notes, partialAmountMinor, paymentStatus),
+        notesWithPartial(notes, data.partialAmountMinor, paymentStatus),
         idempotencyKey,
         current,
         userId,
@@ -679,7 +748,45 @@ export async function postTransaction(
     }),
   );
 
-  return postTransactionWithRetry({ db, organizationId, transactionId, idempotencyKey, transactionType, product, quantityMilli, unitPriceMinor, statements, reservedStock, transactionDate, description, userId, current });
+  return statements;
+}
+
+export async function postTransaction(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: PostTransactionInput,
+  requestId?: string,
+): Promise<PostTransactionResult> {
+  const prepared = await prepareTransactionData(db, organizationId, input);
+  if ("existing" in prepared) return prepared.existing;
+
+  const { data } = prepared;
+  const { idempotencyKey, transactionType, transactionDate, description, current } = data;
+
+  const entities = await resolveTransactionEntities(
+    db, organizationId, transactionType,
+    data.amountMinor, data.paymentStatus, input, current,
+  );
+
+  const transactionId = generateId();
+  const journalEntryId = generateId();
+  const transactionNumber = await generateTransactionNumber(db, organizationId, transactionDate);
+  const entryNumber = await generateEntryNumber(db, organizationId);
+
+  const statements = buildPostTransactionStatements({
+    db, organizationId, userId, data, entities, input, requestId,
+    transactionId, journalEntryId, transactionNumber, entryNumber,
+  });
+
+  return postTransactionWithRetry({
+    db, organizationId, transactionId, idempotencyKey,
+    transactionType, product: entities.product,
+    quantityMilli: entities.quantityMilli,
+    unitPriceMinor: entities.unitPriceMinor,
+    statements, reservedStock: entities.reservedStock,
+    transactionDate, description, userId, current,
+  });
 }
 
 /**

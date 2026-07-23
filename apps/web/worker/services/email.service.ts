@@ -6,6 +6,21 @@
 const API_URL = "https://api.resend.com/emails";
 const FROM = "Ledjer <noreply@ledjer.id>";
 
+/**
+ * Strip HTML tags without regex backtracking issues.
+ * Iterates character-by-character to avoid ReDoS vulnerabilities.
+ */
+function stripHtmlTags(html: string): string {
+  let result = "";
+  let inTag = false;
+  for (const ch of html) {
+    if (ch === "<") { inTag = true; continue; }
+    if (ch === ">") { inTag = false; continue; }
+    if (!inTag) result += ch;
+  }
+  return result;
+}
+
 interface SendEmailInput {
   to: string;
   subject: string;
@@ -34,7 +49,7 @@ export async function sendEmail(
       to: [input.to],
       subject: input.subject,
       html: input.html,
-      text: input.text ?? input.html.replace(/<[^>]+>/g, ""),
+      text: input.text ?? stripHtmlTags(input.html),
     }),
   });
 
