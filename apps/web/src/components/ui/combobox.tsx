@@ -223,7 +223,6 @@ export function Combobox({
                   id={`${inputId}-option-${index}`}
                   ref={isActive ? activeItemRef : undefined}
                   type="button"
-                  aria-selected={isSelected}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     selectOption(option.value);
@@ -251,7 +250,6 @@ export function Combobox({
                 id={`${inputId}-option-${filteredOptions.length}`}
                 ref={activeIndex === filteredOptions.length ? activeItemRef : undefined}
                 type="button"
-                aria-selected={false}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onCreate?.(query.trim());
