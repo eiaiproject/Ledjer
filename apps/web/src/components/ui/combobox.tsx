@@ -47,9 +47,9 @@ export function Combobox({
   const describedBy = error || helperText ? feedbackId : undefined;
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const listboxRef = useRef<HTMLUListElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const activeItemRef = useRef<HTMLLIElement>(null);
+  const activeItemRef = useRef<HTMLButtonElement>(null);
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -155,7 +155,7 @@ export function Combobox({
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Don't close if focus moves to the listbox
+    // Don't close if focus moves to the dropdown
     if (containerRef.current?.contains(e.relatedTarget as Node)) return;
     setOpen(false);
     setQuery("");
@@ -203,37 +203,33 @@ export function Combobox({
 
         {/* Dropdown */}
         {open && !loading && (
-          <ul
+          <div
             ref={listboxRef}
             id={listboxId}
-            // NOSONAR: custom combobox w/ filter/create, can't use native <select>
-            role="listbox"
-            tabIndex={-1}
             className={cn(
               "absolute z-dropdown mt-1 max-h-60 w-full overflow-auto rounded-lg border border-wood-200 bg-surface-elevated py-1 shadow-lg",
               "animate-in fade-in-0 zoom-in-95",
             )}
           >
             {filteredOptions.length === 0 && !showCreateOption && (
-              <li className="px-3 py-2.5 text-sm text-wood-500">{emptyText}</li>
+              <div className="px-3 py-2.5 text-sm text-wood-500">{emptyText}</div>
             )}
             {filteredOptions.map((option, index) => {
               const isSelected = option.value === value;
               const isActive = index === activeIndex;
               return (
-                <li
+                <button
                   key={option.value}
                   id={`${inputId}-option-${index}`}
                   ref={isActive ? activeItemRef : undefined}
-                  role="option"
-                  aria-selected={isSelected}
+                  type="button"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     selectOption(option.value);
                   }}
                   onMouseEnter={() => setActiveIndex(index)}
                   className={cn(
-                    "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm",
+                    "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm text-left",
                     isActive && "bg-wood-100",
                     isSelected && "font-medium text-wood-900",
                     !isSelected && "text-wood-700",
@@ -246,15 +242,14 @@ export function Combobox({
                     )}
                   </span>
                   {isSelected && <Check className="h-4 w-4 shrink-0 text-wood-600" />}
-                </li>
+                </button>
               );
             })}
             {showCreateOption && (
-              <li
+              <button
                 id={`${inputId}-option-${filteredOptions.length}`}
                 ref={activeIndex === filteredOptions.length ? activeItemRef : undefined}
-                role="option"
-                aria-selected={false}
+                type="button"
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onCreate?.(query.trim());
@@ -264,15 +259,15 @@ export function Combobox({
                 }}
                 onMouseEnter={() => setActiveIndex(filteredOptions.length)}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 border-t border-wood-100 px-3 py-2.5 text-sm",
+                  "flex w-full cursor-pointer items-center gap-2 border-t border-wood-100 px-3 py-2.5 text-sm text-left",
                   activeIndex === filteredOptions.length && "bg-wood-100",
                   "text-wood-600 italic",
                 )}
               >
                 Buat &quot;{query.trim()}&quot;
-              </li>
+              </button>
             )}
-          </ul>
+          </div>
         )}
       </div>
     </Field>
