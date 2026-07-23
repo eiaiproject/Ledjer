@@ -223,7 +223,6 @@ export function Combobox({
                   key={option.value}
                   id={`${inputId}-option-${index}`}
                   ref={isActive ? activeItemRef : undefined}
-                  role="option"
                   aria-selected={isSelected}
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -251,7 +250,6 @@ export function Combobox({
               <li
                 id={`${inputId}-option-${filteredOptions.length}`}
                 ref={activeIndex === filteredOptions.length ? activeItemRef : undefined}
-                role="option"
                 aria-selected={false}
                 onMouseDown={(e) => {
                   e.preventDefault();
