@@ -497,7 +497,6 @@ export function useTransactionEffects(params: {
     if (!form.formState.isDirty || successTransactionId) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = "";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);

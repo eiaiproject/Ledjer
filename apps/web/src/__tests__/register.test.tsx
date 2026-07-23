@@ -71,9 +71,13 @@ describe('RegisterPage', () => {
     assert();
   });
 
-  it('calls startGoogleAuth when Google button is clicked', async () => {
+  it.each([
+    { name: 'calls startGoogleAuth when Google button is clicked', route: ['/register'] },
+    { name: 'preserves redirect param in OAuth callback URL', route: ['/register?redirect=/dashboard'] },
+    { name: 'uses default redirect when no redirect param is present', route: ['/register'] },
+  ])('$name', async ({ route }) => {
     render(
-      <MemoryRouter initialEntries={['/register']}>
+      <MemoryRouter initialEntries={route}>
         <Routes>
           <Route path="/register" element={<RegisterPage />} />
         </Routes>
@@ -153,37 +157,5 @@ describe('RegisterPage', () => {
     });
   });
 
-  it('preserves redirect param in OAuth callback URL', async () => {
-    render(
-      <MemoryRouter initialEntries={['/register?redirect=/dashboard']}>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
 
-    const googleButton = screen.getByRole('button', { name: /daftar dengan google/i });
-    fireEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(apiMocks.startGoogleAuth).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('uses default redirect when no redirect param is present', async () => {
-    render(
-      <MemoryRouter initialEntries={['/register']}>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const googleButton = screen.getByRole('button', { name: /daftar dengan google/i });
-    fireEvent.click(googleButton);
-
-    await waitFor(() => {
-      expect(apiMocks.startGoogleAuth).toHaveBeenCalledTimes(1);
-    });
-  });
 });

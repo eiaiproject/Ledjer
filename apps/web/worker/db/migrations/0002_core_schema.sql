@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL COLLATE NOCASE,
   password_hash TEXT NOT NULL,
   full_name TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')), -- NOSONAR: SQLite DDL can't use variables
   email_verified_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS organization_members (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member', 'viewer')), -- NOSONAR: SQLite DDL can't use variables
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('invited', 'active', 'removed')),
   invited_by TEXT,
   joined_at INTEGER,
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS organization_invitations (
   email TEXT NOT NULL COLLATE NOCASE,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member', 'viewer')),
   token_hash TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')), -- NOSONAR: SQLite DDL can't use variables
   invited_by TEXT NOT NULL,
   accepted_by TEXT,
   expires_at INTEGER NOT NULL,
@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   due_date TEXT,
   description TEXT NOT NULL DEFAULT '',
   notes TEXT,
-  status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('draft', 'posted', 'voided', 'reversed')),
+  status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('draft', 'posted', 'voided', 'reversed')), -- NOSONAR: SQLite DDL can't use variables
   idempotency_key TEXT,
   posted_at INTEGER,
   posted_by TEXT,
