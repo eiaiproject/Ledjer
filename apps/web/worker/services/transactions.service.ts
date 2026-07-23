@@ -484,41 +484,73 @@ function rebuildStockStatements(
   });
 }
 
+// ponytail: Extract retry logic to reduce postTransactionWithRetry complexity.
+async function retryBatchOnStockConflict(
+  ctx: RetryCtx,
+  attempt: number,
+  stockUpdateIndex: number,
+): Promise<PostTransactionResult | "retry"> {
+  const { db, organizationId, transactionId, transactionType, product, quantityMilli, unitPriceMinor, transactionDate } = ctx;
+
+  await assertPeriodOpen(db, organizationId, transactionDate);
+  const results = await executeBatch(db, ctx.statements);
+
+  if (stockUpdateIndex >= 0 && results[stockUpdateIndex]) {
+    const changes = results[stockUpdateIndex].meta.changes;
+    if (changes === 0) {
+      if (attempt >= 3) {
+        throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
+      }
+      const freshProduct = await queryFirst<ProductRow>(
+        db,
+        `SELECT * FROM products WHERE id = ? AND organization_id = ?`,
+        [product!.id, organizationId],
+      );
+      if (freshProduct && quantityMilli !== null && unitPriceMinor !== null) {
+        ctx.reservedStock = await reserveStockForTransaction(transactionType, freshProduct, quantityMilli, unitPriceMinor);
+        rebuildStockStatements(ctx, freshProduct, ctx.reservedStock, stockUpdateIndex);
+      }
+      return "retry";
+    }
+  }
+  return buildPostResult(db, organizationId, transactionId);
+}
+
+// ponytail: Extract error handling to reduce postTransactionWithRetry complexity.
+async function handleRetryError(
+  e: unknown,
+  db: D1Database,
+  organizationId: string,
+  idempotencyKey: string,
+  attempt: number,
+): Promise<PostTransactionResult | "retry" | "throw"> {
+  if (e instanceof HttpError && e.code === "stock_concurrent_modify") return "throw";
+  const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+  if (retry) return buildPostResult(db, organizationId, retry.id);
+  if (attempt >= 3) return "throw";
+  return "retry";
+}
+
 async function postTransactionWithRetry(ctx: RetryCtx): Promise<PostTransactionResult> {
-  const { db, organizationId, transactionId, idempotencyKey, transactionType, product, quantityMilli, unitPriceMinor, transactionDate } = ctx;
-  // Index of UPDATE products statement in the batch.
-  // After building: [tx, je, jl..., tl, UPDATE_products, INSERT_stock, audit_log]
+  const { db, organizationId, idempotencyKey } = ctx;
   const stockUpdateIndex = ctx.reservedStock ? ctx.statements.length - 3 : -1;
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await assertPeriodOpen(db, organizationId, transactionDate);
-      const results = await executeBatch(db, ctx.statements);
-      if (stockUpdateIndex >= 0 && results[stockUpdateIndex]) {
-        const changes = results[stockUpdateIndex].meta.changes;
-        if (changes === 0) {
-          if (attempt < 3) {
-            const freshProduct = await queryFirst<ProductRow>(
-              db,
-              `SELECT * FROM products WHERE id = ? AND organization_id = ?`,
-              [product!.id, organizationId],
-            );
-            if (freshProduct && quantityMilli !== null && unitPriceMinor !== null) {
-              ctx.reservedStock = await reserveStockForTransaction(transactionType, freshProduct, quantityMilli, unitPriceMinor);
-              rebuildStockStatements(ctx, freshProduct, ctx.reservedStock, stockUpdateIndex);
-            }
-            await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
-            continue;
-          }
-          throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
-        }
+      const result = await retryBatchOnStockConflict(ctx, attempt, stockUpdateIndex);
+      if (result === "retry") {
+        await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+        continue;
       }
-      return buildPostResult(db, organizationId, transactionId);
+      return result;
     } catch (e) {
-      if (e instanceof HttpError && e.code === "stock_concurrent_modify") throw e;
-      const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-      if (retry) return buildPostResult(db, organizationId, retry.id);
-      if (attempt === 3) throw e;
-      await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+      const errorResult = await handleRetryError(e, db, organizationId, idempotencyKey, attempt);
+      if (errorResult === "throw") throw e;
+      if (errorResult === "retry") {
+        await new Promise((r) => setTimeout(r, [5, 15, 50][attempt - 1] ?? 50));
+        continue;
+      }
+      return errorResult;
     }
   }
   throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");

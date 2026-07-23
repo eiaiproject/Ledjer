@@ -27,7 +27,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Install Playwright Chromium
-        run: pnpm --filter web exec playwright install chromium --with-deps
+        run: pnpm --filter web exec playwright install chromium --with-deps # NOSONAR - browser binary, not package install
 
       - name: Build app
         env:

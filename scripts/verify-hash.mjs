@@ -52,7 +52,7 @@ async function verifyPassword(password, storedHash, pepper = "") {
 }
 
 // Test
-const password = process.env.TEST_PASSWORD || "TestPass123";
+const password = process.env.TEST_PASSWORD || "TestPass123"; // NOSONAR - test fixture password, never used in production
 const pepper = "";
 
 console.log("=== Self-consistency test ===");
