@@ -11,11 +11,14 @@
     <meta property="og:title" content="Ledjer — Pembukuan UMKM Indonesia" />
     <meta property="og:description" content="Aplikasi pembukuan double-entry untuk UMKM Indonesia. Transaksi, stok, laporan, tim, dan audit log dalam satu tempat." />
     <meta property="og:url" content="https://ledjer.id/" />
-    <meta property="og:image" content="https://ledjer.id/logo-horizontal.svg" />
+    <meta property="og:image" content="https://ledjer.id/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="id_ID" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Ledjer — Pembukuan UMKM Indonesia" />
     <meta name="twitter:description" content="Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet." />
-    <meta name="twitter:image" content="https://ledjer.id/logo-horizontal.svg" />
+    <meta name="twitter:image" content="https://ledjer.id/og-image.png" />
     <!-- Production CSP. Vite replaces __SENTRY_CONNECT_SRC__ at build time
          with the exact ingest host from VITE_SENTRY_DSN, or removes it if unset.
          For dev/local builds, set LEDJER_CSP_LOCAL=1 for relaxed connect-src. -->
@@ -23,12 +26,33 @@
          <style> (Tailwind) and React-refresh inline script are not blocked. -->
     <!-- CSP is set via Cloudflare _headers file. This meta tag was removed to
          avoid conflict (browsers enforce the stricter of the two). -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Ledjer",
+      "url": "https://ledjer.id/",
+      "description": "Pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet.",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "IDR"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Ledjer"
+      }
+    }
+    </script>
     <link rel="canonical" href="https://ledjer.id/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/logo-icon.svg" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <title>Ledjer — Pembukuan UMKM Indonesia</title>
   </head>
   <body>
