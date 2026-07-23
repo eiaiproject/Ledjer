@@ -206,7 +206,8 @@ export function Combobox({
           <ul
             ref={listboxRef}
             id={listboxId}
-            role="listbox" /* NOSONAR: custom combobox w/ filter/create needs ARIA listbox */
+            // NOSONAR: custom combobox w/ filter/create, can't use native <select>
+            role="listbox"
             tabIndex={-1}
             className={cn(
               "absolute z-dropdown mt-1 max-h-60 w-full overflow-auto rounded-lg border border-wood-200 bg-surface-elevated py-1 shadow-lg",
