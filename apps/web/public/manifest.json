@@ -1,0 +1,16 @@
+{
+  "name": "Ledjer — Pembukuan UMKM Indonesia",
+  "short_name": "Ledjer",
+  "description": "Pembukuan double-entry untuk UMKM Indonesia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F4EB",
+  "theme_color": "#8B5A3C",
+  "icons": [
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

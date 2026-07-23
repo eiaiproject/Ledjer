@@ -79,6 +79,9 @@ function Seo({ title, description, path, noindex = false, children }: SeoProps) 
     setMeta('meta[property="og:url"]', canonicalUrl);
     setMeta('meta[name="twitter:title"]', title);
     setMeta('meta[name="twitter:description"]', description);
+    setMeta('meta[property="og:image"]', `${SITE_URL}/og-image.png`);
+    setMeta('meta[name="twitter:image"]', `${SITE_URL}/og-image.png`);
+    setMeta('meta[property="og:locale"]', 'id_ID');
   }, [canonicalUrl, description, noindex, title]);
 
   return <>{children}</>;
@@ -102,7 +105,7 @@ const routerConfig = [
       {
         index: true,
         element: (
-          <Seo title="Ledjer - Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
+          <Seo title="Ledjer — Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
             <LandingPage />
           </Seo>
         ),
