@@ -302,7 +302,7 @@ export async function deactivateProduct(
  * INTERNAL USE ONLY. Stock movements should go through postTransaction
  * so that journal_entries and journal_lines are created atomically.
  * Called once from createProduct for initial-stock recording.
- * Tracked in #TODO-INITIAL-STOCK: remove this function when initial stock is
+ * Tracked in #PENDING-INITIAL-STOCK: remove this function when initial stock is
  * also posted via postTransaction. As of now, stock movements during
  * onboarding (createProduct) call this directly (not through postTransaction)
  * because no transaction journal is needed for zero-cost initial stock recording.
