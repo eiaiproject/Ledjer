@@ -142,11 +142,10 @@ test.describe("Disclosure: Lihat jenis transaksi lainnya", () => {
     await expandBtn.click();
 
     const additionalRadio = page.locator('input[type="radio"][name="transactionType"][value="credit_sale"], input[type="radio"][name="transactionType"][value="owner_capital"]');
-    if (await additionalRadio.count() > 0) {
-      await additionalRadio.first().check({ force: true });
-      const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
-      await expect(hideBtn).toBeVisible();
-    }
+    await expect(additionalRadio.first()).toBeAttached();
+    await additionalRadio.first().check({ force: true });
+    const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+    await expect(hideBtn).toBeVisible();
   });
 });
 
@@ -254,33 +253,28 @@ for (const vp of viewports) {
       expect(hasOverflow).toBeFalsy();
     });
 
-    test("type selector cards have min-height (if on page)", async ({ page }) => {
+    test("type selector cards have min-height", async ({ page }) => {
     await gotoNewTransaction(page);
       const firstCard = page.locator('input[type="radio"][name="transactionType"]').first();
-      if (await firstCard.count() > 0) {
-        const label = page.locator(`label[for="${await firstCard.getAttribute("id")}"]`);
-        const box = await label.boundingBox();
-        if (box) {
-          expect(box.height).toBeGreaterThanOrEqual(44);
-        }
-      }
+      await expect(firstCard).toBeAttached();
+      const label = page.locator(`label[for="${await firstCard.getAttribute("id")}"]`);
+      const box = await label.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
     });
 
     test("logo is centered in mobile header", async ({ page }) => {
     await gotoNewTransaction(page);
-
       await page.goto("/transactions/new");
       await page.waitForLoadState("networkidle");
 
       const logo = page.locator('a[href="/dashboard"]').first();
-      if (await logo.count() > 0) {
-        const logoBox = await logo.boundingBox();
-        if (logoBox) {
-          const centerX = logoBox.x + logoBox.width / 2;
-          const viewportCenter = vp.width / 2;
-          expect(Math.abs(centerX - viewportCenter)).toBeLessThan(50);
-        }
-      }
+      await expect(logo).toBeAttached();
+      const logoBox = await logo.boundingBox();
+      expect(logoBox).not.toBeNull();
+      const centerX = logoBox!.x + logoBox!.width / 2;
+      const viewportCenter = vp.width / 2;
+      expect(Math.abs(centerX - viewportCenter)).toBeLessThan(50);
     });
   });
 }
@@ -297,9 +291,8 @@ test.describe("Keyboard navigation", () => {
 
     await page.keyboard.press("ArrowDown");
     const secondRadio = page.locator('input[type="radio"][name="transactionType"]').nth(1);
-    if (await secondRadio.count() > 0) {
-      expect(await secondRadio.isChecked()).toBeTruthy();
-    }
+    await expect(secondRadio).toBeAttached();
+    expect(await secondRadio.isChecked()).toBeTruthy();
   });
 
   test("space selects focused radio", async ({ page }) => {
@@ -337,11 +330,9 @@ test.describe("Accessibility", () => {
   test("form fields have visible labels", async ({ page }) => {
     await gotoNewTransaction(page);
     const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
-    if (await firstRadio.count() > 0) {
-      await firstRadio.check({ force: true });
-
-      const labels = page.locator("label");
-      await expect(labels.first()).toBeAttached();
-    }
+    await expect(firstRadio).toBeAttached();
+    await firstRadio.check({ force: true });
+    const labels = page.locator("label");
+    await expect(labels.first()).toBeAttached();
   });
 });

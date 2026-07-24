@@ -4,6 +4,7 @@ import type { CurrentSessionRow, SessionUser } from "./services/session.service"
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
+  BACKUP_BUCKET?: R2Bucket;
   APP_ORIGIN?: string;
   COOKIE_DOMAIN?: string;
   EMAIL_API_KEY?: string;

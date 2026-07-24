@@ -31,7 +31,7 @@ import { assertJournalBalanced, assertPeriodOpen } from "../services/transaction
 import { assertTrialBalanceBalanced } from "../services/reports.service";
 import type { TrialBalanceRow } from "../services/reports.service";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
-import { FakeD1Database } from "../test/fake-d1";
+import { FakeD1Database, validateJournalLine } from "../test/fake-d1";
 
 describe("Golden Accounting Scenarios (seeded fixtures)", () => {
   describe("G1: Journal balance invariants with seeded data", () => {
@@ -510,6 +510,125 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         1000000,
         true,
       )).rejects.toMatchObject({ code: "already_fully_paid" });
+    });
+  });
+
+  describe("G11: Void with stock reversal", () => {
+    it("void with stock reversal via postTransaction + voidTransaction (fake D1)", async () => {
+      const { voidTransaction } = await import("../services/transactions.service");
+      const { FIXTURE_IDS } = await import("../test/fixtures");
+      const { FakeD1Database } = await import("../test/fake-d1");
+
+      // Mock: product query returns widget with stock
+      const db2 = new FakeD1Database({
+        first: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("FROM products WHERE")) {
+            return {
+              id: FIXTURE_IDS.products.widget,
+              organization_id: FIXTURE_IDS.orgs.a,
+              code: "WGT-001", name: "Widget A",
+              purchase_price_minor: 50000,
+              selling_price_minor: 100000,
+              average_cost_minor: 50000,
+              current_stock_milli: 100_000,
+              is_active: 1,
+              inventory_account_id: null,
+              cogs_account_id: null,
+              revenue_account_id: null,
+            };
+          }
+          if (s.includes("FROM transactions t") && s.includes("t.id =")) {
+            return {
+              id: "txn-void-stock-001", organization_id: FIXTURE_IDS.orgs.a,
+              transaction_number: "TRX-VOID-001", transaction_date: "2026-02-20",
+              transaction_type: "cash_sale", amount_minor: 200000,
+              party_id: null, party_name: null, category_name: null,
+              cash_account_id: null, destination_cash_account_id: null,
+              payment_status: "paid", due_date: null,
+              description: "Void test sale", notes: null,
+              status: "posted", idempotency_key: null,
+              posted_at: Date.now(), voided_at: null, void_reason: null,
+              original_transaction_id: null, reversal_transaction_id: null,
+              created_by: FIXTURE_IDS.users.ownerA, created_by_name: "Owner A",
+              created_at: Date.now(),
+            };
+          }
+          if (s.includes("MAX(transaction_number")) return { "MAX(transaction_number)": 0 };
+          if (s.includes("MAX(entry_number")) return { "MAX(entry_number)": 0 };
+          if (s.includes("current_value")) return { current_value: 1 };
+          if (s.includes("FROM period_locks")) return null; // No lock
+          if (s.includes("FROM organizations")) return { books_start_date: "2026-01-01" };
+          return null;
+        },
+        all: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          // Journal lines for the transaction being voided
+          if (s.includes("FROM journal_lines jl")) {
+            return [
+              { id: "jl-void-dr", journal_entry_id: "je-void-001",
+                account_id: FIXTURE_IDS.accounts.cashA,
+                debit_minor: 200000, credit_minor: 0,
+                description: "Penjualan tunai", line_order: 1 },
+              { id: "jl-void-cr", journal_entry_id: "je-void-001",
+                account_id: FIXTURE_IDS.accounts.revenueA,
+                debit_minor: 0, credit_minor: 200000,
+                description: "Penjualan tunai", line_order: 2 },
+            ];
+          }
+          // Journal entries + lines for buildPostResult (reversal readback)
+          if (s.includes("FROM journal_entries je")) {
+            return [
+              { journal_entry_id: "je-void-reversal", entry_number: "JE-VOID-001",
+                entry_date: "2026-02-20", entry_type: "reversal",
+                entry_description: null, entry_status: "posted",
+                line_id: "jl-rev-cr", account_id: FIXTURE_IDS.accounts.revenueA,
+                account_code: "4100", account_name: "Pendapatan",
+                debit_minor: 200000, credit_minor: 0,
+                line_description: "Reversal" },
+              { journal_entry_id: "je-void-reversal", entry_number: "JE-VOID-001",
+                entry_date: "2026-02-20", entry_type: "reversal",
+                entry_description: null, entry_status: "posted",
+                line_id: "jl-rev-dr", account_id: FIXTURE_IDS.accounts.cashA,
+                account_code: "1110", account_name: "Kas",
+                debit_minor: 0, credit_minor: 200000,
+                line_description: "Reversal" },
+            ];
+          }
+          // Transaction lines for product lookup
+          if (s.includes("FROM transaction_lines")) {
+            return [{
+              product_id: FIXTURE_IDS.products.widget,
+              quantity_milli: 2000, unit_price_minor: 100000,
+            }];
+          }
+          // Stock movement for original transaction
+          if (s.includes("FROM stock_movements")) {
+            return [{ unit_cost_minor: 50000 }];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+        batch: (stmts: { sql: string; values: unknown[] }[]) => {
+          for (const s of stmts) {
+            validateJournalLine(s.sql, s.values);
+          }
+          return stmts.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
+        },
+      });
+
+      const result = await voidTransaction(
+        db2 as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        "txn-void-stock-001",
+        { reason: "Test void with stock", idempotencyKey: "void-stock-idem-01" },
+      );
+
+      expect(result.status).toBe("voided");
+      expect(result.original_transaction_id).toBe("txn-void-stock-001");
+      expect(result.reversal_transaction_id).toBeTruthy();
+      expect(result.reversal_journal_entry_ids.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

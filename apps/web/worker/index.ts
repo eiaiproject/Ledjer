@@ -19,6 +19,8 @@ import { productsRoutes } from "./routes/products.routes";
 import { reportsRoutes } from "./routes/reports.routes";
 import { teamRoutes } from "./routes/team.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
+import importRoutes from "./routes/import.routes";
+import { createBackup } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
 
 const app = new Hono<AppContext>();
@@ -90,6 +92,7 @@ app.route("/api/reports", reportsRoutes);
 app.route("/api/team", teamRoutes);
 app.route("/api/exports", exportsRoutes);
 app.route("/api/period-locks", periodLocksRoutes);
+app.route("/api/import", importRoutes);
 
 app.notFound((c) => {
   if (new URL(c.req.url).pathname.startsWith("/api/")) {
@@ -119,6 +122,11 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
     env: AppContext["Bindings"],
   ) {
     await cleanupExpiredRows(env.DB);
+    if (env.BACKUP_BUCKET) {
+      // ponytail: Backup runs on every cron tick (03:00 daily).
+      // If retention cleanup fails, backup integrity is preserved.
+      await createBackup(env.DB, env.BACKUP_BUCKET);
+    }
   },
 };
 
