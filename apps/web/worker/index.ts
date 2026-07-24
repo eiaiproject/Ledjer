@@ -5,6 +5,7 @@ import { errorHandler } from "./middleware/error.middleware";
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/request-logger";
 import { metricsMiddleware, metricsHandler } from "./middleware/metrics";
+import openingBalanceRoutes from "./routes/opening-balance.routes";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
@@ -92,6 +93,7 @@ app.route("/api/reports", reportsRoutes);
 app.route("/api/team", teamRoutes);
 app.route("/api/exports", exportsRoutes);
 app.route("/api/period-locks", periodLocksRoutes);
+app.route("/api/opening-balance", openingBalanceRoutes);
 app.route("/api/import", importRoutes);
 
 app.notFound((c) => {
