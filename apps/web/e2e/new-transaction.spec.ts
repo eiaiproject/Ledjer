@@ -1,4 +1,5 @@
-import { test, expect } from "./helpers/auth";
+import { test } from "./helpers/auth";
+import { expect } from "@playwright/test";
 
 /**
  * New Transaction page E2E tests.
