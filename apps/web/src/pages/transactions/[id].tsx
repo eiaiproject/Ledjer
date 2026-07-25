@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/ui/error-state";
+import { AttachmentSection } from "@/components/attachment-section";
 import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
@@ -355,6 +356,13 @@ export function TransactionDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Attachments */}
+      {transaction && (
+        <div className="mt-8">
+          <AttachmentSection entityType="transaction" entityId={transaction.id} />
         </div>
       )}
     </div>
