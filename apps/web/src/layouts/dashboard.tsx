@@ -19,6 +19,7 @@ import {
   Repeat,
   Wallet,
   Folder,
+  Download,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
@@ -47,6 +48,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/reconciliation", label: "Rekonsiliasi", icon: BookOpen, requires: "canCreateTransaction" },
   { to: "/opening-balance", label: "Saldo Awal", icon: BookOpen, requires: "canManageAccounts" },
   { to: "/budgets", label: "Anggaran", icon: Wallet },
+  { to: "/exports", label: "Export", icon: Download },
   { to: "/dimensions", label: "Dimensi", icon: Folder },
   { to: "/fixed-assets", label: "Aset Tetap", icon: Chart },
   { to: "/import", label: "Import Data", icon: FileText, requires: "canManageAccounts" },

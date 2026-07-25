@@ -151,6 +151,12 @@ export const queryKeys = {
     report: (type: string, from: string, to: string) => ["dimensions", "report", type, from, to] as const,
   },
 
+  exports: {
+    all: () => ["exports"] as const,
+    list: (status?: string) => ["exports", "list", status ?? ""] as const,
+    detail: (id: string) => ["exports", id] as const,
+  },
+
 } as const;
 
 /**
