@@ -126,6 +126,11 @@ export const queryKeys = {
     pendingCount: () => ["approvals", "pending-count"] as const,
   },
 
+  journals: {
+    all: () => ["journal-templates"] as const,
+    templates: (entryType?: string) => ["journal-templates", entryType ?? "all"] as const,
+  },
+
 } as const;
 
 /**

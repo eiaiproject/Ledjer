@@ -29,6 +29,7 @@ import importRoutes from "./routes/import.routes";import documentRoutes from "./
 import recurringTransactionRoutes from "./routes/recurring-transactions.routes";
 import notificationRoutes from "./routes/notifications.routes";
 import { approvalsRoutes } from "./routes/approvals.routes";
+import { manualJournalRoutes } from "./routes/manual-journals.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
@@ -116,6 +117,7 @@ app.route("/api/documents", documentRoutes);
 app.route("/api/recurring-transactions", recurringTransactionRoutes);
 app.route("/api/notifications", notificationRoutes);
 app.route("/api/approvals", approvalsRoutes);
+app.route("/api/manual-journals", manualJournalRoutes);
 app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {
