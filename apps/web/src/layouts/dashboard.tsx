@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
+import { GlobalSearchModal, SearchTrigger } from "@/components/global-search";
 
 type NavItem =
   | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
@@ -76,6 +77,7 @@ export function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // P1.4: Onboarding guard — redirect to onboarding if not completed
   useEffect(() => {
@@ -120,6 +122,18 @@ export function DashboardLayout() {
     await signOut();
     navigate("/login");
   };
+
+  // Keyboard shortcut: Ctrl+K / Cmd+K to open search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Sentry Feedback widget — only visible inside dashboard layout
   useEffect(() => {
@@ -498,6 +512,10 @@ export function DashboardLayout() {
         )}
       >
         <OfflineBanner />
+        <div className="hidden border-b border-wood-100 bg-surface px-4 py-2 lg:flex items-center justify-end gap-3">
+          <SearchTrigger onClick={() => setSearchOpen(true)} />
+        </div>
+        <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
           <Outlet />
         </div>
