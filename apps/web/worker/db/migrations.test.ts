@@ -113,7 +113,7 @@ describe("Database Migrations", () => {
   }));
 
   it("migrations are sequentially numbered 0001-0009", () => {
-    const expected = Array.from({ length: 10 }, (_, i) =>
+    const expected = Array.from({ length: 11 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);

@@ -20,6 +20,9 @@ export const CORE_TABLES = [
   "organization_document_counters",
   "audit_logs",
   "attachments",
+  "bank_statements",
+  "bank_statement_lines",
+  "reconciliation_matches",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [
@@ -37,6 +40,9 @@ export const TENANT_SCOPED_TABLES = [
   "organization_document_counters",
   "audit_logs",
   "attachments",
+  "bank_statements",
+  "bank_statement_lines",
+  "reconciliation_matches",
 ] as const;
 
 export const CORE_INDEXES = [
