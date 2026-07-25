@@ -34,6 +34,7 @@ const dotStyles: Record<BadgeVariant, string> = {
   info: "bg-info",
   neutral: "bg-wood-400",
   premium: "bg-honey-500",
+  secondary: "bg-wood-400",
 };
 
 export function Badge({ variant = "neutral", size = "sm", children, className, dot }: BadgeProps) {

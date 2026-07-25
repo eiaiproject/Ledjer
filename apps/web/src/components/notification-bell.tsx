@@ -9,7 +9,7 @@ import {
   dismissNotification,
   type NotificationOutput,
 } from "@/lib/api/notifications";
-import { Bell, Loader, X, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, CheckCheck, UserPlus } from "reicon-react";
+import { Bell, Loader, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat } from "reicon-react";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   overdue_receivable: <AlertTriangle className="h-4 w-4" />,

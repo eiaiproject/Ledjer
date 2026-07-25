@@ -10,7 +10,7 @@ import {
   dismissNotification,
   type NotificationCategory,
 } from "@/lib/api/notifications";
-import { Bell, Loader, Trash2, CheckCheck, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat } from "reicon-react";
+import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat } from "reicon-react";
 
 const CATEGORY_LABELS: Record<string, string> = {
   overdue_receivable: "Piutang Jatuh Tempo",

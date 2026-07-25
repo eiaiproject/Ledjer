@@ -20,6 +20,7 @@ import {
   Wallet,
   Folder,
   Download,
+  Lock,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";

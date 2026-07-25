@@ -24,11 +24,11 @@ import {
 import {
   Check,
   X,
-  Clock,
   ShieldCheck,
   Eye,
   InfoCircle,
 } from "reicon-react";
+import type { BadgeProps } from "@/components/ui/badge";
 
 const STATUS_BADGE: Record<ApprovalStatus, { variant: BadgeProps["variant"]; label: string }> = {
   pending: { variant: "info", label: "Menunggu" },
