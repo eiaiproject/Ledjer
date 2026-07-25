@@ -57,6 +57,7 @@ const PeriodClosePage = lazy(async () => ({ default: (await import("@/pages/peri
 const ApprovalsPage = lazy(async () => ({ default: (await import("@/pages/approvals/index")).ApprovalsPage }));
 const ApprovalSettingsPage = lazy(async () => ({ default: (await import("@/pages/approvals/settings")).ApprovalSettingsPage }));
 const ManualJournalPage = lazy(async () => ({ default: (await import("@/pages/journals/index")).ManualJournalPage }));
+const BudgetsPage = lazy(async () => ({ default: (await import("@/pages/budgets/index")).BudgetsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -280,6 +281,7 @@ const routerConfig = [
           { path: "/import", element: <ImportPage /> },
           { path: "/settings/team", element: <TeamSettingsPage /> },
           { path: "/period-close", element: <PeriodClosePage /> },
+          { path: "/budgets", element: <BudgetsPage /> },
           { path: "/journals", element: <ManualJournalPage /> },
           { path: "/approvals", element: <ApprovalsPage /> },
           { path: "/approvals/settings", element: <ApprovalSettingsPage /> },

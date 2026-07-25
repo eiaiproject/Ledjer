@@ -131,6 +131,13 @@ export const queryKeys = {
     templates: (entryType?: string) => ["journal-templates", entryType ?? "all"] as const,
   },
 
+  budgets: {
+    all: () => ["budgets"] as const,
+    list: (periodFrom?: string, periodTo?: string) => ["budgets", "list", periodFrom ?? "", periodTo ?? ""] as const,
+    report: (periodFrom: string, periodTo: string) => ["budgets", "report", periodFrom, periodTo] as const,
+    varianceAlerts: (threshold: number) => ["budgets", "variance-alerts", threshold] as const,
+  },
+
 } as const;
 
 /**

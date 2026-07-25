@@ -17,6 +17,7 @@ import {
   ChevronDown,
   AnglesLeft,
   Repeat,
+  Wallet,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
@@ -44,6 +45,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/journals", label: "Jurnal Manual", icon: BookOpen, requires: "canManageAccounts" },
   { to: "/reconciliation", label: "Rekonsiliasi", icon: BookOpen, requires: "canCreateTransaction" },
   { to: "/opening-balance", label: "Saldo Awal", icon: BookOpen, requires: "canManageAccounts" },
+  { to: "/budgets", label: "Anggaran", icon: Wallet },
   { to: "/import", label: "Import Data", icon: FileText, requires: "canManageAccounts" },
   {
     label: "Laporan",
