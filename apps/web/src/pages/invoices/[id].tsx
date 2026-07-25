@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR, formatDate } from "@/lib/utils";
-import { getInvoice, updateInvoiceStatus } from "@/lib/api/invoices";
+import { getInvoice, updateInvoiceStatus, createCreditNote as createCreditNoteApi, getCreditNotes, sendInvoiceEmail, printInvoiceUrl } from "@/lib/api/invoices";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useState } from "react";
 
@@ -28,11 +29,23 @@ export default function InvoiceDetailPage() {
   const orgId = orgData?.organization?.id;
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
+  const [showCreditForm, setShowCreditForm] = useState(false);
+  const [creditLines, setCreditLines] = useState([{ description: "", amount: 0 }]);
+  const [creditNotes, setCreditNotes] = useState<{ id: string; invoiceNumber: string; totalMinor: number; status: string }[]>([]);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
 
   const { data: invoice, isLoading, isError, error } = useQuery({
     queryKey: queryKeys.invoices.detail(id!),
     queryFn: () => getInvoice(id!),
     enabled: !!orgId && !!id,
+  });
+
+  // Fetch credit notes for this invoice
+  const { data: fetchedCreditNotes } = useQuery({
+    queryKey: ["credit-notes", id],
+    queryFn: () => getCreditNotes(id!),
+    enabled: !!id && invoice?.status === "credited",
   });
 
   const statusMutation = useMutation({
@@ -41,6 +54,36 @@ export default function InvoiceDetailPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() });
       setReason("");
+    },
+  });
+
+  const creditNoteMutation = useMutation({
+    mutationFn: () => {
+      const lines = creditLines
+        .filter((l) => l.description && l.amount > 0)
+        .map((l) => ({
+          description: l.description,
+          quantityMilli: 1000,
+          unitPriceMinor: Math.round(l.amount * 100),
+          amountMinor: Math.round(l.amount * 100),
+        }));
+      return createCreditNoteApi(id!, { lines, reason: reason || undefined });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(id!) });
+      queryClient.invalidateQueries({ queryKey: ["credit-notes", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() });
+      setShowCreditForm(false);
+      setCreditLines([{ description: "", amount: 0 }]);
+    },
+  });
+
+  const emailMutation = useMutation({
+    mutationFn: () => sendInvoiceEmail(id!, emailTo),
+    onSuccess: () => {
+      setShowEmailForm(false);
+      setEmailTo("");
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.detail(id!) });
     },
   });
 
@@ -72,6 +115,9 @@ export default function InvoiceDetailPage() {
   };
 
   const actions = STATUS_ACTIONS[invoice.status] ?? [];
+
+  // Determine if credit note button should show
+  const showCreditNoteBtn = invoice.status === "paid";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4">
@@ -166,11 +212,29 @@ export default function InvoiceDetailPage() {
         </Card>
       )}
 
-      {/* Actions */}
+      {/* Credit Notes Display */}
+      {fetchedCreditNotes && fetchedCreditNotes.length > 0 && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-wood-700">Credit Note</h3>
+            {fetchedCreditNotes.map((cn) => (
+              <div key={cn.id} className="flex items-center justify-between rounded-lg border border-violet-200 bg-violet-50 p-3">
+                <div>
+                  <span className="font-medium text-violet-800">{cn.invoiceNumber}</span>
+                  <span className="ml-2 text-xs text-violet-500">{STATUS_LABELS[cn.status] ?? cn.status}</span>
+                </div>
+                <span className="font-medium text-violet-700">{formatIDR(cn.totalMinor)}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status Actions */}
       {actions.length > 0 && (
         <Card>
           <CardContent className="p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-wood-700">Aksi</h3>
+            <h3 className="text-sm font-semibold text-wood-700">Status</h3>
             <div className="flex flex-wrap gap-2">
               {actions.map((action) => (
                 <Button
@@ -198,6 +262,135 @@ export default function InvoiceDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Credit Note Form */}
+      {showCreditNoteBtn && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-wood-700">Credit Note</h3>
+            <p className="text-xs text-wood-500">Buat credit note untuk faktur yang sudah dibayar.</p>
+
+            {!showCreditForm ? (
+              <Button
+                variant="outline"
+                onClick={() => setShowCreditForm(true)}
+                className="border-violet-300 text-violet-700 hover:bg-violet-50"
+              >
+                Buat Credit Note
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                {creditLines.map((cl, i) => (
+                  <div key={i} className="grid grid-cols-10 gap-2 items-end">
+                    <div className="col-span-7">
+                      <label className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
+                      <Input
+                        value={cl.description}
+                        onChange={(e) => {
+                          const copy = [...creditLines];
+                          copy[i] = { ...copy[i], description: e.target.value };
+                          setCreditLines(copy);
+                        }}
+                        placeholder="Alasan kredit"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs text-wood-500 mb-0.5">Jumlah (Rp)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={cl.amount}
+                        onChange={(e) => {
+                          const copy = [...creditLines];
+                          copy[i] = { ...copy[i], amount: parseFloat(e.target.value) || 0 };
+                          setCreditLines(copy);
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-1 pt-5">
+                      {creditLines.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setCreditLines(creditLines.filter((_, j) => j !== i))}
+                          className="text-red-500 text-sm"
+                          aria-label="Hapus"
+                        >×</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <Button variant="ghost" size="sm" onClick={() => setCreditLines([...creditLines, { description: "", amount: 0 }])}>
+                  + Tambah Item
+                </Button>
+                <div className="flex gap-2 justify-end pt-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setShowCreditForm(false); setCreditLines([{ description: "", amount: 0 }]); }}>
+                    Batal
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => creditNoteMutation.mutate()}
+                    disabled={creditNoteMutation.isPending || creditLines.every((l) => !l.description || l.amount <= 0)}
+                  >
+                    {creditNoteMutation.isPending ? "Menyimpan..." : "Simpan Credit Note"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tools: Print & Email */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-wood-700">Alat</h3>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(printInvoiceUrl(invoice.id), "_blank")}
+            >
+              Cetak / PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowEmailForm(!showEmailForm)}
+            >
+              Kirim Email
+            </Button>
+          </div>
+
+          {showEmailForm && (
+            <div className="space-y-2 pt-2 border-t border-wood-200">
+              <label htmlFor="email-to" className="block text-xs font-medium text-wood-600">Alamat Email Tujuan</label>
+              <div className="flex gap-2">
+                <Input
+                  id="email-to"
+                  type="email"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  placeholder="pelanggan@email.com"
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => emailMutation.mutate()}
+                  disabled={!emailTo || emailMutation.isPending}
+                >
+                  {emailMutation.isPending ? "Mengirim..." : "Kirim"}
+                </Button>
+              </div>
+              {emailMutation.isSuccess && (
+                <p className="text-xs text-emerald-600">Email berhasil dikirim!</p>
+              )}
+              {emailMutation.isError && (
+                <ErrorState message={(emailMutation.error as Error)?.message ?? "Gagal mengirim email"} />
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

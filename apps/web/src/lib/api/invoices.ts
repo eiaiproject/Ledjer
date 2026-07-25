@@ -35,6 +35,7 @@ export interface InvoiceOutput {
   notes?: string;
   terms?: string;
   lines: Array<InvoiceLines & { lineNumber: number }>;
+  creditedByInvoiceId?: string;
   createdAt: number;
 }
 
@@ -60,4 +61,32 @@ export function updateInvoiceStatus(id: string, status: string, reason?: string)
     method: "PATCH",
     body: JSON.stringify({ status, reason }),
   });
+}
+
+export function createCreditNote(
+  invoiceId: string,
+  input: {
+    lines: { description: string; quantityMilli?: number; unitPriceMinor: number; amountMinor: number }[];
+    discountMinor?: number; taxMinor?: number; notes?: string; reason?: string;
+  },
+): Promise<InvoiceOutput> {
+  return apiRequest<InvoiceOutput>(`/api/invoices/${invoiceId}/credit-note`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function getCreditNotes(invoiceId: string): Promise<InvoiceOutput[]> {
+  return apiRequest<InvoiceOutput[]>(`/api/invoices/${invoiceId}/credit-notes`);
+}
+
+export function sendInvoiceEmail(invoiceId: string, to: string): Promise<{ success: boolean; message: string }> {
+  return apiRequest<{ success: boolean; message: string }>(`/api/invoices/${invoiceId}/send-email`, {
+    method: "POST",
+    body: JSON.stringify({ to }),
+  });
+}
+
+export function printInvoiceUrl(invoiceId: string): string {
+  return `/api/invoices/${invoiceId}/print`;
 }

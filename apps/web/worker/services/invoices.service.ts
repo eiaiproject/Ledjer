@@ -41,6 +41,7 @@ export interface InvoiceOutput {
   lines: InvoiceLineOutput[];
   notes: string | null;
   terms: string | null;
+  creditedByInvoiceId: string | null;
   createdAt: number;
 }
 
@@ -170,7 +171,168 @@ export async function getInvoice(
       amountMinor: l.amount_minor as number, lineOrder: l.line_order as number,
     })),
     notes: row.notes as string | null, terms: row.terms as string | null,
+    creditedByInvoiceId: row.credited_by_invoice_id as string | null,
     createdAt: row.created_at as number,
+  };
+}
+
+
+/**
+ * Get credit notes referencing a specific invoice (credited_by_invoice_id).
+ */
+export async function getCreditNotesForInvoice(
+  db: D1Database,
+  organizationId: string,
+  invoiceId: string,
+): Promise<InvoiceOutput[]> {
+  const rows = await queryAll<Record<string, unknown>>(
+    db,
+    `SELECT * FROM invoices WHERE credited_by_invoice_id = ? AND organization_id = ? ORDER BY created_at DESC`,
+    [invoiceId, organizationId],
+  );
+
+  const result: InvoiceOutput[] = [];
+  for (const row of rows) {
+    const lines = await queryAll<Record<string, unknown>>(
+      db,
+      `SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY line_order`,
+      [row.id as string],
+    );
+    result.push({
+      id: row.id as string, invoiceNumber: row.invoice_number as string,
+      invoiceDate: row.invoice_date as string, dueDate: row.due_date as string,
+      partyId: row.party_id as string, status: row.status as string,
+      subtotalMinor: row.subtotal_minor as number,
+      discountMinor: row.discount_minor as number,
+      taxMinor: row.tax_minor as number, totalMinor: row.total_minor as number,
+      paidMinor: row.paid_minor as number,
+      lines: lines.map((l) => ({
+        id: l.id as string, productId: l.product_id as string | null,
+        description: l.description as string,
+        quantityMilli: l.quantity_milli as number,
+        unitPriceMinor: l.unit_price_minor as number,
+        amountMinor: l.amount_minor as number, lineOrder: l.line_order as number,
+      })),
+      notes: row.notes as string | null, terms: row.terms as string | null,
+      creditedByInvoiceId: row.credited_by_invoice_id as string | null,
+      createdAt: row.created_at as number,
+    });
+  }
+  return result;
+}
+
+/**
+ * Create a credit note for a paid invoice.
+ * The credit note is a new invoice with negative amounts that references
+ * the original invoice via credited_by_invoice_id.
+ */
+export async function createCreditNote(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  originalInvoiceId: string,
+  input: {
+    lines: InvoiceLine[];
+    discountMinor?: number;
+    taxMinor?: number;
+    notes?: string;
+    reason?: string;
+  },
+): Promise<InvoiceOutput> {
+  const original = await getInvoice(db, organizationId, originalInvoiceId);
+  if (!original) throw notFound("invoice_not_found", "Faktur asli tidak ditemukan");
+  if (original.status !== "paid") {
+    throw badRequest("invalid_status",
+      `Hanya faktur berstatus "paid" yang bisa dibuatkan credit note. Status saat ini: "${original.status}"`);
+  }
+
+  if (input.lines.length === 0) throw badRequest("no_lines", "Setidaknya satu item diperlukan");
+
+  // Use credit note counter
+  const row = await queryFirst<{ current_value: number }>(
+    db,
+    `SELECT current_value FROM organization_document_counters
+     WHERE organization_id = ? AND counter_name = 'credit_note'
+     FOR UPDATE`,
+    [organizationId],
+  );
+  const nextVal = (row?.current_value ?? 0) + 1;
+  const cnNumber = `CN-${String(nextVal).padStart(6, "0")}`;
+  await execute(
+    db,
+    `INSERT INTO organization_document_counters (organization_id, counter_name, current_value, updated_at)
+     VALUES (?, 'credit_note', ?, ?)
+     ON CONFLICT(organization_id, counter_name) DO UPDATE SET current_value = ?, updated_at = ?`,
+    [organizationId, nextVal, Date.now(), nextVal, Date.now()],
+  );
+
+  const cnId = generateId();
+  const now = Date.now();
+  const { subtotalMinor, totalMinor } = computeTotals(input.lines, input.discountMinor, input.taxMinor);
+  const date = new Date().toISOString().slice(0, 10);
+
+  const statements: D1PreparedStatement[] = [];
+
+  // 1. Create credit note invoice (amounts are positive, but credit note reduces debt)
+  statements.push(
+    db.prepare(
+      `INSERT INTO invoices (id, organization_id, invoice_number, invoice_date, due_date, party_id, status,
+       subtotal_minor, discount_minor, tax_minor, total_minor, paid_minor,
+       notes, credited_by_invoice_id, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+    ).bind(cnId, organizationId, cnNumber, date, date, original.partyId,
+      subtotalMinor, input.discountMinor ?? 0, input.taxMinor ?? 0,
+      totalMinor, input.notes ?? null,
+      originalInvoiceId, userId, now, now),
+  );
+
+  // 2. Insert credit note lines
+  for (let i = 0; i < input.lines.length; i++) {
+    const l = input.lines[i];
+    statements.push(
+      db.prepare(
+        `INSERT INTO invoice_lines (id, organization_id, invoice_id, product_id, description, quantity_milli, unit_price_minor, amount_minor, line_order, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(generateId(), organizationId, cnId,
+        l.productId ?? null, l.description,
+        l.quantityMilli, l.unitPriceMinor, l.amountMinor, i + 1, now),
+    );
+  }
+
+  // 3. Mark original invoice as credited
+  statements.push(
+    db.prepare(
+      `UPDATE invoices SET status = 'credited', updated_at = ? WHERE id = ?`,
+    ).bind(now, originalInvoiceId),
+  );
+
+  // 4. Audit log
+  statements.push(
+    db.prepare(
+      `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, created_at)
+       VALUES (?, ?, ?, 'credit_note', ?, 'created', ?, ?, ?, ?)`,
+    ).bind(generateId(), organizationId, userId, cnId,
+      JSON.stringify({ originalInvoiceId, originalNumber: original.invoiceNumber }),
+      JSON.stringify({ cnNumber, totalMinor }),
+      input.reason ?? null, now),
+  );
+
+  await executeBatch(db, statements);
+
+  return {
+    id: cnId, invoiceNumber: cnNumber,
+    invoiceDate: date, dueDate: date,
+    partyId: original.partyId, status: "issued",
+    subtotalMinor, discountMinor: input.discountMinor ?? 0,
+    taxMinor: input.taxMinor ?? 0, totalMinor, paidMinor: 0,
+    lines: input.lines.map((l, i) => ({
+      id: "", productId: l.productId ?? null, description: l.description,
+      quantityMilli: l.quantityMilli, unitPriceMinor: l.unitPriceMinor,
+      amountMinor: l.amountMinor, lineOrder: i + 1,
+    })),
+    notes: input.notes ?? null,
+    creditedByInvoiceId: originalInvoiceId,
+    createdAt: now,
   };
 }
 
@@ -215,6 +377,7 @@ export async function listInvoices(
         amountMinor: l.amount_minor as number, lineOrder: l.line_order as number,
       })),
       notes: row.notes as string | null, terms: row.terms as string | null,
+      creditedByInvoiceId: row.credited_by_invoice_id as string | null,
       createdAt: row.created_at as number,
     });
   }
