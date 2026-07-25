@@ -61,6 +61,10 @@ export interface CashFlowItem {
   inflow: number;
   outflow: number;
   net: number;
+  prevInflow?: number;
+  prevOutflow?: number;
+  prevNet?: number;
+  transactionIds?: string[];
 }
 
 export interface CashFlowReport {
@@ -73,7 +77,16 @@ export interface CashFlowReport {
     openingCash: number;
     closingCash: number;
   };
+  prevTotals?: {
+    operating: number;
+    investing: number;
+    financing: number;
+    netCashFlow: number;
+    openingCash: number;
+    closingCash: number;
+  };
   period: { fromDate: string; toDate: string };
+  prevPeriod?: { fromDate: string; toDate: string };
 }
 
 interface CashFlowResponse {
@@ -84,8 +97,9 @@ interface GeneralLedgerResponse {
   generalLedger: LedgerEntry[];
 }
 
-export function getCashFlowReport(fromDate: string, toDate: string): Promise<CashFlowReport> {
+export function getCashFlowReport(fromDate: string, toDate: string, comparePeriod?: boolean): Promise<CashFlowReport> {
   const params = new URLSearchParams({ fromDate, toDate });
+  if (comparePeriod) params.set("comparePeriod", "true");
   return apiRequest<CashFlowResponse>(`/api/reports/cash-flow?${params}`).then(
     (data) => data.cashFlow,
   );

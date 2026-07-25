@@ -199,7 +199,7 @@ export function OnboardingPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.allOrganization() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(orgId) });
-      navigate("/dashboard", { replace: true });
+      navigate("/onboarding/checklist", { replace: true });
     } catch (err) {
       if (import.meta.env.DEV) console.error("Error creating organization:", err);
       setError(translateError(err));

@@ -66,11 +66,13 @@ reportsRoutes.get("/general-ledger", async (c) => {
 reportsRoutes.get("/cash-flow", async (c) => {
   const context = c.get("organizationContext");
   const params = new URL(c.req.url).searchParams;
+  const comparePeriod = params.get("comparePeriod") === "true";
   const cashFlow = await getCashFlowStatement(
     c.env.DB,
     context.organization.id,
     requiredParam(params, "fromDate"),
     requiredParam(params, "toDate"),
+    comparePeriod,
   );
   return c.json({ cashFlow });
 });
