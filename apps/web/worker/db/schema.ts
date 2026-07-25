@@ -23,6 +23,8 @@ export const CORE_TABLES = [
   "bank_statements",
   "bank_statement_lines",
   "reconciliation_matches",
+  "invoices",
+  "invoice_lines",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [
@@ -43,6 +45,8 @@ export const TENANT_SCOPED_TABLES = [
   "bank_statements",
   "bank_statement_lines",
   "reconciliation_matches",
+  "invoices",
+  "invoice_lines",
 ] as const;
 
 export const CORE_INDEXES = [
