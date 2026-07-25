@@ -25,6 +25,7 @@ import invoiceRoutes from "./routes/invoices.routes";
 import receivablesRoutes from "./routes/receivables.routes";
 import reconciliationRoutes from "./routes/reconciliation.routes";
 import importRoutes from "./routes/import.routes";
+import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
 
@@ -103,6 +104,7 @@ app.route("/api/reconciliation", reconciliationRoutes);
 app.route("/api/invoices", invoiceRoutes);
 app.route("/api/receivables", receivablesRoutes);
 app.route("/api/import", importRoutes);
+app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {
   if (new URL(c.req.url).pathname.startsWith("/api/")) {
