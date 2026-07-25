@@ -88,6 +88,18 @@ export const TRANSACTION_META: Record<string, TransactionTypeMeta> = {
     icon: ArrowSwapHorizontal,
     hint: "Misal: dari Kas ke Bank BCA.",
   },
+  sale_return: {
+    label: TRANSACTION_LABELS.sale_return,
+    description: "Pelanggan mengembalikan barang. Stok masuk kembali.",
+    icon: FileText,
+    hint: "Mengurangi pendapatan dan menambah stok.",
+  },
+  purchase_return: {
+    label: TRANSACTION_LABELS.purchase_return,
+    description: "Mengembalikan barang ke supplier. Stok keluar.",
+    icon: ShoppingCart,
+    hint: "Mengurangi utang atau mendapat refund.",
+  },
 };
 
 export const TRANSACTION_GROUPS = [
@@ -95,6 +107,7 @@ export const TRANSACTION_GROUPS = [
   { label: "Pengeluaran", types: ["cash_purchase", "credit_purchase", "pay_payable", "expense_payment"] },
   { label: "Modal Pemilik", types: ["owner_capital", "owner_draw"] },
   { label: "Transfer", types: ["cash_transfer"] },
+  { label: "Retur", types: ["sale_return", "purchase_return"] },
 ];
 
 /** Top transaction types shown by default on mobile (above the fold) */
@@ -121,6 +134,16 @@ export const PARTY_COPY: Record<string, { label: string; placeholder: string; he
     placeholder: "Ketik nama supplier...",
     helper: "Pilih supplier yang sedang dibayar utangnya. Jika nominal melebihi utang, saldo utang supplier akan menjadi negatif (lihat catatan AR/AP).",
   },
+  sale_return: {
+    label: "Pelanggan yang retur",
+    placeholder: "Ketik nama pelanggan...",
+    helper: "Pilih pelanggan yang mengembalikan barang.",
+  },
+  purchase_return: {
+    label: "Supplier yang diretur",
+    placeholder: "Ketik nama supplier...",
+    helper: "Pilih supplier yang menerima pengembalian barang.",
+  },
 };
 
 export const CASH_ACCOUNT_LABELS: Record<string, string> = {
@@ -134,6 +157,8 @@ export const CASH_ACCOUNT_LABELS: Record<string, string> = {
   owner_capital: "Masuk ke",
   owner_draw: "Diambil dari",
   cash_transfer: "Dari rekening",
+  sale_return: "Dikembalikan ke",
+  purchase_return: "Diterima dari",
 };
 
 export const CASH_ACCOUNT_PLACEHOLDERS: Record<string, string> = {
@@ -147,6 +172,8 @@ export const CASH_ACCOUNT_PLACEHOLDERS: Record<string, string> = {
   owner_capital: "Pilih akun penerimaan",
   owner_draw: "Pilih akun penarikan",
   cash_transfer: "Pilih rekening sumber",
+  sale_return: "Pilih kas untuk refund",
+  purchase_return: "Pilih kas untuk refund",
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -166,6 +193,8 @@ export const DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
   owner_capital: "Contoh: Setoran modal pemilik bulan ini",
   owner_draw: "Contoh: Pengambilan pribadi pemilik",
   cash_transfer: "Contoh: Transfer dari Kas ke Bank BCA",
+  sale_return: "Contoh: Retur penjualan produk A dari Budi",
+  purchase_return: "Contoh: Retur pembelian produk A ke supplier XYZ",
 };
 
 export const SECTION_LABELS: Record<string, { detail: string; payment: string; notes: string }> = {
@@ -173,6 +202,8 @@ export const SECTION_LABELS: Record<string, { detail: string; payment: string; n
   credit_sale: { detail: "Detail Penjualan", payment: "Pembayaran & Pelanggan", notes: "Catatan" },
   cash_purchase: { detail: "Detail Pembelian", payment: "Pembayaran", notes: "Catatan" },
   credit_purchase: { detail: "Detail Pembelian", payment: "Pembayaran & Supplier", notes: "Catatan" },
+  sale_return: { detail: "Detail Retur Penjualan", payment: "Pembayaran & Pelanggan", notes: "Catatan" },
+  purchase_return: { detail: "Detail Retur Pembelian", payment: "Pembayaran & Supplier", notes: "Catatan" },
 };
 
 /** Auto-generate description from product + qty + total */
@@ -218,6 +249,8 @@ export function getSubmitLabel(args: {
     owner_capital: "Catat Setoran Modal",
     owner_draw: "Catat Penarikan",
     cash_transfer: "Transfer Saldo",
+    sale_return: "Catat Retur Penjualan",
+    purchase_return: "Catat Retur Pembelian",
   };
   const verb = LABELS[transactionType] || "Catat Transaksi";
   if (amount > 0) {
@@ -337,6 +370,22 @@ export function buildPreview({
     case "cash_transfer":
       debit.push({ account: destinationAccountLabel, amount, direction: "increase" });
       credit.push({ account: cashAccountLabel, amount, direction: "decrease" });
+      break;
+    case "sale_return":
+      debit.push({ account: "Pendapatan Usaha", amount, direction: "decrease" });
+      if (paymentStatus === "paid") {
+        credit.push({ account: cashAccountLabel, amount, direction: "decrease" });
+      } else {
+        credit.push({ account: "Piutang Usaha", amount, direction: "decrease" });
+      }
+      break;
+    case "purchase_return":
+      if (paymentStatus === "paid") {
+        debit.push({ account: cashAccountLabel, amount, direction: "increase" });
+      } else {
+        debit.push({ account: "Utang Usaha", amount, direction: "decrease" });
+      }
+      credit.push({ account: "Persediaan", amount, direction: "decrease" });
       break;
   }
 

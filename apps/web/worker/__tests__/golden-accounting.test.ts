@@ -481,6 +481,132 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       expect(result.impact.amount).toBeGreaterThan(0);
     });
 
+    it("sale_return posts via postTransaction with party and product", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-20",
+          transactionType: "sale_return",
+          amount: 100000,
+          paymentStatus: "paid",
+          description: "Golden test: sale return",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          partyId: FIXTURE_IDS.parties.customerA,
+          productId: FIXTURE_IDS.products.widget,
+          quantity: 1,
+          unitPrice: 100000,
+          idempotencyKey: "idem-golden-salereturn-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
+      expect(result.transaction_number).toBeTypeOf("string");
+      expect(result.transaction_number.length).toBeGreaterThan(0);
+      // impact.amount reads from synthetic readback, not actual posted amount
+      expect(result.impact.amount).toBeGreaterThan(0);
+    });
+
+    it("purchase_return posts via postTransaction with party and product", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-21",
+          transactionType: "purchase_return",
+          amount: 200000,
+          paymentStatus: "paid",
+          description: "Golden test: purchase return",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          partyId: FIXTURE_IDS.parties.supplierA,
+          productId: FIXTURE_IDS.products.widget,
+          quantity: 2,
+          unitPrice: 100000,
+          idempotencyKey: "idem-golden-purchasereturn-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
+      expect(result.transaction_number).toBeTypeOf("string");
+      expect(result.transaction_number.length).toBeGreaterThan(0);
+      // impact.amount reads from synthetic readback, not actual posted amount
+      expect(result.impact.amount).toBeGreaterThan(0);
+    });
+
+    it("sale_return with credit (unpaid) posts successfully", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-22",
+          transactionType: "sale_return",
+          amount: 75000,
+          paymentStatus: "unpaid",
+          description: "Golden test: sale return credit",
+          partyId: FIXTURE_IDS.parties.customerA,
+          productId: FIXTURE_IDS.products.widget,
+          quantity: 1,
+          unitPrice: 75000,
+          idempotencyKey: "idem-golden-salereturn-credit-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
+      expect(result.transaction_number).toBeTypeOf("string");
+      expect(result.transaction_number.length).toBeGreaterThan(0);
+      // impact accounts are based on synthetic readback, not the actual posted journal
+    });
+
+    it("purchase_return with credit (unpaid) posts successfully", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-23",
+          transactionType: "purchase_return",
+          amount: 150000,
+          paymentStatus: "unpaid",
+          description: "Golden test: purchase return credit",
+          partyId: FIXTURE_IDS.parties.supplierA,
+          productId: FIXTURE_IDS.products.widget,
+          quantity: 1,
+          unitPrice: 150000,
+          idempotencyKey: "idem-golden-purchasereturn-credit-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
+      expect(result.transaction_number).toBeTypeOf("string");
+      expect(result.transaction_number.length).toBeGreaterThan(0);
+      // impact accounts are based on synthetic readback, not the actual posted journal
+    });
+
+    it("transactionTypeLabel returns label for sale_return and purchase_return", async () => {
+      const { transactionTypeLabel } = await import("../services/transactions.service");
+      expect(transactionTypeLabel("sale_return" as any)).toBe("Retur Penjualan");
+      expect(transactionTypeLabel("purchase_return" as any)).toBe("Retur Pembelian");
+    });
+
     it("rejects backdated transaction before books_start_date", async () => {
       const { db } = createSeedFixtures();
       const { postTransaction } = await import("../services/transactions.service");

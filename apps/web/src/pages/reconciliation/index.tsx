@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
@@ -291,7 +292,10 @@ export default function ReconciliationPage() {
 
   return (
     <div className="space-y-6 p-4">
-      <h1 className="text-xl font-semibold text-wood-800">Rekonsiliasi Bank</h1>
+      <h1 className="text-xl font-semibold text-wood-800">
+        Rekonsiliasi Bank
+        <HelpTooltip topic="reconciliation" position="right" />
+      </h1>
 
       <div className="flex gap-2 border-b border-wood-200">
         <button

@@ -13,6 +13,7 @@ import { exportBalanceSheetCsv } from "@/lib/csv-export";
 import { Refresh, Download } from "reicon-react";
 import { getBalanceSheet, type BalanceSheetItem } from "@/lib/api/reports";
 import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -160,7 +161,10 @@ export function BalanceSheetPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Neraca</h1>
+        <h1 className="text-2xl font-bold text-text-primary">
+          Neraca
+          <HelpTooltip topic="balance_sheet" position="right" />
+        </h1>
         <p className="text-sm text-text-secondary mt-1" aria-live="polite">
           {isRefreshing ? (
             <span className="text-text-secondary">Memperbarui laporan...</span>
@@ -303,6 +307,10 @@ function EquationSummary({ report }: { readonly report: ReportModel }) {
   return (
     <Card>
       <CardContent>
+        <div className="flex items-center gap-1 mb-3">
+          <h3 className="text-sm font-semibold text-wood-700">Persamaan Akuntansi</h3>
+          <HelpTooltip topic="equity" size="sm" />
+        </div>
         <div className="space-y-2">
           <div className="flex min-w-0 items-center justify-between gap-4">
             <span className="text-sm text-wood-600">Total Aset</span>

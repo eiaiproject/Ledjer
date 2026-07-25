@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, TrendingUp, BarChart3 } from "reicon-react";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -199,6 +200,10 @@ export default function CashFlowPage() {
 
   return (
     <ReportPermissionGate>
+      <h1 className="text-2xl font-bold text-text-primary mb-4">
+        Arus Kas
+        <HelpTooltip topic="cash_flow" position="right" />
+      </h1>
       {/* Filter bar */}
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div>

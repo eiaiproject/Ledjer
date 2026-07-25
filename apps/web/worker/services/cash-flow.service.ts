@@ -56,8 +56,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   receivable_settlement: "Penyelesaian Piutang",
   payable_settlement: "Pembayaran Utang",
   partial_payment: "Pembayaran Sebagian",
-  // ponytail: sale_return and purchase_return not yet in transaction_type taxonomy.
-  // When added, map: sale_return → operating (outflow), purchase_return → operating (inflow)
+  sale_return: "Retur Penjualan",
+  purchase_return: "Retur Pembelian",
 };
 
 function periodLengthDays(fromDate: string, toDate: string): number {
@@ -198,6 +198,8 @@ const CATEGORY_SECTION: Record<string, "operating" | "investing" | "financing"> 
   owner_capital: "financing",
   owner_draw: "financing",
   cash_transfer: "operating", // internal, nets to zero
+  sale_return: "operating",
+  purchase_return: "operating",
 };
 
 /**

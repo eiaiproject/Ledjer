@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
 import { ExternalLink } from "reicon-react";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 interface AgingBucket {
   label: string;
@@ -47,7 +48,10 @@ export default function AgingReportPage() {
   return (
     <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-wood-800">Piutang & Utang</h1>
+        <h1 className="text-xl font-semibold text-wood-800">
+          Piutang & Utang
+          <HelpTooltip topic="aging" position="right" />
+        </h1>
       </div>
 
       <div className="flex items-end gap-3">
