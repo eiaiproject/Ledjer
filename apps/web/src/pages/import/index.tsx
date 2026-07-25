@@ -46,28 +46,41 @@ function hashStr(s: string): string {
   return String(h);
 }
 
+/** Detect delimiter by trying comma, semicolon, tab, pipe. */
+function detectDelimiter(csv: string): string {
+  const firstLine = csv.trim().split("\n")[0];
+  const delimiters = [",", ";", "\t", "|"];
+  let best = ",";
+  let bestCount = 0;
+  for (const d of delimiters) {
+    const count = firstLine.split(d).length;
+    if (count > bestCount) { bestCount = count; best = d; }
+  }
+  return best;
+}
+
 /** Parse CSV headers from first line. */
 function parseHeaders(csv: string): string[] {
   const first = csv.trim().split("\n")[0];
-  return first.split(",").map((h) => h.trim());
+  const delim = detectDelimiter(first);
+  return first.split(delim).map((h) => h.trim());
 }
 
-/** Remap a CSV using field→column mapping. */
+/** Remap CSV using field→column mapping. */
 function remapCsv(csv: string, mapping: Record<string, string>): string {
+  const delim = detectDelimiter(csv);
   const lines = csv.trim().split("\n");
   if (lines.length < 2) return csv;
-  // Build index: source column index → target field name
-  const headers = lines[0].split(",").map((h) => h.trim());
+  const headers = lines[0].split(delim).map((h) => h.trim());
   const idxToField: Record<number, string> = {};
   for (const [field, col] of Object.entries(mapping)) {
     const idx = headers.indexOf(col);
     if (idx !== -1) idxToField[idx] = field;
   }
-  // Build remapped header
   const newHeaders = EXPECTED_FIELDS[getEntityType(csv) as EntityType] || Object.keys(mapping);
   const remapped = [newHeaders.join(",")];
   for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i].split(",");
+    const cells = lines[i].split(delim);
     const row: string[] = [];
     for (const field of newHeaders) {
       const srcIdx = Object.entries(idxToField).find(([, f]) => f === field)?.[0];
