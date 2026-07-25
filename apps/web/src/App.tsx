@@ -53,6 +53,8 @@ const RecurringTransactionsPage = lazy(async () => ({ default: (await import("@/
 const NewRecurringTransactionPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/new")).NewRecurringTransactionPage }));
 const RecurringTransactionDetailPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/[id]")).RecurringTransactionDetailPage }));
 const NotificationsPage = lazy(async () => ({ default: (await import("@/pages/notifications/index")).NotificationsPage }));
+const ApprovalsPage = lazy(async () => ({ default: (await import("@/pages/approvals/index")).ApprovalsPage }));
+const ApprovalSettingsPage = lazy(async () => ({ default: (await import("@/pages/approvals/settings")).ApprovalSettingsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -275,6 +277,8 @@ const routerConfig = [
           { path: "/opening-balance", element: <OpeningBalancePage /> },
           { path: "/import", element: <ImportPage /> },
           { path: "/settings/team", element: <TeamSettingsPage /> },
+          { path: "/approvals", element: <ApprovalsPage /> },
+          { path: "/approvals/settings", element: <ApprovalSettingsPage /> },
           { path: "/settings/period-locks", element: <PeriodLocksPage /> },
         ],
       },

@@ -181,6 +181,27 @@ export async function getDashboardAlerts(
     });
   }
 
+
+  // 6.5. Pending approval requests
+  const approvalRow = await queryFirst<{ count: number }>(
+    db,
+    `SELECT COUNT(*) as count FROM approval_requests
+     WHERE organization_id = ? AND status = 'pending'`,
+    [organizationId],
+  );
+  if (approvalRow && approvalRow.count > 0) {
+    alerts.push({
+      id: "pending_approval",
+      type: "pending_approval",
+      severity: "high",
+      title: "Persetujuan Menunggu",
+      description: `${approvalRow.count} permintaan menunggu persetujuan Anda. Segera tinjau untuk melanjutkan proses.`,
+      count: approvalRow.count,
+      actionLabel: "Tinjau Persetujuan",
+      actionPath: "/approvals",
+    });
+  }
+
   // 6. Unclosed previous period
   const unclosedRow = await queryFirst<{ count: number; max_locked: string | null }>(
     db,

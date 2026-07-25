@@ -366,6 +366,13 @@ const ALERT_META: Record<string, { icon: React.ComponentType<{ className?: strin
     iconBg: "bg-leaf-500",
     iconColor: "text-white",
   },
+  pending_approval: {
+    icon: Clock,
+    border: "border-sky-300",
+    bg: "bg-sky-50",
+    iconBg: "bg-sky-500",
+    iconColor: "text-white",
+  },
 };
 
 function DashboardAlertCard({ alert }: { readonly alert: DashboardAlert }) {

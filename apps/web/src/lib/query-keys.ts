@@ -119,6 +119,13 @@ export const queryKeys = {
     all: () => ["period-locks"] as const,
   },
 
+  approvals: {
+    all: () => ["approvals"] as const,
+    list: (status?: string, actionType?: string) => ["approvals", "list", status ?? "", actionType ?? ""] as const,
+    configs: () => ["approvals", "configs"] as const,
+    pendingCount: () => ["approvals", "pending-count"] as const,
+  },
+
 } as const;
 
 /**

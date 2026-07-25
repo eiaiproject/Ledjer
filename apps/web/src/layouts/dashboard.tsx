@@ -63,6 +63,8 @@ const NAV_ITEMS: NavItemWithPerm[] = [
     children: [
       { to: "/settings/team", label: "Tim" },
       { to: "/settings/period-locks", label: "Kunci Periode" },
+      { to: "/approvals", label: "Persetujuan" },
+      { to: "/approvals/settings", label: "Atur Persetujuan" },
     ],
   },
 ];

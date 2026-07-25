@@ -21,7 +21,9 @@ export type Permission =
   | "reports:read"
   | "team:read"
   | "team:manage"
-  | "exports:create";
+  | "exports:create"
+  | "approvals:read"
+  | "approvals:approve";
 
 export interface PublicOrganization {
   id: string;
@@ -137,11 +139,13 @@ const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     "organization:read", "organization:update", "accounts:read", "accounts:write",
     "products:read", "products:write", "transactions:read", "transactions:create",
     "transactions:void", "reports:read", "team:read", "team:manage", "exports:create",
+    "approvals:read", "approvals:approve",
   ]),
   admin: new Set([
     "organization:read", "organization:update", "accounts:read", "accounts:write",
     "products:read", "products:write", "transactions:read", "transactions:create",
     "transactions:void", "reports:read", "team:read", "team:manage", "exports:create",
+    "approvals:read", "approvals:approve",
   ]),
   member: new Set([
     "organization:read", "accounts:read", "products:read",
