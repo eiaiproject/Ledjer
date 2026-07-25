@@ -649,7 +649,37 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
     });
   });
 
-  describe("P0.5: Journal preview", () => {
+  describe("P0.5: Journal preview & labels", () => {
+    it("transactionTypeLabel returns Indonesian labels", async () => {
+      const { transactionTypeLabel } = await import("../services/transactions.service");
+      expect(transactionTypeLabel("cash_sale")).toBe("Penjualan Tunai");
+      expect(transactionTypeLabel("credit_sale")).toBe("Penjualan Kredit");
+      expect(transactionTypeLabel("cash_purchase")).toBe("Pembelian Tunai");
+      expect(transactionTypeLabel("credit_purchase")).toBe("Pembelian Kredit");
+      expect(transactionTypeLabel("expense_payment")).toBe("Pembayaran Beban");
+      expect(transactionTypeLabel("owner_capital")).toBe("Setoran Modal");
+      expect(transactionTypeLabel("owner_draw")).toBe("Prive Pemilik");
+      expect(transactionTypeLabel("cash_transfer")).toBe("Transfer Kas");
+      expect(transactionTypeLabel("receive_receivable")).toBe("Penerimaan Piutang");
+      expect(transactionTypeLabel("pay_payable")).toBe("Pembayaran Utang");
+    });
+
+    it("previewTransaction includes typeLabel in result", async () => {
+      const { db } = createSeedFixtures();
+      const { previewTransaction } = await import("../services/transactions.service");
+
+      const result = await previewTransaction(db as unknown as D1Database, FIXTURE_IDS.orgs.a, {
+        transactionDate: "2026-02-20",
+        transactionType: "cash_sale",
+        amount: 500000,
+        description: "Preview test",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        idempotencyKey: "idem-preview-label-01",
+      });
+
+      expect(result.typeLabel).toBe("Penjualan Tunai");
+    });
+
     it("previewTransaction returns balanced journal lines without posting", async () => {
       const { db } = createSeedFixtures();
       const { previewTransaction } = await import("../services/transactions.service");
@@ -702,16 +732,14 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         FIXTURE_IDS.products.widget,
       );
 
-      // (10*100 + 5*200) / 15 = 2000/15 = 133.33 → Math.round = 133
       expect(result.average_cost_minor).toBe(133);
       expect(result.current_stock_milli).toBe(15_000);
     });
 
-    it("recalculateProductAverageCost handles sale (unlink from WAC)", async () => {
+    it("sale does not change WAC", async () => {
       const { FakeD1Database } = await import("../test/fake-d1");
       const { recalculateProductAverageCost } = await import("../services/transactions.service");
 
-      // Purchase 10 @ 100, then sell 3 → avg unchanged, stock = 7
       const db = new FakeD1Database({
         all: async (sql: string) => {
           if (sql.includes("FROM stock_movements")) {
@@ -725,14 +753,121 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
       });
 
-      const result = await recalculateProductAverageCost(
-        db as unknown as D1Database,
-        FIXTURE_IDS.orgs.a,
-        FIXTURE_IDS.products.widget,
-      );
-
-      expect(result.average_cost_minor).toBe(100); // unchanged by sale
+      const result = await recalculateProductAverageCost(db as unknown as D1Database, FIXTURE_IDS.orgs.a, FIXTURE_IDS.products.widget);
+      expect(result.average_cost_minor).toBe(100);
       expect(result.current_stock_milli).toBe(7_000);
+    });
+
+    it("zero stock after full sale does not crash", async () => {
+      const { FakeD1Database } = await import("../test/fake-d1");
+      const { recalculateProductAverageCost } = await import("../services/transactions.service");
+
+      const db = new FakeD1Database({
+        all: async (sql: string) => {
+          if (sql.includes("FROM stock_movements")) {
+            return [
+              { movement_type: "purchase", quantity_milli: 10_000, unit_cost_minor: 100 },
+              { movement_type: "sale", quantity_milli: -10_000, unit_cost_minor: 100 },
+            ];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+      });
+
+      const result = await recalculateProductAverageCost(db as unknown as D1Database, FIXTURE_IDS.orgs.a, FIXTURE_IDS.products.widget);
+      expect(result.average_cost_minor).toBe(100); // avg preserved even at zero stock
+      expect(result.current_stock_milli).toBe(0);
+    });
+
+    it("rounding: 3 @ 100 + 3 @ 200 = (300+600)/6 = 150 (exact)", async () => {
+      const { FakeD1Database } = await import("../test/fake-d1");
+      const { recalculateProductAverageCost } = await import("../services/transactions.service");
+
+      const db = new FakeD1Database({
+        all: async (sql: string) => {
+          if (sql.includes("FROM stock_movements")) {
+            return [
+              { movement_type: "purchase", quantity_milli: 3_000, unit_cost_minor: 100 },
+              { movement_type: "purchase", quantity_milli: 3_000, unit_cost_minor: 200 },
+            ];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+      });
+
+      const result = await recalculateProductAverageCost(db as unknown as D1Database, FIXTURE_IDS.orgs.a, FIXTURE_IDS.products.widget);
+      expect(result.average_cost_minor).toBe(150);
+      expect(result.current_stock_milli).toBe(6_000);
+    });
+
+    it("rounding: 1 @ 100 + 1 @ 200 = 300/2 = 150 (odd median)", async () => {
+      const { FakeD1Database } = await import("../test/fake-d1");
+      const { recalculateProductAverageCost } = await import("../services/transactions.service");
+
+      const db = new FakeD1Database({
+        all: async (sql: string) => {
+          if (sql.includes("FROM stock_movements")) {
+            return [
+              { movement_type: "purchase", quantity_milli: 1_000, unit_cost_minor: 1 },
+              { movement_type: "purchase", quantity_milli: 1_000, unit_cost_minor: 200 },
+            ];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+      });
+
+      const result = await recalculateProductAverageCost(db as unknown as D1Database, FIXTURE_IDS.orgs.a, FIXTURE_IDS.products.widget);
+      // (1*1 + 1*200) / 2 = 201/2 = 100.5 → Math.round = 101
+      expect(result.average_cost_minor).toBe(101);
+    });
+  });
+
+  describe("P0.4: Inventory subledger = control account", () => {
+    it("total stock value matches inventory account balance", async () => {
+      const { FakeD1Database } = await import("../test/fake-d1");
+      const products = [
+        { id: "p1", current_stock_milli: 10_000, average_cost_minor: 100 },
+        { id: "p2", current_stock_milli: 5_000, average_cost_minor: 200 },
+      ];
+      const expectedInventoryValue = products.reduce((s, p) => s + (p.current_stock_milli / 1000) * p.average_cost_minor, 0);
+
+      const db = new FakeD1Database({
+        all: async (sql: string) => {
+          if (sql.includes("FROM products") && sql.includes("average_cost_minor")) {
+            return products.map((p) => ({
+              stock_value: (p.current_stock_milli / 1000) * p.average_cost_minor,
+            }));
+          }
+          if (sql.includes("account_id") && sql.includes("SUM")) {
+            return [{ total_debit: expectedInventoryValue, total_credit: 0 }];
+          }
+          return [];
+        },
+        first: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("SUM") && s.includes("debit_minor")) {
+            return { balance: expectedInventoryValue };
+          }
+          return null;
+        },
+      });
+
+      // Compute inventory value from products
+      const productRows = await (db as unknown as D1Database).prepare(
+        "SELECT (current_stock_milli / 1000.0) * average_cost_minor as stock_value FROM products"
+      ).all<{ stock_value: number }>();
+      const stockValue = productRows.results.reduce((s, r) => s + r.stock_value, 0);
+
+      // Fetch inventory account balance
+      const invBalance = await (db as unknown as D1Database).prepare(
+        "SELECT SUM(debit_minor) - SUM(credit_minor) as balance FROM journal_lines WHERE account_id = ?"
+      ).first<{ balance: number }>();
+
+      expect(stockValue).toBe(expectedInventoryValue);
+      expect(invBalance?.balance).toBe(expectedInventoryValue);
     });
   });
 

@@ -300,12 +300,22 @@ export async function verifyRestore(
     }
   }
 
+  // Verify trial balance: Σdebit = Σcredit across ALL journal lines
+  if (jlCount > 0) {
+    const tbRow = await db.prepare(
+      `SELECT SUM(debit_minor) as total_debit, SUM(credit_minor) as total_credit FROM journal_lines`
+    ).first<{ total_debit: number; total_credit: number }>();
+    if (tbRow && tbRow.total_debit !== tbRow.total_credit) {
+      errors.push(`trial balance off: debit ${tbRow.total_debit} !== credit ${tbRow.total_credit}`);
+    }
+  }
+
   return {
     valid: errors.length === 0,
     organizationCount: orgCount,
     transactionCount: txCount,
     journalLineCount: jlCount,
-    balancedJournals: !errors.some(e => e.includes("unbalanced")),
+    balancedJournals: !errors.some(e => e.includes("unbalanced") || e.includes("trial balance")),
     errors,
     duration: Date.now() - startedAt,
   };

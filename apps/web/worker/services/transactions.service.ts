@@ -258,6 +258,24 @@ const TRANSACTION_TYPES = new Set<TransactionType>([
 /**
  * Format an integer (minor-unit) amount as an IDR string, e.g. 15000 -> "Rp 15.000".
  */
+/** Indonesian label for each transaction type. */
+const TRANSACTION_LABELS: Record<TransactionType, string> = {
+  cash_sale: "Penjualan Tunai",
+  credit_sale: "Penjualan Kredit",
+  receive_receivable: "Penerimaan Piutang",
+  cash_purchase: "Pembelian Tunai",
+  credit_purchase: "Pembelian Kredit",
+  pay_payable: "Pembayaran Utang",
+  expense_payment: "Pembayaran Beban",
+  owner_capital: "Setoran Modal",
+  owner_draw: "Prive Pemilik",
+  cash_transfer: "Transfer Kas",
+};
+
+export function transactionTypeLabel(type: TransactionType): string {
+  return TRANSACTION_LABELS[type] ?? type;
+}
+
 function formatIDRMinor(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -785,6 +803,7 @@ function buildPostTransactionStatements(
 
 export interface PreviewTransactionResult {
   transactionType: TransactionType;
+  typeLabel: string;
   amountMinor: number;
   paymentStatus: PaymentStatus;
   description: string;
@@ -815,6 +834,7 @@ export async function previewTransaction(
 
   return {
     transactionType: data.transactionType,
+    typeLabel: transactionTypeLabel(data.transactionType),
     amountMinor: data.amountMinor,
     paymentStatus: data.paymentStatus,
     description: data.description,

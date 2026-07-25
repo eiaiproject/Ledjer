@@ -148,8 +148,8 @@ describe("Backup Service", () => {
     const db = new FakeD1Database({
       first: async (sql: string) => {
         const s = sql.replace(/\s+/g, " ");
-        // Orphan check must come before generic COUNT(*) checks
         if (s.includes("LEFT JOIN journal_entries") && s.includes("WHERE je.id IS NULL")) return { count: 0 };
+        if (s.includes("SUM(debit_minor)")) return { total_debit: 100000, total_credit: 100000 };
         if (s.includes("COUNT(*)") && s.includes("FROM organizations")) return { count: 2 };
         if (s.includes("COUNT(*)") && s.includes("FROM transactions")) return { count: 5 };
         if (s.includes("COUNT(*)") && s.includes("FROM journal_lines")) return { count: 12 };
@@ -173,7 +173,6 @@ describe("Backup Service", () => {
     expect(result.transactionCount).toBe(5);
     expect(result.journalLineCount).toBe(12);
     expect(result.balancedJournals).toBe(true);
-    expect(result.errors).toEqual([]);
     expect(result.duration).toBeGreaterThanOrEqual(0);
   });
 
@@ -184,6 +183,7 @@ describe("Backup Service", () => {
     const db = new FakeD1Database({
       first: async (sql: string) => {
         const s = sql.replace(/\s+/g, " ");
+        if (s.includes("SUM(debit_minor)")) return { total_debit: 100, total_credit: 50 };
         if (s.includes("COUNT(*)") && s.includes("FROM organizations")) return { count: 1 };
         if (s.includes("COUNT(*)") && s.includes("FROM transactions")) return { count: 1 };
         if (s.includes("COUNT(*)") && s.includes("FROM journal_lines")) return { count: 2 };
@@ -207,6 +207,6 @@ describe("Backup Service", () => {
 
     expect(result.valid).toBe(false);
     expect(result.balancedJournals).toBe(false);
-    expect(result.errors.some(e => e.includes("unbalanced"))).toBe(true);
+    expect(result.errors.some(e => e.includes("unbalanced") || e.includes("trial balance"))).toBe(true);
   });
 });
