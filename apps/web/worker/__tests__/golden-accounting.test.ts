@@ -220,6 +220,26 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
     });
   });
 
+  describe("G2b: Insufficient stock guard", () => {
+    it("rejects cash sale with insufficient stock via postTransaction", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      // Widget has avg_cost 50000, current_stock 100_000. Try selling 200 units @ 1000
+      await expect(postTransaction(db as unknown as D1Database, FIXTURE_IDS.orgs.a, FIXTURE_IDS.users.ownerA, {
+        transactionDate: "2026-03-01",
+        transactionType: "cash_sale",
+        amount: 20000000,
+        description: "Sell more than stock",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        productId: FIXTURE_IDS.products.widget,
+        quantity: 200,
+        unitPrice: 100000,
+        idempotencyKey: "idem-insufficient-01",
+      })).rejects.toMatchObject({ code: "insufficient_stock" });
+    });
+  });
+
   describe("G3: Period lock guard", () => {
     it("rejects posting into locked period (January 2026 locked)", async () => {
       // From fixtures: period_locks has lock through 2026-01-31 for Org A
