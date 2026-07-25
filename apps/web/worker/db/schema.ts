@@ -25,6 +25,7 @@ export const CORE_TABLES = [
   "reconciliation_matches",
   "invoices",
   "invoice_lines",
+  "payment_allocations",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [
@@ -47,6 +48,7 @@ export const TENANT_SCOPED_TABLES = [
   "reconciliation_matches",
   "invoices",
   "invoice_lines",
+  "payment_allocations",
 ] as const;
 
 export const CORE_INDEXES = [
