@@ -31,6 +31,7 @@ export interface InvoiceOutput {
   discountMinor: number;
   taxMinor: number;
   totalMinor: number;
+  paidMinor: number;
   notes?: string;
   terms?: string;
   lines: Array<InvoiceLines & { lineNumber: number }>;

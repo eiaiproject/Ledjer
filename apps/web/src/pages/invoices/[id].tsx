@@ -132,6 +132,27 @@ export default function InvoiceDetailPage() {
             {invoice.taxMinor > 0 && <div className="text-wood-600">Pajak: {formatIDR(invoice.taxMinor)}</div>}
             <div className="text-lg font-semibold text-wood-800">Total: {formatIDR(invoice.totalMinor)}</div>
           </div>
+
+          {/* Payment progress */}
+          {invoice.paidMinor > 0 && (
+            <div className="border-t border-wood-200 pt-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-wood-600">Telah Dibayar</span>
+                <span className="font-medium text-emerald-600">{formatIDR(invoice.paidMinor)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-wood-600">Sisa Tagihan</span>
+                <span className="font-medium text-amber-600">{formatIDR(invoice.totalMinor - invoice.paidMinor)}</span>
+              </div>
+              <div className="w-full h-2 bg-wood-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (invoice.paidMinor / invoice.totalMinor) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-wood-400">{Math.round((invoice.paidMinor / invoice.totalMinor) * 100)}% lunas</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
