@@ -19,6 +19,7 @@ export const CORE_TABLES = [
   "period_locks",
   "organization_document_counters",
   "audit_logs",
+  "attachments",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [
@@ -35,6 +36,7 @@ export const TENANT_SCOPED_TABLES = [
   "period_locks",
   "organization_document_counters",
   "audit_logs",
+  "attachments",
 ] as const;
 
 export const CORE_INDEXES = [

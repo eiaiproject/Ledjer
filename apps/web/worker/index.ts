@@ -20,6 +20,7 @@ import { productsRoutes } from "./routes/products.routes";
 import { reportsRoutes } from "./routes/reports.routes";
 import { teamRoutes } from "./routes/team.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
+import attachmentRoutes from "./routes/attachments.routes";
 import importRoutes from "./routes/import.routes";
 import { createBackup } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
@@ -94,6 +95,7 @@ app.route("/api/team", teamRoutes);
 app.route("/api/exports", exportsRoutes);
 app.route("/api/period-locks", periodLocksRoutes);
 app.route("/api/opening-balance", openingBalanceRoutes);
+app.route("/api/attachments", attachmentRoutes);
 app.route("/api/import", importRoutes);
 
 app.notFound((c) => {
