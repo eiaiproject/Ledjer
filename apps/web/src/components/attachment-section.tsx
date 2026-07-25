@@ -54,7 +54,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-wood-700">Lampiran</h3>
           <div>
-            <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
+            <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" /> {/* ponytail: server-side size validation also needed; R2 max per object */}
             <Button variant="ghost" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
               {uploading ? "Mengunggah..." : "+ Unggah"}
             </Button>

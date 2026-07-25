@@ -4,6 +4,7 @@ import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Download } from "reicon-react";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -156,9 +157,28 @@ export default function CashFlowPage() {
 
       {report && (report.rows.length > 0 || report.totals.openingCash !== 0) && (
         <>
-          <p className="mb-4 text-xs text-wood-400">
-            Periode: {formatShortDate(appliedFrom)} — {formatShortDate(appliedTo)}
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs text-wood-400">
+              Periode: {formatShortDate(appliedFrom)} — {formatShortDate(appliedTo)}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const header = "Section,Transaction,Inflow,Outflow,Net\n";
+                const rows = report.rows.map((r) => `${r.section},${r.label},${r.inflow},${r.outflow},${r.net}`).join("\n");
+                const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `cash-flow-${appliedFrom}-${appliedTo}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="h-4 w-4 mr-1" /> Export CSV
+            </Button>
+          </div>
           <CashFlowTable report={report} />
         </>
       )}

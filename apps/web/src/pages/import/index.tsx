@@ -26,6 +26,12 @@ const TEMPLATE_HELPERS: Record<EntityType, string> = {
   parties: "Kolom: name, party_type (customer/supplier/employee/owner/other), phone, email",
 };
 
+const TEMPLATES: Record<EntityType, string> = {
+  coa: "code,name,type,normal_balance\n1110,Kas,asset,debit\n2110,Utang Usaha,liability,credit\n3110,Modal,equity,credit\n4110,Pendapatan,income,credit\n6100,Beban,expense,debit",
+  products: "code,name,purchase_price,selling_price,unit\nWGT-001,Widget A,50000,100000,pcs\nGDT-001,Gadget A,150000,250000,pcs",
+  parties: "name,party_type,phone,email\nToko ABC,customer,08123456789,abc@email.com\nPT Supplier Jaya,supplier,08987654321,jaya@email.com",
+};
+
 interface ImportResult {
   rowsProcessed?: number;
   rowsSucceeded?: number;
@@ -97,6 +103,25 @@ export default function ImportPage() {
 
       {/* Helper text */}
       <p className="text-xs text-wood-500">{TEMPLATE_HELPERS[entityType]}</p>
+
+      {/* Template download */}
+      <div className="flex gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const blob = new Blob([TEMPLATES[entityType]], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `template-${entityType}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Download Template CSV
+        </Button>
+      </div>
 
       {/* CSV input */}
       <Card>
