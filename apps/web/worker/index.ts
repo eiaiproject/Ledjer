@@ -28,6 +28,7 @@ import importRoutes from "./routes/import.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
+import { cleanupOrphanedAttachments } from "./services/attachments.service";
 
 const app = new Hono<AppContext>();
 
@@ -134,6 +135,39 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
     env: AppContext["Bindings"],
   ) {
     await cleanupExpiredRows(env.DB);
+
+    // P1.6: Attachment retention cleanup — remove files older than 1 year
+    // and orphaned attachments whose parent entities were deleted.
+    try {
+      if (env.BACKUP_BUCKET) {
+        const attachmentCleanup = await cleanupOrphanedAttachments(env.DB, env.BACKUP_BUCKET);
+        if (
+          attachmentCleanup.orphaned > 0 ||
+          attachmentCleanup.expired > 0 ||
+          attachmentCleanup.r2Orphans > 0
+        ) {
+          console.log(
+            JSON.stringify({
+              type: "attachment_cleanup",
+              orphaned: attachmentCleanup.orphaned,
+              expired: attachmentCleanup.expired,
+              r2Orphans: attachmentCleanup.r2Orphans,
+              errors: attachmentCleanup.errors.length > 0 ? attachmentCleanup.errors : undefined,
+              status: "completed",
+            }),
+          );
+        }
+      }
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          type: "attachment_cleanup",
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
+
     if (env.BACKUP_BUCKET) {
       // ponytail: Backup runs on every cron tick (03:00 daily).
       // If retention cleanup fails, backup integrity is preserved.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { uploadAttachment, deleteAttachment, listAttachments } from "./attachments.service";
+import { uploadAttachment, deleteAttachment, listAttachments, cleanupOrphanedAttachments } from "./attachments.service";
 
 class FakeR2 {
   private store = new Map<string, { body: Uint8Array; metadata?: Record<string, string> }>();
@@ -16,6 +16,16 @@ class FakeR2 {
 
   async delete(key: string): Promise<void> {
     this.store.delete(key);
+  }
+
+  async list(options?: { prefix?: string; cursor?: string; limit?: number }): Promise<{
+    objects: { key: string }[];
+    truncated: boolean;
+    cursor?: string;
+  }> {
+    const prefix = options?.prefix ?? "";
+    const keys = [...this.store.keys()].filter((k) => k.startsWith(prefix));
+    return { objects: keys.map((k) => ({ key: k })), truncated: false };
   }
 }
 
@@ -57,6 +67,75 @@ class FakeD1 {
 
 function makeUint8(data: number[]): Uint8Array {
   return new Uint8Array(data);
+}
+
+function makeFakeD1WithCleanupHelpers(initialRows?: Record<string, unknown[]>): {
+  db: D1Database;
+  queries: string[];
+} {
+  const queries: string[] = [];
+  const rows: Record<string, Record<string, unknown>[]> = initialRows ?? {
+    attachments: [],
+    transactions: [{ id: "txn-1" }],
+    parties: [{ id: "party-1" }],
+    products: [{ id: "prod-1" }],
+  };
+
+  // Convert arrays to maps for easier lookup by ID
+  const rowsById: Record<string, Map<string, Record<string, unknown>>> = {};
+  for (const [table, records] of Object.entries(rows)) {
+    rowsById[table] = new Map();
+    for (const rec of records) {
+      rowsById[table].set(rec.id as string, rec);
+    }
+  }
+
+  let boundId: string | null = null;
+
+  const handler = {
+    prepare: (sql: string) => {
+      const s = sql.replace(/\s+/g, " ");
+      queries.push(s);
+      boundId = null;
+      const stmt = {
+        bind: (...values: unknown[]) => {
+          // First bind value is typically the ID being queried
+          if (values.length > 0 && typeof values[0] === "string") {
+            boundId = values[0];
+          }
+          return stmt;
+        },
+        first: async <T>() => {
+          // Match against known tables by ID
+          if (boundId) {
+            for (const [table, map] of Object.entries(rowsById)) {
+              const found = map.get(boundId);
+              if (found) return found as T;
+            }
+          }
+          // Fallback: return first from attachments table
+          if (s.includes("FROM attachments WHERE id = ?") && rows["attachments"]?.length) {
+            return rows["attachments"][0] as T;
+          }
+          return null as T | null;
+        },
+        all: async <T>() => {
+          if (s.includes("SELECT * FROM attachments")) {
+            return { results: (rows["attachments"] ?? []) as T[] };
+          }
+          if (s.includes("FROM attachments WHERE organization_id = ? AND entity_type")) {
+            return { results: (rows["attachments"] ?? []) as T[] };
+          }
+          return { results: [] as T[] };
+        },
+        run: async () => ({ success: true, meta: { changes: 1 } } as D1Result),
+      };
+      return stmt as unknown as D1PreparedStatement;
+    },
+    async batch() { return []; },
+  };
+
+  return { db: handler as unknown as D1Database, queries };
 }
 
 describe("Attachments Service", () => {
@@ -152,6 +231,94 @@ describe("Attachments Service", () => {
         db as unknown as D1Database, "org-1", "transaction", "txn-999",
       );
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("cleanupOrphanedAttachments", () => {
+    it("removes orphaned attachments whose parent entity was deleted", async () => {
+      const now = Date.now();
+      const { db } = makeFakeD1WithCleanupHelpers({
+        attachments: [
+          {
+            id: "att-orphan", organization_id: "org-1",
+            transaction_id: null, entity_type: "transaction",
+            entity_id: "txn-deleted", file_name: "orphan.pdf",
+            file_size: 100, mime_type: "application/pdf",
+            storage_key: "attachments/org-1/att-orphan.pdf",
+            uploaded_by: "user-1", created_at: now,
+          },
+          {
+            id: "att-valid", organization_id: "org-1",
+            transaction_id: null, entity_type: "transaction",
+            entity_id: "txn-1", file_name: "valid.pdf",
+            file_size: 200, mime_type: "application/pdf",
+            storage_key: "attachments/org-1/att-valid.pdf",
+            uploaded_by: "user-1", created_at: now,
+          },
+        ],
+        transactions: [{ id: "txn-1" }],
+      });
+      const bucket = new FakeR2();
+      await bucket.put("attachments/org-1/att-orphan.pdf", new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+      await bucket.put("attachments/org-1/att-valid.pdf", new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+
+      const result = await cleanupOrphanedAttachments(db, bucket as unknown as R2Bucket, 365);
+
+      expect(result.orphaned).toBe(1);
+      expect(result.expired).toBe(0);
+      expect(result.errors).toEqual([]);
+    });
+
+    it("removes expired attachments older than retention period", async () => {
+      const oldDate = Date.now() - 400 * 86400000; // 400 days ago
+      const recentDate = Date.now() - 100 * 86400000; // 100 days ago
+      const { db } = makeFakeD1WithCleanupHelpers({
+        attachments: [
+          {
+            id: "att-old", organization_id: "org-1",
+            transaction_id: null, entity_type: "transaction",
+            entity_id: "txn-1", file_name: "old.pdf",
+            file_size: 100, mime_type: "application/pdf",
+            storage_key: "attachments/org-1/att-old.pdf",
+            uploaded_by: "user-1", created_at: oldDate,
+          },
+          {
+            id: "att-recent", organization_id: "org-1",
+            transaction_id: null, entity_type: "transaction",
+            entity_id: "txn-1", file_name: "recent.pdf",
+            file_size: 200, mime_type: "application/pdf",
+            storage_key: "attachments/org-1/att-recent.pdf",
+            uploaded_by: "user-1", created_at: recentDate,
+          },
+        ],
+        transactions: [{ id: "txn-1" }],
+      });
+      const bucket = new FakeR2();
+      await bucket.put("attachments/org-1/att-old.pdf", new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+      await bucket.put("attachments/org-1/att-recent.pdf", new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+
+      const result = await cleanupOrphanedAttachments(db, bucket as unknown as R2Bucket, 365);
+
+      expect(result.expired).toBe(1);
+      expect(result.orphaned).toBe(0);
+      expect(result.errors).toEqual([]);
+    });
+
+    it("removes R2 orphans without matching DB records", async () => {
+      const now = Date.now();
+      const { db } = makeFakeD1WithCleanupHelpers({
+        attachments: [],
+        transactions: [{ id: "txn-1" }],
+      });
+      const bucket = new FakeR2();
+      await bucket.put("attachments/org-1/r2-only.pdf", new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+
+      const result = await cleanupOrphanedAttachments(db, bucket as unknown as R2Bucket, 365);
+
+      expect(result.r2Orphans).toBe(1);
+      expect(result.orphaned).toBe(0);
+      expect(result.expired).toBe(0);
+      expect(result.errors).toEqual([]);
     });
   });
 
