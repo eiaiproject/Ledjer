@@ -95,6 +95,12 @@ export const queryKeys = {
     all: () => ["onboarding"] as const,
   },
 
+  documents: {
+    all: () => ["documents"] as const,
+    list: (type?: string) => ["documents", "list", type ?? "all"] as const,
+    detail: (id: string) => ["documents", id] as const,
+  },
+
   periodLocks: {
     list: (orgId: string | undefined) => ["period-locks", orgId] as const,
     all: () => ["period-locks"] as const,

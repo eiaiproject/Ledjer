@@ -46,6 +46,9 @@ const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/co
 const InvoiceListPage = lazy(async () => ({ default: (await import("@/pages/invoices/index")).default }));
 const NewInvoicePage = lazy(async () => ({ default: (await import("@/pages/invoices/new")).default }));
 const InvoiceDetailPage = lazy(async () => ({ default: (await import("@/pages/invoices/[id]")).default }));
+const DocumentsPage = lazy(async () => ({ default: (await import("@/pages/documents/index")).DocumentsPage }));
+const NewDocumentPage = lazy(async () => ({ default: (await import("@/pages/documents/new")).NewDocumentPage }));
+const DocumentDetailPage = lazy(async () => ({ default: (await import("@/pages/documents/[id]")).DocumentDetailPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -250,6 +253,9 @@ const routerConfig = [
           { path: "/invoices", element: <InvoiceListPage /> },
           { path: "/invoices/new", element: <NewInvoicePage /> },
           { path: "/invoices/:id", element: <InvoiceDetailPage /> },
+          { path: "/documents", element: <DocumentsPage /> },
+          { path: "/documents/new", element: <NewDocumentPage /> },
+          { path: "/documents/:id", element: <DocumentDetailPage /> },
           { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
           { path: "/reports/trial-balance", element: <TrialBalancePage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
