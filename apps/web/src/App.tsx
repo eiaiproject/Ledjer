@@ -29,6 +29,7 @@ const CashFlowPage = lazy(async () => ({ default: (await import("@/pages/reports
 const AgingReportPage = lazy(async () => ({ default: (await import("@/pages/reports/aging")).default }));
 const ReconciliationPage = lazy(async () => ({ default: (await import("@/pages/reconciliation/index")).default }));
 const OpeningBalancePage = lazy(async () => ({ default: (await import("@/pages/opening-balance")).default }));
+const ImportPage = lazy(async () => ({ default: (await import("@/pages/import/index")).default }));
 const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/team")).TeamSettingsPage }));
 const PeriodLocksPage = lazy(async () => ({ default: (await import("@/pages/settings/period-locks")).PeriodLocksPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
@@ -254,6 +255,7 @@ const routerConfig = [
           { path: "/reports/aging", element: <AgingReportPage /> },
           { path: "/reconciliation", element: <ReconciliationPage /> },
           { path: "/opening-balance", element: <OpeningBalancePage /> },
+          { path: "/import", element: <ImportPage /> },
           { path: "/settings/team", element: <TeamSettingsPage /> },
           { path: "/settings/period-locks", element: <PeriodLocksPage /> },
         ],

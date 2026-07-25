@@ -37,6 +37,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/invoices", label: "Faktur", icon: FileText, requires: "canCreateTransaction" },
   { to: "/reconciliation", label: "Rekonsiliasi", icon: BookOpen, requires: "canCreateTransaction" },
   { to: "/opening-balance", label: "Saldo Awal", icon: BookOpen, requires: "canManageAccounts" },
+  { to: "/import", label: "Import Data", icon: FileText, requires: "canManageAccounts" },
   {
     label: "Laporan",
     icon: Chart,
