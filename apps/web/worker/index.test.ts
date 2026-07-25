@@ -54,6 +54,39 @@ describe("Worker API", () => {
     expect(body).toHaveProperty("database");
   });
 
+  it("all known route groups return non-404 responses", async () => {
+    // Quick test that routes resolve to the right handlers (not the generic 404 catcher)
+    const env = testEnv();
+    const check = async (method: string, path: string) => {
+      const response = await app.fetch(new Request(`http://localhost${path}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+      }), env);
+      expect(
+        response.status,
+        `${method} ${path} should not return 404 (unregistered route)`
+      ).not.toBe(404);
+    };
+    // GET routes
+    await check("GET", "/api/auth/me");
+    await check("GET", "/api/organizations/current");
+    await check("GET", "/api/accounts");
+    await check("GET", "/api/products");
+    await check("GET", "/api/transactions");
+    await check("GET", "/api/parties");
+    await check("GET", "/api/invoices");
+    await check("GET", "/api/reports/trial-balance");
+    await check("GET", "/api/reports/cash-flow");
+    await check("GET", "/api/opening-balance/status");
+    await check("GET", "/api/period-locks");
+    await check("GET", "/api/attachments?entity_type=transaction&entity_id=test");
+    await check("GET", "/api/onboarding/status");
+    // POST routes
+    await check("POST", "/api/auth/login");
+    await check("POST", "/api/import/coa/preview");
+    await check("POST", "/api/reconciliation/import-statement");
+  });
+
   it("rejects mutating cookie-authenticated requests from a foreign origin", async () => {
     const response = await app.fetch(
       new Request("http://localhost/api/auth/logout", {

@@ -310,6 +310,26 @@ export async function verifyRestore(
     }
   }
 
+  // Verify inventory subledger = inventory control account
+  const prodRow = await db.prepare(
+    `SELECT COUNT(*) as cnt FROM products`
+  ).first<{ count: number }>();
+  if (prodRow && prodRow.count > 0) {
+    const invValue = await db.prepare(
+      `SELECT COALESCE(SUM((current_stock_milli / 1000.0) * average_cost_minor), 0) as stock_value FROM products`
+    ).first<{ stock_value: number }>();
+    if (invValue && invValue.stock_value > 0) {
+      const invBalance = await db.prepare(
+        `SELECT COALESCE(SUM(debit_minor) - SUM(credit_minor), 0) as balance
+         FROM journal_lines
+         WHERE account_id IN (SELECT id FROM accounts WHERE account_type = 'asset' AND (code LIKE '13%' OR name LIKE '%Persediaan%' OR name LIKE '%Inventory%'))`
+      ).first<{ balance: number }>();
+      if (invBalance && Math.abs(invBalance.balance - invValue.stock_value) > 10) {
+        errors.push(`inventory subledger mismatch: stock value ${Math.round(invValue.stock_value)} ≠ account balance ${invBalance.balance}`);
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     organizationCount: orgCount,
