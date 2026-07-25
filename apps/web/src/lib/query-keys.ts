@@ -138,6 +138,12 @@ export const queryKeys = {
     varianceAlerts: (threshold: number) => ["budgets", "variance-alerts", threshold] as const,
   },
 
+  fixedAssets: {
+    all: () => ["fixed-assets"] as const,
+    list: (status?: string) => ["fixed-assets", "list", status ?? ""] as const,
+    bookValue: (asOfDate?: string) => ["fixed-assets", "book-value", asOfDate ?? ""] as const,
+  },
+
 } as const;
 
 /**
