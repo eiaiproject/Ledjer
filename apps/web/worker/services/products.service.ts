@@ -3,7 +3,7 @@ import { execute, queryAll, queryFirst } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, conflict, notFound } from "../http/errors";
 
-export type StockMovementType = "opening" | "purchase" | "sale" | "adjustment" | "void";
+export type StockMovementType = "opening" | "purchase" | "sale" | "adjustment" | "void" | "stock_count" | "sale_return" | "purchase_return";
 
 export interface PublicProduct {
   id: string;
@@ -47,6 +47,19 @@ export interface StockMovementInput {
   unitCost?: number | null;
   transactionId?: string | null;
   notes?: string | null;
+}
+
+export interface StockAdjustmentInput {
+  productId: string;
+  quantity: number;
+  reason: string;
+  movementDate?: string;
+}
+
+export interface StockCountInput {
+  productId: string;
+  physicalStock: number;
+  notes?: string;
 }
 
 export interface PublicStockMovement {
@@ -296,6 +309,85 @@ export async function deactivateProduct(
     { isActive: false },
     requestId,
   );
+}
+
+/**
+ * Record a manual stock adjustment with a required reason.
+ * Creates an adjustment stock movement and, if quantity changes, updates
+ * the product's current stock and average cost.
+ * The adjustment does NOT post journal entries — that requires a
+ * separate inventory-adjustment transaction for financial impact.
+ */
+export async function recordStockAdjustment(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: StockAdjustmentInput,
+): Promise<PublicStockMovement> {
+  if (!input.reason.trim()) {
+    throw badRequest("reason_required", "Alasan penyesuaian stok wajib diisi.");
+  }
+  if (input.reason.trim().length > 500) {
+    throw badRequest("reason_too_long", "Alasan penyesuaian maksimal 500 karakter.");
+  }
+
+  const product = await getProductRow(db, organizationId, input.productId);
+  if (!product) throw notFound("product_not_found", "Produk tidak ditemukan");
+
+  return recordStockMovement(db, organizationId, userId, {
+    productId: input.productId,
+    movementType: "adjustment",
+    movementDate: input.movementDate ?? new Date().toISOString().slice(0, 10),
+    quantity: input.quantity,
+    notes: `[ADJ] ${input.reason.trim()}`,
+  });
+}
+
+/**
+ * Record a physical stock count for a product.
+ * Compares physical stock with system stock and returns the difference.
+ * Does NOT automatically adjust — the user must confirm via a separate
+ * stock adjustment call.
+ */
+export async function recordStockCount(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: StockCountInput,
+): Promise<{
+  productId: string;
+  productName: string;
+  systemStock: string;
+  physicalStock: string;
+  difference: string;
+  movement: PublicStockMovement | null;
+}> {
+  const product = await getProductRow(db, organizationId, input.productId);
+  if (!product) throw notFound("product_not_found", "Produk tidak ditemukan");
+
+  const systemStockMilli = product.current_stock_milli;
+  const physicalStockMilli = Math.round(input.physicalStock * 1000);
+  const diffMilli = physicalStockMilli - systemStockMilli;
+
+  // Record a stock_count movement for audit trail
+  const movement = await recordStockMovement(db, organizationId, userId, {
+    productId: input.productId,
+    movementType: "stock_count",
+    movementDate: new Date().toISOString().slice(0, 10),
+    quantity: 0, // Zero quantity — just logs the count
+    notes: `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)}${input.notes ? ` — ${input.notes}` : ""}`,
+  });
+
+  const productName = product.name;
+
+  return {
+    productId: input.productId,
+    productName,
+    systemStock: fromQuantityMilli(systemStockMilli),
+    physicalStock: fromQuantityMilli(physicalStockMilli),
+    difference: fromQuantityMilli(diffMilli),
+    movement,
+  };
 }
 
 /**

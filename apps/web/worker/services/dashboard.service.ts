@@ -19,6 +19,195 @@ interface DashboardSummaryRow {
   accounts_payable: number | null;
 }
 
+/* ───── Dashboard Alerts ───── */
+
+export interface DashboardAlert {
+  id: string;
+  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period";
+  severity: "high" | "medium" | "low";
+  title: string;
+  description: string;
+  count: number;
+  actionLabel: string;
+  actionPath: string;
+}
+
+export interface DashboardAlerts {
+  alerts: DashboardAlert[];
+}
+
+/**
+ * Fetch actionable alerts for the dashboard:
+ * - Overdue receivables
+ * - Upcoming payables (due within 7 days)
+ * - Low stock (0 stock)
+ * - Draft transactions
+ * - Unreconciled bank statements
+ * - Unclosed previous period
+ */
+export async function getDashboardAlerts(
+  db: D1Database,
+  organizationId: string,
+): Promise<DashboardAlerts> {
+  const alerts: DashboardAlert[] = [];
+
+  // 1. Overdue receivables
+  const overdueRow = await queryFirst<{ count: number; total_minor: number }>(
+    db,
+    `SELECT COUNT(*) as count, COALESCE(SUM(
+       CASE WHEN i.status = 'overdue' THEN i.total_minor - COALESCE(paid.paid_minor, 0)
+       ELSE 0 END
+     ), 0) as total_minor
+     FROM invoices i
+     LEFT JOIN (
+       SELECT ipa.invoice_id, SUM(ipa.amount_minor) as paid_minor
+       FROM invoice_payment_allocations ipa
+       JOIN payments p ON p.id = ipa.payment_id
+       GROUP BY ipa.invoice_id
+     ) paid ON paid.invoice_id = i.id
+     WHERE i.organization_id = ? AND i.status IN ('overdue', 'partially_paid') AND i.due_date < date('now', '+1 day')`,
+    [organizationId],
+  );
+  if (overdueRow && overdueRow.count > 0) {
+    alerts.push({
+      id: "overdue_receivable",
+      type: "overdue_receivable",
+      severity: "high",
+      title: "Piutang Jatuh Tempo",
+      description: `${overdueRow.count} faktur dengan total Rp ${(overdueRow.total_minor / 100).toLocaleString("id-ID")} sudah melewati jatuh tempo.`,
+      count: overdueRow.count,
+      actionLabel: "Lihat Piutang",
+      actionPath: "/reports/aging",
+    });
+  }
+
+  // 2. Upcoming payables (due within 7 days)
+  const upcomingRow = await queryFirst<{ count: number; total_minor: number }>(
+    db,
+    `SELECT COUNT(*) as count, COALESCE(SUM(i.total_minor - COALESCE(paid.paid_minor, 0)), 0) as total_minor
+     FROM invoices i
+     LEFT JOIN (
+       SELECT ipa.invoice_id, SUM(ipa.amount_minor) as paid_minor
+       FROM invoice_payment_allocations ipa
+       JOIN payments p ON p.id = ipa.payment_id
+       GROUP BY ipa.invoice_id
+     ) paid ON paid.invoice_id = i.id
+     WHERE i.organization_id = ? AND i.status IN ('issued', 'sent')
+       AND i.due_date BETWEEN date('now') AND date('now', '+7 days')`,
+    [organizationId],
+  );
+  if (upcomingRow && upcomingRow.count > 0) {
+    alerts.push({
+      id: "upcoming_payable",
+      type: "upcoming_payable",
+      severity: "medium",
+      title: "Tagihan Mendekati Jatuh Tempo",
+      description: `${upcomingRow.count} tagihan sebesar Rp ${(upcomingRow.total_minor / 100).toLocaleString("id-ID")} akan jatuh tempo dalam 7 hari ke depan.`,
+      count: upcomingRow.count,
+      actionLabel: "Lihat Tagihan",
+      actionPath: "/invoices",
+    });
+  }
+
+  // 3. Low stock products — compute actual stock from stock_movements
+  const lowStockRow = await queryFirst<{ count: number }>(
+    db,
+    `SELECT COUNT(*) as count
+     FROM (
+       SELECT p.id,
+         p.initial_stock_minor + COALESCE(SUM(
+           CASE WHEN sm.movement_type = 'in' THEN sm.quantity_minor
+                WHEN sm.movement_type = 'out' THEN -sm.quantity_minor
+                ELSE 0 END
+         ), 0) as current_stock
+       FROM products p
+       LEFT JOIN stock_movements sm ON sm.product_id = p.id AND sm.organization_id = p.organization_id
+       WHERE p.organization_id = ? AND p.is_active = 1
+       GROUP BY p.id
+       HAVING current_stock <= 0
+     )`,
+    [organizationId],
+  );
+  if (lowStockRow && lowStockRow.count > 0) {
+    alerts.push({
+      id: "low_stock",
+      type: "low_stock",
+      severity: "medium",
+      title: "Stok Habis",
+      description: `${lowStockRow.count} produk memiliki stok 0. Segera lakukan pengadaan atau penyesuaian stok.`,
+      count: lowStockRow.count,
+      actionLabel: "Kelola Produk",
+      actionPath: "/products",
+    });
+  }
+
+  // 4. Draft transactions
+  const draftRow = await queryFirst<{ count: number }>(
+    db,
+    `SELECT COUNT(*) as count FROM transactions
+     WHERE organization_id = ? AND status = 'draft'`,
+    [organizationId],
+  );
+  if (draftRow && draftRow.count > 0) {
+    alerts.push({
+      id: "draft_transaction",
+      type: "draft_transaction",
+      severity: "low",
+      title: "Transaksi Draft",
+      description: `${draftRow.count} transaksi masih dalam status draft. Posting untuk mencatatnya ke pembukuan.`,
+      count: draftRow.count,
+      actionLabel: "Lihat Draft",
+      actionPath: "/transactions",
+    });
+  }
+
+  // 5. Unreconciled bank statements
+  const unreconciledRow = await queryFirst<{ count: number }>(
+    db,
+    `SELECT COUNT(*) as count FROM bank_statements
+     WHERE organization_id = ? AND status = 'open'`,
+    [organizationId],
+  );
+  if (unreconciledRow && unreconciledRow.count > 0) {
+    alerts.push({
+      id: "unreconciled_statement",
+      type: "unreconciled_statement",
+      severity: "low",
+      title: "Rekonsiliasi Belum Selesai",
+      description: `${unreconciledRow.count} rekening koran masih perlu direkonsiliasi. Cocokkan transaksi untuk memastikan saldo sesuai.`,
+      count: unreconciledRow.count,
+      actionLabel: "Rekonsiliasi",
+      actionPath: "/reconciliation",
+    });
+  }
+
+  // 6. Unclosed previous period
+  const unclosedRow = await queryFirst<{ count: number; max_locked: string | null }>(
+    db,
+    `SELECT COUNT(*) as count, MAX(locked_through_date) as max_locked
+     FROM period_locks WHERE organization_id = ?`,
+    [organizationId],
+  );
+  if (unclosedRow) {
+    const hasLock = unclosedRow.count > 0 && unclosedRow.max_locked;
+    // Check if previous month is locked. If no locks exist at all, show alert.
+    if (!hasLock) {
+      alerts.push({
+        id: "unclosed_period",
+        type: "unclosed_period",
+        severity: "medium",
+        title: "Periode Belum Ditutup",
+        description: "Belum ada periode yang dikunci. Tutup periode setelah selesai untuk mencegah perubahan data lama.",
+        count: 1,
+        actionLabel: "Kunci Periode",
+        actionPath: "/settings/period-locks",
+      });
+    }
+  }
+
+  return { alerts };
+}
+
 export async function getDashboardSummary(
   db: D1Database,
   organizationId: string,
