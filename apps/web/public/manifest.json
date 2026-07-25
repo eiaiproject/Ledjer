@@ -1,16 +1,59 @@
 {
   "name": "Ledjer — Pembukuan UMKM Indonesia",
   "short_name": "Ledjer",
-  "description": "Pembukuan double-entry untuk UMKM Indonesia",
-  "start_url": "/",
+  "description": "Aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet.",
+  "start_url": "/?source=pwa",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#F9F4EB",
   "theme_color": "#8B5A3C",
+  "orientation": "portrait-primary",
+  "categories": ["finance", "business", "productivity"],
+  "lang": "id-ID",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "scope": "/",
   "icons": [
     {
       "src": "/logo-icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Transaksi Baru",
+      "short_name": "Transaksi",
+      "description": "Catat transaksi baru",
+      "url": "/transactions/new?source=pwa",
+      "icons": [{ "src": "/logo-icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Lihat ringkasan keuangan",
+      "url": "/dashboard?source=pwa",
+      "icons": [{ "src": "/logo-icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Laporan",
+      "short_name": "Laporan",
+      "description": "Akses laporan keuangan",
+      "url": "/reports/profit-loss?source=pwa",
+      "icons": [{ "src": "/logo-icon.svg", "sizes": "any" }]
     }
   ]
 }

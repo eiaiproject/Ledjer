@@ -34,6 +34,7 @@ import { manualJournalRoutes } from "./routes/manual-journals.routes";
 import { dimensionsRoutes } from "./routes/dimensions.routes";
 import { fixedAssetsRoutes } from "./routes/fixed-assets.routes";
 import { budgetsRoutes } from "./routes/budgets.routes";
+import { pushRoutes } from "./routes/push.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
@@ -126,6 +127,7 @@ app.route("/api/manual-journals", manualJournalRoutes);
 app.route("/api/dimensions", dimensionsRoutes);
 app.route("/api/fixed-assets", fixedAssetsRoutes);
 app.route("/api/budgets", budgetsRoutes);
+app.route("/api/push", pushRoutes);
 app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {
