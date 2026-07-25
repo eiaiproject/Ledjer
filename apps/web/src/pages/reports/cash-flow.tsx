@@ -12,7 +12,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatIDR, formatShortDate } from "@/lib/utils";
-import { getCashFlowReport, type CashFlowReport, type CashFlowItem } from "@/lib/api/reports";
+import { getCashFlowReport, type CashFlowReport } from "@/lib/api/reports";
 import { ReportPermissionGate } from "./_components";
 
 const SECTION_LABELS: Record<string, string> = {
@@ -180,8 +180,8 @@ export default function CashFlowPage() {
   const [comparePeriod, setComparePeriod] = useState(false);
 
   const { data: report, isLoading, isError, error } = useQuery({
-    queryKey: queryKeys.reports.cashFlow(appliedFrom, appliedTo, comparePeriod),
-    queryFn: () => getCashFlowReport(appliedFrom, appliedTo, comparePeriod),
+    queryKey: queryKeys.reports.cashFlow(appliedFrom, appliedTo),
+    queryFn: () => getCashFlowReport(appliedFrom, appliedTo),
     enabled: !!orgId && permissions.canViewReports,
   });
 

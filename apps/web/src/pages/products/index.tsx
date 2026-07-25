@@ -797,6 +797,7 @@ export function ProductsPage() {
 
   const { allProducts, isLoading, error, refetch } = useProductList(orgData?.organization?.id);
 
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const hasSearch = search.trim().length > 0;
@@ -841,6 +842,7 @@ export function ProductsPage() {
     toast.success("Stok berhasil diperbarui.");
   }, [queryClient, orgData]);
 
+  const handleClearSearch = useCallback(() => setSearch(""), []);
   const handleResetAll = useCallback(() => { setSearch(""); setStockFilter("all"); }, []);
 
   // ── Error ──

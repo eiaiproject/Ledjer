@@ -203,7 +203,7 @@ async function registerSync() {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
     try {
       const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register('sync-drafts');
+      await (registration as unknown as { sync: { register: (tag: string) => Promise<void> } }).sync.register('sync-drafts');
     } catch {
       // Background sync not available — will sync on next online event
     }

@@ -7,7 +7,7 @@ import { execute, queryAll, queryFirst, statement, executeBatch, type D1Input } 
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, forbidden, notFound } from "../http/errors";
 import { createNotification } from "./notifications.service";
-import type { Permission } from "./organization.service";
+// import type { Permission } from "./organization.service";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,14 +76,6 @@ const ACTION_LABELS: Record<ActionType, string> = {
   period_reopen: "Pembukaan Periode",
   stock_adjustment: "Penyesuaian Stok",
   manual_journal: "Jurnal Manual",
-};
-
-const ACTION_PERMISSIONS: Record<ActionType, Permission> = {
-  transaction_create: "transactions:create",
-  transaction_void: "transactions:void",
-  period_reopen: "organization:update",
-  stock_adjustment: "products:write",
-  manual_journal: "accounts:write",
 };
 
 // ---------------------------------------------------------------------------

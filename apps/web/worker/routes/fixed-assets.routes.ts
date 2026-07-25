@@ -18,7 +18,6 @@ import {
   disposeAsset,
   getBookValueReport,
   type AssetCategory,
-  type 
 } from "../services/fixed-assets.service";
 
 const assetCategorySchema = z.enum([

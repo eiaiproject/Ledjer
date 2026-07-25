@@ -487,13 +487,9 @@ type StockStatementCtx = {
 };
 
 // ponytail: Options object to satisfy S107 max-params.
-function isReturnType(type: string): boolean {
-  return type === "sale_return" || type === "purchase_return";
-}
-
-function stockMovementType(type: string): string {
-  if (type === "sale_return") return "sale_return";
-  if (type === "purchase_return") return "purchase_return";
+function stockMovementType(type: string): "purchase" | "sale" | "void" {
+  if (type === "sale_return") return "sale";
+  if (type === "purchase_return") return "purchase";
   if (type === "cash_purchase" || type === "credit_purchase") return "purchase";
   return "sale";
 }

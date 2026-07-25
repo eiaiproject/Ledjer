@@ -51,7 +51,7 @@ export async function subscribeToPush(): Promise<boolean> {
     // Subscribe
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: convertedKey,
+      applicationServerKey: convertedKey as unknown as BufferSource,
     });
 
     // Send subscription to server

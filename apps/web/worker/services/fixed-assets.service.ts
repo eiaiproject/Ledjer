@@ -539,7 +539,7 @@ export async function postDepreciation(
         db,
         `UPDATE asset_depreciation SET status = 'posted', journal_entry_id = ?
          WHERE id = ? AND organization_id = ?`,
-        [journalEntryId, row.id, organizationId],
+        [journalEntryId, row.id as string, organizationId],
       ),
     );
   }

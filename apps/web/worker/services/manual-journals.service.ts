@@ -9,7 +9,6 @@ import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import { badRequest, conflict, notFound } from "../http/errors";
 import { requireApprovalOrContinue } from "./approvals.service";
-import type { ApprovalRequest } from "./approvals.service";
 
 // ---------------------------------------------------------------------------
 // Types

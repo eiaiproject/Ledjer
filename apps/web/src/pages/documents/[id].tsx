@@ -88,7 +88,7 @@ export function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { orgData } = useOrganization();
+  // const { orgData } = useOrganization();
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelInput, setShowCancelInput] = useState(false);
 

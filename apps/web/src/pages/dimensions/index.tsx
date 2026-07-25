@@ -23,11 +23,11 @@ import {
   formatMinor,
   type Dimension,
   type DimensionType,
-  type DimensionReportSummary
+  
 } from "@/lib/api/dimensions";
 import {
   Plus,
-  X,
+  
   ChevronDown,
   ChevronUp,
   Chart,

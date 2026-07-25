@@ -133,7 +133,7 @@ export async function createInvoice(
       quantityMilli: l.quantityMilli, unitPriceMinor: l.unitPriceMinor,
       amountMinor: l.amountMinor, lineOrder: i + 1,
     })),
-    notes: input.notes ?? null, terms: input.terms ?? null, createdAt: now,
+    notes: input.notes ?? null, terms: input.terms ?? null, creditedByInvoiceId: null, createdAt: now,
   };
 }
 
@@ -330,7 +330,7 @@ export async function createCreditNote(
       quantityMilli: l.quantityMilli, unitPriceMinor: l.unitPriceMinor,
       amountMinor: l.amountMinor, lineOrder: i + 1,
     })),
-    notes: input.notes ?? null,
+    notes: input.notes ?? null, terms: null,
     creditedByInvoiceId: originalInvoiceId,
     createdAt: now,
   };

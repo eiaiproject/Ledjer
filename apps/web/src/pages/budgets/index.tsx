@@ -54,6 +54,7 @@ export function BudgetsPage() {
   const [showForecastModal, setShowForecastModal] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [alertThreshold, _setAlertThreshold] = useState(20);
 
   // ── Form state ──────────────────────────────────────────────
 

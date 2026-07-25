@@ -43,12 +43,6 @@ const setTagsSchema = z.object({
   dimensionIds: z.array(z.string().min(1)),
 });
 
-const dimensionReportSchema = z.object({
-  dimensionType: dimensionTypeSchema,
-  periodFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  periodTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
-
 export const dimensionsRoutes = new Hono<AppContext>();
 
 dimensionsRoutes.use("*", requireAuth());

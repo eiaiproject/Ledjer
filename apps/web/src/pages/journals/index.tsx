@@ -68,7 +68,7 @@ export function ManualJournalPage() {
     enabled: canManageAccounts,
   });
 
-  const accountMap = new Map(accounts.map((a: { id: string; code: string; name: string }) => [a.id, a]));
+  const accountMap = new Map(accounts.map((a) => [a.id, a] as const));
 
   // Templates query
   const { data: templates = [], refetch: refetchTemplates } = useQuery({
@@ -154,7 +154,7 @@ export function ManualJournalPage() {
         const acct = accountMap.get(value as string);
         if (acct) {
           updated.accountName = acct.name;
-          updated.accountCode = acct.code;
+          updated.accountCode = String(acct.code);
         }
       }
       return updated;
@@ -169,7 +169,7 @@ export function ManualJournalPage() {
       creditMinor: l.creditMinor,
       description: l.description,
       accountName: accountMap.get(l.accountId)?.name,
-      accountCode: accountMap.get(l.accountId)?.code,
+      accountCode: String(accountMap.get(l.accountId)?.code ?? ""),
     }));
     setLines(loadedLines.length >= 2 ? loadedLines : [newLine(), newLine()]);
     setDescription(template.description);
@@ -318,9 +318,9 @@ export function ManualJournalPage() {
                   aria-label={`Akun baris ${index + 1}`}
                 >
                   <option value="">Pilih akun...</option>
-                  {accounts.map((a: { id: string; code: string; name: string }) => (
+                  {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.code} - {a.name}
+                      {String(a.code)} - {a.name}
                     </option>
                   ))}
                 </select>

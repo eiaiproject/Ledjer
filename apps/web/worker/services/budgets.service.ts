@@ -2,7 +2,7 @@
 // Supports account-level budgets, actual vs budget reports, variance alerts,
 // and simple forecast capability.
 
-import { queryAll, queryFirstBatch, statement, type D1Input } from "../db/client";
+import { queryAll, queryFirst, statement, executeBatch, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { generateId } from "../auth/tokens";

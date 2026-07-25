@@ -21,14 +21,14 @@ const exportTypeSchema = z.enum([
 
 const createExportSchema = z.object({
   exportType: exportTypeSchema,
-  parameters: z.record(z.unknown()).optional(),
+  parameters: z.record(z.string(), z.unknown()).optional(),
   format: z.enum(["csv", "xlsx"]).optional(),
 });
 
 export const exportsV2Routes = new Hono<AppContext>();
 
 exportsV2Routes.use("*", requireAuth());
-exportsV2Routes.use("*", loadCurrentOrganization());
+exportsV2Routes.use("*", loadCurrentOrganization() as any);
 exportsV2Routes.use("*", requirePermission("exports:create"));
 
 // ── Create export job ───────────────────────────────────────────
@@ -71,7 +71,7 @@ exportsV2Routes.get("/", async (c) => {
 exportsV2Routes.get("/:id", async (c) => {
   const context = c.get("organizationContext");
   const job = await getExportJob(c.env.DB, context.organization.id, c.req.param("id"));
-  if (!job) return c.json({ error: "Export job not found" }, 404);
+  if (!job) return c.json({ error: "Export job not found" }, 404 as any);
   return c.json({ job });
 });
 
@@ -86,7 +86,7 @@ exportsV2Routes.get("/:id/download", async (c) => {
   );
 
   if ("error" in result) {
-    return c.json({ error: result.error }, result.status);
+    return c.json({ error: result.error }, result.status as any);
   }
 
   return new Response(result.body, {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { FakeD1Database } from "../test/fake-d1";
 
 // Import after mocking Date.now
@@ -25,7 +25,7 @@ describe("Rate Limit Service", () => {
   });
 
   it("returns true when at the limit", async () => {
-    const now = Date.now();
+    
     const recentAttempts = Array.from({ length: 5 }, (_, i) => ({
       id: `attempt-${i}`,
     }));

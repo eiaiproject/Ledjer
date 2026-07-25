@@ -57,7 +57,6 @@ export interface CreateExportJobInput {
   userId: string;
 }
 
-const MAX_EXPORT_ROWS = 50_000;
 const EXPIRY_HOURS = 24; // Download links expire after 24 hours
 
 // ---------------------------------------------------------------------------
@@ -173,7 +172,7 @@ async function processExportJob(
         result = await exportBalanceSheetCsv(db, job.organizationId, (params.asOfDate as string) ?? new Date().toISOString().slice(0, 10));
         break;
       case "general_ledger":
-        result = await exportGeneralLedgerCsv(db, job.organizationId, params as GeneralLedgerExportFilters);
+        result = await exportGeneralLedgerCsv(db, job.organizationId, params as unknown as GeneralLedgerExportFilters);
         break;
       default:
         throw badRequest("export_type_unsupported", `Export type '${job.exportType}' is not supported`);

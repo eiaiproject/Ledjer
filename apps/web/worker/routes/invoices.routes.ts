@@ -264,7 +264,6 @@ app.post("/:id/send-email", requireAuth, loadCurrentOrganization(), requirePermi
 </div>`;
 
   const apiKey = c.env.EMAIL_API_KEY ?? "";
-  const from = "Ledjer <noreply@ledjer.id>";
 
   await sendEmail(apiKey, {
     to,

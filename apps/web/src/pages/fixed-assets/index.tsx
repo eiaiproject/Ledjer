@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { formatShortDate } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
-import { listAccounts, type Account } from "@/lib/api/accounts";
+import { listAccounts } from "@/lib/api/accounts";
 import {
   listAssets,
   createAsset,
@@ -214,10 +214,10 @@ export function FixedAssetsPage() {
 
   // Filter asset accounts for the 3 required fields
   const assetAccounts = accounts?.filter((a) =>
-    a.accountType === "asset" && a.isActive
+    a.account_type === "asset" && a.is_active
   ) ?? [];
   const expenseAccounts = accounts?.filter((a) =>
-    ["expense", "other_expense"].includes(a.accountType) && a.isActive
+    ["expense", "other_expense"].includes(a.account_type) && a.is_active
   ) ?? [];
 
   // ── Render ───────────────────────────────────────────────────

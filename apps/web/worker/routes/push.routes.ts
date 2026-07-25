@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { AppContext } from "../env";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
-import { loadCurrentOrganization } from "../middleware/organization.middleware";
+
 import {
   subscribe,
   unsubscribe,
@@ -27,7 +27,7 @@ export const pushRoutes = new Hono<AppContext>();
 
 // Public: get VAPID public key for subscription
 pushRoutes.get("/vapid-public-key", async (c) => {
-  const publicKey = getVapidPublicKey(c.env);
+  const publicKey = getVapidPublicKey(c.env as { VAPID_PUBLIC_KEY?: string });
   return c.json({ publicKey });
 });
 

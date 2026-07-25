@@ -205,7 +205,7 @@ export function OnboardingChecklistPage() {
       setSampleSuccess(result.message);
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.all() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId!) });
     } catch (err) {
       setSampleError(translateError(err));
     } finally {
@@ -222,7 +222,7 @@ export function OnboardingChecklistPage() {
       setSampleSuccess("Data contoh berhasil dihapus.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.all() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgId!) });
     } catch (err) {
       setSampleError(translateError(err));
     } finally {

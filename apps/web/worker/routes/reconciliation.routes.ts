@@ -66,8 +66,8 @@ app.get("/:statementId/report", requireAuth, loadCurrentOrganization(), requireP
 app.post("/:statementId/reopen", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
-  const body = await c.req.json<{ reason?: string }>().catch(() => ({}));
-  const result = await reopenReconciliation(c.env.DB, organization.id, user.id, c.req.param("statementId"), body?.reason);
+  const body = await c.req.json<{ reason?: string }>().catch(() => ({} as { reason?: string }));
+  const result = await reopenReconciliation(c.env.DB, organization.id, user.id, c.req.param("statementId"), body.reason);
   return c.json(result);
 });
 

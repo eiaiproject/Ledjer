@@ -64,7 +64,7 @@ export function RecurringTransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { orgData } = useOrganization();
+  const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
 
   const { data: item, isLoading, error } = useQuery({

@@ -8,7 +8,6 @@ import {
   type DocumentLine,
   type CreateDocumentInput,
 } from "@/lib/api/documents";
-import { listProducts } from "@/lib/api/products";
 import { useOrganization } from "@/hooks/useOrganization";
 import { queryClient } from "@/lib/query-client";
 import { Plus, Trash2, ArrowLeft, Loader } from "reicon-react";
@@ -29,7 +28,7 @@ function emptyLine(): DocumentLine {
 
 export function NewDocumentPage() {
   const navigate = useNavigate();
-  const { orgData } = useOrganization();
+  const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
 
   const [type, setType] = useState<DocumentType | null>(null);
@@ -42,13 +41,6 @@ export function NewDocumentPage() {
   const [paymentRef, setPaymentRef] = useState("");
   const [lines, setLines] = useState<DocumentLine[]>([emptyLine()]);
   const [error, setError] = useState("");
-
-  const { data: productsData } = useQuery({
-    queryKey: ["products", orgId, "list"],
-    queryFn: () => listProducts(),
-    enabled: !!orgId,
-  });
-
 
   const mutation = useMutation({
     mutationFn: (input: CreateDocumentInput) => createDocument(input),

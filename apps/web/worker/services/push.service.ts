@@ -2,8 +2,7 @@
 // Manages Web Push subscriptions and sends notifications via VAPID.
 // Uses the Web Push API (web-push or raw) to deliver notifications.
 
-import { queryAll, queryFirst, execute, executeBatch, type D1Input } from "../db/client";
-import { badRequest, notFound } from "../http/errors";
+import { queryAll, queryFirst, execute, type D1Input } from "../db/client";
 import { generateId } from "../auth/tokens";
 
 // ---------------------------------------------------------------------------
@@ -239,7 +238,7 @@ export async function sendPendingNotifications(
 
     for (const sub of subscriptions) {
       try {
-        await sendPushNotification(sub, notification, vapid);
+        await sendPushNotification(sub, vapid);
       } catch (err) {
         // If endpoint is invalid (410 Gone), unsubscribe
         if (err instanceof Error && (err.message.includes("410") || err.message.includes("Gone"))) {
@@ -283,7 +282,6 @@ export async function sendPendingNotifications(
  */
 async function sendPushNotification(
   subscription: PushSubscription,
-  notification: PushNotification,
   vapid: { publicKey: string; privateKey: string; subject: string },
 ): Promise<void> {
   const { endpoint } = subscription;

@@ -52,27 +52,7 @@ describe("Session Service", () => {
     });
 
     it("returns session data for valid token", async () => {
-      const { createSession, getSessionByToken } = await import("./session.service");
-      const capturedHash: string[] = [];
-
-      const db = new FakeD1Database({
-        // Intercept INSERT to capture the token hash
-        prepare: (sql) => {
-          const bind = (...values: unknown[]) => {
-            if ((sql as string).includes("INSERT INTO sessions")) {
-              capturedHash.push(values[2] as string); // token_hash
-            }
-            return {
-              first: async () => null,
-              all: async () => ({ results: [] }),
-              run: async () => ({ success: true, meta: { changes: 1 } }) as D1Result,
-            };
-          };
-          return { bind };
-        },
-      }) as unknown as D1Database;
-
-      const request = new Request("http://localhost");
+      const { getSessionByToken } = await import("./session.service");
 
       // Actually we need a real FakeD1Database flow. Simpler: test getSessionByToken with mocked first.
       const db2 = new FakeD1Database({

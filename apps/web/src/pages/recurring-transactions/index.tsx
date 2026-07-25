@@ -56,7 +56,7 @@ const STATUS_FILTERS: { value: RecurringStatus | ""; label: string }[] = [
 
 export function RecurringTransactionsPage() {
   const navigate = useNavigate();
-  const { orgData } = useOrganization();
+  const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
   const [statusFilter, setStatusFilter] = useState<RecurringStatus | "">("active");
 
@@ -136,7 +136,7 @@ export function RecurringTransactionsPage() {
 function RecurringCard({ item }: { item: RecurringOutput }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { orgData } = useOrganization();
+  const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
 
   const statusMutation = useMutation({

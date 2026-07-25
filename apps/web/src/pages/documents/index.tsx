@@ -77,7 +77,7 @@ function formatRupiah(n: number): string {
 export function DocumentsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { orgData } = useOrganization();
+  const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
   const activeType = (searchParams.get("type") as DocumentType) || "";
   const [search, setSearch] = useState("");

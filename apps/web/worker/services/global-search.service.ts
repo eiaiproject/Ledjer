@@ -4,7 +4,7 @@
 // Results are grouped by entity type with relevance ranking.
 // All queries are tenant-scoped (organization_id) to prevent cross-tenant leaks.
 
-import { queryAll, queryFirst } from "../db/client";
+import { queryAll } from "../db/client";
 
 // ---------------------------------------------------------------------------
 // Types

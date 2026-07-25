@@ -55,6 +55,7 @@ export interface UpdateRecurringInput {
 
 export interface RecurringOutput {
   id: string;
+  organizationId: string;
   name: string;
   transactionType: TransactionType;
   frequency: Frequency;
@@ -279,7 +280,7 @@ export async function listRecurringTransactions(
 export async function updateRecurringTransaction(
   db: D1Database,
   organizationId: string,
-  userId: string,
+  _userId: string,
   id: string,
   input: UpdateRecurringInput,
 ): Promise<RecurringOutput> {
@@ -344,7 +345,7 @@ export async function updateRecurringTransaction(
 export async function updateRecurringStatus(
   db: D1Database,
   organizationId: string,
-  userId: string,
+  _userId: string,
   id: string,
   status: RecurringStatus,
 ): Promise<RecurringOutput> {
@@ -681,6 +682,7 @@ export async function getExecutionLog(
 function rowToOutput(row: Record<string, unknown>): RecurringOutput {
   return {
     id: row.id as string,
+    organizationId: row.organization_id as string,
     name: row.name as string,
     transactionType: row.transaction_type as TransactionType,
     frequency: row.frequency as Frequency,

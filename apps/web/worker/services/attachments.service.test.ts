@@ -69,13 +69,13 @@ function makeUint8(data: number[]): Uint8Array {
   return new Uint8Array(data);
 }
 
-function makeFakeD1WithCleanupHelpers(initialRows?: Record<string, unknown[]>): {
+function makeFakeD1WithCleanupHelpers(initialRows?: Record<string, Record<string, unknown>[]>): {
   db: D1Database;
   queries: string[];
 } {
   const queries: string[] = [];
-  const rows: Record<string, Record<string, unknown>[]> = initialRows ?? {
-    attachments: [],
+  const rows = initialRows ?? {
+    attachments: [] as Record<string, unknown>[],
     transactions: [{ id: "txn-1" }],
     parties: [{ id: "party-1" }],
     products: [{ id: "prod-1" }],
@@ -108,7 +108,7 @@ function makeFakeD1WithCleanupHelpers(initialRows?: Record<string, unknown[]>): 
         first: async <T>() => {
           // Match against known tables by ID
           if (boundId) {
-            for (const [table, map] of Object.entries(rowsById)) {
+            for (const [, map] of Object.entries(rowsById)) {
               const found = map.get(boundId);
               if (found) return found as T;
             }
@@ -305,7 +305,6 @@ describe("Attachments Service", () => {
     });
 
     it("removes R2 orphans without matching DB records", async () => {
-      const now = Date.now();
       const { db } = makeFakeD1WithCleanupHelpers({
         attachments: [],
         transactions: [{ id: "txn-1" }],

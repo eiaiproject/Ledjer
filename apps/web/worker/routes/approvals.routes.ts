@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
 import { readJson } from "../http/json";
-import { generateId } from "../auth/tokens";
 import { queryFirst } from "../db/client";
 import { requireAuth } from "../middleware/auth.middleware";
 import {
@@ -31,8 +30,6 @@ const actionTypeSchema = z.enum([
   "manual_journal",
 ]);
 
-const approvalStatusSchema = z.enum(["pending", "approved", "rejected"]);
-
 const upsertConfigSchema = z.object({
   actionType: actionTypeSchema,
   thresholdMinor: z.number().min(0).default(0),
@@ -45,7 +42,7 @@ const createApprovalSchema = z.object({
   entityId: z.string().min(1).max(200),
   entitySummary: z.string().max(500).nullable().optional(),
   amountMinor: z.number().min(0).default(0),
-  metadata: z.record(z.unknown()).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 const approveSchema = z.object({
@@ -60,7 +57,7 @@ const rejectSchema = z.object({
 export const approvalsRoutes = new Hono<AppContext>();
 
 approvalsRoutes.use("*", requireAuth());
-approvalsRoutes.use("*", loadCurrentOrganization());
+approvalsRoutes.use("*", loadCurrentOrganization() as any);
 
 // ── Config endpoints ─────────────────────────────────────────────
 
@@ -148,7 +145,7 @@ approvalsRoutes.get("/:id", requirePermission("transactions:read"), async (c) =>
 
 approvalsRoutes.post("/:id/approve", requirePermission("approvals:approve"), async (c) => {
   const context = c.get("organizationContext");
-  const body = await readJson(c, approveSchema).catch(() => ({}));
+  const body = await readJson(c, approveSchema).catch(() => ({ note: undefined as string | null | undefined }));
   const request = await approveApprovalRequest(
     c.env.DB,
     context.organization.id,

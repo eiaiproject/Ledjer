@@ -8,7 +8,7 @@ import {
   type CreateRecurringInput,
 } from "@/lib/api/recurring-transactions";
 import { queryClient } from "@/lib/query-client";
-import { ArrowLeft } from "reicon-react";
+import { ArrowLeft, Loader } from "reicon-react";
 
 const TRANSACTION_TYPES: { value: TransactionType; label: string }[] = [
   { value: "cash_sale", label: "Penjualan Tunai" },
@@ -51,7 +51,7 @@ export function NewRecurringTransactionPage() {
   const [description, setDescription] = useState("");
   const [partyId, setPartyId] = useState("");
   const [cashAccountId, setCashAccountId] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes, _setNotes] = useState("");
 
   const mutation = useMutation({
     mutationFn: (input: CreateRecurringInput) => createRecurringTransaction(input),

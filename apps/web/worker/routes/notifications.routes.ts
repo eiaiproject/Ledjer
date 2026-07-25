@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization } from "../middleware/organization.middleware";
-import { badRequest } from "../http/errors";
+// import { badRequest } from "../http/errors";
 import {
   listNotifications,
   getUnreadCount,
@@ -65,14 +65,13 @@ app.delete("/:id", requireAuth, loadCurrentOrganization(), async (c) => {
 app.post("/dismiss-all", requireAuth, loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
-  const body = await c.req.json<{ category?: NotificationCategory }>().catch(() => ({}));
+  const body = await c.req.json<{ category?: NotificationCategory }>().catch(() => ({}) as { category?: NotificationCategory });
   const count = await dismissAll(c.env.DB, organization.id, user.id, body.category);
   return c.json({ dismissed: count });
 });
 
 // POST /api/notifications/generate — manually trigger notification generation
 app.post("/generate", requireAuth, loadCurrentOrganization(), async (c) => {
-  const { user } = c.var;
   const { organization } = c.get("organizationContext");
 
   // Get admin user IDs for this org
@@ -105,7 +104,7 @@ app.post("/generate", requireAuth, loadCurrentOrganization(), async (c) => {
   ).bind(organization.id).all<{ id: string }>();
   if (lowStockRows.results.length > 0) {
     generated += await generateLowStockNotifications(
-      c.env.DB, organization.id, adminUserIds, lowStockRows.results,
+      c.env.DB, organization.id, adminUserIds, lowStockRows.results as unknown as { count: number }[],
     );
   }
 
