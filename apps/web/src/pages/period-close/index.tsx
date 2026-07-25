@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgPermissions, useOrganization } from "@/hooks/useOrganization";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,16 +26,7 @@ import {
   Shield,
 } from "reicon-react";
 
-const CHECK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  draft_transactions: Refresh,
-  reconciliation: Refresh,
-  negative_stock: XCircle,
-  overdue_receivables: AlertTriangle,
-  upcoming_payables: AlertTriangle,
-  trial_balance: CheckCircle,
-  inventory_match: CheckCircle,
-  manual_journals: InfoCircle,
-};
+
 
 export function PeriodClosePage() {
   const queryClient = useQueryClient();

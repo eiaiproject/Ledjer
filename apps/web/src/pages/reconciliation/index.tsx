@@ -167,7 +167,7 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
 function StatementReportTab({ statementId }: { statementId: string }) {
   const queryClient = useQueryClient();
 
-  const { data: report, isLoading, isError, error, refetch } = useQuery({
+  const { data: report, isLoading, isError, error } = useQuery({
     queryKey: ["reconciliation", "report", statementId],
     queryFn: () => apiRequest(`/api/reconciliation/${statementId}/report`),
     enabled: !!statementId,

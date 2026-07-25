@@ -9,7 +9,7 @@ import {
   printDocumentUrl,
   type DocumentOutput,
 } from "@/lib/api/documents";
-import { useOrganization } from "@/hooks/useOrganization";
+
 import { ArrowLeft, Printer, Loader, AlertTriangle, CheckCircle, XCircle, FileText } from "reicon-react";
 
 const DOCUMENT_LABELS: Record<string, string> = {

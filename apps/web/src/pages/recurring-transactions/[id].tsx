@@ -8,10 +8,9 @@ import {
   executeRecurringTransaction,
   type RecurringStatus,
 } from "@/lib/api/recurring-transactions";
-import { useOrganization } from "@/hooks/useOrganization";
+
 import { queryKeys } from "@/lib/query-keys";
 import { ArrowLeft, Play, Pause, Clock, Loader, CheckCircle, XCircle, AlertTriangle, FastForward } from "reicon-react";
-import { useState } from "react";
 
 const FREQ_LABELS: Record<string, string> = {
   daily: "Harian",
@@ -64,9 +63,6 @@ export function RecurringTransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
-
   const { data: item, isLoading, error } = useQuery({
     queryKey: queryKeys.recurringTransactions.detail(id!),
     queryFn: () => getRecurringTransaction(id!),

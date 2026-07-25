@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ErrorState } from "@/components/ui/error-state";
+
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
-import { formatIDR } from "@/lib/utils";
+
 import {
   postManualJournal,
   previewManualJournal,

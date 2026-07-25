@@ -136,8 +136,6 @@ export function RecurringTransactionsPage() {
 function RecurringCard({ item }: { item: RecurringOutput }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
 
   const statusMutation = useMutation({
     mutationFn: (status: RecurringStatus) => updateRecurringStatus(item.id, status),

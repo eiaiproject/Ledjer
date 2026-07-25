@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -8,7 +8,6 @@ import {
   type DocumentLine,
   type CreateDocumentInput,
 } from "@/lib/api/documents";
-import { useOrganization } from "@/hooks/useOrganization";
 import { queryClient } from "@/lib/query-client";
 import { Plus, Trash2, ArrowLeft, Loader } from "reicon-react";
 
@@ -28,8 +27,6 @@ function emptyLine(): DocumentLine {
 
 export function NewDocumentPage() {
   const navigate = useNavigate();
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
 
   const [type, setType] = useState<DocumentType | null>(null);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));

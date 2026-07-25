@@ -40,8 +40,8 @@ describe("Email Service", () => {
 
       let sentBody: string | undefined;
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = async (options) => {
-        sentBody = (options as RequestInit).body as string;
+      globalThis.fetch = async (_url: Parameters<typeof globalThis.fetch>[0], options?: RequestInit) => {
+        sentBody = options?.body as string;
         return new Response("OK", { status: 200 });
       };
 
