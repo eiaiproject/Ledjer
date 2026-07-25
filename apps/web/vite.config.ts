@@ -33,9 +33,41 @@ function relaxCspForDev(): Plugin {
   };
 }
 
+const isAnalyze = process.env.ANALYZE === "true";
+
+function bundleAnalyzerPlugin(): Plugin | undefined {
+  if (!isAnalyze) return undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { visualizer } = require("rollup-plugin-visualizer");
+    return visualizer({
+      filename: "./dist/bundle-analysis.html",
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+    }) as unknown as Plugin;
+  } catch {
+    console.warn(
+      "⚠️  Bundle analysis skipped: rollup-plugin-visualizer not installed.\n" +
+      "   Install with: pnpm add -D rollup-plugin-visualizer\n" +
+      "   Then run: ANALYZE=true pnpm build"
+    );
+    return undefined;
+  }
+}
+
 export default defineConfig({
   build: {
     chunkSizeWarningLimit: 750,
+    rollupOptions: {
+      // Mark known external dependencies that are large and infrequently used
+      output: {
+        manualChunks: {
+          sentry: ["@sentry/react"],
+          vendor: ["react", "react-dom", "react-router-dom"],
+        },
+      },
+    },
   },
   plugins: [
     react(),
@@ -52,6 +84,8 @@ export default defineConfig({
           }),
         ]
       : []),
+    // Bundle analysis — run with ANALYZE=true pnpm build
+    ...(isAnalyze ? [bundleAnalyzerPlugin()!] : []),
     // MUST run last — replaces any Sentry-injected CSP with clean dev CSP
     relaxCspForDev(),
   ],

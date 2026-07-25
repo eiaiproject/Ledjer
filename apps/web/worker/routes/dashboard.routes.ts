@@ -16,11 +16,13 @@ dashboardRoutes.use("*", requirePermission("reports:read"));
 dashboardRoutes.get("/summary", async (c) => {
   const context = c.get("organizationContext");
   const summary = await getDashboardSummary(c.env.DB, context.organization.id);
+  c.res.headers.set("Cache-Control", "private, max-age=30");
   return c.json({ summary });
 });
 
 dashboardRoutes.get("/alerts", async (c) => {
   const context = c.get("organizationContext");
   const result = await getDashboardAlerts(c.env.DB, context.organization.id);
+  c.res.headers.set("Cache-Control", "private, max-age=15");
   return c.json(result);
 });

@@ -21,10 +21,12 @@ function parseMigration(sql: string): {
   creates: { tableName: string; columns: string[] }[];
   alters: { tableName: string; column: string }[];
   drops: string[];
+  indexes: { tableName: string; indexName: string }[];
 } {
   const creates: { tableName: string; columns: string[] }[] = [];
   const alters: { tableName: string; column: string }[] = [];
   const drops: string[] = [];
+  const indexes: { tableName: string; indexName: string }[] = [];
 
   // Match CREATE TABLE IF NOT EXISTS
   const createRe = /CREATE TABLE IF NOT EXISTS (\w+)\s*\(([\s\S]*?)\);/g;
@@ -58,7 +60,13 @@ function parseMigration(sql: string): {
     drops.push(match[1]);
   }
 
-  return { creates, alters, drops };
+  // Match CREATE INDEX IF NOT EXISTS ... ON table
+  const indexRe = /CREATE INDEX IF NOT EXISTS (\w+)\s+ON\s+(\w+)/g;
+  while ((match = indexRe.exec(sql)) !== null) {
+    indexes.push({ indexName: match[1], tableName: match[2] });
+  }
+
+  return { creates, alters, drops, indexes };
 }
 
 function buildFinalSchema(migrations: { name: string; sql: string }[]): MigrationState {
@@ -112,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0024", () => {
-    const expected = Array.from({ length: 24 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0025", () => {
+    const expected = Array.from({ length: 25 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);
@@ -122,13 +130,13 @@ describe("Database Migrations", () => {
 
   it("every migration scans cleanly (no parse errors)", () => {
     for (const m of migrations) {
-      const { creates, alters, drops } = parseMigration(m.sql);
+      const { creates, alters, drops, indexes } = parseMigration(m.sql);
       expect(() => {
-        // If parsing produced no creates, alters, or drops, it's an issue
+        // If parsing produced no creates, alters, drops, or indexes, it's an issue
         // Only 0001 has INSERT+app_metadata, which is valid
         if (m.name !== "0001") {
-          // Migration must have at least one schema change
-          expect(creates.length + alters.length + drops.length).toBeGreaterThan(0);
+          // Migration must have at least one schema change or index
+          expect(creates.length + alters.length + drops.length + indexes.length).toBeGreaterThan(0);
         }
       }).not.toThrow();
     }

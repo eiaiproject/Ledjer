@@ -4,7 +4,7 @@ import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/request-logger";
-import { metricsMiddleware, metricsHandler } from "./middleware/metrics";
+import { metricsMiddleware, metricsHandler, detailedMetricsHandler } from "./middleware/metrics";
 import openingBalanceRoutes from "./routes/opening-balance.routes";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { auditLogsRoutes } from "./routes/audit-logs.routes";
@@ -101,6 +101,7 @@ app.route("/api/audit-logs", auditLogsRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
 app.get("/api/metrics", metricsHandler);
+app.get("/api/metrics/detailed", detailedMetricsHandler);
 app.route("/api/search", globalSearchRoutes);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/organizations", organizationRoutes);
