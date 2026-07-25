@@ -276,6 +276,36 @@ export function transactionTypeLabel(type: TransactionType): string {
   return TRANSACTION_LABELS[type] ?? type;
 }
 
+/** Indonesian explanation of what changes when posting a transaction. */
+export function describeTransactionImpact(
+  type: TransactionType,
+  amountMinor: number,
+  opts?: { productName?: string; quantity?: number; partyName?: string; isVoid?: boolean },
+): string {
+  const label = TRANSACTION_LABELS[type] ?? type;
+  const amount = formatIDRMinor(amountMinor);
+
+  if (opts?.isVoid) {
+    return `Membatalkan ${label.toLowerCase()} sebesar ${amount}. Semua jurnal dan mutasi stok dikembalikan seperti sebelum transaksi.`;
+  }
+
+  const parts: string[] = [
+    `Mencatat ${label.toLowerCase()} sebesar ${amount}.`,
+  ];
+
+  if (opts?.quantity && opts?.productName) {
+    parts.push(`Stok ${opts.productName} berubah ${opts.quantity > 0 ? "bertambah" : "berkurang"} ${Math.abs(opts.quantity)} unit.`);
+  }
+
+  if (opts?.partyName) {
+    parts.push(`Melibatkan ${opts.partyName}.`);
+  }
+
+  parts.push("Laporan Laba Rugi dan Neraca akan berubah setelah transaksi diposting.");
+
+  return parts.join(" ");
+}
+
 function formatIDRMinor(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -804,6 +834,7 @@ function buildPostTransactionStatements(
 export interface PreviewTransactionResult {
   transactionType: TransactionType;
   typeLabel: string;
+  impact?: string;
   amountMinor: number;
   paymentStatus: PaymentStatus;
   description: string;
@@ -835,6 +866,11 @@ export async function previewTransaction(
   return {
     transactionType: data.transactionType,
     typeLabel: transactionTypeLabel(data.transactionType),
+    impact: describeTransactionImpact(data.transactionType, data.amountMinor, {
+      productName: entities.product?.name,
+      quantity: input.quantity ?? undefined,
+      partyName: input.partyName ?? undefined,
+    }),
     amountMinor: data.amountMinor,
     paymentStatus: data.paymentStatus,
     description: data.description,

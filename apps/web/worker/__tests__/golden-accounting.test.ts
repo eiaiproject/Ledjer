@@ -670,6 +670,27 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
   });
 
   describe("P0.5: Journal preview & labels", () => {
+    it("describeTransactionImpact returns Indonesian explanation", async () => {
+      const { describeTransactionImpact } = await import("../services/transactions.service");
+      const text = describeTransactionImpact("cash_sale", 500000, {
+        productName: "Widget A",
+        quantity: 5,
+        partyName: "Toko ABC",
+      });
+      expect(text).toContain("penjualan tunai");
+      expect(text).toContain("Widget A");
+      expect(text).toContain("5");
+      expect(text).toContain("Toko ABC");
+      expect(text).toContain("Laba Rugi");
+    });
+
+    it("describeTransactionImpact void explanation", async () => {
+      const { describeTransactionImpact } = await import("../services/transactions.service");
+      const text = describeTransactionImpact("cash_sale", 500000, { isVoid: true });
+      expect(text).toContain("Membatalkan");
+      expect(text).toContain("dikembalikan");
+    });
+
     it("transactionTypeLabel returns Indonesian labels", async () => {
       const { transactionTypeLabel } = await import("../services/transactions.service");
       expect(transactionTypeLabel("cash_sale")).toBe("Penjualan Tunai");
