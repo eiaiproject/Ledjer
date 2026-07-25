@@ -349,11 +349,15 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         },
       );
 
-      expect(result.transaction_id).toBeTruthy();
-      expect(result.transaction_number).toBeDefined();
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
+      expect(result.transaction_number).toBeTypeOf("string");
+      expect(result.transaction_number.length).toBeGreaterThan(0);
       expect(result.impact.amount).toBeGreaterThan(0);
-      expect(result.impact.debit_account_id).toBeTruthy();
-      expect(result.impact.credit_account_id).toBeTruthy();
+      expect(result.impact.debit_account_id).toBeTypeOf("string");
+      expect(result.impact.debit_account_id.length).toBeGreaterThan(0);
+      expect(result.impact.credit_account_id).toBeTypeOf("string");
+      expect(result.impact.credit_account_id.length).toBeGreaterThan(0);
     });
 
     it("cash_purchase posts successfully via postTransaction", async () => {
@@ -377,8 +381,10 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         },
       );
 
-      expect(result.transaction_id).toBeTruthy();
-      expect(result.transaction_number).toBeDefined();
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
+      expect(result.transaction_number).toBeTypeOf("string");
+      expect(result.transaction_number.length).toBeGreaterThan(0);
       expect(result.impact.amount).toBeGreaterThan(0);
     });
 
@@ -401,7 +407,8 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         },
       );
 
-      expect(result.transaction_id).toBeTruthy();
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
       expect(result.impact.amount).toBeGreaterThan(0);
     });
 
@@ -424,7 +431,8 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         },
       );
 
-      expect(result.transaction_id).toBeTruthy();
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
       expect(result.impact.amount).toBeGreaterThan(0);
     });
 
@@ -469,7 +477,8 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         },
       );
 
-      expect(result.transaction_id).toBeTruthy();
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
       expect(result.impact.amount).toBeGreaterThan(0);
     });
 
@@ -1026,7 +1035,8 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
 
       expect(result.status).toBe("voided");
       expect(result.original_transaction_id).toBe("txn-void-stock-001");
-      expect(result.reversal_transaction_id).toBeTruthy();
+      expect(result.reversal_transaction_id).toBeTypeOf("string");
+      expect(result.reversal_transaction_id.length).toBeGreaterThan(0);
       expect(result.reversal_journal_entry_ids.length).toBeGreaterThanOrEqual(1);
     });
   });

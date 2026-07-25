@@ -87,8 +87,15 @@ const NOW = 1750000000000; // Fixed timestamp for determinism
  */
 export function createSeedFixtures(): {
   db: FakeD1Database;
+  /** @deprecated use tokens.ownerA */
   sessionTokenA: string;
+  /** @deprecated use tokens.ownerB */
   sessionTokenB: string;
+  tokens: {
+    ownerA: string; adminA: string; memberA: string; viewerA: string;
+    ownerB: string; adminB: string; memberB: string; viewerB: string;
+    ownerEmpty: string;
+  };
 } {
   const db = new FakeD1Database({
     first: createFirstHandler(),
@@ -97,10 +104,24 @@ export function createSeedFixtures(): {
     batch: createBatchHandler(),
   });
 
-  const sessionTokenA = "session-token-orga-000001";
-  const sessionTokenB = "session-token-orgb-000001";
+  const tokens = {
+    ownerA: "session-token-orga-000001",
+    adminA: "session-token-orga-admin-000001",
+    memberA: "session-token-orga-member-0001",
+    viewerA: "session-token-orga-viewer-0001",
+    ownerB: "session-token-orgb-000001",
+    adminB: "session-token-orgb-admin-000001",
+    memberB: "session-token-orgb-member-0001",
+    viewerB: "session-token-orgb-viewer-0001",
+    ownerEmpty: "session-token-empty-000001",
+  };
 
-  return { db: db as unknown as FakeD1Database, sessionTokenA, sessionTokenB };
+  return {
+    db: db as unknown as FakeD1Database,
+    sessionTokenA: tokens.ownerA,
+    sessionTokenB: tokens.ownerB,
+    tokens,
+  };
 }
 
 // ── In-memory seed data stores ─────────────────────────────────
@@ -269,6 +290,31 @@ const AUDIT_LOGS: SeedAuditLog[] = [
 ];
 AUDIT_LOGS satisfies SeedAuditLog[];
 
+/**
+ * Intentionally invalid test data for validation tests.
+ * Each entry violates a known constraint to verify rejection.
+ */
+export const INVALID_DATA = {
+  /** Unbalanced journal: debit != credit */
+  unbalancedJournal: {
+    lines: [
+      { account_id: "acct-invalid-001", debit_minor: 500000, credit_minor: 0, description: "Dr only" },
+      { account_id: "acct-invalid-002", debit_minor: 0, credit_minor: 300000, description: "Cr mismatch" },
+    ],
+  },
+  /** Missing required fields */
+  missingRequired: {
+    transaction: { transaction_date: "", transaction_type: "", amount_minor: 0 },
+  },
+  /** Negative amount */
+  negativeAmount: { amount_minor: -1000 },
+  /** Future date beyond allowed horizon */
+  futureDate: "2030-01-01",
+  /** Empty string fields */
+  emptyFields: { name: "", code: "" },
+} as const;
+INVALID_DATA satisfies Record<string, unknown>;
+
 // ponytail: Counter tracking for nextCounter (INSERT ... RETURNING current_value)
 const counters: Record<string, number> = {};
 
@@ -435,6 +481,8 @@ const SESSIONS: SeedSession[] = [
   { id: "session-orga-viewer-1", user_id: FIXTURE_IDS.users.viewerA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
   { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
   { id: "session-orgb-admin-1", user_id: FIXTURE_IDS.users.adminB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
+  { id: "session-orgb-member-1", user_id: FIXTURE_IDS.users.memberB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
+  { id: "session-orgb-viewer-1", user_id: FIXTURE_IDS.users.viewerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
   { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.empty, created_at: NOW },
 ];
 

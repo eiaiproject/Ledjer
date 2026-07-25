@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createSeedFixtures, FIXTURE_IDS } from "./fixtures";
+import { createSeedFixtures, FIXTURE_IDS, INVALID_DATA } from "./fixtures";
 
 describe("Seed Fixtures", () => {
   it("creates three organizations with different IDs", () => {
@@ -15,6 +15,18 @@ describe("Seed Fixtures", () => {
     expect(result.sessionTokenB).not.toBe(result.sessionTokenA);
   });
 
+  it("returns tokens for all roles", () => {
+    const { tokens } = createSeedFixtures();
+    const tokenValues = Object.values(tokens);
+    expect(tokenValues).toHaveLength(9);
+    const unique = new Set(tokenValues);
+    expect(unique.size).toBe(9);
+    for (const t of tokenValues) {
+      expect(t).toBeTypeOf("string");
+      expect(t.length).toBeGreaterThan(0);
+    }
+  });
+
   it("empty org has owner but no accounts/products/parties", () => {
     expect(FIXTURE_IDS.users.ownerEmpty).toBeTruthy();
     expect(FIXTURE_IDS.orgs.empty).toBeTruthy();
@@ -24,36 +36,41 @@ describe("Seed Fixtures", () => {
     expect(emptyAccounts).toHaveLength(0);
   });
 
-  it("has 4+ roles across orgs (owner, admin, member, viewer)", () => {
-    expect(FIXTURE_IDS.users.ownerA).toBeTruthy();
-    expect(FIXTURE_IDS.users.adminA).toBeTruthy();
-    expect(FIXTURE_IDS.users.memberA).toBeTruthy();
-    expect(FIXTURE_IDS.users.viewerA).toBeTruthy();
-    expect(FIXTURE_IDS.users.ownerB).toBeTruthy();
-    expect(FIXTURE_IDS.users.adminB).toBeTruthy();
-    expect(FIXTURE_IDS.users.memberB).toBeTruthy();
-    expect(FIXTURE_IDS.users.ownerEmpty).toBeTruthy();
+  it("has all roles across orgs (owner, admin, member, viewer)", () => {
+    const roleUsers: string[] = [
+      FIXTURE_IDS.users.ownerA,
+      FIXTURE_IDS.users.adminA,
+      FIXTURE_IDS.users.memberA,
+      FIXTURE_IDS.users.viewerA,
+      FIXTURE_IDS.users.ownerB,
+      FIXTURE_IDS.users.adminB,
+      FIXTURE_IDS.users.memberB,
+      FIXTURE_IDS.users.viewerB,
+      FIXTURE_IDS.users.ownerEmpty,
+    ];
+    expect(roleUsers).toHaveLength(9);
+    for (const id of roleUsers) {
+      expect(id).toBeTypeOf("string");
+      expect(id.length).toBeGreaterThan(0);
+    }
   });
 
-  it("provides cash, AR, AP, inventory, equity, revenue, expense accounts", () => {
+  it("provides cash, AR, AP, inventory, equity, revenue, expense, COGS accounts", () => {
     const accts = FIXTURE_IDS.accounts;
-    expect(accts.cashA).toBeTruthy();
-    expect(accts.arA).toBeTruthy();
-    expect(accts.apA).toBeTruthy();
-    expect(accts.inventoryA).toBeTruthy();
-    expect(accts.equityA).toBeTruthy();
-    expect(accts.revenueA).toBeTruthy();
-    expect(accts.expenseA).toBeTruthy();
+    const required = ["cashA", "arA", "apA", "inventoryA", "equityA", "revenueA", "expenseA", "cogsA"];
+    for (const key of required) {
+      expect(accts[key as keyof typeof accts]).toBeTypeOf("string");
+    }
   });
 
   it("provides products with stock", () => {
-    expect(FIXTURE_IDS.products.widget).toBeTruthy();
-    expect(FIXTURE_IDS.products.gadget).toBeTruthy();
+    expect(FIXTURE_IDS.products.widget).toBeTypeOf("string");
+    expect(FIXTURE_IDS.products.gadget).toBeTypeOf("string");
   });
 
   it("provides parties (customer and supplier)", () => {
-    expect(FIXTURE_IDS.parties.customerA).toBeTruthy();
-    expect(FIXTURE_IDS.parties.supplierA).toBeTruthy();
+    expect(FIXTURE_IDS.parties.customerA).toBeTypeOf("string");
+    expect(FIXTURE_IDS.parties.supplierA).toBeTypeOf("string");
   });
 
   it("all fixture IDs are unique across categories", () => {
@@ -62,5 +79,28 @@ describe("Seed Fixtures", () => {
     );
     const uniqueIds = new Set(allIds);
     expect(uniqueIds.size).toBe(allIds.length);
+  });
+
+  it("INVALID_DATA provides unbalanced journal fixture", () => {
+    const { unbalancedJournal } = INVALID_DATA;
+    const totalDebit = unbalancedJournal.lines.reduce((s, l) => s + l.debit_minor, 0);
+    const totalCredit = unbalancedJournal.lines.reduce((s, l) => s + l.credit_minor, 0);
+    expect(totalDebit).not.toBe(totalCredit);
+  });
+
+  it("INVALID_DATA provides negative amount fixture", () => {
+    expect(INVALID_DATA.negativeAmount.amount_minor).toBeLessThan(0);
+  });
+
+  it("INVALID_DATA provides empty fields fixture", () => {
+    expect(INVALID_DATA.emptyFields.name).toBe("");
+    expect(INVALID_DATA.emptyFields.code).toBe("");
+  });
+
+  it("INVALID_DATA provides empty required fields", () => {
+    const txn = INVALID_DATA.missingRequired.transaction;
+    expect(txn.transaction_date).toBe("");
+    expect(txn.transaction_type).toBe("");
+    expect(txn.amount_minor).toBe(0);
   });
 });
