@@ -144,6 +144,13 @@ export const queryKeys = {
     bookValue: (asOfDate?: string) => ["fixed-assets", "book-value", asOfDate ?? ""] as const,
   },
 
+  dimensions: {
+    all: () => ["dimensions"] as const,
+    list: (type?: string) => ["dimensions", "list", type ?? ""] as const,
+    summary: () => ["dimensions", "summary"] as const,
+    report: (type: string, from: string, to: string) => ["dimensions", "report", type, from, to] as const,
+  },
+
 } as const;
 
 /**

@@ -58,6 +58,7 @@ const ApprovalsPage = lazy(async () => ({ default: (await import("@/pages/approv
 const ApprovalSettingsPage = lazy(async () => ({ default: (await import("@/pages/approvals/settings")).ApprovalSettingsPage }));
 const ManualJournalPage = lazy(async () => ({ default: (await import("@/pages/journals/index")).ManualJournalPage }));
 const BudgetsPage = lazy(async () => ({ default: (await import("@/pages/budgets/index")).BudgetsPage }));
+const DimensionsPage = lazy(async () => ({ default: (await import("@/pages/dimensions/index")).DimensionsPage }));
 const FixedAssetsPage = lazy(async () => ({ default: (await import("@/pages/fixed-assets/index")).FixedAssetsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
@@ -283,6 +284,7 @@ const routerConfig = [
           { path: "/settings/team", element: <TeamSettingsPage /> },
           { path: "/period-close", element: <PeriodClosePage /> },
           { path: "/budgets", element: <BudgetsPage /> },
+          { path: "/dimensions", element: <DimensionsPage /> },
           { path: "/fixed-assets", element: <FixedAssetsPage /> },
           { path: "/journals", element: <ManualJournalPage /> },
           { path: "/approvals", element: <ApprovalsPage /> },
