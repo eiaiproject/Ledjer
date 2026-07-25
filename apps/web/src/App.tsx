@@ -52,6 +52,7 @@ const DocumentDetailPage = lazy(async () => ({ default: (await import("@/pages/d
 const RecurringTransactionsPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/index")).RecurringTransactionsPage }));
 const NewRecurringTransactionPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/new")).NewRecurringTransactionPage }));
 const RecurringTransactionDetailPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/[id]")).RecurringTransactionDetailPage }));
+const NotificationsPage = lazy(async () => ({ default: (await import("@/pages/notifications/index")).NotificationsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -262,6 +263,7 @@ const routerConfig = [
           { path: "/recurring-transactions", element: <RecurringTransactionsPage /> },
           { path: "/recurring-transactions/new", element: <NewRecurringTransactionPage /> },
           { path: "/recurring-transactions/:id", element: <RecurringTransactionDetailPage /> },
+          { path: "/notifications", element: <NotificationsPage /> },
           { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
           { path: "/reports/trial-balance", element: <TrialBalancePage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },

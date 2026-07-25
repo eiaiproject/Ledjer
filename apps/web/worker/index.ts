@@ -27,6 +27,7 @@ import receivablesRoutes from "./routes/receivables.routes";
 import reconciliationRoutes from "./routes/reconciliation.routes";
 import importRoutes from "./routes/import.routes";import documentRoutes from "./routes/documents.routes";
 import recurringTransactionRoutes from "./routes/recurring-transactions.routes";
+import notificationRoutes from "./routes/notifications.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
@@ -112,6 +113,7 @@ app.route("/api/receivables", receivablesRoutes);
 app.route("/api/import", importRoutes);
 app.route("/api/documents", documentRoutes);
 app.route("/api/recurring-transactions", recurringTransactionRoutes);
+app.route("/api/notifications", notificationRoutes);
 app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {

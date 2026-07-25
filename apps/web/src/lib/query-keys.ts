@@ -95,6 +95,12 @@ export const queryKeys = {
     all: () => ["onboarding"] as const,
   },
 
+  notifications: {
+    all: () => ["notifications"] as const,
+    list: (unreadOnly?: boolean) => ["notifications", "list", unreadOnly ?? false] as const,
+    unreadCount: () => ["notifications", "unread-count"] as const,
+  },
+
   recurringTransactions: {
     all: () => ["recurring-transactions"] as const,
     list: (status?: string) => ["recurring-transactions", "list", status ?? "all"] as const,

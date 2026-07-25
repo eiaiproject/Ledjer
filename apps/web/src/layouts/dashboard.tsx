@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
 import { GlobalSearchModal, SearchTrigger } from "@/components/global-search";
+import { NotificationBell } from "@/components/notification-bell";
 
 type NavItem =
   | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
@@ -514,6 +515,7 @@ export function DashboardLayout() {
         <OfflineBanner />
         <div className="hidden border-b border-wood-100 bg-surface px-4 py-2 lg:flex items-center justify-end gap-3">
           <SearchTrigger onClick={() => setSearchOpen(true)} />
+          <NotificationBell />
         </div>
         <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
