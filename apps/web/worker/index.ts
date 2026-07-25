@@ -25,10 +25,13 @@ import invoiceRoutes from "./routes/invoices.routes";
 import receivablesRoutes from "./routes/receivables.routes";
 import reconciliationRoutes from "./routes/reconciliation.routes";
 import importRoutes from "./routes/import.routes";import documentRoutes from "./routes/documents.routes";
+import recurringTransactionRoutes from "./routes/recurring-transactions.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
 import { cleanupOrphanedAttachments } from "./services/attachments.service";
+import { executeAllDueTransactions } from "./services/recurring-transactions.service";
+import { postTransaction } from "./services/transactions.service";
 
 const app = new Hono<AppContext>();
 
@@ -106,6 +109,7 @@ app.route("/api/invoices", invoiceRoutes);
 app.route("/api/receivables", receivablesRoutes);
 app.route("/api/import", importRoutes);
 app.route("/api/documents", documentRoutes);
+app.route("/api/recurring-transactions", recurringTransactionRoutes);
 app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {
@@ -163,6 +167,31 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
       console.error(
         JSON.stringify({
           type: "attachment_cleanup",
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
+
+    // Execute due recurring transactions
+    try {
+      const result = await executeAllDueTransactions(env.DB, undefined, undefined, postTransaction);
+      if (result.executed > 0 || result.failed > 0) {
+        console.log(
+          JSON.stringify({
+            type: "recurring_transactions",
+            executed: result.executed,
+            skipped: result.skipped,
+            failed: result.failed,
+            errors: result.errors.length > 0 ? result.errors : undefined,
+            status: "completed",
+          }),
+        );
+      }
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          type: "recurring_transactions",
           status: "failed",
           error: err instanceof Error ? err.message : String(err),
         }),

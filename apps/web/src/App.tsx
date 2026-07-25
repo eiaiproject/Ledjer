@@ -49,6 +49,9 @@ const InvoiceDetailPage = lazy(async () => ({ default: (await import("@/pages/in
 const DocumentsPage = lazy(async () => ({ default: (await import("@/pages/documents/index")).DocumentsPage }));
 const NewDocumentPage = lazy(async () => ({ default: (await import("@/pages/documents/new")).NewDocumentPage }));
 const DocumentDetailPage = lazy(async () => ({ default: (await import("@/pages/documents/[id]")).DocumentDetailPage }));
+const RecurringTransactionsPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/index")).RecurringTransactionsPage }));
+const NewRecurringTransactionPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/new")).NewRecurringTransactionPage }));
+const RecurringTransactionDetailPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/[id]")).RecurringTransactionDetailPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -256,6 +259,9 @@ const routerConfig = [
           { path: "/documents", element: <DocumentsPage /> },
           { path: "/documents/new", element: <NewDocumentPage /> },
           { path: "/documents/:id", element: <DocumentDetailPage /> },
+          { path: "/recurring-transactions", element: <RecurringTransactionsPage /> },
+          { path: "/recurring-transactions/new", element: <NewRecurringTransactionPage /> },
+          { path: "/recurring-transactions/:id", element: <RecurringTransactionDetailPage /> },
           { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
           { path: "/reports/trial-balance", element: <TrialBalancePage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },

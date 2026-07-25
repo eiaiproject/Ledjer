@@ -112,8 +112,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0014", () => {
-    const expected = Array.from({ length: 14 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0015", () => {
+    const expected = Array.from({ length: 15 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);

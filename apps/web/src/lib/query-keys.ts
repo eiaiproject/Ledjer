@@ -95,6 +95,13 @@ export const queryKeys = {
     all: () => ["onboarding"] as const,
   },
 
+  recurringTransactions: {
+    all: () => ["recurring-transactions"] as const,
+    list: (status?: string) => ["recurring-transactions", "list", status ?? "all"] as const,
+    detail: (id: string) => ["recurring-transactions", id] as const,
+    logs: (id: string) => ["recurring-transactions", id, "logs"] as const,
+  },
+
   documents: {
     all: () => ["documents"] as const,
     list: (type?: string) => ["documents", "list", type ?? "all"] as const,

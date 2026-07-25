@@ -16,6 +16,7 @@ import {
   X,
   ChevronDown,
   AnglesLeft,
+  Repeat,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
@@ -35,6 +36,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/accounts", label: "Akun", icon: BookOpen, requires: "canManageAccounts" },
   { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
   { to: "/documents", label: "Dokumen", icon: FileText },
+  { to: "/recurring-transactions", label: "Berulang", icon: Repeat },
   { to: "/invoices", label: "Faktur", icon: FileText, requires: "canCreateTransaction" },
   { to: "/reconciliation", label: "Rekonsiliasi", icon: BookOpen, requires: "canCreateTransaction" },
   { to: "/opening-balance", label: "Saldo Awal", icon: BookOpen, requires: "canManageAccounts" },
