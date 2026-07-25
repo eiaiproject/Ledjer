@@ -112,6 +112,7 @@ export const coaImportWriter: ImportWriter<CoaImportRow> = {
   async insert(db, organizationId, createdBy, rows) {
     const errors: { row: number; field: string; message: string }[] = [];
     let inserted = 0;
+    const createdIds: string[] = [];
 
     // Process parent-first by sorting rows by depth (parent code length)
     const sorted = [...rows].sort((a, b) => {
@@ -162,13 +163,14 @@ export const coaImportWriter: ImportWriter<CoaImportRow> = {
           row.parsed.reportGroup, now, now,
         ).run();
         inserted++;
+        createdIds.push(accountId);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Unknown error";
         errors.push({ row: row.index + 1, field: "_db", message: `Gagal menyimpan: ${msg}` });
       }
     }
 
-    return { inserted, errors };
+    return { inserted, errors, createdIds };
   },
 };
 

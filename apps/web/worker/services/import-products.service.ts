@@ -56,9 +56,11 @@ export const productImportWriter: ImportWriter<ProductImportRow> = {
     void createdBy;
     const errors: { row: number; field: string; message: string }[] = [];
     let inserted = 0;
+    const createdIds: string[] = [];
     const now = Date.now();
 
     for (const row of rows) {
+      const productId = generateId();
       try {
         const existing = await db.prepare(
           `SELECT id FROM products WHERE organization_id = ? AND code = ?`,
@@ -72,7 +74,7 @@ export const productImportWriter: ImportWriter<ProductImportRow> = {
           `INSERT INTO products (id, organization_id, code, name, description, unit, purchase_price_minor, selling_price_minor, average_cost_minor, current_stock_milli, min_stock_milli, is_active, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 1, ?, ?)`,
         ).bind(
-          generateId(), organizationId, row.parsed.code, row.parsed.name,
+          productId, organizationId, row.parsed.code, row.parsed.name,
           row.parsed.description ?? null, row.parsed.unit,
           row.parsed.purchasePriceMinor ?? 0,
           row.parsed.sellingPriceMinor ?? 0,
@@ -80,12 +82,13 @@ export const productImportWriter: ImportWriter<ProductImportRow> = {
           now, now,
         ).run();
         inserted++;
+        createdIds.push(productId);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Unknown error";
         errors.push({ row: row.index + 1, field: "_db", message: `Gagal menyimpan: ${msg}` });
       }
     }
 
-    return { inserted, errors };
+    return { inserted, errors, createdIds };
   },
 };

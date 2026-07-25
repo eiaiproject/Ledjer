@@ -6,30 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 
-type EntityType = "coa" | "products" | "parties";
+type EntityType = "coa" | "products" | "parties" | "opening-balance";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   coa: "Chart of Akun (COA)",
   products: "Produk & Jasa",
   parties: "Pelanggan & Pemasok",
+  "opening-balance": "Saldo Awal",
 };
 
 const EXPECTED_FIELDS: Record<EntityType, string[]> = {
   coa: ["code", "name", "type", "normal_balance"],
   products: ["code", "name", "purchase_price", "selling_price", "unit"],
   parties: ["name", "party_type", "phone", "email"],
+  "opening-balance": ["kode_akun", "saldo", "deskripsi"],
 };
 
 const TEMPLATES: Record<EntityType, string> = {
   coa: "code,name,type,normal_balance\n1110,Kas,asset,debit\n2110,Utang Usaha,liability,credit\n3110,Modal,equity,credit\n4110,Pendapatan,income,credit\n6100,Beban,expense,debit",
   products: "code,name,purchase_price,selling_price,unit\nWGT-001,Widget A,50000,100000,pcs\nGDT-001,Gadget A,150000,250000,pcs",
   parties: "name,party_type,phone,email\nToko ABC,customer,08123456789,abc@email.com\nPT Supplier Jaya,supplier,08987654321,jaya@email.com",
+  "opening-balance": "kode_akun,saldo,deskripsi\n1110,5000000,Kas awal\n1120,3000000,Saldo Bank BCA\n1300,1500000,Persediaan awal\n2100,-2000000,Utang usaha\n3100,7500000,Modal pemilik",
 };
 
 const FIELD_LABELS: Record<string, string> = {
   code: "Kode", name: "Nama", type: "Tipe", normal_balance: "Saldo Normal",
   purchase_price: "Harga Beli", selling_price: "Harga Jual", unit: "Satuan",
   party_type: "Tipe (customer/supplier)", phone: "Telepon", email: "Email",
+  kode_akun: "Kode Akun", saldo: "Jumlah (Rp)", deskripsi: "Deskripsi",
 };
 
 interface ImportResult {
@@ -95,6 +99,7 @@ function getEntityType(csv: string): string {
   const h = parseHeaders(csv).join(",");
   if (h.includes("normal_balance") || h.includes("type")) return "coa";
   if (h.includes("purchase_price") || h.includes("selling_price")) return "products";
+  if (h.includes("saldo") || h.includes("kode_akun")) return "opening-balance";
   return "parties";
 }
 
@@ -105,14 +110,16 @@ export default function ImportPage() {
   const [csv, setCsv] = useState("");
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<ImportResult & { id?: string; insertedRows?: number } | null>(null);
+  const [undoResult, setUndoResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [undoLoading, setUndoLoading] = useState(false);
 
   const headers = useMemo(() => {
     if (!csv.trim()) return [];
     const h = parseHeaders(csv);
     // Auto-detect entity type from headers
     const detected = getEntityType(csv);
-    if (["coa", "products", "parties"].includes(detected)) {
+    if (["coa", "products", "parties", "opening-balance"].includes(detected)) {
       setEntityType(detected as EntityType);
     }
     return h;
@@ -163,6 +170,7 @@ export default function ImportPage() {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["parties"] });
+      queryClient.invalidateQueries({ queryKey: ["opening-balance"] });
     },
   });
 
@@ -183,6 +191,32 @@ export default function ImportPage() {
     previewMutation.mutate();
   };
 
+  const handleUndo = async (importResult: ImportResult & { id?: string; insertedRows?: number }) => {
+    const importId = importResult.id;
+    if (!importId) {
+      // If no import ID, try to find the latest by re-running preview hash
+      setUndoResult({ success: false, message: "Tidak dapat membatalkan: ID import tidak tersedia" });
+      return;
+    }
+    setUndoLoading(true);
+    try {
+      const res = await apiRequest(`/api/import/${entityType}/undo`, {
+        method: "POST",
+        body: JSON.stringify({ importId }),
+      });
+      const data = res as { success: boolean; message: string };
+      setUndoResult(data);
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["parties"] });
+      queryClient.invalidateQueries({ queryKey: ["opening-balance"] });
+    } catch (err) {
+      setUndoResult({ success: false, message: (err as Error)?.message ?? "Gagal membatalkan import" });
+    } finally {
+      setUndoLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4">
       <div>
@@ -191,12 +225,12 @@ export default function ImportPage() {
       </div>
 
       {/* Entity type tabs */}
-      <div className="flex gap-2 border-b border-wood-200">
-        {(["coa", "products", "parties"] as const).map((type) => (
+      <div className="flex gap-2 border-b border-wood-200 overflow-x-auto">
+        {(["coa", "products", "parties", "opening-balance"] as EntityType[]).map((type) => (
           <button
             key={type}
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px shrink-0 ${
               entityType === type
                 ? "border-wood-800 text-wood-800"
                 : "border-transparent text-wood-400 hover:text-wood-600"
@@ -363,6 +397,34 @@ export default function ImportPage() {
                 Import Lagi
               </Button>
             </div>
+
+            {/* Undo button — shown when import succeeded */}
+            {(result.rowsSucceeded ?? result.insertedRows ?? 0) > 0 && !undoResult && !undoLoading && (
+              <div className="border-t border-wood-200 pt-3 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleUndo(result)}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  Batalkan Import
+                </Button>
+                <p className="text-xs text-wood-400 mt-1">
+                  Akan menonaktifkan data yang baru saja diimport. Data tidak akan dihapus permanen.
+                </p>
+              </div>
+            )}
+
+            {undoResult && (
+              <div className={`border-t border-wood-200 pt-3 mt-2`}>
+                <p className={`text-sm font-medium ${undoResult.success ? "text-amber-600" : "text-red-600"}`}>
+                  {undoResult.message}
+                </p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setStep("input"); setCsv(""); setPreview(null); setResult(null); setUndoResult(null); }}>
+                  Import Lagi
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -120,6 +120,8 @@ export interface ImportWriter<T> {
 export interface InsertResult {
   inserted: number;
   errors: ImportError[];
+  /** IDs of created entities (for undo tracking) */
+  createdIds?: string[];
 }
 
 export async function previewImport<T>(
@@ -204,7 +206,7 @@ export async function executeImport<T>(
       organizationId,
       createdBy,
       importId,
-      JSON.stringify({ importType, totalRows: preview.totalRows, inserted: result.inserted, errors: result.errors.length }),
+      JSON.stringify({ importType, totalRows: preview.totalRows, inserted: result.inserted, errors: result.errors.length, createdIds: result.createdIds }),
       Date.now(),
     ],
   );
@@ -271,4 +273,128 @@ export function validateEnumField<T extends string>(
     return null;
   }
   return val;
+}
+
+export interface UndoResult {
+  importId: string;
+  importType: string;
+  undoneRows: number;
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Undo a previously executed import by its audit-logged import ID.
+ * Deletes the entities that were created during the import.
+ *
+ * Supported import types: coa_import, product_import, party_import, opening_balance_import
+ */
+export async function undoImport(
+  db: D1Database,
+  organizationId: string,
+  importId: string,
+): Promise<UndoResult> {
+  // Find the import audit log entry
+  const logEntry = await db.prepare(
+    `SELECT after_json, entity_type FROM audit_logs
+     WHERE organization_id = ? AND entity_id = ? AND action = 'import_executed'
+     ORDER BY created_at DESC LIMIT 1`,
+  ).bind(organizationId, importId).first<{ after_json: string; entity_type: string }>();
+
+  if (!logEntry) {
+    return {
+      importId,
+      importType: "unknown",
+      undoneRows: 0,
+      success: false,
+      message: "Import tidak ditemukan atau sudah dibatalkan",
+    };
+  }
+
+  const after = JSON.parse(logEntry.after_json) as {
+    importType: string;
+    createdIds?: string[];
+  };
+
+  const importType = after.importType;
+  const createdIds = after.createdIds;
+
+  if (!createdIds || createdIds.length === 0) {
+    return {
+      importId,
+      importType,
+      undoneRows: 0,
+      success: false,
+      message: "Import ini tidak memiliki data yang bisa dibatalkan",
+    };
+  }
+
+  let undoneRows = 0;
+
+  switch (importType) {
+    case "coa_import": {
+      // Soft-delete: set is_active = 0
+      for (const id of createdIds) {
+        await db.prepare(
+          `UPDATE accounts SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
+        ).bind(Date.now(), id, organizationId).run();
+        undoneRows++;
+      }
+      break;
+    }
+    case "product_import": {
+      for (const id of createdIds) {
+        await db.prepare(
+          `UPDATE products SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
+        ).bind(Date.now(), id, organizationId).run();
+        undoneRows++;
+      }
+      break;
+    }
+    case "party_import": {
+      for (const id of createdIds) {
+        await db.prepare(
+          `UPDATE parties SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
+        ).bind(Date.now(), id, organizationId).run();
+        undoneRows++;
+      }
+      break;
+    }
+    case "opening_balance_import": {
+      // Delete journal lines + journal entry
+      for (const id of createdIds) {
+        await db.prepare(
+          `DELETE FROM journal_lines WHERE journal_entry_id = ? AND organization_id = ?`,
+        ).bind(id, organizationId).run();
+        await db.prepare(
+          `DELETE FROM journal_entries WHERE id = ? AND organization_id = ?`,
+        ).bind(id, organizationId).run();
+        undoneRows++;
+      }
+      break;
+    }
+    default: {
+      return {
+        importId,
+        importType,
+        undoneRows: 0,
+        success: false,
+        message: `Tipe import "${importType}" tidak mendukung pembatalan`,
+      };
+    }
+  }
+
+  // Mark the audit log entry as undone
+  const updatedAfter = { ...after, undoneAt: Date.now(), undone: true };
+  await db.prepare(
+    `UPDATE audit_logs SET after_json = ? WHERE organization_id = ? AND entity_id = ? AND action = 'import_executed'`,
+  ).bind(JSON.stringify(updatedAfter), organizationId, importId).run();
+
+  return {
+    importId,
+    importType,
+    undoneRows,
+    success: true,
+    message: `Berhasil membatalkan ${undoneRows} baris data ${importType}`,
+  };
 }
