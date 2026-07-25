@@ -32,6 +32,7 @@ import { assertTrialBalanceBalanced } from "../services/reports.service";
 import type { TrialBalanceRow } from "../services/reports.service";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
 import { FakeD1Database, validateJournalLine } from "../test/fake-d1";
+import type { D1Database } from "@cloudflare/workers-types";
 
 describe("Golden Accounting Scenarios (seeded fixtures)", () => {
   describe("G1: Journal balance invariants with seeded data", () => {
@@ -1038,6 +1039,123 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       expect(result.reversal_transaction_id).toBeTypeOf("string");
       expect(result.reversal_transaction_id.length).toBeGreaterThan(0);
       expect(result.reversal_journal_entry_ids.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe("P0.4: Report drill-down (TB → GL → transactions)", () => {
+    it("general ledger returns results for date range", async () => {
+      const { db } = createSeedFixtures();
+      const { getGeneralLedger } = await import("../services/reports.service");
+
+      const gl = await getGeneralLedger(db as unknown as D1Database, FIXTURE_IDS.orgs.a, {
+        fromDate: "2026-01-01",
+        toDate: "2026-12-31",
+        limit: 100,
+      });
+
+      expect(Array.isArray(gl)).toBe(true);
+      // Schema includes transaction_id for drill-down path
+    });
+
+    it("trial balance callable alongside GL for drill-down path", async () => {
+      const { db } = createSeedFixtures();
+      const { getTrialBalance, getGeneralLedger } = await import("../services/reports.service");
+
+      const tb = await getTrialBalance(db as unknown as D1Database, FIXTURE_IDS.orgs.a, "2026-12-31");
+      expect(tb.length).toBeGreaterThanOrEqual(1);
+
+      const gl = await getGeneralLedger(db as unknown as D1Database, FIXTURE_IDS.orgs.a, {
+        accountId: tb[0].account_id,
+        fromDate: "2026-01-01",
+        toDate: "2026-12-31",
+        limit: 10,
+      });
+      expect(Array.isArray(gl)).toBe(true);
+    });
+  });
+
+  describe("P0.5: Transaction correction — replacement links", () => {
+    it("postTransaction with originalTransactionId does not throw", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction, voidTransaction } = await import("../services/transactions.service");
+
+      // Post a transaction
+      const posted = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-03-01",
+          transactionType: "cash_sale",
+          amount: 200000,
+          description: "Replacement test: original",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          idempotencyKey: "idem-replacement-original-01",
+        },
+      );
+      expect(posted.transaction_id).toBeTypeOf("string");
+
+      // Void the original
+      const voidResult = await voidTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        posted.transaction_id,
+        {
+          reason: "Testvoid for replacement",
+          idempotencyKey: "idem-replacement-void-01",
+        },
+      );
+      expect(voidResult.status).toBe("voided");
+      expect(voidResult.reversal_transaction_id).toBeTypeOf("string");
+      expect(voidResult.reversal_transaction_id.length).toBeGreaterThan(0);
+
+      // Post replacement linked to original
+      const replacement = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-03-01",
+          transactionType: "cash_sale",
+          amount: 250000,
+          description: "Replacement: corrected amount",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          originalTransactionId: posted.transaction_id,
+          idempotencyKey: "idem-replacement-new-01",
+        },
+      );
+      expect(replacement.transaction_id).toBeTypeOf("string");
+      expect(replacement.transaction_id).not.toBe(posted.transaction_id);
+
+      // Chain: original voided → reversal created, and original → replacement
+      // (original_transaction_id stored in DB; verification at read level)
+    });
+
+    it("postTransaction accepts originalTransactionId without existing void", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      // Post a transaction referencing a non-existent original
+      // This is allowed because validation happens at the business level,
+      // not in postTransaction itself.
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-03-15",
+          transactionType: "expense_payment",
+          amount: 50000,
+          description: "Linked to non-existent original (storeonly)",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          debitAccountId: FIXTURE_IDS.accounts.expenseA,
+          originalTransactionId: "non-existent-original-id",
+          idempotencyKey: "idem-replacement-nx-01",
+        },
+      );
+      expect(result.transaction_id).toBeTypeOf("string");
+      expect(result.transaction_id.length).toBeGreaterThan(0);
     });
   });
 });

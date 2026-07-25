@@ -44,6 +44,8 @@ export interface PostTransactionInput {
   quantity?: number | null;
   unitPrice?: number | null;
   debitAccountId?: string | null;
+  /** Original transaction this replaces (after void). */
+  originalTransactionId?: string | null;
   idempotencyKey: string;
 }
 
@@ -755,8 +757,9 @@ function buildPostTransactionStatements(
          transaction_type, amount_minor, party_id, category_name,
          cash_account_id, destination_cash_account_id, payment_status, due_date,
          description, notes, status, idempotency_key, posted_at, posted_by,
+         original_transaction_id,
          created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
       [
         transactionId,
         organizationId,
@@ -775,6 +778,8 @@ function buildPostTransactionStatements(
         idempotencyKey,
         current,
         userId,
+        userId,
+        input.originalTransactionId ?? null,
         userId,
         current,
         current,
