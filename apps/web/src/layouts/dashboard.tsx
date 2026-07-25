@@ -45,6 +45,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
       { to: "/reports/cash-flow", label: "Arus Kas" },
+      { to: "/reports/aging", label: "Piutang & Utang" },
     ],
   },
   {

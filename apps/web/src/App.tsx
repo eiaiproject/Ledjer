@@ -26,6 +26,7 @@ const TrialBalancePage = lazy(async () => ({ default: (await import("@/pages/rep
 const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/reports/profit-loss")).ProfitLossPage }));
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
 const CashFlowPage = lazy(async () => ({ default: (await import("@/pages/reports/cash-flow")).default }));
+const AgingReportPage = lazy(async () => ({ default: (await import("@/pages/reports/aging")).default }));
 const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/team")).TeamSettingsPage }));
 const PeriodLocksPage = lazy(async () => ({ default: (await import("@/pages/settings/period-locks")).PeriodLocksPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
@@ -248,6 +249,7 @@ const routerConfig = [
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
           { path: "/reports/cash-flow", element: <CashFlowPage /> },
+          { path: "/reports/aging", element: <AgingReportPage /> },
           { path: "/settings/team", element: <TeamSettingsPage /> },
           { path: "/settings/period-locks", element: <PeriodLocksPage /> },
         ],
