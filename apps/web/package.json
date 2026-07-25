@@ -23,6 +23,9 @@
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:webkit": "playwright test --project=webkit",
+    "test:visual": "E2E_VISUAL=1 playwright test e2e/visual.spec.ts",
+    "test:visual:update": "E2E_VISUAL=1 playwright test e2e/visual.spec.ts --update-snapshots",
+    "test:visual:ci": "E2E_VISUAL=1 playwright test e2e/visual.spec.ts --reporter=github",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
