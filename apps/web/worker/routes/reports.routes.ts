@@ -6,6 +6,7 @@ import {
   loadCurrentOrganization,
   requirePermission,
 } from "../middleware/organization.middleware";
+import { getCashFlowStatement } from "../services/cash-flow.service";
 import {
   getBalanceSheet,
   getGeneralLedger,
@@ -60,6 +61,18 @@ reportsRoutes.get("/general-ledger", async (c) => {
     toDate: requiredParam(params, "toDate"),
   });
   return c.json({ generalLedger });
+});
+
+reportsRoutes.get("/cash-flow", async (c) => {
+  const context = c.get("organizationContext");
+  const params = new URL(c.req.url).searchParams;
+  const cashFlow = await getCashFlowStatement(
+    c.env.DB,
+    context.organization.id,
+    requiredParam(params, "fromDate"),
+    requiredParam(params, "toDate"),
+  );
+  return c.json({ cashFlow });
 });
 
 function requiredParam(params: URLSearchParams, name: string): string {
