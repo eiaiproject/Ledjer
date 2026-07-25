@@ -195,7 +195,7 @@ export async function getPartyStatement(
 ): Promise<{
   partyId: string;
   partyName: string;
-  invoices: { invoiceNumber: string; date: string; dueDate: string; totalMinor: number; outstandingMinor: number; status: string }[];
+  invoices: { invoiceId: string; invoiceNumber: string; date: string; dueDate: string; totalMinor: number; outstandingMinor: number; status: string }[];
   totalOutstanding: number;
 }> {
   const party = await queryFirst<{ name: string }>(
@@ -222,6 +222,7 @@ export async function getPartyStatement(
     const outstanding = await getOutstandingAmount(db, organizationId, inv.id);
     totalOutstanding += outstanding;
     invLines.push({
+      invoiceId: inv.id,
       invoiceNumber: inv.invoice_number,
       date: inv.invoice_date,
       dueDate: inv.due_date,

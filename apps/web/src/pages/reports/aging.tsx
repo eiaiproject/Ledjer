@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api/client";
 import { Card } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
+import { ExternalLink } from "reicon-react";
 
 interface AgingBucket {
   label: string;
@@ -31,6 +33,7 @@ function fetchAging(partyType: string): Promise<AgingReport> {
 }
 
 export default function AgingReportPage() {
+  const navigate = useNavigate();
   const [partyType, setPartyType] = useState("customer");
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -97,8 +100,11 @@ export default function AgingReportPage() {
                 </thead>
                 <tbody className="divide-y divide-wood-100">
                   {allItems.map((party) => (
-                    <tr key={party.partyId} className="hover:bg-wood-50">
-                      <td className="px-4 py-3 font-medium text-wood-800">{party.partyName}</td>
+                    <tr key={party.partyId} className="hover:bg-wood-50 cursor-pointer" onClick={() => navigate(`/reports/aging/${party.partyId}`)}>
+                      <td className="px-4 py-3 font-medium text-wood-800 underline decoration-dotted underline-offset-2 decoration-wood-300 hover:decoration-wood-600">
+                        {party.partyName}
+                        <ExternalLink className="inline-block h-3 w-3 ml-1 text-wood-400" />
+                      </td>
                       {party.buckets.map((bucket, i) => (
                         <td key={i} className="px-4 py-3 text-right text-wood-700">
                           {bucket.totalMinor > 0 ? formatIDR(bucket.totalMinor) : "—"}

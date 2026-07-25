@@ -27,6 +27,7 @@ const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/repor
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
 const CashFlowPage = lazy(async () => ({ default: (await import("@/pages/reports/cash-flow")).default }));
 const AgingReportPage = lazy(async () => ({ default: (await import("@/pages/reports/aging")).default }));
+const PartyStatementPage = lazy(async () => ({ default: (await import("@/pages/reports/party-statement")).default }));
 const ReconciliationPage = lazy(async () => ({ default: (await import("@/pages/reconciliation/index")).default }));
 const OpeningBalancePage = lazy(async () => ({ default: (await import("@/pages/opening-balance")).default }));
 const ImportPage = lazy(async () => ({ default: (await import("@/pages/import/index")).default }));
@@ -253,6 +254,7 @@ const routerConfig = [
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
           { path: "/reports/cash-flow", element: <CashFlowPage /> },
           { path: "/reports/aging", element: <AgingReportPage /> },
+          { path: "/reports/aging/:partyId", element: <PartyStatementPage /> },
           { path: "/reconciliation", element: <ReconciliationPage /> },
           { path: "/opening-balance", element: <OpeningBalancePage /> },
           { path: "/import", element: <ImportPage /> },
