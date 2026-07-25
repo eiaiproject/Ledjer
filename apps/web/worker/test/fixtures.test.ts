@@ -10,8 +10,11 @@ describe("Seed Fixtures", () => {
 
   it("createSeedFixtures returns db and session tokens", () => {
     const result = createSeedFixtures();
-    expect(result.db).toBeTruthy();
-    expect(result.sessionTokenA).toBeTruthy();
+    expect(result.db).not.toBeNull();
+    expect(result.sessionTokenA).toBeTypeOf("string");
+    expect(result.sessionTokenA.length).toBeGreaterThan(0);
+    expect(result.sessionTokenB).toBeTypeOf("string");
+    expect(result.sessionTokenB.length).toBeGreaterThan(0);
     expect(result.sessionTokenB).not.toBe(result.sessionTokenA);
   });
 
@@ -28,8 +31,10 @@ describe("Seed Fixtures", () => {
   });
 
   it("empty org has owner but no accounts/products/parties", () => {
-    expect(FIXTURE_IDS.users.ownerEmpty).toBeTruthy();
-    expect(FIXTURE_IDS.orgs.empty).toBeTruthy();
+    expect(FIXTURE_IDS.users.ownerEmpty).toBeTypeOf("string");
+    expect(FIXTURE_IDS.users.ownerEmpty.length).toBeGreaterThan(0);
+    expect(FIXTURE_IDS.orgs.empty).toBeTypeOf("string");
+    expect(FIXTURE_IDS.orgs.empty.length).toBeGreaterThan(0);
     // Empty org has no accounts defined in FIXTURE_IDS.accounts
     const acctKeys = Object.keys(FIXTURE_IDS.accounts);
     const emptyAccounts = acctKeys.filter((k) => k.includes("Empty") || k.includes("empty"));

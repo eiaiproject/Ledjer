@@ -72,6 +72,7 @@ export interface PostTransactionInput {
   quantity?: number;
   unitPrice?: number;
   debitAccountId?: string;
+  originalTransactionId?: string | null;
   idempotencyKey: string;
 }
 

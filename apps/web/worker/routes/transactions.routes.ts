@@ -51,6 +51,7 @@ const postTransactionSchema = z.object({
   quantity: z.number().positive().nullable().optional(),
   unitPrice: z.number().min(0).nullable().optional(),
   debitAccountId: z.string().nullable().optional(),
+  originalTransactionId: z.string().nullable().optional(),
   idempotencyKey: z.string().min(8).max(160),
 });
 

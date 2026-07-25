@@ -16,6 +16,7 @@ const PUBLIC_ROUTES = [
   { path: "/login", title: /Ledjer/i, content: /email/i },
   { path: "/register", title: /Ledjer/i, content: /email/i },
   { path: "/forgot-password", title: /Ledjer/i, content: /email/i },
+  { path: "/reset-password", title: /Ledjer/i, content: /email|password|token|reset/i },
   { path: "/privacy", title: /Ledjer/i, content: /privasi|data|pribadi/i },
   { path: "/terms", title: /Ledjer/i, content: /ketentuan|syarat/i },
   { path: "/contact", title: /Ledjer/i, content: /kontak|email/i },
@@ -52,6 +53,26 @@ test.describe("Protected route redirects", () => {
     test(`unauthenticated user redirected from ${route} to login`, async ({ page }) => {
       await page.goto(route, { timeout: 30000 });
       await expect(page).toHaveURL(/\/login/, { timeout: 30000 });
+    });
+  }
+});
+
+test.describe("Canonical auth routes", () => {
+  const OLD_AUTH_PATHS = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/forgot-password",
+  ];
+
+  for (const oldPath of OLD_AUTH_PATHS) {
+    test(`old ${oldPath} path shows not-found (canonical route is ${oldPath.replace("/auth", "")})`, async ({ page }) => {
+      await page.goto(oldPath);
+      await page.waitForLoadState("networkidle");
+      // Must not show any auth page — confirm not-found is displayed
+      await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
+      // Safety check: canonical route h1 must not contain "masuk" or "daftar"
+      const h1Text = await page.locator("h1").textContent();
+      expect(h1Text?.toLowerCase()).not.toMatch(/masuk|daftar|email/i);
     });
   }
 });

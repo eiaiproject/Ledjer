@@ -26,7 +26,7 @@ import receivablesRoutes from "./routes/receivables.routes";
 import reconciliationRoutes from "./routes/reconciliation.routes";
 import importRoutes from "./routes/import.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
-import { createBackup } from "./services/backup.service";
+import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
 
 const app = new Hono<AppContext>();
@@ -137,7 +137,41 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
     if (env.BACKUP_BUCKET) {
       // ponytail: Backup runs on every cron tick (03:00 daily).
       // If retention cleanup fails, backup integrity is preserved.
-      await createBackup(env.DB, env.BACKUP_BUCKET);
+      try {
+        const manifest = await createBackup(env.DB, env.BACKUP_BUCKET);
+        console.log(
+          JSON.stringify({
+            type: "backup",
+            date: new Date(manifest.startedAt).toISOString().slice(0, 10),
+            tables: Object.keys(manifest.tables).length,
+            rows: Object.values(manifest.tables).reduce((s, t) => s + t.rowCount, 0),
+            status: "completed",
+          }),
+        );
+
+        // P0.6: Run automated restore drill after backup
+        const drill = await runRestoreDrill(env.BACKUP_BUCKET);
+        console.log(
+          JSON.stringify({
+            type: "restore_drill",
+            date: drill.date,
+            valid: drill.valid,
+            errors: drill.errors.length > 0 ? drill.errors : undefined,
+            tableCount: drill.tableCount,
+            totalRows: drill.totalRows,
+            duration: drill.duration,
+            status: drill.valid ? "passed" : "failed",
+          }),
+        );
+      } catch (err) {
+        console.error(
+          JSON.stringify({
+            type: "backup",
+            status: "failed",
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      }
     }
   },
 };

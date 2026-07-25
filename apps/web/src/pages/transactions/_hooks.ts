@@ -96,7 +96,7 @@ function buildProductParams(data: TransactionSubmission): Partial<PostTransactio
 }
 
 function buildTransactionParams(
-  data: TransactionSubmission,
+  data: TransactionSubmission & { originalTransactionId?: string },
   expenseCogsAccounts: AccountLookup,
 ): PostTransactionInput {
   const params: PostTransactionInput = {
@@ -106,6 +106,7 @@ function buildTransactionParams(
     paymentStatus: usesPaymentStatus(data.transactionType) ? data.paymentStatus : "paid",
     partialAmount: data.partialAmount ?? undefined,
     description: data.description,
+    originalTransactionId: data.originalTransactionId ?? undefined,
     idempotencyKey: data.clientToken,
   };
 
