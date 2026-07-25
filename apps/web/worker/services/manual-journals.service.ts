@@ -4,7 +4,7 @@
 // and reusable journal templates.
 
 import { generateId } from "../auth/tokens";
-import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, statement, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import { badRequest, conflict, notFound } from "../http/errors";
@@ -357,7 +357,7 @@ export async function listJournalTemplates(
   entryType?: JournalEntryType,
 ): Promise<JournalTemplate[]> {
   let sql = `SELECT * FROM journal_templates WHERE organization_id = ?`;
-  const values: unknown[] = [organizationId];
+  const values: D1Input[] = [organizationId];
 
   if (entryType) {
     sql += ` AND entry_type = ?`;

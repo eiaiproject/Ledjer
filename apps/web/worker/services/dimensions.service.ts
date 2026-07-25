@@ -2,7 +2,7 @@
 // Lightweight dimension system using a single dimensions table and
 // transaction_tags / journal_line_tags junction tables.
 
-import { queryAll, queryFirst, execute, executeBatch } from "../db/client";
+import { queryAll, queryFirst, execute, executeBatch, statement, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { generateId } from "../auth/tokens";
@@ -87,7 +87,7 @@ export async function listDimensions(
   },
 ): Promise<Dimension[]> {
   const conditions: string[] = ["d.organization_id = ?"];
-  const params: unknown[] = [organizationId];
+  const params: D1Input[] = [organizationId];
 
   if (opts?.dimensionType) {
     conditions.push("d.dimension_type = ?");
@@ -208,7 +208,7 @@ export async function updateDimension(
 
   const now = Date.now();
   const sets: string[] = ["updated_at = ?"];
-  const params: unknown[] = [now];
+  const params: D1Input[] = [now];
 
   if (data.name !== undefined) { sets.push("name = ?"); params.push(data.name); }
   if (data.description !== undefined) { sets.push("description = ?"); params.push(data.description); }
@@ -276,7 +276,7 @@ export async function deleteDimension(
 
   // Soft delete: deactivate
   await executeBatch(db, [
-    execute(db,
+    statement(db,
       `UPDATE dimensions SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
       [now, dimensionId, organizationId],
     ),
@@ -338,7 +338,7 @@ export async function setTransactionTags(
 
   // Remove existing tags
   statements.push(
-    execute(db,
+    statement(db,
       `DELETE FROM transaction_tags WHERE organization_id = ? AND transaction_id = ?`,
       [organizationId, transactionId],
     ),
@@ -349,7 +349,7 @@ export async function setTransactionTags(
   for (const dimId of dimensionIds) {
     const id = generateId();
     statements.push(
-      execute(db,
+      statement(db,
         `INSERT INTO transaction_tags (id, organization_id, transaction_id, dimension_id, created_by, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [id, organizationId, transactionId, dimId, userId, now],

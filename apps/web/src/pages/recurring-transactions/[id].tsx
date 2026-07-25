@@ -12,7 +12,7 @@ import {
 } from "@/lib/api/recurring-transactions";
 import { useOrganization } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { ArrowLeft, Play, Pause, SkipForward, Clock, Loader, CheckCircle, XCircle, AlertTriangle } from "reicon-react";
+import { ArrowLeft, Play, Pause, Clock, Loader, CheckCircle, XCircle, AlertTriangle, FastForward } from "reicon-react";
 import { useState } from "react";
 
 const FREQ_LABELS: Record<string, string> = {
@@ -49,7 +49,7 @@ const TYPE_LABELS: Record<string, string> = {
 const EXEC_STATUS_ICONS: Record<string, React.ReactNode> = {
   success: <CheckCircle className="h-4 w-4 text-leaf-600" />,
   failed: <XCircle className="h-4 w-4 text-red-600" />,
-  skipped: <SkipForward className="h-4 w-4 text-amber-600" />,
+  skipped: <FastForward className="h-4 w-4 text-amber-600" />,
 };
 
 const EXEC_STATUS_LABELS: Record<string, string> = {
@@ -175,7 +175,7 @@ export function RecurringTransactionDetailPage() {
                   disabled={skipMutation.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
                 >
-                  <SkipForward className="h-3.5 w-3.5" />
+                  <FastForward className="h-3.5 w-3.5" />
                   Lewati
                 </button>
                 <button

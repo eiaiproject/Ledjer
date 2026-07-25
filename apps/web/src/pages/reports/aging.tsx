@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
-import { ExternalLink } from "reicon-react";
+// ExternalLink icon replaced with inline SVG
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 interface AgingBucket {
@@ -107,7 +107,7 @@ export default function AgingReportPage() {
                     <tr key={party.partyId} className="hover:bg-wood-50 cursor-pointer" onClick={() => navigate(`/reports/aging/${party.partyId}`)}>
                       <td className="px-4 py-3 font-medium text-wood-800 underline decoration-dotted underline-offset-2 decoration-wood-300 hover:decoration-wood-600">
                         {party.partyName}
-                        <ExternalLink className="inline-block h-3 w-3 ml-1 text-wood-400" />
+                        <svg className="inline-block h-3 w-3 ml-1 text-wood-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                       </td>
                       {party.buckets.map((bucket, i) => (
                         <td key={i} className="px-4 py-3 text-right text-wood-700">

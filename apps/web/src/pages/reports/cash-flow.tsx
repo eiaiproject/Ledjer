@@ -5,7 +5,7 @@ import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, BarChart3 } from "reicon-react";
+import { Download, TrendUp, Chart3 } from "reicon-react";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
@@ -81,7 +81,7 @@ function CashFlowTable({ report, onDrillDown }: { report: CashFlowReport; onDril
                         <span className="flex items-center gap-1.5">
                           {row.label}
                           {row.transactionIds && row.transactionIds.length > 0 && onDrillDown && (
-                            <TrendingUp className="h-3 w-3 text-wood-400 shrink-0" />
+                            <TrendUp className="h-3 w-3 text-wood-400 shrink-0" />
                           )}
                         </span>
                       </td>
@@ -226,7 +226,7 @@ export default function CashFlowPage() {
           onClick={() => setComparePeriod(!comparePeriod)}
           className="flex items-center gap-1.5"
         >
-          <BarChart3 className="h-4 w-4" />
+          <Chart3 className="h-4 w-4" />
           {comparePeriod ? "Sembunyikan Perbandingan" : "Bandingkan Periode"}
         </Button>
       </div>

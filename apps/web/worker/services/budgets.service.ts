@@ -2,7 +2,7 @@
 // Supports account-level budgets, actual vs budget reports, variance alerts,
 // and simple forecast capability.
 
-import { queryAll, queryFirst, execute, executeBatch } from "../db/client";
+import { queryAll, queryFirst, execute, executeBatch, statement, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { generateId } from "../auth/tokens";
@@ -85,7 +85,7 @@ export async function listBudgets(
   },
 ): Promise<Budget[]> {
   const conditions: string[] = ["b.organization_id = ?"];
-  const params: unknown[] = [organizationId];
+  const params: D1Input[] = [organizationId];
 
   if (opts?.accountId) {
     conditions.push("b.account_id = ?");
@@ -221,7 +221,7 @@ export async function createBudget(
   }
 
   const statements = [
-    execute(
+    statement(
       db,
       `INSERT INTO budgets (id, organization_id, account_id, period_from, period_to, amount_minor,
         dimension_type, dimension_value, notes, is_active, created_by, created_at, updated_at)
@@ -232,7 +232,7 @@ export async function createBudget(
       ],
     ),
     ...lines.map((line) =>
-      execute(
+      statement(
         db,
         `INSERT INTO budget_lines (id, budget_id, organization_id, month, amount_minor)
          VALUES (?, ?, ?, ?, ?)`,
@@ -283,7 +283,7 @@ export async function updateBudget(
   const statements: D1PreparedStatement[] = [];
 
   statements.push(
-    execute(
+    statement(
       db,
       `UPDATE budgets SET
         amount_minor = COALESCE(?, amount_minor),
@@ -307,11 +307,11 @@ export async function updateBudget(
   // If lines are provided, replace all lines
   if (data.lines) {
     statements.push(
-      execute(db, `DELETE FROM budget_lines WHERE budget_id = ?`, [budgetId]),
+      statement(db, `DELETE FROM budget_lines WHERE budget_id = ?`, [budgetId]),
     );
     for (const line of data.lines) {
       statements.push(
-        execute(
+        statement(
           db,
           `INSERT INTO budget_lines (id, budget_id, organization_id, month, amount_minor)
            VALUES (?, ?, ?, ?, ?)`,
@@ -352,7 +352,7 @@ export async function deleteBudget(
   // Soft delete — set inactive
   const now = Date.now();
   await executeBatch(db, [
-    execute(
+    statement(
       db,
       `UPDATE budgets SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
       [now, budgetId, organizationId],

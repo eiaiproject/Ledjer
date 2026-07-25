@@ -16,7 +16,7 @@ import {
   approveApprovalRequest,
   rejectApprovalRequest,
   getPendingApprovalCount,
-  actionTypeLabel,
+  // actionTypeLabel,
   type ApprovalRequest,
   type ApprovalStatus,
   type ActionType,
@@ -26,14 +26,11 @@ import {
   X,
   Clock,
   ShieldCheck,
-  ShieldX,
   Eye,
-  ChevronDown,
-  ChevronUp,
   InfoCircle,
 } from "reicon-react";
 
-const STATUS_BADGE: Record<ApprovalStatus, { variant: "info" | "success" | "error"; label: string }> = {
+const STATUS_BADGE: Record<ApprovalStatus, { variant: BadgeProps["variant"]; label: string }> = {
   pending: { variant: "info", label: "Menunggu" },
   approved: { variant: "success", label: "Disetujui" },
   rejected: { variant: "error", label: "Ditolak" },
@@ -134,7 +131,7 @@ export function ApprovalsPage() {
           </p>
         </div>
         {pendingCount !== undefined && pendingCount > 0 && (
-          <Badge variant="info" size="lg">
+          <Badge variant="info" size="md">
             {pendingCount} menunggu
           </Badge>
         )}

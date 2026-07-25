@@ -10,7 +10,7 @@ import {
   dismissNotification,
   type NotificationCategory,
 } from "@/lib/api/notifications";
-import { Bell, Loader, Trash2, CheckDouble, Eye, AlertTriangle, Clock, Package, Lock, Ban, RefreshCw, UserPlus, Upload, Download, Shield, Repeat } from "reicon-react";
+import { Bell, Loader, Trash2, CheckCheck, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat } from "reicon-react";
 
 const CATEGORY_LABELS: Record<string, string> = {
   overdue_receivable: "Piutang Jatuh Tempo",
@@ -34,14 +34,14 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   low_stock: <Package className="h-4 w-4" />,
   pending_approval: <Clock className="h-4 w-4" />,
   unclosed_period: <Lock className="h-4 w-4" />,
-  team_invitation: <UserPlus className="h-4 w-4" />,
+  team_invitation: <Shield className="h-4 w-4" />,
   import_failed: <Upload className="h-4 w-4" />,
   export_completed: <Download className="h-4 w-4" />,
   backup_failed: <Ban className="h-4 w-4" />,
   role_changed: <Shield className="h-4 w-4" />,
   new_device_login: <Shield className="h-4 w-4" />,
   recurring_failed: <Repeat className="h-4 w-4" />,
-  system: <RefreshCw className="h-4 w-4" />,
+  system: <Refresh className="h-4 w-4" />,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -155,7 +155,7 @@ export function NotificationsPage() {
                 disabled={markAllReadMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
               >
-                <CheckDouble className="h-3.5 w-3.5" />
+                <CheckCheck className="h-3.5 w-3.5" />
                 Baca Semua
               </button>
               <button

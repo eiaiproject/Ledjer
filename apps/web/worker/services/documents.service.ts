@@ -11,7 +11,7 @@
 // - Traceable via reference_document_type + reference_document_id
 
 import { generateId } from "../auth/tokens";
-import { execute, executeBatch, queryAll, queryFirst } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, type D1Input } from "../db/client";
 import { badRequest, notFound } from "../http/errors";
 
 export type DocumentType =
@@ -315,7 +315,7 @@ export async function listDocuments(
   offset = 0,
 ): Promise<{ documents: DocumentOutput[]; total: number }> {
   const typeFilter = documentType ? "AND document_type = ?" : "";
-  const params: unknown[] = documentType
+  const params: D1Input[] = documentType
     ? [organizationId, documentType, limit, offset]
     : [organizationId, limit, offset];
 

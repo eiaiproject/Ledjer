@@ -1,7 +1,7 @@
 // P4.4 Async Export Service
 // Creates export jobs, processes in chunks, uploads to R2 with expiring URLs.
 
-import { queryAll, queryFirst, execute, executeBatch } from "../db/client";
+import { queryAll, queryFirst, execute, executeBatch, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { generateId } from "../auth/tokens";
@@ -107,7 +107,7 @@ export async function listExportJobs(
   opts?: { limit?: number; offset?: number; status?: ExportStatus },
 ): Promise<ExportJob[]> {
   const conditions: string[] = ["organization_id = ?"];
-  const params: unknown[] = [organizationId];
+  const params: D1Input[] = [organizationId];
 
   if (opts?.status) {
     conditions.push("status = ?");

@@ -35,9 +35,8 @@ import {
   Folder,
   Briefcase,
   Wallet,
-  TrendingUp,
-  AlertTriangle,
-  Pencil,
+  TrendUp,
+  Edit,
   Trash,
 } from "reicon-react";
 
@@ -50,7 +49,7 @@ const DIMENSION_ICONS: Record<DimensionType, React.ComponentType<{ className?: s
   department: Folder,
   project: Briefcase,
   cost_center: Wallet,
-  profit_center: TrendingUp,
+  profit_center: TrendUp,
 };
 
 const DIMENSION_COLORS: Record<DimensionType, string> = {
@@ -332,7 +331,7 @@ export function DimensionsPage() {
                             className="p-1.5 text-text-tertiary hover:text-text-primary rounded"
                             aria-label={`Edit ${dim.name}`}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                           </button>
                           <button
                             type="button"

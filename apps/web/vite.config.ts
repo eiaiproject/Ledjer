@@ -60,11 +60,11 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 750,
     rollupOptions: {
-      // Mark known external dependencies that are large and infrequently used
       output: {
-        manualChunks: {
-          sentry: ["@sentry/react"],
-          vendor: ["react", "react-dom", "react-router-dom"],
+        manualChunks(id: string) {
+          if (id.includes("@sentry/react")) return "sentry";
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router-dom")) return "vendor";
+          return undefined;
         },
       },
     },

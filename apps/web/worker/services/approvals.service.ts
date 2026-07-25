@@ -3,7 +3,7 @@
 // and integration with the notification system.
 
 import { generateId } from "../auth/tokens";
-import { execute, queryAll, queryFirst, statement, executeBatch } from "../db/client";
+import { execute, queryAll, queryFirst, statement, executeBatch, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, forbidden, notFound } from "../http/errors";
 import { createNotification } from "./notifications.service";
@@ -256,7 +256,7 @@ export async function listApprovalRequests(
   },
 ): Promise<ApprovalRequest[]> {
   const conditions = ["ar.organization_id = ?"];
-  const values: unknown[] = [organizationId];
+  const values: D1Input[] = [organizationId];
 
   if (opts?.status) {
     conditions.push("ar.status = ?");

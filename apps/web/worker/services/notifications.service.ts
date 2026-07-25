@@ -3,7 +3,7 @@
 // and querying for the notification bell and center page.
 
 import { generateId } from "../auth/tokens";
-import { execute, executeBatch, queryAll, queryFirst } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, type D1Input } from "../db/client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -188,7 +188,7 @@ export async function dismissAll(
   category?: NotificationCategory,
 ): Promise<number> {
   const categoryFilter = category ? "AND category = ?" : "";
-  const params: unknown[] = category
+  const params: D1Input[] = category
     ? [organizationId, userId, category]
     : [organizationId, userId];
 

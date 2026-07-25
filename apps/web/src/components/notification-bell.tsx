@@ -9,7 +9,7 @@ import {
   dismissNotification,
   type NotificationOutput,
 } from "@/lib/api/notifications";
-import { Bell, Loader, X, CheckDouble, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, RefreshCw, UserPlus, Upload, Download, Shield, Repeat } from "reicon-react";
+import { Bell, Loader, X, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, CheckCheck, UserPlus } from "reicon-react";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   overdue_receivable: <AlertTriangle className="h-4 w-4" />,
@@ -24,7 +24,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   role_changed: <Shield className="h-4 w-4" />,
   new_device_login: <Shield className="h-4 w-4" />,
   recurring_failed: <Repeat className="h-4 w-4" />,
-  system: <RefreshCw className="h-4 w-4" />,
+  system: <Refresh className="h-4 w-4" />,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -157,7 +157,7 @@ export function NotificationBell() {
                   className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-wood-500 hover:bg-wood-100"
                   title="Tandai semua sudah dibaca"
                 >
-                  <CheckDouble className="h-3.5 w-3.5" />
+                  <CheckCheck className="h-3.5 w-3.5" />
                   Baca semua
                 </button>
               )}

@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgPermissions } from "@/hooks/useOrganization";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { formatShortDate } from "@/lib/utils";
@@ -20,22 +19,16 @@ import {
   getBudgetVarianceAlerts,
   generateForecast,
   type Budget,
-  type BudgetLine,
-  type ActualVsBudget,
-  type ForecastResult,
 } from "@/lib/api/budgets";
-import { listAccounts, type Account } from "@/lib/api/accounts";
+import { listAccounts } from "@/lib/api/accounts";
 import {
   Wallet,
-  TrendUp,
-  TrendDown,
   Plus,
   X,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
   Chart,
-  Search,
 } from "reicon-react";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -356,10 +349,11 @@ export function BudgetsPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Akun</label>
-              <Select
+              <select
                 value={formData.accountId}
                 onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
                 required
+                className="w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200"
               >
                 <option value="">Pilih akun...</option>
                 {accounts?.map((a) => (
@@ -367,7 +361,7 @@ export function BudgetsPage() {
                     {a.code} — {a.name}
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { HELP, type HelpContent } from "@/lib/help-content";
-import { QuestionCircle, X } from "reicon-react";
+import { MentionCircle, X } from "reicon-react";
 
 interface HelpTooltipProps {
   /** Key into the HELP content map */
@@ -73,7 +73,7 @@ export function HelpTooltip({
         aria-label={`Bantuan: ${title ?? content.title}`}
         aria-expanded={open}
       >
-        <QuestionCircle className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} aria-hidden="true" />
+        <MentionCircle className={size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"} aria-hidden="true" />
       </button>
 
       {open && (
@@ -178,7 +178,7 @@ export function HelpSection({ topic, defaultOpen = false }: { topic: string; def
         aria-expanded={open}
       >
         <div className="flex items-center gap-2">
-          <QuestionCircle className="h-4 w-4 text-wood-400" aria-hidden="true" />
+          <MentionCircle className="h-4 w-4 text-wood-400" aria-hidden="true" />
           <span className="text-sm font-medium text-text-primary">{content.title}</span>
         </div>
         <svg

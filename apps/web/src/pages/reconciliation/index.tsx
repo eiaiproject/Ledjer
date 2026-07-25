@@ -13,7 +13,7 @@ import { formatIDR } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
-import { CheckCircle, AlertTriangle, RotateCcw } from "reicon-react";
+import { CheckCircle, AlertTriangle } from "reicon-react";
 
 /* Tab: Import statement */
 interface ImportResult {
@@ -270,7 +270,7 @@ function StatementReportTab({ statementId }: { statementId: string }) {
               disabled={reopenMutation.isPending}
               className="border-amber-300 text-amber-700 hover:bg-amber-50"
             >
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              <svg className="h-3.5 w-3.5 mr-1.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
               {reopenMutation.isPending ? "Memproses..." : "Buka Ulang"}
             </Button>
             {reopenMutation.isSuccess && (

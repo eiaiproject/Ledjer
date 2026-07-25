@@ -36,7 +36,7 @@ import {
   ChevronDown,
   ChevronUp,
   Chart,
-  TrendingDown,
+  TrendDown,
   AlertTriangle,
   Calendar,
   Search,
@@ -265,7 +265,7 @@ export function FixedAssetsPage() {
           <Button variant="outline" size="sm" onClick={() => {
             setShowDepreciationModal(true);
           }}>
-            <TrendingDown className="h-4 w-4" />
+            <TrendDown className="h-4 w-4" />
             Depresiasi
           </Button>
           {canManage && (

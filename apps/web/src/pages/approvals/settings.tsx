@@ -1,9 +1,7 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgPermissions } from "@/hooks/useOrganization";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "@/components/ui/toast";
@@ -17,9 +15,6 @@ import {
 } from "@/lib/api/approvals";
 import {
   Shield,
-  ToggleLeft,
-  ToggleRight,
-  InfoCircle,
 } from "reicon-react";
 
 const ACTION_LABELS: Record<ActionType, string> = {
@@ -194,9 +189,13 @@ export function ApprovalSettingsPage() {
                         aria-label={enabled ? `Nonaktifkan ${ACTION_LABELS[action]}` : `Aktifkan ${ACTION_LABELS[action]}`}
                       >
                         {enabled ? (
-                          <ToggleRight className="h-4 w-4" />
+                          <span className="h-4 w-4 flex items-center justify-center text-leaf-600">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M17 7l-5 5-5-5-2 2 7 7 7-7z"/></svg>
+                          </span>
                         ) : (
-                          <ToggleLeft className="h-4 w-4" />
+                          <span className="h-4 w-4 flex items-center justify-center text-wood-400">
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M7 7l5 5 5-5 2 2-7 7-7-7z"/></svg>
+                          </span>
                         )}
                         {enabled ? "Aktif" : "Nonaktif"}
                       </button>

@@ -5,7 +5,7 @@ import { listRecurringTransactions, updateRecurringStatus, type RecurringOutput,
 import { useOrganization } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Repeat, Plus, Play, Pause, SkipForward, Loader } from "reicon-react";
+import { Repeat, Plus, Play, Pause, FastForward } from "reicon-react";
 
 const FREQ_LABELS: Record<string, string> = {
   daily: "Harian",
@@ -210,7 +210,7 @@ function RecurringCard({ item }: { item: RecurringOutput }) {
                   className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-amber-600"
                   title="Lewati"
                 >
-                  <SkipForward className="h-3.5 w-3.5" />
+                  <FastForward className="h-3.5 w-3.5" />
                 </Link>
               </>
             )}

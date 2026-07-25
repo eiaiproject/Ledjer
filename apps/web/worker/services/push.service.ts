@@ -2,7 +2,7 @@
 // Manages Web Push subscriptions and sends notifications via VAPID.
 // Uses the Web Push API (web-push or raw) to deliver notifications.
 
-import { queryAll, queryFirst, execute, executeBatch } from "../db/client";
+import { queryAll, queryFirst, execute, executeBatch, type D1Input } from "../db/client";
 import { badRequest, notFound } from "../http/errors";
 import { generateId } from "../auth/tokens";
 
@@ -135,7 +135,7 @@ export async function listUserSubscriptions(
   isActive?: boolean,
 ): Promise<PushSubscription[]> {
   const conditions: string[] = ["user_id = ?"];
-  const params: unknown[] = [userId];
+  const params: D1Input[] = [userId];
 
   if (isActive !== undefined) {
     conditions.push("is_active = ?");
@@ -397,7 +397,7 @@ export async function getPendingNotifications(
   userId?: string,
 ): Promise<PushNotification[]> {
   const conditions: string[] = ["status = 'pending'"];
-  const params: unknown[] = [];
+  const params: D1Input[] = [];
 
   if (userId) {
     conditions.push("user_id = ?");

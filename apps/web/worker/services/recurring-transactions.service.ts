@@ -10,7 +10,7 @@
 // - post_as_draft creates a draft transaction for manual review
 
 import { generateId } from "../auth/tokens";
-import { execute, executeBatch, queryAll, queryFirst } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, type D1Input } from "../db/client";
 import { badRequest, notFound } from "../http/errors";
 import type {
   PostTransactionInput,
@@ -263,7 +263,7 @@ export async function listRecurringTransactions(
   status?: RecurringStatus,
 ): Promise<RecurringOutput[]> {
   const statusFilter = status ? "AND status = ?" : "";
-  const params: unknown[] = status ? [organizationId, status] : [organizationId];
+  const params: D1Input[] = status ? [organizationId, status] : [organizationId];
 
   const rows = await queryAll<Record<string, unknown>>(
     db,
@@ -287,7 +287,7 @@ export async function updateRecurringTransaction(
   const now = Date.now();
 
   const updates: string[] = [];
-  const values: unknown[] = [];
+  const values: D1Input[] = [];
 
   if (input.name !== undefined) {
     if (!input.name.trim()) throw badRequest("name_required", "Nama wajib diisi");
@@ -410,7 +410,7 @@ export async function findDueTransactions(
 ): Promise<RecurringOutput[]> {
   const today = todayWib();
   const orgFilter = organizationId ? "AND organization_id = ?" : "";
-  const params: unknown[] = organizationId
+  const params: D1Input[] = organizationId
     ? ["active", today, organizationId]
     : ["active", today];
 

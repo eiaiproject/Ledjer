@@ -1,7 +1,7 @@
 // P3.5 Fixed Assets Service
 // Asset register, automatic depreciation, disposal, and book-value reporting.
 
-import { queryAll, queryFirst, execute, executeBatch } from "../db/client";
+import { queryAll, queryFirst, execute, executeBatch, statement, type D1Input } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { generateId } from "../auth/tokens";
@@ -104,7 +104,7 @@ export async function listAssets(
   },
 ): Promise<FixedAsset[]> {
   const conditions: string[] = ["fa.organization_id = ?"];
-  const params: unknown[] = [organizationId];
+  const params: D1Input[] = [organizationId];
 
   if (opts?.status) {
     conditions.push("fa.status = ?");
@@ -271,7 +271,7 @@ export async function updateAsset(
 
   const now = Date.now();
   const sets: string[] = ["updated_at = ?"];
-  const params: unknown[] = [now];
+  const params: D1Input[] = [now];
 
   if (data.assetName !== undefined) { sets.push("asset_name = ?"); params.push(data.assetName); }
   if (data.description !== undefined) { sets.push("description = ?"); params.push(data.description); }
@@ -508,7 +508,7 @@ export async function postDepreciation(
 
   // Create journal entry
   statements.push(
-    execute(
+    statement(
       db,
       `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type,
         description, status, posted_at, posted_by, created_at)
@@ -521,7 +521,7 @@ export async function postDepreciation(
   // Create journal lines
   for (const [accountId, line] of lines) {
     statements.push(
-      execute(
+      statement(
         db,
         `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id,
           debit_minor, credit_minor, description)
@@ -535,7 +535,7 @@ export async function postDepreciation(
   // Update depreciation entries to posted
   for (const row of pendingEntries) {
     statements.push(
-      execute(
+      statement(
         db,
         `UPDATE asset_depreciation SET status = 'posted', journal_entry_id = ?
          WHERE id = ? AND organization_id = ?`,

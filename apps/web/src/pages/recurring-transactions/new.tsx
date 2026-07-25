@@ -8,7 +8,7 @@ import {
   type CreateRecurringInput,
 } from "@/lib/api/recurring-transactions";
 import { queryClient } from "@/lib/query-client";
-import { ArrowLeft, Loader } from "reicon-react";
+import { ArrowLeft } from "reicon-react";
 
 const TRANSACTION_TYPES: { value: TransactionType; label: string }[] = [
   { value: "cash_sale", label: "Penjualan Tunai" },
