@@ -8,6 +8,12 @@
  */
 
 export const queryKeys = {
+  invoices: {
+    all: () => ["invoices"] as const,
+    list: (offset: number, limit: number) => ["invoices", "list", offset, limit] as const,
+    detail: (id: string) => ["invoices", id] as const,
+  },
+
   organization: (userId: string | undefined) => ["organization", userId] as const,
   allOrganization: () => ["organization"] as const,
 
@@ -63,6 +69,8 @@ export const queryKeys = {
   },
 
   parties: {
+    /** Full list for invoices / new transaction. */
+    fullList: (orgId: string) => ["parties", orgId, "list"] as const,
     /** Parties for transaction form. */
     transactionOptions: (orgId: string) => ["parties", orgId, "txn-options"] as const,
     /** Wildcard prefix for invalidating all party queries. */

@@ -523,7 +523,7 @@ export function NewTransactionPage() {
                     form.setValue("partyName", value, { shouldDirty: true, shouldValidate: true });
                     form.clearErrors("partyName");
                   }}
-                  options={(parties || []).map((party) => ({ value: party.name, label: party.name }))}
+                  options={(parties?.customers ?? parties?.suppliers ?? []).map((party: { name: string }) => ({ value: party.name, label: party.name }))}
                   placeholder={partyCopy.placeholder}
                   helperText={partyCopy.helper}
                   allowCreate

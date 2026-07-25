@@ -7,6 +7,7 @@ import {
   Receipt,
   BookOpen,
   Package,
+  FileText,
   Chart,
   Settings,
   Plus,
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/transactions", label: "Transaksi", icon: Receipt, requires: "canCreateTransaction" },
   { to: "/accounts", label: "Akun", icon: BookOpen, requires: "canManageAccounts" },
   { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
+  { to: "/invoices", label: "Faktur", icon: FileText, requires: "canCreateTransaction" },
   {
     label: "Laporan",
     icon: Chart,
