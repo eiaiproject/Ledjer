@@ -36,6 +36,8 @@ export const queryKeys = {
     allProfitLoss: () => ["profit-loss"] as const,
     allTrialBalance: () => ["trial-balance"] as const,
     allGeneralLedger: () => ["general-ledger"] as const,
+    cashFlow: (fromDate: string, toDate: string) => ["cash-flow", fromDate, toDate] as const,
+    allCashFlow: () => ["cash-flow"] as const,
   },
 
   accounts: {
@@ -111,6 +113,7 @@ export function invalidateTransactionFinancialCaches(
     queryKeys.reports.allProfitLoss(),
     queryKeys.reports.allBalanceSheet(),
     queryKeys.reports.allGeneralLedger(),
+    queryKeys.reports.allCashFlow(),
   ];
   keys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
 }

@@ -54,8 +54,41 @@ interface BalanceSheetResponse {
   balanceSheet: BalanceSheetItem[];
 }
 
+export interface CashFlowItem {
+  section: "operating" | "investing" | "financing";
+  transactionType: string;
+  label: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+}
+
+export interface CashFlowReport {
+  rows: CashFlowItem[];
+  totals: {
+    operating: number;
+    investing: number;
+    financing: number;
+    netCashFlow: number;
+    openingCash: number;
+    closingCash: number;
+  };
+  period: { fromDate: string; toDate: string };
+}
+
+interface CashFlowResponse {
+  cashFlow: CashFlowReport;
+}
+
 interface GeneralLedgerResponse {
   generalLedger: LedgerEntry[];
+}
+
+export function getCashFlowReport(fromDate: string, toDate: string): Promise<CashFlowReport> {
+  const params = new URLSearchParams({ fromDate, toDate });
+  return apiRequest<CashFlowResponse>(`/api/reports/cash-flow?${params}`).then(
+    (data) => data.cashFlow,
+  );
 }
 
 export function getTrialBalance(asOfDate: string): Promise<TrialBalanceItem[]> {

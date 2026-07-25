@@ -42,6 +42,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
       { to: "/reports/trial-balance", label: "Neraca Saldo" },
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
+      { to: "/reports/cash-flow", label: "Arus Kas" },
     ],
   },
   {
