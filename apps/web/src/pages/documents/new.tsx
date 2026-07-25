@@ -3,12 +3,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createDocument,
-  listDocuments,
+  
   type DocumentType,
   type DocumentLine,
   type CreateDocumentInput,
 } from "@/lib/api/documents";
-import { listProducts, type Product } from "@/lib/api/products";
+import { listProducts } from "@/lib/api/products";
 import { useOrganization } from "@/hooks/useOrganization";
 import { queryClient } from "@/lib/query-client";
 import { Plus, Trash2, ArrowLeft, Loader } from "reicon-react";
@@ -49,7 +49,6 @@ export function NewDocumentPage() {
     enabled: !!orgId,
   });
 
-  const products = productsData ?? [];
 
   const mutation = useMutation({
     mutationFn: (input: CreateDocumentInput) => createDocument(input),

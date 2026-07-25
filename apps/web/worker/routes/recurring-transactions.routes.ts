@@ -13,7 +13,6 @@ import {
   executeRecurringTransaction,
   getExecutionLog,
   type CreateRecurringInput,
-  type Frequency,
   type RecurringStatus,
 } from "../services/recurring-transactions.service";
 import { postTransaction } from "../services/transactions.service";

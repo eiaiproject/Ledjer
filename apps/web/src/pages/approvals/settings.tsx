@@ -139,7 +139,6 @@ export function ApprovalSettingsPage() {
             const config = configMap.get(action);
             const enabled = config?.enabled ?? false;
             const thresholdMinor = config?.thresholdMinor ?? 0;
-            const thresholdDisplay = (thresholdMinor / 100).toLocaleString("id-ID");
 
             return (
               <Card key={action}>

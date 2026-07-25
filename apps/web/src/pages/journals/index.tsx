@@ -29,8 +29,8 @@ import {
   X,
   Eye,
   BookOpen,
-  InfoCircle,
-  Bookmark,
+  
+  
 } from "reicon-react";
 
 interface LineEntry {

@@ -54,7 +54,6 @@ export function BudgetsPage() {
   const [showForecastModal, setShowForecastModal] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [alertThreshold, setAlertThreshold] = useState(20);
 
   // ── Form state ──────────────────────────────────────────────
 
@@ -178,9 +177,6 @@ export function BudgetsPage() {
 
   // ── Helpers ──────────────────────────────────────────────────
 
-  function getAccountName(accountId: string): string {
-    return accounts?.find((a) => a.id === accountId)?.name ?? accountId;
-  }
 
   // ── Render ───────────────────────────────────────────────────
 

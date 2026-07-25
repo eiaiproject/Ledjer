@@ -12,7 +12,7 @@ import {
   dismissAll,
   generateOverdueReceivableNotifications,
   generateLowStockNotifications,
-  generateUnclosedPeriodNotifications,
+  
   generateDraftTransactionNotifications,
   type NotificationCategory,
 } from "../services/notifications.service";

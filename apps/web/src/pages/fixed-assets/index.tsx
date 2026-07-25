@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgPermissions } from "@/hooks/useOrganization";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -25,21 +25,16 @@ import {
   assetCategoryLabel,
   depreciationMethodLabel,
   formatMinor,
-  type FixedAsset,
+  
   type AssetCategory,
   type DepreciationMethod,
-  type BookValueReport,
-} from "@/lib/api/fixed-assets";
-import {
+  
+} from "@/lib/api/fixed-assets";import {
   Plus,
-  X,
   ChevronDown,
   ChevronUp,
   Chart,
   TrendDown,
-  AlertTriangle,
-  Calendar,
-  Search,
 } from "reicon-react";
 
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);

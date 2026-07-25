@@ -2,7 +2,7 @@
 // Validates all pre-close checks, saves a report snapshot, and coordinates
 // the period-lock creation after all checks pass.
 
-import { queryAll, queryFirst, execute, statement, executeBatch } from "../db/client";
+import { queryAll, queryFirst, execute, executeBatch } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest } from "../http/errors";
 import { generateId } from "../auth/tokens";

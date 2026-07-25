@@ -16,7 +16,7 @@ import {
   saveJournalTemplate,
   deleteJournalTemplate,
   type JournalEntryType,
-  type JournalLineInput,
+  type 
 } from "../services/manual-journals.service";
 
 const entryTypeSchema = z.enum([

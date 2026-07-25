@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
-import { formatShortDate, cn } from "@/lib/utils";
+import { formatShortDate } from "@/lib/utils";
 import {
   listApprovalRequests,
   approveApprovalRequest,

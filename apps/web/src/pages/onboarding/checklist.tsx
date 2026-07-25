@@ -17,7 +17,6 @@ import {
   generateSampleData,
   removeSampleData,
   type OnboardingStep,
-  type OnboardingStatus,
 } from "@/lib/api/onboarding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

@@ -23,7 +23,7 @@ import {
   formatMinor,
   type Dimension,
   type DimensionType,
-  type DimensionReportSummary,
+  type DimensionReportSummary
 } from "@/lib/api/dimensions";
 import {
   Plus,

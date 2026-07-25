@@ -6,8 +6,6 @@ import {
   updateRecurringStatus,
   skipNextOccurrence,
   executeRecurringTransaction,
-  type RecurringOutput,
-  type ExecutionLogOutput,
   type RecurringStatus,
 } from "@/lib/api/recurring-transactions";
 import { useOrganization } from "@/hooks/useOrganization";

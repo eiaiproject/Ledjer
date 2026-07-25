@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   getDocument,
   updateDocumentStatus,
@@ -89,7 +89,6 @@ export function DocumentDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelInput, setShowCancelInput] = useState(false);
 
