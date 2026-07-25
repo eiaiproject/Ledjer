@@ -11,11 +11,38 @@ import { formatIDR } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
+import { CheckCircle } from "reicon-react";
 
 interface BalanceLine {
   accountId: string;
   amount: number;
 }
+
+interface OpeningBalanceSnapshot {
+  journalEntryId: string;
+  entryNumber: string;
+  postedAt: number;
+  date: string;
+  totalDebit: number;
+  totalCredit: number;
+  accounts: {
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    accountType: string;
+    debit: number;
+    credit: number;
+  }[];
+}
+
+interface PostResult {
+  journalEntryId: string;
+  totalDebit: number;
+  totalCredit: number;
+  snapshot: OpeningBalanceSnapshot;
+}
+
+type WizardStep = "accounts" | "preview" | "success";
 
 export default function OpeningBalancePage() {
   const navigate = useNavigate();
@@ -35,8 +62,11 @@ export default function OpeningBalancePage() {
     enabled: !!orgId,
   });
 
+  // Wizard state
+  const [step, setStep] = useState<WizardStep>("accounts");
   const [lines, setLines] = useState<BalanceLine[]>([]);
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
+  const [postResult, setPostResult] = useState<PostResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const addLine = () => setLines([...lines, { accountId: "", amount: 0 }]);
@@ -57,19 +87,23 @@ export default function OpeningBalancePage() {
       });
       setPreview(result as Record<string, unknown>);
     },
+    onSuccess: () => setStep("preview"),
     onError: (err) => setError((err as Error).message),
   });
 
   const postMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("/api/opening-balance/post", {
+      const result = await apiRequest("/api/opening-balance/post", {
         method: "POST",
         body: JSON.stringify({ lines: lines.filter((l) => l.accountId && l.amount !== 0) }),
       });
+      return result as PostResult;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setPostResult(data);
+      setStep("success");
       queryClient.invalidateQueries({ queryKey: ["opening-balance"] });
-      navigate("/dashboard");
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(orgId!) });
     },
     onError: (err) => setError((err as Error).message),
   });
@@ -102,6 +136,9 @@ export default function OpeningBalancePage() {
   const totalCredit = lines.filter((l) => l.amount < 0).reduce((s, l) => s + Math.abs(l.amount), 0);
   const balanced = totalDebit === totalCredit;
 
+  const STEPS = ["accounts", "preview", "success"] as const;
+  const stepIndex = STEPS.indexOf(step);
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4">
       <div>
@@ -109,88 +146,228 @@ export default function OpeningBalancePage() {
         <p className="text-sm text-wood-500">Masukkan saldo awal akun per tanggal mulai pembukuan.</p>
       </div>
 
-      {/* Lines */}
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-wood-700">Akun</h2>
-            <Button variant="ghost" size="sm" onClick={addLine}>+ Tambah Akun</Button>
+      {/* Wizard Steps indicator */}
+      <div className="flex items-center justify-center gap-2.5" aria-label={`Langkah ${stepIndex + 1} dari 3`}>
+        {STEPS.map((s, idx) => (
+          <div key={s} className="flex items-center gap-2.5">
+            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors duration-200 ${
+              idx <= stepIndex
+                ? "bg-leaf-500 text-white"
+                : "bg-wood-100 text-wood-400"
+            }`} aria-current={step === s ? "step" : undefined}>
+              {idx < stepIndex ? (
+                <CheckCircle className="h-3.5 w-3.5" />
+              ) : (
+                idx + 1
+              )}
+            </div>
+            {idx < STEPS.length - 1 && (
+              <div className={`h-0.5 w-10 transition-colors duration-200 ${idx < stepIndex ? "bg-leaf-500" : "bg-wood-200"}`} />
+            )}
           </div>
+        ))}
+      </div>
 
-          {lines.length === 0 && (
-            <p className="text-xs text-wood-400 py-4 text-center">Belum ada akun. Klik "Tambah Akun" untuk mulai.</p>
-          )}
-
-          {lines.map((line, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
-              <div className="col-span-7">
-                <label className="block text-xs text-wood-500 mb-0.5">Akun</label>
-                <select
-                  className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm"
-                  value={line.accountId}
-                  onChange={(e) => updateLine(i, "accountId", e.target.value)}
-                >
-                  <option value="">Pilih akun...</option>
-                  {(accounts ?? []).map((a: { id: string; code: number; name: string }) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </select>
+      {/* Step 1: Account Selection */}
+      {step === "accounts" && (
+        <>
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-wood-700">Pilih Akun & Masukkan Saldo</h2>
+                <Button variant="ghost" size="sm" onClick={addLine}>+ Tambah Akun</Button>
               </div>
-              <div className="col-span-4">
-                <label className="block text-xs text-wood-500 mb-0.5">
-                  Saldo (positif = debit, negatif = kredit)
-                </label>
-                <Input
-                  type="number"
-                  value={line.amount}
-                  onChange={(e) => updateLine(i, "amount", parseInt(e.target.value, 10) || 0)}
-                />
-              </div>
-              <div className="col-span-1">
-                {lines.length > 1 && (
-                  <button type="button" onClick={() => removeLine(i)} className="text-red-500 text-sm mt-5" aria-label="Hapus">×</button>
-                )}
-              </div>
-            </div>
-          ))}
 
-          {lines.length > 0 && (
-            <div className="text-right text-sm space-y-1 pt-2 border-t border-wood-200">
-              <div className={balanced ? "text-emerald-600" : "text-red-600"}>
-                {balanced ? "✓ Seimbang" : "✗ Tidak Seimbang"} —
-                Debit: {formatIDR(totalDebit * 100)}, Kredit: {formatIDR(totalCredit * 100)}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              {lines.length === 0 && (
+                <p className="text-xs text-wood-400 py-4 text-center">Belum ada akun. Klik "Tambah Akun" untuk mulai.</p>
+              )}
 
-      {error && <ErrorState message={error} />}
+              {lines.map((line, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
+                  <div className="col-span-7">
+                    <label className="block text-xs text-wood-500 mb-0.5">Akun</label>
+                    <select
+                      className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm"
+                      value={line.accountId}
+                      onChange={(e) => updateLine(i, "accountId", e.target.value)}
+                    >
+                      <option value="">Pilih akun...</option>
+                      {(accounts ?? []).map((a: { id: string; code: number; name: string }) => (
+                        <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-4">
+                    <label className="block text-xs text-wood-500 mb-0.5">
+                      Saldo (positif=debit, negatif=kredit)
+                    </label>
+                    <Input
+                      type="number"
+                      value={line.amount}
+                      onChange={(e) => updateLine(i, "amount", parseInt(e.target.value, 10) || 0)}
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    {lines.length > 1 && (
+                      <button type="button" onClick={() => removeLine(i)} className="text-red-500 text-sm mt-5" aria-label="Hapus">×</button>
+                    )}
+                  </div>
+                </div>
+              ))}
 
-      {preview && (
+              {lines.length > 0 && (
+                <div className="text-right text-sm space-y-1 pt-2 border-t border-wood-200">
+                  <div className={balanced ? "text-emerald-600" : "text-red-600"}>
+                    {balanced ? "✓ Seimbang" : "✗ Tidak Seimbang"} —
+                    Debit: {formatIDR(totalDebit * 100)}, Kredit: {formatIDR(totalCredit * 100)}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {error && <ErrorState message={error} />}
+
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => navigate("/dashboard")}>Batal</Button>
+            <Button
+              onClick={() => previewMutation.mutate()}
+              disabled={lines.length === 0 || !balanced || previewMutation.isPending}
+            >
+              {previewMutation.isPending ? "Memeriksa..." : "Lihat Preview"}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Step 2: Preview */}
+      {step === "preview" && preview && (
+        <>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <h2 className="text-sm font-semibold text-wood-700">Preview Jurnal</h2>
+              <p className="text-xs text-wood-500">Periksa debit dan kredit setiap akun sebelum diposting.</p>
+
+              {(preview.lines as { accountName: string; accountCode: string; debit: number; credit: number }[])?.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-wood-200">
+                        <th className="text-left py-2 pr-4 font-medium text-wood-600">Akun</th>
+                        <th className="text-right py-2 pr-4 font-medium text-wood-600">Debit</th>
+                        <th className="text-right py-2 font-medium text-wood-600">Kredit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(preview.lines as { accountName: string; accountCode: string; debit: number; credit: number }[]).map((line: { accountName: string; accountCode: string; debit: number; credit: number }, i: number) => (
+                        <tr key={i} className="border-b border-wood-100">
+                          <td className="py-2 pr-4 text-wood-800">
+                            <span className="text-wood-400 text-xs">{line.accountCode}</span>{' '}
+                            {line.accountName}
+                          </td>
+                          <td className="py-2 pr-4 text-right text-wood-800">{line.debit > 0 ? formatIDR(line.debit * 100) : "-"}</td>
+                          <td className="py-2 text-right text-wood-800">{line.credit > 0 ? formatIDR(line.credit * 100) : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-wood-400 font-semibold">
+                        <td className="py-2 pr-4 text-wood-800">Total</td>
+                        <td className="py-2 pr-4 text-right text-wood-800">{formatIDR((preview.totalDebit as number) * 100)}</td>
+                        <td className="py-2 text-right text-wood-800">{formatIDR((preview.totalCredit as number) * 100)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
+              {preview.valid ? (
+                <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-md px-3 py-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Jurnal seimbang — siap diposting</span>
+                </div>
+              ) : (
+                <div className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+                  {(preview.errors as string[])?.join("; ")}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {error && <ErrorState message={error} />}
+
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setStep("accounts")}>Kembali</Button>
+            <Button
+              onClick={() => postMutation.mutate()}
+              disabled={!preview.valid || postMutation.isPending}
+            >
+              {postMutation.isPending ? "Menyimpan..." : "Posting Saldo Awal"}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Step 3: Success */}
+      {step === "success" && postResult && (
         <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-semibold text-wood-700 mb-2">Preview</h3>
-            <pre className="text-xs text-wood-600 whitespace-pre-wrap">{JSON.stringify(preview, null, 2)}</pre>
+          <CardContent className="p-6 text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="h-12 w-12 rounded-full bg-leaf-100 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-leaf-600" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-wood-800">Saldo Awal Berhasil Diposting!</h2>
+              <p className="text-sm text-wood-500">
+                Jurnal {postResult.snapshot.entryNumber} — {postResult.snapshot.accounts.length} akun
+              </p>
+            </div>
+
+            {/* Snapshot summary */}
+            <div className="rounded-lg border border-wood-200 bg-cream-50 p-4 text-left">
+              <h3 className="text-sm font-semibold text-wood-700 mb-3">Ringkasan Saldo Awal</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-wood-200">
+                      <th className="text-left py-1.5 pr-3 font-medium text-wood-600">Akun</th>
+                      <th className="text-right py-1.5 pr-3 font-medium text-wood-600">Debit</th>
+                      <th className="text-right py-1.5 font-medium text-wood-600">Kredit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {postResult.snapshot.accounts.map((acct, i) => (
+                      <tr key={i} className="border-b border-wood-100">
+                        <td className="py-1.5 pr-3 text-wood-800">
+                          <span className="text-wood-400 text-xs">{acct.accountCode}</span>{' '}
+                          {acct.accountName}
+                        </td>
+                        <td className="py-1.5 pr-3 text-right text-wood-800">{acct.debit > 0 ? formatIDR(acct.debit * 100) : "-"}</td>
+                        <td className="py-1.5 text-right text-wood-800">{acct.credit > 0 ? formatIDR(acct.credit * 100) : "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-wood-400 font-semibold">
+                      <td className="py-1.5 pr-3 text-wood-800">Total</td>
+                      <td className="py-1.5 pr-3 text-right text-wood-800">{formatIDR(postResult.snapshot.totalDebit * 100)}</td>
+                      <td className="py-1.5 text-right text-wood-800">{formatIDR(postResult.snapshot.totalCredit * 100)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-3 pt-2">
+              <Button onClick={() => navigate("/dashboard")}>Ke Dashboard</Button>
+              <Button variant="ghost" onClick={() => navigate("/reports/balance-sheet")}>
+                Lihat Neraca
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
-
-      <div className="flex justify-end gap-3">
-        <Button variant="ghost" onClick={() => navigate("/dashboard")}>Batal</Button>
-        <Button
-          onClick={() => previewMutation.mutate()}
-          disabled={lines.length === 0 || !balanced || previewMutation.isPending}
-        >
-          {previewMutation.isPending ? "..." : "Preview"}
-        </Button>
-        <Button
-          onClick={() => postMutation.mutate()}
-          disabled={!balanced || postMutation.isPending}
-        >
-          {postMutation.isPending ? "Menyimpan..." : "Posting Saldo Awal"}
-        </Button>
-      </div>
     </div>
   );
 }

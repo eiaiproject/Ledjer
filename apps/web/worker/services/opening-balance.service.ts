@@ -2,6 +2,25 @@ import { executeBatch, queryAll, queryFirst } from "../db/client";
 import { generateId } from "../auth/tokens";
 import type { AccountType, NormalBalance } from "../db/schema";
 
+/** Snapshot of account balances at opening balance posting time. */
+export interface OpeningBalanceSnapshot {
+  journalEntryId: string;
+  entryNumber: string;
+  postedAt: number;
+  date: string;
+  totalDebit: number;
+  totalCredit: number;
+  accounts: {
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    accountType: AccountType;
+    debit: number;
+    credit: number;
+  }[];
+}
+
+
 export interface OpeningBalanceLine {
   accountId: string;
   accountType: AccountType;
@@ -184,11 +203,24 @@ export async function postOpeningBalance(
   organizationId: string,
   userId: string,
   input: OpeningBalanceInput,
-): Promise<{ journalEntryId: string; totalDebit: number; totalCredit: number }> {
+): Promise<{ journalEntryId: string; totalDebit: number; totalCredit: number; snapshot: OpeningBalanceSnapshot }> {
   const preview = await previewOpeningBalance(db, organizationId, input);
   if (!preview.valid) {
     throw new Error(preview.errors.join("; "));
   }
+
+  // Fetch account details for snapshot (previewOpeningBalance fetches them internally)
+  const accountIds = input.lines.map((l) => l.accountId);
+  const placeholders = accountIds.map(() => "?").join(",");
+  const accounts = await queryAll<{
+    id: string; code: string; name: string;
+    account_type: AccountType; normal_balance: NormalBalance;
+  }>(
+    db,
+    `SELECT id, code, name, account_type, normal_balance FROM accounts WHERE organization_id = ? AND id IN (${placeholders})`,
+    [organizationId, ...accountIds],
+  );
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
   // Get next entry number
   const maxEntry = await queryFirst<{ max: string | null }>(
@@ -205,19 +237,18 @@ export async function postOpeningBalance(
   const now = Date.now();
   const date = input.date;
 
-  const statements: D1PreparedStatement[] = [];
-
-  statements.push(
+  // 1. Insert journal entry
+  const insertStatements: D1PreparedStatement[] = [
     db.prepare(
       `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal', 'posted', ?, ?, ?, ?)`,
     ).bind(entryId, organizationId, entryNumber, date, now, userId, now, now),
-  );
+  ];
 
   let lineOrder = 1;
   for (const pl of preview.lines) {
     if (pl.debit > 0 || pl.credit > 0) {
-      statements.push(
+      insertStatements.push(
         db.prepare(
           `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at)
            VALUES (?, ?, ?, ?, ?, ?, 'Saldo awal', ?, ?)`,
@@ -230,13 +261,64 @@ export async function postOpeningBalance(
   }
 
   // Update onboarding status
-  statements.push(
+  insertStatements.push(
     db.prepare(
       `UPDATE organizations SET onboarding_status = 'completed', updated_at = ? WHERE id = ? AND onboarding_status != 'completed'`,
     ).bind(now, organizationId),
   );
 
-  await executeBatch(db, statements);
+  await executeBatch(db, insertStatements);
 
-  return { journalEntryId: entryId, totalDebit: preview.totalDebit, totalCredit: preview.totalCredit };
+  // 2. Build report snapshot with account codes and names
+  const snapshot: OpeningBalanceSnapshot = {
+    journalEntryId: entryId,
+    entryNumber,
+    postedAt: now,
+    date,
+    totalDebit: preview.totalDebit,
+    totalCredit: preview.totalCredit,
+    accounts: preview.lines
+      .filter((pl) => pl.debit > 0 || pl.credit > 0)
+      .map((pl) => {
+        const acct = accountMap.get(pl.accountId);
+        return {
+          accountId: pl.accountId,
+          accountCode: acct?.code ?? "",
+          accountName: acct?.name ?? "",
+          accountType: acct?.account_type ?? "asset",
+          debit: pl.debit,
+          credit: pl.credit,
+        };
+      }),
+  };
+
+  // 3. Store snapshot in audit_logs
+  await executeBatch(db, [
+    db.prepare(
+      `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, after_json, created_at)
+       VALUES (?, ?, ?, 'opening_balance_snapshot', ?, 'snapshot_created', ?, ?)`,
+    ).bind(
+      generateId(), organizationId, userId,
+      entryId,
+      JSON.stringify(snapshot),
+      now,
+    ),
+  ]);
+
+  return { journalEntryId: entryId, totalDebit: preview.totalDebit, totalCredit: preview.totalCredit, snapshot };
+}
+
+/** Retrieve the latest opening balance snapshot for an organization. */
+export async function getOpeningBalanceSnapshot(
+  db: D1Database,
+  organizationId: string,
+): Promise<OpeningBalanceSnapshot | null> {
+  const log = await queryFirst<{ after_json: string }>(
+    db,
+    `SELECT after_json FROM audit_logs
+     WHERE organization_id = ? AND entity_type = 'opening_balance_snapshot' AND action = 'snapshot_created'
+     ORDER BY created_at DESC LIMIT 1`,
+    [organizationId],
+  );
+  return log ? (JSON.parse(log.after_json) as OpeningBalanceSnapshot) : null;
 }

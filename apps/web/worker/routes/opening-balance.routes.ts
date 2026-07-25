@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import { badRequest } from "../http/errors";
 import { queryFirst } from "../db/client";
-import { previewOpeningBalance, postOpeningBalance } from "../services/opening-balance.service";
+import { previewOpeningBalance, postOpeningBalance, getOpeningBalanceSnapshot } from "../services/opening-balance.service";
 
 const app = new Hono<AppContext>();
 
@@ -50,6 +50,13 @@ app.post("/post", requireAuth, loadCurrentOrganization(), requirePermission("org
     { date: input.date ?? organization.books_start_date, lines: input.lines },
   );
   return c.json(result);
+});
+
+// GET /api/opening-balance/snapshot — najnoviji snapshot
+app.get("/snapshot", requireAuth, loadCurrentOrganization(), async (c) => {
+  const { organization } = c.get("organizationContext");
+  const snapshot = await getOpeningBalanceSnapshot(c.env.DB, organization.id);
+  return c.json(snapshot ?? null);
 });
 
 export default app;
