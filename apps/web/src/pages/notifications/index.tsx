@@ -10,7 +10,7 @@ import {
   dismissNotification,
   type NotificationCategory,
 } from "@/lib/api/notifications";
-import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat } from "reicon-react";
+import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, Check } from "reicon-react";
 
 const CATEGORY_LABELS: Record<string, string> = {
   overdue_receivable: "Piutang Jatuh Tempo",
@@ -155,7 +155,7 @@ export function NotificationsPage() {
                 disabled={markAllReadMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
               >
-                <CheckCheck className="h-3.5 w-3.5" />
+                <Check className="h-3.5 w-3.5" />
                 Baca Semua
               </button>
               <button

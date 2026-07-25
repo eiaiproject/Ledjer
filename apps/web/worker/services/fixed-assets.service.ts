@@ -648,7 +648,7 @@ export async function disposeAsset(
   const statements: D1PreparedStatement[] = [];
 
   statements.push(
-    execute(
+    statement(
       db,
       `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type,
         description, status, posted_at, posted_by, created_at)
@@ -661,7 +661,7 @@ export async function disposeAsset(
   // Debit accumulated depreciation
   if (accumulated > 0) {
     statements.push(
-      execute(
+      statement(
         db,
         `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id,
           debit_minor, credit_minor, description)
@@ -674,7 +674,7 @@ export async function disposeAsset(
 
   // Credit asset account (remove cost)
   statements.push(
-    execute(
+    statement(
       db,
       `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id,
         debit_minor, credit_minor, description)
@@ -687,7 +687,7 @@ export async function disposeAsset(
   // If sold, debit cash account
   if (data.disposalType === "sold" && data.disposalPriceMinor > 0 && cashAccount) {
     statements.push(
-      execute(
+      statement(
         db,
         `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id,
           debit_minor, credit_minor, description)
@@ -718,7 +718,7 @@ export async function disposeAsset(
     if (gainLoss > 0 && gainLossAccount) {
       // Gain on sale — credit
       statements.push(
-        execute(
+        statement(
           db,
           `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id,
             debit_minor, credit_minor, description)
@@ -730,7 +730,7 @@ export async function disposeAsset(
     } else if (gainLoss < 0 && lossAccount) {
       // Loss on sale — debit
       statements.push(
-        execute(
+        statement(
           db,
           `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id,
             debit_minor, credit_minor, description)
@@ -744,7 +744,7 @@ export async function disposeAsset(
 
   // Mark pending depreciation entries as skipped for this asset
   statements.push(
-    execute(
+    statement(
       db,
       `UPDATE asset_depreciation SET status = 'skipped'
        WHERE asset_id = ? AND status = 'pending'`,

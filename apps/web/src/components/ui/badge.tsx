@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 type BadgeVariant = "success" | "warning" | "error" | "info" | "neutral" | "premium" | "secondary";
 type BadgeSize = "sm" | "md" | "lg";
 
-interface BadgeProps {
+export interface BadgeProps {
   readonly variant?: BadgeVariant;
   readonly size?: BadgeSize;
   readonly children: React.ReactNode;

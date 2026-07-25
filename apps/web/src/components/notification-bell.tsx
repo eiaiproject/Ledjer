@@ -9,7 +9,7 @@ import {
   dismissNotification,
   type NotificationOutput,
 } from "@/lib/api/notifications";
-import { Bell, Loader, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat } from "reicon-react";
+import { Bell, Loader, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, Check } from "reicon-react";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   overdue_receivable: <AlertTriangle className="h-4 w-4" />,
@@ -17,7 +17,7 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   low_stock: <Package className="h-4 w-4" />,
   pending_approval: <Clock className="h-4 w-4" />,
   unclosed_period: <Lock className="h-4 w-4" />,
-  team_invitation: <UserPlus className="h-4 w-4" />,
+  team_invitation: <Upload className="h-4 w-4" />,
   import_failed: <Upload className="h-4 w-4" />,
   export_completed: <Download className="h-4 w-4" />,
   backup_failed: <Ban className="h-4 w-4" />,
@@ -157,7 +157,7 @@ export function NotificationBell() {
                   className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-wood-500 hover:bg-wood-100"
                   title="Tandai semua sudah dibaca"
                 >
-                  <CheckCheck className="h-3.5 w-3.5" />
+                  <Check className="h-3.5 w-3.5" />
                   Baca semua
                 </button>
               )}

@@ -67,7 +67,8 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
   );
 }
 
-export function ModalContent({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
+export function ModalContent({ children, className, title }: Readonly<{ children: ReactNode; className?: string; title?: string }>) {
+  void title; // Modal handles title rendering in header
   return <div className={cn("p-5", className)}>{children}</div>;
 }
 

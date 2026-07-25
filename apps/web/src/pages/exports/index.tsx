@@ -141,7 +141,7 @@ export function ExportsPage() {
         <Card className="border-sky-300 bg-sky-50">
           <CardContent className="py-3">
             <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-sky-600 animate-spin" />
+              <Refresh className="h-4 w-4 text-sky-600 animate-spin" />
               <p className="text-sm text-sky-700">
                 {pollingIds.size} export sedang diproses...
               </p>
@@ -198,7 +198,7 @@ export function ExportsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     {/* Progress indicator */}
                     {(job.status === "pending" || job.status === "processing") && (
-                      <RefreshCw className="h-4 w-4 text-sky-500 animate-spin" />
+                      <Refresh className="h-4 w-4 text-sky-500 animate-spin" />
                     )}
 
                     {/* Download button */}
@@ -220,7 +220,7 @@ export function ExportsPage() {
                         onClick={() => createMutation.mutate()}
                         className="inline-flex items-center gap-1 text-xs text-clay-600 hover:text-clay-800"
                       >
-                        <RefreshCw className="h-3.5 w-3.5" />
+                        <Refresh className="h-3.5 w-3.5" />
                         Ulangi
                       </button>
                     )}
