@@ -38,8 +38,57 @@ export async function importStatement(
   organizationId: string,
   userId: string,
   input: StatementImport,
-): Promise<{ statementId: string; importedLines: number }> {
+): Promise<{ statementId: string; importedLines: number; duplicatedLines?: { line: number; reason: string }[]; warnings?: string[] }> {
   if (input.lines.length === 0) throw badRequest("empty_statement", "Tidak ada transaksi dalam statement");
+
+  const warnings: string[] = [];
+  const duplicatedLines: { line: number; reason: string }[] = [];
+
+  // --- Duplicate detection: check for existing statement with same account + date ---
+  const existing = await queryFirst<{ id: string; status: string }>(
+    db,
+    `SELECT id, status FROM bank_statements
+     WHERE organization_id = ? AND account_id = ? AND statement_date = ? AND status = 'open'`,
+    [organizationId, input.accountId, input.statementDate],
+  );
+  if (existing) {
+    warnings.push(
+      `Statement untuk akun ini pada tanggal ${input.statementDate} sudah pernah diimport (status: ${existing.status}). Import baru akan membuat statement terpisah.`
+    );
+  }
+
+  // Check if another statement with same closing balance already exists
+  const sameBalance = await queryFirst<{ id: string }>(
+    db,
+    `SELECT id FROM bank_statements
+     WHERE organization_id = ? AND account_id = ? AND closing_balance = ? AND status = 'reconciled'`,
+    [organizationId, input.accountId, input.closingBalance],
+  );
+  if (sameBalance) {
+    warnings.push(
+      `Saldo akhir Rp ${(input.closingBalance / 100).toLocaleString("id-ID")} sudah pernah direkonsiliasi sebelumnya. Periksa apakah ini duplikat.`
+    );
+  }
+
+  // --- Duplicate line detection ---
+  const seenEntries = new Map<string, number[]>();
+  for (let i = 0; i < input.lines.length; i++) {
+    const line = input.lines[i];
+    const key = `${line.date}|${line.amount}|${line.description.trim().toLowerCase()}`;
+    if (seenEntries.has(key)) {
+      seenEntries.get(key)!.push(i + 1);
+    } else {
+      seenEntries.set(key, [i + 1]);
+    }
+  }
+  for (const [, lineNums] of seenEntries) {
+    if (lineNums.length > 1) {
+      duplicatedLines.push({
+        line: lineNums[0],
+        reason: `Baris ${lineNums.join(", ")} memiliki tanggal, jumlah, dan deskripsi yang sama — kemungkinan duplikat.`,
+      });
+    }
+  }
 
   const statementId = generateId();
   const now = Date.now();
@@ -69,7 +118,12 @@ export async function importStatement(
 
   await executeBatch(db, statements);
 
-  return { statementId, importedLines: input.lines.length };
+  return {
+    statementId,
+    importedLines: input.lines.length,
+    duplicatedLines: duplicatedLines.length > 0 ? duplicatedLines : undefined,
+    warnings: warnings.length > 0 ? warnings : undefined,
+  };
 }
 
 export async function getSuggestions(
@@ -207,7 +261,9 @@ export async function getReconciliationReport(
   unmatchedLines: number;
   bookBalance: number | null;
   statementBalance: number;
+  openingBalance: number;
   difference: number | null;
+  balanced: boolean;
 }> {
   const stmt = await queryFirst<Record<string, unknown>>(
     db,
@@ -230,14 +286,98 @@ export async function getReconciliationReport(
 
   const bankLinesTotal = totalLines?.cnt ?? 0;
   const matched = matchedLines?.cnt ?? 0;
+  const stmtData = stmt as { account_id: string; closing_balance: number; opening_balance: number; statement_date: string };
+
+  // --- Balance proof: calculate book balance at statement date ---
+  let bookBalance: number | null = null;
+  let difference: number | null = null;
+
+  // Get the cash account's beginning balance from journal entries up to statement date
+  // Sum all journal line debits and credits for this account up to the statement date
+  const balanceRow = await queryFirst<{ net_balance: number }>(
+    db,
+    `SELECT COALESCE(SUM(
+       CASE WHEN jl.debit_minor > 0 THEN jl.debit_minor ELSE -jl.credit_minor END
+     ), 0) as net_balance
+     FROM journal_lines jl
+     JOIN journal_entries je ON je.id = jl.journal_entry_id
+     WHERE jl.organization_id = ? AND jl.account_id = ?
+       AND je.organization_id = ?
+       AND je.entry_date <= ?
+       AND je.status = 'posted'`,
+    [organizationId, stmtData.account_id, organizationId, stmtData.statement_date],
+  );
+
+  if (balanceRow) {
+    // Book balance = net sum of all journal lines for this account up to statement date
+    bookBalance = balanceRow.net_balance ?? 0;
+    difference = Math.abs(bookBalance - stmtData.closing_balance);
+  }
 
   return {
     statement: stmt,
     bankLinesTotal,
     matchedLines: matched,
     unmatchedLines: bankLinesTotal - matched,
-    bookBalance: null, // ponytail: book balance query requires period-end aggregation
-    statementBalance: (stmt as { closing_balance: number }).closing_balance,
-    difference: null,
+    bookBalance,
+    statementBalance: stmtData.closing_balance,
+    openingBalance: stmtData.opening_balance,
+    difference,
+    balanced: difference === 0,
+  };
+}
+
+/**
+ * Reopen a reconciled statement, setting its status back to 'open'.
+ * Requires all existing matches to be voided first.
+ */
+export async function reopenReconciliation(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  statementId: string,
+  reason?: string,
+): Promise<{ success: boolean; message: string }> {
+  const stmt = await queryFirst<{ status: string }>(
+    db,
+    `SELECT status FROM bank_statements WHERE id = ? AND organization_id = ?`,
+    [statementId, organizationId],
+  );
+  if (!stmt) throw notFound("statement_not_found", "Statement tidak ditemukan");
+  if (stmt.status !== "reconciled") {
+    throw badRequest("not_reconciled",
+      `Statement berstatus "${stmt.status}", bukan "reconciled". Hanya statement yang sudah direkonsiliasi yang bisa dibuka ulang.`);
+  }
+
+  const now = Date.now();
+
+  // Delete all matches for this statement (they will be re-matched)
+  await execute(
+    db,
+    `DELETE FROM reconciliation_matches WHERE statement_id = ? AND organization_id = ?`,
+    [statementId, organizationId],
+  );
+
+  // Update statement status back to 'open'
+  await execute(
+    db,
+    `UPDATE bank_statements SET status = 'open', updated_at = ? WHERE id = ?`,
+    [now, statementId],
+  );
+
+  // Audit log
+  await execute(
+    db,
+    `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, created_at)
+     VALUES (?, ?, ?, 'bank_reconciliation', ?, 'reopened', ?, ?, ?, ?)`,
+    [generateId(), organizationId, userId, statementId,
+     JSON.stringify({ status: 'reconciled' }),
+     JSON.stringify({ status: 'open' }),
+     reason ?? null, now],
+  );
+
+  return {
+    success: true,
+    message: `Statement berhasil dibuka ulang. Data cocok telah dihapus dan dapat dicocokkan kembali.`,
   };
 }

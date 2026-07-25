@@ -8,6 +8,7 @@ import {
   getSuggestions,
   confirmMatch,
   getReconciliationReport,
+  reopenReconciliation,
 } from "../services/reconciliation.service";
 
 const app = new Hono<AppContext>();
@@ -59,6 +60,15 @@ app.get("/:statementId/report", requireAuth, loadCurrentOrganization(), requireP
   const { organization } = c.get("organizationContext");
   const report = await getReconciliationReport(c.env.DB, organization.id, c.req.param("statementId"));
   return c.json(report);
+});
+
+// POST /api/reconciliation/:statementId/reopen
+app.post("/:statementId/reopen", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+  const { user } = c.var;
+  const { organization } = c.get("organizationContext");
+  const body = await c.req.json<{ reason?: string }>().catch(() => ({}));
+  const result = await reopenReconciliation(c.env.DB, organization.id, user.id, c.req.param("statementId"), body?.reason);
+  return c.json(result);
 });
 
 export default app;

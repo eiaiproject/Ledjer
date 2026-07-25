@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,25 @@ import { formatIDR } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
+import { CheckCircle, AlertTriangle, RotateCcw } from "reicon-react";
 
 /* Tab: Import statement */
+interface ImportResult {
+  id: string;
+  importedLines: number;
+  duplicatedLines?: { line: number; reason: string }[];
+  warnings?: string[];
+}
+
 function ImportStatementTab({ onImported }: { onImported: (id: string) => void }) {
   const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
   const [accountId, setAccountId] = useState("");
   const [statementDate, setStatementDate] = useState(new Date().toISOString().slice(0, 10));
+  const [openingBalance, setOpeningBalance] = useState(0);
+  const [closingBalance, setClosingBalance] = useState(0);
   const [rawLines, setRawLines] = useState("");
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const { data: accounts } = useQuery({
     queryKey: queryKeys.accounts.activeTransactionOptions(orgId!),
@@ -34,6 +45,7 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
     if (!accountId || !rawLines.trim()) return;
     setImporting(true);
     setError(null);
+    setImportResult(null);
     try {
       // Parse CSV: date,description,amount
       const lines = rawLines.trim().split("\n").map((line) => {
@@ -46,17 +58,17 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
         };
       });
 
-      const result: { id: string } = await apiRequest("/api/reconciliation/import-statement", {
+      const result: ImportResult = await apiRequest("/api/reconciliation/import-statement", {
         method: "POST",
         body: JSON.stringify({
           accountId,
           statementDate,
-          openingBalance: 0,
-          closingBalance: 0,
+          openingBalance,
+          closingBalance,
           lines,
         }),
       });
-      onImported(result.id);
+      setImportResult(result);
     } catch (err) {
       setError((err as Error).message ?? "Import gagal");
     } finally {
@@ -85,6 +97,16 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
               <Input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-wood-600">Saldo Awal</label>
+              <Input type="number" value={openingBalance} onChange={(e) => setOpeningBalance(parseInt(e.target.value) || 0)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-wood-600">Saldo Akhir</label>
+              <Input type="number" value={closingBalance} onChange={(e) => setClosingBalance(parseInt(e.target.value) || 0)} />
+            </div>
+          </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-wood-600">
               Data Statement (CSV: tanggal,deskripsi,amount)
@@ -99,7 +121,41 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
           <Button onClick={handleImport} disabled={!accountId || !rawLines.trim() || importing}>
             {importing ? "Mengimpor..." : "Import Statement"}
           </Button>
+
+          {/* Duplicate warnings */}
+          {importResult?.warnings && importResult.warnings.length > 0 && (
+            <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-amber-700 mb-1">
+                <AlertTriangle className="h-4 w-4" />
+                Peringatan
+              </div>
+              <ul className="list-disc list-inside text-xs text-amber-600 space-y-0.5">
+                {importResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {importResult?.duplicatedLines && importResult.duplicatedLines.length > 0 && (
+            <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-amber-700 mb-1">
+                <AlertTriangle className="h-4 w-4" />
+                Kemungkinan Duplikat Baris
+              </div>
+              <ul className="list-disc list-inside text-xs text-amber-600 space-y-0.5">
+                {importResult.duplicatedLines.map((d, i) => <li key={i}>{d.reason}</li>)}
+              </ul>
+            </div>
+          )}
+
           {error && <ErrorState message={error} />}
+
+          {importResult && !importResult.warnings?.length && !importResult.duplicatedLines?.length && (
+            <div className="flex justify-end">
+              <Button variant="primary" onClick={() => onImported(importResult.id)}>
+                Lanjut ke Laporan
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -108,10 +164,19 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
 
 /* Tab: Statement report */
 function StatementReportTab({ statementId }: { statementId: string }) {
-  const { data: report, isLoading, isError, error } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: report, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["reconciliation", "report", statementId],
     queryFn: () => apiRequest(`/api/reconciliation/${statementId}/report`),
     enabled: !!statementId,
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/reconciliation/${statementId}/reopen`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reconciliation", "report", statementId] });
+    },
   });
 
   if (isLoading) return <Skeleton className="h-48 w-full" />;
@@ -119,19 +184,104 @@ function StatementReportTab({ statementId }: { statementId: string }) {
   if (!report) return <EmptyState title="Tidak Ada Data" />;
 
   const r = report as Record<string, unknown>;
+  const balanced = r.balanced as boolean;
+  const status = (r.statement as Record<string, unknown>)?.status as string;
+
   return (
-    <Card>
-      <CardContent className="space-y-3 p-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div><span className="text-wood-500">Total Baris Bank:</span> <span className="font-medium">{String(r.bankLinesTotal ?? 0)}</span></div>
-          <div><span className="text-wood-500">Tercocokkan:</span> <span className="font-medium text-emerald-600">{String(r.matchedLines ?? 0)}</span></div>
-          <div><span className="text-wood-500">Belum Tercocokkan:</span> <span className="font-medium text-amber-600">{String(r.unmatchedLines ?? 0)}</span></div>
-          <div><span className="text-wood-500">Saldo Buku:</span> <span className="font-medium">{formatIDR(Number(r.bookBalance ?? 0))}</span></div>
-          <div><span className="text-wood-500">Saldo Statement:</span> <span className="font-medium">{formatIDR(Number(r.statementBalance ?? 0))}</span></div>
-          <div><span className="text-wood-500">Selisih:</span> <span className="font-medium">{formatIDR(Number(r.difference ?? 0))}</span></div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      {/* Balance proof */}
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <h2 className="text-sm font-semibold text-wood-700">Ringkasan Rekonsiliasi</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div className="rounded-lg border border-wood-200 p-3">
+              <span className="block text-wood-500 text-xs mb-0.5">Saldo Buku</span>
+              <span className="font-semibold text-wood-800 text-base">
+                {r.bookBalance != null ? formatIDR(Number(r.bookBalance)) : "—"}
+              </span>
+            </div>
+            <div className="rounded-lg border border-wood-200 p-3">
+              <span className="block text-wood-500 text-xs mb-0.5">Saldo Statement</span>
+              <span className="font-semibold text-wood-800 text-base">
+                {formatIDR(Number(r.statementBalance))}
+              </span>
+            </div>
+            <div className={`rounded-lg border p-3 ${balanced ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+              <span className="block text-wood-500 text-xs mb-0.5">Selisih</span>
+              <span className={`font-semibold text-base ${balanced ? "text-emerald-600" : "text-amber-600"}`}>
+                {r.difference != null ? formatIDR(Number(r.difference)) : "—"}
+              </span>
+              {balanced && (
+                <div className="flex items-center gap-1 text-xs text-emerald-600 mt-1">
+                  <CheckCircle className="h-3 w-3" />
+                  Seimbang
+                </div>
+              )}
+              {!balanced && r.difference != null && (
+                <div className="flex items-center gap-1 text-xs text-amber-600 mt-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Belum Seimbang
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Match summary */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="block text-wood-500 text-xs">Total Baris Bank</span>
+              <span className="font-semibold text-wood-800">{String(r.bankLinesTotal ?? 0)}</span>
+            </div>
+            <div>
+              <span className="block text-wood-500 text-xs">Tercocokkan</span>
+              <span className="font-semibold text-emerald-600">{String(r.matchedLines ?? 0)}</span>
+            </div>
+            <div>
+              <span className="block text-wood-500 text-xs">Belum Tercocokkan</span>
+              <span className="font-semibold text-amber-600">{String(r.unmatchedLines ?? 0)}</span>
+            </div>
+            <div>
+              <span className="block text-wood-500 text-xs">Status</span>
+              <span className={`font-semibold ${status === "reconciled" ? "text-emerald-600" : "text-amber-600"}`}>
+                {status === "reconciled" ? "Terekomiliasi" : "Terbuka"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reopen button (only for reconciled statements) */}
+      {status === "reconciled" && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold text-wood-700 mb-2">Buka Ulang Rekonsiliasi</h3>
+            <p className="text-xs text-wood-500 mb-3">
+              Akan menghapus semua data cocok dan mengembalikan status menjadi "Terbuka" untuk dicocokkan ulang.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => reopenMutation.mutate()}
+              disabled={reopenMutation.isPending}
+              className="border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              {reopenMutation.isPending ? "Memproses..." : "Buka Ulang"}
+            </Button>
+            {reopenMutation.isSuccess && (
+              <p className="text-xs text-emerald-600 mt-2">Statement berhasil dibuka ulang.</p>
+            )}
+            {reopenMutation.isError && (
+              <ErrorState message={(reopenMutation.error as Error)?.message ?? "Gagal membuka ulang"} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 
