@@ -31,7 +31,7 @@ export default function InvoiceDetailPage() {
   const [reason, setReason] = useState("");
   const [showCreditForm, setShowCreditForm] = useState(false);
   const [creditLines, setCreditLines] = useState([{ description: "", amount: 0 }]);
-  const [_creditNotes, _setCreditNotes] = useState<{ id: string; invoiceNumber: string; totalMinor: number; status: string }[]>([]);
+  
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [emailTo, setEmailTo] = useState("");
 
