@@ -176,4 +176,25 @@ describe("Database Migrations", () => {
       expect(final.tables.has(table)).toBe(false);
     }
   });
+
+  it("migration files end with newline and are under 100KB", () => {
+    for (const f of files) {
+      const content = readFileSync(resolve(migDir, f), "utf-8");
+      expect(content.length, `${f} exceeds 100KB`).toBeLessThan(100000);
+      expect(content.endsWith("\n"), `${f} must end with newline`).toBe(true);
+    }
+  });
+
+  it("migration SQL contains no obvious syntax errors (basic checks)", () => {
+    const suspiciousPatterns = [
+      { re: /\bUPDATE\s+\w+\s+SET\s+\w+\s*=\s*\w+\s+WHERE\s*$/i, msg: "incomplete UPDATE" },
+      { re: /\bINSERT\s+INTO\s+\w+\s*$/i, msg: "incomplete INSERT" },
+      { re: /\bWHERE\s+\w+\s*$/i, msg: "incomplete WHERE clause" },
+    ];
+    for (const mig of migrations) {
+      for (const { re, msg } of suspiciousPatterns) {
+        expect(re.test(mig.sql), `${mig.name}: ${msg}`).toBe(false);
+      }
+    }
+  });
 });

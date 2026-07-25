@@ -1,21 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers/auth";
 
 /**
  * New Transaction page E2E tests.
- * Auth-dependent tests gracefully skip when unauthenticated (redirect to /login).
  */
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-/** Navigate to /transactions/new and return true if we landed on the page (not login). */
-async function gotoNewTransaction(page: import("@playwright/test").Page, width = 375, height = 812) {
-  await page.setViewportSize({ width, height });
-  await page.goto("/transactions/new");
-  await page.waitForLoadState("networkidle");
-  // If redirected to login, the page won't have our content
-  const url = page.url();
-  if (url.includes("/login")) return false;
-  return true;
+async function gotoNewTransaction(authPage: import("@playwright/test").Page, width = 375, height = 812) {
+  await authPage.setViewportSize({ width, height });
+  await authPage.goto("/transactions/new");
+  await authPage.waitForLoadState("networkidle");
 }
 
 // ── Viewports ──────────────────────────────────────────────────────
@@ -37,20 +31,20 @@ const viewports = [
 test.describe("New Transaction page basics", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test("page loads without crash", async ({ page }) => {
-    await gotoNewTransaction(page);
-    await page.goto("/transactions/new");
-    await page.waitForLoadState("networkidle");
-    const title = await page.title();
+  test("page loads without crash", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    await authPage.goto("/transactions/new");
+    await authPage.waitForLoadState("networkidle");
+    const title = await authPage.title();
     expect(title).toMatch(/Ledjer/i);
   });
 
-  test("no horizontal overflow at 320px", async ({ page }) => {
-    await gotoNewTransaction(page);
-    await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto("/transactions/new");
-    await page.waitForLoadState("networkidle");
-    const hasOverflow = await page.evaluate(() => {
+  test("no horizontal overflow at 320px", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    await authPage.setViewportSize({ width: 320, height: 800 });
+    await authPage.goto("/transactions/new");
+    await authPage.waitForLoadState("networkidle");
+    const hasOverflow = await authPage.evaluate(() => {
       return document.body.scrollWidth > window.innerWidth;
     });
     expect(hasOverflow).toBeFalsy();
@@ -60,16 +54,16 @@ test.describe("New Transaction page basics", () => {
 // ── Authenticated page tests ───────────────────────────────────────
 
 test.describe("Transaction type selector (auth required)", () => {
-  test("radio inputs exist for priority types", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const radios = page.locator('input[type="radio"][name="transactionType"]');
+  test("radio inputs exist for priority types", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const radios = authPage.locator('input[type="radio"][name="transactionType"]');
     const count = await radios.count();
     expect(count).toBeGreaterThanOrEqual(3);
   });
 
-  test("only one radio can be checked at a time", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const radios = page.locator('input[type="radio"][name="transactionType"]');
+  test("only one radio can be checked at a time", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const radios = authPage.locator('input[type="radio"][name="transactionType"]');
     const count = await radios.count();
     if (count < 2) return;
 
@@ -81,157 +75,157 @@ test.describe("Transaction type selector (auth required)", () => {
     expect(await radios.nth(0).isChecked()).toBeFalsy();
   });
 
-  test("fieldset and legend exist for type selector", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const fieldset = page.locator("fieldset").first();
+  test("fieldset and legend exist for type selector", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const fieldset = authPage.locator("fieldset").first();
     await expect(fieldset).toBeAttached();
     const legend = fieldset.locator("legend");
     await expect(legend).toBeAttached();
   });
 
-  test("radiogroup role exists", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const radiogroup = page.locator('[role="radiogroup"]');
+  test("radiogroup role exists", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const radiogroup = authPage.locator('[role="radiogroup"]');
     await expect(radiogroup.first()).toBeAttached();
   });
 });
 
 test.describe("Disclosure: Lihat jenis transaksi lainnya", () => {
-  test("disclosure button has aria-expanded=false initially", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const btn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+  test("disclosure button has aria-expanded=false initially", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const btn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
     await expect(btn).toBeAttached();
     await expect(btn).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("disclosure button has aria-controls pointing to a real element", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const btn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+  test("disclosure button has aria-controls pointing to a real element", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const btn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
     const controlsId = await btn.getAttribute("aria-controls");
     expect(controlsId).toBeTruthy();
-    const target = page.locator(`#${controlsId}`);
+    const target = authPage.locator(`#${controlsId}`);
     await expect(target).toBeAttached();
   });
 
-  test("clicking disclosure shows additional types and updates label", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const btn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+  test("clicking disclosure shows additional types and updates label", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const btn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
     await btn.click();
 
-    const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+    const hideBtn = authPage.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
     await expect(hideBtn).toBeVisible();
     await expect(hideBtn).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("clicking hide collapses the additional types", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const expandBtn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+  test("clicking hide collapses the additional types", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const expandBtn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
     await expandBtn.click();
 
-    const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+    const hideBtn = authPage.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
     await hideBtn.click();
 
-    const reExpand = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+    const reExpand = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
     await expect(reExpand).toBeVisible();
     await expect(reExpand).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("selecting a type from additional list auto-expands", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const expandBtn = page.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
+  test("selecting a type from additional list auto-expands", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const expandBtn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
     await expandBtn.click();
 
-    const additionalRadio = page.locator('input[type="radio"][name="transactionType"][value="credit_sale"], input[type="radio"][name="transactionType"][value="owner_capital"]');
+    const additionalRadio = authPage.locator('input[type="radio"][name="transactionType"][value="credit_sale"], input[type="radio"][name="transactionType"][value="owner_capital"]');
     await expect(additionalRadio.first()).toBeAttached();
     await additionalRadio.first().check({ force: true });
-    const hideBtn = page.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
+    const hideBtn = authPage.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
     await expect(hideBtn).toBeVisible();
   });
 });
 
 test.describe("Page copy (auth required)", () => {
-  test("h1 shows Transaksi Baru", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const h1 = page.locator("h1");
+  test("h1 shows Transaksi Baru", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const h1 = authPage.locator("h1");
     await expect(h1).toContainText("Transaksi Baru");
   });
 
-  test("exactly one h1 exists", async ({ page }) => {
-    await gotoNewTransaction(page);
-    await page.goto("/transactions/new");
-    await page.waitForLoadState("networkidle");
-    const h1Count = await page.locator("h1").count();
+  test("exactly one h1 exists", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    await authPage.goto("/transactions/new");
+    await authPage.waitForLoadState("networkidle");
+    const h1Count = await authPage.locator("h1").count();
     expect(h1Count).toBe(1);
   });
 
-  test("description does not contain 'Isi dari atas ke bawah'", async ({ page }) => {
-    await gotoNewTransaction(page);
-    await page.goto("/transactions/new");
-    await page.waitForLoadState("networkidle");
-    const body = page.locator("body");
+  test("description does not contain 'Isi dari atas ke bawah'", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    await authPage.goto("/transactions/new");
+    await authPage.waitForLoadState("networkidle");
+    const body = authPage.locator("body");
     await expect(body).not.toContainText("Isi dari atas ke bawah");
   });
 
-  test("default section title is 'Pilih jenis transaksi'", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const sectionTitle = page.getByRole("heading", { name: /pilih jenis transaksi/i });
+  test("default section title is 'Pilih jenis transaksi'", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const sectionTitle = authPage.getByRole("heading", { name: /pilih jenis transaksi/i });
     await expect(sectionTitle).toBeVisible({ timeout: 5000 });
   });
 });
 
 test.describe("Submit button disabled state (auth required)", () => {
-  test("submit button is disabled before type selection", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const submitBtn = page.getByRole("button", { name: /catat transaksi/i });
+  test("submit button is disabled before type selection", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const submitBtn = authPage.getByRole("button", { name: /catat transaksi/i });
     await expect(submitBtn).toBeDisabled();
   });
 
-  test("explanation text visible when no type selected", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const explanation = page.getByText("Pilih jenis transaksi untuk melanjutkan.");
+  test("explanation text visible when no type selected", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const explanation = authPage.getByText("Pilih jenis transaksi untuk melanjutkan.");
     await expect(explanation).toBeVisible({ timeout: 5000 });
   });
 });
 
 test.describe("No duplicate transaction types (auth required)", () => {
-  test("Penjualan Tunai appears exactly once in initial selector", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const labels = page.locator('label:has-text("Penjualan Tunai")');
+  test("Penjualan Tunai appears exactly once in initial selector", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const labels = authPage.locator('label:has-text("Penjualan Tunai")');
     const count = await labels.count();
     expect(count).toBe(1);
   });
 
-  test("Pembelian Tunai appears exactly once in initial selector", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const labels = page.locator('label:has-text("Pembelian Tunai")');
+  test("Pembelian Tunai appears exactly once in initial selector", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const labels = authPage.locator('label:has-text("Pembelian Tunai")');
     const count = await labels.count();
     expect(count).toBe(1);
   });
 
-  test("no aria-pressed buttons exist in type selector", async ({ page }) => {
-    await gotoNewTransaction(page);
-    await page.goto("/transactions/new");
-    await page.waitForLoadState("networkidle");
-    const pressedButtons = page.locator('[role="radiogroup"] button[aria-pressed]');
+  test("no aria-pressed buttons exist in type selector", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    await authPage.goto("/transactions/new");
+    await authPage.waitForLoadState("networkidle");
+    const pressedButtons = authPage.locator('[role="radiogroup"] button[aria-pressed]');
     const count = await pressedButtons.count();
     expect(count).toBe(0);
   });
 });
 
 test.describe("Mobile header on new transaction (auth required)", () => {
-  test("header shows X/close button instead of plus", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const closeBtn = page.getByRole("link", { name: /batalkan transaksi/i });
+  test("header shows X/close button instead of plus", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const closeBtn = authPage.getByRole("link", { name: /batalkan transaksi/i });
     await expect(closeBtn).toBeVisible({ timeout: 5000 });
 
-    const plusLink = page.getByRole("link", { name: /^transaksi baru$/i });
+    const plusLink = authPage.getByRole("link", { name: /^transaksi baru$/i });
     const plusCount = await plusLink.count();
     expect(plusCount).toBe(0);
   });
 
-  test("close button links to /transactions", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const closeBtn = page.getByRole("link", { name: /batalkan transaksi/i });
+  test("close button links to /transactions", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const closeBtn = authPage.getByRole("link", { name: /batalkan transaksi/i });
     const href = await closeBtn.getAttribute("href");
     expect(href).toBe("/transactions");
   });
@@ -243,32 +237,32 @@ for (const vp of viewports) {
   test.describe(`Responsive: ${vp.name} (${vp.width}px)`, () => {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
-    test("no horizontal overflow", async ({ page }) => {
-    await gotoNewTransaction(page);
-      await page.goto("/transactions/new");
-      await page.waitForLoadState("networkidle");
-      const hasOverflow = await page.evaluate(() => {
+    test("no horizontal overflow", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+      await authPage.goto("/transactions/new");
+      await authPage.waitForLoadState("networkidle");
+      const hasOverflow = await authPage.evaluate(() => {
         return document.body.scrollWidth > window.innerWidth;
       });
       expect(hasOverflow).toBeFalsy();
     });
 
-    test("type selector cards have min-height", async ({ page }) => {
-    await gotoNewTransaction(page);
-      const firstCard = page.locator('input[type="radio"][name="transactionType"]').first();
+    test("type selector cards have min-height", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+      const firstCard = authPage.locator('input[type="radio"][name="transactionType"]').first();
       await expect(firstCard).toBeAttached();
-      const label = page.locator(`label[for="${await firstCard.getAttribute("id")}"]`);
+      const label = authPage.locator(`label[for="${await firstCard.getAttribute("id")}"]`);
       const box = await label.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.height).toBeGreaterThanOrEqual(44);
     });
 
-    test("logo is centered in mobile header", async ({ page }) => {
-    await gotoNewTransaction(page);
-      await page.goto("/transactions/new");
-      await page.waitForLoadState("networkidle");
+    test("logo is centered in mobile header", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+      await authPage.goto("/transactions/new");
+      await authPage.waitForLoadState("networkidle");
 
-      const logo = page.locator('a[href="/dashboard"]').first();
+      const logo = authPage.locator('a[href="/dashboard"]').first();
       await expect(logo).toBeAttached();
       const logoBox = await logo.boundingBox();
       expect(logoBox).not.toBeNull();
@@ -282,25 +276,25 @@ for (const vp of viewports) {
 // ── Keyboard navigation (auth required) ────────────────────────────
 
 test.describe("Keyboard navigation", () => {
-  test("arrow keys navigate between radio options", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
+  test("arrow keys navigate between radio options", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const firstRadio = authPage.locator('input[type="radio"][name="transactionType"]').first();
 
     await firstRadio.focus();
     expect(await firstRadio.isChecked()).toBeTruthy();
 
-    await page.keyboard.press("ArrowDown");
-    const secondRadio = page.locator('input[type="radio"][name="transactionType"]').nth(1);
+    await authPage.keyboard.press("ArrowDown");
+    const secondRadio = authPage.locator('input[type="radio"][name="transactionType"]').nth(1);
     await expect(secondRadio).toBeAttached();
     expect(await secondRadio.isChecked()).toBeTruthy();
   });
 
-  test("space selects focused radio", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
+  test("space selects focused radio", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const firstRadio = authPage.locator('input[type="radio"][name="transactionType"]').first();
 
     await firstRadio.focus();
-    await page.keyboard.press("Space");
+    await authPage.keyboard.press("Space");
     expect(await firstRadio.isChecked()).toBeTruthy();
   });
 });
@@ -308,9 +302,9 @@ test.describe("Keyboard navigation", () => {
 // ── Accessibility (auth required) ──────────────────────────────────
 
 test.describe("Accessibility", () => {
-  test("all interactive elements have accessible names", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const buttons = page.locator("button");
+  test("all interactive elements have accessible names", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const buttons = authPage.locator("button");
     const count = await buttons.count();
     for (let i = 0; i < count; i++) {
       const btn = buttons.nth(i);
@@ -320,19 +314,19 @@ test.describe("Accessibility", () => {
     }
   });
 
-  test("decorative icons have aria-hidden", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const icons = page.locator('[role="radiogroup"] [aria-hidden="true"]');
+  test("decorative icons have aria-hidden", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const icons = authPage.locator('[role="radiogroup"] [aria-hidden="true"]');
     const count = await icons.count();
     expect(count).toBeGreaterThan(0);
   });
 
-  test("form fields have visible labels", async ({ page }) => {
-    await gotoNewTransaction(page);
-    const firstRadio = page.locator('input[type="radio"][name="transactionType"]').first();
+  test("form fields have visible labels", async ({ authPage }) => {
+    await gotoNewTransaction(authPage);
+    const firstRadio = authPage.locator('input[type="radio"][name="transactionType"]').first();
     await expect(firstRadio).toBeAttached();
     await firstRadio.check({ force: true });
-    const labels = page.locator("label");
+    const labels = authPage.locator("label");
     await expect(labels.first()).toBeAttached();
   });
 });

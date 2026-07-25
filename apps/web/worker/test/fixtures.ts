@@ -29,10 +29,12 @@ export const FIXTURE_IDS = {
     adminB: "user-orgb-admin-00001",
     memberB: "user-orgb-member-0001",
     viewerB: "user-orgb-viewer-0001",
+    ownerEmpty: "user-empty-owner-00001",
   },
   orgs: {
     a: "org-a-test-fixture-0001",
     b: "org-b-test-fixture-0001",
+    empty: "org-empty-test-000001",
   },
   accounts: {
     cashA: "acct-orga-cash-000001",
@@ -173,11 +175,13 @@ const USERS: SeedUser[] = [
   { id: FIXTURE_IDS.users.adminB, email: "admin@orgb.test", password_hash: "", full_name: "Admin B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.users.memberB, email: "member@orgb.test", password_hash: "", full_name: "Member B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.users.viewerB, email: "viewer@orgb.test", password_hash: "", full_name: "Viewer B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.users.ownerEmpty, email: "owner@empty.test", password_hash: "", full_name: "Owner Empty", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
 ];
 
 const ORGS: SeedOrg[] = [
   { id: FIXTURE_IDS.orgs.a, name: "PT Organisasi A", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.orgs.b, name: "CV Organisasi B", business_type: "service", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: FIXTURE_IDS.users.ownerB, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.orgs.empty, name: "Empty Organization", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-06-01", onboarding_status: "pending", created_by: FIXTURE_IDS.users.ownerEmpty, created_at: NOW, updated_at: NOW },
 ];
 
 const MEMBERS: SeedMember[] = [
@@ -189,6 +193,7 @@ const MEMBERS: SeedMember[] = [
   { id: "mem-orgb-admin-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.adminB, role: "admin", status: "active", created_at: NOW },
   { id: "mem-orgb-member-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.memberB, role: "member", status: "active", created_at: NOW },
   { id: "mem-orgb-viewer-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.viewerB, role: "viewer", status: "active", created_at: NOW },
+  { id: "mem-empty-owner-0001", organization_id: FIXTURE_IDS.orgs.empty, user_id: FIXTURE_IDS.users.ownerEmpty, role: "owner", status: "active", created_at: NOW },
 ];
 
 const ACCOUNTS: SeedAccount[] = [
@@ -430,6 +435,7 @@ const SESSIONS: SeedSession[] = [
   { id: "session-orga-viewer-1", user_id: FIXTURE_IDS.users.viewerA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
   { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
   { id: "session-orgb-admin-1", user_id: FIXTURE_IDS.users.adminB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
+  { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.empty, created_at: NOW },
 ];
 
 function createAllHandler() {

@@ -105,6 +105,51 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         ]),
       ).toThrow("Journal is not balanced");
     });
+
+    it("credit_purchase: Dr Inventory, Cr AP", () => {
+      const lines = [
+        { accountId: FIXTURE_IDS.accounts.inventoryA, debitMinor: 400000, creditMinor: 0, description: "Pembelian kredit" },
+        { accountId: FIXTURE_IDS.accounts.apA, debitMinor: 0, creditMinor: 400000, description: "Utang dagang" },
+      ];
+      expect(() => assertJournalBalanced(lines)).not.toThrow();
+      const totalDebit = lines.reduce((s, l) => s + l.debitMinor, 0);
+      const totalCredit = lines.reduce((s, l) => s + l.creditMinor, 0);
+      expect(totalDebit).toBe(400000);
+      expect(totalCredit).toBe(400000);
+    });
+
+    it("sale_return: Dr Revenue/Sales Return, Cr AR or Cash", () => {
+      // Sale return reduces revenue and AR (or cash if already paid)
+      const lines = [
+        { accountId: FIXTURE_IDS.accounts.revenueA, debitMinor: 100000, creditMinor: 0, description: "Retur penjualan" },
+        { accountId: FIXTURE_IDS.accounts.arA, debitMinor: 0, creditMinor: 100000, description: "Hapus piutang" },
+      ];
+      expect(() => assertJournalBalanced(lines)).not.toThrow();
+    });
+
+    it("purchase_return: Dr AP or Cash, Cr Inventory", () => {
+      const lines = [
+        { accountId: FIXTURE_IDS.accounts.apA, debitMinor: 200000, creditMinor: 0, description: "Hapus utang" },
+        { accountId: FIXTURE_IDS.accounts.inventoryA, debitMinor: 0, creditMinor: 200000, description: "Retur pembelian" },
+      ];
+      expect(() => assertJournalBalanced(lines)).not.toThrow();
+    });
+
+    it("inventory_adjustment (increase): Dr Inventory, Cr Equity/Adjustment", () => {
+      const lines = [
+        { accountId: FIXTURE_IDS.accounts.inventoryA, debitMinor: 150000, creditMinor: 0, description: "Penyesuaian stok" },
+        { accountId: FIXTURE_IDS.accounts.equityA, debitMinor: 0, creditMinor: 150000, description: "Selisih stok" },
+      ];
+      expect(() => assertJournalBalanced(lines)).not.toThrow();
+    });
+
+    it("inventory_adjustment (decrease): Dr Expense/Equity, Cr Inventory", () => {
+      const lines = [
+        { accountId: FIXTURE_IDS.accounts.expenseA, debitMinor: 75000, creditMinor: 0, description: "Hilang stok" },
+        { accountId: FIXTURE_IDS.accounts.inventoryA, debitMinor: 0, creditMinor: 75000, description: "Penyesuaian stok" },
+      ];
+      expect(() => assertJournalBalanced(lines)).not.toThrow();
+    });
   });
 
   describe("G2: Trial balance invariants", () => {
@@ -317,6 +362,52 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       expect(result.impact.amount).toBeGreaterThan(0);
     });
 
+    it("credit_sale (unpaid) posts via postTransaction with partyId", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-17",
+          transactionType: "credit_sale",
+          amount: 600000,
+          paymentStatus: "unpaid",
+          description: "Golden test: credit sale",
+          partyId: FIXTURE_IDS.parties.customerA,
+          idempotencyKey: "idem-golden-creditsale-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTruthy();
+      expect(result.impact.amount).toBeGreaterThan(0);
+    });
+
+    it("expense_payment posts via postTransaction", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-18",
+          transactionType: "expense_payment",
+          amount: 150000,
+          description: "Golden test: expense payment",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          debitAccountId: FIXTURE_IDS.accounts.expenseA,
+          idempotencyKey: "idem-golden-expense-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTruthy();
+      expect(result.impact.amount).toBeGreaterThan(0);
+    });
+
     it("rejects transaction with locked period", async () => {
       const { db } = createSeedFixtures();
       const { postTransaction } = await import("../services/transactions.service");
@@ -334,6 +425,51 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
           idempotencyKey: "idem-golden-locked-01",
         },
       )).rejects.toMatchObject({ code: "period_locked" });
+    });
+
+    it("credit_purchase (unpaid) posts via postTransaction with partyId", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-19",
+          transactionType: "credit_purchase",
+          amount: 400000,
+          paymentStatus: "unpaid",
+          description: "Golden test: credit purchase",
+          partyId: FIXTURE_IDS.parties.supplierA,
+          productId: FIXTURE_IDS.products.widget,
+          quantity: 5,
+          unitPrice: 80000,
+          idempotencyKey: "idem-golden-creditpurchase-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTruthy();
+      expect(result.impact.amount).toBeGreaterThan(0);
+    });
+
+    it("rejects backdated transaction before books_start_date", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      await expect(postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2025-12-31",
+          transactionType: "cash_sale",
+          amount: 100000,
+          description: "Backdated transaction",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          idempotencyKey: "idem-golden-backdated-01",
+        },
+      )).rejects.toMatchObject({ code: "transaction_before_books_start" });
     });
 
     it("idempotency key prevents duplicate posting", async () => {
@@ -510,6 +646,93 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         1000000,
         true,
       )).rejects.toMatchObject({ code: "already_fully_paid" });
+    });
+  });
+
+  describe("P0.5: Journal preview", () => {
+    it("previewTransaction returns balanced journal lines without posting", async () => {
+      const { db } = createSeedFixtures();
+      const { previewTransaction } = await import("../services/transactions.service");
+
+      const result = await previewTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        {
+          transactionDate: "2026-02-20",
+          transactionType: "cash_sale",
+          amount: 500000,
+          description: "Preview test: cash sale",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          idempotencyKey: "idem-preview-cashsale-01",
+        },
+      );
+
+      expect(result.balanced).toBe(true);
+      expect(result.journalLines.length).toBeGreaterThanOrEqual(2);
+      expect(result.debitAccount.id).toBe(FIXTURE_IDS.accounts.cashA);
+      expect(result.creditAccount.id).toBe(FIXTURE_IDS.accounts.revenueA);
+      expect(result.amountMinor).toBe(500000);
+      expect(result.description).toContain("Preview test");
+    });
+  });
+
+  describe("WAC: Weighted average cost", () => {
+    it("recalculateProductAverageCost computes WAC correctly with multiple prices", async () => {
+      const { FakeD1Database } = await import("../test/fake-d1");
+      const { recalculateProductAverageCost } = await import("../services/transactions.service");
+
+      // Purchase 10 units @ 100 → avg = 100
+      // Purchase 5  units @ 200 → avg = (10*100 + 5*200) / 15 = 133.33 → 133
+      const db = new FakeD1Database({
+        all: async (sql: string) => {
+          if (sql.includes("FROM stock_movements")) {
+            return [
+              { movement_type: "purchase", quantity_milli: 10_000, unit_cost_minor: 100 },
+              { movement_type: "purchase", quantity_milli: 5_000, unit_cost_minor: 200 },
+            ];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+      });
+
+      const result = await recalculateProductAverageCost(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.products.widget,
+      );
+
+      // (10*100 + 5*200) / 15 = 2000/15 = 133.33 → Math.round = 133
+      expect(result.average_cost_minor).toBe(133);
+      expect(result.current_stock_milli).toBe(15_000);
+    });
+
+    it("recalculateProductAverageCost handles sale (unlink from WAC)", async () => {
+      const { FakeD1Database } = await import("../test/fake-d1");
+      const { recalculateProductAverageCost } = await import("../services/transactions.service");
+
+      // Purchase 10 @ 100, then sell 3 → avg unchanged, stock = 7
+      const db = new FakeD1Database({
+        all: async (sql: string) => {
+          if (sql.includes("FROM stock_movements")) {
+            return [
+              { movement_type: "purchase", quantity_milli: 10_000, unit_cost_minor: 100 },
+              { movement_type: "sale", quantity_milli: -3_000, unit_cost_minor: 100 },
+            ];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+      });
+
+      const result = await recalculateProductAverageCost(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.products.widget,
+      );
+
+      expect(result.average_cost_minor).toBe(100); // unchanged by sale
+      expect(result.current_stock_milli).toBe(7_000);
     });
   });
 

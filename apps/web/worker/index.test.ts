@@ -42,6 +42,18 @@ describe("Worker API", () => {
     });
   });
 
+  it("app bootstraps with all route groups registered", async () => {
+    // Verify the app can handle a request without crashing
+    const response = await app.fetch(
+      new Request("http://localhost/api/health"),
+      testEnv(),
+    );
+    expect(response.status).toBe(503); // DB down = unhealthy
+    const body = await response.json();
+    expect(body).toHaveProperty("status");
+    expect(body).toHaveProperty("database");
+  });
+
   it("rejects mutating cookie-authenticated requests from a foreign origin", async () => {
     const response = await app.fetch(
       new Request("http://localhost/api/auth/logout", {

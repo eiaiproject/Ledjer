@@ -783,6 +783,49 @@ function buildPostTransactionStatements(
   return statements;
 }
 
+export interface PreviewTransactionResult {
+  transactionType: TransactionType;
+  amountMinor: number;
+  paymentStatus: PaymentStatus;
+  description: string;
+  debitAccount: AccountRow;
+  creditAccount: AccountRow;
+  categoryName: string | null;
+  journalLines: JournalLineInput[];
+  balanced: boolean;
+}
+
+/**
+ * Preview a transaction without posting.
+ * Resolves accounts, products, stock and returns journal lines.
+ */
+export async function previewTransaction(
+  db: D1Database,
+  organizationId: string,
+  input: PostTransactionInput,
+): Promise<PreviewTransactionResult> {
+  const dataResult = await prepareTransactionData(db, organizationId, input);
+  if ("existing" in dataResult) {
+    throw conflict("transaction_exists", "Transaction already posted with this idempotency key");
+  }
+  const { data } = dataResult;
+
+  const current = Date.now();
+  const entities = await resolveTransactionEntities(db, organizationId, data.transactionType, data.amountMinor, data.paymentStatus, input, current);
+
+  return {
+    transactionType: data.transactionType,
+    amountMinor: data.amountMinor,
+    paymentStatus: data.paymentStatus,
+    description: data.description,
+    debitAccount: entities.resolved.debitAccount,
+    creditAccount: entities.resolved.creditAccount,
+    categoryName: entities.resolved.categoryName,
+    journalLines: entities.journalLines,
+    balanced: entities.journalLines.reduce((s, l) => s + l.debitMinor, 0) === entities.journalLines.reduce((s, l) => s + l.creditMinor, 0),
+  };
+}
+
 export async function postTransaction(
   db: D1Database,
   organizationId: string,
