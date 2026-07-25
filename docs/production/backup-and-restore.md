@@ -55,6 +55,59 @@ After any restore:
 3. Balance sheet equation: Assets = Liabilities + Equity.
 4. No cross-tenant data leaks.
 5. Smoke tests pass.
+6. `verifyRestore()` returns `valid: true` and `schemaValid: true`.
+7. `RestoreResult.warnings` is empty (no overwrite on populated DB).
+
+## Restore Drill Implementation
+
+The restore drill is implemented as a 7-step automated sequence:
+
+```ts
+// 1. Backup current state (if needed)
+const manifest = await createBackup(db, bucket, Date.now());
+
+// 2. List eligible backups (last 7 days)
+const validBackups = await listEligibleBackups(bucket);
+
+// 3. Validate backup integrity
+const validation = await validateBackup(bucket, dateStr);
+
+// 4. Restore to isolated DB (not same binding as production)
+const result = await restoreBackup(targetDb, bucket, dateStr);
+
+// 5. Verify restored schema
+const verification = await verifyRestore(targetDb);
+
+// 6. Run accounting invariants
+const invariantsPass = verification.balancedJournals &&
+                       verification.schemaValid;
+
+// 7. Clean up + alert on failure
+if (!result.success || !verification.valid) {
+    await emitAlert({ severity: 'critical', source: 'restore-drill', result, verification });
+}
+```
+
+## Alerting
+
+`backup.service.ts` does NOT directly emit alerts. The restore code returns
+result objects that monitoring tools must observe:
+
+| Field | Meaning |
+|-------|---------|
+| `RestoreResult.success` | All tables restored without errors |
+| `RestoreResult.errors` | Fatal errors (e.g., missing manifest, FK violations) |
+| `RestoreResult.warnings` | Non-fatal issues (e.g., target DB had data) |
+| `RestoreVerification.valid` | All post-restore checks passed |
+| `RestoreVerification.schemaValid` | All core tables exist |
+| `RestoreVerification.balancedJournals` | Σdebit = Σcredit |
+| `RestoreVerification.errors[]` | Specific invariant failures |
+
+Production monitoring MUST:
+1. Pipe `RestoreResult.errors` into alert system (PagerDuty / Slack).
+2. Alert on `RestoreVerification.valid === false`.
+3. Track backup age (manifest.lastBackup > 36h → critical).
+4. Run a restore drill weekly against an isolated D1 database.
 
 ## Last Successful Backup
 

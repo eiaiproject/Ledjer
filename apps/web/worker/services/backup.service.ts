@@ -137,6 +137,7 @@ export interface RestoreResult {
   completedAt: number | null;
   tables: Record<string, { restored: number }>;
   errors: string[];
+  warnings: string[];
 }
 
 /**
@@ -158,11 +159,20 @@ export async function restoreBackup(
   const startedAt = Date.now();
   const errors: string[] = [];
   const tables: Record<string, { restored: number }> = {};
+  const warnings: string[] = [];
 
   // 1. Validate backup
   const validation = await validateBackup(bucket, dateStr);
   if (!validation.valid) {
-    return { success: false, startedAt, completedAt: null, tables, errors: validation.errors };
+    return { success: false, startedAt, completedAt: null, tables, errors: validation.errors, warnings: [] };
+  }
+
+  // Restore guard: check if DB already has data
+  const existingOrg = await db
+    .prepare("SELECT COUNT(*) as count FROM organizations")
+    .first<{ count: number }>();
+  if (existingOrg && existingOrg.count > 0) {
+    warnings.push(`target database has ${existingOrg.count} organizations; restore may overwrite existing data`);
   }
 
   // 2. Fetch table data from manifest (not all CORE_TABLES required)
@@ -177,7 +187,7 @@ export async function restoreBackup(
   }
 
   if (errors.length > 0) {
-    return { success: false, startedAt, completedAt: null, tables, errors };
+    return { success: false, startedAt, completedAt: null, tables, errors, warnings };
   }
 
   // 3 & 4. Clear and restore tables (reverse order to respect FK constraints)
@@ -222,6 +232,7 @@ export async function restoreBackup(
     completedAt: Date.now(),
     tables,
     errors,
+    warnings,
   };
 }
 
@@ -231,6 +242,7 @@ export interface RestoreVerification {
   transactionCount: number;
   journalLineCount: number;
   balancedJournals: boolean;
+  schemaValid: boolean;
   errors: string[];
   duration: number;
 }
@@ -260,6 +272,18 @@ export async function verifyRestore(
 
   const jlRow = await db.prepare("SELECT COUNT(*) as count FROM journal_lines").first<{ count: number }>();
   const jlCount = jlRow?.count ?? 0;
+
+  // Verify schema integrity: core tables exist
+  let schemaValid = true;
+  for (const table of CORE_TABLES) {
+    try {
+      const row = await db.prepare(`SELECT COUNT(*) as count FROM "${table}"`).first<{ count: number }>();
+      if (row === null) { schemaValid = false; errors.push(`table missing: ${table}`); }
+    } catch {
+      schemaValid = false;
+      errors.push(`table missing or inaccessible: ${table}`);
+    }
+  }
 
   // Verify each organization has at least one owner member
   if (orgCount > 0) {
@@ -336,6 +360,7 @@ export async function verifyRestore(
     transactionCount: txCount,
     journalLineCount: jlCount,
     balancedJournals: !errors.some(e => e.includes("unbalanced") || e.includes("trial balance")),
+    schemaValid,
     errors,
     duration: Date.now() - startedAt,
   };
