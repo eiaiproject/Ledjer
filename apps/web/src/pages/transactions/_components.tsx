@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useId,
@@ -411,7 +412,7 @@ interface ProductDetailFieldsProps {
   readonly unitPriceError?: string;
 }
 
-export function ProductDetailFields({
+export const ProductDetailFields = memo(function ProductDetailFields({
   product,
   isSaleType,
   quantity,
@@ -514,7 +515,7 @@ export function ProductDetailFields({
       )}
     </div>
   );
-}
+});
 
 /* ------------------------------------------------------------------ */
 /*  ReviewPanel (seller-first summary)                                 */
@@ -532,7 +533,7 @@ interface ReviewPanelProps {
   readonly productName?: string;
 }
 
-export function ReviewPanel({
+export const ReviewPanel = memo(function ReviewPanel({
   debit,
   credit,
   stockWarning,
@@ -718,7 +719,7 @@ export function ReviewPanel({
       </div>
     </div>
   );
-}
+});
 
 /* ------------------------------------------------------------------ */
 /*  MobileReviewToggle                                                 */
