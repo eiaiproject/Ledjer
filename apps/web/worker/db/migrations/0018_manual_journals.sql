@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS journal_entries_v2 (
   entry_number TEXT NOT NULL,
   entry_date TEXT NOT NULL,
   entry_type TEXT NOT NULL DEFAULT 'normal' CHECK (entry_type IN (
-    'normal', 'opening_balance', 'adjustment', 'reversal', 'closing', 'manual_journal'
+    'normal', 'opening_balance', 'adjustment', 'reversal', 'closing', 'manual_journal' -- NOSONAR plsql:S1192
   )),
   transaction_id TEXT,
   description TEXT NOT NULL DEFAULT '',

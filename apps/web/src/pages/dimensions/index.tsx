@@ -365,10 +365,10 @@ export function DimensionsPage() {
         <ModalContent title={`Tambah ${dimensionTypeLabel(activeTab)}`}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
+              <p className="block text-sm font-medium text-text-primary mb-1">
                 Tipe
-              </label>
-              <span className="inline-block rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700">{/* NOSONAR typescript:S6853 — display-only, not a form input */}
+              </p>
+              <span className="inline-block rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700">
                 {dimensionTypeLabel(activeTab)}
               </span>
             </div>
