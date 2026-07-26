@@ -5,6 +5,7 @@
 
 import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { nextSequentialNumber, computeTotals, buildLineInserts } from "./document-utils";
 
@@ -85,6 +86,16 @@ export async function createInvoice(
   );
 
   statements.push(...buildLineInserts(db, organizationId, invoiceId, input.lines, "invoice_lines", "invoice_id", now));
+
+  statements.push(writeAuditStatement(db, {
+    organizationId,
+    actorUserId: userId,
+    entityType: "invoice",
+    entityId: invoiceId,
+    action: "create",
+    after: { invoiceNumber, invoiceDate: input.invoiceDate, totalMinor },
+    current: now,
+  }));
 
   await executeBatch(db, statements);
 

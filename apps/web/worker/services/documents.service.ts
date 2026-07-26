@@ -12,6 +12,7 @@
 
 import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst, type D1Input } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
 import { nextSequentialNumber, computeTotals, buildLineInserts } from "./document-utils";
 
@@ -181,6 +182,16 @@ export async function createDocument(
 
   statements.push(...buildLineInserts(db, organizationId, docId, input.lines, "document_lines", "document_id", now));
 
+  statements.push(writeAuditStatement(db, {
+    organizationId,
+    actorUserId: userId,
+    entityType: "document",
+    entityId: docId,
+    action: "create",
+    after: { documentType: input.documentType, documentNumber: docNumber, totalMinor },
+    current: now,
+  }));
+
   await executeBatch(db, statements);
 
   return {
@@ -331,18 +342,17 @@ export async function updateDocumentStatus(
     [newStatus, voidedAt, voidReason, now, documentId, organizationId],
   );
 
-  // Audit log
-  await execute(
-    db,
-    `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, created_at)
-     VALUES (?, ?, ?, 'business_document', ?, 'status_changed', ?, ?, ?, ?)`,
-    [
-      generateId(), organizationId, userId, documentId,
-      JSON.stringify({ status: doc.status }),
-      JSON.stringify({ status: newStatus }),
-      reason ?? null, now,
-    ],
-  );
+  await writeAuditStatement(db, {
+    organizationId,
+    actorUserId: userId,
+    entityType: "business_document",
+    entityId: documentId,
+    action: "status_changed",
+    before: { status: doc.status },
+    after: { status: newStatus },
+    reason: reason ?? null,
+    current: now,
+  });
 
   return { ...doc, status: newStatus as DocumentStatus };
 }
