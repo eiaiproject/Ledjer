@@ -109,13 +109,13 @@ export default function AgingReportPage() {
                         <svg className="inline-block h-3 w-3 ml-1 text-wood-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                       </td>
                       {party.buckets.map((bucket, i) => (
-                        <td key={i} className="px-4 py-3 text-right text-wood-700">
+                        <td key={bucket.label + "-" + i} className="px-4 py-3 text-right text-wood-700">
                           {bucket.totalMinor > 0 ? formatIDR(bucket.totalMinor) : "—"}
                         </td>
                       ))}
                       {/* Fill remaining buckets if fewer than 5 */}
-                      {Array.from({ length: Math.max(0, 5 - party.buckets.length) }).map((_, i) => (
-                        <td key={`empty-${i}`} className="px-4 py-3 text-right text-wood-300">—</td>
+                      {Array.from({ length: Math.max(0, 5 - party.buckets.length) }, (_, idx) => (
+                        <td key={`empty-${idx}`} className="px-4 py-3 text-right text-wood-300">—</td>
                       ))}
                       <td className="px-4 py-3 text-right font-semibold text-wood-800">{formatIDR(party.totalOutstanding)}</td>
                     </tr>

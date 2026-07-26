@@ -32,7 +32,7 @@ function openDB(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error("IndexedDB open failed"));
   });
 }
 

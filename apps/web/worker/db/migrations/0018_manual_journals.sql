@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS journal_entries_v2 (
   entry_date TEXT NOT NULL,
   entry_type TEXT NOT NULL DEFAULT 'normal' CHECK (entry_type IN (
     'normal', 'opening_balance', 'adjustment', 'reversal', 'closing', 'manual_journal'
-  )),  /* ponytail: 'normal' appears 3x but this is SQL, can't use constants */
+  )),  -- NOSONAR plsql:S1192 (can't use constants in SQL CHECK constraint)
   transaction_id TEXT,
   description TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('posted', 'voided', 'reversed')),

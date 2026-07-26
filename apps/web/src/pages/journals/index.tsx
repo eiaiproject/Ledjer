@@ -163,7 +163,7 @@ export function ManualJournalPage() {
 
   const handleLoadTemplate = useCallback((template: typeof templates[0]) => {
     const loadedLines = template.lines.map((l: JournalLineInput) => ({
-      id: `loaded-${Math.random().toString(36).slice(2)}`,
+      id: `loaded-${Math.random().toString(36).slice(2)}`, // NOSONAR - temp ID generation
       accountId: l.accountId,
       debitMinor: l.debitMinor,
       creditMinor: l.creditMinor,
@@ -176,6 +176,7 @@ export function ManualJournalPage() {
     setEntryType(template.entryType);
     setShowTemplates(false);
   }, [accountMap]);
+
 
   const handlePreview = useCallback(() => {
     if (!description.trim()) {
@@ -192,7 +193,7 @@ export function ManualJournalPage() {
         creditMinor: l.creditMinor || 0,
         description: l.description || description.trim(),
       })),
-      idempotencyKey: `jm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      idempotencyKey: `jm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, // NOSONAR - idempotency key
     });
   }, [entryDate, entryType, description, lines, previewMutation]);
 
@@ -215,7 +216,7 @@ export function ManualJournalPage() {
         creditMinor: l.creditMinor,
         description: l.description,
       })),
-      idempotencyKey: `jm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      idempotencyKey: `jm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, // NOSONAR - idempotency key
     });
   }, [preview, balanced, postMutation]);
 

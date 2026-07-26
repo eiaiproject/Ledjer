@@ -227,7 +227,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
 // ---------------------------------------------------------------------------
 
 interface SearchTriggerProps {
-  onClick: () => void;
+  readonly onClick: () => void;
 }
 
 export function SearchTrigger({ onClick }: SearchTriggerProps) {

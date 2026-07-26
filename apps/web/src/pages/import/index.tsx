@@ -46,8 +46,7 @@ interface ImportResult {
 /** Simple string hash for duplicate detection. */
 function hashStr(s: string): string {
   let h = 0;
-  // NOSONAR typescript:S7767 - intentional 32-bit int truncation, Math.trunc changes semantics
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + (s.codePointAt(i) ?? 0)) | 0; }
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + (s.codePointAt(i) ?? 0)) | 0; } // NOSONAR intentional 32-bit truncation
   return String(h);
 }
 

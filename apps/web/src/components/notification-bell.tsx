@@ -185,10 +185,13 @@ export function NotificationBell() {
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
+                    role="button"
+                    tabIndex={0}
                     className={`group relative flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${
                       !notif.isRead ? "bg-leaf-50/30" : "hover:bg-wood-50"
                     }`}
                     onClick={() => handleNotificationClick(notif)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleNotificationClick(notif); } }}
                   >
                     {/* Unread dot */}
                     {!notif.isRead && (

@@ -249,7 +249,7 @@ export function validateIntegerField(
   if (!val) return null;
   const n = Number.parseInt(val, 10);
   if (Number.isNaN(n) || (min !== undefined && n < min)) {
-    errors.push({ field, message: `${field} harus berupa angka${min !== undefined ? ` minimal ${min}` : ""}` });
+    errors.push({ field, message: `${field} harus berupa angka` + (min !== undefined ? ` minimal ${min}` : "") });
     return null;
   }
   return n;
