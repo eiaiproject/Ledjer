@@ -296,7 +296,7 @@ export async function updateBudget(
       [
         data.amountMinor ?? null,
         data.notes ?? null,
-        data.isActive === undefined ? null : data.isActive ? 1 : 0,
+        data.isActive === undefined ? null : isActiveNum(data.isActive),
         data.dimensionType !== undefined ? data.dimensionType : null,
         data.dimensionValue !== undefined ? data.dimensionValue : null,
         now, budgetId, organizationId,
@@ -628,6 +628,11 @@ export async function generateForecast(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function isActiveNum(v: boolean | undefined): number | null {
+  if (v === undefined) return null;
+  return v ? 1 : 0;
+}
 
 function rowToBudget(row: {
   id: string; organization_id: string; account_id: string;

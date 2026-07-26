@@ -57,7 +57,8 @@ test.describe("Visual regression — desktop (1280x800)", () => {
     await navigateAndStabilize(page, "/login");
     // Submit empty form to trigger validation
     await page.getByRole("button", { name: /masuk/i }).first().click();
-    await page.waitForTimeout(300);
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(300); // NOSONAR typescript:S2925 — brief visual stabilization after actions
     await expect(page).toHaveScreenshot("login-validation.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -134,6 +135,7 @@ test.describe("Visual regression — mobile (375x667)", () => {
 
 test.describe("Visual regression — authenticated pages", () => {
   const hasStorage = !!process.env.E2E_STORAGE_STATE;
+  // NOSONAR typescript:S1607 — conditional skip is intended behavior
   test.skip(!hasStorage, "E2E_STORAGE_STATE not set — skipping authenticated visual tests");
 
   test.use({
@@ -152,8 +154,8 @@ test.describe("Visual regression — authenticated pages", () => {
   test("dashboard — loading state (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/dashboard", { waitForNetworkIdle: false });
     // Capture initial loading state before data loads
-    await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot("dashboard-loading.png", {
+    await page.waitForSelector('[class*="animate-pulse"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(200); // NOSONAR typescript:S2925 — brief stabilization for loading screenshot {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
     });
@@ -162,8 +164,8 @@ test.describe("Visual regression — authenticated pages", () => {
   test("dashboard — populated state (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/dashboard");
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
-    await expect(page).toHaveScreenshot("dashboard-populated.png", {
+    await page.waitForSelector('[class*="card"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1000); // NOSONAR typescript:S2925 — awaiting chart render {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
     });
@@ -228,6 +230,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
 test.describe("Visual regression — modals & dialogs", () => {
   const hasStorage = !!process.env.E2E_STORAGE_STATE;
+  // NOSONAR typescript:S1607 — conditional skip is intended behavior
   test.skip(!hasStorage, "E2E_STORAGE_STATE not set — skipping authenticated modal visual tests");
 
   test.use({

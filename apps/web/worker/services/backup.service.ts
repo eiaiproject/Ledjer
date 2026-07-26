@@ -71,6 +71,13 @@ export async function createBackup(
   });
 
   // Clean up old backups (keep last 30 days)
+  await cleanupOldBackups(bucket, current);
+
+  return manifest;
+}
+
+/** Remove backups older than 30 days. Silently ignores errors — backup integrity is more important than retention. */
+async function cleanupOldBackups(bucket: R2Bucket, current: number): Promise<void> {
   const thirtyDaysAgo = current - 30 * 86_400_000;
   const oldDate = new Date(thirtyDaysAgo).toISOString().slice(0, 10);
   const oldPrefix = `backups/${oldDate}`;
@@ -80,10 +87,8 @@ export async function createBackup(
       await bucket.delete(oldObjects.objects.map((o) => o.key));
     }
   } catch {
-    // Ignore cleanup errors — backup integrity is more important than retention
+    // Ignore cleanup errors
   }
-
-  return manifest;
 }
 
 export async function validateBackup(
@@ -167,65 +172,18 @@ export async function restoreBackup(
     return { success: false, startedAt, completedAt: null, tables, errors: validation.errors, warnings: [] };
   }
 
-  // Restore guard: check if DB already has data
-  const existingOrg = await db
-    .prepare("SELECT COUNT(*) as count FROM organizations")
-    .first<{ count: number }>();
-  if (existingOrg && existingOrg.count > 0) {
-    warnings.push(`target database has ${existingOrg.count} organizations; restore may overwrite existing data`);
-  }
+  // Restore guard
+  const existingWarnings = await checkForExistingData(db);
+  warnings.push(...existingWarnings);
 
-  // 2. Fetch table data from manifest (not all CORE_TABLES required)
-  const tableData: Record<string, Record<string, unknown>[]> = {};
-  for (const table of Object.keys(validation.rowCounts)) {
-    const obj = await bucket.get(`backups/${dateStr}/${table}.json`);
-    if (!obj) {
-      errors.push(`missing table file: ${table}`);
-      continue;
-    }
-    tableData[table] = JSON.parse(await obj.text()) as Record<string, unknown>[];
-  }
-
+  // 2. Fetch table data from manifest
+  const tableData = await fetchTableDataFromBackup(bucket, dateStr, validation.rowCounts, errors);
   if (errors.length > 0) {
     return { success: false, startedAt, completedAt: null, tables, errors, warnings };
   }
 
-  // 3 & 4. Clear and restore tables (reverse order to respect FK constraints)
-  const reversed = [...CORE_TABLES].reverse();
-  for (const table of reversed) {
-    const rows = tableData[table];
-    if (!rows || rows.length === 0) {
-      // Clear existing data even if backup has no rows
-      await execute(db, `DELETE FROM "${table}"`);
-      tables[table] = { restored: 0 };
-      continue;
-    }
-    try {
-      // Clear existing
-      await execute(db, `DELETE FROM "${table}"`);
-
-      // Re-insert in batches of 50
-      const batchSize = 50;
-      for (let i = 0; i < rows.length; i += batchSize) {
-        const batch = rows.slice(i, i + batchSize);
-        const statements = batch.map((row) => {
-          const columns = Object.keys(row);
-          const quoted = columns.map((c) => `"${c}"`).join(", ");
-          const placeholders = columns.map(() => "?").join(", ");
-          const values = columns.map((col) => row[col] ?? null);
-          return db.prepare(
-            `INSERT OR REPLACE INTO "${table}" (${quoted}) VALUES (${placeholders})`,
-          ).bind(...values);
-        });
-        await executeBatch(db, statements);
-      }
-
-      tables[table] = { restored: rows.length };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`restore failed for ${table}: ${msg}`);
-    }
-  }
+  // 3 & 4. Clear and restore tables
+  await clearAndRestoreTables(db, tableData, tables, errors);
 
   return {
     success: errors.length === 0,
@@ -235,6 +193,84 @@ export async function restoreBackup(
     errors,
     warnings,
   };
+}
+
+/** Check if the target DB already has data and warn accordingly. */
+async function checkForExistingData(db: D1Database): Promise<string[]> {
+  const existingOrg = await db
+    .prepare("SELECT COUNT(*) as count FROM organizations")
+    .first<{ count: number }>();
+  if (existingOrg && existingOrg.count > 0) {
+    return [`target database has ${existingOrg.count} organizations; restore may overwrite existing data`];
+  }
+  return [];
+}
+
+/** Fetch all table JSON files from the backup snapshot. Returns any missing-table errors. */
+async function fetchTableDataFromBackup(
+  bucket: R2Bucket,
+  dateStr: string,
+  rowCounts: Record<string, number>,
+  errors: string[],
+): Promise<Record<string, Record<string, unknown>[]>> {
+  const tableData: Record<string, Record<string, unknown>[]> = {};
+  for (const table of Object.keys(rowCounts)) {
+    const obj = await bucket.get(`backups/${dateStr}/${table}.json`);
+    if (!obj) {
+      errors.push(`missing table file: ${table}`);
+      continue;
+    }
+    tableData[table] = JSON.parse(await obj.text()) as Record<string, unknown>[];
+  }
+  return tableData;
+}
+
+/** Clear existing data and re-insert rows for each table, in reverse FK order. */
+async function clearAndRestoreTables(
+  db: D1Database,
+  tableData: Record<string, Record<string, unknown>[]>,
+  tables: Record<string, { restored: number }>,
+  errors: string[],
+): Promise<void> {
+  const reversed = [...CORE_TABLES].reverse();
+  for (const table of reversed) {
+    const rows = tableData[table];
+    if (!rows || rows.length === 0) {
+      await execute(db, `DELETE FROM "${table}"`);
+      tables[table] = { restored: 0 };
+      continue;
+    }
+    try {
+      await execute(db, `DELETE FROM "${table}"`);
+      await insertRowsInBatches(db, table, rows);
+      tables[table] = { restored: rows.length };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`restore failed for ${table}: ${msg}`);
+    }
+  }
+}
+
+/** Insert rows in batches of 50 using INSERT OR REPLACE. */
+async function insertRowsInBatches(
+  db: D1Database,
+  table: string,
+  rows: Record<string, unknown>[],
+): Promise<void> {
+  const batchSize = 50;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    const statements = batch.map((row) => {
+      const columns = Object.keys(row);
+      const quoted = columns.map((c) => `"${c}"`).join(", ");
+      const placeholders = columns.map(() => "?").join(", ");
+      const values = columns.map((col) => row[col] ?? null);
+      return db.prepare(
+        `INSERT OR REPLACE INTO "${table}" (${quoted}) VALUES (${placeholders})`,
+      ).bind(...values);
+    });
+    await executeBatch(db, statements);
+  }
 }
 
 export interface RestoreVerification {
@@ -264,96 +300,13 @@ export async function verifyRestore(
   const startedAt = Date.now();
   const errors: string[] = [];
 
-  // Count entities
-  const orgRow = await db.prepare("SELECT COUNT(*) as count FROM organizations").first<{ count: number }>();
-  const orgCount = orgRow?.count ?? 0;
+  const { orgCount, txCount, jlCount } = await countEntities(db);
 
-  const txRow = await db.prepare("SELECT COUNT(*) as count FROM transactions").first<{ count: number }>();
-  const txCount = txRow?.count ?? 0;
-
-  const jlRow = await db.prepare("SELECT COUNT(*) as count FROM journal_lines").first<{ count: number }>();
-  const jlCount = jlRow?.count ?? 0;
-
-  // Verify schema integrity: core tables exist
-  let schemaValid = true;
-  for (const table of CORE_TABLES) {
-    try {
-      const row = await db.prepare(`SELECT COUNT(*) as count FROM "${table}"`).first<{ count: number }>();
-      if (row === null) { schemaValid = false; errors.push(`table missing: ${table}`); }
-    } catch {
-      schemaValid = false;
-      errors.push(`table missing or inaccessible: ${table}`);
-    }
-  }
-
-  // Verify each organization has at least one owner member
-  if (orgCount > 0) {
-    const orgMembers = await db.prepare(
-      `SELECT o.id as org_id, COUNT(m.id) as member_count
-       FROM organizations o
-       LEFT JOIN organization_members m ON m.organization_id = o.id
-       GROUP BY o.id`
-    ).all<{ org_id: string; member_count: number }>();
-    for (const row of orgMembers.results) {
-      if (row.member_count === 0) {
-        errors.push(`org ${row.org_id} has no members`);
-      }
-    }
-  }
-
-  // Verify transactions link to journal entries
-  if (txCount > 0) {
-    const orphanTx = await db.prepare(
-      `SELECT COUNT(*) as count FROM transactions t
-       LEFT JOIN journal_entries je ON je.transaction_id = t.id
-       WHERE je.id IS NULL`
-    ).first<{ count: number }>();
-    if (orphanTx && orphanTx.count > 0) {
-      errors.push(`${orphanTx.count} transactions without journal entries`);
-    }
-
-    // Verify journal entries are balanced
-    const unbalanced = await db.prepare(
-      `SELECT je.id, SUM(jl.debit_minor) as total_debit, SUM(jl.credit_minor) as total_credit
-       FROM journal_entries je
-       JOIN journal_lines jl ON jl.journal_entry_id = je.id
-       GROUP BY je.id
-       HAVING total_debit != total_credit`
-    ).all<{ id: string; total_debit: number; total_credit: number }>();
-    if (unbalanced.results.length > 0) {
-      errors.push(`${unbalanced.results.length} unbalanced journal entries`);
-    }
-  }
-
-  // Verify trial balance: Σdebit = Σcredit across ALL journal lines
-  if (jlCount > 0) {
-    const tbRow = await db.prepare(
-      `SELECT SUM(debit_minor) as total_debit, SUM(credit_minor) as total_credit FROM journal_lines`
-    ).first<{ total_debit: number; total_credit: number }>();
-    if (tbRow && tbRow.total_debit !== tbRow.total_credit) {
-      errors.push(`trial balance off: debit ${tbRow.total_debit} !== credit ${tbRow.total_credit}`);
-    }
-  }
-
-  // Verify inventory subledger = inventory control account
-  const prodRow = await db.prepare(
-    `SELECT COUNT(*) as cnt FROM products`
-  ).first<{ count: number }>();
-  if (prodRow && prodRow.count > 0) {
-    const invValue = await db.prepare(
-      `SELECT COALESCE(SUM((current_stock_milli / 1000.0) * average_cost_minor), 0) as stock_value FROM products`
-    ).first<{ stock_value: number }>();
-    if (invValue && invValue.stock_value > 0) {
-      const invBalance = await db.prepare(
-        `SELECT COALESCE(SUM(debit_minor) - SUM(credit_minor), 0) as balance
-         FROM journal_lines
-         WHERE account_id IN (SELECT id FROM accounts WHERE account_type = 'asset' AND (code LIKE '13%' OR name LIKE '%Persediaan%' OR name LIKE '%Inventory%'))`
-      ).first<{ balance: number }>();
-      if (invBalance && Math.abs(invBalance.balance - invValue.stock_value) > 10) {
-        errors.push(`inventory subledger mismatch: stock value ${Math.round(invValue.stock_value)} ≠ account balance ${invBalance.balance}`);
-      }
-    }
-  }
+  const schemaValid = await verifySchemaIntegrity(db, errors);
+  await verifyOrgMembers(db, orgCount, errors);
+  await verifyTransactionLinksAndBalance(db, txCount, errors);
+  await verifyTrialBalance(db, jlCount, errors);
+  await verifyInventoryMatch(db, errors);
 
   return {
     valid: errors.length === 0,
@@ -367,7 +320,120 @@ export async function verifyRestore(
   };
 }
 
-// ── Restore drill ────────────────────────────────────────────────
+/** Count organizations, transactions, and journal lines in the database. */
+async function countEntities(db: D1Database): Promise<{
+  orgCount: number;
+  txCount: number;
+  jlCount: number;
+}> {
+  const orgRow = await db.prepare("SELECT COUNT(*) as count FROM organizations").first<{ count: number }>();
+  const txRow = await db.prepare("SELECT COUNT(*) as count FROM transactions").first<{ count: number }>();
+  const jlRow = await db.prepare("SELECT COUNT(*) as count FROM journal_lines").first<{ count: number }>();
+  return {
+    orgCount: orgRow?.count ?? 0,
+    txCount: txRow?.count ?? 0,
+    jlCount: jlRow?.count ?? 0,
+  };
+}
+
+/** Verify that all core tables exist and are accessible. */
+async function verifySchemaIntegrity(db: D1Database, errors: string[]): Promise<boolean> {
+  let valid = true;
+  for (const table of CORE_TABLES) {
+    try {
+      const row = await db.prepare(`SELECT COUNT(*) as count FROM "${table}"`).first<{ count: number }>();
+      if (row === null) { valid = false; errors.push(`table missing: ${table}`); }
+    } catch {
+      valid = false;
+      errors.push(`table missing or inaccessible: ${table}`);
+    }
+  }
+  return valid;
+}
+
+/** Verify each organization has at least one member. */
+async function verifyOrgMembers(db: D1Database, orgCount: number, errors: string[]): Promise<void> {
+  if (orgCount === 0) return;
+  const orgMembers = await db.prepare(
+    `SELECT o.id as org_id, COUNT(m.id) as member_count
+     FROM organizations o
+     LEFT JOIN organization_members m ON m.organization_id = o.id
+     GROUP BY o.id`
+  ).all<{ org_id: string; member_count: number }>();
+  for (const row of orgMembers.results) {
+    if (row.member_count === 0) {
+      errors.push(`org ${row.org_id} has no members`);
+    }
+  }
+}
+
+/** Verify transactions have linked journal entries and those entries are balanced. */
+async function verifyTransactionLinksAndBalance(
+  db: D1Database,
+  txCount: number,
+  errors: string[],
+): Promise<void> {
+  if (txCount === 0) return;
+
+  // Check for transactions without journal entries
+  const orphanTx = await db.prepare(
+    `SELECT COUNT(*) as count FROM transactions t
+     LEFT JOIN journal_entries je ON je.transaction_id = t.id
+     WHERE je.id IS NULL`
+  ).first<{ count: number }>();
+  if (orphanTx && orphanTx.count > 0) {
+    errors.push(`${orphanTx.count} transactions without journal entries`);
+  }
+
+  // Check for unbalanced journal entries
+  const unbalanced = await db.prepare(
+    `SELECT je.id, SUM(jl.debit_minor) as total_debit, SUM(jl.credit_minor) as total_credit
+     FROM journal_entries je
+     JOIN journal_lines jl ON jl.journal_entry_id = je.id
+     GROUP BY je.id
+     HAVING total_debit != total_credit`
+  ).all<{ id: string; total_debit: number; total_credit: number }>();
+  if (unbalanced.results.length > 0) {
+    errors.push(`${unbalanced.results.length} unbalanced journal entries`);
+  }
+}
+
+/** Verify trial balance: Σdebit = Σcredit across ALL journal lines. */
+async function verifyTrialBalance(db: D1Database, jlCount: number, errors: string[]): Promise<void> {
+  if (jlCount === 0) return;
+  const tbRow = await db.prepare(
+    `SELECT SUM(debit_minor) as total_debit, SUM(credit_minor) as total_credit FROM journal_lines`
+  ).first<{ total_debit: number; total_credit: number }>();
+  if (tbRow && tbRow.total_debit !== tbRow.total_credit) {
+    errors.push(`trial balance off: debit ${tbRow.total_debit} !== credit ${tbRow.total_credit}`);
+  }
+}
+
+/** Verify inventory subledger matches the inventory control account balance. */
+async function verifyInventoryMatch(db: D1Database, errors: string[]): Promise<void> {
+  const prodRow = await db.prepare(
+    `SELECT COUNT(*) as cnt FROM products`
+  ).first<{ count: number }>();
+  if (!prodRow || prodRow.count === 0) return;
+
+  const invValue = await db.prepare(
+    `SELECT COALESCE(SUM((current_stock_milli / 1000.0) * average_cost_minor), 0) as stock_value FROM products`
+  ).first<{ stock_value: number }>();
+  if (!invValue || invValue.stock_value <= 0) return;
+
+  const invBalance = await db.prepare(
+    `SELECT COALESCE(SUM(debit_minor) - SUM(credit_minor), 0) as balance
+     FROM journal_lines
+     WHERE account_id IN (SELECT id FROM accounts WHERE account_type = 'asset' AND (code LIKE '13%' OR name LIKE '%Persediaan%' OR name LIKE '%Inventory%'))`
+  ).first<{ balance: number }>();
+  if (invBalance && Math.abs(invBalance.balance - invValue.stock_value) > 10) {
+    errors.push(`inventory subledger mismatch: stock value ${Math.round(invValue.stock_value)} ≠ account balance ${invBalance.balance}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Restore Drill
+// ---------------------------------------------------------------------------
 
 export interface DrillReport {
   date: string;
@@ -389,13 +455,6 @@ export interface DrillReport {
  * and runs accounting invariants on the JSON data. This is a safe offline
  * validation that never touches a production database.
  *
- * The drill:
- * 1. Lists backups in R2 and selects the most recent (by date prefix).
- * 2. Validates the manifest (SHA-256, version, completion).
- * 3. Counts entities across all tables.
- * 4. Runs basic accounting checks on transaction/journal data.
- * 5. Records duration and result.
- *
  * For a full end-to-end restore test, run restoreBackup + verifyRestore
  * against an isolated D1 database (e.g., ledjer-dev or a CI staging DB).
  */
@@ -405,16 +464,9 @@ export async function runRestoreDrill(
   const startedAt = Date.now();
   const errors: string[] = [];
 
-  // 1. Find latest backup by listing date-prefixed directories
-  const backupList = await bucket.list({ prefix: "backups/" });
-  // Collect unique date prefixes from manifest files
-  const manifestKeys = backupList.objects
-    .filter((o) => o.key.endsWith("/manifest.json"))
-    .map((o) => o.key.replace("/manifest.json", "").replace("backups/", ""))
-    .sort()
-    .reverse();
-
-  if (manifestKeys.length === 0) {
+  // 1. Find latest backup
+  const latest = await findLatestBackup(bucket);
+  if (!latest) {
     return {
       date: "none", backupExists: false, backupComplete: false, backupVersion: 0,
       tableCount: 0, totalRows: 0, valid: false,
@@ -423,18 +475,15 @@ export async function runRestoreDrill(
     };
   }
 
-  const dateStr = manifestKeys[0];
-  let backupVersion = 0;
-  let backupComplete = false;
+  const dateStr = latest;
 
   // 2. Validate backup
   const validation = await validateBackup(bucket, dateStr);
   if (!validation.valid) {
-    errors.push(...validation.errors);
     return {
       date: dateStr, backupExists: true, backupComplete: false, backupVersion: 0,
       tableCount: Object.keys(validation.rowCounts).length, totalRows: 0, valid: false,
-      errors,
+      errors: validation.errors,
       duration: Date.now() - startedAt, checkedAt: startedAt,
     };
   }
@@ -443,70 +492,9 @@ export async function runRestoreDrill(
   const totalRows = Object.values(validation.rowCounts).reduce((s, c) => s + c, 0);
   const tableCount = Object.keys(validation.rowCounts).length;
 
-  // Run offline accounting checks on transactions and journal lines
-  try {
-    const manifestObj = await bucket.get(`backups/${dateStr}/manifest.json`);
-    if (manifestObj) {
-      const manifest: BackupManifest = JSON.parse(await manifestObj.text());
-      backupVersion = manifest.version;
-      backupComplete = !!manifest.completedAt;
-
-      // Check for transactions without journal entries
-      const txObj = await bucket.get(`backups/${dateStr}/transactions.json`);
-      if (txObj) {
-        const transactions: { id: string; organization_id: string }[] = JSON.parse(await txObj.text());
-
-        // Check each transaction has journal entries
-        const jeObj = await bucket.get(`backups/${dateStr}/journal_entries.json`);
-        if (jeObj && transactions.length > 0) {
-          const entries: { id: string; transaction_id: string }[] = JSON.parse(await jeObj.text());
-          const orphanTx = transactions.filter(
-            (tx) => !entries.some((je) => je.transaction_id === tx.id)
-          );
-          if (orphanTx.length > 0) {
-            errors.push(`${orphanTx.length} transactions without journal entries in backup`);
-          }
-        }
-      }
-
-      // Check journal lines balance per entry
-      const jlObj = await bucket.get(`backups/${dateStr}/journal_lines.json`);
-      if (jlObj) {
-        const journalLines: { journal_entry_id: string; debit_minor?: number; credit_minor?: number }[] = JSON.parse(await jlObj.text());
-        const linesByEntry: Record<string, { debit: number; credit: number }> = {};
-        for (const line of journalLines) {
-          if (!linesByEntry[line.journal_entry_id]) {
-            linesByEntry[line.journal_entry_id] = { debit: 0, credit: 0 };
-          }
-          linesByEntry[line.journal_entry_id].debit += line.debit_minor ?? 0;
-          linesByEntry[line.journal_entry_id].credit += line.credit_minor ?? 0;
-        }
-        const unbalancedEntries = Object.entries(linesByEntry)
-          .filter(([, v]) => v.debit !== v.credit);
-        if (unbalancedEntries.length > 0) {
-          errors.push(`${unbalancedEntries.length} unbalanced journal entries in backup`);
-        }
-      }
-
-      // Check inventory subledger = inventory control account
-      const prodObj = await bucket.get(`backups/${dateStr}/products.json`);
-      if (prodObj) {
-        const products: { current_stock_milli?: number; average_cost_minor?: number }[] = JSON.parse(await prodObj.text());
-        if (products.length > 0) {
-          const stockValue = products.reduce((s, p) => {
-            return s + ((p.current_stock_milli ?? 0) / 1000) * (p.average_cost_minor ?? 0);
-          }, 0);
-          if (stockValue > 0) {
-            // Note: per-entry balance check above covers trial balance.
-            // Full trial balance (sum of all lines) is redundant.
-          }
-        }
-      }
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    errors.push(`offline validation error: ${msg}`);
-  }
+  const { backupVersion, backupComplete } = await runOfflineAccountingChecks(
+    bucket, dateStr, errors,
+  );
 
   return {
     date: dateStr,
@@ -520,4 +508,116 @@ export async function runRestoreDrill(
     duration: Date.now() - startedAt,
     checkedAt: startedAt,
   };
+}
+
+/** Find the most recent backup date by listing manifest files in R2. Returns null if none found. */
+async function findLatestBackup(bucket: R2Bucket): Promise<string | null> {
+  const backupList = await bucket.list({ prefix: "backups/" });
+  const manifestKeys = backupList.objects
+    .filter((o) => o.key.endsWith("/manifest.json"))
+    .map((o) => o.key.replace("/manifest.json", "").replace("backups/", ""))
+    .sort()
+    .reverse();
+  return manifestKeys.length > 0 ? manifestKeys[0] : null;
+}
+
+/** Run offline accounting checks on the backup data (transactions, journal balance, inventory match). */
+async function runOfflineAccountingChecks(
+  bucket: R2Bucket,
+  dateStr: string,
+  errors: string[],
+): Promise<{ backupVersion: number; backupComplete: boolean }> {
+  let backupVersion = 0;
+  let backupComplete = false;
+
+  try {
+    const manifestObj = await bucket.get(`backups/${dateStr}/manifest.json`);
+    if (!manifestObj) {
+      return { backupVersion: 0, backupComplete: false };
+    }
+    const manifest: BackupManifest = JSON.parse(await manifestObj.text());
+    backupVersion = manifest.version;
+    backupComplete = !!manifest.completedAt;
+
+    await checkTransactionIntegrity(bucket, dateStr, errors);
+    await checkJournalBalance(bucket, dateStr, errors);
+    await checkInventorySubledger(bucket, dateStr, errors);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    errors.push(`offline validation error: ${msg}`);
+  }
+
+  return { backupVersion, backupComplete };
+}
+
+/** Check for transactions in the backup that have no corresponding journal entries. */
+async function checkTransactionIntegrity(
+  bucket: R2Bucket,
+  dateStr: string,
+  errors: string[],
+): Promise<void> {
+  const txObj = await bucket.get(`backups/${dateStr}/transactions.json`);
+  if (!txObj) return;
+
+  const transactions: { id: string; organization_id: string }[] = JSON.parse(await txObj.text());
+  if (transactions.length === 0) return;
+
+  const jeObj = await bucket.get(`backups/${dateStr}/journal_entries.json`);
+  if (!jeObj) return;
+
+  const entries: { id: string; transaction_id: string }[] = JSON.parse(await jeObj.text());
+  const orphanTx = transactions.filter(
+    (tx) => !entries.some((je) => je.transaction_id === tx.id),
+  );
+  if (orphanTx.length > 0) {
+    errors.push(`${orphanTx.length} transactions without journal entries in backup`);
+  }
+}
+
+/** Check for unbalanced journal entries in the backup. */
+async function checkJournalBalance(
+  bucket: R2Bucket,
+  dateStr: string,
+  errors: string[],
+): Promise<void> {
+  const jlObj = await bucket.get(`backups/${dateStr}/journal_lines.json`);
+  if (!jlObj) return;
+
+  const journalLines: { journal_entry_id: string; debit_minor?: number; credit_minor?: number }[] =
+    JSON.parse(await jlObj.text());
+  const linesByEntry: Record<string, { debit: number; credit: number }> = {};
+  for (const line of journalLines) {
+    if (!linesByEntry[line.journal_entry_id]) {
+      linesByEntry[line.journal_entry_id] = { debit: 0, credit: 0 };
+    }
+    linesByEntry[line.journal_entry_id].debit += line.debit_minor ?? 0;
+    linesByEntry[line.journal_entry_id].credit += line.credit_minor ?? 0;
+  }
+  const unbalancedEntries = Object.entries(linesByEntry)
+    .filter(([, v]) => v.debit !== v.credit);
+  if (unbalancedEntries.length > 0) {
+    errors.push(`${unbalancedEntries.length} unbalanced journal entries in backup`);
+  }
+}
+
+/** Check inventory subledger values in the backup. Currently a stub for future expansion. */
+async function checkInventorySubledger(
+  bucket: R2Bucket,
+  dateStr: string,
+  _errors: string[],
+): Promise<void> {
+  const prodObj = await bucket.get(`backups/${dateStr}/products.json`);
+  if (!prodObj) return;
+
+  const products: { current_stock_milli?: number; average_cost_minor?: number }[] =
+    JSON.parse(await prodObj.text());
+  if (products.length === 0) return;
+
+  const stockValue = products.reduce((s, p) => {
+    return s + ((p.current_stock_milli ?? 0) / 1000) * (p.average_cost_minor ?? 0);
+  }, 0);
+  if (stockValue > 0) {
+    // Note: per-entry balance check above covers trial balance.
+    // Full trial balance (sum of all lines) is redundant.
+  }
 }

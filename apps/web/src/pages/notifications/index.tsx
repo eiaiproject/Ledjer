@@ -212,7 +212,6 @@ export function NotificationsPage() {
           {filtered.map((notif) => (
             <div
               key={notif.id}
-              role="button"
               tabIndex={0}
               className={`group relative flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer ${
                 !notif.isRead

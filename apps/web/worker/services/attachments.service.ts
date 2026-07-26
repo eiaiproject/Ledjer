@@ -219,6 +219,91 @@ export interface AttachmentCleanupResult {
   errors: string[];
 }
 
+/** Attempt to delete an R2 object, silently ignoring if already gone. */
+async function safeDeleteR2(bucket: R2Bucket, storageKey: string): Promise<void> {
+  try {
+    await bucket.delete(storageKey);
+  } catch {
+    // R2 file may already be gone
+  }
+}
+
+/** Check whether the parent entity (transaction, party, or product) still exists. */
+async function parentEntityExists(
+  db: D1Database,
+  entityType: string,
+  entityId: string,
+): Promise<boolean> {
+  switch (entityType) {
+    case "transaction": {
+      const row = await queryFirst<{ id: string }>(db, `SELECT id FROM transactions WHERE id = ?`, [entityId]);
+      return !!row;
+    }
+    case "party": {
+      const row = await queryFirst<{ id: string }>(db, `SELECT id FROM parties WHERE id = ?`, [entityId]);
+      return !!row;
+    }
+    case "product": {
+      const row = await queryFirst<{ id: string }>(db, `SELECT id FROM products WHERE id = ?`, [entityId]);
+      return !!row;
+    }
+    default:
+      return false; // Unknown entity type — treat as orphan
+  }
+}
+
+/** Process a single attachment: delete if orphaned or expired. Returns 'orphaned', 'expired', or 'kept'. */
+async function processSingleAttachment(
+  db: D1Database,
+  bucket: R2Bucket,
+  att: AttachmentRow,
+  cutoff: number,
+): Promise<"orphaned" | "expired" | "kept"> {
+  const parentExists = await parentEntityExists(db, att.entity_type, att.entity_id);
+
+  if (!parentExists) {
+    await safeDeleteR2(bucket, att.storage_key);
+    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
+    return "orphaned";
+  }
+
+  if (att.created_at < cutoff) {
+    await safeDeleteR2(bucket, att.storage_key);
+    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
+    return "expired";
+  }
+
+  return "kept";
+}
+
+/** List R2 objects under `attachments/` and delete any that have no matching DB record. */
+async function cleanupR2OrphanFiles(
+  bucket: R2Bucket,
+  storageKeys: Set<string>,
+  errors: string[],
+): Promise<number> {
+  let deleted = 0;
+  try {
+    let cursor: string | undefined;
+    do {
+      const listed = await bucket.list({ prefix: "attachments/", cursor, limit: 1000 });
+      for (const obj of listed.objects) {
+        if (storageKeys.has(obj.key)) continue;
+        try {
+          await bucket.delete(obj.key);
+          deleted++;
+        } catch {
+          // Skip if delete fails
+        }
+      }
+      cursor = listed.truncated ? listed.cursor : undefined;
+    } while (cursor);
+  } catch (e) {
+    errors.push(`Error listing R2 objects: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  return deleted;
+}
+
 /**
  * Clean up orphaned and expired attachments.
  *
@@ -242,102 +327,20 @@ export async function cleanupOrphanedAttachments(
   const cutoff = Date.now() - retentionDays * MS_PER_DAY;
 
   try {
-    // 1. Find attachments whose parent entity no longer exists
-    // For each entity type, check if the referenced entity exists
-    const attachments = await queryAll<AttachmentRow>(
-      db,
-      `SELECT * FROM attachments`,
-    );
+    const attachments = await queryAll<AttachmentRow>(db, `SELECT * FROM attachments`);
 
     for (const att of attachments) {
       try {
-        // Check parent entity existence
-        let parentExists = false;
-        switch (att.entity_type) {
-          case "transaction": {
-            const txn = await queryFirst<{ id: string }>(
-              db,
-              `SELECT id FROM transactions WHERE id = ?`,
-              [att.entity_id],
-            );
-            parentExists = !!txn;
-            break;
-          }
-          case "party": {
-            const party = await queryFirst<{ id: string }>(
-              db,
-              `SELECT id FROM parties WHERE id = ?`,
-              [att.entity_id],
-            );
-            parentExists = !!party;
-            break;
-          }
-          case "product": {
-            const prod = await queryFirst<{ id: string }>(
-              db,
-              `SELECT id FROM products WHERE id = ?`,
-              [att.entity_id],
-            );
-            parentExists = !!prod;
-            break;
-          }
-          default:
-            // Unknown entity type — treat as orphan
-            // parentExists already false from initialization
-        }
-
-        if (!parentExists) {
-          // Orphaned — delete from R2 and DB
-          try {
-            await bucket.delete(att.storage_key);
-          } catch {
-            // R2 file may already be gone
-          }
-          await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
-          result.orphaned++;
-          continue;
-        }
-
-        // 2. Check retention period
-        if (att.created_at < cutoff) {
-          try {
-            await bucket.delete(att.storage_key);
-          } catch {
-            // R2 file may already be gone
-          }
-          await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
-          result.expired++;
-        }
+        const action = await processSingleAttachment(db, bucket, att, cutoff);
+        if (action === "orphaned") result.orphaned++;
+        else if (action === "expired") result.expired++;
       } catch (e) {
         result.errors.push(`Error processing attachment ${att.id}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
-    // 3. List all R2 objects under attachments/ and remove those without DB records
     const storageKeys = new Set(attachments.map((a) => a.storage_key));
-    try {
-      let cursor: string | undefined;
-      do {
-        const listed = await bucket.list({
-          prefix: "attachments/",
-          cursor,
-          limit: 1000,
-        });
-        for (const obj of listed.objects) {
-          if (!storageKeys.has(obj.key)) {
-            try {
-              await bucket.delete(obj.key);
-              result.r2Orphans++;
-            } catch {
-              // Skip if delete fails
-            }
-          }
-        }
-        cursor = listed.truncated ? listed.cursor : undefined;
-      } while (cursor);
-    } catch (e) {
-      result.errors.push(`Error listing R2 objects: ${e instanceof Error ? e.message : String(e)}`);
-    }
+    result.r2Orphans = await cleanupR2OrphanFiles(bucket, storageKeys, result.errors);
   } catch (e) {
     result.errors.push(`Error querying attachments: ${e instanceof Error ? e.message : String(e)}`);
   }

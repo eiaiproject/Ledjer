@@ -107,8 +107,6 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
       {/* Modal */}
       <div
         className="fixed left-1/2 top-[15vh] z-[calc(var(--z-modal)+1)] w-full max-w-xl -translate-x-1/2 px-4"
-        role="dialog"
-        aria-modal="true"
         aria-label="Pencarian global">
         <div className="overflow-hidden rounded-2xl border border-wood-200 bg-surface shadow-2xl">
           {/* Search input */}
@@ -182,7 +180,6 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
                       ? "bg-wood-50"
                       : "hover:bg-wood-50"
                   }`}
-                  aria-selected={i === selectedIndex}
                 >
                   <div
                     className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${

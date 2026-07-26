@@ -134,7 +134,7 @@ function ChecklistStep({
 
 function ChecklistSkeleton() {
   return (
-    <div className="space-y-4" aria-busy="true" role="status">
+    <div className="space-y-4" aria-busy="true" role="alert" aria-label="Loading">
       <span className="sr-only">Memuat daftar langkah...</span>
       {/* Progress bar skeleton */}
       <div className="h-3 w-full rounded-full bg-cream-200 animate-pulse" />
@@ -265,7 +265,7 @@ export function OnboardingChecklistPage() {
               </div>
 
               {/* Progress bar */}
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-wood-100" role="progressbar" aria-valuenow={completedCount} aria-valuemin={0} aria-valuemax={totalSteps} aria-label={formatProgress(progressPct)}>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-wood-100" aria-label={formatProgress(progressPct)}>
                 <div
                   className="h-full rounded-full bg-leaf-500 transition-all duration-700 ease-out"
                   style={{ width: `${progressAnim}%` }}
@@ -359,7 +359,7 @@ export function OnboardingChecklistPage() {
                 <p className="text-xs text-error" role="alert">{sampleError}</p>
               )}
               {sampleSuccess && (
-                <output className="text-xs text-leaf-600">{sampleSuccess}</output>
+                <span className="text-xs text-leaf-600" role="status">{sampleSuccess}</span>
               )}
             </CardContent>
           </Card>

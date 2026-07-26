@@ -154,10 +154,11 @@ export function NewDocumentPage() {
             {/* Date & Party */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
+                <label htmlFor="docDate" className="mb-1 block text-sm font-medium text-text-primary">
                   Tanggal <span className="text-red-500">*</span>
                 </label>
                 <input
+                  id="docDate"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
@@ -166,10 +167,11 @@ export function NewDocumentPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
+                <label htmlFor="docParty" className="mb-1 block text-sm font-medium text-text-primary">
                   {type === "purchase_order" ? "Pemasok" : "Pelanggan"}
                 </label>
                 <input
+                  id="docParty"
                   type="text"
                   value={partyId}
                   onChange={(e) => setPartyId(e.target.value)}
@@ -181,10 +183,11 @@ export function NewDocumentPage() {
 
             {showDeliveryField && (
               <div>
-                <label className="mb-1 block text-sm font-medium text-text-primary">
+                <label htmlFor="docDeliveryDate" className="mb-1 block text-sm font-medium text-text-primary">
                   Tanggal Kirim
                 </label>
                 <input
+                  id="docDeliveryDate"
                   type="date"
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
@@ -196,10 +199,11 @@ export function NewDocumentPage() {
             {showPaymentFields && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-text-primary">
+                  <label htmlFor="docPaymentMethod" className="mb-1 block text-sm font-medium text-text-primary">
                     Metode Pembayaran
                   </label>
                   <input
+                    id="docPaymentMethod"
                     type="text"
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
@@ -208,10 +212,11 @@ export function NewDocumentPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-text-primary">
+                  <label htmlFor="docPaymentRef" className="mb-1 block text-sm font-medium text-text-primary">
                     Referensi Pembayaran
                   </label>
                   <input
+                    id="docPaymentRef"
                     type="text"
                     value={paymentRef}
                     onChange={(e) => setPaymentRef(e.target.value)}
@@ -242,20 +247,20 @@ export function NewDocumentPage() {
                     className="flex flex-wrap items-end gap-2 rounded-lg border border-wood-200 bg-surface p-3 sm:flex-nowrap"
                   >
                     <div className="flex-1 sm:min-w-[180px]">
-                      <label className="mb-0.5 block text-[10px] text-wood-500">Deskripsi</label>
+                      <label htmlFor={"lineDesc-" + i} className="mb-0.5 block text-[10px] text-wood-500">Deskripsi</label>
                       <input
+                        id={"lineDesc-" + i}
                         type="text"
-                        value={line.description}
                         onChange={(e) => updateLine(i, "description", e.target.value)}
                         placeholder="Nama barang/jasa"
                         className="w-full rounded border border-wood-150 bg-cream-50 px-2 py-1.5 text-sm focus:border-ink focus:outline-none"
                       />
                     </div>
                     <div className="w-20">
-                      <label className="mb-0.5 block text-[10px] text-wood-500">Qty</label>
+                      <label htmlFor={"lineQty-" + i} className="mb-0.5 block text-[10px] text-wood-500">Qty</label>
                       <input
+                        id={"lineQty-" + i}
                         type="number"
-                        step="0.001"
                         min="0.001"
                         value={line.quantityMilli / 1000}
                         onChange={(e) =>
@@ -265,10 +270,10 @@ export function NewDocumentPage() {
                       />
                     </div>
                     <div className="w-28">
-                      <label className="mb-0.5 block text-[10px] text-wood-500">Harga (Rp)</label>
+                      <label htmlFor={"linePrice-" + i} className="mb-0.5 block text-[10px] text-wood-500">Harga (Rp)</label>
                       <input
+                        id={"linePrice-" + i}
                         type="number"
-                        min="0"
                         value={line.unitPriceMinor}
                         onChange={(e) => updateLine(i, "unitPriceMinor", Number.parseInt(e.target.value || "0"))}
                         className="w-full rounded border border-wood-150 bg-cream-50 px-2 py-1.5 text-sm focus:border-ink focus:outline-none"
@@ -310,8 +315,9 @@ export function NewDocumentPage() {
 
             {/* Notes */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-text-primary">Catatan</label>
+              <label htmlFor="docNotes" className="mb-1 block text-sm font-medium text-text-primary">Catatan</label>
               <textarea
+                id="docNotes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}

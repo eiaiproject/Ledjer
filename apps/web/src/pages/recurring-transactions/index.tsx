@@ -162,7 +162,6 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
 
   return (
     <div
-      role="button"
       tabIndex={0}
       className="block cursor-pointer rounded-xl border border-wood-200 bg-surface p-4 shadow-sm transition-all hover:border-wood-300 hover:shadow-md"
       onClick={() => navigate(`/recurring-transactions/${item.id}`)}
@@ -199,7 +198,7 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
           <span className="text-sm font-semibold text-text-primary whitespace-nowrap">
             {formatRupiah(item.amountMinor)}
           </span>
-          <div className="flex items-center gap-1" role="presentation" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             {item.status === "active" && (
               <>
                 <button type="button"

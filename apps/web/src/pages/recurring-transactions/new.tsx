@@ -245,8 +245,9 @@ export function NewRecurringTransactionPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-text-primary">Tanggal</label>
+                  <label htmlFor="dayOfMonthYearly" className="mb-1 block text-xs font-medium text-text-primary">Tanggal</label>
                   <select
+                    id="dayOfMonthYearly"
                     value={dayOfMonth}
                     onChange={(e) => setDayOfMonth(Number.parseInt(e.target.value))}
                     className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"

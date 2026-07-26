@@ -744,8 +744,9 @@ export function FixedAssetsPage() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Alasan *</label>
+              <label htmlFor="disposalReason" className="block text-sm font-medium text-text-primary mb-1">Alasan *</label>
               <Input
+                id="disposalReason"
                 value={disposeForm.disposalReason}
                 onChange={(e) => setDisposeForm((prev) => ({ ...prev, disposalReason: e.target.value }))}
                 placeholder="Rusak, tidak terpakai, terjual..."

@@ -368,31 +368,34 @@ export function DimensionsPage() {
               <label className="block text-sm font-medium text-text-primary mb-1">
                 Tipe
               </label>
-              <div className="rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700">
+              <div aria-label={dimensionTypeLabel(activeTab)} className="rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700">
                 {dimensionTypeLabel(activeTab)}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
+              <label htmlFor="dimCode" className="block text-sm font-medium text-text-primary mb-1">
                 Kode *</label>
               <Input
+                id="dimCode"
                 value={formData.code}
                 onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))}
                 placeholder={`Contoh: ${{ branch: "BR-001", department: "DEPT-FIN", project: "PRJ-001", cost_center: "CC-001", profit_center: "PC-001" }[activeTab] ?? "CC-001"}`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
+              <label htmlFor="dimName" className="block text-sm font-medium text-text-primary mb-1">
                 Nama *</label>
               <Input
+                id="dimName"
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
+              <label htmlFor="dimDescription" className="block text-sm font-medium text-text-primary mb-1">
                 Deskripsi</label>
               <Input
+                id="dimDescription"
                 value={formData.description}
                 onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               />
@@ -416,15 +419,17 @@ export function DimensionsPage() {
         <ModalContent title="Edit Dimensi">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Nama</label>
+              <label htmlFor="editName" className="block text-sm font-medium text-text-primary mb-1">Nama</label>
               <Input
+                id="editName"
                 value={editForm.name}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Deskripsi</label>
+              <label htmlFor="editDescription" className="block text-sm font-medium text-text-primary mb-1">Deskripsi</label>
               <Input
+                id="editDescription"
                 value={editForm.description}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
               />
