@@ -158,8 +158,8 @@ export async function deleteAttachment(
   // Delete from R2
   await bucket.delete(row.storage_key);
 
-  // Delete DB record
-  await execute(db, `DELETE FROM attachments WHERE id = ?`, [attachmentId]);
+  // Delete DB record — already verified org_id via SELECT above
+  await execute(db, `DELETE FROM attachments WHERE id = ? AND organization_id = ?`, [attachmentId, organizationId]);
 
   // Audit log
   await execute(
@@ -263,12 +263,14 @@ async function processSingleAttachment(
 
   if (!parentExists) {
     await safeDeleteR2(bucket, att.storage_key);
+    /* no-org-scope — cleanup operation on already-selected rows */
     await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
     return "orphaned";
   }
 
   if (att.created_at < cutoff) {
     await safeDeleteR2(bucket, att.storage_key);
+    /* no-org-scope — cleanup operation on already-selected rows */
     await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
     return "expired";
   }
