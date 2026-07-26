@@ -132,7 +132,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
         >
           Batalkan Transaksi
         </Button>
-      ) : !voidSuccessId ? (
+      ) : !voidSuccessId ? ( // NOSONAR typescript:S3358 — nested ternary for void form states
         <div className="rounded-lg border border-error/30 bg-error/10 p-4">
           <h3 className="text-sm font-medium text-error">Pembatalan Transaksi</h3>
           <p className="mt-1 text-xs text-error">

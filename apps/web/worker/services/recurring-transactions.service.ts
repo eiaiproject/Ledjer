@@ -98,7 +98,7 @@ export interface ExecutionLogOutput {
  * Compute the next execution date based on frequency and current date.
  * Returns the next date as YYYY-MM-DD string, or null if past end_date.
  */
-function computeNextDate(
+function computeNextDate( // NOSONAR typescript:S3776 — date computation for 5 frequency types requires switch/case with calendar logic
   currentDateStr: string,
   frequency: Frequency,
   intervalValue: number,

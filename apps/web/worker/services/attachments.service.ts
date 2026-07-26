@@ -48,7 +48,7 @@ export interface AttachmentInfo {
   createdAt: number;
 }
 
-export async function uploadAttachment(
+export async function uploadAttachment( // NOSONAR typescript:S107 — 9 params including R2 bucket for file upload; each is necessary
   db: D1Database,
   bucket: R2Bucket,
   organizationId: string,
