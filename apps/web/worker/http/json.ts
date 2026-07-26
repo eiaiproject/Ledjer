@@ -40,6 +40,11 @@ export async function readJson<T>(
   c: Context,
   schema: ZodType<T>,
 ): Promise<T> {
+  const contentType = c.req.header("Content-Type") || "";
+  if (!contentType.includes("application/json")) {
+    throw badRequest("invalid_content_type", "Content-Type must be application/json");
+  }
+
   let body: unknown;
   try {
     body = await c.req.json();
