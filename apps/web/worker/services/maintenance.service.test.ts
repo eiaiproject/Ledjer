@@ -18,9 +18,10 @@ describe("Maintenance Service", () => {
     expect(result.sessions).toBe(1);
     expect(result.emailVerifications).toBe(1);
     expect(result.passwordResetTokens).toBe(1);
+    expect(result.rateLimits).toBe(1);
 
     const deleteCount = executedQueries.filter((q) => q.includes("DELETE FROM")).length;
-    expect(deleteCount).toBe(5); // sessions, email_verifications, password_reset_tokens, login_attempts, audit_logs
+    expect(deleteCount).toBe(6); // sessions, email_verifications, password_reset_tokens, login_attempts, audit_logs, rate_limits
   });
 
   it("reports zero changes when no rows match", async () => {
@@ -39,6 +40,7 @@ describe("Maintenance Service", () => {
     expect(result.passwordResetTokens).toBe(0);
     expect(result.loginAttempts).toBe(0);
     expect(result.auditLogs).toBe(0);
+    expect(result.rateLimits).toBe(0);
   });
 
   it("accepts custom auditRetentionDays config", async () => {

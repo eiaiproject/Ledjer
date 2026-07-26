@@ -8,6 +8,7 @@ export interface CleanupResult {
   passwordResetTokens: number;
   loginAttempts: number;
   auditLogs: number;
+  rateLimits: number;
 }
 
 export async function cleanupExpiredRows(
@@ -44,11 +45,18 @@ export async function cleanupExpiredRows(
     [current - auditRetentionDays * MS_PER_DAY],
   );
 
+  const rateLimits = await execute(
+    db,
+    "DELETE FROM rate_limits WHERE created_at <= ?",
+    [current - 3600000], // 1 hour retention
+  );
+
   return {
     sessions: sessions.meta.changes ?? 0,
     emailVerifications: emailVerifications.meta.changes ?? 0,
     passwordResetTokens: passwordResetTokens.meta.changes ?? 0,
     loginAttempts: loginAttempts.meta.changes ?? 0,
     auditLogs: auditLogs.meta.changes ?? 0,
+    rateLimits: rateLimits.meta.changes ?? 0,
   };
 }
