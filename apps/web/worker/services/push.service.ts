@@ -348,7 +348,7 @@ async function buildVapidAuthHeader(
     return btoa(binary)
       .replaceAll('+', '-')
       .replaceAll('/', '_')
-      .replace(/=+$/, '');
+      .replace(/={1,2}$/, '');
   };
 
   const encodedHeader = b64url(headerObj);
@@ -374,7 +374,7 @@ async function buildVapidAuthHeader(
   const encodedSignature = btoa(sigBinary)
     .replaceAll('+', '-')
     .replaceAll('/', '_')
-    .replace(/=+$/, '');
+    .replace(/={1,2}$/, '');
 
   const jwt = `${signingInput}.${encodedSignature}`;
 

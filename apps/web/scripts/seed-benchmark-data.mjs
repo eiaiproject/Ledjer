@@ -61,7 +61,7 @@ const TXN_TYPES = [
 const EXPENSE_ACCOUNTS = ["6100", "6200", "6300", "6400", "6500", "6600", "6700"];
 
 function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(Math.random() * (max - min + 1)) + min; // NOSONAR javascript:S2245
 }
 
 function esc(val) {
