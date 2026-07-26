@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
-import { badRequest } from "../http/errors";
+import { badRequest, tooManyRequests } from "../http/errors";
+import { checkRateLimit } from "../services/rate-limit.service";
 import {
   createRecurringTransaction,
   getRecurringTransaction,
@@ -23,6 +24,9 @@ const app = new Hono<AppContext>();
 app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "recurring_transactions_create", user.id, { max: 10, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await c.req.json<CreateRecurringInput>();
 
   if (!body.name || !body.transactionType || !body.frequency || !body.startDate || !body.amountMinor) {

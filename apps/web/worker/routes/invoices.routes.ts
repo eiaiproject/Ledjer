@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
-import { badRequest } from "../http/errors";
+import { badRequest, tooManyRequests } from "../http/errors";
+import { checkRateLimit } from "../services/rate-limit.service";
 import {
   createInvoice,
   getInvoice,
@@ -19,6 +20,9 @@ const app = new Hono<AppContext>();
 app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "invoices_create", user.id, { max: 20, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await c.req.json<{
     invoiceDate: string; dueDate: string; partyId: string;
     lines: { productId?: string; description: string; quantityMilli?: number; unitPriceMinor: number; amountMinor: number }[];
@@ -49,8 +53,8 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
 // GET /api/invoices
 app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
-  const limit = Number.parseInt(c.req.query("limit") || "50", 10);
-  const offset = Number.parseInt(c.req.query("offset") || "0", 10);
+  const limit = Math.min(Math.max(Number.parseInt(c.req.query("limit") || "50", 10), 1), 100);
+  const offset = Math.max(Number.parseInt(c.req.query("offset") || "0", 10), 0);
   const result = await listInvoices(c.env.DB, organization.id, limit, offset);
   return c.json(result);
 });
