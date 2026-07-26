@@ -164,7 +164,7 @@ export function NotificationsPage() {
     notificationListContent = (
       <div className="space-y-2">
         {filtered.map((notif) => (
-          <div
+          <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
             key={notif.id}
             className={`group relative flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer ${
               !notif.isRead
@@ -173,7 +173,7 @@ export function NotificationsPage() {
             }`}
             onClick={() => handleNotificationEvent(notif)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleNotificationEvent(notif); } }}
-            role="button" // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
+            role="button"
             tabIndex={0}
           >
             {/* Icon */}

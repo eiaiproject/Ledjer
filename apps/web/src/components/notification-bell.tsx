@@ -147,9 +147,9 @@ export function NotificationBell() {
     notificationListContent = (
       <div className="divide-y divide-wood-100">
         {notifications.map((notif) => (
-          <div
+          <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
             key={notif.id}
-            role="button" // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
+            role="button"
             tabIndex={0}
             className={`group relative flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${
               !notif.isRead ? "bg-leaf-50/30" : "hover:bg-wood-50"

@@ -154,110 +154,70 @@ import { withSentry } from "@sentry/cloudflare";
 
 // ponytail: wrappedHandler wraps the Hono app with Sentry for Cloudflare Workers.
 // Tests import { app } directly (unwrapped) so they don't need ExecutionContext.
-const worker: ExportedHandler<AppContext["Bindings"]> = { // NOSONAR typescript:S3776 -- cron handler has 25 complexity; each branch is independent
+/** Run attachment retention cleanup and log results. */
+async function runAttachmentCleanup(env: AppContext["Bindings"]): Promise<void> {
+  try {
+    if (!env.BACKUP_BUCKET) return;
+    const result = await cleanupOrphanedAttachments(env.DB, env.BACKUP_BUCKET);
+    if (result.orphaned > 0 || result.expired > 0 || result.r2Orphans > 0) {
+      console.log(JSON.stringify({ type: "attachment_cleanup", ...result, status: "completed" }));
+    }
+  } catch (err) {
+    console.error(JSON.stringify({ type: "attachment_cleanup", status: "failed", error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
+/** Execute due recurring transactions and log results. */
+async function runRecurringTransactions(env: AppContext["Bindings"]): Promise<void> {
+  try {
+    const result = await executeAllDueTransactions(env.DB, undefined, undefined, postTransaction);
+    if (result.executed > 0 || result.failed > 0) {
+      console.log(JSON.stringify({ type: "recurring_transactions", ...result, status: "completed" }));
+    }
+  } catch (err) {
+    console.error(JSON.stringify({ type: "recurring_transactions", status: "failed", error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
+/** Create a daily backup and run restore drill, logging results. */
+async function runBackupAndDrill(env: AppContext["Bindings"]): Promise<void> {
+  try {
+    if (!env.BACKUP_BUCKET) return;
+    const manifest = await createBackup(env.DB, env.BACKUP_BUCKET);
+    console.log(JSON.stringify({
+      type: "backup",
+      date: new Date(manifest.startedAt).toISOString().slice(0, 10),
+      tables: Object.keys(manifest.tables).length,
+      rows: Object.values(manifest.tables).reduce((s, t) => s + t.rowCount, 0),
+      status: "completed",
+    }));
+
+    const drill = await runRestoreDrill(env.BACKUP_BUCKET);
+    console.log(JSON.stringify({
+      type: "restore_drill",
+      date: drill.date,
+      valid: drill.valid,
+      errors: drill.errors.length > 0 ? drill.errors : undefined,
+      tableCount: drill.tableCount,
+      totalRows: drill.totalRows,
+      duration: drill.duration,
+      status: drill.valid ? "passed" : "failed",
+    }));
+  } catch (err) {
+    console.error(JSON.stringify({ type: "backup", status: "failed", error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
+const worker: ExportedHandler<AppContext["Bindings"]> = {
   fetch: (request, env, ctx) => app.fetch(request, env, ctx),
   async scheduled(
     _controller: ScheduledController,
     env: AppContext["Bindings"],
   ) {
     await cleanupExpiredRows(env.DB);
-
-    // P1.6: Attachment retention cleanup — remove files older than 1 year
-    // and orphaned attachments whose parent entities were deleted.
-    try {
-      if (env.BACKUP_BUCKET) {
-        const attachmentCleanup = await cleanupOrphanedAttachments(env.DB, env.BACKUP_BUCKET);
-        if (
-          attachmentCleanup.orphaned > 0 ||
-          attachmentCleanup.expired > 0 ||
-          attachmentCleanup.r2Orphans > 0
-        ) {
-          console.log(
-            JSON.stringify({
-              type: "attachment_cleanup",
-              orphaned: attachmentCleanup.orphaned,
-              expired: attachmentCleanup.expired,
-              r2Orphans: attachmentCleanup.r2Orphans,
-              errors: attachmentCleanup.errors.length > 0 ? attachmentCleanup.errors : undefined,
-              status: "completed",
-            }),
-          );
-        }
-      }
-    } catch (err) {
-      console.error(
-        JSON.stringify({
-          type: "attachment_cleanup",
-          status: "failed",
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    }
-
-    // Execute due recurring transactions
-    try {
-      const result = await executeAllDueTransactions(env.DB, undefined, undefined, postTransaction);
-      if (result.executed > 0 || result.failed > 0) {
-        console.log(
-          JSON.stringify({
-            type: "recurring_transactions",
-            executed: result.executed,
-            skipped: result.skipped,
-            failed: result.failed,
-            errors: result.errors.length > 0 ? result.errors : undefined,
-            status: "completed",
-          }),
-        );
-      }
-    } catch (err) {
-      console.error(
-        JSON.stringify({
-          type: "recurring_transactions",
-          status: "failed",
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    }
-
-    if (env.BACKUP_BUCKET) {
-      // ponytail: Backup runs on every cron tick (03:00 daily).
-      // If retention cleanup fails, backup integrity is preserved.
-      try {
-        const manifest = await createBackup(env.DB, env.BACKUP_BUCKET);
-        console.log(
-          JSON.stringify({
-            type: "backup",
-            date: new Date(manifest.startedAt).toISOString().slice(0, 10),
-            tables: Object.keys(manifest.tables).length,
-            rows: Object.values(manifest.tables).reduce((s, t) => s + t.rowCount, 0),
-            status: "completed",
-          }),
-        );
-
-        // P0.6: Run automated restore drill after backup
-        const drill = await runRestoreDrill(env.BACKUP_BUCKET);
-        console.log(
-          JSON.stringify({
-            type: "restore_drill",
-            date: drill.date,
-            valid: drill.valid,
-            errors: drill.errors.length > 0 ? drill.errors : undefined,
-            tableCount: drill.tableCount,
-            totalRows: drill.totalRows,
-            duration: drill.duration,
-            status: drill.valid ? "passed" : "failed",
-          }),
-        );
-      } catch (err) {
-        console.error(
-          JSON.stringify({
-            type: "backup",
-            status: "failed",
-            error: err instanceof Error ? err.message : String(err),
-          }),
-        );
-      }
-    }
+    await runAttachmentCleanup(env);
+    await runRecurringTransactions(env);
+    await runBackupAndDrill(env);
   },
 };
 

@@ -161,8 +161,8 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
     : "-";
 
   return (
-    <div
-      role="button" // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <Link> and <button> inside <button>
+    <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <Link> and <button> inside <button>
+      role="button"
       tabIndex={0}
       className="block cursor-pointer rounded-xl border border-wood-200 bg-surface p-4 shadow-sm transition-all hover:border-wood-300 hover:shadow-md"
       onClick={() => navigate(`/recurring-transactions/${item.id}`)}

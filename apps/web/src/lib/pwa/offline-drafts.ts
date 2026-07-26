@@ -138,18 +138,7 @@ export async function updateDraftStatus(
       draft.updatedAt = Date.now();
       if (error) draft.error = error;
 
-      const putRequest = store.put(draft);
-      // NOSONAR typescript:S2004 — IndexedDB uses callback API; nesting is unavoidable
-      putRequest.onsuccess = () => {
-        tx.oncomplete = () => {
-          db.close();
-          resolve();
-        };
-      };
-      putRequest.onerror = () => {
-        db.close();
-        reject(putRequest.error ?? new Error('IndexedDB error'));
-      };
+      putAndHandle(store, draft, tx, db, resolve, reject);
     };
 
     getRequest.onerror = () => {
@@ -209,6 +198,28 @@ async function registerSync() {
       // Background sync not available — will sync on next online event
     }
   }
+}
+
+/** Helper: perform put and handle result with reduced nesting. */
+function putAndHandle(
+  store: IDBObjectStore,
+  draft: OfflineDraft,
+  tx: IDBTransaction,
+  db: IDBDatabase,
+  resolve: (value: void) => void,
+  reject: (reason: unknown) => void,
+): void {
+  const putRequest = store.put(draft);
+  putRequest.onsuccess = () => {
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+  };
+  putRequest.onerror = () => {
+    db.close();
+    reject(putRequest.error ?? new Error('IndexedDB error'));
+  };
 }
 
 /**
