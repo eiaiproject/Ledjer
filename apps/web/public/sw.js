@@ -61,8 +61,10 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and browser extensions
+  // Skip non-GET requests, browser extensions, and cross-origin requests.
+  // Cross-origin fetch from SW triggers CSP connect-src violations.
   if (request.method !== 'GET' || !url.protocol.startsWith('http')) return;
+  if (url.origin !== self.location.origin) return;
 
   // API requests: stale-while-revalidate
   if (url.pathname.startsWith('/api/')) {
