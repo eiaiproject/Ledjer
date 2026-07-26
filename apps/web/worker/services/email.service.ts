@@ -38,23 +38,30 @@ export async function sendEmail(
     return;
   }
 
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: from || FROM,
-      to: [input.to],
-      subject: input.subject,
-      html: input.html,
-      text: input.text ?? stripHtmlTags(input.html),
-    }),
-  });
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: from || FROM,
+        to: [input.to],
+        subject: input.subject,
+        html: input.html,
+        text: input.text ?? stripHtmlTags(input.html),
+      }),
+    });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Email send failed (${res.status}): ${body}`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Email send failed (${res.status}): ${body}`);
+    }
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error("Email service unreachable", { cause: err });
+    }
+    throw err;
   }
 }

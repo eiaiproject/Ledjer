@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { AppContext } from "../env";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
+import { tooManyRequests } from "../http/errors";
+import { checkRateLimit } from "../services/rate-limit.service";
 import {
   loadCurrentOrganization,
   requirePermission,
@@ -34,6 +36,7 @@ const normalBalanceSchema = z.enum(["debit", "credit"]);
 const createCashBankSchema = z.object({
   kind: cashBankKindSchema,
   name: z.string().min(1).max(60),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 const generateCodeSchema = z.object({
@@ -48,6 +51,7 @@ const createAccountSchema = z.object({
   isCashAccount: z.boolean().optional(),
   cashAccountType: z.enum(["cash", "bank", "qris"]).optional(),
   reportGroup: z.string().max(80).optional(),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 const patchAccountSchema = z.object({
@@ -91,6 +95,9 @@ accountsRoutes.get("/cash-bank", requirePermission("accounts:read"), async (c) =
 
 accountsRoutes.post("/cash-bank", requirePermission("accounts:write"), async (c) => {
   const context = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "accounts_create", context.member.user_id, { max: 10, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await readJson(c, createCashBankSchema);
   const account = await createCashBankAccount(
     c.env.DB,
@@ -99,6 +106,7 @@ accountsRoutes.post("/cash-bank", requirePermission("accounts:write"), async (c)
     body.kind,
     body.name,
     c.get("requestId"),
+    body.idempotencyKey,
   );
   return c.json({ account });
 });
@@ -116,6 +124,9 @@ accountsRoutes.post("/generate-code", requirePermission("accounts:write"), async
 
 accountsRoutes.post("/", requirePermission("accounts:write"), async (c) => {
   const context = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "accounts_create", context.member.user_id, { max: 10, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await readJson(c, createAccountSchema);
   const account = await createAccount(
     c.env.DB,

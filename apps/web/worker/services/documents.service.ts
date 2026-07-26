@@ -12,8 +12,9 @@
 
 import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst, type D1Input } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
-import { nextSequentialNumber, computeTotals, buildLineInserts } from "./document-utils";
+import { nextSequentialNumber, computeTotals, buildLineInserts, validateLines, checkOptionalText } from "./document-utils";
 
 export type DocumentType =
   | "quotation"
@@ -57,6 +58,7 @@ export interface CreateDocumentInput {
   /** Optional link to a source document (e.g. quotation → invoice) */
   referenceDocumentType?: string;
   referenceDocumentId?: string;
+  idempotencyKey?: string;
 }
 
 export interface DocumentOutput {
@@ -143,8 +145,20 @@ export async function createDocument(
   userId: string,
   input: CreateDocumentInput,
 ): Promise<DocumentOutput> {
-  if (input.lines.length === 0) {
-    throw badRequest("no_lines", "Setidaknya satu item diperlukan");
+  validateLines(input.lines);
+  input.notes = checkOptionalText(input.notes, 1000, "notes");
+  input.terms = checkOptionalText(input.terms, 500, "terms");
+
+  if (input.idempotencyKey) {
+    const existing = await queryFirst<Record<string, unknown>>(
+      db,
+      `SELECT * FROM business_documents WHERE organization_id = ? AND idempotency_key = ?`,
+      [organizationId, input.idempotencyKey],
+    );
+    if (existing) {
+      const doc = await getDocument(db, organizationId, existing.id as string);
+      if (doc) return doc;
+    }
   }
 
   const docId = generateId();
@@ -166,8 +180,8 @@ export async function createDocument(
          notes, terms,
          reference_document_type, reference_document_id,
          delivery_date, payment_method, payment_reference,
-         created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         idempotency_key, created_by, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       docId, organizationId, input.documentType, docNumber, input.documentDate,
       input.partyId ?? null,
@@ -175,11 +189,21 @@ export async function createDocument(
       input.notes ?? null, input.terms ?? null,
       input.referenceDocumentType ?? null, input.referenceDocumentId ?? null,
       input.deliveryDate ?? null, input.paymentMethod ?? null, input.paymentReference ?? null,
-      userId, now, now,
+      input.idempotencyKey ?? null, userId, now, now,
     ),
   );
 
   statements.push(...buildLineInserts(db, organizationId, docId, input.lines, "document_lines", "document_id", now));
+
+  statements.push(writeAuditStatement(db, {
+    organizationId,
+    actorUserId: userId,
+    entityType: "document",
+    entityId: docId,
+    action: "create",
+    after: { documentType: input.documentType, documentNumber: docNumber, totalMinor },
+    current: now,
+  }));
 
   await executeBatch(db, statements);
 
@@ -331,18 +355,17 @@ export async function updateDocumentStatus(
     [newStatus, voidedAt, voidReason, now, documentId, organizationId],
   );
 
-  // Audit log
-  await execute(
-    db,
-    `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, created_at)
-     VALUES (?, ?, ?, 'business_document', ?, 'status_changed', ?, ?, ?, ?)`,
-    [
-      generateId(), organizationId, userId, documentId,
-      JSON.stringify({ status: doc.status }),
-      JSON.stringify({ status: newStatus }),
-      reason ?? null, now,
-    ],
-  );
+  await writeAuditStatement(db, {
+    organizationId,
+    actorUserId: userId,
+    entityType: "business_document",
+    entityId: documentId,
+    action: "status_changed",
+    before: { status: doc.status },
+    after: { status: newStatus },
+    reason: reason ?? null,
+    current: now,
+  });
 
   return { ...doc, status: newStatus as DocumentStatus };
 }

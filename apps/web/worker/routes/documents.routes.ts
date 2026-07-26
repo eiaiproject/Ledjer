@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
-import { badRequest } from "../http/errors";
+import { badRequest, tooManyRequests } from "../http/errors";
+import { checkRateLimit } from "../services/rate-limit.service";
 import {
   createDocument,
   getDocument,
@@ -24,6 +25,9 @@ const app = new Hono<AppContext>();
 app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "documents_create", user.id, { max: 20, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await c.req.json<{
     documentType: string;
     documentDate: string;
@@ -44,6 +48,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
     paymentReference?: string;
     referenceDocumentType?: string;
     referenceDocumentId?: string;
+    idempotencyKey?: string;
   }>();
 
   if (!body.documentType || !body.documentDate || !body.lines?.length) {
@@ -74,6 +79,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
     discountMinor: body.discountMinor,
     taxMinor: body.taxMinor,
     notes: body.notes,
+    idempotencyKey: body.idempotencyKey,
     terms: body.terms,
     deliveryDate: body.deliveryDate,
     paymentMethod: body.paymentMethod,
@@ -88,8 +94,8 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
 app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const docType = c.req.query("type") as DocumentType | undefined;
-  const limit = Number.parseInt(c.req.query("limit") || "50", 10);
-  const offset = Number.parseInt(c.req.query("offset") || "0", 10);
+  const limit = Math.min(Math.max(Number.parseInt(c.req.query("limit") || "50", 10), 1), 100);
+  const offset = Math.max(Number.parseInt(c.req.query("offset") || "0", 10), 0);
   const result = await listDocuments(c.env.DB, organization.id, docType, limit, offset);
   return c.json(result);
 });

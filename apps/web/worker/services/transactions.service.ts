@@ -666,7 +666,7 @@ async function prepareTransactionData(
     : toMoneyMinor(input.partialAmount);
   const paymentStatus = input.paymentStatus ?? "paid";
   const description = normalizeRequiredText(input.description, "transaction_description_required");
-  const notes = nullableText(input.notes);
+  const notes = nullableText(input.notes, 1000);
   const current = Date.now();
 
   await assertBooksOpen(db, organizationId, transactionDate);
@@ -777,7 +777,7 @@ function buildPostTransactionStatements(
   const { db, organizationId, userId, data, entities, input, requestId, transactionId, journalEntryId, transactionNumber, entryNumber } = ctx;
   const { idempotencyKey, transactionType, transactionDate, amountMinor, paymentStatus, description, notes, current } = data;
   const { partyId, cashAccount, destinationCashAccount, product, quantityMilli, unitPriceMinor, reservedStock, resolved, journalLines } = entities;
-  const categoryName = resolved.categoryName ?? nullableText(input.categoryName);
+  const categoryName = resolved.categoryName ?? nullableText(input.categoryName, 120);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -1708,7 +1708,7 @@ async function resolveParty(
   transactionType: TransactionType,
   input: { partyId?: string | null; partyName?: string | null; current: number },
 ): Promise<string | null> {
-  const partyName = nullableText(input.partyName);
+  const partyName = nullableText(input.partyName, 120);
   if (input.partyId) {
     const existing = await queryFirst<PartyRow>(
       db,
@@ -2476,19 +2476,32 @@ function normalizeIdempotencyKey(input: string): string {
   if (value.length < 8 || value.length > 160) {
     throw badRequest("idempotency_key_required", "Idempotency key is required");
   }
+  // Only allow URL-safe characters
+  if (!/^[a-zA-Z0-9_-]{8,160}$/.test(value)) {
+    throw badRequest("idempotency_key_invalid", "Idempotency key contains invalid characters");
+  }
   return value;
 }
 
-function normalizeRequiredText(input: string, code: string): string {
+function normalizeRequiredText(input: string, code: string, maxLength = 500): string {
   const value = input.trim();
   if (!value) throw badRequest(code, "Text is required");
+  if (value.length > maxLength) {
+    throw badRequest(code + "_too_long", `Text must be at most ${maxLength} characters`);
+  }
   return value;
 }
 
-function nullableText(input: string | null | undefined): string | null {
+function nullableText(input: string | null | undefined, maxLength = 500): string | null {
   const value = input?.trim();
+  if (value && value.length > maxLength) {
+    throw badRequest("text_too_long", `Text must be at most ${maxLength} characters`);
+  }
   return value || null;
 }
+
+const MAX_MONEY_MINOR = 999_999_999_999;
+const MAX_QUANTITY_MILLI = 999_999_999_000;
 
 function toMoneyMinor(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
@@ -2497,6 +2510,9 @@ function toMoneyMinor(value: number): number {
   if (!Number.isInteger(value)) {
     throw badRequest("money_not_integer", "Money value must be a whole number of rupiah");
   }
+  if (value > MAX_MONEY_MINOR) {
+    throw badRequest("money_overflow", `Money value must not exceed ${MAX_MONEY_MINOR}`);
+  }
   return Math.round(value);
 }
 
@@ -2504,7 +2520,11 @@ function toQuantityMilli(value: number | null | undefined): number {
   if (!Number.isFinite(value) || value === null || value === undefined || value <= 0) {
     throw badRequest("quantity_invalid", "Quantity must be greater than zero");
   }
-  return Math.round(value * 1000);
+  const milli = Math.round(value * 1000);
+  if (milli > MAX_QUANTITY_MILLI) {
+    throw badRequest("quantity_overflow", `Quantity must not exceed 999,999,999`);
+  }
+  return milli;
 }
 
 function productCostMinor(product: ProductRow): number {

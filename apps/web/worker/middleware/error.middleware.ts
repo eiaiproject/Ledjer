@@ -6,6 +6,7 @@ import { HttpError } from "../http/errors";
 
 export const errorHandler: ErrorHandler<AppContext> = (error, c) => {
   const requestId = c.get("requestId") ?? crypto.randomUUID();
+  c.header("X-Request-Id", requestId);
 
   if (error instanceof HttpError) {
     return c.json(

@@ -1,11 +1,28 @@
 import type { Context, MiddlewareHandler } from "hono";
-import { deleteCookie, getCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AppContext } from "../env";
 import { unauthorized } from "../http/errors";
 import {
   getSessionByToken,
   type CurrentSessionRow,
 } from "../services/session.service";
+
+function cookieName(c: Context): string {
+  return c.env.APP_ENV === "production" ? "__Host-ledjer_session" : "ledjer_session";
+}
+
+function cookieOptions(c: Context<AppContext>) {
+  const isHostPrefix = c.env.APP_ENV === "production";
+  const secure = isHostPrefix ? true : new URL(c.req.url).protocol === "https:";
+  return {
+    domain: isHostPrefix ? undefined : c.env.COOKIE_DOMAIN,
+    path: "/",
+    sameSite: "Lax" as const,
+    secure,
+    httpOnly: true,
+    partitioned: secure ? true : undefined,
+  };
+}
 
 export function requireAuth(): MiddlewareHandler<AppContext> {
   return async (c, next) => {
@@ -39,6 +56,14 @@ export async function getAuthenticatedSession(
       });
     }
     throw unauthorized();
+  }
+
+  // Set new cookie if token was rotated
+  if ("newToken" in session && session.newToken) {
+    setCookie(c, cookieName(c), session.newToken, {
+      ...cookieOptions(c),
+      expires: new Date(session.expires_at),
+    });
   }
 
   return session;

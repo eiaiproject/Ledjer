@@ -45,9 +45,17 @@ export function statement(
   return db.prepare(sql).bind(...normalizeD1Values(values));
 }
 
+export function batchResultOk(results: D1Result[]): boolean {
+  return results.every((r) => r.success === true);
+}
+
 export async function executeBatch(
   db: D1Database,
   statements: readonly D1PreparedStatement[],
 ): Promise<D1Result[]> {
-  return db.batch([...statements]);
+  const results = await db.batch([...statements]);
+  if (!batchResultOk(results)) {
+    throw new Error("Batch operation partially failed");
+  }
+  return results;
 }

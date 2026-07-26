@@ -5,8 +5,9 @@
 
 import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst } from "../db/client";
+import { writeAuditStatement } from "../http/audit";
 import { badRequest, notFound } from "../http/errors";
-import { nextSequentialNumber, computeTotals, buildLineInserts } from "./document-utils";
+import { nextSequentialNumber, computeTotals, buildLineInserts, validateLines, checkOptionalText } from "./document-utils";
 
 export interface InvoiceLine {
   productId?: string;
@@ -25,6 +26,7 @@ export interface CreateInvoiceInput {
   taxMinor?: number;
   notes?: string;
   terms?: string;
+  idempotencyKey?: string;
 }
 
 export interface InvoiceOutput {
@@ -66,7 +68,21 @@ export async function createInvoice(
   userId: string,
   input: CreateInvoiceInput,
 ): Promise<InvoiceOutput> {
-  if (input.lines.length === 0) throw badRequest("no_lines", "Setidaknya satu item diperlukan");
+  validateLines(input.lines);
+  input.notes = checkOptionalText(input.notes, 1000, "notes");
+  input.terms = checkOptionalText(input.terms, 500, "terms");
+
+  if (input.idempotencyKey) {
+    const existing = await queryFirst<Record<string, unknown>>(
+      db,
+      `SELECT * FROM invoices WHERE organization_id = ? AND idempotency_key = ?`,
+      [organizationId, input.idempotencyKey],
+    );
+    if (existing) {
+      const inv = await getInvoice(db, organizationId, existing.id as string);
+      if (inv) return inv;
+    }
+  }
 
   const invoiceId = generateId();
   const now = Date.now();
@@ -77,14 +93,24 @@ export async function createInvoice(
 
   statements.push(
     db.prepare(
-      `INSERT INTO invoices (id, organization_id, invoice_number, invoice_date, due_date, party_id, status, subtotal_minor, discount_minor, tax_minor, total_minor, notes, terms, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO invoices (id, organization_id, invoice_number, invoice_date, due_date, party_id, status, subtotal_minor, discount_minor, tax_minor, total_minor, notes, terms, idempotency_key, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(invoiceId, organizationId, invoiceNumber, input.invoiceDate, input.dueDate,
       input.partyId, subtotalMinor, input.discountMinor ?? 0, input.taxMinor ?? 0,
-      totalMinor, input.notes ?? null, input.terms ?? null, userId, now, now),
+      totalMinor, input.notes ?? null, input.terms ?? null, input.idempotencyKey ?? null, userId, now, now),
   );
 
   statements.push(...buildLineInserts(db, organizationId, invoiceId, input.lines, "invoice_lines", "invoice_id", now));
+
+  statements.push(writeAuditStatement(db, {
+    organizationId,
+    actorUserId: userId,
+    entityType: "invoice",
+    entityId: invoiceId,
+    action: "create",
+    after: { invoiceNumber, invoiceDate: input.invoiceDate, totalMinor },
+    current: now,
+  }));
 
   await executeBatch(db, statements);
 
@@ -204,14 +230,14 @@ export async function createCreditNote(
     reason?: string;
   },
 ): Promise<InvoiceOutput> {
+  validateLines(input.lines);
+  input.notes = checkOptionalText(input.notes, 1000, "notes");
   const original = await getInvoice(db, organizationId, originalInvoiceId);
   if (!original) throw notFound("invoice_not_found", "Faktur asli tidak ditemukan");
   if (original.status !== "paid") {
     throw badRequest("invalid_status",
       `Hanya faktur berstatus "paid" yang bisa dibuatkan credit note. Status saat ini: "${original.status}"`);
   }
-
-  if (input.lines.length === 0) throw badRequest("no_lines", "Setidaknya satu item diperlukan");
 
   // Use credit note counter
   const row = await queryFirst<{ current_value: number }>(

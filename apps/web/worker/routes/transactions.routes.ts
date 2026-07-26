@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { AppContext } from "../env";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
+import { tooManyRequests } from "../http/errors";
+import { checkRateLimit } from "../services/rate-limit.service";
 import {
   loadCurrentOrganization,
   requirePermission,
@@ -88,6 +90,9 @@ transactionsRoutes.get("/", requirePermission("transactions:read"), async (c) =>
 
 transactionsRoutes.post("/", requirePermission("transactions:create"), async (c) => {
   const context = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "transactions_create", context.member.user_id, { max: 30, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await readJson(c, postTransactionSchema);
   const result = await postTransaction(
     c.env.DB,
@@ -133,6 +138,9 @@ transactionsRoutes.get("/:transactionId", requirePermission("transactions:read")
 
 transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:void"), async (c) => {
   const context = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "transactions_void", context.member.user_id, { max: 20, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await readJson(c, voidTransactionSchema);
   const result = await voidTransaction(
     c.env.DB,
@@ -147,6 +155,9 @@ transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:
 
 transactionsRoutes.post("/:transactionId/settle", requirePermission("transactions:create"), async (c) => {
   const context = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "transactions_settle", context.member.user_id, { max: 20, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await readJson(c, settleTransactionSchema);
   const result = await settlePartialTransaction(
     c.env.DB,

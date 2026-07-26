@@ -11,9 +11,9 @@ async function gotoProfitLoss(
   width = 375,
   height = 812,
 ) {
-  await authPage.setViewportSize({ width, height });
-  await authPage.goto("/reports/profit-loss");
-  await authPage.waitForLoadState("networkidle");
+  await page.setViewportSize({ width, height });
+  await page.goto("/reports/profit-loss");
+  await page.waitForLoadState("networkidle");
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -141,7 +141,7 @@ test.describe("Export (auth required)", () => {
 test.describe("Inactive accounts toggle (auth required)", () => {
   test("toggle label exists in Indonesian", async ({ authPage }) => {
     await gotoProfitLoss(authPage);
-    const toggle = page
+    const toggle = authPage
       .locator("label")
       .filter({ hasText: /tampilkan akun tanpa aktivitas/i });
     await expect(toggle.first()).toBeAttached();

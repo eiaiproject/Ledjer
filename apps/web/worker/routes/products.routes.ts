@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { AppContext } from "../env";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
+import { tooManyRequests } from "../http/errors";
+import { checkRateLimit } from "../services/rate-limit.service";
 import {
   loadCurrentOrganization,
   requirePermission,
@@ -24,6 +26,7 @@ const createProductSchema = z.object({
   sellingPrice: z.number().min(0),
   currentStock: z.number().min(0),
   minStock: z.number().min(0),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 const patchProductSchema = z.object({
@@ -52,6 +55,9 @@ productsRoutes.get("/", requirePermission("products:read"), async (c) => {
 
 productsRoutes.post("/", requirePermission("products:write"), async (c) => {
   const context = c.get("organizationContext");
+  if (await checkRateLimit(c.env.DB, "products_create", context.member.user_id, { max: 20, windowMs: 60000 })) {
+    throw tooManyRequests("Too many requests");
+  }
   const body = await readJson(c, createProductSchema);
   const product = await createProduct(
     c.env.DB,

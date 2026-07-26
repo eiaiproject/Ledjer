@@ -7,9 +7,9 @@ import { test } from "./helpers/auth";
  */
 
 async function gotoProducts(page: import("@playwright/test").Page, width = 375, height = 812) {
-  await authPage.setViewportSize({ width, height });
-  await authPage.goto("/products");
-  await authPage.waitForLoadState("networkidle");
+  await page.setViewportSize({ width, height });
+  await page.goto("/products");
+  await page.waitForLoadState("networkidle");
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
