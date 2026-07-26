@@ -1,4 +1,4 @@
-import { queryAll } from "../db/client";
+import { queryAll, queryFirst } from "../db/client";
 import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
 
@@ -52,6 +52,7 @@ export async function getTrialBalance(
   asOfDate: string,
 ): Promise<TrialBalanceRow[]> {
   const date = normalizeDate(asOfDate, "as_of_date_invalid");
+  await validateReportDate(db, organizationId, date);
   return queryAll<TrialBalanceRow>(
     db,
     `WITH filtered_lines AS (
@@ -170,6 +171,7 @@ export async function getBalanceSheet(
   asOfDate: string,
 ): Promise<BalanceSheetRow[]> {
   const date = normalizeDate(asOfDate, "as_of_date_invalid");
+  await validateReportDate(db, organizationId, date);
   return queryAll<BalanceSheetRow>(
     db,
     `WITH posted_lines AS (
@@ -387,6 +389,26 @@ export function assertTrialBalanceBalanced(rows: readonly TrialBalanceRow[]): bo
   return debit === credit;
 }
 
+
+async function validateReportDate(db: D1Database, organizationId: string, date: string): Promise<void> {
+  // Check date is not too far in the future (catch obvious typos like year 2099)
+  const oneYearFromNow = new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  const maxDate = oneYearFromNow.toISOString().slice(0, 10);
+  if (date > maxDate) {
+    throw badRequest("date_future", "Date cannot be more than 1 year in the future");
+  }
+
+  // Check date is not before books_start_date
+  const org = await queryFirst<{ books_start_date: string }>(
+    db,
+    "SELECT books_start_date FROM organizations WHERE id = ?",
+    [organizationId],
+  );
+  if (org && org.books_start_date && date < org.books_start_date) {
+    throw badRequest("date_before_books_start", "Date cannot be before the organization's books start date");
+  }
+}
 
 function assertDateRange(fromDate: string, toDate: string): void {
   if (fromDate > toDate) {
