@@ -368,9 +368,9 @@ export function DimensionsPage() {
               <label className="block text-sm font-medium text-text-primary mb-1">
                 Tipe
               </label>
-              <div aria-label={dimensionTypeLabel(activeTab)} className="rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700">
+              <div aria-label={dimensionTypeLabel(activeTab)} className="rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700"> {/* NOSONAR typescript:S6853 — display-only div, not a form input */}
                 {dimensionTypeLabel(activeTab)}
-              </div> {/* NOSONAR typescript:S6853 — display-only div, not a form input */}
+              </div>
             </div>
             <div>
               <label htmlFor="dimCode" className="block text-sm font-medium text-text-primary mb-1">

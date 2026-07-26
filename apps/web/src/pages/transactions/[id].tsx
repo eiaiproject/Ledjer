@@ -28,7 +28,7 @@ import {
 } from "@/lib/api/transactions";
 import { listCashBankAccounts } from "@/lib/api/accounts";
 
-export function TransactionDetailPage() {
+export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page component with void/settle/journal UIs; readability over complexity
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();

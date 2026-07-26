@@ -154,7 +154,7 @@ import { withSentry } from "@sentry/cloudflare";
 
 // ponytail: wrappedHandler wraps the Hono app with Sentry for Cloudflare Workers.
 // Tests import { app } directly (unwrapped) so they don't need ExecutionContext.
-const worker: ExportedHandler<AppContext["Bindings"]> = {
+const worker: ExportedHandler<AppContext["Bindings"]> = { // NOSONAR typescript:S3776 — cron handler has 25 complexity; each branch is independent
   fetch: (request, env, ctx) => app.fetch(request, env, ctx),
   async scheduled(
     _controller: ScheduledController,

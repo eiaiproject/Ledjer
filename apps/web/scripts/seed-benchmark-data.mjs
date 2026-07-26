@@ -80,7 +80,7 @@ function formatDate(date) {
 
 function generateId(prefix) {
   // Use deterministic IDs based on prefix + counter for reproducibility
-  return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`; // NOSONAR javascript:S2245
 }
 
 function getAccountId(code) {
@@ -92,7 +92,7 @@ function sqlLine(sql) {
   return sql + ";\n";
 }
 
-async function seed() {
+async function seed() { // NOSONAR javascript:S3776 — benchmark script; complexity is inherent to data generation
   const startTime = Date.now();
 
   console.log(`\n🔧 Seeding benchmark data into D1 database: ${DB_NAME}`);

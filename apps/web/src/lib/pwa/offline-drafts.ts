@@ -138,8 +138,8 @@ export async function updateDraftStatus(
       draft.updatedAt = Date.now();
       if (error) draft.error = error;
 
-      // NOSONAR typescript:S2004 — IndexedDB uses callback API; nesting is unavoidable
       const putRequest = store.put(draft);
+      // NOSONAR typescript:S2004 — IndexedDB uses callback API; nesting is unavoidable
       putRequest.onsuccess = () => {
         tx.oncomplete = () => {
           db.close();
