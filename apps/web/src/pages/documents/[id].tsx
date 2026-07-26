@@ -133,6 +133,61 @@ export function DocumentDetailPage() {
   }
 
   const actions = getAvailableActions(doc);
+  const renderAction = (action: { label: string; status?: string; variant?: string; icon?: React.ReactNode }) => {
+    if (action.status === "cancelled") {
+      return (
+        <button type="button"
+          key={action.label}
+          onClick={() => setShowCancelInput(true)}
+          disabled={statusMutation.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 px-3 py-2 text-xs font-medium text-error transition-all hover:bg-error/10"
+        >
+          <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          {action.label}
+        </button>
+      );
+    }
+    if (action.label === "Konversi ke Faktur") {
+      return (
+        <button type="button"
+          key="convert-to-invoice"
+          onClick={() => { if (window.confirm("Konversi penawaran ini menjadi faktur?")) convertMutation.mutate(); }}
+          disabled={convertMutation.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-leaf-600 px-3 py-2 text-xs font-medium text-white transition-all hover:bg-leaf-700"
+        >
+          {convertMutation.isPending ? <Loader className="h-3.5 w-3.5 animate-spin" /> : action.icon}
+          {action.label}
+        </button>
+      );
+    }
+    if (action.label === "Terima Barang") {
+      return (
+        <button type="button"
+          key="receive-goods"
+          onClick={() => { if (window.confirm("Tandai pesanan ini sebagai diterima?")) receiveMutation.mutate(); }}
+          disabled={receiveMutation.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-all hover:bg-blue-700"
+        >
+          {receiveMutation.isPending ? <Loader className="h-3.5 w-3.5 animate-spin" /> : action.icon}
+          {action.label}
+        </button>
+      );
+    }
+    return (
+      <button type="button"
+        key={action.label}
+        onClick={() => statusMutation.mutate({ status: action.status! })}
+        disabled={statusMutation.isPending}
+        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+          action.variant === "primary"
+            ? "bg-ink text-white hover:bg-ink/90"
+            : "border border-wood-200 text-wood-700 hover:bg-wood-50"
+        }`}
+      >
+        {action.label}
+      </button>
+    );
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -176,68 +231,7 @@ export function DocumentDetailPage() {
               Cetak
             </a>
 
-            {actions.map((action) =>
-              action.status === "cancelled" ? (
-                <button type="button"
-                  key={action.label}
-                  onClick={() => setShowCancelInput(true)}
-                  disabled={statusMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition-all hover:bg-red-50"
-                >
-                  <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                  {action.label}
-                </button>
-              ) : action.label === "Konversi ke Faktur" ? (
-                <button type="button"
-                  key="convert-to-invoice"
-                  onClick={() => {
-                    if (window.confirm("Konversi penawaran ini menjadi faktur?")) {
-                      convertMutation.mutate();
-                    }
-                  }}
-                  disabled={convertMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-leaf-600 px-3 py-2 text-xs font-medium text-white transition-all hover:bg-leaf-700"
-                >
-                  {convertMutation.isPending ? (
-                    <Loader className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    action.icon
-                  )}
-                  {action.label}
-                </button>
-              ) : action.label === "Terima Barang" ? (
-                <button type="button"
-                  key="receive-goods"
-                  onClick={() => {
-                    if (window.confirm("Tandai pesanan ini sebagai diterima?")) {
-                      receiveMutation.mutate();
-                    }
-                  }}
-                  disabled={receiveMutation.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-all hover:bg-blue-700"
-                >
-                  {receiveMutation.isPending ? (
-                    <Loader className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    action.icon
-                  )}
-                  {action.label}
-                </button>
-              ) : (
-                <button type="button"
-                  key={action.label}
-                  onClick={() => statusMutation.mutate({ status: action.status! })}
-                  disabled={statusMutation.isPending}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
-                    action.variant === "primary"
-                      ? "bg-ink text-white hover:bg-ink/90"
-                      : "border border-wood-200 text-wood-700 hover:bg-wood-50"
-                  }`}
-                >
-                  {action.label}
-                </button>
-              ),
-            )}
+            {actions.map(renderAction)}
           </div>
         </div>
 

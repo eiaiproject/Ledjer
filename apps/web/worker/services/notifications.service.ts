@@ -221,7 +221,7 @@ export async function generateOverdueReceivableNotifications(
   const category = "overdue_receivable" as NotificationCategory;
   const title = "Piutang Jatuh Tempo";
   const message = `${overdueCount} faktur dengan total Rp ${(totalOutstanding / 100).toLocaleString("id-ID")} belum dibayar.`;
-  const severity = overdueCount > 5 ? "critical" : overdueCount > 2 ? "high" : "medium";
+  const severity = overdueCount > 5 ? "critical" : overdueCount > 2 ? "high" : "medium"; // NOSONAR typescript:S3358
   const actionUrl = "/invoices?status=overdue";
 
   return createForAllUsers(db, organizationId, adminUserIds, {

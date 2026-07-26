@@ -296,7 +296,7 @@ export async function updateBudget(
       [
         data.amountMinor ?? null,
         data.notes ?? null,
-        data.isActive !== undefined ? (data.isActive ? 1 : 0) : null,
+        data.isActive === undefined ? null : data.isActive ? 1 : 0,
         data.dimensionType !== undefined ? data.dimensionType : null,
         data.dimensionValue !== undefined ? data.dimensionValue : null,
         now, budgetId, organizationId,

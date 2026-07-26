@@ -199,7 +199,7 @@ export function NotificationsPage() {
             <div key={i} className="h-20 animate-pulse rounded-xl bg-wood-100" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : !filtered.length ? (
         <div className="flex flex-col items-center gap-3 py-12 text-wood-400">
           <Bell className="h-10 w-10" />
           <p className="text-sm font-medium">Tidak ada notifikasi</p>

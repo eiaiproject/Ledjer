@@ -67,6 +67,39 @@ export function RecurringTransactionsPage() {
   });
 
   const items = data ?? [];
+  let content;
+  if (isLoading) {
+    content = (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-28 animate-pulse rounded-xl bg-wood-100" />
+        ))}
+      </div>
+    );
+  } else if (error) {
+    content = (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-sm text-red-600">Gagal memuat data. Silakan coba lagi.</p>
+      </div>
+    );
+  } else if (items.length === 0) {
+    content = (
+      <EmptyState
+        icon={<Repeat className="h-8 w-8" />}
+        title="Belum ada transaksi berulang"
+        description="Buat transaksi otomatis untuk sewa, langganan, gaji, cicilan, dan pengeluaran rutin lainnya."
+        action={{ label: "Buat Baru", onClick: () => navigate("/recurring-transactions/new") }}
+      />
+    );
+  } else {
+    content = (
+      <div className="space-y-2">
+        {items.map((item) => (
+          <RecurringCard key={item.id} item={item} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -105,30 +138,7 @@ export function RecurringTransactionsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl bg-wood-100" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-sm text-red-600">Gagal memuat data. Silakan coba lagi.</p>
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={<Repeat className="h-8 w-8" />}
-          title="Belum ada transaksi berulang"
-          description="Buat transaksi otomatis untuk sewa, langganan, gaji, cicilan, dan pengeluaran rutin lainnya."
-          action={{ label: "Buat Baru", onClick: () => navigate("/recurring-transactions/new") }}
-        />
-      ) : (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <RecurringCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
+      {content}
     </div>
   );
 }

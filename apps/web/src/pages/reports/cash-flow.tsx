@@ -92,7 +92,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
                       </td>
                       {showComparison && (
                         <>
-                          <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-emerald-600" : "text-red-600") : "text-wood-300")}>
+                          <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-emerald-600" : "text-red-600") : "text-wood-300")}>{/* NOSONAR typescript:S3358 */}
                             {row.prevNet !== undefined ? formatIDR(row.prevNet) : "—"}
                           </td>
                           <td className="px-4 py-2 text-right text-xs text-wood-500">

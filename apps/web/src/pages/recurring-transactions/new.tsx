@@ -192,7 +192,7 @@ export function NewRecurringTransactionPage() {
                   className="w-20 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
                 />
                 <span className="text-xs text-wood-500">
-                  {frequency === "daily" ? "hari" : frequency === "weekly" ? "minggu" : frequency === "monthly" ? "bulan" : frequency === "yearly" ? "tahun" : "hari"}
+                  {({ daily: "hari", weekly: "minggu", monthly: "bulan", yearly: "tahun" } as Record<string, string>)[frequency] ?? "hari"}
                 </span>
               </div>
             </div>

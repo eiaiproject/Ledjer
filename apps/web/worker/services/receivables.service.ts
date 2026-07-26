@@ -90,9 +90,12 @@ export async function recordPayment(
   );
 
   const newPaid = totalPaid?.paid ?? 0;
-  const newStatus = newPaid >= (invTotal?.total_minor ?? 0)
-    ? "paid"
-    : (invTotal?.status === "issued" || invTotal?.status === "sent" ? "partially_paid" : invTotal?.status ?? "issued");
+  let newStatus = invTotal?.status ?? "issued";
+  if (newPaid >= (invTotal?.total_minor ?? 0)) {
+    newStatus = "paid";
+  } else if (newStatus === "issued" || newStatus === "sent") {
+    newStatus = "partially_paid";
+  }
 
   await execute(
     db,
@@ -167,11 +170,7 @@ export async function getAgingReport(
 
     for (const inv of partyInvs) {
       const daysOverdue = daysBetween(inv.dueDate, date);
-      const bucketIdx = daysOverdue <= 0 ? 0
-        : daysOverdue <= 30 ? 1
-        : daysOverdue <= 60 ? 2
-        : daysOverdue <= 90 ? 3
-        : 4;
+      const bucketIdx = daysOverdue <= 0 ? 0 : Math.min(Math.ceil(Math.max(daysOverdue, 1) / 30), 4);
 
       buckets[bucketIdx].totalMinor += inv.totalMinor;
       buckets[bucketIdx].count++;

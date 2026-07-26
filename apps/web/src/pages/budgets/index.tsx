@@ -589,9 +589,8 @@ function ForecastModal({
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="h-20 bg-cream-200 rounded-lg animate-pulse" />
-          ) : forecast ? (
+          {isLoading && <div className="h-20 bg-cream-200 rounded-lg animate-pulse" />}
+          {!isLoading && forecast && (
             <div className="space-y-3">
               <Card>
                 <CardContent className="py-4">
@@ -624,7 +623,8 @@ function ForecastModal({
                 Hasil ini hanya estimasi dan bukan jaminan kinerja masa depan.
               </p>
             </div>
-          ) : (
+          )}
+          {!isLoading && !forecast && (
             <p className="text-sm text-text-tertiary text-center py-4">
               Tidak ada data historis untuk menghasilkan forecast.
             </p>

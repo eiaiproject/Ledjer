@@ -175,7 +175,7 @@ export function NotificationBell() {
               <div className="flex items-center justify-center py-8">
                 <Loader className="h-5 w-5 animate-spin text-wood-400" />
               </div>
-            ) : notifications.length === 0 ? (
+            ) : !notifications.length ? (
               <div className="flex flex-col items-center gap-2 py-8 text-wood-400">
                 <Bell className="h-6 w-6" />
                 <p className="text-xs">Tidak ada notifikasi</p>

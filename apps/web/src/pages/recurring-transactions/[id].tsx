@@ -121,6 +121,13 @@ export function RecurringTransactionDetailPage() {
   const nextDate = item.nextExecutionDate
     ? new Date(item.nextExecutionDate + "T00:00:00+07:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
     : "Selesai";
+  const scheduleLabel = item.frequency === "weekly" && item.dayOfWeek !== null
+    ? ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][item.dayOfWeek]
+    : item.frequency === "monthly" && item.dayOfMonth !== null
+    ? `Tanggal ${item.dayOfMonth}`
+    : item.frequency === "yearly" && item.monthOfYear !== null && item.dayOfMonth !== null
+    ? `${["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"][item.monthOfYear]} ${item.dayOfMonth}`
+    : "-";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -214,18 +221,7 @@ export function RecurringTransactionDetailPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <DetailCard label="Jumlah" value={formatRupiah(item.amountMinor)} />
         <DetailCard label="Frekuensi" value={`${FREQ_LABELS[item.frequency] ?? item.frequency} (setiap ${item.intervalValue})`} />
-        <DetailCard
-          label="Jadwal"
-          value={
-            item.frequency === "weekly" && item.dayOfWeek !== null
-              ? ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][item.dayOfWeek]
-              : item.frequency === "monthly" && item.dayOfMonth !== null
-              ? `Tanggal ${item.dayOfMonth}`
-              : item.frequency === "yearly" && item.monthOfYear !== null && item.dayOfMonth !== null
-              ? `${["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"][item.monthOfYear]} ${item.dayOfMonth}`
-              : "-"
-          }
-        />
+        <DetailCard label="Jadwal" value={scheduleLabel} />
         <DetailCard label="Mulai" value={item.startDate} />
         <DetailCard label="Berakhir" value={item.endDate ?? "Tidak ada batas"} />
         <DetailCard label="Eksekusi" value={`${item.executionCount}x`} />

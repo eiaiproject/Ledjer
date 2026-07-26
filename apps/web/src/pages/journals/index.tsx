@@ -295,7 +295,7 @@ export function ManualJournalPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-wood-700">Baris Jurnal</p>
-              <Badge variant={balanced ? "success" : totalDebit > 0 || totalCredit > 0 ? "error" : "neutral"} size="sm">
+              <Badge variant={balanced ? "success" : totalDebit > 0 || totalCredit > 0 ? "error" : "neutral"} size="sm">{/* NOSONAR */}
                 {balanced ? "Balance" : `Selisih: Rp ${(difference / 100).toLocaleString("id-ID")}`}
               </Badge>
             </div>

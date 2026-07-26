@@ -98,6 +98,44 @@ export function DocumentsPage() {
     );
   });
 
+  let content;
+  if (isLoading) {
+    content = (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-wood-100" />
+        ))}
+      </div>
+    );
+  } else if (error) {
+    content = (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-sm text-red-600">Gagal memuat dokumen. Silakan coba lagi.</p>
+      </div>
+    );
+  } else if (filtered.length === 0) {
+    content = (
+      <EmptyState
+        icon={<FileText className="h-8 w-8" />}
+        title={search ? "Tidak ada hasil" : "Belum ada dokumen"}
+        description={
+          search
+            ? `Tidak ditemukan dokumen dengan kata kunci "${search}"`
+            : "Buat dokumen pertama Anda untuk memulai."
+        }
+        action={{ label: "Buat Dokumen", onClick: () => navigate("/documents/new") }}
+      />
+    );
+  } else {
+    content = (
+      <div className="space-y-2">
+        {filtered.map((doc) => (
+          <DocumentCard key={doc.id} doc={doc} />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -155,38 +193,7 @@ export function DocumentsPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-wood-100" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-          <p className="text-sm text-red-600">Gagal memuat dokumen. Silakan coba lagi.</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<FileText className="h-8 w-8" />}
-          title={search ? "Tidak ada hasil" : "Belum ada dokumen"}
-          description={
-            search
-              ? `Tidak ditemukan dokumen dengan kata kunci "${search}"`
-              : "Buat dokumen pertama Anda untuk memulai."
-          }
-          action={
-            !search
-              ? { label: "Buat Dokumen", onClick: () => navigate("/documents/new") }
-              : undefined
-          }
-        />
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((doc) => (
-            <DocumentCard key={doc.id} doc={doc} />
-          ))}
-        </div>
-      )}
+      {content}
 
       {/* Summary */}
       {data && !isLoading && (

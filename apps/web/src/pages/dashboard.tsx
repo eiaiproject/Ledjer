@@ -378,7 +378,7 @@ const ALERT_META: Record<string, { icon: React.ComponentType<{ className?: strin
 function DashboardAlertCard({ alert }: { readonly alert: DashboardAlert }) {
   const meta = ALERT_META[alert.type] ?? ALERT_META.draft_transaction;
   const Icon = meta.icon;
-  const severityLabel = alert.severity === "high" ? "Penting" : alert.severity === "medium" ? "Sedang" : "Ringan";
+  const severityLabel = ({ high: "Penting", medium: "Sedang" } as Record<string, string>)[alert.severity] ?? "Ringan";
 
   return (
     <Link
@@ -402,9 +402,7 @@ function DashboardAlertCard({ alert }: { readonly alert: DashboardAlert }) {
             <p className="text-sm font-semibold text-text-primary">{alert.title}</p>
             <span className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
-              alert.severity === "high" ? "bg-error/10 text-error" :
-              alert.severity === "medium" ? "bg-clay-100 text-clay-700" :
-              "bg-wood-100 text-wood-600"
+              ({ high: "bg-error/10 text-error", medium: "bg-clay-100 text-clay-700" } as Record<string, string>)[alert.severity] ?? "bg-wood-100 text-wood-600"
             )}>
               {severityLabel}
             </span>

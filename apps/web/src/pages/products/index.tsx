@@ -365,7 +365,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
                 </div>
                 <div>
                   <p className="text-xs text-text-tertiary">Selisih</p>
-                  <p className={`num-mono text-lg font-bold ${Number(result.difference) === 0 ? "text-wood-500" : Number(result.difference) > 0 ? "text-leaf-600" : "text-error"}`}>
+                  <p className={`num-mono text-lg font-bold ${Number(result.difference) > 0 ? "text-leaf-600" : Number(result.difference) === 0 ? "text-wood-500" : "text-error"}`}>
                     {result.difference}
                   </p>
                 </div>

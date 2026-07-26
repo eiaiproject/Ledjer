@@ -378,7 +378,7 @@ export function DimensionsPage() {
               <Input
                 value={formData.code}
                 onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))}
-                placeholder={`Contoh: ${activeTab === "branch" ? "BR-001" : activeTab === "department" ? "DEPT-FIN" : activeTab === "project" ? "PRJ-001" : "CC-001"}`}
+                placeholder={`Contoh: ${{ branch: "BR-001", department: "DEPT-FIN", project: "PRJ-001", cost_center: "CC-001", profit_center: "PC-001" }[activeTab] ?? "CC-001"}`}
               />
             </div>
             <div>

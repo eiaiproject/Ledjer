@@ -462,7 +462,7 @@ async function reserveStockForTransaction(
   // sale_return adds stock back (+), purchase removes stock (-)
   // purchase_return removes stock (-), sale removes stock (-)
   // For purchase_return, stock decreases (goods go back to supplier)
-  const quantityDelta = isPurchase ? quantityMilli : isSaleReturn ? quantityMilli : -quantityMilli;
+  const quantityDelta = isPurchase || isSaleReturn ? quantityMilli : -quantityMilli;
   const nextStock = product.current_stock_milli + quantityDelta;
   if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
   const unitCost = isPurchase ? unitPriceMinor : productCostMinor(product);
@@ -541,7 +541,7 @@ function rebuildStockStatements(
 ): void {
   const isPurchase = ctx.transactionType === "cash_purchase" || ctx.transactionType === "credit_purchase";
   const isSaleReturn = ctx.transactionType === "sale_return";
-  const quantityDelta = isPurchase ? ctx.quantityMilli! : isSaleReturn ? ctx.quantityMilli! : -ctx.quantityMilli!;
+  const quantityDelta = isPurchase || isSaleReturn ? ctx.quantityMilli! : -ctx.quantityMilli!;
   ctx.statements[stockUpdateIndex] = statement(
     ctx.db,
     `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
@@ -1243,10 +1243,10 @@ function restoreStockForVoid(ctx: VoidStockCtx): void {
   // purchase + purchase_return: both decrease stock on void (reversal)
   // sale_return originally added stock, so void removes stock (-)
   // purchase_return originally removed stock, so void adds stock (+)
-  const quantityDelta = isSaleReturn ? -productLine.quantity_milli
-    : isPurchaseReturn ? productLine.quantity_milli
-    : isSale ? productLine.quantity_milli
-    : -productLine.quantity_milli;
+  let quantityDelta: number;
+  if (isSaleReturn) quantityDelta = -productLine.quantity_milli;
+  else if (isPurchaseReturn || isSale) quantityDelta = productLine.quantity_milli;
+  else quantityDelta = -productLine.quantity_milli;
   const nextStock = product.current_stock_milli + quantityDelta;
   if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
   const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
