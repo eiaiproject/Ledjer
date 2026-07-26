@@ -83,8 +83,9 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
         <CardContent className="space-y-4 p-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-wood-600">Akun Bank</label>
+              <label htmlFor="recAccountId" className="mb-1 block text-xs font-medium text-wood-600">Akun Bank</label>
               <Select
+                id="recAccountId"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 placeholder="Pilih akun..."
@@ -94,25 +95,26 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-wood-600">Tanggal Statement</label>
-              <Input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} />
+              <label htmlFor="recStatementDate" className="mb-1 block text-xs font-medium text-wood-600">Tanggal Statement</label>
+              <Input id="recStatementDate" type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-wood-600">Saldo Awal</label>
-              <Input type="number" value={openingBalance} onChange={(e) => setOpeningBalance(Number.parseInt(e.target.value) || 0)} />
+              <label htmlFor="recOpeningBalance" className="mb-1 block text-xs font-medium text-wood-600">Saldo Awal</label>
+              <Input id="recOpeningBalance" type="number" value={openingBalance} onChange={(e) => setOpeningBalance(Number.parseInt(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-wood-600">Saldo Akhir</label>
-              <Input type="number" value={closingBalance} onChange={(e) => setClosingBalance(Number.parseInt(e.target.value) || 0)} />
+              <label htmlFor="recClosingBalance" className="mb-1 block text-xs font-medium text-wood-600">Saldo Akhir</label>
+              <Input id="recClosingBalance" type="number" value={closingBalance} onChange={(e) => setClosingBalance(Number.parseInt(e.target.value) || 0)} />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-wood-600">
+            <label htmlFor="recRawLines" className="mb-1 block text-xs font-medium text-wood-600">
               Data Statement (CSV: tanggal,deskripsi,amount)
             </label>
             <textarea
+              id="recRawLines"
               className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm font-mono min-h-[120px]"
               value={rawLines}
               onChange={(e) => setRawLines(e.target.value)}

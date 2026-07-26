@@ -161,10 +161,11 @@ export function ApprovalSettingsPage() {
                     <div className="flex shrink-0 items-center gap-4 self-end sm:self-auto">
                       {enabled && (
                         <div className="flex items-center gap-2">
-                          <label className="text-xs text-wood-500 whitespace-nowrap">
+                          <label htmlFor={`threshold-${action}`} className="text-xs text-wood-500 whitespace-nowrap">
                             Ambang batas:
                           </label>
                           <input
+                            id={`threshold-${action}`}
                             type="number"
                             min="0"
                             step="10000"

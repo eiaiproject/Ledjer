@@ -237,8 +237,9 @@ export function ExportsPage() {
         <ModalContent title="Export Data Baru">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Tipe Data</label>
+              <label htmlFor="exportType" className="block text-sm font-medium text-text-primary mb-1">Tipe Data</label>
               <Select
+                id="exportType"
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value as ExportType)}
               >
@@ -248,7 +249,7 @@ export function ExportsPage() {
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Format</label>
+              <span className="block text-sm font-medium text-text-primary mb-1">Format</span>
               <div className="rounded-lg bg-wood-50 px-3 py-2 text-sm text-wood-700">
                 CSV (Excel/Spreadsheet)
               </div>

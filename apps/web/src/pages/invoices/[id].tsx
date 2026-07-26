@@ -283,8 +283,9 @@ export default function InvoiceDetailPage() {
                 {creditLines.map((cl, i) => (
                   <div key={"line-" + i} className="grid grid-cols-10 gap-2 items-end">
                     <div className="col-span-7">
-                      <label className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
+                      <label htmlFor={`cr-line-${i}-desc`} className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
                       <Input
+                        id={`cr-line-${i}-desc`}
                         value={cl.description}
                         onChange={(e) => {
                           const copy = [...creditLines];
@@ -295,8 +296,9 @@ export default function InvoiceDetailPage() {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-xs text-wood-500 mb-0.5">Jumlah (Rp)</label>
+                      <label htmlFor={`cr-line-${i}-amount`} className="block text-xs text-wood-500 mb-0.5">Jumlah (Rp)</label>
                       <Input
+                        id={`cr-line-${i}-amount`}
                         type="number"
                         min={0}
                         value={cl.amount}

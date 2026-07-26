@@ -275,7 +275,7 @@ export function NewDocumentPage() {
                       />
                     </div>
                     <div className="w-24 text-right">
-                      <label className="mb-0.5 block text-[10px] text-wood-500">Jumlah</label>
+                      <span className="mb-0.5 block text-[10px] text-wood-500">Jumlah</span>
                       <span className="block py-1.5 text-sm font-medium text-text-primary">
                         Rp {(line.amountMinor / 100).toLocaleString("id-ID")}
                       </span>
@@ -322,8 +322,9 @@ export function NewDocumentPage() {
 
             {/* Terms */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-text-primary">Syarat & Ketentuan</label>
+              <label htmlFor="docTerms" className="mb-1 block text-sm font-medium text-text-primary">Syarat & Ketentuan</label>
               <textarea
+                id="docTerms"
                 value={terms}
                 onChange={(e) => setTerms(e.target.value)}
                 rows={2}

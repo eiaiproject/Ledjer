@@ -404,16 +404,16 @@ export function FixedAssetsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Kode Aset *</label>
-                <Input
+                <label htmlFor="assetCode" className="block text-sm font-medium text-text-primary mb-1">Kode Aset *</label>
+                <Input id="assetCode"
                   value={formData.assetCode}
                   onChange={(e) => setFormData((prev) => ({ ...prev, assetCode: e.target.value }))}
                   placeholder="FA-2026-001"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Kategori *</label>
-                <Select
+                <label htmlFor="assetCategory" className="block text-sm font-medium text-text-primary mb-1">Kategori *</label>
+                <Select id="assetCategory"
                   value={formData.assetCategory}
                   onChange={(e) => setFormData((prev) => ({ ...prev, assetCategory: e.target.value as AssetCategory }))}
                 >
@@ -429,16 +429,16 @@ export function FixedAssetsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Nama Aset *</label>
-              <Input
+              <label htmlFor="assetName" className="block text-sm font-medium text-text-primary mb-1">Nama Aset *</label>
+              <Input id="assetName"
                 value={formData.assetName}
                 onChange={(e) => setFormData((prev) => ({ ...prev, assetName: e.target.value }))}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Deskripsi</label>
-              <Input
+              <label htmlFor="description" className="block text-sm font-medium text-text-primary mb-1">Deskripsi</label>
+              <Input id="description"
                 value={formData.description}
                 onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               />
@@ -446,16 +446,18 @@ export function FixedAssetsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Tanggal Perolehan *</label>
+                <label htmlFor="acquisitionDate" className="block text-sm font-medium text-text-primary mb-1">Tanggal Perolehan *</label>
                 <Input
+                  id="acquisitionDate"
                   type="date"
                   value={formData.acquisitionDate}
                   onChange={(e) => setFormData((prev) => ({ ...prev, acquisitionDate: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Biaya Perolehan *</label>
+                <label htmlFor="acquisitionCostMinor" className="block text-sm font-medium text-text-primary mb-1">Biaya Perolehan *</label>
                 <Input
+                  id="acquisitionCostMinor"
                   type="number"
                   min={0}
                   step={100}
@@ -467,8 +469,9 @@ export function FixedAssetsPage() {
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Nilai Residu</label>
+                <label htmlFor="residualValueMinor" className="block text-sm font-medium text-text-primary mb-1">Nilai Residu</label>
                 <Input
+                  id="residualValueMinor"
                   type="number"
                   min={0}
                   value={formData.residualValueMinor}
@@ -476,8 +479,9 @@ export function FixedAssetsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Masa Manfaat (bulan) *</label>
+                <label htmlFor="usefulLifeMonths" className="block text-sm font-medium text-text-primary mb-1">Masa Manfaat (bulan) *</label>
                 <Input
+                  id="usefulLifeMonths"
                   type="number"
                   min={1}
                   max={600}
@@ -486,8 +490,9 @@ export function FixedAssetsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Metode *</label>
+                <label htmlFor="depreciationMethod" className="block text-sm font-medium text-text-primary mb-1">Metode *</label>
                 <Select
+                  id="depreciationMethod"
                   value={formData.depreciationMethod}
                   onChange={(e) => setFormData((prev) => ({ ...prev, depreciationMethod: e.target.value as DepreciationMethod }))}
                 >
@@ -500,8 +505,9 @@ export function FixedAssetsPage() {
 
             {formData.depreciationMethod === "declining_balance" && (
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Tarif Saldo Menurun</label>
+                <label htmlFor="decliningBalanceRate" className="block text-sm font-medium text-text-primary mb-1">Tarif Saldo Menurun</label>
                 <Input
+                  id="decliningBalanceRate"
                   type="number"
                   min={0}
                   max={1}
@@ -517,8 +523,9 @@ export function FixedAssetsPage() {
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Akun Aset *</label>
+                <label htmlFor="accountAssetId" className="block text-sm font-medium text-text-primary mb-1">Akun Aset *</label>
                 <Select
+                  id="accountAssetId"
                   value={formData.accountAssetId}
                   onChange={(e) => setFormData((prev) => ({ ...prev, accountAssetId: e.target.value }))}
                 >
@@ -529,8 +536,9 @@ export function FixedAssetsPage() {
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Akun Akum. Depresiasi *</label>
+                <label htmlFor="accountDepreciationId" className="block text-sm font-medium text-text-primary mb-1">Akun Akum. Depresiasi *</label>
                 <Select
+                  id="accountDepreciationId"
                   value={formData.accountDepreciationId}
                   onChange={(e) => setFormData((prev) => ({ ...prev, accountDepreciationId: e.target.value }))}
                 >
@@ -541,8 +549,9 @@ export function FixedAssetsPage() {
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Akun Beban Depresiasi *</label>
+                <label htmlFor="accountExpenseId" className="block text-sm font-medium text-text-primary mb-1">Akun Beban Depresiasi *</label>
                 <Select
+                  id="accountExpenseId"
                   value={formData.accountExpenseId}
                   onChange={(e) => setFormData((prev) => ({ ...prev, accountExpenseId: e.target.value }))}
                 >
@@ -574,8 +583,9 @@ export function FixedAssetsPage() {
         <ModalContent title="Depresiasi Aset Tetap">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Periode Depresiasi</label>
+              <label htmlFor="deprPeriod" className="block text-sm font-medium text-text-primary mb-1">Periode Depresiasi</label>
               <Input
+                id="deprPeriod"
                 type="month"
                 value={deprPeriod}
                 onChange={(e) => setDeprPeriod(e.target.value)}
@@ -699,8 +709,9 @@ export function FixedAssetsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Tipe *</label>
+                <label htmlFor="disposalType" className="block text-sm font-medium text-text-primary mb-1">Tipe *</label>
                 <Select
+                  id="disposalType"
                   value={disposeForm.disposalType}
                   onChange={(e) => setDisposeForm((prev) => ({
                     ...prev, disposalType: e.target.value as "disposed" | "sold",
@@ -711,8 +722,9 @@ export function FixedAssetsPage() {
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Tanggal *</label>
+                <label htmlFor="disposalDate" className="block text-sm font-medium text-text-primary mb-1">Tanggal *</label>
                 <Input
+                  id="disposalDate"
                   type="date"
                   value={disposeForm.disposalDate}
                   onChange={(e) => setDisposeForm((prev) => ({ ...prev, disposalDate: e.target.value }))}
@@ -721,8 +733,9 @@ export function FixedAssetsPage() {
             </div>
             {disposeForm.disposalType === "sold" && (
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Harga Jual *</label>
+                <label htmlFor="disposalPriceMinor" className="block text-sm font-medium text-text-primary mb-1">Harga Jual *</label>
                 <Input
+                  id="disposalPriceMinor"
                   type="number"
                   min={0}
                   value={disposeForm.disposalPriceMinor}

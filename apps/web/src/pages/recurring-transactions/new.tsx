@@ -111,10 +111,11 @@ export function NewRecurringTransactionPage() {
         {/* Name & Type */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">
+            <label htmlFor="name" className="mb-1 block text-sm font-medium text-text-primary">
               Nama <span className="text-red-500">*</span>
             </label>
             <input
+              id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -124,10 +125,11 @@ export function NewRecurringTransactionPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">
+            <label htmlFor="transactionType" className="mb-1 block text-sm font-medium text-text-primary">
               Tipe Transaksi <span className="text-red-500">*</span>
             </label>
             <select
+              id="transactionType"
               value={transactionType}
               onChange={(e) => setTransactionType(e.target.value as TransactionType)}
               className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
@@ -142,10 +144,11 @@ export function NewRecurringTransactionPage() {
         {/* Amount & Frequency */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">
+            <label htmlFor="amount" className="mb-1 block text-sm font-medium text-text-primary">
               Jumlah (Rp) <span className="text-red-500">*</span>
             </label>
             <input
+              id="amount"
               type="number"
               min="0"
               value={amount}
@@ -156,10 +159,11 @@ export function NewRecurringTransactionPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">
+            <label htmlFor="frequency" className="mb-1 block text-sm font-medium text-text-primary">
               Frekuensi <span className="text-red-500">*</span>
             </label>
             <select
+              id="frequency"
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as Frequency)}
               className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
@@ -176,9 +180,10 @@ export function NewRecurringTransactionPage() {
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-wood-500">Jadwal</h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-text-primary">Setiap</label>
+              <label htmlFor="intervalValue" className="mb-1 block text-xs font-medium text-text-primary">Setiap</label>
               <div className="flex items-center gap-2">
                 <input
+                  id="intervalValue"
                   type="number"
                   min="1"
                   max="365"
@@ -194,8 +199,9 @@ export function NewRecurringTransactionPage() {
 
             {selectedFreq?.hasDayOfWeek && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-text-primary">Hari</label>
+                <label htmlFor="dayOfWeek" className="mb-1 block text-xs font-medium text-text-primary">Hari</label>
                 <select
+                  id="dayOfWeek"
                   value={dayOfWeek}
                   onChange={(e) => setDayOfWeek(Number.parseInt(e.target.value))}
                   className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
@@ -209,8 +215,9 @@ export function NewRecurringTransactionPage() {
 
             {selectedFreq?.hasDayOfMonth && !selectedFreq?.hasMonthOfYear && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-text-primary">Tanggal</label>
+                <label htmlFor="dayOfMonth" className="mb-1 block text-xs font-medium text-text-primary">Tanggal</label>
                 <select
+                  id="dayOfMonth"
                   value={dayOfMonth}
                   onChange={(e) => setDayOfMonth(Number.parseInt(e.target.value))}
                   className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
@@ -225,8 +232,9 @@ export function NewRecurringTransactionPage() {
             {selectedFreq?.hasMonthOfYear && (
               <>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-text-primary">Bulan</label>
+                  <label htmlFor="monthOfYear" className="mb-1 block text-xs font-medium text-text-primary">Bulan</label>
                   <select
+                    id="monthOfYear"
                     value={monthOfYear}
                     onChange={(e) => setMonthOfYear(Number.parseInt(e.target.value))}
                     className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
@@ -256,10 +264,11 @@ export function NewRecurringTransactionPage() {
         {/* Start & End Dates */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">
+            <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-text-primary">
               Mulai <span className="text-red-500">*</span>
             </label>
             <input
+              id="startDate"
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -268,10 +277,11 @@ export function NewRecurringTransactionPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">
+            <label htmlFor="endDate" className="mb-1 block text-sm font-medium text-text-primary">
               Berakhir (opsional)
             </label>
             <input
+              id="endDate"
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
@@ -284,8 +294,9 @@ export function NewRecurringTransactionPage() {
         {/* Optional fields */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">ID Pihak</label>
+            <label htmlFor="partyId" className="mb-1 block text-sm font-medium text-text-primary">ID Pihak</label>
             <input
+              id="partyId"
               type="text"
               value={partyId}
               onChange={(e) => setPartyId(e.target.value)}
@@ -294,8 +305,9 @@ export function NewRecurringTransactionPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-text-primary">ID Akun Kas</label>
+            <label htmlFor="cashAccountId" className="mb-1 block text-sm font-medium text-text-primary">ID Akun Kas</label>
             <input
+              id="cashAccountId"
               type="text"
               value={cashAccountId}
               onChange={(e) => setCashAccountId(e.target.value)}
@@ -307,8 +319,9 @@ export function NewRecurringTransactionPage() {
 
         {/* Description */}
         <div>
-          <label className="mb-1 block text-sm font-medium text-text-primary">Deskripsi</label>
+          <label htmlFor="description" className="mb-1 block text-sm font-medium text-text-primary">Deskripsi</label>
           <textarea
+            id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}

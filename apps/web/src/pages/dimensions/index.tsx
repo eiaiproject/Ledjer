@@ -469,8 +469,9 @@ export function DimensionsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Tipe</label>
+                <label htmlFor="reportType" className="block text-sm font-medium text-text-primary mb-1">Tipe</label>
                 <Select
+                  id="reportType"
                   value={activeTab}
                   onChange={(e) => setActiveTab(e.target.value as DimensionType)}
                 >
@@ -481,16 +482,18 @@ export function DimensionsPage() {
               </div>
               <div className="flex gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1">Dari</label>
+                  <label htmlFor="reportFrom" className="block text-sm font-medium text-text-primary mb-1">Dari</label>
                   <Input
+                    id="reportFrom"
                     type="date"
                     value={reportPeriodFrom}
                     onChange={(e) => setReportPeriodFrom(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1">Sampai</label>
+                  <label htmlFor="reportTo" className="block text-sm font-medium text-text-primary mb-1">Sampai</label>
                   <Input
+                    id="reportTo"
                     type="date"
                     value={reportPeriodTo}
                     onChange={(e) => setReportPeriodTo(e.target.value)}

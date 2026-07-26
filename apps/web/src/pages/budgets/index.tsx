@@ -343,8 +343,9 @@ export function BudgetsPage() {
         <ModalContent title="Buat Anggaran Baru">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Akun</label>
+              <label htmlFor="budgetAccount" className="block text-sm font-medium text-text-primary mb-1">Akun</label>
               <select
+                id="budgetAccount"
                 value={formData.accountId}
                 onChange={(e) => setFormData((prev) => ({ ...prev, accountId: e.target.value }))}
                 required
@@ -360,16 +361,18 @@ export function BudgetsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Periode Dari</label>
+                <label htmlFor="periodFrom" className="block text-sm font-medium text-text-primary mb-1">Periode Dari</label>
                 <Input
+                  id="periodFrom"
                   type="date"
                   value={formData.periodFrom}
                   onChange={(e) => setFormData((prev) => ({ ...prev, periodFrom: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Periode Sampai</label>
+                <label htmlFor="periodTo" className="block text-sm font-medium text-text-primary mb-1">Periode Sampai</label>
                 <Input
+                  id="periodTo"
                   type="date"
                   value={formData.periodTo}
                   onChange={(e) => setFormData((prev) => ({ ...prev, periodTo: e.target.value }))}
@@ -377,8 +380,9 @@ export function BudgetsPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Jumlah Anggaran</label>
+              <label htmlFor="budgetAmount" className="block text-sm font-medium text-text-primary mb-1">Jumlah Anggaran</label>
               <Input
+                id="budgetAmount"
                 type="number"
                 min={0}
                 step={100}
@@ -390,7 +394,7 @@ export function BudgetsPage() {
             {/* Monthly lines */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-text-primary">Rincian Bulanan (opsional)</label>
+                <span className="text-sm font-medium text-text-primary">Rincian Bulanan (opsional)</span>
                 <button                   type="button"
                   onClick={addLine}
                   className="text-xs text-blue-600 hover:text-blue-800"
@@ -425,8 +429,9 @@ export function BudgetsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Catatan</label>
+              <label htmlFor="budgetNotes" className="block text-sm font-medium text-text-primary mb-1">Catatan</label>
               <Input
+                id="budgetNotes"
                 value={formData.notes}
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 placeholder="Catatan opsional..."
@@ -563,9 +568,9 @@ function ForecastModal({
       <ModalContent title={`Forecast: ${accountName}`}>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
+            <span className="block text-sm font-medium text-text-primary mb-1">
               Periode Forecast (bulan)
-            </label>
+            </span>
             <div className="flex items-center gap-2">
               {[1, 3, 6, 12].map((n) => (
                 <button

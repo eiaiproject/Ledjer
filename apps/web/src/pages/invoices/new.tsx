@@ -139,16 +139,16 @@ export default function NewInvoicePage() {
           {lines.map((line, i) => (
             <div key={line.description + "-" + i} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
               <div className="col-span-5">
-                <label className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
-                <Input value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} placeholder="Nama item" />
+                <label htmlFor={`inv-line-${i}-desc`} className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
+                <Input id={`inv-line-${i}-desc`} value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} placeholder="Nama item" />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-wood-500 mb-0.5">Qty</label>
-                <Input type="number" min={0} step={1} value={line.quantity} onChange={(e) => updateLine(i, "quantity", Number.parseFloat(e.target.value) || 0)} />
+                <label htmlFor={`inv-line-${i}-qty`} className="block text-xs text-wood-500 mb-0.5">Qty</label>
+                <Input id={`inv-line-${i}-qty`} type="number" min={0} step={1} value={line.quantity} onChange={(e) => updateLine(i, "quantity", Number.parseFloat(e.target.value) || 0)} />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-wood-500 mb-0.5">Harga</label>
-                <Input type="number" min={0} value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", Number.parseFloat(e.target.value) || 0)} />
+                <label htmlFor={`inv-line-${i}-price`} className="block text-xs text-wood-500 mb-0.5">Harga</label>
+                <Input id={`inv-line-${i}-price`} type="number" min={0} value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", Number.parseFloat(e.target.value) || 0)} />
               </div>
               <div className="col-span-2 text-right text-sm text-wood-700 pt-5">
                 {formatIDR(line.quantity * line.unitPrice * 100)}

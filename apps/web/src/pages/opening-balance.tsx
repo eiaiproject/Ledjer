@@ -185,8 +185,9 @@ export default function OpeningBalancePage() {
               {lines.map((line, i) => (
                 <div key={line.accountId} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
                   <div className="col-span-7">
-                    <label className="block text-xs text-wood-500 mb-0.5">Akun</label>
+                    <label htmlFor={`obal-line-${i}-account`} className="block text-xs text-wood-500 mb-0.5">Akun</label>
                     <select
+                      id={`obal-line-${i}-account`}
                       className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm"
                       value={line.accountId}
                       onChange={(e) => updateLine(i, "accountId", e.target.value)}
@@ -198,10 +199,11 @@ export default function OpeningBalancePage() {
                     </select>
                   </div>
                   <div className="col-span-4">
-                    <label className="block text-xs text-wood-500 mb-0.5">
+                    <label htmlFor={`obal-line-${i}-amount`} className="block text-xs text-wood-500 mb-0.5">
                       Saldo (positif=debit, negatif=kredit)
                     </label>
                     <Input
+                      id={`obal-line-${i}-amount`}
                       type="number"
                       value={line.amount}
                       onChange={(e) => updateLine(i, "amount", Number.parseInt(e.target.value, 10) || 0)}

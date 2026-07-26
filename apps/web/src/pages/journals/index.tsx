@@ -271,8 +271,9 @@ export function ManualJournalPage() {
               onChange={(e) => setEntryDate(e.target.value)}
             />
             <div>
-              <label className="block text-sm font-medium text-wood-700">Jenis Jurnal</label>
+              <label htmlFor="journalEntryType" className="block text-sm font-medium text-wood-700">Jenis Jurnal</label>
               <select
+                id="journalEntryType"
                 value={entryType}
                 onChange={(e) => setEntryType(e.target.value)}
                 className="mt-1 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
