@@ -2,6 +2,8 @@ import { generateId } from "../auth/tokens";
 import {
   type ImportValidator,
   type ImportWriter,
+  importInsertLoop,
+  checkDuplicate,
   validateRequiredField,
   validateOptionalField,
   validateIntegerField,
@@ -53,41 +55,29 @@ export const productImportValidator: ImportValidator<ProductImportRow> = {
 
 export const productImportWriter: ImportWriter<ProductImportRow> = {
   async insert(db, organizationId, _createdBy, rows) {
-    const errors: { row: number; field: string; message: string }[] = [];
-    let inserted = 0;
-    const createdIds: string[] = [];
     const now = Date.now();
 
-    for (const row of rows) {
+    return await importInsertLoop(rows, async (row) => {
       const productId = generateId();
-      try {
-        const existing = await db.prepare(
-          `SELECT id FROM products WHERE organization_id = ? AND code = ?`,
-        ).bind(organizationId, row.parsed.code).first<{ id: string }>();
-        if (existing) {
-          errors.push({ row: row.index + 1, field: "kode", message: `Kode produk "${row.parsed.code}" sudah ada` });
-          continue;
-        }
 
-        await db.prepare(
-          `INSERT INTO products (id, organization_id, code, name, description, unit, purchase_price_minor, selling_price_minor, average_cost_minor, current_stock_milli, min_stock_milli, is_active, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 1, ?, ?)`,
-        ).bind(
-          productId, organizationId, row.parsed.code, row.parsed.name,
-          row.parsed.description ?? null, row.parsed.unit,
-          row.parsed.purchasePriceMinor ?? 0,
-          row.parsed.sellingPriceMinor ?? 0,
-          row.parsed.minStockMilli ?? 0,
-          now, now,
-        ).run();
-        inserted++;
-        createdIds.push(productId);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Unknown error";
-        errors.push({ row: row.index + 1, field: "_db", message: `Gagal menyimpan: ${msg}` });
-      }
-    }
+      // Check for duplicate code
+      const errors: { row: number; field: string; message: string }[] = [];
+      const isDup = await checkDuplicate(db, "products", "code", organizationId, row.parsed.code, row.index, errors);
+      if (isDup) return { id: null, errors };
 
-    return { inserted, errors, createdIds };
+      await db.prepare(
+        `INSERT INTO products (id, organization_id, code, name, description, unit, purchase_price_minor, selling_price_minor, average_cost_minor, current_stock_milli, min_stock_milli, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, 1, ?, ?)`,
+      ).bind(
+        productId, organizationId, row.parsed.code, row.parsed.name,
+        row.parsed.description ?? null, row.parsed.unit,
+        row.parsed.purchasePriceMinor ?? 0,
+        row.parsed.sellingPriceMinor ?? 0,
+        row.parsed.minStockMilli ?? 0,
+        now, now,
+      ).run();
+
+      return { id: productId };
+    });
   },
 };

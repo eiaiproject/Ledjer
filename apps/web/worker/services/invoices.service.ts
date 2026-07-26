@@ -6,6 +6,7 @@
 import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst } from "../db/client";
 import { badRequest, notFound } from "../http/errors";
+import { nextSequentialNumber, computeTotals, buildLineInserts } from "./document-utils";
 
 export interface InvoiceLine {
   productId?: string;
@@ -56,33 +57,7 @@ interface InvoiceLineOutput {
 }
 
 async function nextInvoiceNumber(db: D1Database, organizationId: string): Promise<string> {
-  const row = await queryFirst<{ current_value: number }>(
-    db,
-    `SELECT current_value FROM organization_document_counters
-     WHERE organization_id = ? AND counter_name = 'invoice'
-     FOR UPDATE`,
-    [organizationId],
-  );
-
-  const nextVal = (row?.current_value ?? 0) + 1;
-
-  await execute(
-    db,
-    `INSERT INTO organization_document_counters (organization_id, counter_name, current_value, updated_at)
-     VALUES (?, 'invoice', ?, ?)
-     ON CONFLICT(organization_id, counter_name) DO UPDATE SET current_value = ?, updated_at = ?`,
-    [organizationId, nextVal, Date.now(), nextVal, Date.now()],
-  );
-
-  return `INV-${String(nextVal).padStart(6, "0")}`;
-}
-
-function computeTotals(lines: InvoiceLine[], discountMinor = 0, taxMinor = 0): {
-  subtotalMinor: number; totalMinor: number
-} {
-  const subtotalMinor = lines.reduce((s, l) => s + l.amountMinor, 0);
-  const totalMinor = Math.max(0, subtotalMinor - discountMinor + taxMinor);
-  return { subtotalMinor, totalMinor };
+  return nextSequentialNumber(db, organizationId, "invoice", "INV");
 }
 
 export async function createInvoice(
@@ -109,17 +84,7 @@ export async function createInvoice(
       totalMinor, input.notes ?? null, input.terms ?? null, userId, now, now),
   );
 
-  for (let i = 0; i < input.lines.length; i++) {
-    const l = input.lines[i];
-    statements.push(
-      db.prepare(
-        `INSERT INTO invoice_lines (id, organization_id, invoice_id, product_id, description, quantity_milli, unit_price_minor, amount_minor, line_order, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(generateId(), organizationId, invoiceId,
-        l.productId ?? null, l.description,
-        l.quantityMilli, l.unitPriceMinor, l.amountMinor, i + 1, now),
-    );
-  }
+  statements.push(...buildLineInserts(db, organizationId, invoiceId, input.lines, "invoice_lines", "invoice_id", now));
 
   await executeBatch(db, statements);
 

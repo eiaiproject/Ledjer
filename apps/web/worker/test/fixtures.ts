@@ -291,6 +291,100 @@ const AUDIT_LOGS: SeedAuditLog[] = [
 AUDIT_LOGS satisfies SeedAuditLog[];
 
 /**
+ * Helper: create a basic golden-test FakeD1Database with product stock mock.
+ * Reduces boilerplate in golden-accounting.test.ts.
+ */
+export function goldenTestDb(
+  customHandlers?: Partial<{
+    first: (sql: string, values: unknown[]) => unknown;
+    all: (sql: string, values: unknown[]) => unknown[];
+  }>,
+): FakeD1Database {
+  return new FakeD1Database({
+    first: (sql, values) => {
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM products WHERE")) {
+        return PRODUCTS.find(p => p.id === values[0]) ?? null;
+      }
+      if (s.includes("FROM accounts") && s.includes("code = ?")) {
+        return ACCOUNTS.find(a => a.organization_id === values[0] && a.code === values[1]) ?? null;
+      }
+      if (s.includes("FROM accounts") && (s.includes("id = ?") || s.includes("id= ?"))) {
+        const accountVal = s.indexOf("organization_id = ?") < s.indexOf("id = ?") ? values[1] : values[0];
+        return ACCOUNTS.find(a => a.id === accountVal) ?? null;
+      }
+      if (s.includes("FROM organizations")) {
+        return ORGS.find(o => o.id === values[0]) ?? null;
+      }
+      if (s.includes("MAX(transaction_number")) {
+        return { "MAX(transaction_number)": 0 };
+      }
+      if (s.includes("MAX(entry_number")) {
+        return { "MAX(entry_number)": 0 };
+      }
+      if (s.includes("current_value")) {
+        return { current_value: 1 };
+      }
+      if (s.includes("FROM period_locks")) {
+        return null; // No lock by default
+      }
+      return customHandlers?.first?.(sql as string, values as unknown[]) ?? null;
+    },
+    all: (sql, values) => {
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM journal_entries je")) {
+        return [
+          {
+            journal_entry_id: "je-synthetic-readback",
+            entry_number: "JE-TEST-001",
+            entry_date: "2026-02-15",
+            entry_type: "normal",
+            entry_description: null,
+            entry_status: "posted",
+            line_id: "jl-synthetic-dr",
+            account_id: FIXTURE_IDS.accounts.cashA,
+            account_code: "1110",
+            account_name: "Kas",
+            debit_minor: 500000,
+            credit_minor: 0,
+            line_description: "Synthetic debit",
+          },
+          {
+            journal_entry_id: "je-synthetic-readback",
+            entry_number: "JE-TEST-001",
+            entry_date: "2026-02-15",
+            entry_type: "normal",
+            entry_description: null,
+            entry_status: "posted",
+            line_id: "jl-synthetic-cr",
+            account_id: FIXTURE_IDS.accounts.revenueA,
+            account_code: "4100",
+            account_name: "Pendapatan",
+            debit_minor: 0,
+            credit_minor: 500000,
+            line_description: "Synthetic credit",
+          },
+        ];
+      }
+      if (s.includes("FROM journal_lines jl")) {
+        return JOURNAL_LINES.filter(jl => jl.organization_id === values[0]).map(jl => ({
+          id: jl.id, journal_entry_id: jl.journal_entry_id,
+          account_id: jl.account_id, debit_minor: jl.debit_minor,
+          credit_minor: jl.credit_minor, description: jl.description,
+          line_order: jl.line_order,
+        }));
+      }
+      return customHandlers?.all?.(sql as string, values as unknown[]) ?? [];
+    },
+    run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+    batch: (stmts: { sql: string; values: unknown[] }[]) => {
+      for (const s of stmts) validateJournalLine(s.sql, s.values);
+      return stmts.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
+    },
+  });
+}
+
+/**
  * Intentionally invalid test data for validation tests.
  * Each entry violates a known constraint to verify rejection.
  */
@@ -314,6 +408,41 @@ export const INVALID_DATA = {
   emptyFields: { name: "", code: "" },
 } as const;
 INVALID_DATA satisfies Record<string, unknown>;
+
+/**
+ * Helper: create a minimal FakeD1Database that mocks product stock.
+ * Useful for golden tests that need specific stock levels.
+ */
+export function mockProductStock(
+  options: Partial<{
+    id: string; organizationId: string;
+    currentStockMilli: number; averageCostMinor: number;
+  }> = {},
+): FakeD1Database {
+  const defaultProduct = PRODUCTS[0];
+  return new FakeD1Database({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    first: (sql: string, _values: unknown[]) => {
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM products WHERE")) {
+        return {
+          id: options.id ?? defaultProduct.id,
+          organization_id: options.organizationId ?? defaultProduct.organization_id,
+          code: defaultProduct.code, name: defaultProduct.name,
+          purchase_price_minor: defaultProduct.purchase_price_minor,
+          selling_price_minor: defaultProduct.selling_price_minor,
+          average_cost_minor: options.averageCostMinor ?? defaultProduct.average_cost_minor,
+          current_stock_milli: options.currentStockMilli ?? defaultProduct.current_stock_milli,
+          is_active: 1,
+          inventory_account_id: null, cogs_account_id: null, revenue_account_id: null,
+        };
+      }
+      return null;
+    },
+    all: () => [],
+    run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+  });
+}
 
 // ponytail: Counter tracking for nextCounter (INSERT ... RETURNING current_value)
 const counters: Record<string, number> = {};

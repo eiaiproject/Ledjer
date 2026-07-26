@@ -3,6 +3,8 @@ import { generateId } from "../auth/tokens";
 import {
   type ImportValidator,
   type ImportWriter,
+  importInsertLoop,
+  checkDuplicate,
   validateRequiredField,
   validateOptionalField,
 } from "./import.service";
@@ -112,19 +114,25 @@ export const coaImportValidator: ImportValidator<CoaImportRow> = {
 export const coaImportWriter: ImportWriter<CoaImportRow> = {
   async insert(db, organizationId, _createdBy, rows) {
     const errors: { row: number; field: string; message: string }[] = [];
-    let inserted = 0;
-    const createdIds: string[] = [];
+    const now = Date.now();
 
     // Process parent-first by sorting rows by depth (parent code length)
     const sorted = [...rows].sort((a, b) => {
-      const aDepth = countDots(a.parsed.code);
-      const bDepth = countDots(b.parsed.code);
-      return aDepth - bDepth;
+      return countDots(a.parsed.code) - countDots(b.parsed.code);
     });
 
-    for (const row of sorted) {
+    const result = await importInsertLoop(sorted, async (row) => {
       const accountId = generateId();
-      const now = Date.now();
+
+      // Validate code is numeric
+      const codeNum = Number.parseInt(row.parsed.code, 10);
+      if (Number.isNaN(codeNum)) {
+        return { id: null, errors: [{ row: row.index + 1, field: "kode", message: `Kode akun "${row.parsed.code}" bukan angka` }] };
+      }
+
+      // Check duplicate code
+      const isDup = await checkDuplicate(db, "accounts", "code", organizationId, row.parsed.code, row.index, errors);
+      if (isDup) return { id: null };
 
       // Look up parent account if specified
       let parentId: string | null = null;
@@ -135,42 +143,27 @@ export const coaImportWriter: ImportWriter<CoaImportRow> = {
         parentId = existing?.id ?? null;
       }
 
-      const codeNum = Number.parseInt(row.parsed.code, 10);
-      if (Number.isNaN(codeNum)) {
-        errors.push({ row: row.index + 1, field: "kode", message: `Kode akun "${row.parsed.code}" bukan angka` });
-        continue;
-      }
+      await db.prepare(
+        `INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, parent_account_id, is_system, is_locked, is_active, is_cash_account, cash_account_type, report_group, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        accountId, organizationId, row.parsed.code, row.parsed.name,
+        row.parsed.accountType, row.parsed.normalBalance,
+        parentId, 0, 0, 1,
+        row.parsed.isCashAccount ? 1 : 0,
+        row.parsed.cashAccountType,
+        row.parsed.reportGroup, now, now,
+      ).run();
 
-      try {
-        // Check for duplicate code
-        const existing = await db.prepare(
-          `SELECT id FROM accounts WHERE organization_id = ? AND code = ?`,
-        ).bind(organizationId, row.parsed.code).first<{ id: string }>();
-        if (existing) {
-          errors.push({ row: row.index + 1, field: "kode", message: `Kode akun "${row.parsed.code}" sudah ada` });
-          continue;
-        }
+      return { id: accountId };
+    });
 
-        await db.prepare(
-          `INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, parent_account_id, is_system, is_locked, is_active, is_cash_account, cash_account_type, report_group, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).bind(
-          accountId, organizationId, row.parsed.code, row.parsed.name,
-          row.parsed.accountType, row.parsed.normalBalance,
-          parentId, 0, 0, 1,
-          row.parsed.isCashAccount ? 1 : 0,
-          row.parsed.cashAccountType,
-          row.parsed.reportGroup, now, now,
-        ).run();
-        inserted++;
-        createdIds.push(accountId);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Unknown error";
-        errors.push({ row: row.index + 1, field: "_db", message: `Gagal menyimpan: ${msg}` });
-      }
-    }
-
-    return { inserted, errors, createdIds };
+    // Merge pre-loop errors
+    return {
+      inserted: result.inserted,
+      errors: [...errors, ...result.errors],
+      createdIds: result.createdIds,
+    };
   },
 };
 

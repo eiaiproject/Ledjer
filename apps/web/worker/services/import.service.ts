@@ -273,6 +273,59 @@ export function validateEnumField<T extends string>(
   return val;
 }
 
+/**
+ * Shared insert loop for import writers.
+ * Handles iteration, error tracking, and result aggregation.
+ * Returns the ID if insertion succeeded, null if skipped (no error).
+ */
+export async function importInsertLoop<T>(
+  rows: { index: number; parsed: T }[],
+  onRow: (row: { index: number; parsed: T }) => Promise<{ id: string | null; errors?: ImportError[] }>,
+): Promise<InsertResult> {
+  const errors: ImportError[] = [];
+  let inserted = 0;
+  const createdIds: string[] = [];
+
+  for (const row of rows) {
+    try {
+      const result = await onRow(row);
+      if (result.errors) errors.push(...result.errors);
+      if (result.id) {
+        inserted++;
+        createdIds.push(result.id);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      errors.push({ row: row.index + 1, field: "_db", message: `Gagal menyimpan: ${msg}` });
+    }
+  }
+
+  return { inserted, errors, createdIds };
+}
+
+/**
+ * Check for duplicate record by a single column (e.g. code or name).
+ * Pushes an import error if found.
+ */
+export async function checkDuplicate(
+  db: D1Database,
+  table: string,
+  column: string,
+  organizationId: string,
+  value: string,
+  rowIndex: number,
+  errors: ImportError[],
+): Promise<boolean> {
+  const existing = await db.prepare(
+    `SELECT id FROM ${table} WHERE organization_id = ? AND ${column} = ?`,
+  ).bind(organizationId, value).first<{ id: string }>();
+  if (existing) {
+    errors.push({ row: rowIndex + 1, field: column, message: `${value} sudah ada` });
+    return true;
+  }
+  return false;
+}
+
 export interface UndoResult {
   importId: string;
   importType: string;
