@@ -72,13 +72,12 @@ function ChecklistStep({
   const Icon = action.icon;
 
   return (
-      <div
+      <li
         className={`ledger-item-in group flex items-start gap-4 rounded-xl border p-4 transition-all duration-200 ${
           step.completed
             ? "border-leaf-200 bg-leaf-50/50"
             : "border-wood-200 bg-surface hover:border-wood-300 hover:bg-cream-50"
         }`}
-        role="listitem"
         aria-label={`${step.label} — ${step.completed ? "Selesai" : "Belum selesai"}`}
       >
         {/* Status indicator */}
@@ -127,7 +126,7 @@ function ChecklistStep({
             </span>
           )}
         </div>
-      </div>
+      </li>
   );
 }
 
@@ -360,7 +359,7 @@ export function OnboardingChecklistPage() {
                 <p className="text-xs text-error" role="alert">{sampleError}</p>
               )}
               {sampleSuccess && (
-                <p className="text-xs text-leaf-600" role="status">{sampleSuccess}</p>
+                <output className="text-xs text-leaf-600">{sampleSuccess}</output>
               )}
             </CardContent>
           </Card>
@@ -371,13 +370,13 @@ export function OnboardingChecklistPage() {
 
         {/* Checklist */}
         {!isLoading && status && (
-          <div className="space-y-2.5" role="list" aria-label="Daftar langkah onboarding">
+          <ul className="space-y-2.5" aria-label="Daftar langkah onboarding">
             {status.steps
               .sort((a, b) => a.order - b.order)
               .map((step, index) => (
                 <ChecklistStep key={step.id} step={step} index={index} />
               ))}
-          </div>
+          </ul>
         )}
 
         {/* Empty state */}
