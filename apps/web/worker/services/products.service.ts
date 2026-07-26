@@ -431,23 +431,65 @@ export async function recordStockMovement(
   const current = Date.now();
   const movementId = generateId();
 
-  await execute(
-    db,
-    `UPDATE products
-     SET current_stock_milli = ?,
-         average_cost_minor = ?,
-         purchase_price_minor = ?,
-         updated_at = ?
-     WHERE id = ? AND organization_id = ?`,
-    [
-      nextStockMilli,
-      nextAverageCost,
-      nextAverageCost,
-      current,
-      input.productId,
-      organizationId,
-    ],
-  );
+  // Optimistic lock with retry: check changes and re-read on conflict
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS = [5, 15, 50];
+  let currentStockMilliVar = currentStockMilli;
+  let nextStockMilliVar = nextStockMilli;
+  let nextAvgCostVar = nextAverageCost;
+  let success = false;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt - 1] ?? 50));
+      // Re-read product for retry
+      const freshProduct = await getProductRow(db, organizationId, input.productId);
+      if (!freshProduct) throw notFound("product_not_found", "Product not found");
+      currentStockMilliVar = freshProduct.current_stock_milli;
+      const freshNextStockMilli = currentStockMilliVar + quantityMilli;
+      if (freshNextStockMilli < 0) {
+        throw conflict("insufficient_stock", "Insufficient stock");
+      }
+      nextStockMilliVar = freshNextStockMilli;
+      nextAvgCostVar = nextAverageCostMinor(
+        freshProduct,
+        quantityMilli,
+        unitCostMinor,
+        input.movementType,
+      );
+    }
+
+    const result = await execute(
+      db,
+      `UPDATE products
+       SET current_stock_milli = ?,
+           average_cost_minor = ?,
+           purchase_price_minor = ?,
+           updated_at = ?
+       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+      [
+        nextStockMilliVar,
+        nextAvgCostVar,
+        nextAvgCostVar,
+        current,
+        input.productId,
+        organizationId,
+        currentStockMilliVar,
+      ],
+    );
+
+    if (result.meta.changes > 0) {
+      success = true;
+      break;
+    }
+
+    lastError = conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
+  }
+
+  if (!success) {
+    throw lastError ?? conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
+  }
 
   await execute(
     db,
@@ -465,7 +507,7 @@ export async function recordStockMovement(
       quantityMilli,
       unitCostMinor,
       input.transactionId ?? null,
-      nextStockMilli,
+      nextStockMilliVar,
       nullableText(input.notes),
       userId,
       current,
