@@ -218,7 +218,7 @@ export function Combobox({
               const isSelected = option.value === value;
               const isActive = index === activeIndex;
               return (
-                <button
+                <button type="button"
                   key={option.value}
                   id={`${inputId}-option-${index}`}
                   ref={isActive ? activeItemRef : undefined}
@@ -246,7 +246,7 @@ export function Combobox({
               );
             })}
             {showCreateOption && (
-              <button
+              <button type="button"
                 id={`${inputId}-option-${filteredOptions.length}`}
                 ref={activeIndex === filteredOptions.length ? activeItemRef : undefined}
                 type="button"

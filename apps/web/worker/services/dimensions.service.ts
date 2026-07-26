@@ -345,7 +345,6 @@ export async function setTransactionTags(
   );
 
   // Add new tags
-  const tags: TransactionTag[] = [];
   for (const dimId of dimensionIds) {
     const id = generateId();
     statements.push(
@@ -355,14 +354,6 @@ export async function setTransactionTags(
         [id, organizationId, transactionId, dimId, userId, now],
       ),
     );
-    tags.push({
-      id,
-      organizationId,
-      transactionId,
-      dimensionId: dimId,
-      createdBy: userId,
-      createdAt: now,
-    });
   }
 
   statements.push(
@@ -434,8 +425,8 @@ export async function getDimensionReport(
 
   const reportRows: DimensionReportRow[] = rows.map((r) => {
     const net = (r.net_amount as number) ?? 0;
-    const debit = net > 0 ? net : 0;
-    const credit = net < 0 ? Math.abs(net) : 0;
+    const debit = Math.max(net, 0);
+    const credit = Math.max(-net, 0);
     totalDebit += debit;
     totalCredit += credit;
 

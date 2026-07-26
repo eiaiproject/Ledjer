@@ -195,7 +195,7 @@ export function DashboardLayout() {
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b border-wood-600 px-4">
           {sidebarCollapsed ? (
-            <button
+            <button type="button"
               type="button"
               onClick={() => setSidebarCollapsed(false)}
               className="flex items-center gap-2"
@@ -209,7 +209,7 @@ export function DashboardLayout() {
             </Link>
           )}
           {!sidebarCollapsed && (
-            <button
+            <button type="button"
               type="button"
               onClick={() => setSidebarCollapsed(true)}
               className="p-2 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -233,7 +233,7 @@ export function DashboardLayout() {
               if (children) {
                 return (
                   <li key={item.label}>
-                    <button
+                    <button type="button"
                       type="button"
                       onClick={() => toggleMenu(item.label)}
                       aria-expanded={isExpanded}
@@ -331,7 +331,7 @@ export function DashboardLayout() {
                     {isOwner ? "Owner" : "Staff"}
                   </p>
                 </div>
-                <button
+                <button type="button"
                   type="button"
                   onClick={handleSignOut}
                   className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -343,7 +343,7 @@ export function DashboardLayout() {
             )}
           </div>
           {sidebarCollapsed && (
-            <button
+            <button type="button"
               type="button"
               onClick={handleSignOut}
               className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center min-h-[44px]"
@@ -358,7 +358,7 @@ export function DashboardLayout() {
       {/* Mobile Header */}
       <div className="fixed top-0 inset-x-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <button
+          <button type="button"
             type="button"
             onClick={() => setMobileMenuOpen(true)}
             className="flex h-11 w-11 items-center justify-center -ml-2 text-wood-600 hover:bg-cream-200 rounded-lg"
@@ -401,7 +401,7 @@ export function DashboardLayout() {
         <div className="ledger-drawer absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-wood-700 shadow-xl">
           <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-wood-600">
             <Logo size="md" variant="full" color="white" className="h-8" />
-            <button
+            <button type="button"
               type="button"
               onClick={() => mobileDialogRef.current?.close()}
               className="p-2 text-wood-300 hover:text-cream-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -423,7 +423,7 @@ export function DashboardLayout() {
                 if (children) {
                   return (
                     <li key={item.label}>
-                      <button
+                      <button type="button"
                         type="button"
                         onClick={() => toggleMenu(item.label)}
                         aria-expanded={expandedMenus.includes(item.label)}
@@ -500,7 +500,7 @@ export function DashboardLayout() {
                   {orgData?.organization?.name || "Organisasi"}
                 </p>
               </div>
-              <button
+              <button type="button"
                 type="button"
                 onClick={handleSignOut}
                 className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
@@ -569,7 +569,7 @@ export function DashboardLayout() {
             );
           })}
           {visibleNavItems.some((item) => !item.children) && (
-            <button
+            <button type="button"
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="flex shrink-0 flex-col items-center justify-center gap-0.5 py-2 px-3 text-[11px] font-medium text-wood-500 min-h-[56px]"

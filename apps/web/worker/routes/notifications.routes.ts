@@ -24,8 +24,8 @@ app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const unreadOnly = c.req.query("unread") === "true";
-  const limit = parseInt(c.req.query("limit") || "50", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
+  const limit = Number.parseInt(c.req.query("limit") || "50", 10);
+  const offset = Number.parseInt(c.req.query("offset") || "0", 10);
 
   const notifications = await listNotifications(
     c.env.DB, organization.id, user.id, limit, offset, unreadOnly,

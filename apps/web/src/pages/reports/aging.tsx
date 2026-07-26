@@ -87,8 +87,7 @@ export default function AgingReportPage() {
       )}
 
       {allItems.length > 0 && (
-        <>
-          <Card>
+        <Card>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-wood-50">
@@ -135,8 +134,7 @@ export default function AgingReportPage() {
                 </tfoot>
               </table>
             </div>
-          </Card>
-        </>
+        </Card>
       )}
     </div>
   );

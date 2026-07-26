@@ -90,7 +90,6 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     if (e.key === "Enter" && selectedIndex >= 0 && selectedIndex < results.length) {
       e.preventDefault();
       handleSelect(results[selectedIndex]);
-      return;
     }
   }, [onClose, results, selectedIndex, handleSelect]);
 
@@ -130,7 +129,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
             {isLoading && (
               <Loader className="h-4 w-4 animate-spin text-wood-400" aria-hidden="true" />
             )}
-            <button
+            <button type="button"
               onClick={onClose}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-wood-400 hover:bg-wood-100 hover:text-wood-600"
               aria-label="Tutup pencarian"
@@ -175,7 +174,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
               )}
 
               {results.map((item, i) => (
-                <button
+                <button type="button"
                   key={`${item.entityType}-${item.entityId}`}
                   onClick={() => handleSelect(item)}
                   onMouseEnter={() => setSelectedIndex(i)}
@@ -233,7 +232,7 @@ interface SearchTriggerProps {
 
 export function SearchTrigger({ onClick }: SearchTriggerProps) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className="flex items-center gap-2 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm text-wood-400 transition-all hover:border-wood-300 hover:text-wood-600 focus:outline-none focus:ring-2 focus:ring-ink/20 sm:w-56"
       aria-label="Buka pencarian"

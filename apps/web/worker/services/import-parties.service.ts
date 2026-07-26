@@ -33,8 +33,7 @@ const PARTY_TYPE_MAP: Record<string, string> = {
 export const partyImportValidator: ImportValidator<PartyImportRow> = {
   name: "parties",
   requiredHeaders: ["nama"],
-  validateRow(row: Record<string, string>, index: number) {
-    void index;
+  validateRow(row: Record<string, string>, _index: number) {
     const errors: { field: string; message: string }[] = [];
 
     const name = validateRequiredField(row, "nama", errors);
@@ -59,8 +58,7 @@ export const partyImportValidator: ImportValidator<PartyImportRow> = {
 };
 
 export const partyImportWriter: ImportWriter<PartyImportRow> = {
-  async insert(db, organizationId, createdBy, rows) {
-    void createdBy;
+  async insert(db, organizationId, _createdBy, rows) {
     const errors: { row: number; field: string; message: string }[] = [];
     let inserted = 0;
     const createdIds: string[] = [];

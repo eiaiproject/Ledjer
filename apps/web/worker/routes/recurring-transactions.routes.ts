@@ -97,7 +97,7 @@ app.post("/:id/execute", requireAuth, loadCurrentOrganization(), requirePermissi
 // GET /api/recurring-transactions/:id/logs — execution history
 app.get("/:id/logs", requireAuth, loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
-  const limit = parseInt(c.req.query("limit") || "20", 10);
+  const limit = Number.parseInt(c.req.query("limit") || "20", 10);
   const logs = await getExecutionLog(c.env.DB, organization.id, c.req.param("id"), limit);
   return c.json(logs);
 });

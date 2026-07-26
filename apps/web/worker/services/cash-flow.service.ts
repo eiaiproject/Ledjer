@@ -139,7 +139,7 @@ function buildRowsFromMap(
 
   for (const [txType, amounts] of byType) {
     const section = CATEGORY_SECTION[txType] ?? "operating";
-    const label = CATEGORY_LABELS[txType] ?? txType.replace(/_/g, " ");
+    const label = CATEGORY_LABELS[txType] ?? txType.replaceAll('_', ' ');
     const inflow = amounts.debit;
     const outflow = amounts.credit;
     const net = inflow - outflow;

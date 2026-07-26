@@ -215,7 +215,7 @@ export function ExportsPage() {
 
                     {/* Retry button for failed */}
                     {job.status === "failed" && (
-                      <button
+                      <button type="button"
                         type="button"
                         onClick={() => createMutation.mutate()}
                         className="inline-flex items-center gap-1 text-xs text-clay-600 hover:text-clay-800"

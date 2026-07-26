@@ -150,7 +150,7 @@ export function NotificationsPage() {
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <>
-              <button
+              <button type="button"
                 onClick={() => markAllReadMutation.mutate()}
                 disabled={markAllReadMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
@@ -158,7 +158,7 @@ export function NotificationsPage() {
                 <Check className="h-3.5 w-3.5" />
                 Baca Semua
               </button>
-              <button
+              <button type="button"
                 onClick={() => {
                   if (window.confirm(`Hapus semua ${unreadCount} notifikasi?`)) {
                     dismissAllMutation.mutate();
@@ -178,7 +178,7 @@ export function NotificationsPage() {
       {/* Category filter */}
       <div className="flex flex-wrap gap-1.5">
         {CATEGORIES.map((c) => (
-          <button
+          <button type="button"
             key={c.value}
             onClick={() => setCategoryFilter(c.value)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
@@ -253,7 +253,7 @@ export function NotificationsPage() {
               {/* Actions */}
               <div className="flex shrink-0 flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {!notif.isRead && (
-                  <button
+                  <button type="button"
                     onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(notif.id); }}
                     className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-wood-600"
                     title="Tandai dibaca"
@@ -261,7 +261,7 @@ export function NotificationsPage() {
                     <Eye className="h-3.5 w-3.5" />
                   </button>
                 )}
-                <button
+                <button type="button"
                   onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
                   className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-red-50 hover:text-red-500"
                   title="Hapus"

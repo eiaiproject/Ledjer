@@ -56,7 +56,7 @@ describe("Cash Flow Statement", () => {
     expect(report.totals.openingCash).toBe(100000);
     expect(report.totals.closingCash).toBe(250000);
     expect(report.totals.netCashFlow).toBe(150000);
-    expect(report.rows.length).toBe(3);
+    expect(report.rows).toHaveLength(3);
     expect(report.rows[0].section).toBe("operating");
   });
 
@@ -94,7 +94,7 @@ describe("Cash Flow Statement", () => {
       "2026-01-31",
     );
 
-    expect(report.rows.length).toBe(0);
+    expect(report.rows).toHaveLength(0);
     expect(report.totals.netCashFlow).toBe(0);
     expect(report.totals.openingCash).toBe(500000);
     expect(report.totals.closingCash).toBe(500000);

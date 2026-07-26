@@ -55,7 +55,7 @@ const NORMAL_BALANCE_MAP: Record<string, NormalBalance> = {
 export const coaImportValidator: ImportValidator<CoaImportRow> = {
   name: "chart of accounts",
   requiredHeaders: ["kode", "nama", "tipe"],
-  validateRow(row: Record<string, string>, index: number) { void index;
+  validateRow(row: Record<string, string>, _index: number) {
     const errors: { field: string; message: string }[] = [];
 
     const code = validateRequiredField(row, "kode", errors);
@@ -109,7 +109,7 @@ export const coaImportValidator: ImportValidator<CoaImportRow> = {
 };
 
 export const coaImportWriter: ImportWriter<CoaImportRow> = {
-  async insert(db, organizationId, createdBy, rows) {
+  async insert(db, organizationId, _createdBy, rows) {
     const errors: { row: number; field: string; message: string }[] = [];
     let inserted = 0;
     const createdIds: string[] = [];
@@ -124,7 +124,6 @@ export const coaImportWriter: ImportWriter<CoaImportRow> = {
     for (const row of sorted) {
       const accountId = generateId();
       const now = Date.now();
-      void createdBy;
 
       // Look up parent account if specified
       let parentId: string | null = null;
@@ -135,8 +134,8 @@ export const coaImportWriter: ImportWriter<CoaImportRow> = {
         parentId = existing?.id ?? null;
       }
 
-      const codeNum = parseInt(row.parsed.code, 10);
-      if (isNaN(codeNum)) {
+      const codeNum = Number.parseInt(row.parsed.code, 10);
+      if (Number.isNaN(codeNum)) {
         errors.push({ row: row.index + 1, field: "kode", message: `Kode akun "${row.parsed.code}" bukan angka` });
         continue;
       }

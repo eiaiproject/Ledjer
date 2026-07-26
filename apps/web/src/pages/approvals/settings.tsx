@@ -83,8 +83,8 @@ export function ApprovalSettingsPage() {
   }, [configMap, upsertMutation, queryClient]);
 
   const handleThresholdChange = useCallback((actionType: ActionType, value: string) => {
-    const thresholdMinor = Math.round(parseFloat(value) * 100);
-    if (isNaN(thresholdMinor) || thresholdMinor < 0) return;
+    const thresholdMinor = Math.round(Number.parseFloat(value) * 100);
+    if (Number.isNaN(thresholdMinor) || thresholdMinor < 0) return;
     const current = configMap.get(actionType);
     upsertMutation.mutate({ actionType, thresholdMinor, enabled: current?.enabled ?? false });
     setTimeout(() => queryClient.invalidateQueries({ queryKey: ["approvals", "configs"] }), 500);
@@ -175,7 +175,7 @@ export function ApprovalSettingsPage() {
                           />
                         </div>
                       )}
-                      <button
+                      <button type="button"
                         type="button"
                         onClick={() => handleToggle(action)}
                         disabled={upsertMutation.isPending}

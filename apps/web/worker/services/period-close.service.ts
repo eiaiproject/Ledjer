@@ -50,31 +50,16 @@ export async function runCloseChecklist(
   organizationId: string,
   periodEndDate: string,
 ): Promise<CloseChecklistResult> {
-  const checks: CloseCheck[] = [];
-
-  // 1. Unresolved drafts
-  checks.push(await checkDraftTransactions(db, organizationId));
-
-  // 2. Bank reconciliation — unreconciled statements
-  checks.push(await checkReconciliation(db, organizationId));
-
-  // 3. Negative stock
-  checks.push(await checkNegativeStock(db, organizationId));
-
-  // 4. Receivables — overdue
-  checks.push(await checkOverdueReceivables(db, organizationId));
-
-  // 5. Payables — upcoming
-  checks.push(await checkUpcomingPayables(db, organizationId));
-
-  // 6. Trial balance equality
-  checks.push(await checkTrialBalance(db, organizationId, periodEndDate));
-
-  // 7. Inventory subledger match
-  checks.push(await checkInventoryMatch(db, organizationId));
-
-  // 8. Manual journals (unposted adjusting journals)
-  checks.push(await checkManualJournals(db, organizationId));
+  const checks: CloseCheck[] = [
+    await checkDraftTransactions(db, organizationId),
+    await checkReconciliation(db, organizationId),
+    await checkNegativeStock(db, organizationId),
+    await checkOverdueReceivables(db, organizationId),
+    await checkUpcomingPayables(db, organizationId),
+    await checkTrialBalance(db, organizationId, periodEndDate),
+    await checkInventoryMatch(db, organizationId),
+    await checkManualJournals(db, organizationId),
+  ];
 
   const allPassed = checks.every((c) => c.status === "passed" || c.status === "skipped");
   const canLock = allPassed;

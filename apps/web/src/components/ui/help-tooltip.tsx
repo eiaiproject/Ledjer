@@ -61,7 +61,7 @@ export function HelpTooltip({
 
   return (
     <span className="relative inline-flex items-center">
-      <button
+      <button type="button"
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
@@ -89,7 +89,7 @@ export function HelpTooltip({
               <h4 className="text-sm font-semibold text-text-primary">
                 {title ?? content.title}
               </h4>
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => setOpen(false)}
                 className="shrink-0 rounded p-0.5 text-wood-400 hover:bg-wood-100 hover:text-wood-600"
@@ -123,7 +123,7 @@ export function HelpTooltip({
                   const relatedContent = HELP[r];
                   if (!relatedContent) return null;
                   return (
-                    <button
+                    <button type="button"
                       key={r}
                       onClick={() => {
                         /* Could expand or navigate in future */
@@ -171,7 +171,7 @@ export function HelpSection({ topic, defaultOpen = false }: { topic: string; def
 
   return (
     <div className="rounded-xl border border-wood-200 bg-surface">
-      <button
+      <button type="button"
         type="button"
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-wood-50"

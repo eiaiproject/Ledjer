@@ -110,11 +110,11 @@ export function BudgetsPage() {
         accountId: formData.accountId,
         periodFrom: formData.periodFrom,
         periodTo: formData.periodTo,
-        amountMinor: parseInt(formData.amountMinor, 10) || 0,
+        amountMinor: Number.parseInt(formData.amountMinor, 10) || 0,
         notes: formData.notes || undefined,
         lines: formData.lines.map((l) => ({
           month: l.month,
-          amountMinor: parseInt(l.amountMinor, 10) || 0,
+          amountMinor: Number.parseInt(l.amountMinor, 10) || 0,
         })),
       }),
     onSuccess: () => {
@@ -170,7 +170,7 @@ export function BudgetsPage() {
 
   function openForecast(accountId: string) {
     setSelectedBudget((prev) => {
-      if (prev && prev.accountId === accountId) return prev;
+      if (prev?.accountId === accountId) return prev;
       return { accountId } as Budget;
     });
     setShowForecastModal(true);
@@ -272,7 +272,7 @@ export function BudgetsPage() {
             const isExpanded = expandedId === budget.id;
             return (
               <Card key={budget.id}>
-                <button
+                <button type="button"
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : budget.id)}
                   className="w-full text-left"
@@ -295,7 +295,7 @@ export function BudgetsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
+                      <button type="button"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -393,7 +393,7 @@ export function BudgetsPage() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-medium text-text-primary">Rincian Bulanan (opsional)</label>
-                <button
+                <button type="button"
                   type="button"
                   onClick={addLine}
                   className="text-xs text-blue-600 hover:text-blue-800"
@@ -417,7 +417,7 @@ export function BudgetsPage() {
                     onChange={(e) => updateLine(i, "amountMinor", e.target.value)}
                     className="flex-1"
                   />
-                  <button
+                  <button type="button"
                     type="button"
                     onClick={() => removeLine(i)}
                     className="p-2 text-clay-500 hover:text-clay-700"
@@ -572,7 +572,7 @@ function ForecastModal({
             </label>
             <div className="flex items-center gap-2">
               {[1, 3, 6, 12].map((n) => (
-                <button
+                <button type="button"
                   key={n}
                   type="button"
                   onClick={() => setMonthsAhead(n)}
@@ -582,7 +582,7 @@ function ForecastModal({
                       : "bg-white text-text-primary border-wood-200 hover:border-wood-400"
                   }`}
                 >
-                  {n} {n === 1 ? "bulan" : "bulan"}
+                  {n} bulan
                 </button>
               ))}
             </div>

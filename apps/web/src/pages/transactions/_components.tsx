@@ -136,7 +136,7 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
               <ul className="mt-2 space-y-1">
                 {fieldErrors.map((err) => (
                   <li key={err.field}>
-                    <button
+                    <button type="button"
                       type="button"
                       onClick={() => scrollToField(err.field)}
                       className="break-words text-left text-sm text-error underline underline-offset-2 hover:text-error/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error"
@@ -264,7 +264,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
 
       {/* Expandable: other types */}
       {hasAdditional && !shouldShowAdditional && (
-        <button
+        <button type="button"
           type="button"
           onClick={() => setShowAll(true)}
           aria-expanded="false"
@@ -280,7 +280,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
         <div id={additionalId} className="mt-4 space-y-4 border-t border-wood-100 pt-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-normal text-text-tertiary">Semua Jenis</p>
-            <button
+            <button type="button"
               type="button"
               onClick={() => { if (!selectedInAdditional) setShowAll(false); }}
               aria-expanded="true"
@@ -336,7 +336,7 @@ export function PaymentStatusSelector({
         <p className="mb-2 text-sm font-medium text-text-secondary">Status Pembayaran</p>
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Status pembayaran">
           {PAYMENT_OPTIONS.map((option) => (
-            <button
+            <button type="button"
               key={option.value}
               type="button"
               role="radio"
@@ -622,7 +622,7 @@ export function ReviewPanel({
       {/* Collapsible journal preview */}
       {hasPreview && (
         <div className="border-t border-wood-100 pt-3">
-          <button
+          <button type="button"
             type="button"
             onClick={() => setJournalOpen(!journalOpen)}
             className="flex w-full items-center justify-between gap-2 text-sm font-medium text-text-secondary hover:text-text-primary"
@@ -760,7 +760,7 @@ export function MobileReviewToggle(props: MobileReviewToggleProps) {
 
   return (
     <div className="relative min-w-0 lg:hidden">
-      <button
+      <button type="button"
         type="button"
         onClick={handleToggle}
         className={cn(

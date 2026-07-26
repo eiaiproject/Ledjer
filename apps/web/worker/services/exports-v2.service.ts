@@ -200,7 +200,7 @@ async function processExportJob(
         },
       });
 
-      const expiresAt = Date.now() + EXPIRY_HOURS * 3600_000;
+      const expiresAt = Date.now() + EXPIRY_HOURS * 3_600_000;
       fileExpiresAt = expiresAt;
       fileUrl = `/api/exports-v2/${job.id}/download`;
     }
@@ -348,7 +348,7 @@ export async function cleanupExpiredExports(
   }
 
   // Delete jobs older than 90 days
-  const ninetyDaysAgo = now - 90 * 86400_000;
+  const ninetyDaysAgo = now - 90 * 86_400_000;
   const oldJobs = await queryAll<{ id: string; file_key: string | null }>(
     db,
     `SELECT id, file_key FROM export_jobs_v2

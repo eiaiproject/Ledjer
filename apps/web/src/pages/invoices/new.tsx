@@ -144,11 +144,11 @@ export default function NewInvoicePage() {
               </div>
               <div className="col-span-2">
                 <label className="block text-xs text-wood-500 mb-0.5">Qty</label>
-                <Input type="number" min={0} step={1} value={line.quantity} onChange={(e) => updateLine(i, "quantity", parseFloat(e.target.value) || 0)} />
+                <Input type="number" min={0} step={1} value={line.quantity} onChange={(e) => updateLine(i, "quantity", Number.parseFloat(e.target.value) || 0)} />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs text-wood-500 mb-0.5">Harga</label>
-                <Input type="number" min={0} value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", parseFloat(e.target.value) || 0)} />
+                <Input type="number" min={0} value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", Number.parseFloat(e.target.value) || 0)} />
               </div>
               <div className="col-span-2 text-right text-sm text-wood-700 pt-5">
                 {formatIDR(line.quantity * line.unitPrice * 100)}
@@ -169,11 +169,11 @@ export default function NewInvoicePage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="inv-discount" className="mb-1 block text-xs font-medium text-wood-600">Diskon (Rp)</label>
-              <Input id="inv-discount" type="number" min={0} value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} />
+              <Input id="inv-discount" type="number" min={0} value={discount} onChange={(e) => setDiscount(Number.parseFloat(e.target.value) || 0)} />
             </div>
             <div>
               <label htmlFor="inv-tax" className="mb-1 block text-xs font-medium text-wood-600">Pajak (Rp)</label>
-              <Input id="inv-tax" type="number" min={0} value={tax} onChange={(e) => setTax(parseFloat(e.target.value) || 0)} />
+              <Input id="inv-tax" type="number" min={0} value={tax} onChange={(e) => setTax(Number.parseFloat(e.target.value) || 0)} />
             </div>
           </div>
           <div>

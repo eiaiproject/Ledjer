@@ -345,7 +345,7 @@ export function ManualJournalPage() {
                   min="0"
                   step="100"
                   value={line.debitMinor || ""}
-                  onChange={(e) => handleLineChange(line.id, "debitMinor", Math.round(parseFloat(e.target.value) * 100))}
+                  onChange={(e) => handleLineChange(line.id, "debitMinor", Math.round(Number.parseFloat(e.target.value) * 100))}
                   className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Debit baris ${index + 1}`}
@@ -357,14 +357,14 @@ export function ManualJournalPage() {
                   min="0"
                   step="100"
                   value={line.creditMinor || ""}
-                  onChange={(e) => handleLineChange(line.id, "creditMinor", Math.round(parseFloat(e.target.value) * 100))}
+                  onChange={(e) => handleLineChange(line.id, "creditMinor", Math.round(Number.parseFloat(e.target.value) * 100))}
                   className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Kredit baris ${index + 1}`}
                 />
 
                 {/* Remove */}
-                <button
+                <button type="button"
                   type="button"
                   onClick={() => handleRemoveLine(line.id)}
                   disabled={lines.length <= 2}

@@ -27,7 +27,6 @@ export function PwaInstallPrompt() {
 
     if (isStandaloneMode) {
       setIsInstalled(true);
-      return;
     }
   }, []);
 
@@ -35,7 +34,7 @@ export function PwaInstallPrompt() {
   useEffect(() => {
     // Check if already dismissed recently
     const dismissedUntil = localStorage.getItem('pwa-dismissed-until');
-    if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) {
+    if (dismissedUntil && Date.now() < Number.parseInt(dismissedUntil, 10)) {
       setDismissed(true);
       return;
     }
@@ -97,7 +96,7 @@ export function PwaInstallPrompt() {
               Pasang Aplikasi
             </Button>
           </div>
-          <button
+          <button type="button"
             type="button"
             onClick={handleDismiss}
             className="shrink-0 p-1 text-text-tertiary hover:text-text-primary rounded"

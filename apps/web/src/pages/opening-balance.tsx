@@ -204,7 +204,7 @@ export default function OpeningBalancePage() {
                     <Input
                       type="number"
                       value={line.amount}
-                      onChange={(e) => updateLine(i, "amount", parseInt(e.target.value, 10) || 0)}
+                      onChange={(e) => updateLine(i, "amount", Number.parseInt(e.target.value, 10) || 0)}
                     />
                   </div>
                   <div className="col-span-1">

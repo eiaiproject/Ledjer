@@ -69,7 +69,7 @@ describe("validateOpeningBalanceInput", () => {
   it("rejects empty input", () => {
     const result = validateOpeningBalanceInput([]);
     expect(result.valid).toBe(false);
-    expect(result.errors.length).toBe(1);
+    expect(result.errors).toHaveLength(1);
   });
 
   it("handles negative balance (credit balance on asset)", () => {

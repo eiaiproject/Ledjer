@@ -139,7 +139,7 @@ describe("Receivables Service", () => {
       );
 
       expect(stmt.partyName).toBe("PT Customer");
-      expect(stmt.invoices.length).toBe(1);
+      expect(stmt.invoices).toHaveLength(1);
       expect(stmt.totalOutstanding).toBe(500000);
     });
   });

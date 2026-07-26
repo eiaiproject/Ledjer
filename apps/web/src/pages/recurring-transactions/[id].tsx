@@ -110,7 +110,7 @@ export function RecurringTransactionDetailPage() {
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
           <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-red-500" />
           <p className="text-sm font-medium text-red-600">Transaksi berulang tidak ditemukan</p>
-          <button onClick={() => navigate("/recurring-transactions")} className="mt-3 text-sm text-red-600 underline">
+          <button type="button" onClick={() => navigate("/recurring-transactions")} className="mt-3 text-sm text-red-600 underline">
             Kembali ke daftar
           </button>
         </div>
@@ -124,7 +124,7 @@ export function RecurringTransactionDetailPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <button
+      <button type="button"
         onClick={() => navigate("/recurring-transactions")}
         className="inline-flex items-center gap-1.5 text-sm text-wood-600 transition-colors hover:text-ink"
       >
@@ -156,7 +156,7 @@ export function RecurringTransactionDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             {item.status === "active" && (
               <>
-                <button
+                <button type="button"
                   onClick={() => statusMutation.mutate("paused")}
                   disabled={statusMutation.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 px-3 py-2 text-xs font-medium text-amber-700 transition-all hover:bg-amber-50"
@@ -164,7 +164,7 @@ export function RecurringTransactionDetailPage() {
                   <Pause className="h-3.5 w-3.5" />
                   Jeda
                 </button>
-                <button
+                <button type="button"
                   onClick={() => skipMutation.mutate()}
                   disabled={skipMutation.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
@@ -172,7 +172,7 @@ export function RecurringTransactionDetailPage() {
                   <FastForward className="h-3.5 w-3.5" />
                   Lewati
                 </button>
-                <button
+                <button type="button"
                   onClick={() => {
                     if (window.confirm(`Jalankan "${item.name}" secara manual?`)) {
                       executeMutation.mutate();
@@ -187,7 +187,7 @@ export function RecurringTransactionDetailPage() {
               </>
             )}
             {item.status === "paused" && (
-              <button
+              <button type="button"
                 onClick={() => statusMutation.mutate("active")}
                 disabled={statusMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-white transition-all hover:bg-ink/90"
@@ -197,7 +197,7 @@ export function RecurringTransactionDetailPage() {
               </button>
             )}
             {item.status === "completed" && (
-              <button
+              <button type="button"
                 onClick={() => statusMutation.mutate("active")}
                 disabled={statusMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-white transition-all hover:bg-ink/90"

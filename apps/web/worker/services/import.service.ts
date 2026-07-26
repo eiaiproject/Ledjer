@@ -51,7 +51,7 @@ export interface ImportResult {
 /** RFC 4180 CSV parse. Returns rows as arrays, then maps to headers. */
 export function parseCsv(text: string): { headers: string[]; rows: string[][] } {
   // Strip BOM
-  const clean = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const clean = text.replace(/^\uFEFF/, "").replaceAll('\r\n', '\n').replaceAll('\r', '\n');
   const lines = clean.split("\n").filter((_, i, a) => i < a.length - 1 || _.length > 0);
 
   if (lines.length < 1) return { headers: [], rows: [] };
@@ -71,8 +71,7 @@ export function parseCsv(text: string): { headers: string[]; rows: string[][] } 
         } else {
           current += ch;
         }
-      } else {
-        if (ch === '"') {
+      } else if (ch === '"') {
           inQuotes = true;
         } else if (ch === ",") {
           fields.push(current.trim());
@@ -249,8 +248,8 @@ export function validateIntegerField(
 ): number | null {
   const val = row[field]?.trim();
   if (!val) return null;
-  const n = parseInt(val, 10);
-  if (isNaN(n) || (min !== undefined && n < min)) {
+  const n = Number.parseInt(val, 10);
+  if (Number.isNaN(n) || (min !== undefined && n < min)) {
     errors.push({ field, message: `${field} harus berupa angka${min !== undefined ? ` minimal ${min}` : ""}` });
     return null;
   }

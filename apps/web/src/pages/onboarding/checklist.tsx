@@ -178,12 +178,6 @@ export function OnboardingChecklistPage() {
     refetchInterval: 15_000, // auto-refresh every 15s
   });
 
-  // Redirect to dashboard if already fully onboarded
-  if (status?.completed && orgData && !orgData.needsOnboarding) {
-    navigate("/dashboard", { replace: true });
-    return null;
-  }
-
   const completedCount = status?.completedCount ?? 0;
   const totalSteps = status?.totalSteps ?? 10;
   const [progressAnim, setProgressAnim] = useState(0);
@@ -194,6 +188,12 @@ export function OnboardingChecklistPage() {
     const timer = setTimeout(() => setProgressAnim(progressPct), 100);
     return () => clearTimeout(timer);
   }, [progressPct]);
+
+  // Redirect to dashboard if already fully onboarded
+  if (status?.completed && orgData && !orgData.needsOnboarding) {
+    navigate("/dashboard", { replace: true });
+    return null;
+  }
   const allDone = status?.completed ?? false;
 
   const handleSampleData = async () => {

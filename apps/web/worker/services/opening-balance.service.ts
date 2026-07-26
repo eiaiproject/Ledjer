@@ -229,7 +229,7 @@ export async function postOpeningBalance(
     [organizationId],
   );
   const nextNum = maxEntry?.max
-    ? String(parseInt(maxEntry.max.replace("JE-", ""), 10) + 1).padStart(6, "0")
+    ? String(Number.parseInt(maxEntry.max.replace("JE-", ""), 10) + 1).padStart(6, "0")
     : "000001";
 
   const entryId = generateId();

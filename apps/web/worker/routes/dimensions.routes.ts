@@ -57,8 +57,8 @@ dimensionsRoutes.get("/", requirePermission("transactions:read"), async (c) => {
   const dimensions = await listDimensions(c.env.DB, context.organization.id, {
     dimensionType: url.searchParams.get("dimensionType") as DimensionType | undefined,
     isActive: url.searchParams.get("isActive") !== "false",
-    limit: parseInt(url.searchParams.get("limit") ?? "100", 10),
-    offset: parseInt(url.searchParams.get("offset") ?? "0", 10),
+    limit: Number.parseInt(url.searchParams.get("limit") ?? "100", 10),
+    offset: Number.parseInt(url.searchParams.get("offset") ?? "0", 10),
   });
 
   return c.json({ dimensions });

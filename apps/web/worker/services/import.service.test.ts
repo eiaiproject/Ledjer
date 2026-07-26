@@ -81,6 +81,6 @@ describe("previewImport", () => {
   it("reports validation errors per row", async () => {
     const result = await previewImport("kode,nama\n1110,\n,Test", testValidator);
     expect(result.errorRows).toBe(2);
-    expect(result.errors.length).toBe(2);
+    expect(result.errors).toHaveLength(2);
   });
 });

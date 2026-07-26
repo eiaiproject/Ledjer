@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
               ? this.state.error?.message || "Terjadi kesalahan yang tidak terduga"
               : "Terjadi kesalahan yang tidak terduga. Silakan muat ulang halaman atau hubungi admin."}
           </p>
-          <button
+          <button type="button"
             type="button"
             onClick={() => {
               this.setState({ hasError: false, error: null });

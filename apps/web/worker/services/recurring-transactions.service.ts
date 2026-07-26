@@ -111,7 +111,8 @@ function computeNextDate(
   let next: Date;
 
   switch (frequency) {
-    case "daily": {
+    case "daily":
+    case "custom_days": {
       next = new Date(current);
       next.setDate(next.getDate() + intervalValue);
       break;
@@ -148,11 +149,7 @@ function computeNextDate(
       }
       break;
     }
-    case "custom_days": {
-      next = new Date(current);
-      next.setDate(next.getDate() + intervalValue);
-      break;
-    }
+    /* ponytail: custom_days merged with daily above */
     default:
       return null;
   }

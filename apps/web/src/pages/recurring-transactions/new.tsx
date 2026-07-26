@@ -69,7 +69,7 @@ export function NewRecurringTransactionPage() {
     setError("");
 
     if (!name.trim()) { setError("Nama wajib diisi"); return; }
-    const amountMinor = Math.round(parseFloat(amount || "0") * 100);
+    const amountMinor = Math.round(Number.parseFloat(amount || "0") * 100);
     if (amountMinor <= 0) { setError("Jumlah harus lebih dari 0"); return; }
 
     mutation.mutate({
@@ -94,7 +94,7 @@ export function NewRecurringTransactionPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
-      <button
+      <button type="button"
         onClick={() => navigate("/recurring-transactions")}
         className="inline-flex items-center gap-1.5 text-sm text-wood-600 transition-colors hover:text-ink"
       >
@@ -184,7 +184,7 @@ export function NewRecurringTransactionPage() {
                   min="1"
                   max="365"
                   value={intervalValue}
-                  onChange={(e) => setIntervalValue(parseInt(e.target.value) || 1)}
+                  onChange={(e) => setIntervalValue(Number.parseInt(e.target.value) || 1)}
                   className="w-20 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
                 />
                 <span className="text-xs text-wood-500">
@@ -198,7 +198,7 @@ export function NewRecurringTransactionPage() {
                 <label className="mb-1 block text-xs font-medium text-text-primary">Hari</label>
                 <select
                   value={dayOfWeek}
-                  onChange={(e) => setDayOfWeek(parseInt(e.target.value))}
+                  onChange={(e) => setDayOfWeek(Number.parseInt(e.target.value))}
                   className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
                 >
                   {DAY_NAMES.map((name, i) => (
@@ -213,7 +213,7 @@ export function NewRecurringTransactionPage() {
                 <label className="mb-1 block text-xs font-medium text-text-primary">Tanggal</label>
                 <select
                   value={dayOfMonth}
-                  onChange={(e) => setDayOfMonth(parseInt(e.target.value))}
+                  onChange={(e) => setDayOfMonth(Number.parseInt(e.target.value))}
                   className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
                 >
                   {Array.from({ length: 31 }, (_, i) => (
@@ -229,7 +229,7 @@ export function NewRecurringTransactionPage() {
                   <label className="mb-1 block text-xs font-medium text-text-primary">Bulan</label>
                   <select
                     value={monthOfYear}
-                    onChange={(e) => setMonthOfYear(parseInt(e.target.value))}
+                    onChange={(e) => setMonthOfYear(Number.parseInt(e.target.value))}
                     className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
                   >
                     {MONTH_NAMES.map((name, i) => (
@@ -241,7 +241,7 @@ export function NewRecurringTransactionPage() {
                   <label className="mb-1 block text-xs font-medium text-text-primary">Tanggal</label>
                   <select
                     value={dayOfMonth}
-                    onChange={(e) => setDayOfMonth(parseInt(e.target.value))}
+                    onChange={(e) => setDayOfMonth(Number.parseInt(e.target.value))}
                     className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm focus:border-ink focus:outline-none"
                   >
                     {Array.from({ length: 31 }, (_, i) => (
@@ -320,7 +320,7 @@ export function NewRecurringTransactionPage() {
 
         {/* Submit */}
         <div className="flex items-center gap-3 border-t border-wood-200 pt-4">
-          <button
+          <button type="button"
             type="submit"
             disabled={mutation.isPending}
             className="inline-flex items-center gap-2 rounded-lg bg-ink px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30 disabled:opacity-50"
@@ -328,7 +328,7 @@ export function NewRecurringTransactionPage() {
             {mutation.isPending ? <Loader className="h-4 w-4 animate-spin" /> : null}
             {mutation.isPending ? "Menyimpan..." : "Simpan"}
           </button>
-          <button
+          <button type="button"
             type="button"
             onClick={() => navigate("/recurring-transactions")}
             className="rounded-lg px-4 py-2.5 text-sm font-medium text-wood-600 transition-colors hover:bg-wood-50"

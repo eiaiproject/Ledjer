@@ -220,7 +220,7 @@ describe("Attachments Service", () => {
       const result = await listAttachments(
         db as unknown as D1Database, "org-1", "transaction", "txn-1",
       );
-      expect(result.length).toBe(1);
+      expect(result).toHaveLength(1);
       expect(result[0].fileName).toBe("receipt.pdf");
     });
 

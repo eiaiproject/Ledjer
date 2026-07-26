@@ -181,7 +181,7 @@ export async function requiresApproval(
   amountMinor: number,
 ): Promise<ApprovalConfig | null> {
   const config = await getApprovalConfig(db, organizationId, actionType);
-  if (!config || !config.enabled) return null;
+  if (!config?.enabled) return null;
   if (config.thresholdMinor > 0 && amountMinor < config.thresholdMinor) return null;
   return config;
 }

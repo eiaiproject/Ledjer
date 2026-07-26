@@ -65,8 +65,8 @@ budgetsRoutes.get("/", requirePermission("transactions:read"), async (c) => {
     isActive: url.searchParams.get("isActive") !== "false",
     periodFrom: url.searchParams.get("periodFrom") ?? undefined,
     periodTo: url.searchParams.get("periodTo") ?? undefined,
-    limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
-    offset: parseInt(url.searchParams.get("offset") ?? "0", 10),
+    limit: Number.parseInt(url.searchParams.get("limit") ?? "50", 10),
+    offset: Number.parseInt(url.searchParams.get("offset") ?? "0", 10),
   });
 
   return c.json({ budgets });
@@ -132,7 +132,7 @@ budgetsRoutes.get("/report/actual-vs-budget", requirePermission("transactions:re
 budgetsRoutes.get("/variance-alerts", requirePermission("transactions:read"), async (c) => {
   const context = c.get("organizationContext");
   const url = new URL(c.req.url);
-  const threshold = parseInt(url.searchParams.get("threshold") ?? "20", 10);
+  const threshold = Number.parseInt(url.searchParams.get("threshold") ?? "20", 10);
 
   const alerts = await checkBudgetVariance(c.env.DB, context.organization.id, threshold);
   return c.json({ alerts });

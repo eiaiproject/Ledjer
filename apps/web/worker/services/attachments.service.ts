@@ -283,7 +283,7 @@ export async function cleanupOrphanedAttachments(
           }
           default:
             // Unknown entity type — treat as orphan
-            parentExists = false;
+            // parentExists already false from initialization
         }
 
         if (!parentExists) {

@@ -71,7 +71,7 @@ export async function createBackup(
   });
 
   // Clean up old backups (keep last 30 days)
-  const thirtyDaysAgo = current - 30 * 86400_000;
+  const thirtyDaysAgo = current - 30 * 86_400_000;
   const oldDate = new Date(thirtyDaysAgo).toISOString().slice(0, 10);
   const oldPrefix = `backups/${oldDate}`;
   try {

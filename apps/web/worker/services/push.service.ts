@@ -342,12 +342,12 @@ async function buildVapidAuthHeader(
     const json = JSON.stringify(obj);
     const bytes = new TextEncoder().encode(json);
     let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    for (const byte of bytes) {
+      binary += String.fromCodePoint(byte);
     }
     return btoa(binary)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
       .replace(/=+$/, '');
   };
 
@@ -368,12 +368,12 @@ async function buildVapidAuthHeader(
   const signature = await crypto.subtle.sign('HMAC', cryptoKey, inputBytes);
   const sigArray = new Uint8Array(signature);
   let sigBinary = '';
-  for (let i = 0; i < sigArray.length; i++) {
-    sigBinary += String.fromCharCode(sigArray[i]);
+  for (const byte of sigArray) {
+    sigBinary += String.fromCodePoint(byte);
   }
   const encodedSignature = btoa(sigBinary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
     .replace(/=+$/, '');
 
   const jwt = `${signingInput}.${encodedSignature}`;

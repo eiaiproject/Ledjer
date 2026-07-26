@@ -302,14 +302,14 @@ export default function InvoiceDetailPage() {
                         value={cl.amount}
                         onChange={(e) => {
                           const copy = [...creditLines];
-                          copy[i] = { ...copy[i], amount: parseFloat(e.target.value) || 0 };
+                          copy[i] = { ...copy[i], amount: Number.parseFloat(e.target.value) || 0 };
                           setCreditLines(copy);
                         }}
                       />
                     </div>
                     <div className="col-span-1 pt-5">
                       {creditLines.length > 1 && (
-                        <button
+                        <button type="button"
                           type="button"
                           onClick={() => setCreditLines(creditLines.filter((_, j) => j !== i))}
                           className="text-red-500 text-sm"

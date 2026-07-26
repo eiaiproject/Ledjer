@@ -137,7 +137,7 @@ export function DocumentDetailPage() {
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
           <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-red-500" aria-hidden="true" />
           <p className="text-sm font-medium text-red-600">Dokumen tidak ditemukan</p>
-          <button onClick={() => navigate("/documents")} className="mt-3 text-sm text-red-600 underline">
+          <button type="button" onClick={() => navigate("/documents")} className="mt-3 text-sm text-red-600 underline">
             Kembali ke daftar dokumen
           </button>
         </div>
@@ -150,7 +150,7 @@ export function DocumentDetailPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Back */}
-      <button
+      <button type="button"
         onClick={() => navigate("/documents")}
         className="inline-flex items-center gap-1.5 text-sm text-wood-600 transition-colors hover:text-ink"
       >
@@ -191,7 +191,7 @@ export function DocumentDetailPage() {
 
             {actions.map((action, i) =>
               action.status === "cancelled" ? (
-                <button
+                <button type="button"
                   key={i}
                   onClick={() => setShowCancelInput(true)}
                   disabled={statusMutation.isPending}
@@ -201,7 +201,7 @@ export function DocumentDetailPage() {
                   {action.label}
                 </button>
               ) : action.label === "Konversi ke Faktur" ? (
-                <button
+                <button type="button"
                   key={i}
                   onClick={() => {
                     if (window.confirm("Konversi penawaran ini menjadi faktur?")) {
@@ -219,7 +219,7 @@ export function DocumentDetailPage() {
                   {action.label}
                 </button>
               ) : action.label === "Terima Barang" ? (
-                <button
+                <button type="button"
                   key={i}
                   onClick={() => {
                     if (window.confirm("Tandai pesanan ini sebagai diterima?")) {
@@ -237,7 +237,7 @@ export function DocumentDetailPage() {
                   {action.label}
                 </button>
               ) : (
-                <button
+                <button type="button"
                   key={i}
                   onClick={() => statusMutation.mutate({ status: action.status! })}
                   disabled={statusMutation.isPending}
@@ -266,14 +266,14 @@ export function DocumentDetailPage() {
               placeholder="Alasan pembatalan (wajib)"
             />
             <div className="mt-2 flex gap-2">
-              <button
+              <button type="button"
                 onClick={() => statusMutation.mutate({ status: "cancelled", reason: cancelReason || undefined })}
                 disabled={statusMutation.isPending}
                 className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
               >
                 {statusMutation.isPending ? "Membatalkan..." : "Ya, Batalkan"}
               </button>
-              <button
+              <button type="button"
                 onClick={() => { setShowCancelInput(false); setCancelReason(""); }}
                 className="rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-wood-600"
               >

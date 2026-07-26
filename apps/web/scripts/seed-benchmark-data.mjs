@@ -66,7 +66,7 @@ function randomInt(min, max) {
 
 function esc(val) {
   if (val === null || val === undefined) return "NULL";
-  return `'${String(val).replace(/'/g, "''")}'`;
+  return `'${String(val).replaceAll("'", "''")}'`;
 }
 
 function escNum(val) {
@@ -158,7 +158,6 @@ async function seed() {
       const txnDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
       const txnType = TXN_TYPES[i % TXN_TYPES.length];
       const amount = randomInt(50000, 5000000);
-      const partyIdx = i % 50;
       const txnId = generateId("bm-txn");
       const txnNum = `BM-${monthStart.getFullYear()}${String(monthStart.getMonth() + 1).padStart(2, "0")}-${String(i + 1).padStart(6, "0")}`;
       const entryId = generateId("bm-je");
@@ -223,7 +222,7 @@ async function seed() {
 
   // Execute via wrangler
   console.log(`\n⚡ Executing via wrangler d1 execute --file ...`);
-  const { execSync } = await import("child_process");
+  const { execSync } = await import("node:child_process");
   const execStart = Date.now();
   try {
     execSync(`wrangler d1 execute ${DB_NAME} --file ${tmpFile} 2>&1`, {
@@ -250,7 +249,9 @@ async function seed() {
   console.log(`   wrangler d1 migrations apply ${DB_NAME}`);
 }
 
-seed().catch((e) => {
+try {
+  await seed();
+} catch (e) {
   console.error("Seeding failed:", e);
   process.exit(1);
-});
+}

@@ -278,7 +278,7 @@ export function TransactionListPage() {
               className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-10 text-sm text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:h-10 sm:min-h-0"
             />
             {search && (
-              <button
+              <button type="button"
                 type="button"
                 onClick={resetSearch}
                 className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] -my-[9px]"
@@ -291,7 +291,7 @@ export function TransactionListPage() {
 
           {/* Filters — collapsible on mobile */}
           <div className="rounded-xl border border-wood-200 bg-surface-elevated">
-            <button
+            <button type="button"
               type="button"
               onClick={() => setFiltersExpanded(!filtersExpanded)}
               className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-text-secondary sm:pointer-events-none sm:hidden min-h-[44px]"
@@ -385,7 +385,7 @@ export function TransactionListPage() {
           {hasSearchQuery && (
             <Badge variant="neutral">
               Cari: {search}
-              <button
+              <button type="button"
                 type="button"
                 onClick={resetSearch}
                 className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-wood-200 min-h-[44px] min-w-[44px] -my-[10px]"
@@ -398,7 +398,7 @@ export function TransactionListPage() {
           {hasTypeFilter && (
             <Badge variant="info">
               Jenis: {TRANSACTION_LABELS[typeFilter] || typeFilter}
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => { setTypeFilter(""); setPage(0); }}
                 className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-info-bg min-h-[44px] min-w-[44px] -my-[10px]"
@@ -411,7 +411,7 @@ export function TransactionListPage() {
           {hasStatusFilter && (
             <Badge variant={statusVariant(statusFilter)}>
               Status: {statusLabel(statusFilter)}
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => { setStatusFilter(""); setPage(0); }}
                 className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-wood-200 min-h-[44px] min-w-[44px] -my-[10px]"

@@ -67,7 +67,7 @@ export async function saveDraft(draft: Omit<OfflineDraft, 'id' | 'createdAt' | '
     };
     request.onerror = () => {
       db.close();
-      reject(request.error);
+      reject(request.error ?? new Error('IndexedDB error'));
     };
   });
 }
@@ -85,7 +85,7 @@ export async function getDraft(id: string): Promise<OfflineDraft | null> {
     };
     request.onerror = () => {
       db.close();
-      reject(request.error);
+      reject(request.error ?? new Error('IndexedDB error'));
     };
   });
 }
@@ -110,7 +110,7 @@ export async function listDrafts(status?: 'pending' | 'syncing' | 'synced' | 'fa
     };
     request.onerror = () => {
       db.close();
-      reject(request.error);
+      reject(request.error ?? new Error('IndexedDB error'));
     };
   });
 }
@@ -147,13 +147,13 @@ export async function updateDraftStatus(
       };
       putRequest.onerror = () => {
         db.close();
-        reject(putRequest.error);
+        reject(putRequest.error ?? new Error('IndexedDB error'));
       };
     };
 
     getRequest.onerror = () => {
       db.close();
-      reject(getRequest.error);
+      reject(getRequest.error ?? new Error('IndexedDB error'));
     };
   });
 }
@@ -173,7 +173,7 @@ export async function deleteDraft(id: string): Promise<void> {
     };
     request.onerror = () => {
       db.close();
-      reject(request.error);
+      reject(request.error ?? new Error('IndexedDB error'));
     };
   });
 }
@@ -192,7 +192,7 @@ export async function getPendingDraftCount(): Promise<number> {
     };
     request.onerror = () => {
       db.close();
-      reject(request.error);
+      reject(request.error ?? new Error('IndexedDB error'));
     };
   });
 }

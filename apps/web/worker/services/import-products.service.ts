@@ -20,8 +20,7 @@ export interface ProductImportRow {
 export const productImportValidator: ImportValidator<ProductImportRow> = {
   name: "products",
   requiredHeaders: ["kode", "nama"],
-  validateRow(row: Record<string, string>, index: number) {
-    void index;
+  validateRow(row: Record<string, string>, _index: number) {
     const errors: { field: string; message: string }[] = [];
 
     const code = validateRequiredField(row, "kode", errors);
@@ -52,8 +51,7 @@ export const productImportValidator: ImportValidator<ProductImportRow> = {
 };
 
 export const productImportWriter: ImportWriter<ProductImportRow> = {
-  async insert(db, organizationId, createdBy, rows) {
-    void createdBy;
+  async insert(db, organizationId, _createdBy, rows) {
     const errors: { row: number; field: string; message: string }[] = [];
     let inserted = 0;
     const createdIds: string[] = [];

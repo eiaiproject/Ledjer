@@ -81,7 +81,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
                 </a>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <span className="text-xs text-wood-400">{formatFileSize(att.fileSize)}</span>
-                  <button
+                  <button type="button"
                     type="button"
                     onClick={() => {
                       if (confirm("Hapus lampiran ini?")) deleteMutation.mutate(att.id);

@@ -18,7 +18,7 @@ function PwaBootstrap() {
 
 // P4.3: Register service worker for PWA support (caching, offline, push)
 if ('serviceWorker' in navigator) {
-  const swUrl = import.meta.env.PROD ? '/sw.js' : '/sw.js';
+  const swUrl = '/sw.js';
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(swUrl).then((registration) => {
       // Check for updates on page load

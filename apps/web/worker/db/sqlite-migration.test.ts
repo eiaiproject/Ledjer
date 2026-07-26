@@ -44,7 +44,7 @@ describe("Migrations against real SQLite", () => {
     const files = readdirSync(migDir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    applyMigrations(db, files, migDir);
+    expect(() => applyMigrations(db, files, migDir)).not.toThrow();
   });
 
   it("all core tables exist after migrations", () => {

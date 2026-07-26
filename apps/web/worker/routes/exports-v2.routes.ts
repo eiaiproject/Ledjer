@@ -59,8 +59,8 @@ exportsV2Routes.get("/", async (c) => {
 
   const jobs = await listExportJobs(c.env.DB, context.organization.id, {
     status: url.searchParams.get("status") as never ?? undefined,
-    limit: parseInt(url.searchParams.get("limit") ?? "20", 10),
-    offset: parseInt(url.searchParams.get("offset") ?? "0", 10),
+    limit: Number.parseInt(url.searchParams.get("limit") ?? "20", 10),
+    offset: Number.parseInt(url.searchParams.get("offset") ?? "0", 10),
   });
 
   return c.json({ jobs });

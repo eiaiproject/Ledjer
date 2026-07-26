@@ -65,10 +65,10 @@ function percentileFromBuckets(buckets: number[], pct: number): number {
     cumulative += buckets[i];
     if (cumulative >= threshold) {
       if (i < BUCKET_BOUNDARIES.length) return BUCKET_BOUNDARIES[i];
-      return BUCKET_BOUNDARIES[BUCKET_BOUNDARIES.length - 1] * 2; // estimate for overflow
+      return BUCKET_BOUNDARIES.at(-1)! * 2; // estimate for overflow
     }
   }
-  return BUCKET_BOUNDARIES[BUCKET_BOUNDARIES.length - 1];
+  return BUCKET_BOUNDARIES.at(-1)!;
 }
 
 export function getMetrics() {

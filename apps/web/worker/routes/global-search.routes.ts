@@ -11,7 +11,7 @@ const app = new Hono<AppContext>();
 app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const query = c.req.query("q");
-  const limit = Math.min(parseInt(c.req.query("limit") || "10", 10), 50);
+  const limit = Math.min(Number.parseInt(c.req.query("limit") || "10", 10), 50);
 
   if (!query || query.trim().length < 2) {
     throw badRequest("query_too_short", "Kata kunci pencarian minimal 2 karakter");

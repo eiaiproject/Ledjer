@@ -55,7 +55,7 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
         return {
           date: parts[0],
           description: parts[1],
-          amount: parseInt(parts[2].replace(/\./g, ""), 10),
+          amount: Number.parseInt(parts[2].replaceAll('.', ''), 10),
         };
       });
 
@@ -101,11 +101,11 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-wood-600">Saldo Awal</label>
-              <Input type="number" value={openingBalance} onChange={(e) => setOpeningBalance(parseInt(e.target.value) || 0)} />
+              <Input type="number" value={openingBalance} onChange={(e) => setOpeningBalance(Number.parseInt(e.target.value) || 0)} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-wood-600">Saldo Akhir</label>
-              <Input type="number" value={closingBalance} onChange={(e) => setClosingBalance(parseInt(e.target.value) || 0)} />
+              <Input type="number" value={closingBalance} onChange={(e) => setClosingBalance(Number.parseInt(e.target.value) || 0)} />
             </div>
           </div>
           <div>
@@ -298,14 +298,14 @@ export default function ReconciliationPage() {
       </h1>
 
       <div className="flex gap-2 border-b border-wood-200">
-        <button
+        <button type="button"
           type="button"
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "import" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-400 hover:text-wood-600"}`}
           onClick={() => setTab("import")}
         >
           Import Statement
         </button>
-        <button
+        <button type="button"
           type="button"
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "report" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-400 hover:text-wood-600"}`}
           onClick={() => setTab("report")}

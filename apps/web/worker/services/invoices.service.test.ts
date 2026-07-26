@@ -11,7 +11,7 @@ class FakeD1 {
     const stmt = {
       bind: (...values: unknown[]) => {
         if (s.includes("organization_document_counters")) {
-          this.counters.set("invoice", parseInt(values[1] as string, 10));
+          this.counters.set("invoice", Number.parseInt(values[1] as string, 10));
         }
         if (s.includes("INSERT INTO invoices")) {
           this.invoices.push({
@@ -93,7 +93,7 @@ describe("Invoices Service", () => {
       expect(result.discountMinor).toBe(10000);
       expect(result.taxMinor).toBe(16500);
       expect(result.totalMinor).toBe(181500);
-      expect(result.lines.length).toBe(2);
+      expect(result.lines).toHaveLength(2);
     });
 
     it("rejects invoice with no lines", async () => {

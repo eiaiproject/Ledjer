@@ -281,7 +281,7 @@ function FaqAccordion({ items }: { readonly items: ReadonlyArray<{ readonly q: s
         return (
           <div key={item.q} className="py-1.5">
             <dt>
-              <button
+              <button type="button"
                 id={buttonId}
                 type="button"
                 aria-expanded={isOpen}
@@ -344,7 +344,7 @@ function SegmentedTabs<T extends string>({
         const isActive = activeId === item.id;
         const Icon = item.icon;
         return (
-          <button
+          <button type="button"
             key={item.id}
             type="button"
             role="tab"
@@ -871,7 +871,7 @@ export function LandingPage() {
                 </div>
               </dl>
               <div className="border-t border-wood-200 bg-cream-100/60 px-4 py-2.5">
-                <button
+                <button type="button"
                   type="button"
                   aria-expanded={demoExpanded}
                   aria-controls="demo-detail"

@@ -90,7 +90,7 @@ export function RecurringTransactionsPage() {
       {/* Status filter */}
       <div className="flex flex-wrap gap-1.5">
         {STATUS_FILTERS.map((f) => (
-          <button
+          <button type="button"
             key={f.value}
             onClick={() => setStatusFilter(f.value)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
@@ -189,7 +189,7 @@ function RecurringCard({ item }: { item: RecurringOutput }) {
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             {item.status === "active" && (
               <>
-                <button
+                <button type="button"
                   onClick={() => statusMutation.mutate("paused")}
                   disabled={statusMutation.isPending}
                   className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-amber-600"
@@ -213,7 +213,7 @@ function RecurringCard({ item }: { item: RecurringOutput }) {
               </>
             )}
             {item.status === "paused" && (
-              <button
+              <button type="button"
                 onClick={() => statusMutation.mutate("active")}
                 disabled={statusMutation.isPending}
                 className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-leaf-600"

@@ -89,8 +89,8 @@ fixedAssetsRoutes.get("/", requirePermission("transactions:read"), async (c) => 
     status: url.searchParams.get("status") as never ?? undefined,
     category: url.searchParams.get("category") as AssetCategory | undefined,
     isActive: url.searchParams.get("isActive") !== "false",
-    limit: parseInt(url.searchParams.get("limit") ?? "50", 10),
-    offset: parseInt(url.searchParams.get("offset") ?? "0", 10),
+    limit: Number.parseInt(url.searchParams.get("limit") ?? "50", 10),
+    offset: Number.parseInt(url.searchParams.get("offset") ?? "0", 10),
   });
 
   return c.json({ assets });

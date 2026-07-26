@@ -275,6 +275,8 @@ async function syncDrafts() {
 // ── Message Handler ──────────────────────────────────────────────
 
 self.addEventListener('message', (event) => {
+  // Only accept messages from our own origin
+  if (event.origin && event.origin !== self.location.origin) return;
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }

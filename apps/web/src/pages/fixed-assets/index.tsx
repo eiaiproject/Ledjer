@@ -122,12 +122,12 @@ export function FixedAssetsPage() {
         assetCategory: formData.assetCategory,
         description: formData.description || undefined,
         acquisitionDate: formData.acquisitionDate,
-        acquisitionCostMinor: parseInt(formData.acquisitionCostMinor, 10) || 0,
-        residualValueMinor: parseInt(formData.residualValueMinor, 10) || 0,
-        usefulLifeMonths: parseInt(formData.usefulLifeMonths, 10) || 60,
+        acquisitionCostMinor: Number.parseInt(formData.acquisitionCostMinor, 10) || 0,
+        residualValueMinor: Number.parseInt(formData.residualValueMinor, 10) || 0,
+        usefulLifeMonths: Number.parseInt(formData.usefulLifeMonths, 10) || 60,
         depreciationMethod: formData.depreciationMethod,
         decliningBalanceRate: formData.decliningBalanceRate
-          ? parseFloat(formData.decliningBalanceRate)
+          ? Number.parseFloat(formData.decliningBalanceRate)
           : null,
         accountAssetId: formData.accountAssetId,
         accountDepreciationId: formData.accountDepreciationId,
@@ -173,7 +173,7 @@ export function FixedAssetsPage() {
       if (!showDisposeModal) throw new Error("No asset selected");
       return disposeAsset(showDisposeModal, {
         disposalDate: disposeForm.disposalDate,
-        disposalPriceMinor: parseInt(disposeForm.disposalPriceMinor, 10) || 0,
+        disposalPriceMinor: Number.parseInt(disposeForm.disposalPriceMinor, 10) || 0,
         disposalReason: disposeForm.disposalReason,
         disposalType: disposeForm.disposalType,
       });
@@ -295,7 +295,7 @@ export function FixedAssetsPage() {
 
             return (
               <Card key={asset.id}>
-                <button
+                <button type="button"
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : asset.id)}
                   className="w-full text-left"
@@ -603,7 +603,7 @@ export function FixedAssetsPage() {
               </div>
             )}
 
-            {pendingDepr && pendingDepr.entries.length === 0 && (
+            {pendingDepr?.entries.length === 0 && (
               <p className="text-sm text-text-tertiary">
                 Tidak ada depresiasi tertunda untuk periode ini. Jalankan depresiasi terlebih dahulu.
               </p>

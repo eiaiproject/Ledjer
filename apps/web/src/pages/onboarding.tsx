@@ -279,7 +279,7 @@ export function OnboardingPage() {
                         <p className="mb-2.5 text-sm font-medium text-text-secondary">Jenis Bisnis</p>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Jenis bisnis" aria-describedby={businessForm.formState.errors.businessType ? "business-type-error" : undefined}>
                           {BUSINESS_TYPES.map((type) => (
-                            <button
+                            <button type="button"
                               key={type.value}
                               type="button"
                               role="radio"

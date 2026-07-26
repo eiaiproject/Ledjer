@@ -242,7 +242,7 @@ export default function CashFlowPage() {
         <ErrorState message={(error as Error)?.message ?? "Gagal memuat laporan arus kas"} />
       )}
 
-      {report && report.rows.length === 0 && report.totals.openingCash === 0 && (
+      {report?.rows.length === 0 && report.totals.openingCash === 0 && (
         <EmptyState title="Belum Ada Arus Kas" description="Belum ada transaksi tunai pada periode ini." />
       )}
 

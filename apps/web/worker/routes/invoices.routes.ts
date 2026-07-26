@@ -49,8 +49,8 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
 // GET /api/invoices
 app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
-  const limit = parseInt(c.req.query("limit") || "50", 10);
-  const offset = parseInt(c.req.query("offset") || "0", 10);
+  const limit = Number.parseInt(c.req.query("limit") || "50", 10);
+  const offset = Number.parseInt(c.req.query("offset") || "0", 10);
   const result = await listInvoices(c.env.DB, organization.id, limit, offset);
   return c.json(result);
 });
@@ -150,7 +150,7 @@ app.get("/:id/print", requireAuth, loadCurrentOrganization(), async (c) => {
 </head>
 <body>
   <div class="no-print" style="text-align:center;margin-bottom:16px;">
-    <button onclick="window.print()" style="padding:8px 24px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">Cetak / Simpan PDF</button>
+    <button type="button" onclick="window.print()" style="padding:8px 24px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;">Cetak / Simpan PDF</button>
   </div>
   <div class="header">
     <div>

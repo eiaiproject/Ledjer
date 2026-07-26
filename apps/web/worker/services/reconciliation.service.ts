@@ -152,7 +152,7 @@ export async function getSuggestions(
 
   // Get recent transactions on the same cash account within a window
   const firstDate = lines.length > 0 ? lines[0].line_date : "1970-01-01";
-  const lastDate = lines.length > 0 ? lines[lines.length - 1].line_date : "1970-01-01";
+  const lastDate = lines.length > 0 ? lines.at(-1)!.line_date : "1970-01-01";
 
   const transactions = await queryAll<{
     id: string; transaction_date: string; transaction_type: string;

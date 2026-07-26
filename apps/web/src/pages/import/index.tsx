@@ -46,7 +46,8 @@ interface ImportResult {
 /** Simple string hash for duplicate detection. */
 function hashStr(s: string): string {
   let h = 0;
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+  // ponytail: keep | 0 for 32-bit int truncation in hash; Math.trunc would change semantics
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.codePointAt(i)) | 0; }
   return String(h);
 }
 
@@ -227,7 +228,7 @@ export default function ImportPage() {
       {/* Entity type tabs */}
       <div className="flex gap-2 border-b border-wood-200 overflow-x-auto">
         {(["coa", "products", "parties", "opening-balance"] as EntityType[]).map((type) => (
-          <button
+          <button type="button"
             key={type}
             type="button"
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px shrink-0 ${

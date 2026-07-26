@@ -78,7 +78,7 @@ export function NewDocumentPage() {
       setError("Pilih jenis dokumen terlebih dahulu");
       return;
     }
-    if (lines.length === 0 || lines.every((l) => !l.description.trim())) {
+    if (lines.every((l) => !l.description.trim())) {
       setError("Setidaknya satu item dengan deskripsi diperlukan");
       return;
     }
@@ -102,7 +102,7 @@ export function NewDocumentPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Back */}
-      <button
+      <button type="button"
         onClick={() => navigate("/documents")}
         className="inline-flex items-center gap-1.5 text-sm text-wood-600 transition-colors hover:text-ink"
       >
@@ -123,7 +123,7 @@ export function NewDocumentPage() {
         {!type ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DOCUMENT_TYPES.map((t) => (
-              <button
+              <button type="button"
                 key={t.value}
                 type="button"
                 onClick={() => setType(t.value)}
@@ -143,7 +143,7 @@ export function NewDocumentPage() {
               <span className="text-sm font-medium text-text-primary">
                 {DOCUMENT_TYPES.find((t) => t.value === type)?.label}
               </span>
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => setType(null)}
                 className="ml-auto text-xs text-wood-500 underline hover:text-ink"
@@ -227,7 +227,7 @@ export function NewDocumentPage() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-text-primary">Item</h2>
-                <button
+                <button type="button"
                   type="button"
                   onClick={addLine}
                   className="inline-flex items-center gap-1 text-xs font-medium text-ink hover:text-ink/70"
@@ -261,7 +261,7 @@ export function NewDocumentPage() {
                         min="0.001"
                         value={line.quantityMilli / 1000}
                         onChange={(e) =>
-                          updateLine(i, "quantityMilli", Math.round(parseFloat(e.target.value || "0") * 1000))
+                          updateLine(i, "quantityMilli", Math.round(Number.parseFloat(e.target.value || "0") * 1000))
                         }
                         className="w-full rounded border border-wood-150 bg-cream-50 px-2 py-1.5 text-sm focus:border-ink focus:outline-none"
                       />
@@ -272,7 +272,7 @@ export function NewDocumentPage() {
                         type="number"
                         min="0"
                         value={line.unitPriceMinor}
-                        onChange={(e) => updateLine(i, "unitPriceMinor", parseInt(e.target.value || "0"))}
+                        onChange={(e) => updateLine(i, "unitPriceMinor", Number.parseInt(e.target.value || "0"))}
                         className="w-full rounded border border-wood-150 bg-cream-50 px-2 py-1.5 text-sm focus:border-ink focus:outline-none"
                       />
                     </div>
@@ -282,7 +282,7 @@ export function NewDocumentPage() {
                         Rp {(line.amountMinor / 100).toLocaleString("id-ID")}
                       </span>
                     </div>
-                    <button
+                    <button type="button"
                       type="button"
                       onClick={() => removeLine(i)}
                       disabled={lines.length <= 1}
@@ -337,7 +337,7 @@ export function NewDocumentPage() {
 
             {/* Submit */}
             <div className="flex items-center gap-3 border-t border-wood-200 pt-4">
-              <button
+              <button type="button"
                 type="submit"
                 disabled={mutation.isPending}
                 className="inline-flex items-center gap-2 rounded-lg bg-ink px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30 disabled:opacity-50"
@@ -347,7 +347,7 @@ export function NewDocumentPage() {
                 ) : null}
                 {mutation.isPending ? "Menyimpan..." : "Simpan Draft"}
               </button>
-              <button
+              <button type="button"
                 type="button"
                 onClick={() => navigate("/documents")}
                 className="rounded-lg px-4 py-2.5 text-sm font-medium text-wood-600 transition-colors hover:bg-wood-50"

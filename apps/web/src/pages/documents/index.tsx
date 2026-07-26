@@ -122,7 +122,7 @@ export function DocumentsPage() {
         {/* Type filter */}
         <div className="flex flex-wrap gap-1.5">
           {DOCUMENT_TYPES.map((t) => (
-            <button
+            <button type="button"
               key={t.value}
               onClick={() => {
                 const params = new URLSearchParams(searchParams);
