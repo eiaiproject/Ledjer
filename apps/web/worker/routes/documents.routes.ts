@@ -48,6 +48,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
     paymentReference?: string;
     referenceDocumentType?: string;
     referenceDocumentId?: string;
+    idempotencyKey?: string;
   }>();
 
   if (!body.documentType || !body.documentDate || !body.lines?.length) {
@@ -78,6 +79,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
     discountMinor: body.discountMinor,
     taxMinor: body.taxMinor,
     notes: body.notes,
+    idempotencyKey: body.idempotencyKey,
     terms: body.terms,
     deliveryDate: body.deliveryDate,
     paymentMethod: body.paymentMethod,

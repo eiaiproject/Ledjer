@@ -36,6 +36,7 @@ const normalBalanceSchema = z.enum(["debit", "credit"]);
 const createCashBankSchema = z.object({
   kind: cashBankKindSchema,
   name: z.string().min(1).max(60),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 const generateCodeSchema = z.object({
@@ -50,6 +51,7 @@ const createAccountSchema = z.object({
   isCashAccount: z.boolean().optional(),
   cashAccountType: z.enum(["cash", "bank", "qris"]).optional(),
   reportGroup: z.string().max(80).optional(),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 const patchAccountSchema = z.object({
@@ -104,6 +106,7 @@ accountsRoutes.post("/cash-bank", requirePermission("accounts:write"), async (c)
     body.kind,
     body.name,
     c.get("requestId"),
+    body.idempotencyKey,
   );
   return c.json({ account });
 });

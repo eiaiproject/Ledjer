@@ -41,6 +41,7 @@ export interface CreateAccountInput {
   isCashAccount?: boolean;
   cashAccountType?: CashAccountType;
   reportGroup?: string;
+  idempotencyKey?: string;
 }
 
 export interface PatchAccountInput {
@@ -141,6 +142,19 @@ export async function generateCashBankCode(
   return code;
 }
 
+async function getAccountByIdempotencyKey(
+  db: D1Database,
+  organizationId: string,
+  idempotencyKey: string,
+): Promise<PublicAccount | null> {
+  const row = await queryFirst<AccountRow>(
+    db,
+    `SELECT * FROM accounts WHERE organization_id = ? AND idempotency_key = ?`,
+    [organizationId, idempotencyKey],
+  );
+  return row ? toPublicAccount(row) : null;
+}
+
 export async function createCashBankAccount(
   db: D1Database,
   organizationId: string,
@@ -148,7 +162,13 @@ export async function createCashBankAccount(
   kind: CashBankKind,
   nameInput: string,
   requestId?: string,
+  idempotencyKey?: string,
 ): Promise<PublicAccount> {
+  if (idempotencyKey) {
+    const existing = await getAccountByIdempotencyKey(db, organizationId, idempotencyKey);
+    if (existing) return existing;
+  }
+
   const name = normalizeAccountName(nameInput);
   await ensureUniqueAccountName(db, organizationId, name);
 
@@ -162,8 +182,8 @@ export async function createCashBankAccount(
     `INSERT INTO accounts (
        id, organization_id, code, name, account_type, normal_balance,
        is_system, is_locked, is_active, is_cash_account, cash_account_type,
-       report_group, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'asset', 'debit', 0, 0, 1, 1, ?, ?, ?, ?)`,
+       report_group, idempotency_key, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, 'asset', 'debit', 0, 0, 1, 1, ?, ?, ?, ?, ?)`,
     [
       accountId,
       organizationId,
@@ -171,6 +191,7 @@ export async function createCashBankAccount(
       name,
       range.cashAccountType,
       range.reportGroup,
+      idempotencyKey ?? null,
       current,
       current,
     ],
@@ -197,6 +218,11 @@ export async function createAccount(
   input: CreateAccountInput,
   requestId?: string,
 ): Promise<PublicAccount> {
+  if (input.idempotencyKey) {
+    const existing = await getAccountByIdempotencyKey(db, organizationId, input.idempotencyKey);
+    if (existing) return existing;
+  }
+
   const name = normalizeAccountName(input.name);
   validateAccountType(input.accountType);
   validateNormalBalance(input.normalBalance);
@@ -216,8 +242,8 @@ export async function createAccount(
     `INSERT INTO accounts (
        id, organization_id, code, name, account_type, normal_balance,
        is_system, is_locked, is_active, is_cash_account, cash_account_type,
-       report_group, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?, ?, ?, ?)`,
+       report_group, idempotency_key, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?, ?, ?, ?, ?)`,
     [
       accountId,
       organizationId,
@@ -228,6 +254,7 @@ export async function createAccount(
       input.isCashAccount ?? false,
       input.cashAccountType,
       input.reportGroup,
+      input.idempotencyKey ?? null,
       current,
       current,
     ],

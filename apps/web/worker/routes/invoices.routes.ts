@@ -27,6 +27,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
     invoiceDate: string; dueDate: string; partyId: string;
     lines: { productId?: string; description: string; quantityMilli?: number; unitPriceMinor: number; amountMinor: number }[];
     discountMinor?: number; taxMinor?: number; notes?: string; terms?: string;
+    idempotencyKey?: string;
   }>();
 
   if (!body.invoiceDate || !body.dueDate || !body.partyId || !body.lines?.length) {
@@ -46,6 +47,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
     partyId: body.partyId, lines,
     discountMinor: body.discountMinor, taxMinor: body.taxMinor,
     notes: body.notes, terms: body.terms,
+    idempotencyKey: body.idempotencyKey,
   });
   return c.json(result, 201);
 });

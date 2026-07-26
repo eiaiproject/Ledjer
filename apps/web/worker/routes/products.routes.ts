@@ -26,6 +26,7 @@ const createProductSchema = z.object({
   sellingPrice: z.number().min(0),
   currentStock: z.number().min(0),
   minStock: z.number().min(0),
+  idempotencyKey: z.string().min(8).max(160).optional(),
 });
 
 const patchProductSchema = z.object({

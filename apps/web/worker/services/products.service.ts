@@ -27,6 +27,7 @@ export interface CreateProductInput {
   sellingPrice: number;
   currentStock: number;
   minStock: number;
+  idempotencyKey?: string;
 }
 
 export interface PatchProductInput {
@@ -171,8 +172,8 @@ export async function createProduct(
        purchase_price_minor, selling_price_minor, average_cost_minor,
        current_stock_milli, min_stock_milli,
        inventory_account_id, cogs_account_id, revenue_account_id,
-       is_active, created_by, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 1, ?, ?, ?)`,
+       is_active, created_by, idempotency_key, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
     [
       productId,
       organizationId,
@@ -188,6 +189,7 @@ export async function createProduct(
       accounts.cogsAccountId,
       accounts.revenueAccountId,
       userId,
+      input.idempotencyKey ?? null,
       current,
       current,
     ],
