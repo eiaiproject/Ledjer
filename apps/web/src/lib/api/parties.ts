@@ -1,16 +1,18 @@
 import { apiRequest } from "./client";
 
-export interface Party {
+export interface PublicParty {
   id: string;
   name: string;
   party_type: "customer" | "supplier" | "employee" | "owner" | "other";
   is_active: boolean;
 }
 
-interface PartiesResponse {
-  parties: Party[];
+interface ListPartiesResult {
+  parties: PublicParty[];
+  customers: PublicParty[];
+  suppliers: PublicParty[];
 }
 
-export function listParties(): Promise<Party[]> {
-  return apiRequest<PartiesResponse>("/api/parties").then((data) => data.parties);
+export function listParties(): Promise<ListPartiesResult> {
+  return apiRequest<ListPartiesResult>("/api/parties");
 }

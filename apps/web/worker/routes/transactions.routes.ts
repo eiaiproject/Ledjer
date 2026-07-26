@@ -12,6 +12,7 @@ import {
   listJournalEntriesForTransaction,
   listTransactions,
   postTransaction,
+  previewTransaction,
   settlePartialTransaction,
   voidTransaction,
 } from "../services/transactions.service";
@@ -50,6 +51,7 @@ const postTransactionSchema = z.object({
   quantity: z.number().positive().nullable().optional(),
   unitPrice: z.number().min(0).nullable().optional(),
   debitAccountId: z.string().nullable().optional(),
+  originalTransactionId: z.string().nullable().optional(),
   idempotencyKey: z.string().min(8).max(160),
 });
 
@@ -95,6 +97,17 @@ transactionsRoutes.post("/", requirePermission("transactions:create"), async (c)
     c.get("requestId"),
   );
   if (result.replayed) c.header("Idempotent-Replay", "true");
+  return c.json(result);
+});
+
+transactionsRoutes.post("/preview", requirePermission("transactions:create"), async (c) => {
+  const context = c.get("organizationContext");
+  const body = await readJson(c, postTransactionSchema);
+  const result = await previewTransaction(
+    c.env.DB,
+    context.organization.id,
+    body,
+  );
   return c.json(result);
 });
 

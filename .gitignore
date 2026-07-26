@@ -85,3 +85,4 @@ temporary.md
 .env.local.md
 supabase-credentials.*
 graphify-out/
+DISASTER_RECOVERY.md

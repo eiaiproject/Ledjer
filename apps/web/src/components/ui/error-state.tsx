@@ -6,12 +6,13 @@ import { translateError } from "@/lib/errors";
 interface ErrorStateProps {
   readonly error?: unknown;
   readonly message?: string;
+  readonly title?: string;
   readonly onRetry?: () => void;
   readonly className?: string;
 }
 
-export function ErrorState({ error, message, onRetry, className }: ErrorStateProps) {
-  const displayMessage = message || translateError(error);
+export function ErrorState({ error, message, title, onRetry, className }: ErrorStateProps) {
+  const displayMessage = message || title || translateError(error);
 
   return (
     <div className={cn("flex min-w-0 flex-col items-center justify-center px-4 py-12 text-center", className)} role="alert" aria-live="assertive">

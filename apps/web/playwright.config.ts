@@ -24,6 +24,8 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL || "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    locale: "id-ID",
+    timezoneId: "Asia/Jakarta",
     video: "retain-on-failure",
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
@@ -92,6 +94,11 @@ export default defineConfig({
     timeout: 10_000,
     toHaveScreenshot: {
       maxDiffPixelRatio: 0.01,
+      threshold: 0.1,
+      animations: "disabled",
     },
   },
+
+  // Visual test snapshot directory
+  snapshotDir: "./e2e/screenshots",
 });

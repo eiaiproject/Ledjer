@@ -29,10 +29,12 @@ export const FIXTURE_IDS = {
     adminB: "user-orgb-admin-00001",
     memberB: "user-orgb-member-0001",
     viewerB: "user-orgb-viewer-0001",
+    ownerEmpty: "user-empty-owner-00001",
   },
   orgs: {
     a: "org-a-test-fixture-0001",
     b: "org-b-test-fixture-0001",
+    empty: "org-empty-test-000001",
   },
   accounts: {
     cashA: "acct-orga-cash-000001",
@@ -85,8 +87,15 @@ const NOW = 1750000000000; // Fixed timestamp for determinism
  */
 export function createSeedFixtures(): {
   db: FakeD1Database;
+  /** @deprecated use tokens.ownerA */
   sessionTokenA: string;
+  /** @deprecated use tokens.ownerB */
   sessionTokenB: string;
+  tokens: {
+    ownerA: string; adminA: string; memberA: string; viewerA: string;
+    ownerB: string; adminB: string; memberB: string; viewerB: string;
+    ownerEmpty: string;
+  };
 } {
   const db = new FakeD1Database({
     first: createFirstHandler(),
@@ -95,10 +104,24 @@ export function createSeedFixtures(): {
     batch: createBatchHandler(),
   });
 
-  const sessionTokenA = "session-token-orga-000001";
-  const sessionTokenB = "session-token-orgb-000001";
+  const tokens = {
+    ownerA: "session-token-orga-000001",
+    adminA: "session-token-orga-admin-000001",
+    memberA: "session-token-orga-member-0001",
+    viewerA: "session-token-orga-viewer-0001",
+    ownerB: "session-token-orgb-000001",
+    adminB: "session-token-orgb-admin-000001",
+    memberB: "session-token-orgb-member-0001",
+    viewerB: "session-token-orgb-viewer-0001",
+    ownerEmpty: "session-token-empty-000001",
+  };
 
-  return { db: db as unknown as FakeD1Database, sessionTokenA, sessionTokenB };
+  return {
+    db: db as unknown as FakeD1Database,
+    sessionTokenA: tokens.ownerA,
+    sessionTokenB: tokens.ownerB,
+    tokens,
+  };
 }
 
 // ── In-memory seed data stores ─────────────────────────────────
@@ -173,11 +196,13 @@ const USERS: SeedUser[] = [
   { id: FIXTURE_IDS.users.adminB, email: "admin@orgb.test", password_hash: "", full_name: "Admin B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.users.memberB, email: "member@orgb.test", password_hash: "", full_name: "Member B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.users.viewerB, email: "viewer@orgb.test", password_hash: "", full_name: "Viewer B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.users.ownerEmpty, email: "owner@empty.test", password_hash: "", full_name: "Owner Empty", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
 ];
 
 const ORGS: SeedOrg[] = [
   { id: FIXTURE_IDS.orgs.a, name: "PT Organisasi A", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.orgs.b, name: "CV Organisasi B", business_type: "service", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: FIXTURE_IDS.users.ownerB, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.orgs.empty, name: "Empty Organization", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-06-01", onboarding_status: "pending", created_by: FIXTURE_IDS.users.ownerEmpty, created_at: NOW, updated_at: NOW },
 ];
 
 const MEMBERS: SeedMember[] = [
@@ -189,6 +214,7 @@ const MEMBERS: SeedMember[] = [
   { id: "mem-orgb-admin-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.adminB, role: "admin", status: "active", created_at: NOW },
   { id: "mem-orgb-member-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.memberB, role: "member", status: "active", created_at: NOW },
   { id: "mem-orgb-viewer-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.viewerB, role: "viewer", status: "active", created_at: NOW },
+  { id: "mem-empty-owner-0001", organization_id: FIXTURE_IDS.orgs.empty, user_id: FIXTURE_IDS.users.ownerEmpty, role: "owner", status: "active", created_at: NOW },
 ];
 
 const ACCOUNTS: SeedAccount[] = [
@@ -263,6 +289,160 @@ const AUDIT_LOGS: SeedAuditLog[] = [
   { id: "audit-orga-lock-001", organization_id: FIXTURE_IDS.orgs.a, actor_user_id: FIXTURE_IDS.users.ownerA, entity_type: "period_lock", entity_id: FIXTURE_IDS.periodLocks.lockA, action: "period_lock_created", created_at: NOW },
 ];
 AUDIT_LOGS satisfies SeedAuditLog[];
+
+/**
+ * Helper: create a basic golden-test FakeD1Database with product stock mock.
+ * Reduces boilerplate in golden-accounting.test.ts.
+ */
+export function goldenTestDb(
+  customHandlers?: Partial<{
+    first: (sql: string, values: unknown[]) => unknown;
+    all: (sql: string, values: unknown[]) => unknown[];
+  }>,
+): FakeD1Database {
+  return new FakeD1Database({
+    first: (sql, values) => {
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM products WHERE")) {
+        return PRODUCTS.find(p => p.id === values[0]) ?? null;
+      }
+      if (s.includes("FROM accounts") && s.includes("code = ?")) {
+        return ACCOUNTS.find(a => a.organization_id === values[0] && a.code === values[1]) ?? null;
+      }
+      if (s.includes("FROM accounts") && (s.includes("id = ?") || s.includes("id= ?"))) {
+        const accountVal = s.indexOf("organization_id = ?") < s.indexOf("id = ?") ? values[1] : values[0];
+        return ACCOUNTS.find(a => a.id === accountVal) ?? null;
+      }
+      if (s.includes("FROM organizations")) {
+        return ORGS.find(o => o.id === values[0]) ?? null;
+      }
+      if (s.includes("MAX(transaction_number")) {
+        return { "MAX(transaction_number)": 0 };
+      }
+      if (s.includes("MAX(entry_number")) {
+        return { "MAX(entry_number)": 0 };
+      }
+      if (s.includes("current_value")) {
+        return { current_value: 1 };
+      }
+      if (s.includes("FROM period_locks")) {
+        return null; // No lock by default
+      }
+      return customHandlers?.first?.(sql as string, values as unknown[]) ?? null;
+    },
+    all: (sql, values) => {
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM journal_entries je")) {
+        return [
+          {
+            journal_entry_id: "je-synthetic-readback",
+            entry_number: "JE-TEST-001",
+            entry_date: "2026-02-15",
+            entry_type: "normal",
+            entry_description: null,
+            entry_status: "posted",
+            line_id: "jl-synthetic-dr",
+            account_id: FIXTURE_IDS.accounts.cashA,
+            account_code: "1110",
+            account_name: "Kas",
+            debit_minor: 500000,
+            credit_minor: 0,
+            line_description: "Synthetic debit",
+          },
+          {
+            journal_entry_id: "je-synthetic-readback",
+            entry_number: "JE-TEST-001",
+            entry_date: "2026-02-15",
+            entry_type: "normal",
+            entry_description: null,
+            entry_status: "posted",
+            line_id: "jl-synthetic-cr",
+            account_id: FIXTURE_IDS.accounts.revenueA,
+            account_code: "4100",
+            account_name: "Pendapatan",
+            debit_minor: 0,
+            credit_minor: 500000,
+            line_description: "Synthetic credit",
+          },
+        ];
+      }
+      if (s.includes("FROM journal_lines jl")) {
+        return JOURNAL_LINES.filter(jl => jl.organization_id === values[0]).map(jl => ({
+          id: jl.id, journal_entry_id: jl.journal_entry_id,
+          account_id: jl.account_id, debit_minor: jl.debit_minor,
+          credit_minor: jl.credit_minor, description: jl.description,
+          line_order: jl.line_order,
+        }));
+      }
+      return customHandlers?.all?.(sql as string, values as unknown[]) ?? [];
+    },
+    run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+    batch: (stmts: { sql: string; values: unknown[] }[]) => {
+      for (const s of stmts) validateJournalLine(s.sql, s.values);
+      return stmts.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
+    },
+  });
+}
+
+/**
+ * Intentionally invalid test data for validation tests.
+ * Each entry violates a known constraint to verify rejection.
+ */
+export const INVALID_DATA = {
+  /** Unbalanced journal: debit != credit */
+  unbalancedJournal: {
+    lines: [
+      { account_id: "acct-invalid-001", debit_minor: 500000, credit_minor: 0, description: "Dr only" },
+      { account_id: "acct-invalid-002", debit_minor: 0, credit_minor: 300000, description: "Cr mismatch" },
+    ],
+  },
+  /** Missing required fields */
+  missingRequired: {
+    transaction: { transaction_date: "", transaction_type: "", amount_minor: 0 },
+  },
+  /** Negative amount */
+  negativeAmount: { amount_minor: -1000 },
+  /** Future date beyond allowed horizon */
+  futureDate: "2030-01-01",
+  /** Empty string fields */
+  emptyFields: { name: "", code: "" },
+} as const;
+INVALID_DATA satisfies Record<string, unknown>;
+
+/**
+ * Helper: create a minimal FakeD1Database that mocks product stock.
+ * Useful for golden tests that need specific stock levels.
+ */
+export function mockProductStock(
+  options: Partial<{
+    id: string; organizationId: string;
+    currentStockMilli: number; averageCostMinor: number;
+  }> = {},
+): FakeD1Database {
+  const defaultProduct = PRODUCTS[0];
+  return new FakeD1Database({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    first: (sql: string, _values: unknown[]) => {
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM products WHERE")) {
+        return {
+          id: options.id ?? defaultProduct.id,
+          organization_id: options.organizationId ?? defaultProduct.organization_id,
+          code: defaultProduct.code, name: defaultProduct.name,
+          purchase_price_minor: defaultProduct.purchase_price_minor,
+          selling_price_minor: defaultProduct.selling_price_minor,
+          average_cost_minor: options.averageCostMinor ?? defaultProduct.average_cost_minor,
+          current_stock_milli: options.currentStockMilli ?? defaultProduct.current_stock_milli,
+          is_active: 1,
+          inventory_account_id: null, cogs_account_id: null, revenue_account_id: null,
+        };
+      }
+      return null;
+    },
+    all: () => [],
+    run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+  });
+}
 
 // ponytail: Counter tracking for nextCounter (INSERT ... RETURNING current_value)
 const counters: Record<string, number> = {};
@@ -430,6 +610,9 @@ const SESSIONS: SeedSession[] = [
   { id: "session-orga-viewer-1", user_id: FIXTURE_IDS.users.viewerA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
   { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
   { id: "session-orgb-admin-1", user_id: FIXTURE_IDS.users.adminB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
+  { id: "session-orgb-member-1", user_id: FIXTURE_IDS.users.memberB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
+  { id: "session-orgb-viewer-1", user_id: FIXTURE_IDS.users.viewerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
+  { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.empty, created_at: NOW },
 ];
 
 function createAllHandler() {

@@ -52,8 +52,7 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
           <h2 id={titleId} className="text-lg font-semibold text-text-primary">
             {title}
           </h2>
-          <button
-            type="button"
+          <button             type="button"
             onClick={onClose}
             className="rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600"
             aria-label="Tutup"
@@ -67,8 +66,13 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
   );
 }
 
-export function ModalContent({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
-  return <div className={cn("p-5", className)}>{children}</div>;
+export function ModalContent({ children, className, title }: Readonly<{ children: ReactNode; className?: string; title?: string }>) {
+  return (
+    <div className={cn("p-5", className)}>
+      {title && <h2 className="text-lg font-bold text-text-primary mb-4">{title}</h2>}
+      {children}
+    </div>
+  );
 }
 
 export function ModalFooter({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {

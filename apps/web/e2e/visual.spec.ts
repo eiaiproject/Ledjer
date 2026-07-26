@@ -1,50 +1,256 @@
-import { test, expect } from "@playwright/test";
-
 /**
- * Visual regression smoke tests.
+ * P4.5 True Visual Regression Tests
  *
- * These are render-smoke checks — they verify pages render without
- * visible errors, not pixel-perfect visual regression.
- * For true visual regression, use a dedicated service (Chromatic, Percy).
+ * Uses Playwright's built-in screenshot comparison for pixel-level regression.
+ * Every state should be covered: loading, empty, populated, error, and modal.
  *
- * Each test:
- * 1. Navigates to a page
- * 2. Waits for network idle
- * 3. Verifies the page renders expected layout elements
+ * Run with:
+ *   E2E_VISUAL=1 npx playwright test e2e/visual.spec.ts           # compare
+ *   E2E_VISUAL=1 npx playwright test e2e/visual.spec.ts --update-snapshots  # update baseline
+ *
+ * Configuration:
+ * - Time frozen to 2026-06-15T10:00:00.000Z
+ * - Animations disabled
+ * - Nondeterministic content masked (IDs, timestamps, avatars)
+ * - Viewports: 1280x800 (desktop), 375x667 (mobile)
  */
 
-test.describe("Visual render smoke tests", () => {
-  test("landing page renders hero section", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await expect(page.locator("h1, h2, h3").first()).toBeVisible();
-    // Hero should contain "Ledjer" brand text
-    await expect(page.locator("body")).toContainText("Ledjer");
+import { test, expect } from "@playwright/test";
+import {
+  freezeTime,
+  disableAnimation,
+  navigateAndStabilize,
+  NONDETERMINISTIC_SELECTORS,
+} from "./helpers/visual";
+
+// ── Desktop Viewport ─────────────────────────────────────────────
+
+test.describe("Visual regression — desktop (1280x800)", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test.beforeEach(async ({ page }) => {
+    await freezeTime(page);
+    await disableAnimation(page);
   });
 
-  test("login page renders form layout", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    // Login form should have email input
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-    // Password field should exist
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    // Submit button should exist
-    await expect(page.getByRole("button", { name: /masuk/i }).first()).toBeVisible();
+  // ── Landing Page ───────────────────────────────────────────────
+
+  test("landing page — hero section", async ({ page }) => {
+    await navigateAndStabilize(page, "/");
+    await expect(page).toHaveScreenshot("landing-hero.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
   });
 
-  test("register page renders form layout", async ({ page }) => {
-    await page.goto("/register");
-    await page.waitForLoadState("networkidle");
-    // Register form should have full name, email, password fields
-    await expect(page.getByRole("textbox", { name: /nama/i }).or(page.getByRole("textbox", { name: /email/i }))).toBeVisible();
-    await expect(page.locator('input[type="password"]').first()).toBeVisible();
+  // ── Login Page ─────────────────────────────────────────────────
+
+  test("login page — empty form", async ({ page }) => {
+    await navigateAndStabilize(page, "/login");
+    await expect(page).toHaveScreenshot("login-empty.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
   });
 
-  test("forgot password page renders recovery form", async ({ page }) => {
-    await page.goto("/forgot-password");
+  test("login page — validation errors", async ({ page }) => {
+    await navigateAndStabilize(page, "/login");
+    // Submit empty form to trigger validation
+    await page.getByRole("button", { name: /masuk/i }).first().click();
     await page.waitForLoadState("networkidle");
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /kirim/i })).toBeVisible();
+    await page.waitForTimeout(300); // NOSONAR typescript:S2925 — brief visual stabilization after actions
+    await expect(page).toHaveScreenshot("login-validation.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  // ── Register Page ──────────────────────────────────────────────
+
+  test("register page — empty form", async ({ page }) => {
+    await navigateAndStabilize(page, "/register");
+    await expect(page).toHaveScreenshot("register-empty.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  // ── Forgot Password Page ───────────────────────────────────────
+
+  test("forgot password page — empty form", async ({ page }) => {
+    await navigateAndStabilize(page, "/forgot-password");
+    await expect(page).toHaveScreenshot("forgot-password-empty.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  // ── 404 Page ───────────────────────────────────────────────────
+
+  test("not found page — 404", async ({ page }) => {
+    await navigateAndStabilize(page, "/nonexistent-page");
+    await expect(page).toHaveScreenshot("not-found.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+});
+
+// ── Mobile Viewport ──────────────────────────────────────────────
+
+test.describe("Visual regression — mobile (375x667)", () => {
+  test.use({ viewport: { width: 375, height: 667 } });
+
+  test.beforeEach(async ({ page }) => {
+    await freezeTime(page);
+    await disableAnimation(page);
+  });
+
+  test("landing page — mobile hero", async ({ page }) => {
+    await navigateAndStabilize(page, "/");
+    await expect(page).toHaveScreenshot("landing-hero-mobile.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("login page — mobile form", async ({ page }) => {
+    await navigateAndStabilize(page, "/login");
+    await expect(page).toHaveScreenshot("login-mobile.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("register page — mobile form", async ({ page }) => {
+    await navigateAndStabilize(page, "/register");
+    await expect(page).toHaveScreenshot("register-mobile.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+});
+
+// ── Authenticated Pages (requires seeded session) ────────────────
+
+test.describe("Visual regression — authenticated pages", () => {
+  const hasStorage = !!process.env.E2E_STORAGE_STATE;
+  // NOSONAR typescript:S1607 — conditional skip is intended behavior
+  test.skip(!hasStorage, "E2E_STORAGE_STATE not set — skipping authenticated visual tests");
+
+  test.use({
+    viewport: { width: 1280, height: 800 },
+    storageState: hasStorage ? process.env.E2E_STORAGE_STATE : undefined,
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await freezeTime(page);
+    await disableAnimation(page);
+  });
+
+  // Note: These tests require a valid authenticated session.
+  // Run with: E2E_STORAGE_STATE=auth.json E2E_VISUAL=1 npx playwright test ...
+
+  test("dashboard — loading state (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/dashboard", { waitForNetworkIdle: false });
+    // Capture initial loading state before data loads
+    await page.waitForSelector('[class*="animate-pulse"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(200); // NOSONAR typescript:S2925 — brief stabilization for loading screenshot
+    await expect(page).toHaveScreenshot("dashboard-loading.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("dashboard — populated state (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/dashboard");
+    await page.waitForLoadState("networkidle");
+    await page.waitForSelector('[class*="card"]', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1000); // NOSONAR typescript:S2925 — awaiting chart render
+    await expect(page).toHaveScreenshot("dashboard-populated.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("accounts page — list view (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/accounts");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("accounts-list.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("transactions page — list view (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/transactions");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("transactions-list.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("products page — list view (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/products");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("products-list.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("reports — trial balance (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/reports/trial-balance");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("trial-balance.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("reports — profit & loss (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/reports/profit-loss");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("profit-loss.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+
+  test("reports — balance sheet (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/reports/balance-sheet");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("balance-sheet.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
+  });
+});
+
+// ── Modal States ─────────────────────────────────────────────────
+
+test.describe("Visual regression — modals & dialogs", () => {
+  const hasStorage = !!process.env.E2E_STORAGE_STATE;
+  // NOSONAR typescript:S1607 — conditional skip is intended behavior
+  test.skip(!hasStorage, "E2E_STORAGE_STATE not set — skipping authenticated modal visual tests");
+
+  test.use({
+    viewport: { width: 1280, height: 800 },
+    storageState: hasStorage ? process.env.E2E_STORAGE_STATE : undefined,
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await freezeTime(page);
+    await disableAnimation(page);
+  });
+
+  test("new transaction modal — empty form (authenticated)", async ({ page }) => {
+    await navigateAndStabilize(page, "/transactions/new");
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveScreenshot("transaction-new-empty.png", {
+      mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
+      fullPage: true,
+    });
   });
 });

@@ -19,13 +19,17 @@ import { test, expect } from "@playwright/test";
 
 const API_BASE = process.env.E2E_BASE_URL || "http://localhost:4173";
 
-// Helper: conditionally register a test only when required env vars are present.
-// Tests are silently omitted when conditions aren't met (no "skipped" report entry).
-// This avoids test.skip() which triggers SonarCloud S1607.
-function testIf(condition: boolean, name: string, fn: Parameters<typeof test>[2]) {
-  if (condition) {
-    test(name, fn);
+/**
+ * Require an env var. Throws with a clear setup message if missing.
+ * Per MASTER.md: "A test must fail if its prerequisite data or authenticated
+ * session is unavailable."
+ */
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`\n  Required env var ${name} is not set.\n  To run cross-tenant E2E tests, set the following env vars:\n  export PLAYWRIGHT_SESSION_TOKEN_A=<token for Org A>\n  export PLAYWRIGHT_SESSION_TOKEN_B=<token for Org B>\n  export PLAYWRIGHT_ORG_A_ID=<Org A ID>\n  export PLAYWRIGHT_ORG_B_ID=<Org B ID>\n`);
   }
+  return value;
 }
 
 test.describe("Tenant Isolation (API-level)", () => {
@@ -58,65 +62,61 @@ test.describe("Tenant Isolation (API-level)", () => {
     expect(response.status()).toBe(401);
   });
 
-  testIf(
-    !!process.env.PLAYWRIGHT_SESSION_TOKEN_A && !!process.env.PLAYWRIGHT_ORG_B_ID,
-    "cross-tenant access blocked: OrgA cannot read OrgB accounts",
-    async ({ request, context }) => {
-      await context.addCookies([
-        {
-          name: "__Host-ledjer_session",
-          value: process.env.PLAYWRIGHT_SESSION_TOKEN_A!,
-          domain: new URL(API_BASE).hostname,
-          path: "/",
-        },
-      ]);
+  test("cross-tenant access blocked: OrgA cannot read OrgB accounts", async ({ request, context }) => {
+    const tokenA = requireEnv("PLAYWRIGHT_SESSION_TOKEN_A");
+    const orgBId = requireEnv("PLAYWRIGHT_ORG_B_ID");
 
-      const response = await request.get(`${API_BASE}/api/accounts`, {
-        headers: { "x-org-id": process.env.PLAYWRIGHT_ORG_B_ID! },
-      });
-      expect(response.status()).not.toBe(200);
-    },
-  );
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: tokenA,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
 
-  testIf(
-    !!process.env.PLAYWRIGHT_SESSION_TOKEN_B && !!process.env.PLAYWRIGHT_ORG_A_ID,
-    "cross-tenant access blocked: OrgB cannot read OrgA reports",
-    async ({ request, context }) => {
-      await context.addCookies([
-        {
-          name: "__Host-ledjer_session",
-          value: process.env.PLAYWRIGHT_SESSION_TOKEN_B!,
-          domain: new URL(API_BASE).hostname,
-          path: "/",
-        },
-      ]);
+    const response = await request.get(`${API_BASE}/api/accounts`, {
+      headers: { "x-org-id": orgBId },
+    });
+    expect(response.status()).not.toBe(200);
+  });
 
-      const response = await request.get(`${API_BASE}/api/reports/trial-balance?asOfDate=2026-01-31`, {
-        headers: { "x-org-id": process.env.PLAYWRIGHT_ORG_A_ID! },
-      });
-      expect(response.status()).not.toBe(200);
-    },
-  );
+  test("cross-tenant access blocked: OrgB cannot read OrgA reports", async ({ request, context }) => {
+    const tokenB = requireEnv("PLAYWRIGHT_SESSION_TOKEN_B");
+    const orgAId = requireEnv("PLAYWRIGHT_ORG_A_ID");
 
-  testIf(
-    !!process.env.PLAYWRIGHT_SESSION_TOKEN_A,
-    "org list only shows the user's member orgs",
-    async ({ request, context }) => {
-      await context.addCookies([
-        {
-          name: "__Host-ledjer_session",
-          value: process.env.PLAYWRIGHT_SESSION_TOKEN_A!,
-          domain: new URL(API_BASE).hostname,
-          path: "/",
-        },
-      ]);
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: tokenB,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
 
-      const response = await request.get(`${API_BASE}/api/organizations`);
-      expect(response.status()).toBe(200);
+    const response = await request.get(`${API_BASE}/api/reports/trial-balance?asOfDate=2026-01-31`, {
+      headers: { "x-org-id": orgAId },
+    });
+    expect(response.status()).not.toBe(200);
+  });
 
-      const body = await response.json();
-      expect(Array.isArray(body)).toBe(true);
-      expect(body.length).toBeGreaterThanOrEqual(1);
-    },
-  );
+  test("org list only shows the user's member orgs", async ({ request, context }) => {
+    const tokenA = requireEnv("PLAYWRIGHT_SESSION_TOKEN_A");
+
+    await context.addCookies([
+      {
+        name: "__Host-ledjer_session",
+        value: tokenA,
+        domain: new URL(API_BASE).hostname,
+        path: "/",
+      },
+    ]);
+
+    const response = await request.get(`${API_BASE}/api/organizations`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body.length).toBeGreaterThanOrEqual(1);
+  });
 });

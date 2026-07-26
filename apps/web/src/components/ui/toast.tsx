@@ -136,8 +136,7 @@ function ToastContainer({
           >
             <Icon className="mt-0.5 h-5 w-5 shrink-0" />
             <span className="flex-1">{t.message}</span>
-            <button
-              type="button"
+            <button               type="button"
               onClick={() => onDismiss(t.id)}
               className="ml-2 rounded-sm text-current opacity-60 hover:opacity-100 focus-visible:outline-wood-500"
               aria-label="Tutup"

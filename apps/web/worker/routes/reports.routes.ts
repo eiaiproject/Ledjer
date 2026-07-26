@@ -6,6 +6,7 @@ import {
   loadCurrentOrganization,
   requirePermission,
 } from "../middleware/organization.middleware";
+import { getCashFlowStatement } from "../services/cash-flow.service";
 import {
   getBalanceSheet,
   getGeneralLedger,
@@ -24,6 +25,7 @@ reportsRoutes.get("/trial-balance", async (c) => {
   const params = new URL(c.req.url).searchParams;
   const asOfDate = requiredParam(params, "asOfDate");
   const trialBalance = await getTrialBalance(c.env.DB, context.organization.id, asOfDate);
+  c.res.headers.set("Cache-Control", "private, max-age=30");
   return c.json({ trialBalance });
 });
 
@@ -36,6 +38,7 @@ reportsRoutes.get("/profit-loss", async (c) => {
     requiredParam(params, "fromDate"),
     requiredParam(params, "toDate"),
   );
+  c.res.headers.set("Cache-Control", "private, max-age=30");
   return c.json({ profitLoss });
 });
 
@@ -47,6 +50,7 @@ reportsRoutes.get("/balance-sheet", async (c) => {
     context.organization.id,
     requiredParam(params, "asOfDate"),
   );
+  c.res.headers.set("Cache-Control", "private, max-age=30");
   return c.json({ balanceSheet });
 });
 
@@ -59,7 +63,23 @@ reportsRoutes.get("/general-ledger", async (c) => {
     fromDate: requiredParam(params, "fromDate"),
     toDate: requiredParam(params, "toDate"),
   });
+  c.res.headers.set("Cache-Control", "private, max-age=30");
   return c.json({ generalLedger });
+});
+
+reportsRoutes.get("/cash-flow", async (c) => {
+  const context = c.get("organizationContext");
+  const params = new URL(c.req.url).searchParams;
+  const comparePeriod = params.get("comparePeriod") === "true";
+  const cashFlow = await getCashFlowStatement(
+    c.env.DB,
+    context.organization.id,
+    requiredParam(params, "fromDate"),
+    requiredParam(params, "toDate"),
+    comparePeriod,
+  );
+  c.res.headers.set("Cache-Control", "private, max-age=30");
+  return c.json({ cashFlow });
 });
 
 function requiredParam(params: URLSearchParams, name: string): string {

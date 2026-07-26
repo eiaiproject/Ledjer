@@ -1,8 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./helpers/auth";
 
 /**
  * Team and Permissions page E2E tests.
- * Auth-dependent tests skip gracefully on login redirect.
+ * Uses authenticated fixture for auth-required tests.
  */
 
 async function gotoTeam(
@@ -10,52 +11,50 @@ async function gotoTeam(
   width = 375,
   height = 812,
 ) {
-  await page.setViewportSize({ width, height });
-  await page.goto("/settings/team");
-  await page.waitForLoadState("networkidle");
-  if (page.url().includes("/login")) return false;
-  return true;
+  await authPage.setViewportSize({ width, height });
+  await authPage.goto("/settings/team");
+  await authPage.waitForLoadState("networkidle");
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
 
 test.describe("Team page basics", () => {
-  test("page loads without crash", async ({ page }) => {
-    await gotoTeam(page);
-    await page.goto("/settings/team");
-    await page.waitForLoadState("networkidle");
-    expect(await page.title()).toMatch(/Ledjer/i);
+  test("page loads without crash", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    await authPage.goto("/settings/team");
+    await authPage.waitForLoadState("networkidle");
+    expect(await authPage.title()).toMatch(/Ledjer/i);
   });
 
-  test("no horizontal overflow at 320px", async ({ page }) => {
-    await gotoTeam(page);
-    await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto("/settings/team");
-    await page.waitForLoadState("networkidle");
+  test("no horizontal overflow at 320px", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    await authPage.setViewportSize({ width: 320, height: 800 });
+    await authPage.goto("/settings/team");
+    await authPage.waitForLoadState("networkidle");
     expect(
-      await page.evaluate(() => document.body.scrollWidth > window.innerWidth),
+      await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
     ).toBeFalsy();
   });
 
-  test("exactly one h1 exists", async ({ page }) => {
-    await gotoTeam(page);
-    await expect(page.locator("h1")).toHaveCount(1);
+  test("exactly one h1 exists", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    await expect(authPage.locator("h1")).toHaveCount(1);
   });
 
-  test("page title says Tim dan izin", async ({ page }) => {
-    await gotoTeam(page);
-    await expect(page.locator("h1")).toContainText("Tim dan izin");
+  test("page title says Tim dan izin", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    await expect(authPage.locator("h1")).toContainText("Tim dan izin");
   });
 
-  test("page title does NOT use ampersand", async ({ page }) => {
-    await gotoTeam(page);
-    const text = await page.locator("h1").textContent();
+  test("page title does NOT use ampersand", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const text = await authPage.locator("h1").textContent();
     expect(text).not.toContain("&");
   });
 
-  test("description uses Indonesian", async ({ page }) => {
-    await gotoTeam(page);
-    const desc = page.locator("p.text-text-secondary").first();
+  test("description uses Indonesian", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const desc = authPage.locator("p.text-text-secondary").first();
     await expect(desc).toBeVisible();
     const text = await desc.textContent();
     expect(text).toContain("anggota");
@@ -65,163 +64,141 @@ test.describe("Team page basics", () => {
 // ── Owner section (auth required) ──────────────────────────────────
 
 test.describe("Owner section (auth required)", () => {
-  test("has Pemilik section heading", async ({ page }) => {
-    await gotoTeam(page);
-    const heading = page.getByText("Pemilik").first();
+  test("has Pemilik section heading", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const heading = authPage.getByText("Pemilik").first();
     await expect(heading).toBeAttached();
   });
 
-  test("owner card shows Pemilik badge", async ({ page }) => {
-    await gotoTeam(page);
-    const badge = page.locator(".bg-honey-50").first();
-    if (await badge.count() > 0) {
-      await expect(badge).toBeVisible();
-    }
+  test("owner card shows Pemilik badge", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const badge = authPage.locator(".bg-honey-50").first();
+    await expect(badge).toBeVisible();
   });
 });
 
 // ── Staff section (auth required) ──────────────────────────────────
 
 test.describe("Staff section (auth required)", () => {
-  test("has Anggota Tim heading", async ({ page }) => {
-    await gotoTeam(page);
-    const heading = page.getByText("Anggota Tim").first();
+  test("has Anggota Tim heading", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const heading = authPage.getByText("Anggota Tim").first();
     await expect(heading).toBeAttached();
   });
 
-  test("staff count badge is present", async ({ page }) => {
-    await gotoTeam(page);
-    const badge = page.locator(".bg-wood-100").filter({ hasText: /anggota/ }).first();
-    if (await badge.count() > 0) {
-      await expect(badge).toBeAttached();
-    }
+  test("staff count badge is present", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const badge = authPage.locator(".bg-wood-100").filter({ hasText: /anggota/ }).first();
+    await expect(badge).toBeAttached();
   });
 });
 
 // ── Invitation form (auth required) ────────────────────────────────
 
 test.describe("Invitation form (auth required)", () => {
-  test("form heading says Buat link undangan", async ({ page }) => {
-    await gotoTeam(page);
-    const heading = page.getByText("Buat link undangan").first();
+  test("form heading says Buat link undangan", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const heading = authPage.getByText("Buat link undangan").first();
     await expect(heading).toBeAttached();
   });
 
-  test("email field exists", async ({ page }) => {
-    await gotoTeam(page);
-    const emailInput = page.locator('input[type="email"]');
-    if (await emailInput.count() > 0) {
-      await expect(emailInput.first()).toBeAttached();
-    }
+  test("email field exists", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const emailInput = authPage.locator('input[type="email"]');
+    await expect(emailInput.first()).toBeAttached();
   });
 
-  test("role select exists with correct options", async ({ page }) => {
-    await gotoTeam(page);
-    const roleSelect = page.locator("#invite-role");
-    if (await roleSelect.count() > 0) {
-      const options = roleSelect.locator("option");
-      const count = await options.count();
-      expect(count).toBe(3); // Staf, Viewer, Admin
-    }
+  test("role select exists with correct options", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const roleSelect = authPage.locator("#invite-role");
+    await expect(roleSelect).toBeAttached();
+    const options = roleSelect.locator("option");
+    const count = await options.count();
+    expect(count).toBe(3);
   });
 
-  test("default role is Staf (member)", async ({ page }) => {
-  await gotoTeam(page);
-    const roleSelect = page.locator("#invite-role");
-    if (await roleSelect.count() > 0) {
-      const value = await roleSelect.inputValue();
-      expect(value).toBe("member");
-    }
+  test("default role is Staf (member)", async ({ authPage }) => {
+  await gotoTeam(authPage);
+    const roleSelect = authPage.locator("#invite-role");
+    await expect(roleSelect).toBeAttached();
+    const value = await roleSelect.inputValue();
+    expect(value).toBe("member");
   });
 
-  test("submit button says Buat link undangan", async ({ page }) => {
-    await gotoTeam(page);
-    const submitBtn = page.getByRole("button", { name: /buat link undangan/i });
-    if (await submitBtn.count() > 0) {
-      await expect(submitBtn.first()).toBeVisible();
-    }
+  test("submit button says Buat link undangan", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const submitBtn = authPage.getByRole("button", { name: /buat link undangan/i });
+    await expect(submitBtn.first()).toBeVisible();
   });
 
-  test("form uses native form submit", async ({ page }) => {
-    await gotoTeam(page);
-    const form = page.locator("form").first();
-    if (await form.count() > 0) {
-      await expect(form).toBeAttached();
-    }
+  test("form uses native form submit", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const form = authPage.locator("form").first();
+    await expect(form).toBeAttached();
   });
 
-  test("role select has label", async ({ page }) => {
-    await gotoTeam(page);
-    const label = page.locator("label[for='invite-role']");
-    if (await label.count() > 0) {
-      await expect(label).toBeAttached();
-    }
+  test("role select has label", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const label = authPage.locator("label[for='invite-role']");
+    await expect(label).toBeAttached();
   });
 });
 
 // ── Role comparison guide (auth required) ───────────────────────────
 
 test.describe("Role comparison guide (auth required)", () => {
-  test("has role comparison heading", async ({ page }) => {
-    await gotoTeam(page);
-    const heading = page.getByText("Perbandingan hak akses role").first();
+  test("has role comparison heading", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const heading = authPage.getByText("Perbandingan hak akses role").first();
     await expect(heading).toBeAttached();
   });
 
-  test("role comparison is collapsible", async ({ page }) => {
-    await gotoTeam(page);
-    const details = page.locator("details").first();
-    if (await details.count() > 0) {
-      await expect(details).toBeAttached();
-    }
+  test("role comparison is collapsible", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const details = authPage.locator("details").first();
+    await expect(details).toBeAttached();
   });
 
-  test("role comparison shows Admin, Staf, Viewer", async ({ page }) => {
-    await gotoTeam(page);
-    const details = page.locator("details").first();
-    if (await details.count() > 0) {
-      // Open the details
-      await details.locator("summary").click();
-      await expect(page.getByText("Admin").first()).toBeVisible();
-      await expect(page.getByText("Staf").first()).toBeVisible();
-      await expect(page.getByText("Viewer").first()).toBeVisible();
-    }
+  test("role comparison shows Admin, Staf, Viewer", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const details = authPage.locator("details").first();
+    await expect(details).toBeAttached();
+    await details.locator("summary").click();
+    await expect(authPage.getByText("Admin").first()).toBeVisible();
+    await expect(authPage.getByText("Staf").first()).toBeVisible();
+    await expect(authPage.getByText("Viewer").first()).toBeVisible();
   });
 });
 
 // ── Member actions (auth required) ─────────────────────────────────
 
 test.describe("Member actions (auth required)", () => {
-  test("member card has Izin button", async ({ page }) => {
-    await gotoTeam(page);
-    const izinBtn = page.getByRole("button", { name: /izin/i }).first();
-    if (await izinBtn.count() > 0) {
-      await expect(izinBtn).toBeVisible();
-    }
+  test("member card has Izin button", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const izinBtn = authPage.getByRole("button", { name: /izin/i }).first();
+    await expect(izinBtn).toBeVisible();
   });
 
-  test("Izin button toggles permission display", async ({ page }) => {
-    await gotoTeam(page);
-    const izinBtn = page.getByRole("button", { name: /izin/i }).first();
-    if (await izinBtn.count() > 0) {
-      await izinBtn.click();
-      // Should show permission details
-      const permText = page.getByText("Hak Akses").first();
-      await expect(permText).toBeVisible();
-    }
+  test("Izin button toggles permission display", async ({ authPage }) => {
+    await gotoTeam(authPage);
+    const izinBtn = authPage.getByRole("button", { name: /izin/i }).first();
+    await expect(izinBtn).toBeVisible();
+    await izinBtn.click();
+    const permText = authPage.getByText("Hak Akses").first();
+    await expect(permText).toBeVisible();
   });
 });
 
 // ── Empty state (auth required) ────────────────────────────────────
 
 test.describe("Empty state (auth required)", () => {
-  test("shows empty state when no members", async ({ page }) => {
-    await gotoTeam(page);
+  test("shows empty state when no members", async ({ authPage }) => {
+    await gotoTeam(authPage);
     // Check if empty state is shown (may or may not be depending on data)
-    const emptyState = page.getByText("Belum ada anggota").first();
+    const emptyState = authPage.getByText("Belum ada anggota").first();
     const hasEmptyState = (await emptyState.count()) > 0;
     // Either empty state or member list is present
-    const memberCards = page.locator(".bg-cream-50").filter({ hasText: /anggota/ });
+    const memberCards = authPage.locator(".bg-cream-50").filter({ hasText: /anggota/ });
     expect(hasEmptyState || (await memberCards.count()) > 0).toBeTruthy();
   });
 });
@@ -242,12 +219,12 @@ for (const vp of viewports) {
   test.describe(`Responsive: ${vp.name} (${vp.width}px)`, () => {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
-    test("no horizontal overflow", async ({ page }) => {
-    await gotoTeam(page);
-      await page.goto("/settings/team");
-      await page.waitForLoadState("networkidle");
+    test("no horizontal overflow", async ({ authPage }) => {
+    await gotoTeam(authPage);
+      await authPage.goto("/settings/team");
+      await authPage.waitForLoadState("networkidle");
       expect(
-        await page.evaluate(() => document.body.scrollWidth > window.innerWidth),
+        await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
       ).toBeFalsy();
     });
   });

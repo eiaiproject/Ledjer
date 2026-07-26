@@ -76,14 +76,16 @@ describe("Auth Security", () => {
 
     it("passwords of min length (8) are accepted", async () => {
       const hash = await hashPassword("Abcd1234", "pepper");
-      expect(hash).toBeTruthy();
+      expect(hash).toBeTypeOf("string");
+      expect(hash.length).toBeGreaterThan(0);
     });
 
     it("passwords of max length (72) are accepted", async () => {
       const longPassword = "A" + "b".repeat(70) + "1";
       expect(longPassword).toHaveLength(72);
       const hash = await hashPassword(longPassword, "pepper");
-      expect(hash).toBeTruthy();
+      expect(hash).toBeTypeOf("string");
+      expect(hash.length).toBeGreaterThan(0);
     });
   });
 

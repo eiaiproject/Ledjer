@@ -11,6 +11,7 @@ import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
 import { badRequest, conflict, HttpError, notFound } from "../http/errors";
+import { requireApprovalOrContinue, type ActionType } from "./approvals.service";
 
 export type TransactionType =
   | "cash_sale"
@@ -22,7 +23,9 @@ export type TransactionType =
   | "expense_payment"
   | "owner_capital"
   | "owner_draw"
-  | "cash_transfer";
+  | "cash_transfer"
+  | "sale_return"
+  | "purchase_return";
 
 export type PaymentStatus = "paid" | "unpaid" | "partial";
 
@@ -44,6 +47,8 @@ export interface PostTransactionInput {
   quantity?: number | null;
   unitPrice?: number | null;
   debitAccountId?: string | null;
+  /** Original transaction this replaces (after void). */
+  originalTransactionId?: string | null;
   idempotencyKey: string;
 }
 
@@ -253,11 +258,63 @@ const TRANSACTION_TYPES = new Set<TransactionType>([
   "owner_capital",
   "owner_draw",
   "cash_transfer",
+  "sale_return",
+  "purchase_return",
 ]);
 
 /**
  * Format an integer (minor-unit) amount as an IDR string, e.g. 15000 -> "Rp 15.000".
  */
+/** Indonesian label for each transaction type. */
+const TRANSACTION_LABELS: Record<TransactionType, string> = {
+  cash_sale: "Penjualan Tunai",
+  credit_sale: "Penjualan Kredit",
+  receive_receivable: "Penerimaan Piutang",
+  cash_purchase: "Pembelian Tunai",
+  credit_purchase: "Pembelian Kredit",
+  pay_payable: "Pembayaran Utang",
+  expense_payment: "Pembayaran Beban",
+  owner_capital: "Setoran Modal",
+  owner_draw: "Prive Pemilik",
+  cash_transfer: "Transfer Kas",
+  sale_return: "Retur Penjualan",
+  purchase_return: "Retur Pembelian",
+};
+
+export function transactionTypeLabel(type: TransactionType): string {
+  return TRANSACTION_LABELS[type] ?? type;
+}
+
+/** Indonesian explanation of what changes when posting a transaction. */
+export function describeTransactionImpact(
+  type: TransactionType,
+  amountMinor: number,
+  opts?: { productName?: string; quantity?: number; partyName?: string; isVoid?: boolean },
+): string {
+  const label = TRANSACTION_LABELS[type] ?? type;
+  const amount = formatIDRMinor(amountMinor);
+
+  if (opts?.isVoid) {
+    return `Membatalkan ${label.toLowerCase()} sebesar ${amount}. Semua jurnal dan mutasi stok dikembalikan seperti sebelum transaksi.`;
+  }
+
+  const parts: string[] = [
+    `Mencatat ${label.toLowerCase()} sebesar ${amount}.`,
+  ];
+
+  if (opts?.quantity && opts?.productName) {
+    parts.push(`Stok ${opts.productName} berubah ${opts.quantity > 0 ? "bertambah" : "berkurang"} ${Math.abs(opts.quantity)} unit.`);
+  }
+
+  if (opts?.partyName) {
+    parts.push(`Melibatkan ${opts.partyName}.`);
+  }
+
+  parts.push("Laporan Laba Rugi dan Neraca akan berubah setelah transaksi diposting.");
+
+  return parts.join(" ");
+}
+
 function formatIDRMinor(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -366,7 +423,8 @@ export async function listJournalEntriesForTransaction(
 
 function isStockTransactionType(type: string): boolean {
   return type === "cash_purchase" || type === "credit_purchase"
-    || type === "cash_sale" || type === "credit_sale";
+    || type === "cash_sale" || type === "credit_sale"
+    || type === "sale_return" || type === "purchase_return";
 }
 
 // ponytail: Common journal entry insert to reduce duplication.
@@ -400,12 +458,16 @@ async function reserveStockForTransaction(
   unitPriceMinor: number,
 ): Promise<{ nextStock: number; unitCost: number; nextAverage: number }> {
   const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
-  const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
+  const isSaleReturn = transactionType === "sale_return";
+  // sale_return adds stock back (+), purchase removes stock (-)
+  // purchase_return removes stock (-), sale removes stock (-)
+  // For purchase_return, stock decreases (goods go back to supplier)
+  const quantityDelta = isPurchase || isSaleReturn ? quantityMilli : -quantityMilli;
   const nextStock = product.current_stock_milli + quantityDelta;
   if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
   const unitCost = isPurchase ? unitPriceMinor : productCostMinor(product);
-  if (!isPurchase && unitCost <= 0) throw badRequest("product_zero_cost", "Product cost must be set before sale");
-  const nextAverage = isPurchase ? nextAverageCostMinor(product, quantityMilli, unitPriceMinor) : product.average_cost_minor;
+  if (!isPurchase && !isSaleReturn && unitCost <= 0) throw badRequest("product_zero_cost", "Product cost must be set before sale");
+  const nextAverage = (isPurchase || isSaleReturn) ? nextAverageCostMinor(product, quantityMilli, unitPriceMinor) : product.average_cost_minor;
   return { nextStock, unitCost, nextAverage };
 }
 
@@ -425,10 +487,27 @@ type StockStatementCtx = {
 };
 
 // ponytail: Options object to satisfy S107 max-params.
+function stockMovementType(type: string): "purchase" | "sale" | "void" {
+  if (type === "sale_return") return "sale";
+  if (type === "purchase_return") return "purchase";
+  if (type === "cash_purchase" || type === "credit_purchase") return "purchase";
+  return "sale";
+}
+
 function insertStockStatements(ctx: StockStatementCtx): void {
   const { db, statements, reservedStock, product, organizationId, transactionId, transactionDate, transactionType, quantityMilli, description, userId, current } = ctx;
   const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
-  const quantityDelta = isPurchase ? quantityMilli : -quantityMilli;
+  const isSaleReturn = transactionType === "sale_return";
+  // sale_return adds stock back (+), purchase_return removes stock (-)
+  // S3358 — extract nested ternary into if/else
+  let quantityDelta: number;
+  if (isPurchase) {
+    quantityDelta = quantityMilli;
+  } else if (isSaleReturn) {
+    quantityDelta = quantityMilli;
+  } else {
+    quantityDelta = -quantityMilli;
+  }
   statements.push(
     statement(
       db,
@@ -438,7 +517,7 @@ function insertStockStatements(ctx: StockStatementCtx): void {
     ),
     insertStockMovementStatement(db, {
       organizationId, productId: product.id, transactionId,
-      movementDate: transactionDate, movementType: isPurchase ? "purchase" : "sale",
+      movementDate: transactionDate, movementType: stockMovementType(transactionType),
       quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
       stockAfterMilli: reservedStock.nextStock, notes: description, userId, current,
     }),
@@ -469,7 +548,8 @@ function rebuildStockStatements(
   stockUpdateIndex: number,
 ): void {
   const isPurchase = ctx.transactionType === "cash_purchase" || ctx.transactionType === "credit_purchase";
-  const quantityDelta = isPurchase ? ctx.quantityMilli! : -ctx.quantityMilli!;
+  const isSaleReturn = ctx.transactionType === "sale_return";
+  const quantityDelta = isPurchase || isSaleReturn ? ctx.quantityMilli! : -ctx.quantityMilli!;
   ctx.statements[stockUpdateIndex] = statement(
     ctx.db,
     `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, purchase_price_minor = ?, updated_at = ?
@@ -478,7 +558,7 @@ function rebuildStockStatements(
   );
   ctx.statements[stockUpdateIndex + 1] = insertStockMovementStatement(ctx.db, {
     organizationId: ctx.organizationId, productId: ctx.product!.id, transactionId: ctx.transactionId,
-    movementDate: ctx.transactionDate, movementType: isPurchase ? "purchase" : "sale",
+    movementDate: ctx.transactionDate, movementType: stockMovementType(ctx.transactionType),
     quantityMilli: quantityDelta, unitCostMinor: reservedStock.unitCost,
     stockAfterMilli: reservedStock.nextStock, notes: ctx.description, userId: ctx.userId, current: ctx.current,
   });
@@ -707,8 +787,9 @@ function buildPostTransactionStatements(
          transaction_type, amount_minor, party_id, category_name,
          cash_account_id, destination_cash_account_id, payment_status, due_date,
          description, notes, status, idempotency_key, posted_at, posted_by,
+         original_transaction_id,
          created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
       [
         transactionId,
         organizationId,
@@ -727,6 +808,8 @@ function buildPostTransactionStatements(
         idempotencyKey,
         current,
         userId,
+        userId,
+        input.originalTransactionId ?? null,
         userId,
         current,
         current,
@@ -783,6 +866,71 @@ function buildPostTransactionStatements(
   return statements;
 }
 
+export interface PreviewTransactionResult {
+  transactionType: TransactionType;
+  typeLabel: string;
+  impact?: string;
+  amountMinor: number;
+  paymentStatus: PaymentStatus;
+  description: string;
+  debitAccount: AccountRow;
+  creditAccount: AccountRow;
+  categoryName: string | null;
+  journalLines: JournalLineInput[];
+  balanced: boolean;
+}
+
+/**
+ * Preview a transaction without posting.
+ * Resolves accounts, products, stock and returns journal lines.
+ */
+export async function previewTransaction(
+  db: D1Database,
+  organizationId: string,
+  input: PostTransactionInput,
+): Promise<PreviewTransactionResult> {
+  const dataResult = await prepareTransactionData(db, organizationId, input);
+  if ("existing" in dataResult) {
+    throw conflict("transaction_exists", "Transaction already posted with this idempotency key");
+  }
+  const { data } = dataResult;
+
+  const current = Date.now();
+  const entities = await resolveTransactionEntities(db, organizationId, data.transactionType, data.amountMinor, data.paymentStatus, input, current);
+
+  return {
+    transactionType: data.transactionType,
+    typeLabel: transactionTypeLabel(data.transactionType),
+    impact: describeTransactionImpact(data.transactionType, data.amountMinor, {
+      productName: entities.product?.name,
+      quantity: input.quantity ?? undefined,
+      partyName: input.partyName ?? undefined,
+    }),
+    amountMinor: data.amountMinor,
+    paymentStatus: data.paymentStatus,
+    description: data.description,
+    debitAccount: entities.resolved.debitAccount,
+    creditAccount: entities.resolved.creditAccount,
+    categoryName: entities.resolved.categoryName,
+    journalLines: entities.journalLines,
+    balanced: entities.journalLines.reduce((s, l) => s + l.debitMinor, 0) === entities.journalLines.reduce((s, l) => s + l.creditMinor, 0),
+  };
+}
+
+/** Map transaction type to approval action type, or null if no approval needed. */
+function getApprovalActionType(type: TransactionType): ActionType | null {
+  if (type === "expense_payment" || type === "cash_purchase" || type === "credit_purchase" || type === "pay_payable") {
+    return "transaction_create";
+  }
+  if (type === "cash_sale" || type === "credit_sale" || type === "receive_receivable" || type === "owner_capital" || type === "owner_draw" || type === "cash_transfer") {
+    return "transaction_create";
+  }
+  if (type === "sale_return" || type === "purchase_return") {
+    return "transaction_create";
+  }
+  return null;
+}
+
 export async function postTransaction(
   db: D1Database,
   organizationId: string,
@@ -794,6 +942,21 @@ export async function postTransaction(
   if ("existing" in prepared) return prepared.existing;
 
   const { data } = prepared;
+
+  // Check if approval is needed for high-value transactions
+  const approvalActionType = getApprovalActionType(data.transactionType);
+  if (approvalActionType) {
+    const approval = await requireApprovalOrContinue(
+      db, organizationId, userId, approvalActionType, "transaction", "pending", data.amountMinor,
+      { entitySummary: `${transactionTypeLabel(data.transactionType)} - ${formatIDRMinor(data.amountMinor)}` },
+    );
+    if (approval) {
+      throw badRequest("approval_required",
+        `This transaction requires approval. Request ID: ${approval.id}. Please wait for an admin to approve it.`,
+      );
+    }
+  }
+
   const { idempotencyKey, transactionType, transactionDate, description, current } = data;
 
   const entities = await resolveTransactionEntities(
@@ -1079,9 +1242,19 @@ function restoreStockForVoid(ctx: VoidStockCtx): void {
   const { db, statements, original, product, productLine, stockMovement, organizationId, reversalTransactionId, voidDate, reason, userId, current } = ctx;
   const isSale = original.transaction_type === "cash_sale" || original.transaction_type === "credit_sale";
   const isPurchase = original.transaction_type === "cash_purchase" || original.transaction_type === "credit_purchase";
-  if (!isSale && !isPurchase) return;
+  const isSaleReturn = original.transaction_type === "sale_return";
+  const isPurchaseReturn = original.transaction_type === "purchase_return";
+  if (!isSale && !isPurchase && !isSaleReturn && !isPurchaseReturn) return;
 
-  const quantityDelta = isSale ? productLine.quantity_milli : -productLine.quantity_milli;
+  // Void reverses the stock direction of the original transaction
+  // sale + sale_return: both increase stock on void (reversal)
+  // purchase + purchase_return: both decrease stock on void (reversal)
+  // sale_return originally added stock, so void removes stock (-)
+  // purchase_return originally removed stock, so void adds stock (+)
+  let quantityDelta: number;
+  if (isSaleReturn) quantityDelta = -productLine.quantity_milli;
+  else if (isPurchaseReturn || isSale) quantityDelta = productLine.quantity_milli;
+  else quantityDelta = -productLine.quantity_milli;
   const nextStock = product.current_stock_milli + quantityDelta;
   if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
   const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
@@ -1207,6 +1380,17 @@ export async function voidTransaction(
   }
 
   const { original, voidDate, reason } = await validateVoidableTransaction(db, organizationId, transactionId, input);
+
+  // Check if approval is needed for voids
+  const voidApproval = await requireApprovalOrContinue(
+    db, organizationId, userId, "transaction_void", "transaction", transactionId, original.amount_minor,
+    { entitySummary: `Pembatalan ${transactionTypeLabel(original.transaction_type as TransactionType)} - ${formatIDRMinor(original.amount_minor)}` },
+  );
+  if (voidApproval) {
+    throw badRequest("approval_required",
+      `This void requires approval. Request ID: ${voidApproval.id}. Please wait for an admin to approve it.`,
+    );
+  }
 
   const originalJournalLines = await journalLinesForTransaction(db, organizationId, transactionId);
   if (!originalJournalLines.length) {
@@ -1719,6 +1903,28 @@ async function resolvePostingAccounts(
         creditAccount: input.cashAccount!,
         categoryName: null,
       };
+    case "sale_return":
+      // Sale return: Dr Revenue (contra-revenue), Cr Cash or AR
+      return {
+        debitAccount: await revenueAccount(db, organizationId, input.product),
+        creditAccount: input.paymentStatus === "paid" ? input.cashAccount! : await accountByCode(db, organizationId, "1200"),
+        categoryName: null,
+      };
+    case "purchase_return":
+      // Purchase return: Dr Cash or AP, Cr Inventory
+      if (input.paymentStatus === "paid") {
+        assertCashAccount(input.cashAccount, "cash_account_invalid");
+        return {
+          debitAccount: input.cashAccount,
+          creditAccount: await inventoryOrDebitAccount(db, organizationId, input),
+          categoryName: null,
+        };
+      }
+      return {
+        debitAccount: await accountByCode(db, organizationId, "2100"),
+        creditAccount: await inventoryOrDebitAccount(db, organizationId, input),
+        categoryName: null,
+      };
   }
 }
 
@@ -2028,8 +2234,8 @@ function validateProductIntent(
   unitPriceMinor: number,
   amountMinor: number,
 ): void {
-  if (!["cash_purchase", "credit_purchase", "cash_sale", "credit_sale"].includes(transactionType)) {
-    throw badRequest("product_transaction_invalid", "Products can only be used for sales or purchases");
+  if (!["cash_purchase", "credit_purchase", "cash_sale", "credit_sale", "sale_return", "purchase_return"].includes(transactionType)) {
+    throw badRequest("product_transaction_invalid", "Products can only be used for sales, purchases, or returns");
   }
   if (quantityMilli <= 0) throw badRequest("quantity_invalid", "Product quantity must be greater than zero");
   if (unitPriceMinor < 0) throw badRequest("money_invalid", "Unit price is invalid");
@@ -2243,18 +2449,18 @@ function requiresCashAccount(type: TransactionType, paymentStatus: PaymentStatus
     "owner_draw",
     "cash_transfer",
   ].includes(type) || (
-    (type === "credit_sale" || type === "credit_purchase")
+    (type === "credit_sale" || type === "credit_purchase" || type === "sale_return" || type === "purchase_return")
     && paymentStatus !== "unpaid"
   );
 }
 
 function requiresParty(type: TransactionType): boolean {
-  return ["credit_sale", "receive_receivable", "credit_purchase", "pay_payable"].includes(type);
+  return ["credit_sale", "receive_receivable", "credit_purchase", "pay_payable", "sale_return", "purchase_return"].includes(type);
 }
 
 function partyTypeForTransaction(type: TransactionType): "customer" | "supplier" | "other" {
-  if (type === "credit_sale" || type === "receive_receivable") return "customer";
-  if (type === "credit_purchase" || type === "pay_payable") return "supplier";
+  if (type === "credit_sale" || type === "receive_receivable" || type === "sale_return") return "customer";
+  if (type === "credit_purchase" || type === "pay_payable" || type === "purchase_return") return "supplier";
   return "other";
 }
 

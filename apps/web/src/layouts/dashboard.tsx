@@ -7,6 +7,7 @@ import {
   Receipt,
   BookOpen,
   Package,
+  FileText,
   Chart,
   Settings,
   Plus,
@@ -15,12 +16,19 @@ import {
   X,
   ChevronDown,
   AnglesLeft,
+  Repeat,
+  Wallet,
+  Folder,
+  Download,
+  Lock,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
+import { GlobalSearchModal, SearchTrigger } from "@/components/global-search";
+import { NotificationBell } from "@/components/notification-bell";
 
 type NavItem =
   | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
@@ -33,6 +41,18 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   { to: "/transactions", label: "Transaksi", icon: Receipt, requires: "canCreateTransaction" },
   { to: "/accounts", label: "Akun", icon: BookOpen, requires: "canManageAccounts" },
   { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
+  { to: "/documents", label: "Dokumen", icon: FileText },
+  { to: "/recurring-transactions", label: "Berulang", icon: Repeat },
+  { to: "/invoices", label: "Faktur", icon: FileText, requires: "canCreateTransaction" },
+  { to: "/period-close", label: "Tutup Periode", icon: Lock, requires: "canManageTeam" },
+  { to: "/journals", label: "Jurnal Manual", icon: BookOpen, requires: "canManageAccounts" },
+  { to: "/reconciliation", label: "Rekonsiliasi", icon: BookOpen, requires: "canCreateTransaction" },
+  { to: "/opening-balance", label: "Saldo Awal", icon: BookOpen, requires: "canManageAccounts" },
+  { to: "/budgets", label: "Anggaran", icon: Wallet },
+  { to: "/exports", label: "Export", icon: Download },
+  { to: "/dimensions", label: "Dimensi", icon: Folder },
+  { to: "/fixed-assets", label: "Aset Tetap", icon: Chart },
+  { to: "/import", label: "Import Data", icon: FileText, requires: "canManageAccounts" },
   {
     label: "Laporan",
     icon: Chart,
@@ -42,6 +62,8 @@ const NAV_ITEMS: NavItemWithPerm[] = [
       { to: "/reports/trial-balance", label: "Neraca Saldo" },
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
+      { to: "/reports/cash-flow", label: "Arus Kas" },
+      { to: "/reports/aging", label: "Piutang & Utang" },
     ],
   },
   {
@@ -51,6 +73,8 @@ const NAV_ITEMS: NavItemWithPerm[] = [
     children: [
       { to: "/settings/team", label: "Tim" },
       { to: "/settings/period-locks", label: "Kunci Periode" },
+      { to: "/approvals", label: "Persetujuan" },
+      { to: "/approvals/settings", label: "Atur Persetujuan" },
     ],
   },
 ];
@@ -66,6 +90,7 @@ export function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // P1.4: Onboarding guard — redirect to onboarding if not completed
   useEffect(() => {
@@ -110,6 +135,18 @@ export function DashboardLayout() {
     await signOut();
     navigate("/login");
   };
+
+  // Keyboard shortcut: Ctrl+K / Cmd+K to open search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Sentry Feedback widget — only visible inside dashboard layout
   useEffect(() => {
@@ -158,8 +195,7 @@ export function DashboardLayout() {
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b border-wood-600 px-4">
           {sidebarCollapsed ? (
-            <button
-              type="button"
+            <button               type="button"
               onClick={() => setSidebarCollapsed(false)}
               className="flex items-center gap-2"
               aria-label="Perluas sidebar"
@@ -172,8 +208,7 @@ export function DashboardLayout() {
             </Link>
           )}
           {!sidebarCollapsed && (
-            <button
-              type="button"
+            <button               type="button"
               onClick={() => setSidebarCollapsed(true)}
               className="p-2 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Ciutkan sidebar"
@@ -196,8 +231,7 @@ export function DashboardLayout() {
               if (children) {
                 return (
                   <li key={item.label}>
-                    <button
-                      type="button"
+                    <button                       type="button"
                       onClick={() => toggleMenu(item.label)}
                       aria-expanded={isExpanded}
                       aria-controls={menuId}
@@ -294,8 +328,7 @@ export function DashboardLayout() {
                     {isOwner ? "Owner" : "Staff"}
                   </p>
                 </div>
-                <button
-                  type="button"
+                <button                   type="button"
                   onClick={handleSignOut}
                   className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Keluar"
@@ -306,8 +339,7 @@ export function DashboardLayout() {
             )}
           </div>
           {sidebarCollapsed && (
-            <button
-              type="button"
+            <button               type="button"
               onClick={handleSignOut}
               className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center min-h-[44px]"
               aria-label="Keluar"
@@ -321,8 +353,7 @@ export function DashboardLayout() {
       {/* Mobile Header */}
       <div className="fixed top-0 inset-x-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <button
-            type="button"
+          <button             type="button"
             onClick={() => setMobileMenuOpen(true)}
             className="flex h-11 w-11 items-center justify-center -ml-2 text-wood-600 hover:bg-cream-200 rounded-lg"
             aria-label="Buka menu"
@@ -364,8 +395,7 @@ export function DashboardLayout() {
         <div className="ledger-drawer absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-wood-700 shadow-xl">
           <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-wood-600">
             <Logo size="md" variant="full" color="white" className="h-8" />
-            <button
-              type="button"
+            <button               type="button"
               onClick={() => mobileDialogRef.current?.close()}
               className="p-2 text-wood-300 hover:text-cream-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Tutup menu"
@@ -386,8 +416,7 @@ export function DashboardLayout() {
                 if (children) {
                   return (
                     <li key={item.label}>
-                      <button
-                        type="button"
+                      <button                         type="button"
                         onClick={() => toggleMenu(item.label)}
                         aria-expanded={expandedMenus.includes(item.label)}
                         aria-controls={menuId}
@@ -463,8 +492,7 @@ export function DashboardLayout() {
                   {orgData?.organization?.name || "Organisasi"}
                 </p>
               </div>
-              <button
-                type="button"
+              <button                 type="button"
                 onClick={handleSignOut}
                 className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label="Keluar"
@@ -488,6 +516,11 @@ export function DashboardLayout() {
         )}
       >
         <OfflineBanner />
+        <div className="hidden border-b border-wood-100 bg-surface px-4 py-2 lg:flex items-center justify-end gap-3">
+          <SearchTrigger onClick={() => setSearchOpen(true)} />
+          <NotificationBell />
+        </div>
+        <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
           <Outlet />
         </div>
@@ -527,8 +560,7 @@ export function DashboardLayout() {
             );
           })}
           {visibleNavItems.some((item) => !item.children) && (
-            <button
-              type="button"
+            <button               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="flex shrink-0 flex-col items-center justify-center gap-0.5 py-2 px-3 text-[11px] font-medium text-wood-500 min-h-[56px]"
               aria-label="Menu lainnya"

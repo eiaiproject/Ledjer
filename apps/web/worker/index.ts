@@ -4,13 +4,15 @@ import { errorHandler } from "./middleware/error.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/request-logger";
-import { metricsMiddleware, metricsHandler } from "./middleware/metrics";
+import { metricsMiddleware, metricsHandler, detailedMetricsHandler } from "./middleware/metrics";
+import openingBalanceRoutes from "./routes/opening-balance.routes";
 import { accountsRoutes } from "./routes/accounts.routes";
 import { auditLogsRoutes } from "./routes/audit-logs.routes";
 import { authRoutes } from "./routes/auth.routes";
 import { dashboardRoutes } from "./routes/dashboard.routes";
 import { exportsRoutes } from "./routes/exports.routes";
 import { healthRoutes } from "./routes/health.routes";
+import globalSearchRoutes from "./routes/global-search.routes";
 import { inventoryRoutes } from "./routes/inventory.routes";
 import { organizationRoutes } from "./routes/organization.routes";
 import { partiesRoutes } from "./routes/parties.routes";
@@ -19,7 +21,27 @@ import { productsRoutes } from "./routes/products.routes";
 import { reportsRoutes } from "./routes/reports.routes";
 import { teamRoutes } from "./routes/team.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
+import attachmentRoutes from "./routes/attachments.routes";
+import invoiceRoutes from "./routes/invoices.routes";
+import receivablesRoutes from "./routes/receivables.routes";
+import reconciliationRoutes from "./routes/reconciliation.routes";
+import importRoutes from "./routes/import.routes";import documentRoutes from "./routes/documents.routes";
+import recurringTransactionRoutes from "./routes/recurring-transactions.routes";
+import notificationRoutes from "./routes/notifications.routes";
+import { approvalsRoutes } from "./routes/approvals.routes";
+import { periodCloseRoutes } from "./routes/period-close.routes";
+import { manualJournalRoutes } from "./routes/manual-journals.routes";
+import { dimensionsRoutes } from "./routes/dimensions.routes";
+import { fixedAssetsRoutes } from "./routes/fixed-assets.routes";
+import { budgetsRoutes } from "./routes/budgets.routes";
+import { exportsV2Routes } from "./routes/exports-v2.routes";
+import { pushRoutes } from "./routes/push.routes";
+import { onboardingRoutes } from "./routes/onboarding.routes";
+import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
+import { cleanupOrphanedAttachments } from "./services/attachments.service";
+import { executeAllDueTransactions } from "./services/recurring-transactions.service";
+import { postTransaction } from "./services/transactions.service";
 
 const app = new Hono<AppContext>();
 
@@ -79,6 +101,8 @@ app.route("/api/audit-logs", auditLogsRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
 app.get("/api/metrics", metricsHandler);
+app.get("/api/metrics/detailed", detailedMetricsHandler);
+app.route("/api/search", globalSearchRoutes);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/organizations", organizationRoutes);
 app.route("/api/accounts", accountsRoutes);
@@ -90,6 +114,24 @@ app.route("/api/reports", reportsRoutes);
 app.route("/api/team", teamRoutes);
 app.route("/api/exports", exportsRoutes);
 app.route("/api/period-locks", periodLocksRoutes);
+app.route("/api/opening-balance", openingBalanceRoutes);
+app.route("/api/attachments", attachmentRoutes);
+app.route("/api/reconciliation", reconciliationRoutes);
+app.route("/api/invoices", invoiceRoutes);
+app.route("/api/receivables", receivablesRoutes);
+app.route("/api/import", importRoutes);
+app.route("/api/documents", documentRoutes);
+app.route("/api/recurring-transactions", recurringTransactionRoutes);
+app.route("/api/notifications", notificationRoutes);
+app.route("/api/approvals", approvalsRoutes);
+app.route("/api/period-close", periodCloseRoutes);
+app.route("/api/manual-journals", manualJournalRoutes);
+app.route("/api/dimensions", dimensionsRoutes);
+app.route("/api/fixed-assets", fixedAssetsRoutes);
+app.route("/api/budgets", budgetsRoutes);
+app.route("/api/exports-v2", exportsV2Routes);
+app.route("/api/push", pushRoutes);
+app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {
   if (new URL(c.req.url).pathname.startsWith("/api/")) {
@@ -112,6 +154,60 @@ import { withSentry } from "@sentry/cloudflare";
 
 // ponytail: wrappedHandler wraps the Hono app with Sentry for Cloudflare Workers.
 // Tests import { app } directly (unwrapped) so they don't need ExecutionContext.
+/** Run attachment retention cleanup and log results. */
+async function runAttachmentCleanup(env: AppContext["Bindings"]): Promise<void> {
+  try {
+    if (!env.BACKUP_BUCKET) return;
+    const result = await cleanupOrphanedAttachments(env.DB, env.BACKUP_BUCKET);
+    if (result.orphaned > 0 || result.expired > 0 || result.r2Orphans > 0) {
+      console.log(JSON.stringify({ type: "attachment_cleanup", ...result, status: "completed" }));
+    }
+  } catch (err) {
+    console.error(JSON.stringify({ type: "attachment_cleanup", status: "failed", error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
+/** Execute due recurring transactions and log results. */
+async function runRecurringTransactions(env: AppContext["Bindings"]): Promise<void> {
+  try {
+    const result = await executeAllDueTransactions(env.DB, undefined, undefined, postTransaction);
+    if (result.executed > 0 || result.failed > 0) {
+      console.log(JSON.stringify({ type: "recurring_transactions", ...result, status: "completed" }));
+    }
+  } catch (err) {
+    console.error(JSON.stringify({ type: "recurring_transactions", status: "failed", error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
+/** Create a daily backup and run restore drill, logging results. */
+async function runBackupAndDrill(env: AppContext["Bindings"]): Promise<void> {
+  try {
+    if (!env.BACKUP_BUCKET) return;
+    const manifest = await createBackup(env.DB, env.BACKUP_BUCKET);
+    console.log(JSON.stringify({
+      type: "backup",
+      date: new Date(manifest.startedAt).toISOString().slice(0, 10),
+      tables: Object.keys(manifest.tables).length,
+      rows: Object.values(manifest.tables).reduce((s, t) => s + t.rowCount, 0),
+      status: "completed",
+    }));
+
+    const drill = await runRestoreDrill(env.BACKUP_BUCKET);
+    console.log(JSON.stringify({
+      type: "restore_drill",
+      date: drill.date,
+      valid: drill.valid,
+      errors: drill.errors.length > 0 ? drill.errors : undefined,
+      tableCount: drill.tableCount,
+      totalRows: drill.totalRows,
+      duration: drill.duration,
+      status: drill.valid ? "passed" : "failed",
+    }));
+  } catch (err) {
+    console.error(JSON.stringify({ type: "backup", status: "failed", error: err instanceof Error ? err.message : String(err) }));
+  }
+}
+
 const worker: ExportedHandler<AppContext["Bindings"]> = {
   fetch: (request, env, ctx) => app.fetch(request, env, ctx),
   async scheduled(
@@ -119,6 +215,9 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
     env: AppContext["Bindings"],
   ) {
     await cleanupExpiredRows(env.DB);
+    await runAttachmentCleanup(env);
+    await runRecurringTransactions(env);
+    await runBackupAndDrill(env);
   },
 };
 

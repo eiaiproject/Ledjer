@@ -68,3 +68,45 @@ export function deactivateProduct(productId: string): Promise<Product> {
     method: "DELETE",
   }).then((data) => data.product);
 }
+
+export interface StockAdjustmentInput {
+  productId: string;
+  quantity: number;
+  reason: string;
+  movementDate?: string;
+}
+
+export interface StockCountInput {
+  productId: string;
+  physicalStock: number;
+  notes?: string;
+}
+
+export interface StockCountResult {
+  productId: string;
+  productName: string;
+  systemStock: string;
+  physicalStock: string;
+  difference: string;
+  movement: unknown;
+}
+
+export function adjustStock(input: StockAdjustmentInput): Promise<{ movement: unknown }> {
+  return apiRequest("/api/inventory/adjust", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function recordStockCount(input: StockCountInput): Promise<StockCountResult> {
+  return apiRequest<StockCountResult>("/api/inventory/stock-count", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Fetch stock movements for a specific product. */
+export function listStockMovements(productId?: string): Promise<{ movements: unknown[] }> {
+  const params = productId ? `?productId=${encodeURIComponent(productId)}` : "";
+  return apiRequest(`/api/inventory/movements${params}`);
+}

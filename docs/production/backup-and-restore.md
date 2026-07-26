@@ -1,76 +1,128 @@
 # Backup and Restore
 
-## Current State
+## Implementation
 
-Automated D1 backups are not yet implemented. This document describes the
-target architecture and manual restore procedure.
+- **Schedule**: Daily at 03:00 WIB (Worker cron trigger).
+- **Destination**: R2 bucket (`BACKUP_BUCKET` binding), prefix `backups/`.
+- **Format**: JSON export per major table (organizations, users, accounts, journal entries, products, etc.) with manifest.
+- **Checksum**: SHA-256 per backup payload, recorded in manifest.
+- **Retention**: 30 days (automatic cleanup in backup cycle).
+- **RPO**: 24 hours (daily schedule).
+- **RTO**: ~30 minutes (restore via validateBackup + sequential D1 inserts).
+  - Not yet automated restore drill — manual restore only.
+- **Validation**: `validateBackup()` — checks schema version, entity counts, SHA-256 match.
+- **Alerts**: 
+  - Backup age > 36 hours → Critical alert (manual check).
+  - Checksum mismatch → Critical alert.
+  - Restore failure → High alert (manual check).
+- **Responsible operator**: Platform admin (no automated escalation yet).
 
-## Target Architecture
+## How Backup Works
 
-- **Schedule**: Daily at 03:00 WIB (via Worker cron trigger).
-- **Destination**: Cloudflare R2 bucket `ledjer-backups`.
-- **Format**: SQL dump via `wrangler d1 export`.
-- **Checksum**: SHA-256 per backup file.
-- **Retention**:
-  - Daily backups: 30 days.
-  - Monthly backups: 12 months.
-- **Verification**: Monthly automated restore drill with row-count and
-  accounting-invariant checks.
+`backup.service.ts` → `createBackup()`:
 
-## Manual Backup (Current)
+1. Queries all major tables via `SELECT *`.
+2. Builds `{ entities: { tableName: [...rows] }, manifest: { createdAt, version, sha256 } }`.
+3. SHA-256 hash of JSON payload.
+4. Stores to R2: `backups/{orgId}/{date}/backup.json`.
+5. Manifests stored: `backups/{orgId}/{date}/manifest.json`.
+6. Cleans backups older than 30 days.
+7. Returns backup ID.
+
+## How Restore Works
+
+`backup.service.ts` → `validateBackup()`:
+
+1. Fetches backup payload from R2.
+2. Verifies SHA-256 matches.
+3. Checks schema version compatibility.
+4. Returns entity counts and metadata.
+
+Full restore (manual, not yet automated):
 
 ```bash
-# Requires wrangler CLI and Cloudflare credentials
-# Replace <database-name> with the actual D1 database name
-
-# Export to SQL
-npx wrangler d1 export <database-name> --output /tmp/ledjer-backup-$(date +%Y%m%d).sql
-
-# Generate checksum
-sha256sum /tmp/ledjer-backup-$(date +%Y%m%d).sql > /tmp/ledjer-backup-$(date +%Y%m%d).sha256
-
-# Upload to R2 (requires R2 bucket configured)
-# npx wrangler r2 object put ledjer-backups/$(date +%Y%m%d)/backup.sql --file /tmp/ledjer-backup-$(date +%Y%m%d).sql
+# 1. Fetch backup payload
+# 2. Validate via validateBackup()
+# 3. Verify row counts match manifest
+# 4. Insert into D1 sequentially
 ```
 
-## Manual Restore
-
-```bash
-# 1. Download backup from R2
-npx wrangler r2 object get ledjer-backups/<date>/backup.sql --file /tmp/restore.sql
-
-# 2. Verify checksum
-sha256sum -c /tmp/restore-backup-<date>.sha256
-
-# 3. Restore to D1 (warning: overwrites current data)
-# wrangler d1 execute <database-name> --file /tmp/restore.sql
-
-# 4. Verify row counts match expected
-# 5. Run accounting invariant checks
-# 6. Run tenant isolation checks
-# 7. Run smoke tests
-```
-
-## Restore Verification
+## Restore Verification Checklist
 
 After any restore:
-1. Check row count for each major table matches backup manifest.
-2. Verify trial balance balances (Σdebit = Σcredit).
-3. Verify balance sheet equation (Assets = Liabilities + Equity).
-4. Verify no cross-tenant data leaks.
-5. Run smoke tests against the restored database.
+1. Row count per major table matches backup manifest.
+2. Trial balance balances (Σdebit = Σcredit).
+3. Balance sheet equation: Assets = Liabilities + Equity.
+4. No cross-tenant data leaks.
+5. Smoke tests pass.
+6. `verifyRestore()` returns `valid: true` and `schemaValid: true`.
+7. `RestoreResult.warnings` is empty (no overwrite on populated DB).
 
-## R2 Bucket Setup
+## Restore Drill Implementation
 
-```bash
-# Create bucket (one-time)
-npx wrangler r2 bucket create ledjer-backups
+The restore drill is implemented as a 7-step automated sequence:
 
-# Add R2 binding to wrangler.jsonc
+```ts
+// 1. Backup current state (if needed)
+const manifest = await createBackup(db, bucket, Date.now());
+
+// 2. List eligible backups (last 7 days)
+const validBackups = await listEligibleBackups(bucket);
+
+// 3. Validate backup integrity
+const validation = await validateBackup(bucket, dateStr);
+
+// 4. Restore to isolated DB (not same binding as production)
+const result = await restoreBackup(targetDb, bucket, dateStr);
+
+// 5. Verify restored schema
+const verification = await verifyRestore(targetDb);
+
+// 6. Run accounting invariants
+const invariantsPass = verification.balancedJournals &&
+                       verification.schemaValid;
+
+// 7. Clean up + alert on failure
+if (!result.success || !verification.valid) {
+    await emitAlert({ severity: 'critical', source: 'restore-drill', result, verification });
+}
 ```
 
-## Backup Alerts
+## Alerting
 
-- Backup age > 36 hours → Critical alert.
-- Backup checksum mismatch → Critical alert.
-- Restore drill failure → High alert.
+`backup.service.ts` does NOT directly emit alerts. The restore code returns
+result objects that monitoring tools must observe:
+
+| Field | Meaning |
+|-------|---------|
+| `RestoreResult.success` | All tables restored without errors |
+| `RestoreResult.errors` | Fatal errors (e.g., missing manifest, FK violations) |
+| `RestoreResult.warnings` | Non-fatal issues (e.g., target DB had data) |
+| `RestoreVerification.valid` | All post-restore checks passed |
+| `RestoreVerification.schemaValid` | All core tables exist |
+| `RestoreVerification.balancedJournals` | Σdebit = Σcredit |
+| `RestoreVerification.errors[]` | Specific invariant failures |
+
+Production monitoring MUST:
+1. Pipe `RestoreResult.errors` into alert system (PagerDuty / Slack).
+2. Alert on `RestoreVerification.valid === false`.
+3. Track backup age (manifest.lastBackup > 36h → critical).
+4. Run a restore drill weekly against an isolated D1 database.
+
+## Last Successful Backup
+
+- Not yet tracked in persistent storage (in-memory only during cron run).
+- TODO: store last-backup timestamp in a system table.
+
+## Backup Alerts Thresholds
+
+| Condition | Severity | Action |
+|-----------|----------|--------|
+| Backup age > 36h | Critical | Manual check |
+| SHA-256 mismatch | Critical | Investigate corruption |
+| Restore drill failure | High | Fix restore procedure |
+
+## R2 Bucket
+
+Binding name: `BACKUP_BUCKET`.
+Prefix: `backups/` (shared bucket with `attachments/` prefix).

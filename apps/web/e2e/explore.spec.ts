@@ -3,9 +3,9 @@ import { expect } from "@playwright/test";
 
 const PAGES = [
   { path: "/", name: "Landing" },
-  { path: "/auth/login", name: "Login" },
-  { path: "/auth/register", name: "Register" },
-  { path: "/auth/forgot-password", name: "Forgot Password" },
+  { path: "/login", name: "Login" },
+  { path: "/register", name: "Register" },
+  { path: "/forgot-password", name: "Forgot Password" },
   { path: "/dashboard", name: "Dashboard" },
   { path: "/transactions", name: "Transactions" },
   { path: "/transactions/new", name: "New Transaction" },

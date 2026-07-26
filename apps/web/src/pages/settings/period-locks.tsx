@@ -78,7 +78,7 @@ function LockSkeleton() {
   return (
     <div className="space-y-3">
       {[1, 2].map((i) => (
-        <div key={i} className="flex items-center gap-3 rounded-lg border border-wood-200 bg-cream-50 p-4">
+        <div key={`lock-skeleton-${i}`} className="flex items-center gap-3 rounded-lg border border-wood-200 bg-cream-50 p-4">
           <div className="h-10 w-10 animate-pulse rounded-full bg-cream-200" />
           <div className="space-y-2 flex-1">
             <div className="h-4 w-40 animate-pulse rounded bg-cream-200" />

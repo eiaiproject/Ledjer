@@ -13,6 +13,7 @@ import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Download, Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 import { useReportDateRange, handleReportExport } from "./_components";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -203,7 +204,10 @@ export function ProfitLossPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Laba Rugi</h1>
+        <h1 className="text-2xl font-bold text-text-primary">
+          Laba Rugi
+          <HelpTooltip topic="profit_loss" position="right" />
+        </h1>
         <p className="text-sm text-text-secondary mt-1" aria-live="polite">
           {isRefreshing ? (
             <span className="text-text-secondary">Memperbarui laporan...</span>

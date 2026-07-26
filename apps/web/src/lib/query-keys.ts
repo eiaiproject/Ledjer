@@ -8,6 +8,12 @@
  */
 
 export const queryKeys = {
+  invoices: {
+    all: () => ["invoices"] as const,
+    list: (offset: number, limit: number) => ["invoices", "list", offset, limit] as const,
+    detail: (id: string) => ["invoices", id] as const,
+  },
+
   organization: (userId: string | undefined) => ["organization", userId] as const,
   allOrganization: () => ["organization"] as const,
 
@@ -36,6 +42,8 @@ export const queryKeys = {
     allProfitLoss: () => ["profit-loss"] as const,
     allTrialBalance: () => ["trial-balance"] as const,
     allGeneralLedger: () => ["general-ledger"] as const,
+    cashFlow: (fromDate: string, toDate: string) => ["cash-flow", fromDate, toDate] as const,
+    allCashFlow: () => ["cash-flow"] as const,
   },
 
   accounts: {
@@ -61,6 +69,8 @@ export const queryKeys = {
   },
 
   parties: {
+    /** Full list for invoices / new transaction. */
+    fullList: (orgId: string) => ["parties", orgId, "list"] as const,
     /** Parties for transaction form. */
     transactionOptions: (orgId: string) => ["parties", orgId, "txn-options"] as const,
     /** Wildcard prefix for invalidating all party queries. */
@@ -80,9 +90,71 @@ export const queryKeys = {
     all: () => ["journal-entries"] as const,
   },
 
+  onboarding: {
+    status: (orgId: string | undefined) => ["onboarding", orgId, "status"] as const,
+    all: () => ["onboarding"] as const,
+  },
+
+  notifications: {
+    all: () => ["notifications"] as const,
+    list: (unreadOnly?: boolean) => ["notifications", "list", unreadOnly ?? false] as const,
+    unreadCount: () => ["notifications", "unread-count"] as const,
+  },
+
+  recurringTransactions: {
+    all: () => ["recurring-transactions"] as const,
+    list: (status?: string) => ["recurring-transactions", "list", status ?? "all"] as const,
+    detail: (id: string) => ["recurring-transactions", id] as const,
+    logs: (id: string) => ["recurring-transactions", id, "logs"] as const,
+  },
+
+  documents: {
+    all: () => ["documents"] as const,
+    list: (type?: string) => ["documents", "list", type ?? "all"] as const,
+    detail: (id: string) => ["documents", id] as const,
+  },
+
   periodLocks: {
     list: (orgId: string | undefined) => ["period-locks", orgId] as const,
     all: () => ["period-locks"] as const,
+  },
+
+  approvals: {
+    all: () => ["approvals"] as const,
+    list: (status?: string, actionType?: string) => ["approvals", "list", status ?? "", actionType ?? ""] as const,
+    configs: () => ["approvals", "configs"] as const,
+    pendingCount: () => ["approvals", "pending-count"] as const,
+  },
+
+  journals: {
+    all: () => ["journal-templates"] as const,
+    templates: (entryType?: string) => ["journal-templates", entryType ?? "all"] as const,
+  },
+
+  budgets: {
+    all: () => ["budgets"] as const,
+    list: (periodFrom?: string, periodTo?: string) => ["budgets", "list", periodFrom ?? "", periodTo ?? ""] as const,
+    report: (periodFrom: string, periodTo: string) => ["budgets", "report", periodFrom, periodTo] as const,
+    varianceAlerts: (threshold: number) => ["budgets", "variance-alerts", threshold] as const,
+  },
+
+  fixedAssets: {
+    all: () => ["fixed-assets"] as const,
+    list: (status?: string) => ["fixed-assets", "list", status ?? ""] as const,
+    bookValue: (asOfDate?: string) => ["fixed-assets", "book-value", asOfDate ?? ""] as const,
+  },
+
+  dimensions: {
+    all: () => ["dimensions"] as const,
+    list: (type?: string) => ["dimensions", "list", type ?? ""] as const,
+    summary: () => ["dimensions", "summary"] as const,
+    report: (type: string, from: string, to: string) => ["dimensions", "report", type, from, to] as const,
+  },
+
+  exports: {
+    all: () => ["exports"] as const,
+    list: (status?: string) => ["exports", "list", status ?? ""] as const,
+    detail: (id: string) => ["exports", id] as const,
   },
 
 } as const;
@@ -111,6 +183,7 @@ export function invalidateTransactionFinancialCaches(
     queryKeys.reports.allProfitLoss(),
     queryKeys.reports.allBalanceSheet(),
     queryKeys.reports.allGeneralLedger(),
+    queryKeys.reports.allCashFlow(),
   ];
   keys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
 }

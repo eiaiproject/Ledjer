@@ -871,8 +871,7 @@ export function LandingPage() {
                 </div>
               </dl>
               <div className="border-t border-wood-200 bg-cream-100/60 px-4 py-2.5">
-                <button
-                  type="button"
+                <button                   type="button"
                   aria-expanded={demoExpanded}
                   aria-controls="demo-detail"
                   onClick={() => setDemoExpanded((v) => !v)}

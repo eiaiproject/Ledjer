@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Wallet, TrendUp, TrendDown, Chart,
   ArrowUpRight, ArrowDownRight, Plus, BookOpen,
-  Receipt, AlertCircle,
+  Receipt, AlertCircle, AlertTriangle,
+  Clock, Package, FileText, Bank, Lock,
 } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatShortDate } from "@/lib/utils";
-import { getDashboardSummary } from "@/lib/api/dashboard";
+import { formatShortDate, cn } from "@/lib/utils";
+import { getDashboardSummary, getDashboardAlerts, type DashboardAlert } from "@/lib/api/dashboard";
 
 type ProfitState = {
   isZero: boolean;
@@ -99,8 +100,17 @@ export function DashboardPage() {
     enabled: !!orgData?.organization?.id && canViewReports,
   });
 
+  // Fetch dashboard alerts
+  const { data: alertsData } = useQuery({
+    queryKey: [...queryKeys.dashboard(orgData?.organization?.id), "alerts"],
+    queryFn: () => getDashboardAlerts(),
+    enabled: !!orgData?.organization?.id && canViewReports,
+    refetchInterval: 60_000,
+  });
+
   // Empty-state heuristic: no revenue or expense activity this period
   const hasActivity = !!summary && (summary.revenue_current_period !== 0 || summary.expense_current_period !== 0);
+  const alerts = alertsData?.alerts ?? [];
 
   // Loading state with semantic ARIA
   if (orgLoading || isLoading) {
@@ -132,6 +142,20 @@ export function DashboardPage() {
           </p>
         )}
       </header>
+
+      {/* Actionable Alerts */}
+      {canViewReports && alerts.length > 0 && (
+        <section aria-labelledby="alerts-heading" className="space-y-3">
+          <h2 id="alerts-heading" className="text-sm font-semibold text-text-secondary">
+            Perlu Tindakan
+          </h2>
+          <div className="grid grid-cols-1 gap-2.5">
+            {alerts.map((alert) => (
+              <DashboardAlertCard key={alert.id} alert={alert} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Quick Actions */}
       {canCreateTransaction && (
@@ -294,5 +318,105 @@ export function DashboardPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+/* ───── Alert Card Component ───── */
+
+const ALERT_META: Record<string, { icon: React.ComponentType<{ className?: string }>; border: string; bg: string; iconBg: string; iconColor: string }> = {
+  overdue_receivable: {
+    icon: AlertTriangle,
+    border: "border-error-border",
+    bg: "bg-error-bg",
+    iconBg: "bg-error",
+    iconColor: "text-white",
+  },
+  upcoming_payable: {
+    icon: Clock,
+    border: "border-clay-300",
+    bg: "bg-clay-50",
+    iconBg: "bg-clay-500",
+    iconColor: "text-white",
+  },
+  low_stock: {
+    icon: Package,
+    border: "border-honey-300",
+    bg: "bg-honey-50",
+    iconBg: "bg-honey-500",
+    iconColor: "text-white",
+  },
+  draft_transaction: {
+    icon: FileText,
+    border: "border-sky-300",
+    bg: "bg-sky-50",
+    iconBg: "bg-sky-500",
+    iconColor: "text-white",
+  },
+  unreconciled_statement: {
+    icon: Bank,
+    border: "border-wood-300",
+    bg: "bg-wood-50",
+    iconBg: "bg-wood-500",
+    iconColor: "text-white",
+  },
+  unclosed_period: {
+    icon: Lock,
+    border: "border-leaf-300",
+    bg: "bg-leaf-50",
+    iconBg: "bg-leaf-500",
+    iconColor: "text-white",
+  },
+  pending_approval: {
+    icon: Clock,
+    border: "border-sky-300",
+    bg: "bg-sky-50",
+    iconBg: "bg-sky-500",
+    iconColor: "text-white",
+  },
+};
+
+function DashboardAlertCard({ alert }: { readonly alert: DashboardAlert }) {
+  const meta = ALERT_META[alert.type] ?? ALERT_META.draft_transaction;
+  const Icon = meta.icon;
+  const severityLabel = ({ high: "Penting", medium: "Sedang" } as Record<string, string>)[alert.severity] ?? "Ringan";
+
+  return (
+    <Link
+      to={alert.actionPath}
+      className={cn(
+        "group flex items-start gap-3.5 rounded-xl border p-4 transition-all duration-200",
+        meta.border, meta.bg,
+        "hover:shadow-md active:scale-[0.99]"
+      )}
+      aria-label={`${alert.title}: ${alert.description}`}
+    >
+      {/* Icon */}
+      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", meta.iconBg, meta.iconColor)}>
+        <Icon className="h-5 w-5" />
+      </div>
+
+      {/* Content */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-text-primary">{alert.title}</p>
+            <span className={cn(
+              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+              ({ high: "bg-error/10 text-error", medium: "bg-clay-100 text-clay-700" } as Record<string, string>)[alert.severity] ?? "bg-wood-100 text-wood-600"
+            )}>
+              {severityLabel}
+            </span>
+          </div>
+          <p className="text-xs text-text-tertiary leading-relaxed">
+            {alert.description}
+          </p>
+        </div>
+
+        <span className="mt-2 inline-flex shrink-0 items-center gap-1 self-start rounded-lg bg-white/60 px-3 py-1.5 text-xs font-medium text-wood-700 transition-all group-hover:bg-white sm:mt-0">
+          {alert.actionLabel}
+          <ArrowUpRight className="h-3 w-3" />
+        </span>
+      </div>
+    </Link>
   );
 }

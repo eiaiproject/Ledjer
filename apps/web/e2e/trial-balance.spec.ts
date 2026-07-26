@@ -1,16 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./helpers/auth";
 
 /**
  * Trial Balance page E2E tests.
- * Auth-dependent tests skip gracefully on login redirect.
+ * Uses authenticated fixture for auth-required tests.
  */
 
 async function gotoTrialBalance(page: import("@playwright/test").Page, width = 375, height = 812) {
-  await page.setViewportSize({ width, height });
-  await page.goto("/reports/trial-balance");
-  await page.waitForLoadState("networkidle");
-  if (page.url().includes("/login")) return false;
-  return true;
+  await authPage.setViewportSize({ width, height });
+  await authPage.goto("/reports/trial-balance");
+  await authPage.waitForLoadState("networkidle");
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -18,36 +17,36 @@ async function gotoTrialBalance(page: import("@playwright/test").Page, width = 3
 test.describe("Trial Balance page basics", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
-  test("page loads without crash", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await page.goto("/reports/trial-balance");
-    await page.waitForLoadState("networkidle");
-    expect(await page.title()).toMatch(/Ledjer/i);
+  test("page loads without crash", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await authPage.goto("/reports/trial-balance");
+    await authPage.waitForLoadState("networkidle");
+    expect(await authPage.title()).toMatch(/Ledjer/i);
   });
 
-  test("no horizontal overflow at 320px", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto("/reports/trial-balance");
-    await page.waitForLoadState("networkidle");
-    expect(await page.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();
+  test("no horizontal overflow at 320px", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await authPage.setViewportSize({ width: 320, height: 800 });
+    await authPage.goto("/reports/trial-balance");
+    await authPage.waitForLoadState("networkidle");
+    expect(await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();
   });
 
-  test("exactly one h1 exists", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await expect(page.locator("h1")).toHaveCount(1);
+  test("exactly one h1 exists", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await expect(authPage.locator("h1")).toHaveCount(1);
   });
 
-  test("page title says Neraca Saldo", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await expect(page.locator("h1")).toContainText("Neraca Saldo");
+  test("page title says Neraca Saldo", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await expect(authPage.locator("h1")).toContainText("Neraca Saldo");
   });
 
-  test("no duplicate ledger-page animation", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await page.goto("/reports/trial-balance");
-    await page.waitForLoadState("networkidle");
-    const count = await page.locator(".ledger-page").count();
+  test("no duplicate ledger-page animation", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await authPage.goto("/reports/trial-balance");
+    await authPage.waitForLoadState("networkidle");
+    const count = await authPage.locator(".ledger-page").count();
     expect(count).toBeLessThanOrEqual(1);
   });
 });
@@ -55,9 +54,9 @@ test.describe("Trial Balance page basics", () => {
 // ── Date display (auth required) ───────────────────────────────────
 
 test.describe("Date display (auth required)", () => {
-  test("subtitle uses long Indonesian date format", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const subtitle = page.locator("p").filter({ hasText: /^Per / });
+  test("subtitle uses long Indonesian date format", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const subtitle = authPage.locator("p").filter({ hasText: /^Per / });
     await expect(subtitle.first()).toBeVisible();
     const text = await subtitle.first().textContent();
     // Should contain Indonesian month name, not DD/MM/YYYY
@@ -69,25 +68,25 @@ test.describe("Date display (auth required)", () => {
 // ── Date apply behavior (auth required) ────────────────────────────
 
 test.describe("Date apply behavior (auth required)", () => {
-  test("apply button says Tampilkan laporan", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await expect(page.getByRole("button", { name: /tampilkan laporan/i })).toBeVisible();
+  test("apply button says Tampilkan laporan", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await expect(authPage.getByRole("button", { name: /tampilkan laporan/i })).toBeVisible();
   });
 
-  test("date input has label per tanggal", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const label = page.locator("label").filter({ hasText: /per tanggal/i });
+  test("date input has label per tanggal", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const label = authPage.locator("label").filter({ hasText: /per tanggal/i });
     await expect(label.first()).toBeAttached();
   });
 
-  test("date input has aria-describedby", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const dateInput = page.locator("input[type='date']").first();
+  test("date input has aria-describedby", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const dateInput = authPage.locator("input[type='date']").first();
     const describedby = await dateInput.getAttribute("aria-describedby");
     expect(describedby).toBeTruthy();
     const hintId = describedby ?? "";
     if (hintId) {
-      await expect(page.locator("#" + hintId).first()).toBeAttached();
+      await expect(authPage.locator("#" + hintId).first()).toBeAttached();
     }
   });
 });
@@ -95,115 +94,101 @@ test.describe("Date apply behavior (auth required)", () => {
 // ── Export (auth required) ──────────────────────────────────────────
 
 test.describe("Export (auth required)", () => {
-  test("export button has Indonesian accessible name", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const btn = page.getByRole("button", { name: /ekspor/i });
+  test("export button has Indonesian accessible name", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const btn = authPage.getByRole("button", { name: /ekspor/i });
     await expect(btn.first()).toBeAttached();
   });
 
-  test("export button disabled when no data", async ({ page }) => {
-    await gotoTrialBalance(page);
-    // If data is loaded, export should be enabled
-    const exportBtn = page.getByRole("button", { name: /ekspor/i });
-    if (await exportBtn.count() > 0) {
-      const disabled = await exportBtn.first().getAttribute("disabled");
-      // Should either be enabled or disabled depending on data
-      expect(disabled === null || disabled === "true" || disabled === "").toBeTruthy();
-    }
+  test("export button has accessible name", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const exportBtn = authPage.getByRole("button", { name: /ekspor/i });
+    await expect(exportBtn.first()).toBeAttached();
   });
 });
 
 // ── Refresh button ──────────────────────────────────────────────────
 
 test.describe("Refresh button (auth required)", () => {
-  test("refresh button has aria-label Muat ulang data", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await expect(page.locator("button[aria-label*='muat ulang' i]").first()).toBeAttached();
+  test("refresh button has aria-label Muat ulang data", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await expect(authPage.locator("button[aria-label*='muat ulang' i]").first()).toBeAttached();
   });
 });
 
 // ── Zero-balance toggle ────────────────────────────────────────────
 
 test.describe("Zero-balance toggle (auth required)", () => {
-  test("toggle label exists in Indonesian", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const toggle = page.locator("label").filter({ hasText: /tampilkan akun saldo nol/i });
+  test("toggle label exists in Indonesian", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const toggle = authPage.locator("label").filter({ hasText: /tampilkan akun saldo nol/i });
     await expect(toggle.first()).toBeAttached();
   });
 
-  test("toggle is a checkbox", async ({ page }) => {
-    await gotoTrialBalance(page);
-    await expect(page.locator("input[type='checkbox']").first()).toBeAttached();
+  test("toggle is a checkbox", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    await expect(authPage.locator("input[type='checkbox']").first()).toBeAttached();
   });
 });
 
 // ── Table semantics (auth required, desktop) ───────────────────────
 
 test.describe("Desktop table semantics (auth required)", () => {
-  test("table has caption", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const captions = page.locator("table caption");
+  test("table has caption", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const captions = authPage.locator("table caption");
+    await expect(captions.first()).toBeAttached();
     const count = await captions.count();
-    if (count > 0) {
-      for (let i = 0; i < count; i++) {
-        await expect(captions.nth(i)).toHaveClass(/sr-only/);
-      }
+    for (let i = 0; i < count; i++) {
+      await expect(captions.nth(i)).toHaveClass(/sr-only/);
     }
   });
 
-  test("headers have scope=col", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const scopedHeaders = page.locator("th[scope]");
+  test("headers have scope=col", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const scopedHeaders = authPage.locator("th[scope]");
+    await expect(scopedHeaders.first()).toBeAttached();
     const count = await scopedHeaders.count();
-    if (count > 0) {
-      expect(count).toBeGreaterThanOrEqual(4);
-    }
+    expect(count).toBeGreaterThanOrEqual(4);
   });
 
-  test("total row uses th scope=row colspan=2", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const totalHeader = page.locator("th[scope='row']");
-    const count = await totalHeader.count();
-    if (count > 0) {
-      await expect(totalHeader.first()).toHaveAttribute("colspan", "2");
-    }
+  test("total row uses th scope=row colspan=2", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const totalHeader = authPage.locator("th[scope='row']");
+    await expect(totalHeader.first()).toBeAttached();
+    await expect(totalHeader.first()).toHaveAttribute("colspan", "2");
   });
 
-  test("empty cells use em dash on desktop", async ({ page }) => {
-    await gotoTrialBalance(page);
+  test("empty cells use em dash on desktop", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
     // Check table exists (em dash behavior depends on data)
-    await expect(page.locator("table").first()).toBeAttached();
+    await expect(authPage.locator("table").first()).toBeAttached();
   });
 });
 
 // ── Balance status (auth required) ─────────────────────────────────
 
 test.describe("Balance status (auth required)", () => {
-  test("balanced status shows Indonesian text", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const balancedText = page.getByText(/neraca saldo seimbang/i);
-    const unbalancedText = page.getByText(/neraca saldo tidak seimbang/i);
-    const countA = await balancedText.count();
-    const countB = await unbalancedText.count();
-    // Exactly one should be present
-    expect(countA + countB).toBeGreaterThanOrEqual(1);
+  test("balanced status shows Indonesian text", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const balancedText = authPage.getByText(/neraca saldo seimbang|neraca saldo tidak seimbang/i);
+    await expect(balancedText.first()).toBeAttached();
   });
 
-  test("unbalanced shows selisih amount", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const unbalanced = page.getByText(/neraca saldo tidak seimbang/i);
-    if (await unbalanced.count() > 0) {
-      await expect(unbalanced.first()).toContainText(/selisih/i);
-    }
+  test("unbalanced shows selisih amount", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const unbalanced = authPage.getByText(/neraca saldo tidak seimbang/i);
+    await expect(unbalanced.first()).toBeAttached();
+    await expect(unbalanced.first()).toContainText(/selisih/i);
   });
 });
 
 // ── Bottom navigation ──────────────────────────────────────────────
 
 test.describe("Bottom navigation", () => {
-  test("no bottom nav item active for reports", async ({ page }) => {
-    await gotoTrialBalance(page);
-    const activeLinks = page.locator("[aria-current='page']");
+  test("no bottom nav item active for reports", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+    const activeLinks = authPage.locator("[aria-current='page']");
     const count = await activeLinks.count();
     expect(count).toBe(0);
   });
@@ -225,11 +210,11 @@ for (const vp of viewports) {
   test.describe(`Responsive: ${vp.name} (${vp.width}px)`, () => {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
-    test("no horizontal overflow", async ({ page }) => {
-    await gotoTrialBalance(page);
-      await page.goto("/reports/trial-balance");
-      await page.waitForLoadState("networkidle");
-      expect(await page.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();
+    test("no horizontal overflow", async ({ authPage }) => {
+    await gotoTrialBalance(authPage);
+      await authPage.goto("/reports/trial-balance");
+      await authPage.waitForLoadState("networkidle");
+      expect(await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();
     });
   });
 }

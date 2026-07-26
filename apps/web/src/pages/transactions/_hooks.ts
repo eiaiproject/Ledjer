@@ -96,7 +96,7 @@ function buildProductParams(data: TransactionSubmission): Partial<PostTransactio
 }
 
 function buildTransactionParams(
-  data: TransactionSubmission,
+  data: TransactionSubmission & { originalTransactionId?: string },
   expenseCogsAccounts: AccountLookup,
 ): PostTransactionInput {
   const params: PostTransactionInput = {
@@ -106,6 +106,7 @@ function buildTransactionParams(
     paymentStatus: usesPaymentStatus(data.transactionType) ? data.paymentStatus : "paid",
     partialAmount: data.partialAmount ?? undefined,
     description: data.description,
+    originalTransactionId: data.originalTransactionId ?? undefined,
     idempotencyKey: data.clientToken,
   };
 
@@ -292,7 +293,7 @@ export function useTransactionLookups(orgId: string | undefined) {
   } = useQuery({
     queryKey: queryKeys.parties.transactionOptions(orgId ?? ""),
     queryFn: async () => {
-      if (!orgId) return [];
+      if (!orgId) return { parties: [], customers: [], suppliers: [] };
       return listParties();
     },
     enabled: !!orgId,

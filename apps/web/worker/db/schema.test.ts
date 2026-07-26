@@ -34,6 +34,23 @@ describe("D1 schema contract", () => {
     expect(TENANT_SCOPED_TABLES).not.toContain("sessions");
   });
 
+  it("CORE_TABLES excludes system/global tables from tenant scope", () => {
+    // These tables are NOT in TENANT_SCOPED_TABLES because they store
+    // global data (users) or session/auth data (sessions, tokens).
+    // They don't have organization_id columns or the column is not the
+    // primary scoping mechanism.
+    expect(TENANT_SCOPED_TABLES).not.toContain("email_verifications");
+    expect(TENANT_SCOPED_TABLES).not.toContain("password_reset_tokens");
+    expect(TENANT_SCOPED_TABLES).not.toContain("login_attempts");
+    expect(TENANT_SCOPED_TABLES).not.toContain("oauth_accounts");
+  });
+
+  it("audit_logs and period_locks are tenant-scoped", () => {
+    expect(TENANT_SCOPED_TABLES).toContain("audit_logs");
+    expect(TENANT_SCOPED_TABLES).toContain("period_locks");
+    expect(TENANT_SCOPED_TABLES).toContain("organization_members");
+  });
+
   it("uses target role and accounting enum values", () => {
     expect(ROLE_VALUES).toEqual(["owner", "admin", "member", "viewer"]);
     expect(ACCOUNT_TYPE_VALUES).toContain("cogs");

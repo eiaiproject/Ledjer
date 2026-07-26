@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, startTransition } from "react";
 import { Controller } from "react-hook-form";
 import { createClientToken, formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
@@ -136,6 +136,13 @@ export function NewTransactionPage() {
   const [manualAmount, setManualAmount] = useState(false);
   const [clientToken, setClientToken] = useState(createClientToken);
   const [isTypeSelectorExpanded, setIsTypeSelectorExpanded] = useState(true);
+
+  // Replace transaction: read from URL search params after void
+  const urlParams = new URLSearchParams(window.location.search);
+  const replaceTransactionId = urlParams.get("replace");
+  const replaceType = urlParams.get("type");
+  const replaceAmount = urlParams.get("amount");
+  const replaceDesc = urlParams.get("desc");
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const activeFieldsRef = useRef<HTMLDivElement>(null);
@@ -243,6 +250,30 @@ export function NewTransactionPage() {
     selectedProduct,
   });
 
+  // P0.5: Pre-fill form from replacement URL params after void
+  useEffect(() => {
+    if (replaceType && !form.getValues("transactionType")) {
+      form.setValue("transactionType", replaceType, { shouldDirty: false });
+    }
+    if (replaceAmount && !form.getValues("amount")) {
+      form.setValue("amount", Number(replaceAmount), { shouldDirty: false });
+    }
+    if (replaceDesc && !form.getValues("description")) {
+      form.setValue("description", decodeURIComponent(replaceDesc), { shouldDirty: false });
+    }
+  // Only run on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Separate effect to avoid set-state-in-effect for setIsTypeSelectorExpanded
+  useEffect(() => {
+    if (replaceType) {
+      startTransition(() => {
+        setIsTypeSelectorExpanded(false);
+      });
+    }
+  }, [replaceType]);
+
   const { postMutation } = useTransactionMutation({
     orgId: orgData?.organization?.id,
     expenseCogsAccounts,
@@ -277,7 +308,11 @@ export function NewTransactionPage() {
     }
 
     submitInFlightRef.current = true;
-    postMutation.mutate({ ...data, clientToken } as import("./_hooks").TransactionSubmission);
+    const submission = { ...data, clientToken } as import("./_hooks").TransactionSubmission & { originalTransactionId?: string };
+    if (replaceTransactionId) {
+      submission.originalTransactionId = replaceTransactionId;
+    }
+    postMutation.mutate(submission);
   };
 
   const scrollToError = () => {
@@ -523,7 +558,7 @@ export function NewTransactionPage() {
                     form.setValue("partyName", value, { shouldDirty: true, shouldValidate: true });
                     form.clearErrors("partyName");
                   }}
-                  options={(parties || []).map((party) => ({ value: party.name, label: party.name }))}
+                  options={(parties?.customers ?? parties?.suppliers ?? []).map((party: { name: string }) => ({ value: party.name, label: party.name }))}
                   placeholder={partyCopy.placeholder}
                   helperText={partyCopy.helper}
                   allowCreate

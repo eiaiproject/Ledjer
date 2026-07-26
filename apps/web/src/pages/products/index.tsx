@@ -21,6 +21,8 @@ import {
   deactivateProduct,
   listProducts,
   updateProduct,
+  adjustStock,
+  recordStockCount,
   type Product,
 } from "@/lib/api/products";
 
@@ -216,6 +218,190 @@ function useProductMutations({ orgId, form, editingProduct, setEditingProduct, s
 /* ------------------------------------------------------------------ */
 /*  Filter component (reduce cognitive complexity)                    */
 /* ------------------------------------------------------------------ */
+
+function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly product: Product | null;
+  readonly onSuccess: () => void;
+}) {
+  const [quantity, setQuantity] = useState(0);
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!product || !reason.trim()) return;
+    if (quantity === 0) { setError("Jumlah penyesuaian tidak boleh 0."); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      await adjustStock({ productId: product.id, quantity, reason: reason.trim() });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyesuaikan stok");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={loading ? () => {} : onClose}
+      title={`Penyesuaian Stok — ${product?.name ?? ""}`} size="sm">
+      <ModalContent>
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Stok saat ini: <strong className="text-text-primary">{product?.current_stock ?? 0}</strong> {product?.unit || "pcs"}
+          </p>
+          <Input
+            label="Jumlah Penyesuaian"
+            type="number"
+            value={quantity || ""}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+            helperText="Nilai positif = tambah stok, negatif = kurangi stok"
+            disabled={loading}
+          />
+          <Input
+            label="Alasan"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g., Stok rusak, kelebihan stok, hilang..."
+            maxLength={500}
+            disabled={loading}
+            helperText="Alasan wajib diisi untuk audit trail"
+          />
+          {error && (
+            <div className="rounded-md bg-error/10 p-3 text-sm text-error" role="alert">{error}</div>
+          )}
+        </div>
+      </ModalContent>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onClose} disabled={loading}>Batal</Button>
+        <Button onClick={handleSubmit} loading={loading} disabled={loading || !reason.trim()}>
+          Simpan Penyesuaian
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+function StockCountModal({ open, onClose, product, onSuccess }: {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly product: Product | null;
+  readonly onSuccess: () => void;
+}) {
+  const [physicalStock, setPhysicalStock] = useState(0);
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ systemStock: string; physicalStock: string; difference: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // S3358 — extract nested ternary into independent statement
+  let differenceColor = "text-error";
+  if (result && Number(result.difference) > 0) {
+    differenceColor = "text-leaf-600";
+  } else if (result && Number(result.difference) === 0) {
+    differenceColor = "text-wood-500";
+  }
+
+  const handleCount = async () => {
+    if (!product) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await recordStockCount({
+        productId: product.id,
+        physicalStock,
+        notes: notes.trim() || undefined,
+      });
+      setResult({
+        systemStock: res.systemStock,
+        physicalStock: res.physicalStock,
+        difference: res.difference,
+      });
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mencatat stok fisik");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={loading ? () => {} : onClose}
+      title={`Stok Opname — ${product?.name ?? ""}`} size="sm">
+      <ModalContent>
+        <div className="space-y-4">
+          {!result ? (
+            <>
+              <p className="text-sm text-text-secondary">
+                Stok sistem: <strong className="text-text-primary">{product?.current_stock ?? 0}</strong> {product?.unit || "pcs"}
+              </p>
+              <Input
+                label="Stok Fisik"
+                type="number"
+                min={0}
+                value={physicalStock || ""}
+                onChange={(e) => setPhysicalStock(Number(e.target.value))}
+                disabled={loading}
+              />
+              <Input
+                label="Catatan (opsional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g., Hasil hitung manual gudang"
+                maxLength={500}
+                disabled={loading}
+              />
+              {error && (
+                <div className="rounded-md bg-error/10 p-3 text-sm text-error" role="alert">{error}</div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-3 rounded-lg border border-wood-200 bg-cream-50 p-4">
+              <p className="text-sm font-medium text-wood-800">Hasil Perbandingan</p>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-xs text-text-tertiary">Sistem</p>
+                  <p className="num-mono text-lg font-bold text-wood-700">{result.systemStock}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-tertiary">Fisik</p>
+                  <p className="num-mono text-lg font-bold text-leaf-700">{result.physicalStock}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-text-tertiary">Selisih</p>
+                  <p className={`num-mono text-lg font-bold ${differenceColor}`}>
+                    {result.difference}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-text-tertiary">
+                {Number(result.difference) === 0
+                  ? "Stok fisik sesuai dengan sistem."
+                  : `Gunakan fitur Penyesuaian Stok untuk menyelaraskan stok.`}
+              </p>
+            </div>
+          )}
+        </div>
+      </ModalContent>
+      <ModalFooter>
+        {!result ? (
+          <>
+            <Button variant="ghost" onClick={onClose} disabled={loading}>Batal</Button>
+            <Button onClick={handleCount} loading={loading} disabled={loading}>
+              Catat Stok Fisik
+            </Button>
+          </>
+        ) : (
+          <Button onClick={onClose}>Tutup</Button>
+        )}
+      </ModalFooter>
+    </Modal>
+  );
+}
 
 function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchInputRef, hasSearch, hasFilter, stockCounts, filterGroupId, onClearSearch, onResetAll, allProducts, filterLabels, filterValues }: {
   readonly search: string;
@@ -414,11 +600,13 @@ function ProductsPageHeader({ canCreateExports, canManageProducts, isExporting, 
   );
 }
 
-function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete }: {
+function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete, onAdjust, onStockCount }: {
   readonly filteredProducts: Product[];
   readonly canManageProducts: boolean;
   readonly onEdit: (p: Product) => void;
   readonly onDelete: (p: Product) => void;
+  readonly onAdjust: (p: Product) => void;
+  readonly onStockCount: (p: Product) => void;
 }) {
   return (
     <>
@@ -447,9 +635,14 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
             <div className="mt-2 flex items-center justify-between">
               <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
               <span className="num-mono text-xs text-text-tertiary">Stok: {formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
-            </div>
-            {canManageProducts && (
+            </div>              {canManageProducts && (
               <div className="mt-3 flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] text-sky-600 hover:bg-sky-50">
+                  <Package className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => onAdjust(product)} aria-label={`Sesuaikan stok ${product.name}`} className="min-h-[44px] min-w-[44px] text-honey-600 hover:bg-honey-50">
+                  <Edit2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px]">
                   <Edit2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
@@ -473,8 +666,8 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
               <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Status Stok</th>
               <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Beli</th>
               <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Jual</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Markup</th>
-              {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Aksi</th>}
+              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Markup</th>                {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Stok</th>}
+                {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Aksi</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-wood-50">
@@ -497,6 +690,18 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
                 </td>
+                {canManageProducts && (
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button type="button" variant="ghost" size="icon" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-sky-500 hover:text-sky-600 hover:bg-sky-50" title="Stok Opname">
+                        <Package className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => onAdjust(product)} aria-label={`Sesuaikan stok ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-honey-500 hover:text-honey-600 hover:bg-honey-50" title="Penyesuaian Stok">
+                        <Edit2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </td>
+                )}
                 {canManageProducts && (
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
@@ -584,6 +789,10 @@ export function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
+  const [stockCountModalOpen, setStockCountModalOpen] = useState(false);
+  const [stockCountProduct, setStockCountProduct] = useState<Product | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const filterGroupId = useId();
@@ -596,6 +805,7 @@ export function ProductsPage() {
 
   const { allProducts, isLoading, error, refetch } = useProductList(orgData?.organization?.id);
 
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const hasSearch = search.trim().length > 0;
@@ -632,7 +842,15 @@ export function ProductsPage() {
     finally { setIsExporting(false); }
   }, [canCreateExports, isExporting]);
 
-  const handleClearSearch = useCallback(() => { setSearch(""); searchInputRef.current?.focus(); }, []);
+  const openAdjustModal = useCallback((product: Product) => { setAdjustProduct(product); setAdjustModalOpen(true); }, []);
+  const openStockCountModal = useCallback((product: Product) => { setStockCountProduct(product); setStockCountModalOpen(true); }, []);
+
+  const handleInventoryChange = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
+    toast.success("Stok berhasil diperbarui.");
+  }, [queryClient, orgData]);
+
+  const handleClearSearch = useCallback(() => setSearch(""), []);
   const handleResetAll = useCallback(() => { setSearch(""); setStockFilter("all"); }, []);
 
   // ── Error ──
@@ -700,6 +918,8 @@ export function ProductsPage() {
           canManageProducts={canManageProducts}
           onEdit={openEditModal}
           onDelete={(p) => { setSelectedProduct(p); setDeleteDialogOpen(true); }}
+          onAdjust={openAdjustModal}
+          onStockCount={openStockCountModal}
         />
       )}
 
@@ -712,6 +932,22 @@ export function ProductsPage() {
         onClosing={() => setModalOpen(false)}
         onSave={handleSave}
         onboardingCompleted={onboardingCompleted}
+      />
+
+      {/* Stock Adjustment Modal */}
+      <StockAdjustmentModal
+        open={adjustModalOpen}
+        onClose={() => setAdjustModalOpen(false)}
+        product={adjustProduct}
+        onSuccess={handleInventoryChange}
+      />
+
+      {/* Stock Count Modal */}
+      <StockCountModal
+        open={stockCountModalOpen}
+        onClose={() => setStockCountModalOpen(false)}
+        product={stockCountProduct}
+        onSuccess={handleInventoryChange}
       />
 
       {/* Deactivate confirmation */}

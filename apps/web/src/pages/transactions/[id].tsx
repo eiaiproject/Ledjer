@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/ui/error-state";
+import { AttachmentSection } from "@/components/attachment-section";
 import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
@@ -27,7 +28,7 @@ import {
 } from "@/lib/api/transactions";
 import { listCashBankAccounts } from "@/lib/api/accounts";
 
-export function TransactionDetailPage() {
+export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page component with void/settle/journal UIs; readability over complexity
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
@@ -37,7 +38,9 @@ export function TransactionDetailPage() {
   const [settleCashAccountId, setSettleCashAccountId] = useState("");
   const [voidReason, setVoidReason] = useState("");
   const [showJournal, setShowJournal] = useState(false);
+  const [voidSuccessId, setVoidSuccessId] = useState<string | null>(null);
   const voidTokenRef = useRef(createClientToken());
+  const navigate = useNavigate();
 
   // P1.3: Allow any member with transaction access to view business details.
   // Journal lines are separately gated by RLS (can_view_reports policy).
@@ -70,8 +73,9 @@ export function TransactionDetailPage() {
       if (!id || !orgData?.organization?.id) throw new Error("Missing data");
       return voidTransaction(id, voidReason, voidTokenRef.current);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       voidTokenRef.current = createClientToken();
+      setVoidSuccessId(result.reversal_transaction_id);
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.journalEntries.detail(id!) });
       // P1.5: void reverses stock, COGS, balances → invalidate everything
@@ -116,6 +120,83 @@ export function TransactionDetailPage() {
       </div>
     );
   }
+
+  const voidSection = transaction.status === "posted" && canVoidTransaction ? (
+    <div className="mt-4">
+      {!showVoidForm && !voidSuccessId ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowVoidForm(true)}
+          className="border-error-border text-error hover:bg-error-bg"
+        >
+          Batalkan Transaksi
+        </Button>
+      ) : !voidSuccessId ? ( // NOSONAR typescript:S3358 — nested ternary for void form states
+        <div className="rounded-lg border border-error/30 bg-error/10 p-4">
+          <h3 className="text-sm font-medium text-error">Pembatalan Transaksi</h3>
+          <p className="mt-1 text-xs text-error">
+            Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
+          </p>
+          <Textarea
+            label="Alasan pembatalan"
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            containerClassName="mt-2"
+            placeholder="Alasan pembatalan..."
+            rows={2}
+            error={voidReason.trim().length > 0 && voidReason.trim().length < 5 ? "Alasan minimal 5 karakter." : undefined}
+          />
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowVoidForm(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => voidMutation.mutate()}
+              disabled={voidReason.trim().length < 5 || voidMutation.isPending}
+              loading={voidMutation.isPending}
+            >
+              Batalkan
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-leaf-200 bg-leaf-50 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-leaf-700">
+            <svg className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+            </svg>
+            Transaksi berhasil dibatalkan
+          </div>
+          <p className="mt-1 text-xs text-leaf-600">
+            Jurnal reversal dan stok telah dikembalikan seperti sebelum transaksi.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => navigate(`/transactions/new?replace=${id}&type=${transaction.transaction_type}&amount=${transaction.amount}&desc=${encodeURIComponent(transaction.description || "Pengganti " + transaction.transaction_number)}`)}
+            >
+              Buat Transaksi Pengganti
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVoidSuccessId(null)}
+            >
+              Tutup
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="ledger-page mx-auto max-w-3xl px-4 py-8">
@@ -248,54 +329,7 @@ export function TransactionDetailPage() {
       )}
 
       {/* Void Section */}
-      {transaction.status === "posted" && canVoidTransaction && (
-        <div className="mt-4">
-          {!showVoidForm ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowVoidForm(true)}
-              className="border-error-border text-error hover:bg-error-bg"
-            >
-              Batalkan Transaksi
-            </Button>
-          ) : (
-            <div className="rounded-lg border border-error/30 bg-error/10 p-4">
-              <h3 className="text-sm font-medium text-error">Pembatalan Transaksi</h3>
-              <p className="mt-1 text-xs text-error">
-                Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
-              </p>
-              <Textarea
-                label="Alasan pembatalan"
-                value={voidReason}
-                onChange={(e) => setVoidReason(e.target.value)}
-                containerClassName="mt-2"
-                placeholder="Alasan pembatalan..."
-                rows={2}
-                error={voidReason.trim().length > 0 && voidReason.trim().length < 5 ? "Alasan minimal 5 karakter." : undefined}
-              />
-              <div className="mt-3 flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowVoidForm(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  onClick={() => voidMutation.mutate()}
-                  disabled={voidReason.trim().length < 5 || voidMutation.isPending}
-                  loading={voidMutation.isPending}
-                >
-                  Batalkan
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {voidSection}
 
       {/* Journal Entries */}
       {canViewReports && journalError && (
@@ -355,6 +389,13 @@ export function TransactionDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Attachments */}
+      {transaction && (
+        <div className="mt-8">
+          <AttachmentSection entityType="transaction" entityId={transaction.id} />
         </div>
       )}
     </div>

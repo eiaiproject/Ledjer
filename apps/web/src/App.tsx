@@ -15,6 +15,7 @@ const LoginPage = lazy(async () => ({ default: (await import("@/pages/login")).L
 const RegisterPage = lazy(async () => ({ default: (await import("@/pages/register")).RegisterPage }));
 const AuthCallbackPage = lazy(async () => ({ default: (await import("@/pages/auth-callback")).AuthCallbackPage }));
 const OnboardingPage = lazy(async () => ({ default: (await import("@/pages/onboarding")).OnboardingPage }));
+const OnboardingChecklistPage = lazy(async () => ({ default: (await import("@/pages/onboarding/checklist")).OnboardingChecklistPage }));
 const OnboardingGuard = lazy(async () => ({ default: (await import("@/components/onboarding-guard")).OnboardingGuard }));
 const DashboardPage = lazy(async () => ({ default: (await import("@/pages/dashboard")).DashboardPage }));
 const TransactionListPage = lazy(async () => ({ default: (await import("@/pages/transactions/index")).TransactionListPage }));
@@ -25,6 +26,12 @@ const GeneralLedgerPage = lazy(async () => ({ default: (await import("@/pages/re
 const TrialBalancePage = lazy(async () => ({ default: (await import("@/pages/reports/trial-balance")).TrialBalancePage }));
 const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/reports/profit-loss")).ProfitLossPage }));
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
+const CashFlowPage = lazy(async () => ({ default: (await import("@/pages/reports/cash-flow")).default }));
+const AgingReportPage = lazy(async () => ({ default: (await import("@/pages/reports/aging")).default }));
+const PartyStatementPage = lazy(async () => ({ default: (await import("@/pages/reports/party-statement")).default }));
+const ReconciliationPage = lazy(async () => ({ default: (await import("@/pages/reconciliation/index")).default }));
+const OpeningBalancePage = lazy(async () => ({ default: (await import("@/pages/opening-balance")).default }));
+const ImportPage = lazy(async () => ({ default: (await import("@/pages/import/index")).default }));
 const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/team")).TeamSettingsPage }));
 const PeriodLocksPage = lazy(async () => ({ default: (await import("@/pages/settings/period-locks")).PeriodLocksPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
@@ -36,6 +43,24 @@ const PrivacyPolicyPage = lazy(async () => ({ default: (await import("@/pages/le
 const RefundPolicyPage = lazy(async () => ({ default: (await import("@/pages/legal/refund")).RefundPolicyPage }));
 const SecurityPage = lazy(async () => ({ default: (await import("@/pages/legal/security")).SecurityPage }));
 const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/contact")).ContactPage }));
+const InvoiceListPage = lazy(async () => ({ default: (await import("@/pages/invoices/index")).default }));
+const NewInvoicePage = lazy(async () => ({ default: (await import("@/pages/invoices/new")).default }));
+const InvoiceDetailPage = lazy(async () => ({ default: (await import("@/pages/invoices/[id]")).default }));
+const DocumentsPage = lazy(async () => ({ default: (await import("@/pages/documents/index")).DocumentsPage }));
+const NewDocumentPage = lazy(async () => ({ default: (await import("@/pages/documents/new")).NewDocumentPage }));
+const DocumentDetailPage = lazy(async () => ({ default: (await import("@/pages/documents/[id]")).DocumentDetailPage }));
+const RecurringTransactionsPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/index")).RecurringTransactionsPage }));
+const NewRecurringTransactionPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/new")).NewRecurringTransactionPage }));
+const RecurringTransactionDetailPage = lazy(async () => ({ default: (await import("@/pages/recurring-transactions/[id]")).RecurringTransactionDetailPage }));
+const NotificationsPage = lazy(async () => ({ default: (await import("@/pages/notifications/index")).NotificationsPage }));
+const PeriodClosePage = lazy(async () => ({ default: (await import("@/pages/period-close/index")).PeriodClosePage }));
+const ApprovalsPage = lazy(async () => ({ default: (await import("@/pages/approvals/index")).ApprovalsPage }));
+const ApprovalSettingsPage = lazy(async () => ({ default: (await import("@/pages/approvals/settings")).ApprovalSettingsPage }));
+const ManualJournalPage = lazy(async () => ({ default: (await import("@/pages/journals/index")).ManualJournalPage }));
+const BudgetsPage = lazy(async () => ({ default: (await import("@/pages/budgets/index")).BudgetsPage }));
+const ExportsPage = lazy(async () => ({ default: (await import("@/pages/exports/index")).ExportsPage }));
+const DimensionsPage = lazy(async () => ({ default: (await import("@/pages/dimensions/index")).DimensionsPage }));
+const FixedAssetsPage = lazy(async () => ({ default: (await import("@/pages/fixed-assets/index")).FixedAssetsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -218,6 +243,7 @@ const routerConfig = [
     ),
     children: [
       { index: true, element: <OnboardingGuard><OnboardingPage /></OnboardingGuard> },
+      { path: "checklist", element: <OnboardingChecklistPage /> },
     ],
   },
   {
@@ -236,11 +262,35 @@ const routerConfig = [
           { path: "/transactions/:id", element: <TransactionDetailPage /> },
           { path: "/accounts", element: <AccountsPage /> },
           { path: "/products", element: <ProductsPage /> },
+          { path: "/invoices", element: <InvoiceListPage /> },
+          { path: "/invoices/new", element: <NewInvoicePage /> },
+          { path: "/invoices/:id", element: <InvoiceDetailPage /> },
+          { path: "/documents", element: <DocumentsPage /> },
+          { path: "/documents/new", element: <NewDocumentPage /> },
+          { path: "/documents/:id", element: <DocumentDetailPage /> },
+          { path: "/recurring-transactions", element: <RecurringTransactionsPage /> },
+          { path: "/recurring-transactions/new", element: <NewRecurringTransactionPage /> },
+          { path: "/recurring-transactions/:id", element: <RecurringTransactionDetailPage /> },
+          { path: "/notifications", element: <NotificationsPage /> },
           { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
           { path: "/reports/trial-balance", element: <TrialBalancePage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
+          { path: "/reports/cash-flow", element: <CashFlowPage /> },
+          { path: "/reports/aging", element: <AgingReportPage /> },
+          { path: "/reports/aging/:partyId", element: <PartyStatementPage /> },
+          { path: "/reconciliation", element: <ReconciliationPage /> },
+          { path: "/opening-balance", element: <OpeningBalancePage /> },
+          { path: "/import", element: <ImportPage /> },
           { path: "/settings/team", element: <TeamSettingsPage /> },
+          { path: "/period-close", element: <PeriodClosePage /> },
+          { path: "/budgets", element: <BudgetsPage /> },
+          { path: "/exports", element: <ExportsPage /> },
+          { path: "/dimensions", element: <DimensionsPage /> },
+          { path: "/fixed-assets", element: <FixedAssetsPage /> },
+          { path: "/journals", element: <ManualJournalPage /> },
+          { path: "/approvals", element: <ApprovalsPage /> },
+          { path: "/approvals/settings", element: <ApprovalSettingsPage /> },
           { path: "/settings/period-locks", element: <PeriodLocksPage /> },
         ],
       },

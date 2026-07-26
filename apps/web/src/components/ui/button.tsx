@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Spinner } from "./spinner";
 import { SIZE_STYLES } from "./size-styles";
 
-type ButtonVariant = "primary" | "secondary" | "success" | "danger" | "ghost" | "outline" | "link";
+type ButtonVariant = "primary" | "secondary" | "success" | "danger" | "ghost" | "outline" | "link" | "destructive";
 type ButtonSize = "xs" | "sm" | "md" | "lg" | "icon";
 
 type AsProp<C extends ElementType> = { as?: C };
@@ -25,6 +25,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   ghost: "text-wood-600 hover:bg-cream-100 active:bg-cream-200",
   outline: "border border-wood-300 text-wood-700 hover:bg-cream-100 active:bg-cream-200",
   link: "text-wood-600 underline-offset-4 hover:underline p-0 h-auto",
+  destructive: "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm",
 };
 
 

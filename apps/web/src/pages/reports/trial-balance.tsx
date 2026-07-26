@@ -13,6 +13,7 @@ import { exportTrialBalanceCsv } from "@/lib/csv-export";
 import { Download, Refresh } from "reicon-react";
 import { getTrialBalance } from "@/lib/api/reports";
 import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
+import { HelpTooltip } from "@/components/ui/help-tooltip";
 
 export function TrialBalancePage() {
   const { data: orgData } = useOrganization();
@@ -94,7 +95,10 @@ export function TrialBalancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Neraca Saldo</h1>
+        <h1 className="text-2xl font-bold text-text-primary">
+          Neraca Saldo
+          <HelpTooltip topic="trial_balance" position="right" />
+        </h1>
         <p className="text-sm text-text-secondary mt-1" aria-live="polite">
           {isRefreshing ? (
             <span className="text-text-secondary">Memperbarui laporan...</span>

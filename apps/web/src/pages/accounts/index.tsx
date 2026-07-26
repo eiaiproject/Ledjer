@@ -568,8 +568,7 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
             key={group.type}
             className="overflow-hidden rounded-xl border border-wood-200 bg-surface-elevated"
           >
-            <button
-              type="button"
+            <button               type="button"
               onClick={() => toggleType(group.type)}
               className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-cream-50 sm:px-5 sm:py-4 min-h-[44px]"
               aria-expanded={isExpanded}
@@ -878,8 +877,7 @@ export function AccountsPage() {
           className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
         />
         {hasSearch && (
-          <button
-            type="button"
+          <button             type="button"
             onClick={handleClearSearch}
             className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Hapus pencarian"
