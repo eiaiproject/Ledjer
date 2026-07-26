@@ -263,15 +263,13 @@ async function processSingleAttachment(
 
   if (!parentExists) {
     await safeDeleteR2(bucket, att.storage_key);
-    /* no-org-scope — cleanup operation on already-selected rows */
-    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
+    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]); /* no-org-scope */
     return "orphaned";
   }
 
   if (att.created_at < cutoff) {
     await safeDeleteR2(bucket, att.storage_key);
-    /* no-org-scope — cleanup operation on already-selected rows */
-    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]);
+    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]); /* no-org-scope */
     return "expired";
   }
 

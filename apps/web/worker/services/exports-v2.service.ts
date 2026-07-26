@@ -362,8 +362,8 @@ export async function cleanupExpiredExports(
     if (job.file_key && bucket) {
       try { await bucket.delete(job.file_key); } catch { /* ignore */ }
     }
-    // Delete from DB
-    await execute(db, `DELETE FROM export_jobs_v2 WHERE id = ?`, [job.id]);
+    // Delete from DB — system-level old-job cleanup
+    await execute(db, `DELETE FROM export_jobs_v2 WHERE id = ?`, [job.id]); /* no-org-scope */
     deleted++;
   }
 

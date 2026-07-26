@@ -236,13 +236,11 @@ async function clearAndRestoreTables(
   for (const table of reversed) {
     const rows = tableData[table];
     if (!rows || rows.length === 0) {
-      /* no-org-scope — backup restore intentionally clears all orgs */
-      await execute(db, `DELETE FROM "${table}"`);
+      await execute(db, `DELETE FROM "${table}"`); /* no-org-scope */
       tables[table] = { restored: 0 };
       continue;
     }      try {
-      /* no-org-scope — backup restore intentionally clears all orgs */
-      await execute(db, `DELETE FROM "${table}"`);
+      await execute(db, `DELETE FROM "${table}"`); /* no-org-scope */
       await insertRowsInBatches(db, table, rows);
       tables[table] = { restored: rows.length };
     } catch (err) {
