@@ -10,17 +10,20 @@ function cookieName(c: Context): string {
 
 function cookieOptions(c: Context) {
   const isHostPrefix = c.env.APP_ENV === "production";
+  const secure = isHostPrefix ? true : isSecureRequest(c);
   return {
     domain: isHostPrefix ? undefined : c.env.COOKIE_DOMAIN,
     path: "/",
     sameSite: "Lax" as const,
     // __Host- prefix requires Secure flag unconditionally.
     // In production the app always serves over HTTPS (Cloudflare).
-    secure: isHostPrefix ? true : isSecureRequest(c),
-    partitioned: true,
+    secure,
+    httpOnly: true,
+    partitioned: secure ? true : undefined,
   };
 }
 import { tooManyRequests, unauthorized } from "../http/errors";
+import { execute } from "../db/client";
 import { readJson } from "../http/json";
 import {
   changePassword,
@@ -39,7 +42,6 @@ import {
 import { checkRateLimit } from "../services/rate-limit.service";
 import {
   getSessionByToken,
-  revokeSessionToken,
 } from "../services/session.service";
 import { logAuthEvent } from "../services/auth-audit.service";
 
@@ -134,8 +136,9 @@ authRoutes.post("/logout", async (c) => {
   const token = getCookie(c, cookieName(c));
   if (token) {
     const row = await getSessionByToken(c.env.DB, token);
-    await revokeSessionToken(c.env.DB, token);
     if (row) {
+      // Revoke by session_id since getSessionByToken may have rotated the token
+      await execute(c.env.DB, "UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL", [Date.now(), row.session_id]);
       logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {});
     }
   }
@@ -151,6 +154,14 @@ authRoutes.get("/me", async (c) => {
   if (!row) {
     deleteCookie(c, cookieName(c), cookieOptions(c));
     return c.json({ user: null, session: null });
+  }
+
+  // Set new cookie if token was rotated
+  if ("newToken" in row && row.newToken) {
+    setCookie(c, cookieName(c), row.newToken, {
+      ...cookieOptions(c),
+      expires: new Date(row.expires_at),
+    });
   }
 
   return c.json({
@@ -329,6 +340,14 @@ async function requireSession(c: Context<AppContext>) {
   if (!row) {
     deleteCookie(c, cookieName(c), cookieOptions(c));
     throw unauthorized();
+  }
+
+  // Set new cookie if token was rotated
+  if ("newToken" in row && row.newToken) {
+    setCookie(c, cookieName(c), row.newToken, {
+      ...cookieOptions(c),
+      expires: new Date(row.expires_at),
+    });
   }
 
   return row;

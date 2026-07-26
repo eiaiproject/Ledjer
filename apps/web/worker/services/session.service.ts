@@ -69,7 +69,7 @@ export async function createSession(
 export async function getSessionByToken(
   db: D1Database,
   token: string,
-): Promise<CurrentSessionRow | null> {
+): Promise<(CurrentSessionRow & { newToken?: string }) | null> {
   const tokenHash = await hashToken(token);
   const current = Date.now();
 
@@ -93,13 +93,28 @@ export async function getSessionByToken(
 
   if (!row) return null;
 
-  await execute(
+  // Rotate the session token for security
+  const newToken = generateToken();
+  const newTokenHash = await hashToken(newToken);
+
+  const result = await execute(
     db,
-    "UPDATE sessions SET last_used_at = ? WHERE id = ?",
-    [current, row.session_id],
+    `UPDATE sessions
+     SET token_hash = ?,
+         last_used_at = ?
+     WHERE id = ?
+       AND token_hash = ?
+       AND revoked_at IS NULL`,
+    [newTokenHash, current, row.session_id, tokenHash],
   );
 
-  return row;
+  if (result.meta.changes === 0) {
+    // Another request already rotated the token — return session without new token
+    return row;
+  }
+
+  // Update last_used_at separately (already included in the UPDATE above)
+  return { ...row, newToken };
 }
 
 export async function revokeSessionToken(
