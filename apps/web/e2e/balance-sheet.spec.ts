@@ -11,9 +11,9 @@ async function gotoBalanceSheet(
   width = 375,
   height = 812,
 ) {
-  await authPage.setViewportSize({ width, height });
-  await authPage.goto("/reports/balance-sheet");
-  await authPage.waitForLoadState("networkidle");
+  await page.setViewportSize({ width, height });
+  await page.goto("/reports/balance-sheet");
+  await page.waitForLoadState("networkidle");
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -133,7 +133,7 @@ test.describe("Export (auth required)", () => {
 test.describe("Zero-balance toggle (auth required)", () => {
   test("toggle label exists in Indonesian", async ({ authPage }) => {
     await gotoBalanceSheet(authPage);
-    const toggle = page
+    const toggle = authPage
       .locator("label")
       .filter({ hasText: /tampilkan akun saldo nol/i });
     await expect(toggle.first()).toBeAttached();

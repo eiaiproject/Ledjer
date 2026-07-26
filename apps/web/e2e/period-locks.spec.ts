@@ -11,9 +11,9 @@ async function gotoPeriodLocks(
   width = 375,
   height = 812,
 ) {
-  await authPage.setViewportSize({ width, height });
-  await authPage.goto("/settings/period-locks");
-  await authPage.waitForLoadState("networkidle");
+  await page.setViewportSize({ width, height });
+  await page.goto("/settings/period-locks");
+  await page.waitForLoadState("networkidle");
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
