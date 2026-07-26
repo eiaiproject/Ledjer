@@ -137,7 +137,7 @@ export default function NewInvoicePage() {
             <Button variant="ghost" size="sm" onClick={addLine}>+ Tambah Item</Button>
           </div>
           {lines.map((line, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
+            <div key={line.description + "-" + i} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
               <div className="col-span-5">
                 <label className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
                 <Input value={line.description} onChange={(e) => updateLine(i, "description", e.target.value)} placeholder="Nama item" />

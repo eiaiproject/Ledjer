@@ -123,7 +123,7 @@ export function NewDocumentPage() {
         {!type ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DOCUMENT_TYPES.map((t) => (
-              <button type="button"
+              <button
                 key={t.value}
                 type="button"
                 onClick={() => setType(t.value)}
@@ -143,8 +143,7 @@ export function NewDocumentPage() {
               <span className="text-sm font-medium text-text-primary">
                 {DOCUMENT_TYPES.find((t) => t.value === type)?.label}
               </span>
-              <button type="button"
-                type="button"
+              <button                 type="button"
                 onClick={() => setType(null)}
                 className="ml-auto text-xs text-wood-500 underline hover:text-ink"
               >
@@ -227,8 +226,7 @@ export function NewDocumentPage() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-text-primary">Item</h2>
-                <button type="button"
-                  type="button"
+                <button                   type="button"
                   onClick={addLine}
                   className="inline-flex items-center gap-1 text-xs font-medium text-ink hover:text-ink/70"
                 >
@@ -240,7 +238,7 @@ export function NewDocumentPage() {
               <div className="space-y-2">
                 {lines.map((line, i) => (
                   <div
-                    key={i}
+                    key={line.description + "-" + i}
                     className="flex flex-wrap items-end gap-2 rounded-lg border border-wood-200 bg-surface p-3 sm:flex-nowrap"
                   >
                     <div className="flex-1 sm:min-w-[180px]">
@@ -282,8 +280,7 @@ export function NewDocumentPage() {
                         Rp {(line.amountMinor / 100).toLocaleString("id-ID")}
                       </span>
                     </div>
-                    <button type="button"
-                      type="button"
+                    <button                       type="button"
                       onClick={() => removeLine(i)}
                       disabled={lines.length <= 1}
                       className="flex h-8 w-8 items-center justify-center rounded text-wood-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
@@ -337,7 +334,7 @@ export function NewDocumentPage() {
 
             {/* Submit */}
             <div className="flex items-center gap-3 border-t border-wood-200 pt-4">
-              <button type="button"
+              <button
                 type="submit"
                 disabled={mutation.isPending}
                 className="inline-flex items-center gap-2 rounded-lg bg-ink px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30 disabled:opacity-50"
@@ -347,8 +344,7 @@ export function NewDocumentPage() {
                 ) : null}
                 {mutation.isPending ? "Menyimpan..." : "Simpan Draft"}
               </button>
-              <button type="button"
-                type="button"
+              <button                 type="button"
                 onClick={() => navigate("/documents")}
                 className="rounded-lg px-4 py-2.5 text-sm font-medium text-wood-600 transition-colors hover:bg-wood-50"
               >

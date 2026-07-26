@@ -183,7 +183,7 @@ export default function OpeningBalancePage() {
               )}
 
               {lines.map((line, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
+                <div key={line.accountId} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
                   <div className="col-span-7">
                     <label className="block text-xs text-wood-500 mb-0.5">Akun</label>
                     <select
@@ -259,8 +259,8 @@ export default function OpeningBalancePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(preview.lines as { accountName: string; accountCode: string; debit: number; credit: number }[]).map((line: { accountName: string; accountCode: string; debit: number; credit: number }, i: number) => (
-                        <tr key={i} className="border-b border-wood-100">
+                      {(preview.lines as { accountName: string; accountCode: string; debit: number; credit: number }[]).map((line: { accountName: string; accountCode: string; debit: number; credit: number }) => (
+                        <tr key={line.accountCode} className="border-b border-wood-100">
                           <td className="py-2 pr-4 text-wood-800">
                             <span className="text-wood-400 text-xs">{line.accountCode}</span>{' '}
                             {line.accountName}
@@ -337,8 +337,8 @@ export default function OpeningBalancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {postResult.snapshot.accounts.map((acct, i) => (
-                      <tr key={i} className="border-b border-wood-100">
+                    {postResult.snapshot.accounts.map((acct) => (
+                      <tr key={acct.accountCode} className="border-b border-wood-100">
                         <td className="py-1.5 pr-3 text-wood-800">
                           <span className="text-wood-400 text-xs">{acct.accountCode}</span>{' '}
                           {acct.accountName}

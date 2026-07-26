@@ -55,26 +55,13 @@ function getAvailableActions(doc: DocumentOutput): {
   variant: "primary" | "danger" | "secondary";
   icon?: React.ReactNode;
 }[] {
-  const actions: { status?: string; label: string; variant: "primary" | "danger" | "secondary"; icon?: React.ReactNode }[] = [];
-
-  if (doc.status === "draft") {
-    actions.push({ status: "confirmed", label: "Konfirmasi", variant: "primary" });
-  }
-  if (doc.status === "confirmed") {
-    actions.push({ status: "issued", label: "Terbitkan", variant: "primary" });
-    actions.push({ status: "sent", label: "Tandai Terkirim", variant: "secondary" });
-  }
-  if (doc.status === "issued") {
-    actions.push({ status: "sent", label: "Tandai Terkirim", variant: "secondary" });
-  }
-
-  // Type-specific actions
-  if (doc.documentType === "quotation" && (doc.status === "issued" || doc.status === "sent")) {
-    actions.push({ label: "Konversi ke Faktur", variant: "primary", icon: <FileText className="h-4 w-4" /> });
-  }
-  if (doc.documentType === "purchase_order" && (doc.status === "issued" || doc.status === "sent")) {
-    actions.push({ label: "Terima Barang", variant: "primary", icon: <CheckCircle className="h-4 w-4" /> });
-  }
+  const actions: { status?: string; label: string; variant: "primary" | "danger" | "secondary"; icon?: React.ReactNode }[] = [
+    ...(doc.status === "draft" ? [{ status: "confirmed" as const, label: "Konfirmasi", variant: "primary" as const }] : []),
+    ...(doc.status === "confirmed" ? [{ status: "issued" as const, label: "Terbitkan", variant: "primary" as const }, { status: "sent" as const, label: "Tandai Terkirim", variant: "secondary" as const }] : []),
+    ...(doc.status === "issued" ? [{ status: "sent" as const, label: "Tandai Terkirim", variant: "secondary" as const }] : []),
+    ...(doc.documentType === "quotation" && (doc.status === "issued" || doc.status === "sent") ? [{ label: "Konversi ke Faktur", variant: "primary" as const, icon: <FileText className="h-4 w-4" /> }] : []),
+    ...(doc.documentType === "purchase_order" && (doc.status === "issued" || doc.status === "sent") ? [{ label: "Terima Barang", variant: "primary" as const, icon: <CheckCircle className="h-4 w-4" /> }] : []),
+  ];
 
   // Cancellation (except already cancelled/converted)
   if (!["cancelled", "converted", "received"].includes(doc.status)) {
@@ -189,10 +176,10 @@ export function DocumentDetailPage() {
               Cetak
             </a>
 
-            {actions.map((action, i) =>
+            {actions.map((action) =>
               action.status === "cancelled" ? (
                 <button type="button"
-                  key={i}
+                  key={action.label}
                   onClick={() => setShowCancelInput(true)}
                   disabled={statusMutation.isPending}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition-all hover:bg-red-50"
@@ -202,7 +189,7 @@ export function DocumentDetailPage() {
                 </button>
               ) : action.label === "Konversi ke Faktur" ? (
                 <button type="button"
-                  key={i}
+                  key="convert-to-invoice"
                   onClick={() => {
                     if (window.confirm("Konversi penawaran ini menjadi faktur?")) {
                       convertMutation.mutate();
@@ -220,7 +207,7 @@ export function DocumentDetailPage() {
                 </button>
               ) : action.label === "Terima Barang" ? (
                 <button type="button"
-                  key={i}
+                  key="receive-goods"
                   onClick={() => {
                     if (window.confirm("Tandai pesanan ini sebagai diterima?")) {
                       receiveMutation.mutate();
@@ -238,7 +225,7 @@ export function DocumentDetailPage() {
                 </button>
               ) : (
                 <button type="button"
-                  key={i}
+                  key={action.label}
                   onClick={() => statusMutation.mutate({ status: action.status! })}
                   disabled={statusMutation.isPending}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${

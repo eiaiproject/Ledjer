@@ -107,7 +107,7 @@ export async function listApprovalRequests(opts?: {
   if (opts?.limit) params.set("limit", String(opts.limit));
   if (opts?.offset) params.set("offset", String(opts.offset));
   const qs = params.toString();
-  const url = `/api/approvals${qs ? `?${qs}` : ""}`;
+  const url = `/api/approvals${qs ? "?" + qs : ""}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch approval requests");
   const data = await res.json() as { requests: ApprovalRequest[] };

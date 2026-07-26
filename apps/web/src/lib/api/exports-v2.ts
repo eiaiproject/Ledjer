@@ -80,7 +80,7 @@ export async function listExportJobs(opts?: {
   if (opts?.limit) params.set("limit", String(opts.limit));
   if (opts?.offset) params.set("offset", String(opts.offset));
   const qs = params.toString();
-  const res = await fetch(`/api/exports-v2${qs ? `?${qs}` : ""}`);
+  const res = await fetch(`/api/exports-v2${qs ? "?" + qs : ""}`);
   if (!res.ok) throw new Error("Failed to fetch export jobs");
   const result = await res.json() as { jobs: ExportJob[] };
   return result.jobs;

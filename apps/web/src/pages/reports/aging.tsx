@@ -125,7 +125,7 @@ export default function AgingReportPage() {
                   <tr>
                     <td className="px-4 py-3 text-wood-800">Total</td>
                     {allItems[0].buckets.map((_, i) => (
-                      <td key={i} className="px-4 py-3 text-right text-wood-800">
+                      <td key={`total-${i}`} className="px-4 py-3 text-right text-wood-800">
                         {formatIDR(allItems.reduce((s, p) => s + (p.buckets[i]?.totalMinor ?? 0), 0))}
                       </td>
                     ))}

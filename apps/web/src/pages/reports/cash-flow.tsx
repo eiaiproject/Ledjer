@@ -33,7 +33,7 @@ function formatChange(current: number, previous: number): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
 
-function CashFlowTable({ report, onDrillDown }: { report: CashFlowReport; onDrillDown?: (type: string) => void }) {
+function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowReport; readonly onDrillDown?: (type: string) => void }) {
   const showComparison = !!report.prevPeriod;
 
   return (

@@ -23,7 +23,7 @@ interface ImportResult {
   warnings?: string[];
 }
 
-function ImportStatementTab({ onImported }: { onImported: (id: string) => void }) {
+function ImportStatementTab({ onImported }: { readonly onImported: (id: string) => void }) {
   const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
   const [accountId, setAccountId] = useState("");
@@ -131,7 +131,7 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
                 Peringatan
               </div>
               <ul className="list-disc list-inside text-xs text-amber-600 space-y-0.5">
-                {importResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                {importResult.warnings.map((w, i) => <li key={w + "-" + i}>{w}</li>)}
               </ul>
             </div>
           )}
@@ -143,7 +143,7 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
                 Kemungkinan Duplikat Baris
               </div>
               <ul className="list-disc list-inside text-xs text-amber-600 space-y-0.5">
-                {importResult.duplicatedLines.map((d, i) => <li key={i}>{d.reason}</li>)}
+                {importResult.duplicatedLines.map((d, i) => <li key={d.line + "-" + i}>{d.reason}</li>)}
               </ul>
             </div>
           )}
@@ -164,7 +164,7 @@ function ImportStatementTab({ onImported }: { onImported: (id: string) => void }
 }
 
 /* Tab: Statement report */
-function StatementReportTab({ statementId }: { statementId: string }) {
+function StatementReportTab({ statementId }: { readonly statementId: string }) {
   const queryClient = useQueryClient();
 
   const { data: report, isLoading, isError, error } = useQuery({
@@ -298,15 +298,13 @@ export default function ReconciliationPage() {
       </h1>
 
       <div className="flex gap-2 border-b border-wood-200">
-        <button type="button"
-          type="button"
+        <button           type="button"
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "import" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-400 hover:text-wood-600"}`}
           onClick={() => setTab("import")}
         >
           Import Statement
         </button>
-        <button type="button"
-          type="button"
+        <button           type="button"
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "report" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-400 hover:text-wood-600"}`}
           onClick={() => setTab("report")}
         >

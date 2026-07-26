@@ -65,8 +65,8 @@ function ChecklistStep({
   step,
   index,
 }: {
-  step: OnboardingStep;
-  index: number;
+  readonly step: OnboardingStep;
+  readonly index: number;
 }) {
   const action = getAction(step.id);
   const Icon = action.icon;

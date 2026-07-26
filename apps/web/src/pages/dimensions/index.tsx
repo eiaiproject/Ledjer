@@ -239,7 +239,7 @@ export function DimensionsPage() {
           const isActive = activeTab === type;
           const typeCount = summary?.find((s) => s.type === type)?.activeCount ?? 0;
           return (
-            <button type="button"
+            <button
               key={type}
               type="button"
               onClick={() => setActiveTab(type)}
@@ -296,8 +296,7 @@ export function DimensionsPage() {
 
             return (
               <Card key={dim.id}>
-                <button type="button"
-                  type="button"
+                <button                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : dim.id)}
                   className="w-full text-left"
                   aria-expanded={isExpanded}
@@ -325,16 +324,14 @@ export function DimensionsPage() {
                     <div className="flex items-center gap-1 shrink-0">
                       {canManage && (
                         <>
-                          <button type="button"
-                            type="button"
+                          <button                             type="button"
                             onClick={(e) => { e.stopPropagation(); openEdit(dim); }}
                             className="p-1.5 text-text-tertiary hover:text-text-primary rounded"
                             aria-label={`Edit ${dim.name}`}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button type="button"
-                            type="button"
+                          <button                             type="button"
                             onClick={(e) => { e.stopPropagation(); setConfirmDelete(dim.id); }}
                             className="p-1.5 text-clay-500 hover:text-clay-700 rounded"
                             aria-label={`Hapus ${dim.name}`}

@@ -96,8 +96,7 @@ export function PwaInstallPrompt() {
               Pasang Aplikasi
             </Button>
           </div>
-          <button type="button"
-            type="button"
+          <button             type="button"
             onClick={handleDismiss}
             className="shrink-0 p-1 text-text-tertiary hover:text-text-primary rounded"
             aria-label="Tutup"

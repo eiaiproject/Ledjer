@@ -4,13 +4,13 @@ import { MentionCircle, X } from "reicon-react";
 
 interface HelpTooltipProps {
   /** Key into the HELP content map */
-  topic: string;
+  readonly topic: string;
   /** Optional custom title override */
-  title?: string;
+  readonly title?: string;
   /** Position of the popover relative to the trigger */
-  position?: "top" | "bottom" | "left" | "right";
+  readonly position?: "top" | "bottom" | "left" | "right";
   /** Small variant for inline usage */
-  size?: "sm" | "md";
+  readonly size?: "sm" | "md";
 }
 
 export function HelpTooltip({
@@ -61,7 +61,7 @@ export function HelpTooltip({
 
   return (
     <span className="relative inline-flex items-center">
-      <button type="button"
+      <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
@@ -89,8 +89,7 @@ export function HelpTooltip({
               <h4 className="text-sm font-semibold text-text-primary">
                 {title ?? content.title}
               </h4>
-              <button type="button"
-                type="button"
+              <button                 type="button"
                 onClick={() => setOpen(false)}
                 className="shrink-0 rounded p-0.5 text-wood-400 hover:bg-wood-100 hover:text-wood-600"
                 aria-label="Tutup"
@@ -148,7 +147,7 @@ export function HelpTooltip({
  * Inline help text shown below a form field or section.
  * Renders a small info icon that reveals explanation in a popover.
  */
-export function FieldHelp({ topic, label }: { topic: string; label?: string }) {
+export function FieldHelp({ topic, label }: { readonly topic: string; readonly label?: string }) {
   const content = HELP[topic];
   if (!content) return null;
 
@@ -164,14 +163,14 @@ export function FieldHelp({ topic, label }: { topic: string; label?: string }) {
  * Help section panel for dedicated help blocks in the UI.
  * Shows a collapsible card with a full accounting explanation.
  */
-export function HelpSection({ topic, defaultOpen = false }: { topic: string; defaultOpen?: boolean }) {
+export function HelpSection({ topic, defaultOpen = false }: { readonly topic: string; readonly defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   const content = HELP[topic];
   if (!content) return null;
 
   return (
     <div className="rounded-xl border border-wood-200 bg-surface">
-      <button type="button"
+      <button
         type="button"
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-wood-50"

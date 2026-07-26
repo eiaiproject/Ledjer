@@ -116,7 +116,7 @@ export async function listAssets(opts?: {
   if (opts?.limit) params.set("limit", String(opts.limit));
   if (opts?.offset) params.set("offset", String(opts.offset));
   const qs = params.toString();
-  const res = await fetch(`/api/fixed-assets${qs ? `?${qs}` : ""}`);
+  const res = await fetch(`/api/fixed-assets${qs ? "?" + qs : ""}`);
   if (!res.ok) throw new Error("Failed to fetch assets");
   const data = await res.json() as { assets: FixedAsset[] };
   return data.assets;

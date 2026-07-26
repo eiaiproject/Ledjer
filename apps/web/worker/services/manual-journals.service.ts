@@ -327,16 +327,18 @@ export async function generateClosingJournalLines(
     if (absBalance === 0) continue;
 
     if (isRevenue) {
-      // Revenue has credit normal balance - debit to zero it
-      lines.push({ accountId: acct.id, debitMinor: absBalance, creditMinor: 0, description: `Menutup ${acct.name}` });
-      // Credit retained earnings
-      lines.push({ accountId: retainedEarnings.id, debitMinor: 0, creditMinor: absBalance, description: `Menutup ${acct.name} ke Saldo Laba` });
+      // Revenue has credit normal balance - debit to zero it + credit retained earnings
+      lines.push(
+        { accountId: acct.id, debitMinor: absBalance, creditMinor: 0, description: `Menutup ${acct.name}` },
+        { accountId: retainedEarnings.id, debitMinor: 0, creditMinor: absBalance, description: `Menutup ${acct.name} ke Saldo Laba` },
+      );
       totalRevenue += absBalance;
     } else if (isExpense) {
-      // Expense has debit normal balance - credit to zero it
-      lines.push({ accountId: acct.id, debitMinor: 0, creditMinor: absBalance, description: `Menutup ${acct.name}` });
-      // Debit retained earnings
-      lines.push({ accountId: retainedEarnings.id, debitMinor: absBalance, creditMinor: 0, description: `Menutup ${acct.name} ke Saldo Laba` });
+      // Expense has debit normal balance - credit to zero it + debit retained earnings
+      lines.push(
+        { accountId: acct.id, debitMinor: 0, creditMinor: absBalance, description: `Menutup ${acct.name}` },
+        { accountId: retainedEarnings.id, debitMinor: absBalance, creditMinor: 0, description: `Menutup ${acct.name} ke Saldo Laba` },
+      );
       totalExpense += absBalance;
     }
   }

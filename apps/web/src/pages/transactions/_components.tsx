@@ -136,8 +136,7 @@ export const ErrorSummary = forwardRef<HTMLDivElement, ErrorSummaryProps>(
               <ul className="mt-2 space-y-1">
                 {fieldErrors.map((err) => (
                   <li key={err.field}>
-                    <button type="button"
-                      type="button"
+                    <button                       type="button"
                       onClick={() => scrollToField(err.field)}
                       className="break-words text-left text-sm text-error underline underline-offset-2 hover:text-error/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error"
                     >
@@ -264,8 +263,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
 
       {/* Expandable: other types */}
       {hasAdditional && !shouldShowAdditional && (
-        <button type="button"
-          type="button"
+        <button           type="button"
           onClick={() => setShowAll(true)}
           aria-expanded="false"
           aria-controls={additionalId}
@@ -280,8 +278,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
         <div id={additionalId} className="mt-4 space-y-4 border-t border-wood-100 pt-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-normal text-text-tertiary">Semua Jenis</p>
-            <button type="button"
-              type="button"
+            <button               type="button"
               onClick={() => { if (!selectedInAdditional) setShowAll(false); }}
               aria-expanded="true"
               aria-controls={additionalId}
@@ -336,7 +333,7 @@ export function PaymentStatusSelector({
         <p className="mb-2 text-sm font-medium text-text-secondary">Status Pembayaran</p>
         <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Status pembayaran">
           {PAYMENT_OPTIONS.map((option) => (
-            <button type="button"
+            <button
               key={option.value}
               type="button"
               role="radio"
@@ -622,8 +619,7 @@ export function ReviewPanel({
       {/* Collapsible journal preview */}
       {hasPreview && (
         <div className="border-t border-wood-100 pt-3">
-          <button type="button"
-            type="button"
+          <button             type="button"
             onClick={() => setJournalOpen(!journalOpen)}
             className="flex w-full items-center justify-between gap-2 text-sm font-medium text-text-secondary hover:text-text-primary"
             aria-expanded={journalOpen}
@@ -760,8 +756,7 @@ export function MobileReviewToggle(props: MobileReviewToggleProps) {
 
   return (
     <div className="relative min-w-0 lg:hidden">
-      <button type="button"
-        type="button"
+      <button         type="button"
         onClick={handleToggle}
         className={cn(
           "ledger-interactive flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left text-sm font-medium",

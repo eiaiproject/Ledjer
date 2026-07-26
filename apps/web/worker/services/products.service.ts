@@ -375,7 +375,7 @@ export async function recordStockCount(
     movementType: "stock_count",
     movementDate: new Date().toISOString().slice(0, 10),
     quantity: 0, // Zero quantity — just logs the count
-    notes: `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)}${input.notes ? ` — ${input.notes}` : ""}`,
+    notes: input.notes ? `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)} — ${input.notes}` : `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)}`,
   });
 
   const productName = product.name;

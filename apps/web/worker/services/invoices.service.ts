@@ -299,15 +299,11 @@ export async function createCreditNote(
     );
   }
 
-  // 3. Mark original invoice as credited
+  // 3. Mark original invoice as credited + audit log
   statements.push(
     db.prepare(
       `UPDATE invoices SET status = 'credited', updated_at = ? WHERE id = ?`,
     ).bind(now, originalInvoiceId),
-  );
-
-  // 4. Audit log
-  statements.push(
     db.prepare(
       `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, before_json, after_json, reason, created_at)
        VALUES (?, ?, ?, 'credit_note', ?, 'created', ?, ?, ?, ?)`,

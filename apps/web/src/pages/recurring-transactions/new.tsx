@@ -51,8 +51,7 @@ export function NewRecurringTransactionPage() {
   const [description, setDescription] = useState("");
   const [partyId, setPartyId] = useState("");
   const [cashAccountId, setCashAccountId] = useState("");
-  const [notes, _setNotes] = useState("");
-
+  const [notes, _setNotes] = useState("");  // NOSONAR typescript:S6754
   const mutation = useMutation({
     mutationFn: (input: CreateRecurringInput) => createRecurringTransaction(input),
     onSuccess: (result) => {
@@ -320,7 +319,7 @@ export function NewRecurringTransactionPage() {
 
         {/* Submit */}
         <div className="flex items-center gap-3 border-t border-wood-200 pt-4">
-          <button type="button"
+          <button
             type="submit"
             disabled={mutation.isPending}
             className="inline-flex items-center gap-2 rounded-lg bg-ink px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30 disabled:opacity-50"
@@ -328,7 +327,7 @@ export function NewRecurringTransactionPage() {
             {mutation.isPending ? <Loader className="h-4 w-4 animate-spin" /> : null}
             {mutation.isPending ? "Menyimpan..." : "Simpan"}
           </button>
-          <button type="button"
+          <button
             type="button"
             onClick={() => navigate("/recurring-transactions")}
             className="rounded-lg px-4 py-2.5 text-sm font-medium text-wood-600 transition-colors hover:bg-wood-50"

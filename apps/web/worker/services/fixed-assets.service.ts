@@ -742,7 +742,7 @@ export async function disposeAsset(
     }
   }
 
-  // Mark pending depreciation entries as skipped for this asset
+  // Mark pending depreciation entries as skipped for this asset + audit
   statements.push(
     statement(
       db,
@@ -750,9 +750,6 @@ export async function disposeAsset(
        WHERE asset_id = ? AND status = 'pending'`,
       [assetId],
     ),
-  );
-
-  statements.push(
     writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,

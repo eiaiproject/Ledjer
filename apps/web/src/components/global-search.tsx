@@ -32,8 +32,8 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 interface GlobalSearchModalProps {
-  open: boolean;
-  onClose: () => void;
+  readonly open: boolean;
+  readonly onClose: () => void;
 }
 
 export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {

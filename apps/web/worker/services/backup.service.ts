@@ -210,10 +210,11 @@ export async function restoreBackup(
         const batch = rows.slice(i, i + batchSize);
         const statements = batch.map((row) => {
           const columns = Object.keys(row);
+          const quoted = columns.map((c) => `"${c}"`).join(", ");
           const placeholders = columns.map(() => "?").join(", ");
           const values = columns.map((col) => row[col] ?? null);
           return db.prepare(
-            `INSERT OR REPLACE INTO "${table}" (${columns.map((c) => `"${c}"`).join(", ")}) VALUES (${placeholders})`,
+            `INSERT OR REPLACE INTO "${table}" (${quoted}) VALUES (${placeholders})`,
           ).bind(...values);
         });
         await executeBatch(db, statements);

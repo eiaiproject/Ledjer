@@ -201,7 +201,7 @@ async function searchParties(
     entityType: "party" as const,
     entityId: r.id,
     label: r.name,
-    subtitle: `${r.party_type === "customer" ? "Pelanggan" : r.party_type === "supplier" ? "Pemasok" : r.party_type}${r.email ? ` — ${r.email}` : ""}`,
+    subtitle: (r.party_type === "customer" ? "Pelanggan" : r.party_type === "supplier" ? "Pemasok" : r.party_type) + (r.email ? " — " + r.email : ""),
     url: `/transactions?partyId=${r.id}`,
     score: limit - i,
   }));

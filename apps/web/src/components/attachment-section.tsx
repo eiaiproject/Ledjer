@@ -7,8 +7,8 @@ import { formatFileSize } from "@/lib/utils";
 import { listAttachments, deleteAttachment, getAttachmentDownloadUrl, type AttachmentInfo } from "@/lib/api/attachments";
 
 interface Props {
-  entityType: string;
-  entityId: string;
+  readonly entityType: string;
+  readonly entityId: string;
 }
 
 export function AttachmentSection({ entityType, entityId }: Props) {
@@ -81,8 +81,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
                 </a>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <span className="text-xs text-wood-400">{formatFileSize(att.fileSize)}</span>
-                  <button type="button"
-                    type="button"
+                  <button                     type="button"
                     onClick={() => {
                       if (confirm("Hapus lampiran ini?")) deleteMutation.mutate(att.id);
                     }}

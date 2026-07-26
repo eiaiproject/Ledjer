@@ -181,8 +181,7 @@ export function RegisterPage() {
                       : "Kirim ulang email"}
                   </Button>
 
-                  <button type="button"
-                    type="button"
+                  <button                     type="button"
                     onClick={() => {
                       setPendingEmail(null);
                       setResendMessage(null);

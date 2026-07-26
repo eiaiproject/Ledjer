@@ -130,11 +130,10 @@ export function NotificationBell() {
 
   return (
     <div ref={dropdownRef} className="relative">
-      <button type="button"
-        type="button"
+      <button         type="button"
         onClick={() => setOpen(!open)}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg text-wood-500 transition-colors hover:bg-wood-100 hover:text-wood-700"
-        aria-label={`Notifikasi${unreadCount > 0 ? ` (${unreadCount} belum dibaca)` : ""}`}
+        aria-label={`Notifikasi${unreadCount > 0 ? " (" + unreadCount + " belum dibaca)" : ""}`}
       >
         <Bell className="h-5 w-5" aria-hidden="true" />
         {unreadCount > 0 && (

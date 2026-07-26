@@ -133,7 +133,7 @@ export function RecurringTransactionsPage() {
   );
 }
 
-function RecurringCard({ item }: { item: RecurringOutput }) {
+function RecurringCard({ item }: { readonly item: RecurringOutput }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 

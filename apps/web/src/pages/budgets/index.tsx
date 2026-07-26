@@ -54,7 +54,7 @@ export function BudgetsPage() {
   const [showForecastModal, setShowForecastModal] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [alertThreshold, _setAlertThreshold] = useState(20);
+  const alertThreshold = 20;
 
   // ── Form state ──────────────────────────────────────────────
 
@@ -272,8 +272,7 @@ export function BudgetsPage() {
             const isExpanded = expandedId === budget.id;
             return (
               <Card key={budget.id}>
-                <button type="button"
-                  type="button"
+                <button                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : budget.id)}
                   className="w-full text-left"
                   aria-expanded={isExpanded}
@@ -295,8 +294,7 @@ export function BudgetsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button type="button"
-                        type="button"
+                      <button                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           openForecast(budget.accountId);
@@ -393,8 +391,7 @@ export function BudgetsPage() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-sm font-medium text-text-primary">Rincian Bulanan (opsional)</label>
-                <button type="button"
-                  type="button"
+                <button                   type="button"
                   onClick={addLine}
                   className="text-xs text-blue-600 hover:text-blue-800"
                 >
@@ -402,7 +399,7 @@ export function BudgetsPage() {
                 </button>
               </div>
               {formData.lines.map((line, i) => (
-                <div key={i} className="flex items-center gap-2 mt-2">
+                <div key={line.month + "-" + i} className="flex items-center gap-2 mt-2">
                   <Input
                     type="month"
                     value={line.month}
@@ -417,8 +414,7 @@ export function BudgetsPage() {
                     onChange={(e) => updateLine(i, "amountMinor", e.target.value)}
                     className="flex-1"
                   />
-                  <button type="button"
-                    type="button"
+                  <button                     type="button"
                     onClick={() => removeLine(i)}
                     className="p-2 text-clay-500 hover:text-clay-700"
                   >
@@ -543,9 +539,9 @@ function ForecastModal({
   onClose,
   accountId,
 }: {
-  open: boolean;
-  onClose: () => void;
-  accountId: string;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
 }) {
   const [monthsAhead, setMonthsAhead] = useState(3);
   const { data: accounts } = useQuery({
@@ -572,7 +568,7 @@ function ForecastModal({
             </label>
             <div className="flex items-center gap-2">
               {[1, 3, 6, 12].map((n) => (
-                <button type="button"
+                <button
                   key={n}
                   type="button"
                   onClick={() => setMonthsAhead(n)}

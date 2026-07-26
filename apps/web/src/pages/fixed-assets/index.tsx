@@ -295,8 +295,7 @@ export function FixedAssetsPage() {
 
             return (
               <Card key={asset.id}>
-                <button type="button"
-                  type="button"
+                <button                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : asset.id)}
                   className="w-full text-left"
                   aria-expanded={isExpanded}

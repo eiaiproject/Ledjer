@@ -140,7 +140,9 @@ async function seed() {
     const price = randomInt(5000, 500000);
     const cost = Math.round(price * randomInt(50, 80) / 100);
     const stock = randomInt(50, 500) * 1000;
-    sql += sqlLine(`INSERT OR IGNORE INTO products (id, organization_id, code, name, unit, purchase_price_minor, selling_price_minor, average_cost_minor, current_stock_milli, initial_stock_minor, inventory_account_id, cogs_account_id, revenue_account_id, is_active, created_at, updated_at) VALUES (${esc(productId)}, ${esc(ORG_ID)}, ${esc(`BRG-${String(i + 1).padStart(4, "0")}`)}, ${esc(`Barang ${String(i + 1).padStart(3, "0")}`)}, 'pcs', ${cost}, ${price}, ${cost}, ${stock}, 0, ${esc(invAcc)}, ${esc(cogsAcc)}, ${esc(revAcc)}, 1, ${startTime}, ${startTime})`);
+    const code = `BRG-${String(i + 1).padStart(4, "0")}`;
+    const name = `Barang ${String(i + 1).padStart(3, "0")}`;
+    sql += sqlLine(`INSERT OR IGNORE INTO products (id, organization_id, code, name, unit, purchase_price_minor, selling_price_minor, average_cost_minor, current_stock_milli, initial_stock_minor, inventory_account_id, cogs_account_id, revenue_account_id, is_active, created_at, updated_at) VALUES (${esc(productId)}, ${esc(ORG_ID)}, ${esc(code)}, ${esc(name)}, 'pcs', ${cost}, ${price}, ${cost}, ${stock}, 0, ${esc(invAcc)}, ${esc(cogsAcc)}, ${esc(revAcc)}, 1, ${startTime}, ${startTime})`);
   }
 
   // 7. Generate 10,000+ transactions
@@ -177,26 +179,26 @@ async function seed() {
       } else if (txnType === "cash_purchase") {
         debitAcc = getAccountId("1300");
         creditAcc = getAccountId("1110");
-        desc = `Pembelian Tunai ${formatDate(txnDate)}`;
+        desc = "Pembelian Tunai " + formatDate(txnDate);
       } else if (txnType === "credit_purchase") {
         debitAcc = getAccountId("1300");
         creditAcc = getAccountId("2100");
-        desc = `Pembelian Kredit ${formatDate(txnDate)}`;
+        desc = "Pembelian Kredit " + formatDate(txnDate);
       } else if (txnType === "expense_payment") {
         debitAcc = getAccountId(EXPENSE_ACCOUNTS[i % EXPENSE_ACCOUNTS.length]);
         creditAcc = getAccountId("1110");
-        desc = `Pembayaran Beban ${formatDate(txnDate)}`;
+        desc = "Pembayaran Beban " + formatDate(txnDate);
       } else if (txnType === "receive_receivable") {
         debitAcc = getAccountId("1110");
         creditAcc = getAccountId("1200");
-        desc = `Penerimaan Piutang ${formatDate(txnDate)}`;
+        desc = "Penerimaan Piutang " + formatDate(txnDate);
       } else {
         debitAcc = getAccountId("2100");
         creditAcc = getAccountId("1110");
-        desc = `Pembayaran Utang ${formatDate(txnDate)}`;
+        desc = "Pembayaran Utang " + formatDate(txnDate);
       }
 
-      sql += sqlLine(`INSERT OR IGNORE INTO transactions (id, organization_id, transaction_number, transaction_date, transaction_type, amount_minor, description, cash_account_id, payment_status, status, idempotency_key, posted_at, posted_by, created_by, created_at, updated_at) VALUES (${esc(txnId)}, ${esc(ORG_ID)}, ${esc(txnNum)}, ${esc(formatDate(txnDate))}, ${esc(txnType)}, ${amount}, ${esc(desc)}, ${esc(getAccountId("1110"))}, 'paid', 'posted', ${esc(`bm-ik-${txnId}`)}, ${now}, ${esc(USER_ID)}, ${esc(USER_ID)}, ${now}, ${now})`);
+      sql += sqlLine(`INSERT OR IGNORE INTO transactions (id, organization_id, transaction_number, transaction_date, transaction_type, amount_minor, description, cash_account_id, payment_status, status, idempotency_key, posted_at, posted_by, created_by, created_at, updated_at) VALUES (${esc(txnId)}, ${esc(ORG_ID)}, ${esc(txnNum)}, ${esc(formatDate(txnDate))}, ${esc(txnType)}, ${amount}, ${esc(desc)}, ${esc(getAccountId("1110"))}, 'paid', 'posted', ${esc("bm-ik-" + txnId)}, ${now}, ${esc(USER_ID)}, ${esc(USER_ID)}, ${now}, ${now})`);
       sql += sqlLine(`INSERT OR IGNORE INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, transaction_id, description, status, posted_at, posted_by, created_at) VALUES (${esc(entryId)}, ${esc(ORG_ID)}, ${esc(entryNum)}, ${esc(formatDate(txnDate))}, 'normal', ${esc(txnId)}, ${esc(desc)}, 'posted', ${now}, ${esc(USER_ID)}, ${now})`);
       sql += sqlLine(`INSERT OR IGNORE INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (${esc(generateId("bm-jl"))}, ${esc(ORG_ID)}, ${esc(entryId)}, ${esc(debitAcc)}, ${amount}, 0, ${esc(desc)}, 1, ${now})`);
       sql += sqlLine(`INSERT OR IGNORE INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (${esc(generateId("bm-jl"))}, ${esc(ORG_ID)}, ${esc(entryId)}, ${esc(creditAcc)}, 0, ${amount}, ${esc(desc)}, 2, ${now})`);

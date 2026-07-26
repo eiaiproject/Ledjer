@@ -160,7 +160,7 @@ export default function InvoiceDetailPage() {
               </thead>
               <tbody className="divide-y divide-wood-100">
                 {(invoice.lines ?? []).map((line, i) => (
-                  <tr key={i}>
+                  <tr key={line.lineNumber ?? i}>
                     <td className="px-4 py-2 text-wood-500">{line.lineNumber ?? i + 1}</td>
                     <td className="px-4 py-2 text-wood-800">{line.description}</td>
                     <td className="px-4 py-2 text-right text-wood-700">{(line.quantityMilli / 1000).toFixed(2)}</td>
@@ -281,7 +281,7 @@ export default function InvoiceDetailPage() {
             ) : (
               <div className="space-y-3">
                 {creditLines.map((cl, i) => (
-                  <div key={i} className="grid grid-cols-10 gap-2 items-end">
+                  <div key={"line-" + i} className="grid grid-cols-10 gap-2 items-end">
                     <div className="col-span-7">
                       <label className="block text-xs text-wood-500 mb-0.5">Deskripsi</label>
                       <Input
@@ -309,8 +309,7 @@ export default function InvoiceDetailPage() {
                     </div>
                     <div className="col-span-1 pt-5">
                       {creditLines.length > 1 && (
-                        <button type="button"
-                          type="button"
+                        <button                           type="button"
                           onClick={() => setCreditLines(creditLines.filter((_, j) => j !== i))}
                           className="text-red-500 text-sm"
                           aria-label="Hapus"

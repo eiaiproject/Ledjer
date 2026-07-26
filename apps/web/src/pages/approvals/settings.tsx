@@ -175,8 +175,7 @@ export function ApprovalSettingsPage() {
                           />
                         </div>
                       )}
-                      <button type="button"
-                        type="button"
+                      <button                         type="button"
                         onClick={() => handleToggle(action)}
                         disabled={upsertMutation.isPending}
                         className={cn(

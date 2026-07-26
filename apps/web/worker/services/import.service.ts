@@ -79,7 +79,6 @@ export function parseCsv(text: string): { headers: string[]; rows: string[][] } 
         } else {
           current += ch;
         }
-      }
     }
     fields.push(current.trim());
     return fields;

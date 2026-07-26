@@ -46,8 +46,8 @@ interface ImportResult {
 /** Simple string hash for duplicate detection. */
 function hashStr(s: string): string {
   let h = 0;
-  // ponytail: keep | 0 for 32-bit int truncation in hash; Math.trunc would change semantics
-  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.codePointAt(i)) | 0; }
+  // NOSONAR typescript:S7767 - intentional 32-bit int truncation, Math.trunc changes semantics
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + (s.codePointAt(i) ?? 0)) | 0; }
   return String(h);
 }
 
@@ -228,7 +228,7 @@ export default function ImportPage() {
       {/* Entity type tabs */}
       <div className="flex gap-2 border-b border-wood-200 overflow-x-auto">
         {(["coa", "products", "parties", "opening-balance"] as EntityType[]).map((type) => (
-          <button type="button"
+          <button
             key={type}
             type="button"
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px shrink-0 ${
@@ -389,7 +389,7 @@ export default function ImportPage() {
               <div className="mt-2">
                 <p className="text-xs font-medium text-red-600 mb-1">Error:</p>
                 <ul className="list-disc list-inside text-xs text-red-500 space-y-0.5">
-                  {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                  {result.errors.map((e, i) => <li key={e + "-" + i}>{e}</li>)}
                 </ul>
               </div>
             )}

@@ -61,7 +61,7 @@ export default function InvoiceListPage() {
         </div>
       )}
 
-      {isError && <ErrorState message={(error as Error)?.message ?? "Gagal memuat faktur"} />}
+      {isError && <ErrorState message={error?.message ?? "Gagal memuat faktur"} />}
 
       {data && data.invoices.length === 0 && (
         <EmptyState title="Belum Ada Faktur" description="Buat faktur pertama untuk pelanggan Anda." />

@@ -312,7 +312,7 @@ export function TransactionDetailPage() {
                 <Button
                   type="button"
                   variant="primary"
-                  onClick={() => navigate(`/transactions/new?replace=${id}&type=${transaction.transaction_type}&amount=${transaction.amount}&desc=${encodeURIComponent(transaction.description || `Pengganti ${transaction.transaction_number}`)}`)}
+                  onClick={() => navigate(`/transactions/new?replace=${id}&type=${transaction.transaction_type}&amount=${transaction.amount}&desc=${encodeURIComponent(transaction.description || "Pengganti " + transaction.transaction_number)}`)}
                 >
                   Buat Transaksi Pengganti
                 </Button>

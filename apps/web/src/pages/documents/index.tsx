@@ -198,7 +198,7 @@ export function DocumentsPage() {
   );
 }
 
-function DocumentCard({ doc }: { doc: DocumentOutput }) {
+function DocumentCard({ doc }: { readonly doc: DocumentOutput }) {
   return (
     <Link
       to={`/documents/${doc.id}`}

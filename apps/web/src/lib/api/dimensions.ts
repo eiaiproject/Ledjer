@@ -82,7 +82,7 @@ export async function listDimensions(opts?: {
   if (opts?.limit) params.set("limit", String(opts.limit));
   if (opts?.offset) params.set("offset", String(opts.offset));
   const qs = params.toString();
-  const res = await fetch(`/api/dimensions${qs ? `?${qs}` : ""}`);
+  const res = await fetch(`/api/dimensions${qs ? "?" + qs : ""}`);
   if (!res.ok) throw new Error("Failed to fetch dimensions");
   const data = await res.json() as { dimensions: Dimension[] };
   return data.dimensions;

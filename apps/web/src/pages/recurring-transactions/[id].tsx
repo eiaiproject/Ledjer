@@ -298,7 +298,7 @@ export function RecurringTransactionDetailPage() {
   );
 }
 
-function DetailCard({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+function DetailCard({ label, value, highlight = false }: { readonly label: string; readonly value: string; readonly highlight?: boolean }) {
   return (
     <div className={`rounded-xl border p-4 ${highlight ? "border-leaf-200 bg-leaf-50/50" : "border-wood-200 bg-surface"}`}>
       <p className="text-xs font-medium uppercase tracking-wider text-wood-500">{label}</p>

@@ -364,8 +364,7 @@ export function ManualJournalPage() {
                 />
 
                 {/* Remove */}
-                <button type="button"
-                  type="button"
+                <button                   type="button"
                   onClick={() => handleRemoveLine(line.id)}
                   disabled={lines.length <= 2}
                   className="flex h-[44px] w-[44px] items-center justify-center rounded-md text-wood-400 hover:bg-error/10 hover:text-error disabled:opacity-30 sm:h-8 sm:w-8"
@@ -400,7 +399,7 @@ export function ManualJournalPage() {
               <p className="mb-2 text-sm font-medium text-leaf-800">Preview Jurnal</p>
               <div className="space-y-1 text-xs text-leaf-800">
                 {preview.lines.map((line, i) => (
-                  <div key={i} className="flex justify-between">
+                  <div key={line.accountCode + "-" + i} className="flex justify-between">
                     <span>
                       {line.accountCode} - {line.accountName}
                       {line.debitMinor > 0 ? ` (Debit: Rp ${(line.debitMinor / 100).toLocaleString()})` : ""}

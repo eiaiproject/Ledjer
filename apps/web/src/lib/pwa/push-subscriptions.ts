@@ -136,7 +136,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const outputArray = new Uint8Array(rawData.length);
 
   for (let i = 0; i < rawData.length; i++) {
-    outputArray[i] = rawData.codePointAt(i);
+    outputArray[i] = rawData.codePointAt(i) ?? 0;
   }
 
   return outputArray;
