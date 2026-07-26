@@ -5,6 +5,7 @@
 
 import { generateId } from "../auth/tokens";
 import { execute, queryFirst } from "../db/client";
+import { badRequest } from "../http/errors";
 
 /**
  * Generate the next sequential number using organization_document_counters.
@@ -42,6 +43,60 @@ export async function nextSequentialNumber(
  * Compute subtotal and total from line items with discount and tax.
  * Used by both invoices.service.ts and documents.service.ts.
  */
+const MAX_LINE_ITEMS = 100;
+const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_MONEY_MINOR = 999_999_999_999;
+const MAX_QUANTITY_MILLI = 999_999_999_000;
+
+/**
+ * Validate document/invoice line items.
+ * Throws badRequest if any constraint is violated.
+ */
+export function validateLines(
+  lines: { description: string; quantityMilli: number; unitPriceMinor: number; amountMinor: number }[],
+): void {
+  if (lines.length === 0) {
+    throw badRequest("no_lines", "Setidaknya satu item diperlukan");
+  }
+  if (lines.length > MAX_LINE_ITEMS) {
+    throw badRequest("too_many_lines", `Maksimal ${MAX_LINE_ITEMS} item per dokumen`);
+  }
+  for (const l of lines) {
+    if (l.description && l.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw badRequest("description_too_long", `Deskripsi item maksimal ${MAX_DESCRIPTION_LENGTH} karakter`);
+    }
+    if (!Number.isFinite(l.quantityMilli) || l.quantityMilli <= 0) {
+      throw badRequest("invalid_quantity", "Jumlah harus lebih dari 0");
+    }
+    if (l.quantityMilli > MAX_QUANTITY_MILLI) {
+      throw badRequest("quantity_overflow", `Jumlah tidak boleh melebihi 999.999.999`);
+    }
+    if (!Number.isFinite(l.unitPriceMinor) || l.unitPriceMinor < 0) {
+      throw badRequest("invalid_unit_price", "Harga satuan tidak boleh negatif");
+    }
+    if (l.unitPriceMinor > MAX_MONEY_MINOR) {
+      throw badRequest("unit_price_overflow", `Harga satuan tidak boleh melebihi ${MAX_MONEY_MINOR}`);
+    }
+    if (!Number.isFinite(l.amountMinor) || l.amountMinor < 0) {
+      throw badRequest("invalid_amount", "Jumlah tidak boleh negatif");
+    }
+    if (l.amountMinor > MAX_MONEY_MINOR) {
+      throw badRequest("amount_overflow", `Jumlah tidak boleh melebihi ${MAX_MONEY_MINOR}`);
+    }
+  }
+}
+
+/**
+ * Validate optional text fields (notes, terms).
+ */
+export function checkOptionalText(value: string | null | undefined, maxLength: number, field: string): string | undefined {
+  const text = value?.trim();
+  if (text && text.length > maxLength) {
+    throw badRequest(`${field}_too_long`, `${field} maksimal ${maxLength} karakter`);
+  }
+  return text || undefined;
+}
+
 export function computeTotals(
   lines: { amountMinor: number }[],
   discountMinor = 0,
