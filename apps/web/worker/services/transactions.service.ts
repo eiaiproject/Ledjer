@@ -2476,6 +2476,10 @@ function normalizeIdempotencyKey(input: string): string {
   if (value.length < 8 || value.length > 160) {
     throw badRequest("idempotency_key_required", "Idempotency key is required");
   }
+  // Only allow URL-safe characters
+  if (!/^[a-zA-Z0-9_-]{8,160}$/.test(value)) {
+    throw badRequest("idempotency_key_invalid", "Idempotency key contains invalid characters");
+  }
   return value;
 }
 
