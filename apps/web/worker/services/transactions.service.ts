@@ -499,7 +499,15 @@ function insertStockStatements(ctx: StockStatementCtx): void {
   const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
   const isSaleReturn = transactionType === "sale_return";
   // sale_return adds stock back (+), purchase_return removes stock (-)
-  const quantityDelta = isPurchase ? quantityMilli : isSaleReturn ? quantityMilli : -quantityMilli;
+  // S3358 — extract nested ternary into if/else
+  let quantityDelta: number;
+  if (isPurchase) {
+    quantityDelta = quantityMilli;
+  } else if (isSaleReturn) {
+    quantityDelta = quantityMilli;
+  } else {
+    quantityDelta = -quantityMilli;
+  }
   statements.push(
     statement(
       db,

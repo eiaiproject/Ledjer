@@ -359,7 +359,7 @@ export function OnboardingChecklistPage() {
                 <p className="text-xs text-error" role="alert">{sampleError}</p>
               )}
               {sampleSuccess && (
-                <span className="text-xs text-leaf-600" role="status">{sampleSuccess}</span>
+                <output className="text-xs text-leaf-600">{sampleSuccess}</output>
               )}
             </CardContent>
           </Card>

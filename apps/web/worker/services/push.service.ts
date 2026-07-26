@@ -234,43 +234,54 @@ export async function sendPendingNotifications(
 
   for (const row of pending) {
     const notification = rowToNotification(row);
-    const subscriptions = await listUserSubscriptions(db, notification.userId, true);
-
-    for (const sub of subscriptions) {
-      try {
-        await sendPushNotification(sub, vapid);
-      } catch (err) {
-        // If endpoint is invalid (410 Gone), unsubscribe
-        if (err instanceof Error && (err.message.includes("410") || err.message.includes("Gone"))) {
-          await execute(
-            db,
-            `UPDATE push_subscriptions SET is_active = 0, updated_at = ? WHERE id = ?`,
-            [Date.now(), sub.id],
-          );
-        }
-      }
-    }
-
-    const now = Date.now();
-    try {
-      await execute(
-        db,
-        `UPDATE push_notification_queue SET status = 'sent', sent_at = ? WHERE id = ?`,
-        [now, notification.id],
-      );
-      sent++;
-    } catch (err) {
-      await execute(
-        db,
-        `UPDATE push_notification_queue SET status = 'failed', error_message = ? WHERE id = ?`,
-        [err instanceof Error ? err.message : String(err), notification.id],
-      );
-      errors.push(`Failed to mark notification ${notification.id} as sent`);
-      failed++;
-    }
+    const result = await processPendingNotification(db, notification, vapid);
+    sent += result.sent;
+    failed += result.failed;
+    if (result.error) errors.push(result.error);
   }
 
   return { sent, failed, errors };
+}
+
+/**
+ * Process a single pending notification: deliver to all subscriptions and mark as sent/failed. */
+async function processPendingNotification(
+  db: D1Database,
+  notification: PushNotification,
+  vapid: { publicKey: string; privateKey: string; subject: string },
+): Promise<{ sent: number; failed: number; error: string | null }> {
+  const subscriptions = await listUserSubscriptions(db, notification.userId, true);
+
+  for (const sub of subscriptions) {
+    try {
+      await sendPushNotification(sub, vapid);
+    } catch (err) {
+      if (err instanceof Error && (err.message.includes("410") || err.message.includes("Gone"))) {
+        await execute(
+          db,
+          `UPDATE push_subscriptions SET is_active = 0, updated_at = ? WHERE id = ?`,
+          [Date.now(), sub.id],
+        );
+      }
+    }
+  }
+
+  const now = Date.now();
+  try {
+    await execute(
+      db,
+      `UPDATE push_notification_queue SET status = 'sent', sent_at = ? WHERE id = ?`,
+      [now, notification.id],
+    );
+    return { sent: 1, failed: 0, error: null };
+  } catch (err) {
+    await execute(
+      db,
+      `UPDATE push_notification_queue SET status = 'failed', error_message = ? WHERE id = ?`,
+      [err instanceof Error ? err.message : String(err), notification.id],
+    );
+    return { sent: 0, failed: 1, error: `Failed to mark notification ${notification.id} as sent` };
+  }
 }
 
 /**

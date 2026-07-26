@@ -80,7 +80,6 @@ export function HelpTooltip({
         <div
           ref={popoverRef}
           className={`absolute z-[var(--z-tooltip)] w-72 sm:w-80 ${positionClasses[position]}`}
-          role="dialog"
           aria-label={title ?? content.title}>
           <div className="rounded-xl border border-wood-200 bg-surface p-4 shadow-lg">
             {/* Header */}

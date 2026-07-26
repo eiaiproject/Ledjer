@@ -121,13 +121,17 @@ export function RecurringTransactionDetailPage() {
   const nextDate = item.nextExecutionDate
     ? new Date(item.nextExecutionDate + "T00:00:00+07:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
     : "Selesai";
-  const scheduleLabel = item.frequency === "weekly" && item.dayOfWeek !== null
-    ? ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][item.dayOfWeek]
-    : item.frequency === "monthly" && item.dayOfMonth !== null
-    ? `Tanggal ${item.dayOfMonth}`
-    : item.frequency === "yearly" && item.monthOfYear !== null && item.dayOfMonth !== null
-    ? `${["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"][item.monthOfYear]} ${item.dayOfMonth}`
-    : "-";
+  // S3358 — flatten nested ternary into if/else chain
+  let scheduleLabel: string;
+  if (item.frequency === "weekly" && item.dayOfWeek !== null) {
+    scheduleLabel = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][item.dayOfWeek];
+  } else if (item.frequency === "monthly" && item.dayOfMonth !== null) {
+    scheduleLabel = `Tanggal ${item.dayOfMonth}`;
+  } else if (item.frequency === "yearly" && item.monthOfYear !== null && item.dayOfMonth !== null) {
+    scheduleLabel = `${["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"][item.monthOfYear]} ${item.dayOfMonth}`;
+  } else {
+    scheduleLabel = "-";
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">

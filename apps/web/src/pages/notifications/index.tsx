@@ -135,6 +135,101 @@ export function NotificationsPage() {
 
   const unreadCount = unreadData?.total ?? 0;
 
+  // S3358 — flatten nested ternary into if/else + S2681 extract shared handler
+  const handleNotificationEvent = (notif: typeof filtered[number]) => {
+    if (!notif.isRead) markReadMutation.mutate(notif.id);
+    if (notif.actionUrl) navigate(notif.actionUrl);
+  };
+
+  let notificationListContent: React.ReactNode;
+  if (isLoading) {
+    notificationListContent = (
+      <div className="space-y-2">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-wood-100" />
+        ))}
+      </div>
+    );
+  } else if (!filtered.length) {
+    notificationListContent = (
+      <div className="flex flex-col items-center gap-3 py-12 text-wood-400">
+        <Bell className="h-10 w-10" />
+        <p className="text-sm font-medium">Tidak ada notifikasi</p>
+        <p className="text-xs">
+          {categoryFilter ? "Tidak ada notifikasi untuk kategori ini" : "Notifikasi akan muncul di sini"}
+        </p>
+      </div>
+    );
+  } else {
+    notificationListContent = (
+      <div className="space-y-2">
+        {filtered.map((notif) => (
+          <div
+            key={notif.id}
+            // NOSONAR typescript:S6848,typescript:S6845 — can't nest <button> inside <button>
+            role="button"
+            tabIndex={0}
+            className={`group relative flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer ${
+              !notif.isRead
+                ? "border-leaf-200 bg-leaf-50/50"
+                : "border-wood-200 bg-surface hover:border-wood-300"
+            }`}
+            onClick={() => handleNotificationEvent(notif)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleNotificationEvent(notif); } }}
+          >
+            {/* Icon */}
+            <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${CATEGORY_COLORS[notif.category] ?? "bg-wood-100 text-wood-500"}`}>
+              {CATEGORY_ICONS[notif.category] ?? <Bell className="h-4 w-4" />}
+            </div>
+
+            {/* Content */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-semibold ${!notif.isRead ? "text-text-primary" : "text-text-secondary"}`}>
+                  {notif.title}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${SEVERITY_COLORS[notif.severity] ?? ""}`}>
+                  {SEVERITY_LABELS[notif.severity] ?? notif.severity}
+                </span>
+                {!notif.isRead && (
+                  <span className="h-2 w-2 rounded-full bg-leaf-500" aria-label="Belum dibaca" />
+                )}
+              </div>
+              <p className="mt-0.5 text-sm text-text-secondary">{notif.message}</p>
+              <div className="mt-1 flex items-center gap-3 text-[11px] text-wood-400">
+                <span>{CATEGORY_LABELS[notif.category] ?? notif.category}</span>
+                <span>{timeAgo(notif.createdAt)}</span>
+                {notif.actionUrl && (
+                  <span className="text-ink underline">Lihat</span>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex shrink-0 flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {!notif.isRead && (
+                <button type="button"
+                  onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(notif.id); }}
+                  className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-wood-600"
+                  title="Tandai dibaca"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
+                className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-red-50 hover:text-red-500"
+                title="Hapus"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -193,88 +288,7 @@ export function NotificationsPage() {
       </div>
 
       {/* List */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl bg-wood-100" />
-          ))}
-        </div>
-      ) : !filtered.length ? (
-        <div className="flex flex-col items-center gap-3 py-12 text-wood-400">
-          <Bell className="h-10 w-10" />
-          <p className="text-sm font-medium">Tidak ada notifikasi</p>
-          <p className="text-xs">
-            {categoryFilter ? "Tidak ada notifikasi untuk kategori ini" : "Notifikasi akan muncul di sini"}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((notif) => (
-            <div
-              key={notif.id}
-              tabIndex={0}
-              className={`group relative flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer ${
-                !notif.isRead
-                  ? "border-leaf-200 bg-leaf-50/50"
-                  : "border-wood-200 bg-surface hover:border-wood-300"
-              }`}
-              onClick={() => {
-                if (!notif.isRead) markReadMutation.mutate(notif.id);
-                if (notif.actionUrl) navigate(notif.actionUrl);
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!notif.isRead) markReadMutation.mutate(notif.id); if (notif.actionUrl) navigate(notif.actionUrl); } }}
-            >
-              {/* Icon */}
-              <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${CATEGORY_COLORS[notif.category] ?? "bg-wood-100 text-wood-500"}`}>
-                {CATEGORY_ICONS[notif.category] ?? <Bell className="h-4 w-4" />}
-              </div>
-
-              {/* Content */}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-semibold ${!notif.isRead ? "text-text-primary" : "text-text-secondary"}`}>
-                    {notif.title}
-                  </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${SEVERITY_COLORS[notif.severity] ?? ""}`}>
-                    {SEVERITY_LABELS[notif.severity] ?? notif.severity}
-                  </span>
-                  {!notif.isRead && (
-                    <span className="h-2 w-2 rounded-full bg-leaf-500" aria-label="Belum dibaca" />
-                  )}
-                </div>
-                <p className="mt-0.5 text-sm text-text-secondary">{notif.message}</p>
-                <div className="mt-1 flex items-center gap-3 text-[11px] text-wood-400">
-                  <span>{CATEGORY_LABELS[notif.category] ?? notif.category}</span>
-                  <span>{timeAgo(notif.createdAt)}</span>
-                  {notif.actionUrl && (
-                    <span className="text-ink underline">Lihat</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex shrink-0 flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {!notif.isRead && (
-                  <button type="button"
-                    onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(notif.id); }}
-                    className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-wood-600"
-                    title="Tandai dibaca"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button type="button"
-                  onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
-                  className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-red-50 hover:text-red-500"
-                  title="Hapus"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {notificationListContent}
     </div>
   );
 }

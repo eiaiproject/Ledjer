@@ -162,6 +162,8 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
 
   return (
     <div
+      // NOSONAR typescript:S6848,typescript:S6845 — can't nest <Link> and <button> inside <button>
+      role="button"
       tabIndex={0}
       className="block cursor-pointer rounded-xl border border-wood-200 bg-surface p-4 shadow-sm transition-all hover:border-wood-300 hover:shadow-md"
       onClick={() => navigate(`/recurring-transactions/${item.id}`)}
@@ -198,7 +200,8 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
           <span className="text-sm font-semibold text-text-primary whitespace-nowrap">
             {formatRupiah(item.amountMinor)}
           </span>
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {/* NOSONAR typescript:S1082 — click handler with stopPropagation */}
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} role="group" aria-label="Tindakan">
             {item.status === "active" && (
               <>
                 <button type="button"

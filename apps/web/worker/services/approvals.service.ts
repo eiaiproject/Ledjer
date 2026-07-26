@@ -444,6 +444,7 @@ async function notifyApprovalRequested(
  * If no approval needed, returns null.
  * Throws if a pending approval already exists for the same entity+action.
  */
+// NOSONAR typescript:S107 — 8 params needed for context; function has no external callers yet
 export async function requireApprovalOrContinue(
   db: D1Database,
   organizationId: string,
