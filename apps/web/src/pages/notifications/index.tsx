@@ -166,9 +166,6 @@ export function NotificationsPage() {
         {filtered.map((notif) => (
           <div
             key={notif.id}
-            // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
-            role="button"
-            tabIndex={0}
             className={`group relative flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer ${
               !notif.isRead
                 ? "border-leaf-200 bg-leaf-50/50"
@@ -176,6 +173,8 @@ export function NotificationsPage() {
             }`}
             onClick={() => handleNotificationEvent(notif)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleNotificationEvent(notif); } }}
+            role="button" // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
+            tabIndex={0}
           >
             {/* Icon */}
             <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${CATEGORY_COLORS[notif.category] ?? "bg-wood-100 text-wood-500"}`}>
