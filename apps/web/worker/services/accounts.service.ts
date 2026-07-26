@@ -71,7 +71,7 @@ const CASH_BANK_RANGES: Record<CashBankKind, { min: number; max: number; reportG
   cash: { min: 1111, max: 1119, reportGroup: "Kas", cashAccountType: "cash" },
   bank: { min: 1121, max: 1129, reportGroup: "Bank", cashAccountType: "bank" },
   qris: { min: 1130, max: 1139, reportGroup: "Bank", cashAccountType: "qris" },
-  ewallet: { min: 1130, max: 1139, reportGroup: "Bank", cashAccountType: null },
+  ewallet: { min: 1140, max: 1149, reportGroup: "Bank", cashAccountType: null },
 };
 
 export async function listAccounts(

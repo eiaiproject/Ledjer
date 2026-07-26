@@ -96,7 +96,7 @@ function AccountStatusBadge({ account }: { readonly account: Account }) {
 function getCashBankKind(account: { code: number; name: string; is_cash_account: boolean }): CashBankKind {
   if (account.code >= 1110 && account.code < 1120) return "cash";
   if (account.code >= 1120 && account.code < 1130) return "bank";
-  if (account.code >= 1130 && account.code < 1140) return "ewallet";
+  if (account.code >= 1140 && account.code < 1150) return "ewallet";
 
   const name = account.name.toLowerCase();
   if (/qris|qr/i.test(name)) return "qris";
@@ -129,8 +129,8 @@ function getNextAccountCode(existingAccounts: Account[], kind: CashBankKind): nu
       break;
     case "qris":
     case "ewallet":
-      minCode = 1130;
-      maxCode = 1139;
+      minCode = 1140;
+      maxCode = 1149;
       break;
     default:
       minCode = 1190;
