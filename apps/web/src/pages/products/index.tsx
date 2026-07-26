@@ -299,11 +299,12 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
   const [error, setError] = useState<string | null>(null);
 
   // S3358 — extract nested ternary into independent statement
-  const differenceColor = result && Number(result.difference) > 0
-    ? "text-leaf-600"
-    : result && Number(result.difference) === 0
-      ? "text-wood-500"
-      : "text-error";
+  let differenceColor = "text-error";
+  if (result && Number(result.difference) > 0) {
+    differenceColor = "text-leaf-600";
+  } else if (result && Number(result.difference) === 0) {
+    differenceColor = "text-wood-500";
+  }
 
   const handleCount = async () => {
     if (!product) return;
