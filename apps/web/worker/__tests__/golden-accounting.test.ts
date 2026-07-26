@@ -603,8 +603,8 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
 
     it("transactionTypeLabel returns label for sale_return and purchase_return", async () => {
       const { transactionTypeLabel } = await import("../services/transactions.service");
-      expect(transactionTypeLabel("sale_return" as any)).toBe("Retur Penjualan");
-      expect(transactionTypeLabel("purchase_return" as any)).toBe("Retur Pembelian");
+      expect(transactionTypeLabel("sale_return" as Parameters<typeof transactionTypeLabel>[0])).toBe("Retur Penjualan");
+      expect(transactionTypeLabel("purchase_return" as Parameters<typeof transactionTypeLabel>[0])).toBe("Retur Pembelian");
     });
 
     it("rejects backdated transaction before books_start_date", async () => {

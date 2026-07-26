@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, startTransition } from "react";
 import { Controller } from "react-hook-form";
 import { createClientToken, formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
@@ -254,7 +254,6 @@ export function NewTransactionPage() {
   useEffect(() => {
     if (replaceType && !form.getValues("transactionType")) {
       form.setValue("transactionType", replaceType, { shouldDirty: false });
-      setIsTypeSelectorExpanded(false);
     }
     if (replaceAmount && !form.getValues("amount")) {
       form.setValue("amount", Number(replaceAmount), { shouldDirty: false });
@@ -265,6 +264,15 @@ export function NewTransactionPage() {
   // Only run on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Separate effect to avoid set-state-in-effect for setIsTypeSelectorExpanded
+  useEffect(() => {
+    if (replaceType) {
+      startTransition(() => {
+        setIsTypeSelectorExpanded(false);
+      });
+    }
+  }, [replaceType]);
 
   const { postMutation } = useTransactionMutation({
     orgId: orgData?.organization?.id,

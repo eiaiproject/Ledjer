@@ -33,7 +33,8 @@ export function createOpeningBalanceValidator(
   return {
     name: "opening balances",
     requiredHeaders: ["kode_akun", "saldo"],
-    validateRow(row: Record<string, string>, _index: number) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    validateRow(row: Record<string, string>, _: number) {
       const errors: { field: string; message: string }[] = [];
 
       const rawCode = validateRequiredField(row, "kode_akun", errors);

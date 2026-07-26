@@ -57,7 +57,7 @@ const rejectSchema = z.object({
 export const approvalsRoutes = new Hono<AppContext>();
 
 approvalsRoutes.use("*", requireAuth());
-approvalsRoutes.use("*", loadCurrentOrganization() as any);
+approvalsRoutes.use("*", loadCurrentOrganization());
 
 // ── Config endpoints ─────────────────────────────────────────────
 

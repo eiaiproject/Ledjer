@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { X } from "reicon-react";
@@ -23,33 +23,43 @@ export function PwaInstallPrompt() {
   useEffect(() => {
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as { standalone?: boolean }).standalone === true;
-    setIsStandalone(isStandaloneMode);
+    startTransition(() => {
+      setIsStandalone(isStandaloneMode);
+    });
 
     if (isStandaloneMode) {
-      setIsInstalled(true);
+      startTransition(() => {
+        setIsInstalled(true);
+      });
     }
-  }, []);
+  }, [setIsStandalone, setIsInstalled]);
 
   // Listen for install prompt
   useEffect(() => {
     // Check if already dismissed recently
     const dismissedUntil = localStorage.getItem('pwa-dismissed-until');
     if (dismissedUntil && Date.now() < Number.parseInt(dismissedUntil, 10)) {
-      setDismissed(true);
+      startTransition(() => {
+        setDismissed(true);
+      });
       return;
     }
 
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      startTransition(() => {
+        setDeferredPrompt(e);
+      });
     };
 
     window.addEventListener('beforeinstallprompt', handler);
 
     // Check if already installed (app installed event)
     const installedHandler = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
+      startTransition(() => {
+        setIsInstalled(true);
+        setDeferredPrompt(null);
+      });
     };
     window.addEventListener('appinstalled', installedHandler);
 
@@ -57,7 +67,7 @@ export function PwaInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
     };
-  }, []);
+  }, [setDismissed, setDeferredPrompt, setIsInstalled]);
 
   const handleInstall = useCallback(async () => {
     if (!deferredPrompt) return;

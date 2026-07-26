@@ -155,7 +155,9 @@ test.describe("Visual regression — authenticated pages", () => {
     await navigateAndStabilize(page, "/dashboard", { waitForNetworkIdle: false });
     // Capture initial loading state before data loads
     await page.waitForSelector('[class*="animate-pulse"]', { timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(200); // NOSONAR typescript:S2925 — brief stabilization for loading screenshot {
+    await page.waitForTimeout(200);
+    // NOSONAR typescript:S2925 — brief stabilization for loading screenshot
+    await expect(page).toHaveScreenshot("dashboard-loading.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
     });
@@ -165,7 +167,9 @@ test.describe("Visual regression — authenticated pages", () => {
     await navigateAndStabilize(page, "/dashboard");
     await page.waitForLoadState("networkidle");
     await page.waitForSelector('[class*="card"]', { timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(1000); // NOSONAR typescript:S2925 — awaiting chart render {
+    await page.waitForTimeout(1000);
+    // NOSONAR typescript:S2925 — awaiting chart render
+    await expect(page).toHaveScreenshot("dashboard-populated.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
     });

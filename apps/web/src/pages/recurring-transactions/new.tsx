@@ -51,7 +51,7 @@ export function NewRecurringTransactionPage() {
   const [description, setDescription] = useState("");
   const [partyId, setPartyId] = useState("");
   const [cashAccountId, setCashAccountId] = useState("");
-  const [notes, _setNotes] = useState("");  // NOSONAR typescript:S6754
+  const [notes] = useState("");
   const mutation = useMutation({
     mutationFn: (input: CreateRecurringInput) => createRecurringTransaction(input),
     onSuccess: (result) => {

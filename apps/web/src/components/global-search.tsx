@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, startTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { globalSearch as searchApi, type SearchResultItem } from "@/lib/api/global-search";
 import { Search, Loader, X, FileText, Receipt, User, Package, BookOpen, Users, ArrowRight } from "reicon-react";
@@ -47,10 +47,12 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
-      setQuery("");
-      setSelectedIndex(-1);
+      startTransition(() => {
+        setQuery("");
+        setSelectedIndex(-1);
+      });
     }
-  }, [open]);
+  }, [open, setQuery, setSelectedIndex]);
 
   // Debounced search with at least 2 chars
   const { data, isLoading } = useQuery({
@@ -63,8 +65,10 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
 
   // Reset selection when results change
   useEffect(() => {
-    setSelectedIndex(-1);
-  }, [results.length]);
+    startTransition(() => {
+      setSelectedIndex(-1);
+    });
+  }, [results.length, setSelectedIndex]);
 
   const handleSelect = useCallback((item: SearchResultItem) => {
     onClose();

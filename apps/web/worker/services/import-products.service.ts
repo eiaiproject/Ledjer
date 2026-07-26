@@ -20,7 +20,8 @@ export interface ProductImportRow {
 export const productImportValidator: ImportValidator<ProductImportRow> = {
   name: "products",
   requiredHeaders: ["kode", "nama"],
-  validateRow(row: Record<string, string>, _index: number) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  validateRow(row: Record<string, string>, _: number) {
     const errors: { field: string; message: string }[] = [];
 
     const code = validateRequiredField(row, "kode", errors);

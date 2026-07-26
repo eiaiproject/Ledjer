@@ -33,7 +33,8 @@ const PARTY_TYPE_MAP: Record<string, string> = {
 export const partyImportValidator: ImportValidator<PartyImportRow> = {
   name: "parties",
   requiredHeaders: ["nama"],
-  validateRow(row: Record<string, string>, _index: number) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  validateRow(row: Record<string, string>, _: number) {
     const errors: { field: string; message: string }[] = [];
 
     const name = validateRequiredField(row, "nama", errors);

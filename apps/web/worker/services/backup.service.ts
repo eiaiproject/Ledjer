@@ -603,6 +603,7 @@ async function checkJournalBalance(
 async function checkInventorySubledger(
   bucket: R2Bucket,
   dateStr: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _errors: string[],
 ): Promise<void> {
   const prodObj = await bucket.get(`backups/${dateStr}/products.json`);

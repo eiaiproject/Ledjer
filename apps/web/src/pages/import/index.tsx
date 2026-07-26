@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, startTransition } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -116,14 +116,19 @@ export default function ImportPage() {
 
   const headers = useMemo(() => {
     if (!csv.trim()) return [];
-    const h = parseHeaders(csv);
-    // Auto-detect entity type from headers
+    return parseHeaders(csv);
+  }, [csv]);
+
+  // Auto-detect entity type from headers (side effect, not in useMemo)
+  useEffect(() => {
+    if (!csv.trim()) return;
     const detected = getEntityType(csv);
     if (["coa", "products", "parties", "opening-balance"].includes(detected)) {
-      setEntityType(detected as EntityType);
+      startTransition(() => {
+        setEntityType(detected as EntityType);
+      });
     }
-    return h;
-  }, [csv]);
+  }, [csv, setEntityType]);
 
   // Auto-map headers to expected fields by name similarity
   const autoMapping = useMemo(() => {

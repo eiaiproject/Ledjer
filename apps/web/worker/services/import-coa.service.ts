@@ -55,7 +55,8 @@ const NORMAL_BALANCE_MAP: Record<string, NormalBalance> = {
 export const coaImportValidator: ImportValidator<CoaImportRow> = {
   name: "chart of accounts",
   requiredHeaders: ["kode", "nama", "tipe"],
-  validateRow(row: Record<string, string>, _index: number) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  validateRow(row: Record<string, string>, _: number) {
     const errors: { field: string; message: string }[] = [];
 
     const code = validateRequiredField(row, "kode", errors);

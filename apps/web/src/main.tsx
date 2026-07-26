@@ -8,7 +8,7 @@ import App from './App.tsx'
 import { setupOfflineSync } from '@/lib/pwa/offline-drafts'
 
 // P4.3: Wire up offline draft sync
-function PwaBootstrap() {
+export function PwaBootstrap() {
   useEffect(() => {
     const cleanup = setupOfflineSync();
     return cleanup;
