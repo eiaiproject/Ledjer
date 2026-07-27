@@ -8,10 +8,12 @@ class FakeD1 {
 
   prepare(sql: string): D1PreparedStatement {
     const s = sql.replace(/\s+/g, " ");
+    let _counterName = "invoice"; // default for backwards compat
     const stmt = {
       bind: (...values: unknown[]) => {
         if (s.includes("organization_document_counters")) {
-          this.counters.set("invoice", Number.parseInt(values[1] as string, 10));
+          // For INSERT … ON CONFLICT … RETURNING: values = [orgId, counterName, timestamp]
+          _counterName = values[1] as string;
         }
         if (s.includes("INSERT INTO invoices")) {
           this.invoices.push({
@@ -41,6 +43,13 @@ class FakeD1 {
         return stmt;
       },
       first: async <T>() => {
+        if (s.includes("RETURNING current_value")) {
+          // INSERT … ON CONFLICT … RETURNING current_value
+          const cur = this.counters.get(_counterName) ?? 0;
+          const next = cur + 1;
+          this.counters.set(_counterName, next);
+          return { current_value: next } as T;
+        }
         if (s.includes("SELECT current_value FROM organization_document_counters")) {
           const val = this.counters.get("invoice");
           return (val ? { current_value: val } : null) as T;
