@@ -446,36 +446,87 @@ async function scanRecurringDetails(page, ids) {
   }
 }
 
-async function scanPartyStatement(page) {
-  try {
-    const agingData = await page.evaluate(async () => {
-      const res = await fetch("/api/reports/aging");
-      if (!res.ok) return null;
-      return await res.json();
-    });
-    if (agingData) {
-      const partyIds = [];
-      for (const cat of ["receivables", "payables"]) {
-        if (agingData[cat]) {
-          for (const item of agingData[cat]) {
-            if (item.partyId) partyIds.push(item.partyId);
-          }
-        }
-      }
-      if (partyIds.length > 0) {
-        await testPage(page, `Party Statement (${partyIds[0].substring(0, 8)}...)`, `/reports/aging/${partyIds[0]}`, true);
-      } else {
-        console.log("  ⏭️  No party IDs found in aging report            ");
-      }
-    } else {
-      console.log("  ⏭️  Aging report API returned no data             ");
+async function fetchAgingData(page) {
+  return await page.evaluate(async () => {
+    const res = await fetch("/api/reports/aging");
+    if (!res.ok) return null;
+    return await res.json();
+  });
+}
+
+function extractPartyIdsFromAging(agingData) {
+  const partyIds = [];
+  for (const cat of ["receivables", "payables"]) {
+    const items = agingData[cat] || [];
+    for (const item of items) {
+      if (item.partyId) partyIds.push(item.partyId);
     }
+  }
+  return partyIds;
+}
+
+async function scanPartyStatement(page) {
+  let agingData;
+  try {
+    agingData = await fetchAgingData(page);
   } catch (e) {
     console.log(`  ⏭️  Could not fetch aging data: ${e.message}        `);
+    return;
   }
+  if (!agingData) {
+    console.log("  ⏭️  Aging report API returned no data             ");
+    return;
+  }
+  const partyIds = extractPartyIdsFromAging(agingData);
+  if (partyIds.length === 0) {
+    console.log("  ⏭️  No party IDs found in aging report            ");
+    return;
+  }
+  await testPage(page, `Party Statement (${partyIds[0].substring(0, 8)}...)`, `/reports/aging/${partyIds[0]}`, true);
 }
 
 // ── Report ─────────────────────────────────────────────────────────
+
+function printFailedPages() {
+  if (results.failed.length === 0) return;
+  console.log("\n❌ FAILED PAGES:");
+  for (const f of results.failed) {
+    const suffix = f.detail ? ` (${f.detail})` : "";
+    console.log(`   • ${f.page}: ${f.message}${suffix}`);
+  }
+}
+
+function printWarnings() {
+  if (results.warnings.length === 0) return;
+  console.log("\n⚠️  WARNINGS:");
+  for (const w of results.warnings) {
+    console.log(`   • ${w.page}: ${w.message}`);
+  }
+}
+
+function printConsoleErrors() {
+  if (results.consoleErrors.length === 0) return;
+  console.log("\n⚠️  CONSOLE ERRORS:");
+  for (const ce of results.consoleErrors.slice(0, 15)) {
+    console.log(`   [${ce.page}] ${ce.text.substring(0, 100)}`);
+  }
+  if (results.consoleErrors.length > 15) {
+    const extra = results.consoleErrors.length - 15;
+    console.log(`   ... +${extra} more`);
+  }
+}
+
+function printFailedRequests() {
+  if (results.failedRequests.length === 0) return;
+  console.log("\n🌐 FAILED REQUESTS:");
+  for (const fr of results.failedRequests.slice(0, 10)) {
+    console.log(`   [${fr.page}] HTTP ${fr.status} — ${fr.url.substring(0, 80)}`);
+  }
+  if (results.failedRequests.length > 10) {
+    const extra = results.failedRequests.length - 10;
+    console.log(`   ... +${extra} more`);
+  }
+}
 
 async function saveReport(reportPath) {
   const summary = {
@@ -500,39 +551,10 @@ async function saveReport(reportPath) {
   console.log(`⚠️ CONSOLE:       ${summary.consoleErrors} errors`);
   console.log(`🐌 SLOW PAGES:    ${summary.slowPages}`);
 
-  if (results.failed.length > 0) {
-    console.log(`\n❌ FAILED PAGES:`);
-    for (const f of results.failed) {
-      console.log(`   • ${f.page}: ${f.message}${f.detail ? ` (${f.detail})` : ""}`);
-    }
-  }
-
-  if (results.warnings.length > 0) {
-    console.log(`\n⚠️  WARNINGS:`);
-    for (const w of results.warnings) {
-      console.log(`   • ${w.page}: ${w.message}`);
-    }
-  }
-
-  if (results.consoleErrors.length > 0) {
-    console.log(`\n⚠️  CONSOLE ERRORS:`);
-    for (const ce of results.consoleErrors.slice(0, 15)) {
-      console.log(`   [${ce.page}] ${ce.text.substring(0, 100)}`);
-    }
-    if (results.consoleErrors.length > 15) {
-      console.log(`   ... +${results.consoleErrors.length - 15} more`);
-    }
-  }
-
-  if (results.failedRequests.length > 0) {
-    console.log(`\n🌐 FAILED REQUESTS:`);
-    for (const fr of results.failedRequests.slice(0, 10)) {
-      console.log(`   [${fr.page}] HTTP ${fr.status} — ${fr.url.substring(0, 80)}`);
-    }
-    if (results.failedRequests.length > 10) {
-      console.log(`   ... +${results.failedRequests.length - 10} more`);
-    }
-  }
+  printFailedPages();
+  printWarnings();
+  printConsoleErrors();
+  printFailedRequests();
 
   fs.writeFileSync(reportPath, JSON.stringify({
     timestamp: new Date().toISOString(),
