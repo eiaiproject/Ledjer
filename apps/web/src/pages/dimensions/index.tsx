@@ -571,3 +571,5 @@ export function DimensionsPage() {
     </div>
   );
 }
+
+export default DimensionsPage;

@@ -639,3 +639,5 @@ function ForecastModal({
     </Modal>
   );
 }
+
+export default BudgetsPage;

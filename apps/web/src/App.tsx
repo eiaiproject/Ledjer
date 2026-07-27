@@ -57,10 +57,10 @@ const PeriodClosePage = lazy(async () => ({ default: (await import("@/pages/peri
 const ApprovalsPage = lazy(async () => ({ default: (await import("@/pages/approvals/index")).ApprovalsPage }));
 const ApprovalSettingsPage = lazy(async () => ({ default: (await import("@/pages/approvals/settings")).ApprovalSettingsPage }));
 const ManualJournalPage = lazy(async () => ({ default: (await import("@/pages/journals/index")).ManualJournalPage }));
-const BudgetsPage = lazy(async () => ({ default: (await import("@/pages/budgets/index")).BudgetsPage }));
-const ExportsPage = lazy(async () => ({ default: (await import("@/pages/exports/index")).ExportsPage }));
-const DimensionsPage = lazy(async () => ({ default: (await import("@/pages/dimensions/index")).DimensionsPage }));
-const FixedAssetsPage = lazy(async () => ({ default: (await import("@/pages/fixed-assets/index")).FixedAssetsPage }));
+const BudgetsPage = lazy(() => import("@/pages/budgets/index"));
+const ExportsPage = lazy(() => import("@/pages/exports/index"));
+const DimensionsPage = lazy(() => import("@/pages/dimensions/index"));
+const FixedAssetsPage = lazy(() => import("@/pages/fixed-assets/index"));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
