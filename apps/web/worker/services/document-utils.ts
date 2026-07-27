@@ -10,6 +10,9 @@ import { badRequest } from "../http/errors";
 /**
  * Generate the next sequential number using organization_document_counters.
  * Used by both documents.service.ts and invoices.service.ts.
+ *
+ * Uses INSERT … ON CONFLICT … RETURNING (not SELECT … FOR UPDATE)
+ * because Cloudflare D1 does not support FOR UPDATE.
  */
 export async function nextSequentialNumber(
   db: D1Database,
@@ -18,25 +21,21 @@ export async function nextSequentialNumber(
   prefix: string,
   padLength = 6,
 ): Promise<string> {
+  const now = Date.now();
   const row = await queryFirst<{ current_value: number }>(
     db,
-    `SELECT current_value FROM organization_document_counters
-     WHERE organization_id = ? AND counter_name = ?
-     FOR UPDATE`,
-    [organizationId, counterName],
+    `INSERT INTO organization_document_counters (
+       organization_id, counter_name, current_value, updated_at
+     ) VALUES (?, ?, 1, ?)
+     ON CONFLICT(organization_id, counter_name)
+     DO UPDATE SET
+       current_value = current_value + 1,
+       updated_at = excluded.updated_at
+     RETURNING current_value`,
+    [organizationId, counterName, now],
   );
-
-  const nextVal = (row?.current_value ?? 0) + 1;
-
-  await execute(
-    db,
-    `INSERT INTO organization_document_counters (organization_id, counter_name, current_value, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(organization_id, counter_name) DO UPDATE SET current_value = ?, updated_at = ?`,
-    [organizationId, counterName, nextVal, Date.now(), nextVal, Date.now()],
-  );
-
-  return `${prefix}-${String(nextVal).padStart(padLength, "0")}`;
+  if (!row) throw badRequest("counter_failed", "Document counter failed");
+  return `${prefix}-${String(row.current_value).padStart(padLength, "0")}`;
 }
 
 /**

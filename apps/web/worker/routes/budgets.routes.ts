@@ -54,7 +54,46 @@ export const budgetsRoutes = new Hono<AppContext>();
 budgetsRoutes.use("*", requireAuth());
 budgetsRoutes.use("*", loadCurrentOrganization());
 
-// ── Budget CRUD ───────────────────────────────────────────────────
+// ── Static routes first (before /:id to avoid param capture) ──
+
+budgetsRoutes.get("/report/actual-vs-budget", requirePermission("transactions:read"), async (c) => {
+  const context = c.get("organizationContext");
+  const url = new URL(c.req.url);
+  const periodFrom = url.searchParams.get("periodFrom");
+  const periodTo = url.searchParams.get("periodTo");
+
+  if (!periodFrom || !periodTo) {
+    return c.json({ error: "periodFrom and periodTo are required" }, 400);
+  }
+
+  const report = await getActualVsBudget(c.env.DB, context.organization.id, periodFrom, periodTo);
+  return c.json(report);
+});
+
+budgetsRoutes.get("/variance-alerts", requirePermission("transactions:read"), async (c) => {
+  const context = c.get("organizationContext");
+  const url = new URL(c.req.url);
+  const threshold = Number.parseInt(url.searchParams.get("threshold") ?? "20", 10);
+
+  const alerts = await checkBudgetVariance(c.env.DB, context.organization.id, threshold);
+  return c.json({ alerts });
+});
+
+budgetsRoutes.post("/forecast", requirePermission("transactions:read"), async (c) => {
+  const context = c.get("organizationContext");
+  const body = await readJson(c, forecastSchema);
+
+  const forecast = await generateForecast(
+    c.env.DB,
+    context.organization.id,
+    body.accountId,
+    body.monthsAhead,
+  );
+
+  return c.json({ forecast });
+});
+
+// ── Budget CRUD (parametric :id routes) ──────────────────────────
 
 budgetsRoutes.get("/", requirePermission("transactions:read"), async (c) => {
   const context = c.get("organizationContext");
@@ -109,47 +148,4 @@ budgetsRoutes.delete("/:id", requirePermission("organization:update"), async (c)
   const context = c.get("organizationContext");
   await deleteBudget(c.env.DB, context.organization.id, context.member.user_id, c.req.param("id"));
   return c.json({ success: true });
-});
-
-// ── Actual vs Budget Report ──────────────────────────────────────
-
-budgetsRoutes.get("/report/actual-vs-budget", requirePermission("transactions:read"), async (c) => {
-  const context = c.get("organizationContext");
-  const url = new URL(c.req.url);
-  const periodFrom = url.searchParams.get("periodFrom");
-  const periodTo = url.searchParams.get("periodTo");
-
-  if (!periodFrom || !periodTo) {
-    return c.json({ error: "periodFrom and periodTo are required" }, 400);
-  }
-
-  const report = await getActualVsBudget(c.env.DB, context.organization.id, periodFrom, periodTo);
-  return c.json(report);
-});
-
-// ── Variance Alerts ──────────────────────────────────────────────
-
-budgetsRoutes.get("/variance-alerts", requirePermission("transactions:read"), async (c) => {
-  const context = c.get("organizationContext");
-  const url = new URL(c.req.url);
-  const threshold = Number.parseInt(url.searchParams.get("threshold") ?? "20", 10);
-
-  const alerts = await checkBudgetVariance(c.env.DB, context.organization.id, threshold);
-  return c.json({ alerts });
-});
-
-// ── Forecast ─────────────────────────────────────────────────────
-
-budgetsRoutes.post("/forecast", requirePermission("transactions:read"), async (c) => {
-  const context = c.get("organizationContext");
-  const body = await readJson(c, forecastSchema);
-
-  const forecast = await generateForecast(
-    c.env.DB,
-    context.organization.id,
-    body.accountId,
-    body.monthsAhead,
-  );
-
-  return c.json({ forecast });
 });

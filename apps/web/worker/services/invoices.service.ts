@@ -239,23 +239,23 @@ export async function createCreditNote(
       `Hanya faktur berstatus "paid" yang bisa dibuatkan credit note. Status saat ini: "${original.status}"`);
   }
 
-  // Use credit note counter
+  // Use credit note counter (INSERT … ON CONFLICT … RETURNING instead of FOR UPDATE,
+  // because Cloudflare D1 does not support FOR UPDATE)
   const row = await queryFirst<{ current_value: number }>(
     db,
-    `SELECT current_value FROM organization_document_counters
-     WHERE organization_id = ? AND counter_name = 'credit_note'
-     FOR UPDATE`,
-    [organizationId],
+    `INSERT INTO organization_document_counters (
+       organization_id, counter_name, current_value, updated_at
+     ) VALUES (?, 'credit_note', 1, ?)
+     ON CONFLICT(organization_id, counter_name)
+     DO UPDATE SET
+       current_value = current_value + 1,
+       updated_at = excluded.updated_at
+     RETURNING current_value`,
+    [organizationId, Date.now()],
   );
-  const nextVal = (row?.current_value ?? 0) + 1;
+  if (!row) throw badRequest("counter_failed", "Credit note counter failed");
+  const nextVal = row.current_value;
   const cnNumber = `CN-${String(nextVal).padStart(6, "0")}`;
-  await execute(
-    db,
-    `INSERT INTO organization_document_counters (organization_id, counter_name, current_value, updated_at)
-     VALUES (?, 'credit_note', ?, ?)
-     ON CONFLICT(organization_id, counter_name) DO UPDATE SET current_value = ?, updated_at = ?`,
-    [organizationId, nextVal, Date.now(), nextVal, Date.now()],
-  );
 
   const cnId = generateId();
   const now = Date.now();
