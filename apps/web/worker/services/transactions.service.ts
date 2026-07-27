@@ -808,7 +808,6 @@ function buildPostTransactionStatements(
         idempotencyKey,
         current,
         userId,
-        userId,
         input.originalTransactionId ?? null,
         userId,
         current,
