@@ -66,6 +66,8 @@ export async function createSession(
   return { token, expiresAt };
 }
 
+const TOKEN_ROTATION_INTERVAL_MS = 5 * 60 * 1000; // Only rotate token every 5 minutes
+
 export async function getSessionByToken(
   db: D1Database,
   token: string,
@@ -73,7 +75,7 @@ export async function getSessionByToken(
   const tokenHash = await hashToken(token);
   const current = Date.now();
 
-  const row = await queryFirst<CurrentSessionRow>(
+  const row = await queryFirst<CurrentSessionRow & { last_used_at: number }>(
     db,
     `SELECT
        s.id AS session_id,
@@ -82,7 +84,8 @@ export async function getSessionByToken(
        s.current_organization_id,
        u.email,
        u.full_name,
-       u.email_verified_at
+       u.email_verified_at,
+       s.last_used_at
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ?
@@ -93,28 +96,43 @@ export async function getSessionByToken(
 
   if (!row) return null;
 
-  // Rotate the session token for security
-  const newToken = generateToken();
-  const newTokenHash = await hashToken(newToken);
+  // Only rotate token if enough time has passed since last rotation/use.
+  // This prevents race conditions when the SPA makes parallel API calls
+  // during page load — all requests within the interval share the same token.
+  const shouldRotate = current - row.last_used_at > TOKEN_ROTATION_INTERVAL_MS;
 
-  const result = await execute(
-    db,
-    `UPDATE sessions
-     SET token_hash = ?,
-         last_used_at = ?
-     WHERE id = ?
-       AND token_hash = ?
-       AND revoked_at IS NULL`,
-    [newTokenHash, current, row.session_id, tokenHash],
-  );
+  if (shouldRotate) {
+    const newToken = generateToken();
+    const newTokenHash = await hashToken(newToken);
 
-  if (result.meta.changes === 0) {
-    // Another request already rotated the token — return session without new token
-    return row;
+    const result = await execute(
+      db,
+      `UPDATE sessions
+       SET token_hash = ?,
+           last_used_at = ?
+       WHERE id = ?
+         AND token_hash = ?
+         AND revoked_at IS NULL`,
+      [newTokenHash, current, row.session_id, tokenHash],
+    );
+
+    if (result.meta.changes > 0) {
+      return { ...row, newToken };
+    }
+    // Another request already rotated the token — fall through to update last_used_at
   }
 
-  // Update last_used_at separately (already included in the UPDATE above)
-  return { ...row, newToken };
+  // Update last_used_at so the sliding window stays accurate
+  await execute(
+    db,
+    `UPDATE sessions
+     SET last_used_at = ?
+     WHERE id = ?
+       AND revoked_at IS NULL`,
+    [current, row.session_id],
+  );
+
+  return row;
 }
 
 export async function revokeSessionToken(

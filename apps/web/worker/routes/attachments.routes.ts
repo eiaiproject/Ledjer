@@ -17,7 +17,7 @@ function getBucket(env: { BACKUP_BUCKET?: R2Bucket }): R2Bucket {
   return env.BACKUP_BUCKET;
 }
 
-app.post("/upload", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/upload", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const bucket = getBucket(c.env);
@@ -40,7 +40,7 @@ app.post("/upload", requireAuth, loadCurrentOrganization(), requirePermission("t
   return c.json(result, 201);
 });
 
-app.get("/:id/download", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/:id/download", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const bucket = getBucket(c.env);
   const { info, stream } = await getAttachment(c.env.DB, bucket, organization.id, c.req.param("id"));
@@ -53,7 +53,7 @@ app.get("/:id/download", requireAuth, loadCurrentOrganization(), async (c) => {
   });
 });
 
-app.delete("/:id", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.delete("/:id", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const bucket = getBucket(c.env);
@@ -61,7 +61,7 @@ app.delete("/:id", requireAuth, loadCurrentOrganization(), requirePermission("tr
   return c.json({ success: true });
 });
 
-app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const entityType = c.req.query("entity_type") || "transaction";
   const entityId = c.req.query("entity_id");

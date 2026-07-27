@@ -22,7 +22,7 @@ const app = new Hono<AppContext>();
 // ---------------------------------------------------------------------------
 
 // POST /api/documents — create a document of any type
-app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   if (await checkRateLimit(c.env.DB, "documents_create", user.id, { max: 20, windowMs: 60000 })) {
@@ -91,7 +91,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
 });
 
 // GET /api/documents — list documents (optional ?type= filter)
-app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const docType = c.req.query("type") as DocumentType | undefined;
   const limit = Math.min(Math.max(Number.parseInt(c.req.query("limit") || "50", 10), 1), 100);
@@ -101,7 +101,7 @@ app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:
 });
 
 // GET /api/documents/:id — get document detail
-app.get("/:id", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/:id", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const doc = await getDocument(c.env.DB, organization.id, c.req.param("id"));
   if (!doc) return c.json({ error: { code: "not_found", message: "Dokumen tidak ditemukan" } }, 404);
@@ -109,7 +109,7 @@ app.get("/:id", requireAuth, loadCurrentOrganization(), requirePermission("repor
 });
 
 // PATCH /api/documents/:id/status — update document status
-app.patch("/:id/status", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.patch("/:id/status", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{ status: string; reason?: string }>();
@@ -125,7 +125,7 @@ app.patch("/:id/status", requireAuth, loadCurrentOrganization(), requirePermissi
 // ---------------------------------------------------------------------------
 
 // POST /api/documents/:id/convert-to-invoice — quotation → invoice
-app.post("/:id/convert-to-invoice", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:id/convert-to-invoice", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const result = await convertQuotationToInvoice(
@@ -135,7 +135,7 @@ app.post("/:id/convert-to-invoice", requireAuth, loadCurrentOrganization(), requ
 });
 
 // POST /api/documents/:id/receive — purchase_order → delivery_note (goods received)
-app.post("/:id/receive", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:id/receive", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const result = await convertPurchaseOrderToDeliveryNote(
@@ -149,7 +149,7 @@ app.post("/:id/receive", requireAuth, loadCurrentOrganization(), requirePermissi
 // ---------------------------------------------------------------------------
 
 // GET /api/documents/:id/print — printable HTML for any document type
-app.get("/:id/print", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/:id/print", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const doc = await getDocument(c.env.DB, organization.id, c.req.param("id"));
   if (!doc) return c.json({ error: { code: "not_found", message: "Dokumen tidak ditemukan" } }, 404);

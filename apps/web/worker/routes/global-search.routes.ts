@@ -8,7 +8,7 @@ import { globalSearch } from "../services/global-search.service";
 const app = new Hono<AppContext>();
 
 // GET /api/search?q=keyword&limit=10
-app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const query = c.req.query("q");
   const limit = Math.min(Number.parseInt(c.req.query("limit") || "10", 10), 50);

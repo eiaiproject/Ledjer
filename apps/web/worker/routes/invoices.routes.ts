@@ -17,7 +17,7 @@ import { sendEmail } from "../services/email.service";
 const app = new Hono<AppContext>();
 
 // POST /api/invoices
-app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   if (await checkRateLimit(c.env.DB, "invoices_create", user.id, { max: 20, windowMs: 60000 })) {
@@ -53,7 +53,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
 });
 
 // GET /api/invoices
-app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const limit = Math.min(Math.max(Number.parseInt(c.req.query("limit") || "50", 10), 1), 100);
   const offset = Math.max(Number.parseInt(c.req.query("offset") || "0", 10), 0);
@@ -62,7 +62,7 @@ app.get("/", requireAuth, loadCurrentOrganization(), requirePermission("reports:
 });
 
 // GET /api/invoices/:id
-app.get("/:id", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/:id", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const invoice = await getInvoice(c.env.DB, organization.id, c.req.param("id"));
   if (!invoice) return c.json({ error: { code: "not_found", message: "Faktur tidak ditemukan" } }, 404);
@@ -70,7 +70,7 @@ app.get("/:id", requireAuth, loadCurrentOrganization(), requirePermission("repor
 });
 
 // PATCH /api/invoices/:id/status
-app.patch("/:id/status", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.patch("/:id/status", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{ status: string; reason?: string }>();
@@ -80,7 +80,7 @@ app.patch("/:id/status", requireAuth, loadCurrentOrganization(), requirePermissi
 });
 
 // POST /api/invoices/:id/credit-note
-app.post("/:id/credit-note", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:id/credit-note", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{
@@ -104,14 +104,14 @@ app.post("/:id/credit-note", requireAuth, loadCurrentOrganization(), requirePerm
 });
 
 // GET /api/invoices/:id/credit-notes — list credit notes referencing this invoice
-app.get("/:id/credit-notes", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/:id/credit-notes", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const creditNotes = await getCreditNotesForInvoice(c.env.DB, organization.id, c.req.param("id"));
   return c.json(creditNotes);
 });
 
 // GET /api/invoices/:id/print — printable HTML view (for PDF print)
-app.get("/:id/print", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/:id/print", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const invoice = await getInvoice(c.env.DB, organization.id, c.req.param("id"));
   if (!invoice) return c.json({ error: { code: "not_found", message: "Faktur tidak ditemukan" } }, 404);
@@ -216,7 +216,7 @@ app.get("/:id/print", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // POST /api/invoices/:id/send-email
-app.post("/:id/send-email", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:id/send-email", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const invoice = await getInvoice(c.env.DB, organization.id, c.req.param("id"));

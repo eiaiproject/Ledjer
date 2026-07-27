@@ -14,7 +14,7 @@ import {
 const app = new Hono<AppContext>();
 
 // POST /api/reconciliation/import-statement
-app.post("/import-statement", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/import-statement", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{
@@ -39,14 +39,14 @@ app.post("/import-statement", requireAuth, loadCurrentOrganization(), requirePer
 });
 
 // GET /api/reconciliation/:statementId/suggestions
-app.get("/:statementId/suggestions", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/:statementId/suggestions", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const suggestions = await getSuggestions(c.env.DB, organization.id, c.req.param("statementId"));
   return c.json({ suggestions });
 });
 
 // POST /api/reconciliation/:statementId/confirm
-app.post("/:statementId/confirm", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:statementId/confirm", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{ matches: { statementLineId: string; transactionId: string | null }[] }>();
@@ -56,14 +56,14 @@ app.post("/:statementId/confirm", requireAuth, loadCurrentOrganization(), requir
 });
 
 // GET /api/reconciliation/:statementId/report
-app.get("/:statementId/report", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/:statementId/report", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const report = await getReconciliationReport(c.env.DB, organization.id, c.req.param("statementId"));
   return c.json(report);
 });
 
 // POST /api/reconciliation/:statementId/reopen
-app.post("/:statementId/reopen", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:statementId/reopen", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{ reason?: string }>().catch(() => ({} as { reason?: string }));

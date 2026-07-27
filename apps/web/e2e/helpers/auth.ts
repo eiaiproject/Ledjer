@@ -10,49 +10,80 @@ export interface AuthFixtures {
 /**
  * Playwright fixture providing an authenticated browser session.
  *
- * Injects a session cookie from PLAYWRIGHT_SESSION_TOKEN, navigates to the app
- * to establish the session, then provides the page for authenticated tests.
+ * Logs in via the login API using the configured E2E credentials, then
+ * navigates to the app to establish the session.
+ *
+ * Credentials are read from E2E_EMAIL / E2E_PASSWORD env vars (defaults:
+ * ledjer@yopmail.com / Ledjer26#).
  *
  * Usage:
  *   test("list accounts", async ({ authPage, orgId }) => {
- *     const resp = await authPage.request.get("/api/accounts");
- *     expect(resp.status()).toBe(200);
+ *     const resp = await authPage.evaluate(async () => {
+ *       const res = await fetch("/api/accounts");
+ *       return res.json();
+ *     });
+ *     expect(resp.accounts).toBeDefined();
  *   });
+ *
+ * Note: Use authPage.evaluate(fetch) instead of authPage.request.get()
+ * so that the browser natively handles Set-Cookie token rotation from the
+ * server's session-rotation mechanism.
  */
 export const test = base.extend<AuthFixtures>({
-  orgId: "b7ad230e-e7a9-4c09-ad87-5a0599567c28",
+  orgId: "046e96ee-6399-4704-ad25-66bc7f917742",
 
   authPage: async ({ browser }, acceptFixture) => {
-    const token = process.env.PLAYWRIGHT_SESSION_TOKEN;
-    if (!token) {
-      throw new Error(
-        "PLAYWRIGHT_SESSION_TOKEN not set. Run: eval $(node scripts/create-e2e-session.mjs) " +
-        "then export PLAYWRIGHT_SESSION_TOKEN=<value>",
-      );
-    }
+    const email = process.env.E2E_EMAIL || "ledjer@yopmail.com";
+    const password = process.env.E2E_PASSWORD || "Ledjer26#";
+    const baseURL = process.env.E2E_BASE_URL || "https://ledjer.id";
 
-    const baseURL = process.env.E2E_BASE_URL || "http://localhost:4173";
     const context = await browser.newContext({
       baseURL,
     });
 
-    // Inject session cookie before navigating
-    const url = new URL(baseURL);
-    await context.addCookies([
-      {
-        name: "__Host-ledjer_session",
-        value: token,
-        domain: url.hostname,
-        path: "/",
-        secure: url.protocol === "https:",
-        httpOnly: true,
-        sameSite: "Lax" as const,
-      },
-    ]);
-
     const page = await context.newPage();
-    // Navigate to establish session context (handles Cloudflare challenges)
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    // Navigate to the app first to establish the origin
+    await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 15000 });
+
+    // Log in via fetch so cookies are handled natively by the browser
+    const loginResult = await page.evaluate(
+      async ({ email, password }: { email: string; password: string }) => {
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          return { ok: res.ok, status: res.status };
+        } catch (err) {
+          return { ok: false, status: 0, error: String(err) };
+        }
+      },
+      { email, password },
+    );
+
+    if (!loginResult.ok) {
+      throw new Error(
+        `Login failed (${loginResult.status}): ${loginResult.error || "unknown"}` +
+        ". Check E2E_EMAIL / E2E_PASSWORD env vars.",
+      );
+    }
+
+    // Navigate to the app root
+    await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
+    // Give SPA time to render and settle
+    await page.waitForTimeout(3000);
+
+    // Debug: check cookies
+    const cookies = await context.cookies();
+    const sessionCookie = cookies.find(c => c.name.includes("session"));
+    if (sessionCookie) {
+      console.log("  [auth fixture] session cookie:", sessionCookie.value.substring(0, 15) + "...");
+    } else {
+      console.log("  [auth fixture] WARNING: No session cookie found!");
+    }
+
     await acceptFixture(page);
     await context.close();
   },
