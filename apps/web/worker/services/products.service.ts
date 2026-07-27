@@ -393,14 +393,56 @@ export async function recordStockCount(
 }
 
 /**
- * INTERNAL USE ONLY. Stock movements should go through postTransaction
- * so that journal_entries and journal_lines are created atomically.
- * Called once from createProduct for initial-stock recording.
- * Tracked in #PENDING-INITIAL-STOCK: remove this function when initial stock is
- * also posted via postTransaction. As of now, stock movements during
- * onboarding (createProduct) call this directly (not through postTransaction)
- * because no transaction journal is needed for zero-cost initial stock recording.
+ * Attempt an optimistic-lock UPDATE on the product stock row, retrying
+ * on concurrent modification. Returns the final stock/cost values on success.
  */
+async function updateProductStockWithRetry(
+  db: D1Database,
+  organizationId: string,
+  productId: string,
+  quantityMilli: number,
+  unitCostMinor: number | null,
+  movementType: StockMovementType,
+  current: number,
+): Promise<{ stockAfterMilli: number; avgCostMinor: number }> {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS = [5, 15, 50];
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt - 1] ?? 50));
+    }
+
+    const product = await getProductRow(db, organizationId, productId);
+    if (!product) throw notFound("product_not_found", "Product not found");
+
+    const curStock = product.current_stock_milli;
+    const nextStock = curStock + quantityMilli;
+    if (nextStock < 0) {
+      throw conflict("insufficient_stock", "Insufficient stock");
+    }
+
+    const avgCost = nextAverageCostMinor(product, quantityMilli, unitCostMinor, movementType);
+
+    const result = await execute(
+      db,
+      `UPDATE products
+       SET current_stock_milli = ?,
+           average_cost_minor = ?,
+           purchase_price_minor = ?,
+           updated_at = ?
+       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+      [nextStock, avgCost, avgCost, current, productId, organizationId, curStock],
+    );
+
+    if (result.meta.changes > 0) {
+      return { stockAfterMilli: nextStock, avgCostMinor: avgCost };
+    }
+  }
+
+  throw conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
+}
+
 export async function recordStockMovement(
   db: D1Database,
   organizationId: string,
@@ -421,77 +463,16 @@ export async function recordStockMovement(
     throw conflict("insufficient_stock", "Insufficient stock");
   }
 
-  const unitCostMinor = input.unitCost === null || input.unitCost === undefined
-    ? null
-    : toMoneyMinor(input.unitCost);
-  const nextAverageCost = nextAverageCostMinor(
-    product,
-    quantityMilli,
-    unitCostMinor,
-    input.movementType,
-  );
+  const unitCostMinor = input.unitCost ?? null;
+  const unitCostMinorVal = unitCostMinor === null ? null : toMoneyMinor(unitCostMinor);
   const current = Date.now();
   const movementId = generateId();
 
-  // Optimistic lock with retry: check changes and re-read on conflict
-  const MAX_RETRIES = 3;
-  const RETRY_DELAYS = [5, 15, 50];
-  let currentStockMilliVar = currentStockMilli;
-  let nextStockMilliVar = nextStockMilli;
-  let nextAvgCostVar = nextAverageCost;
-  let success = false;
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt - 1] ?? 50));
-      // Re-read product for retry
-      const freshProduct = await getProductRow(db, organizationId, input.productId);
-      if (!freshProduct) throw notFound("product_not_found", "Product not found");
-      currentStockMilliVar = freshProduct.current_stock_milli;
-      const freshNextStockMilli = currentStockMilliVar + quantityMilli;
-      if (freshNextStockMilli < 0) {
-        throw conflict("insufficient_stock", "Insufficient stock");
-      }
-      nextStockMilliVar = freshNextStockMilli;
-      nextAvgCostVar = nextAverageCostMinor(
-        freshProduct,
-        quantityMilli,
-        unitCostMinor,
-        input.movementType,
-      );
-    }
-
-    const result = await execute(
-      db,
-      `UPDATE products
-       SET current_stock_milli = ?,
-           average_cost_minor = ?,
-           purchase_price_minor = ?,
-           updated_at = ?
-       WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
-      [
-        nextStockMilliVar,
-        nextAvgCostVar,
-        nextAvgCostVar,
-        current,
-        input.productId,
-        organizationId,
-        currentStockMilliVar,
-      ],
+  const { stockAfterMilli: nextStockMilliVar } =
+    await updateProductStockWithRetry(
+      db, organizationId, input.productId,
+      quantityMilli, unitCostMinorVal, input.movementType, current,
     );
-
-    if (result.meta.changes > 0) {
-      success = true;
-      break;
-    }
-
-    lastError = conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
-  }
-
-  if (!success) {
-    throw lastError ?? conflict("stock_concurrent_modify", "Stock was modified by another request, please retry");
-  }
 
   await execute(
     db,
@@ -507,7 +488,7 @@ export async function recordStockMovement(
       input.movementDate,
       input.movementType,
       quantityMilli,
-      unitCostMinor,
+      unitCostMinorVal,
       input.transactionId ?? null,
       nextStockMilliVar,
       nullableText(input.notes),

@@ -48,6 +48,36 @@ const MAX_MONEY_MINOR = 999_999_999_999;
 const MAX_QUANTITY_MILLI = 999_999_999_000;
 
 /**
+ * Validate a single line item's fields.
+ * Throws badRequest if any constraint is violated.
+ */
+function validateLine(
+  l: { description: string; quantityMilli: number; unitPriceMinor: number; amountMinor: number },
+): void {
+  if (l.description && l.description.length > MAX_DESCRIPTION_LENGTH) {
+    throw badRequest("description_too_long", `Deskripsi item maksimal ${MAX_DESCRIPTION_LENGTH} karakter`);
+  }
+  if (!Number.isFinite(l.quantityMilli) || l.quantityMilli <= 0) {
+    throw badRequest("invalid_quantity", "Jumlah harus lebih dari 0");
+  }
+  if (l.quantityMilli > MAX_QUANTITY_MILLI) {
+    throw badRequest("quantity_overflow", `Jumlah tidak boleh melebihi 999.999.999`);
+  }
+  if (!Number.isFinite(l.unitPriceMinor) || l.unitPriceMinor < 0) {
+    throw badRequest("invalid_unit_price", "Harga satuan tidak boleh negatif");
+  }
+  if (l.unitPriceMinor > MAX_MONEY_MINOR) {
+    throw badRequest("unit_price_overflow", `Harga satuan tidak boleh melebihi ${MAX_MONEY_MINOR}`);
+  }
+  if (!Number.isFinite(l.amountMinor) || l.amountMinor < 0) {
+    throw badRequest("invalid_amount", "Jumlah tidak boleh negatif");
+  }
+  if (l.amountMinor > MAX_MONEY_MINOR) {
+    throw badRequest("amount_overflow", `Jumlah tidak boleh melebihi ${MAX_MONEY_MINOR}`);
+  }
+}
+
+/**
  * Validate document/invoice line items.
  * Throws badRequest if any constraint is violated.
  */
@@ -61,27 +91,7 @@ export function validateLines(
     throw badRequest("too_many_lines", `Maksimal ${MAX_LINE_ITEMS} item per dokumen`);
   }
   for (const l of lines) {
-    if (l.description && l.description.length > MAX_DESCRIPTION_LENGTH) {
-      throw badRequest("description_too_long", `Deskripsi item maksimal ${MAX_DESCRIPTION_LENGTH} karakter`);
-    }
-    if (!Number.isFinite(l.quantityMilli) || l.quantityMilli <= 0) {
-      throw badRequest("invalid_quantity", "Jumlah harus lebih dari 0");
-    }
-    if (l.quantityMilli > MAX_QUANTITY_MILLI) {
-      throw badRequest("quantity_overflow", `Jumlah tidak boleh melebihi 999.999.999`);
-    }
-    if (!Number.isFinite(l.unitPriceMinor) || l.unitPriceMinor < 0) {
-      throw badRequest("invalid_unit_price", "Harga satuan tidak boleh negatif");
-    }
-    if (l.unitPriceMinor > MAX_MONEY_MINOR) {
-      throw badRequest("unit_price_overflow", `Harga satuan tidak boleh melebihi ${MAX_MONEY_MINOR}`);
-    }
-    if (!Number.isFinite(l.amountMinor) || l.amountMinor < 0) {
-      throw badRequest("invalid_amount", "Jumlah tidak boleh negatif");
-    }
-    if (l.amountMinor > MAX_MONEY_MINOR) {
-      throw badRequest("amount_overflow", `Jumlah tidak boleh melebihi ${MAX_MONEY_MINOR}`);
-    }
+    validateLine(l);
   }
 }
 
