@@ -1,0 +1,657 @@
+/**
+ * E2E Comprehensive Page Scan v2 — Ledjer
+ *
+ * Visits EVERY page (public + protected + detail), interacts with ALL
+ * interactive elements visible on the page, and reports everything:
+ * console errors, page errors, 4xx/5xx responses, broken interactions.
+ *
+ * Login is done via the API (like the existing auth fixture) for reliability.
+ * Viewport is mobile-first (375x812) to expose mobile nav elements.
+ * Dynamic routes are tested by first fetching real data IDs from APIs.
+ *
+ * Usage:
+ *   node apps/web/e2e-scan-all-pages.mjs
+ *
+ * Environment variables:
+ *   E2E_EMAIL     — login email (default: ledjer@yopmail.com)
+ *   E2E_PASSWORD  — login password (default: Ledjer26#)
+ *   BASE_URL      — target URL   (default: https://ledjer.id)
+ */
+
+import { chromium } from "playwright";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+import fs from "fs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ── Config ─────────────────────────────────────────────────────────
+const BASE_URL    = process.env.BASE_URL    || "https://ledjer.id";
+const EMAIL       = process.env.E2E_EMAIL   || "ledjer@yopmail.com";
+const PASSWORD    = process.env.E2E_PASSWORD || "Ledjer26#";
+const NAV_TIMEOUT = 25000;
+const PAGE_WAIT   = 1000;   // wait after navigation for data fetching
+
+// ── Results accumulator ────────────────────────────────────────────
+const results = {
+  passed: [],
+  failed: [],
+  warnings: [],
+  skipped: [],
+  interactions: { total: 0, clicked: 0, errors: [] },
+  consoleErrors: [],
+  pageErrors: [],
+  failedRequests: [],
+  slowPages: [],
+};
+
+function record(pg, status, msg, detail = "") {
+  const entry = { page: pg, status, message: msg };
+  if (detail) entry.detail = detail;
+  if (status === "PASS") results.passed.push(entry);
+  else if (status === "FAIL") results.failed.push(entry);
+  else if (status === "SKIP") results.skipped.push(entry);
+  else results.warnings.push(entry);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+function attachListeners(page, label) {
+  const consoleHandler = (msg) => {
+    if (msg.type() !== "error") return;
+    const text = msg.text();
+    if (/sentry\.io/i.test(text) && /failed|error/i.test(text)) return;
+    results.consoleErrors.push({ page: label, text, url: msg.location().url });
+  };
+  const errorHandler = (err) => {
+    results.pageErrors.push({ page: label, message: err.message, stack: err.stack });
+  };
+  const respHandler = (resp) => {
+    const url = resp.url();
+    const status = resp.status();
+    if (status >= 400) {
+      if (/sentry\.io/i.test(url)) return;
+      if (status === 404 && /favicon/i.test(url)) return;
+      results.failedRequests.push({ page: label, url, status });
+    }
+  };
+  page.on("console", consoleHandler);
+  page.on("pageerror", errorHandler);
+  page.on("response", respHandler);
+  return () => {
+    page.off("console", consoleHandler);
+    page.off("pageerror", errorHandler);
+    page.off("response", respHandler);
+  };
+}
+
+async function safeGoto(page, url, label) {
+  const start = performance.now();
+  try {
+    const resp = await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT });
+    const elapsed = ((performance.now() - start) / 1000).toFixed(1);
+    if (parseFloat(elapsed) > 5) {
+      results.slowPages.push({ page: label, url, seconds: elapsed });
+    }
+    if (resp && resp.status() >= 400) {
+      record(label, "FAIL", `HTTP ${resp.status()}`, url);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    record(label, "FAIL", `Navigation error: ${err.message}`, url);
+    return false;
+  }
+}
+
+async function safeClick(page, label, element, description) {
+  results.interactions.total++;
+  try {
+    await element.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+    await element.click({ timeout: 3000 });
+    results.interactions.clicked++;
+    return true;
+  } catch (err) {
+    results.interactions.errors.push({ page: label, element: description, error: err.message.substring(0, 80) });
+    return false;
+  }
+}
+
+async function safeTypeAndClear(page, label, input, text, description) {
+  results.interactions.total++;
+  try {
+    await input.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+    await input.click({ timeout: 3000 }).catch(() => {});
+    await input.fill(text);
+    await page.waitForTimeout(200);
+    await input.clear();
+    results.interactions.clicked++;
+    return true;
+  } catch (err) {
+    results.interactions.errors.push({ page: label, element: description, error: err.message.substring(0, 80) });
+    return false;
+  }
+}
+
+/** Interact with visible elements on the page. */
+async function interactWithPage(page, label) {
+  // A. Click visible buttons with aria-expanded (accordion toggles)
+  const expandBtns = page.locator('button[aria-expanded="false"]:visible');
+  const expandCount = await expandBtns.count();
+  for (let i = 0; i < Math.min(expandCount, 6); i++) {
+    const btn = expandBtns.nth(i);
+    const name = await btn.getAttribute("aria-label") || (await btn.textContent())?.trim() || `expand-${i}`;
+    await safeClick(page, label, btn, name);
+    await page.waitForTimeout(300);
+  }
+
+  // B. Click tab elements
+  const tabs = page.locator('[role="tab"]:visible');
+  const tabCount = await tabs.count();
+  for (let i = 0; i < Math.min(tabCount, 4); i++) {
+    const tab = tabs.nth(i);
+    const name = await tab.textContent() || `tab-${i}`;
+    await safeClick(page, label, tab, name.trim());
+    await page.waitForTimeout(300);
+  }
+  // Back to first tab
+  if (tabCount > 1) {
+    await safeClick(page, label, tabs.first(), "back-to-first-tab");
+    await page.waitForTimeout(200);
+  }
+
+  // C. Search inputs — type and clear
+  const searchInputs = page.locator('input[type="search"]:visible, input[placeholder*="Cari"]:visible, #account-search:visible, #product-search:visible');
+  const searchCount = await searchInputs.count();
+  for (let i = 0; i < Math.min(searchCount, 2); i++) {
+    const inp = searchInputs.nth(i);
+    const placeholder = await inp.getAttribute("placeholder") || "search";
+    await safeTypeAndClear(page, label, inp, "test", placeholder);
+  }
+
+  // D. Clear buttons
+  const clearBtns = page.getByRole("button", { name: /hapus pencarian/i });
+  if (await clearBtns.count() > 0) {
+    await safeClick(page, label, clearBtns.first(), "clear-search");
+    await page.waitForTimeout(200);
+  }
+
+  // E. Group filter buttons (aria-pressed toggle group)
+  const groupBtns = page.locator('[role="group"] button:visible');
+  const groupCount = await groupBtns.count();
+  for (let i = 0; i < Math.min(groupCount, 4); i++) {
+    const btn = groupBtns.nth(i);
+    const name = (await btn.textContent())?.trim() || `group-${i}`;
+    await safeClick(page, label, btn, name);
+    await page.waitForTimeout(200);
+  }
+
+  // F. Disclosure toggles
+  const disclosure = page.getByRole("button", { name: /lihat|sembunyikan/i });
+  const discCount = await disclosure.count();
+  for (let i = 0; i < Math.min(discCount, 3); i++) {
+    await safeClick(page, label, disclosure.nth(i), "disclosure-toggle");
+    await page.waitForTimeout(300);
+  }
+
+  // G. Export buttons
+  const exportBtns = page.locator('button:has-text("Ekspor"):visible');
+  if (await exportBtns.count() > 0) {
+    await safeClick(page, label, exportBtns.first(), "export-button");
+    await page.waitForTimeout(500);
+  }
+
+  // H. Modal triggers (Edit / Tambah) - try, then close
+  const modalBtns = page.locator('button[aria-label^="Edit"]:visible, button[aria-label^="Tambah"]:visible');
+  const modalCount = await modalBtns.count();
+  for (let i = 0; i < Math.min(modalCount, 2); i++) {
+    const btn = modalBtns.nth(i);
+    const name = await btn.getAttribute("aria-label") || "modal-trigger";
+    const ok = await safeClick(page, label, btn, name);
+    if (ok) {
+      await page.waitForTimeout(500);
+      // Close dialog
+      try {
+        const closeBtn = page.locator('dialog[open] button[aria-label*="tutup"], dialog[open] button[aria-label*="batal"], dialog[open] button:has-text("Batal")').first();
+        if (await closeBtn.count() > 0) {
+          await safeClick(page, label, closeBtn, "close-modal");
+        } else {
+          await page.keyboard.press("Escape");
+        }
+        await page.waitForTimeout(300);
+      } catch (e) { /* ok */ }
+    }
+  }
+
+  // I. Menu button (hamburger in mobile)
+  const menuBtn = page.getByRole("button", { name: /buka menu/i });
+  if (await menuBtn.count() > 0) {
+    await safeClick(page, label, menuBtn.first(), "open-menu");
+    await page.waitForTimeout(500);
+    // Now click nav items inside the menu
+    const menuLinks = page.locator('a[href*="/reports/"]:visible, a[href*="/settings/"]:visible').first();
+    if (await menuLinks.count() > 0) {
+      // Don't navigate away, just check they exist
+      record(label, "PASS", "Menu nav items visible");
+    }
+    // Close menu
+    const closeBtn = page.getByRole("button", { name: /tutup menu/i });
+    if (await closeBtn.count() > 0) {
+      await safeClick(page, label, closeBtn.first(), "close-menu");
+      await page.waitForTimeout(300);
+    }
+  }
+
+  // J: Close any open dialogs/modals after interaction
+  const openDialogs = page.locator("dialog[open]");
+  if (await openDialogs.count() > 0) {
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(200);
+  }
+}
+
+// ── Login via API (same as auth fixture) ───────────────────────────
+async function loginViaAPI(page) {
+  await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT });
+  await page.waitForTimeout(500);
+
+  const loginResult = await page.evaluate(
+    async ({ email, password }) => {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        return { ok: res.ok, status: res.status };
+      } catch (err) {
+        return { ok: false, status: 0, error: String(err) };
+      }
+    },
+    { email: EMAIL, password: PASSWORD },
+  );
+
+  if (!loginResult.ok) {
+    throw new Error(`Login via API failed (${loginResult.status})`);
+  }
+
+  // Navigate to dashboard to establish session in SPA
+  await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT }).catch(() => {});
+  await page.waitForTimeout(2000);
+  console.log("│ ✅ Login via API berhasil                           │");
+
+  // Verify cookies
+  const cookies = await page.context().cookies();
+  const sessionCookie = cookies.find(c => c.name.includes("session") || c.name.includes("token") || c.name.includes("auth"));
+  if (sessionCookie) {
+    console.log(`│   Session cookie: ${sessionCookie.value.substring(0, 20)}...          │`);
+  }
+}
+
+// ── Fetch data IDs for detail pages ────────────────────────────────
+async function fetchDataIDs(page) {
+  const ids = { transactions: [], invoices: [], documents: [], recurring: [] };
+
+  try {
+    // Fetch transactions
+    const txns = await page.evaluate(async () => {
+      const res = await fetch("/api/transactions?limit=10&offset=0");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.transactions || []).map(t => t.id).filter(Boolean);
+    });
+    ids.transactions = txns.slice(0, 3);
+  } catch (e) { console.log(`  ⚠️ Could not fetch transactions: ${e.message}`); }
+
+  try {
+    const invs = await page.evaluate(async () => {
+      const res = await fetch("/api/invoices?limit=5");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.invoices || []).map(i => i.id).filter(Boolean);
+    });
+    ids.invoices = invs.slice(0, 2);
+  } catch (e) { /* ok */ }
+
+  try {
+    const docs = await page.evaluate(async () => {
+      const res = await fetch("/api/documents?limit=5");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.documents || []).map(d => d.id).filter(Boolean);
+    });
+    ids.documents = docs.slice(0, 2);
+  } catch (e) { /* ok */ }
+
+  try {
+    const recs = await page.evaluate(async () => {
+      const res = await fetch("/api/recurring-transactions?limit=5");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.transactions || []).map(t => t.id).filter(Boolean);
+    });
+    ids.recurring = recs.slice(0, 2);
+  } catch (e) { /* ok */ }
+
+  return ids;
+}
+
+// ── Test a single page ─────────────────────────────────────────────
+async function testPage(page, label, path, isProtected = false) {
+  process.stdout.write(`  🔍 ${label.padEnd(32)} `);
+  const cleanup = attachListeners(page, label);
+
+  const ok = await safeGoto(page, label.includes("://") ? label : path, label);
+  if (!ok) {
+    console.log("❌");
+    cleanup();
+    return;
+  }
+
+  await page.waitForTimeout(isProtected ? PAGE_WAIT : 500);
+
+  // Check redirects
+  const url = page.url();
+  if (url.includes("/login") && isProtected) {
+    console.log("🔒");
+    record(label, "WARN", "Redirected to login — session expired");
+    cleanup();
+    return;
+  }
+
+  // Interact
+  try {
+    await Promise.race([
+      interactWithPage(page, label),
+      new Promise(r => setTimeout(r, 12000)),
+    ]);
+  } catch (e) {
+    // ignore interaction timeout
+  }
+
+  await page.waitForTimeout(300);
+
+  // Check for errors
+  const errs = results.consoleErrors.filter(e => e.page === label).length +
+               results.pageErrors.filter(e => e.page === label).length +
+               results.failedRequests.filter(e => e.page === label).length;
+
+  if (errs === 0) {
+    console.log("✅");
+    record(label, "PASS", "OK");
+  } else {
+    console.log(`⚠️  (${errs} issues)`);
+  }
+  cleanup();
+}
+
+// ── MAIN ───────────────────────────────────────────────────────────
+async function main() {
+  console.log(`\n╔══════════════════════════════════════════════════════════╗`);
+  console.log(`║   Ledjer — COMPREHENSIVE E2E Interactive Page Scan    ║`);
+  console.log(`║   Target : ${BASE_URL.padEnd(39)}║`);
+  console.log(`║   Account: ${EMAIL.padEnd(39)}║`);
+  console.log(`╚══════════════════════════════════════════════════════════╝\n`);
+
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-gpu"],
+  });
+
+  // Use mobile viewport so mobile nav elements are visible
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    locale: "id-ID",
+    timezoneId: "Asia/Jakarta",
+    viewport: { width: 375, height: 812 },
+  });
+
+  const page = await context.newPage();
+
+  // ── 1. LOGIN ─────────────────────────────────────────────────────
+  console.log("┌─ LOGIN ──────────────────────────────────────────────┐");
+  try {
+    await loginViaAPI(page);
+  } catch (err) {
+    console.log(`│ ❌ ${err.message.padEnd(45)}│`);
+    record("LOGIN", "FAIL", err.message);
+    await browser.close();
+    console.log("└──────────────────────────────────────────────────────┘\n");
+    console.log("Scan dihentikan karena login gagal.\n");
+    // Save partial report
+    const reportPath = resolve(__dirname, "e2e-scan-report.json");
+    fs.writeFileSync(reportPath, JSON.stringify({
+      timestamp: new Date().toISOString(),
+      target: BASE_URL,
+      account: EMAIL,
+      error: "Login failed",
+      summary: results,
+    }, null, 2));
+    return;
+  }
+  console.log("└──────────────────────────────────────────────────────┘\n");
+
+  // ── 2. FETCH DATA IDs ────────────────────────────────────────────
+  console.log("┌─ FETCH DATA IDs untuk detail pages ──────────────────┐");
+  const ids = await fetchDataIDs(page);
+  console.log(`│   Transactions: ${ids.transactions.length}        Invoices: ${ids.invoices.length}          │`);
+  console.log(`│   Documents: ${ids.documents.length}            Recurring: ${ids.recurring.length}          │`);
+  console.log("└──────────────────────────────────────────────────────┘\n");
+
+  // ── 3. PUBLIC PAGES ──────────────────────────────────────────────
+  console.log("┌─ PUBLIC PAGES ───────────────────────────────────────┐");
+  const PUBLIC = [
+    "/", "/register", "/forgot-password", "/reset-password",
+    "/privacy", "/terms", "/refund", "/security", "/contact",
+  ];
+  const PUBLIC_LABELS = [
+    "Landing", "Register", "Forgot Password", "Reset Password",
+    "Privacy Policy", "Terms of Service", "Refund Policy", "Security", "Contact",
+  ];
+  for (let i = 0; i < PUBLIC.length; i++) {
+    await testPage(page, PUBLIC_LABELS[i], PUBLIC[i], false);
+  }
+  console.log("└──────────────────────────────────────────────────────┘\n");
+
+  // ── 4. PROTECTED PAGES ───────────────────────────────────────────
+  console.log("┌─ PROTECTED PAGES (dashboard area) ───────────────────┐");
+
+  const PROTECTED = [
+    { path: "/dashboard",               label: "Dashboard" },
+    { path: "/transactions",            label: "Transactions List" },
+    { path: "/transactions/new",        label: "New Transaction" },
+    { path: "/accounts",                label: "Accounts" },
+    { path: "/products",                label: "Products" },
+    { path: "/invoices",                label: "Invoices List" },
+    { path: "/invoices/new",            label: "New Invoice" },
+    { path: "/documents",               label: "Documents List" },
+    { path: "/documents/new",           label: "New Document" },
+    { path: "/recurring-transactions",  label: "Recurring Transactions" },
+    { path: "/recurring-transactions/new", label: "New Recurring" },
+    { path: "/notifications",           label: "Notifications" },
+    { path: "/reports/general-ledger",  label: "General Ledger" },
+    { path: "/reports/trial-balance",   label: "Trial Balance" },
+    { path: "/reports/profit-loss",     label: "Profit & Loss" },
+    { path: "/reports/balance-sheet",   label: "Balance Sheet" },
+    { path: "/reports/cash-flow",       label: "Cash Flow" },
+    { path: "/reports/aging",           label: "Aging Report" },
+    { path: "/reconciliation",          label: "Reconciliation" },
+    { path: "/opening-balance",         label: "Opening Balance" },
+    { path: "/import",                  label: "Import Data" },
+    { path: "/settings/team",           label: "Team Settings" },
+    { path: "/settings/period-locks",   label: "Period Locks" },
+    { path: "/approvals",               label: "Approvals" },
+    { path: "/approvals/settings",      label: "Approval Settings" },
+    { path: "/period-close",            label: "Period Close" },
+    { path: "/budgets",                 label: "Budgets" },
+    { path: "/exports",                 label: "Exports" },
+    { path: "/dimensions",              label: "Dimensions" },
+    { path: "/fixed-assets",            label: "Fixed Assets" },
+    { path: "/journals",                label: "Manual Journals" },
+    { path: "/onboarding",              label: "Onboarding" },
+    { path: "/onboarding/checklist",    label: "Onboarding Checklist" },
+  ];
+
+  for (const pg of PROTECTED) {
+    await testPage(page, pg.label, pg.path, true);
+  }
+  console.log("└──────────────────────────────────────────────────────┘\n");
+
+  // ── 5. DETAIL PAGES ──────────────────────────────────────────────
+  console.log("┌─ DETAIL PAGES (dynamic routes) ──────────────────────┐");
+
+  // Transaction details
+  for (const id of ids.transactions) {
+    await testPage(page, `Transaction Detail (${id.substring(0, 8)}...)`, `/transactions/${id}`, true);
+  }
+  if (ids.transactions.length === 0) {
+    console.log("  ⏭️  No transaction IDs available                    ");
+  }
+
+  // Invoice details
+  for (const id of ids.invoices) {
+    await testPage(page, `Invoice Detail (${id.substring(0, 8)}...)`, `/invoices/${id}`, true);
+  }
+  if (ids.invoices.length === 0) {
+    console.log("  ⏭️  No invoice IDs available                       ");
+  }
+
+  // Document details
+  for (const id of ids.documents) {
+    await testPage(page, `Document Detail (${id.substring(0, 8)}...)`, `/documents/${id}`, true);
+  }
+  if (ids.documents.length === 0) {
+    console.log("  ⏭️  No document IDs available                      ");
+  }
+
+  // Recurring transaction details
+  for (const id of ids.recurring) {
+    await testPage(page, `Recurring Detail (${id.substring(0, 8)}...)`, `/recurring-transactions/${id}`, true);
+  }
+  if (ids.recurring.length === 0) {
+    console.log("  ⏭️  No recurring transaction IDs available         ");
+  }
+
+  // Party statement (from aging)
+  try {
+    const agingData = await page.evaluate(async () => {
+      const res = await fetch("/api/reports/aging");
+      if (!res.ok) return null;
+      return await res.json();
+    });
+    if (agingData) {
+      // Extract party IDs from aging data
+      let partyIds = [];
+      for (const cat of ["receivables", "payables"]) {
+        if (agingData[cat]) {
+          for (const item of agingData[cat]) {
+            if (item.partyId) partyIds.push(item.partyId);
+          }
+        }
+      }
+      if (partyIds.length > 0) {
+        await testPage(page, `Party Statement (${partyIds[0].substring(0, 8)}...)`, `/reports/aging/${partyIds[0]}`, true);
+      } else {
+        console.log("  ⏭️  No party IDs found in aging report            ");
+      }
+    } else {
+      console.log("  ⏭️  Aging report API returned no data             ");
+    }
+  } catch (e) {
+    console.log(`  ⏭️  Could not fetch aging data: ${e.message}        `);
+  }
+
+  console.log("└──────────────────────────────────────────────────────┘\n");
+
+  // ── 6. SPECIAL PAGES ─────────────────────────────────────────────
+  console.log("┌─ SPECIAL PAGES ──────────────────────────────────────┐");
+  // Auth callback (visit and verify no crash)
+  await testPage(page, "Auth Callback", "/auth/callback", false);
+  // Accept invitation
+  await testPage(page, "Accept Invitation", "/invitations/accept", false);
+  console.log("└──────────────────────────────────────────────────────┘\n");
+
+  // ── REPORT ────────────────────────────────────────────────────────
+  console.log("╔══════════════════════════════════════════════════════════╗");
+  console.log("║                       LAPORAN HASIL                      ║");
+  console.log("╚══════════════════════════════════════════════════════════╝");
+
+  const summary = {
+    passed: results.passed.length,
+    failed: results.failed.length,
+    warnings: results.warnings.length,
+    skipped: results.skipped.length,
+    totalPages: results.passed.length + results.failed.length + results.warnings.length + results.skipped.length,
+    totalInteractions: results.interactions.total,
+    interactionsClicked: results.interactions.clicked,
+    interactionErrors: results.interactions.errors.length,
+    consoleErrors: results.consoleErrors.length,
+    pageErrors: results.pageErrors.length,
+    failedRequests: results.failedRequests.length,
+    slowPages: results.slowPages.length,
+  };
+
+  console.log(`\n📊 PAGES:         ${summary.passed} ✅ PASS  |  ${summary.failed} ❌ FAIL  |  ${summary.warnings} ⚠️ WARN  |  ${summary.skipped} ⏭️ SKIP`);
+  console.log(`🖱️ INTERACTIONS:  ${summary.interactionsClicked} clicked  |  ${summary.interactionErrors} errors`);
+  console.log(`🌐 HTTP ERRORS:   ${summary.failedRequests} failed requests`);
+  console.log(`❌ JS ERRORS:     ${summary.pageErrors} uncaught`);
+  console.log(`⚠️ CONSOLE:       ${summary.consoleErrors} errors`);
+  console.log(`🐌 SLOW PAGES:    ${summary.slowPages}`);
+
+  // List failed
+  if (results.failed.length > 0) {
+    console.log(`\n❌ FAILED PAGES:`);
+    for (const f of results.failed) {
+      console.log(`   • ${f.page}: ${f.message}${f.detail ? ` (${f.detail})` : ""}`);
+    }
+  }
+
+  // List warnings
+  if (results.warnings.length > 0) {
+    console.log(`\n⚠️  WARNINGS:`);
+    for (const w of results.warnings) {
+      console.log(`   • ${w.page}: ${w.message}`);
+    }
+  }
+
+  // Console errors
+  if (results.consoleErrors.length > 0) {
+    console.log(`\n⚠️  CONSOLE ERRORS:`);
+    for (const ce of results.consoleErrors.slice(0, 15)) {
+      console.log(`   [${ce.page}] ${ce.text.substring(0, 100)}`);
+    }
+    if (results.consoleErrors.length > 15) {
+      console.log(`   ... +${results.consoleErrors.length - 15} more`);
+    }
+  }
+
+  // Failed requests
+  if (results.failedRequests.length > 0) {
+    console.log(`\n🌐 FAILED REQUESTS:`);
+    for (const fr of results.failedRequests.slice(0, 10)) {
+      console.log(`   [${fr.page}] HTTP ${fr.status} — ${fr.url.substring(0, 80)}`);
+    }
+    if (results.failedRequests.length > 10) {
+      console.log(`   ... +${results.failedRequests.length - 10} more`);
+    }
+  }
+
+  // Save report
+  const reportPath = resolve(__dirname, "e2e-scan-report.json");
+  fs.writeFileSync(reportPath, JSON.stringify({
+    timestamp: new Date().toISOString(),
+    target: BASE_URL,
+    account: EMAIL,
+    summary,
+    details: results,
+  }, null, 2));
+  console.log(`\n📝 Laporan lengkap: ${reportPath}`);
+
+  await browser.close();
+  console.log("\n✅ Scan selesai!\n");
+}
+
+main().catch((err) => {
+  console.error("\n❌ Fatal:", err);
+  process.exit(1);
+});

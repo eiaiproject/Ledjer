@@ -275,3 +275,5 @@ export function ExportsPage() {
     </div>
   );
 }
+
+export default ExportsPage;

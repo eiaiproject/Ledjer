@@ -770,3 +770,5 @@ export function FixedAssetsPage() {
     </div>
   );
 }
+
+export default FixedAssetsPage;
