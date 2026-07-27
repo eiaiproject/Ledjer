@@ -170,9 +170,7 @@ export async function createDocument(
     input.taxMinor,
   );
 
-  const statements: D1PreparedStatement[] = [];
-
-  statements.push(
+  const statements: D1PreparedStatement[] = [
     db.prepare(
       `INSERT INTO business_documents (
          id, organization_id, document_type, document_number, document_date,
@@ -191,19 +189,17 @@ export async function createDocument(
       input.deliveryDate ?? null, input.paymentMethod ?? null, input.paymentReference ?? null,
       input.idempotencyKey ?? null, userId, now, now,
     ),
-  );
-
-  statements.push(...buildLineInserts(db, organizationId, docId, input.lines, "document_lines", "document_id", now));
-
-  statements.push(writeAuditStatement(db, {
-    organizationId,
-    actorUserId: userId,
-    entityType: "document",
-    entityId: docId,
-    action: "create",
-    after: { documentType: input.documentType, documentNumber: docNumber, totalMinor },
-    current: now,
-  }));
+    ...buildLineInserts(db, organizationId, docId, input.lines, "document_lines", "document_id", now),
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "document",
+      entityId: docId,
+      action: "create",
+      after: { documentType: input.documentType, documentNumber: docNumber, totalMinor },
+      current: now,
+    }),
+  ];
 
   await executeBatch(db, statements);
 

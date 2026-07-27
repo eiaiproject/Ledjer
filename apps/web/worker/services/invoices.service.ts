@@ -89,28 +89,24 @@ export async function createInvoice(
   const invoiceNumber = await nextInvoiceNumber(db, organizationId);
   const { subtotalMinor, totalMinor } = computeTotals(input.lines, input.discountMinor, input.taxMinor);
 
-  const statements: D1PreparedStatement[] = [];
-
-  statements.push(
+  const statements: D1PreparedStatement[] = [
     db.prepare(
       `INSERT INTO invoices (id, organization_id, invoice_number, invoice_date, due_date, party_id, status, subtotal_minor, discount_minor, tax_minor, total_minor, notes, terms, idempotency_key, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(invoiceId, organizationId, invoiceNumber, input.invoiceDate, input.dueDate,
       input.partyId, subtotalMinor, input.discountMinor ?? 0, input.taxMinor ?? 0,
       totalMinor, input.notes ?? null, input.terms ?? null, input.idempotencyKey ?? null, userId, now, now),
-  );
-
-  statements.push(...buildLineInserts(db, organizationId, invoiceId, input.lines, "invoice_lines", "invoice_id", now));
-
-  statements.push(writeAuditStatement(db, {
-    organizationId,
-    actorUserId: userId,
-    entityType: "invoice",
-    entityId: invoiceId,
-    action: "create",
-    after: { invoiceNumber, invoiceDate: input.invoiceDate, totalMinor },
-    current: now,
-  }));
+    ...buildLineInserts(db, organizationId, invoiceId, input.lines, "invoice_lines", "invoice_id", now),
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "invoice",
+      entityId: invoiceId,
+      action: "create",
+      after: { invoiceNumber, invoiceDate: input.invoiceDate, totalMinor },
+      current: now,
+    }),
+  ];
 
   await executeBatch(db, statements);
 

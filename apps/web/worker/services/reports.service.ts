@@ -405,7 +405,7 @@ async function validateReportDate(db: D1Database, organizationId: string, date: 
     "SELECT books_start_date FROM organizations WHERE id = ?",
     [organizationId],
   );
-  if (org && org.books_start_date && date < org.books_start_date) {
+  if (org?.books_start_date && date < org.books_start_date) {
     throw badRequest("date_before_books_start", "Date cannot be before the organization's books start date");
   }
 }
