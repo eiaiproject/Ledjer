@@ -20,7 +20,7 @@ import {
 const app = new Hono<AppContext>();
 
 // GET /api/notifications — list notifications
-app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const unreadOnly = c.req.query("unread") === "true";
@@ -34,7 +34,7 @@ app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // GET /api/notifications/unread-count — get unread count
-app.get("/unread-count", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/unread-count", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const count = await getUnreadCount(c.env.DB, organization.id, user.id);
@@ -42,13 +42,13 @@ app.get("/unread-count", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // PATCH /api/notifications/:id/read — mark as read
-app.patch("/:id/read", requireAuth, loadCurrentOrganization(), async (c) => {
+app.patch("/:id/read", requireAuth(), loadCurrentOrganization(), async (c) => {
   const result = await markAsRead(c.env.DB, c.req.param("id"));
   return c.json(result);
 });
 
 // POST /api/notifications/read-all — mark all as read
-app.post("/read-all", requireAuth, loadCurrentOrganization(), async (c) => {
+app.post("/read-all", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const count = await markAllAsRead(c.env.DB, organization.id, user.id);
@@ -56,13 +56,13 @@ app.post("/read-all", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // DELETE /api/notifications/:id — dismiss a notification
-app.delete("/:id", requireAuth, loadCurrentOrganization(), async (c) => {
+app.delete("/:id", requireAuth(), loadCurrentOrganization(), async (c) => {
   await dismissNotification(c.env.DB, c.req.param("id"));
   return c.json({ success: true });
 });
 
 // POST /api/notifications/dismiss-all — dismiss all (optionally by category)
-app.post("/dismiss-all", requireAuth, loadCurrentOrganization(), async (c) => {
+app.post("/dismiss-all", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{ category?: NotificationCategory }>().catch(() => ({}) as { category?: NotificationCategory });
@@ -71,7 +71,7 @@ app.post("/dismiss-all", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // POST /api/notifications/generate — manually trigger notification generation
-app.post("/generate", requireAuth, loadCurrentOrganization(), async (c) => {
+app.post("/generate", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
 
   // Get admin user IDs for this org

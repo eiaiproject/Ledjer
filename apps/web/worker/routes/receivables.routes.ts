@@ -12,7 +12,7 @@ import {
 const app = new Hono<AppContext>();
 
 // POST /api/receivables/pay — record payment against invoice
-app.post("/pay", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/pay", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{
@@ -29,7 +29,7 @@ app.post("/pay", requireAuth, loadCurrentOrganization(), requirePermission("tran
 });
 
 // GET /api/receivables/aging?partyType=customer
-app.get("/aging", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/aging", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const partyType = c.req.query("partyType") || undefined;
   const result = await getAgingReport(c.env.DB, organization.id, partyType);
@@ -37,7 +37,7 @@ app.get("/aging", requireAuth, loadCurrentOrganization(), requirePermission("rep
 });
 
 // GET /api/receivables/statement/:partyId
-app.get("/statement/:partyId", requireAuth, loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
+app.get("/statement/:partyId", requireAuth(), loadCurrentOrganization(), requirePermission("reports:read"), async (c) => {
   const { organization } = c.get("organizationContext");
   const result = await getPartyStatement(c.env.DB, organization.id, c.req.param("partyId"));
   return c.json(result);

@@ -21,7 +21,7 @@ import { postTransaction } from "../services/transactions.service";
 const app = new Hono<AppContext>();
 
 // POST /api/recurring-transactions — create a new recurring transaction
-app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   if (await checkRateLimit(c.env.DB, "recurring_transactions_create", user.id, { max: 10, windowMs: 60000 })) {
@@ -43,7 +43,7 @@ app.post("/", requireAuth, loadCurrentOrganization(), requirePermission("transac
 });
 
 // GET /api/recurring-transactions — list all recurring transactions
-app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const status = c.req.query("status") as RecurringStatus | undefined;
   const result = await listRecurringTransactions(c.env.DB, organization.id, status);
@@ -51,14 +51,14 @@ app.get("/", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // GET /api/recurring-transactions/:id — get detail
-app.get("/:id", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/:id", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const result = await getRecurringTransaction(c.env.DB, organization.id, c.req.param("id"));
   return c.json(result);
 });
 
 // PATCH /api/recurring-transactions/:id — update
-app.patch("/:id", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.patch("/:id", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{
@@ -71,7 +71,7 @@ app.patch("/:id", requireAuth, loadCurrentOrganization(), requirePermission("tra
 });
 
 // PATCH /api/recurring-transactions/:id/status — change status
-app.patch("/:id/status", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.patch("/:id/status", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const body = await c.req.json<{ status: RecurringStatus }>();
@@ -81,14 +81,14 @@ app.patch("/:id/status", requireAuth, loadCurrentOrganization(), requirePermissi
 });
 
 // POST /api/recurring-transactions/:id/skip — skip next occurrence
-app.post("/:id/skip", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:id/skip", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { organization } = c.get("organizationContext");
   const result = await skipNextOccurrence(c.env.DB, organization.id, c.req.param("id"));
   return c.json(result);
 });
 
 // POST /api/recurring-transactions/:id/execute — manually trigger execution
-app.post("/:id/execute", requireAuth, loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
+app.post("/:id/execute", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const result = await executeRecurringTransaction(
@@ -99,7 +99,7 @@ app.post("/:id/execute", requireAuth, loadCurrentOrganization(), requirePermissi
 });
 
 // GET /api/recurring-transactions/:id/logs — execution history
-app.get("/:id/logs", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/:id/logs", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const limit = Number.parseInt(c.req.query("limit") || "20", 10);
   const logs = await getExecutionLog(c.env.DB, organization.id, c.req.param("id"), limit);

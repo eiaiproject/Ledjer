@@ -45,13 +45,25 @@ export async function getDashboardAlerts(
 ): Promise<DashboardAlerts> {
   const alerts: DashboardAlert[] = [];
 
-  await checkOverdueReceivables(db, organizationId, alerts);
-  await checkUpcomingPayables(db, organizationId, alerts);
-  await checkLowStock(db, organizationId, alerts);
-  await checkDraftTransactions(db, organizationId, alerts);
-  await checkUnreconciledStatements(db, organizationId, alerts);
-  await checkPendingApprovals(db, organizationId, alerts);
-  await checkUnclosedPeriod(db, organizationId, alerts);
+  // Run each check independently. If a table doesn't exist yet (migration
+  // not applied), the check is silently skipped rather than crashing the page.
+  const checks = [
+    checkOverdueReceivables,
+    checkUpcomingPayables,
+    checkLowStock,
+    checkDraftTransactions,
+    checkUnreconciledStatements,
+    checkPendingApprovals,
+    checkUnclosedPeriod,
+  ];
+
+  for (const check of checks) {
+    try {
+      await check(db, organizationId, alerts);
+    } catch {
+      // Table may not exist yet — skip this alert category gracefully
+    }
+  }
 
   return { alerts };
 }
@@ -62,16 +74,10 @@ async function checkOverdueReceivables(
   const overdueRow = await queryFirst<{ count: number; total_minor: number }>(
     db,
     `SELECT COUNT(*) as count, COALESCE(SUM(
-       CASE WHEN i.status = 'overdue' THEN i.total_minor - COALESCE(paid.paid_minor, 0)
+       CASE WHEN i.status = 'overdue' THEN i.total_minor - i.paid_minor
        ELSE 0 END
      ), 0) as total_minor
      FROM invoices i
-     LEFT JOIN (
-       SELECT ipa.invoice_id, SUM(ipa.amount_minor) as paid_minor
-       FROM invoice_payment_allocations ipa
-       JOIN payments p ON p.id = ipa.payment_id
-       GROUP BY ipa.invoice_id
-     ) paid ON paid.invoice_id = i.id
      WHERE i.organization_id = ? AND i.status IN ('overdue', 'partially_paid') AND i.due_date < date('now', '+1 day')`,
     [orgId],
   );
@@ -90,14 +96,8 @@ async function checkUpcomingPayables(
 ): Promise<void> {
   const upcomingRow = await queryFirst<{ count: number; total_minor: number }>(
     db,
-    `SELECT COUNT(*) as count, COALESCE(SUM(i.total_minor - COALESCE(paid.paid_minor, 0)), 0) as total_minor
+    `SELECT COUNT(*) as count, COALESCE(SUM(i.total_minor - i.paid_minor), 0) as total_minor
      FROM invoices i
-     LEFT JOIN (
-       SELECT ipa.invoice_id, SUM(ipa.amount_minor) as paid_minor
-       FROM invoice_payment_allocations ipa
-       JOIN payments p ON p.id = ipa.payment_id
-       GROUP BY ipa.invoice_id
-     ) paid ON paid.invoice_id = i.id
      WHERE i.organization_id = ? AND i.status IN ('issued', 'sent')
        AND i.due_date BETWEEN date('now') AND date('now', '+7 days')`,
     [orgId],

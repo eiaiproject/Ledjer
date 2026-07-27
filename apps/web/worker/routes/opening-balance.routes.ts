@@ -9,7 +9,7 @@ import { previewOpeningBalance, postOpeningBalance, getOpeningBalanceSnapshot } 
 const app = new Hono<AppContext>();
 
 // GET /api/opening-balance/status
-app.get("/status", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/status", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const needsOnboarding = organization.onboarding_status !== "completed";
 
@@ -27,7 +27,7 @@ app.get("/status", requireAuth, loadCurrentOrganization(), async (c) => {
 });
 
 // POST /api/opening-balance/preview
-app.post("/preview", requireAuth, loadCurrentOrganization(), requirePermission("organization:update"), async (c) => {
+app.post("/preview", requireAuth(), loadCurrentOrganization(), requirePermission("organization:update"), async (c) => {
   const input = await c.req.json<{ lines: { accountId: string; amount: number }[] }>();
   if (!input.lines || !Array.isArray(input.lines)) {
     throw badRequest("invalid_input", "Lines required");
@@ -38,7 +38,7 @@ app.post("/preview", requireAuth, loadCurrentOrganization(), requirePermission("
 });
 
 // POST /api/opening-balance/post
-app.post("/post", requireAuth, loadCurrentOrganization(), requirePermission("organization:update"), async (c) => {
+app.post("/post", requireAuth(), loadCurrentOrganization(), requirePermission("organization:update"), async (c) => {
   const input = await c.req.json<{ date?: string; lines: { accountId: string; amount: number }[] }>();
   if (!input.lines || !Array.isArray(input.lines)) {
     throw badRequest("invalid_input", "Lines required");
@@ -53,7 +53,7 @@ app.post("/post", requireAuth, loadCurrentOrganization(), requirePermission("org
 });
 
 // GET /api/opening-balance/snapshot — najnoviji snapshot
-app.get("/snapshot", requireAuth, loadCurrentOrganization(), async (c) => {
+app.get("/snapshot", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const snapshot = await getOpeningBalanceSnapshot(c.env.DB, organization.id);
   return c.json(snapshot ?? null);
