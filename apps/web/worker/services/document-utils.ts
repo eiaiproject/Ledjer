@@ -4,7 +4,7 @@
  */
 
 import { generateId } from "../auth/tokens";
-import { execute, queryFirst } from "../db/client";
+import { queryFirst } from "../db/client";
 import { badRequest } from "../http/errors";
 
 /**
