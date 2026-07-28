@@ -84,7 +84,6 @@ async function selectTransactionType(page: import("@playwright/test").Page, type
 
 async function waitForTransactionSuccess(page: import("@playwright/test").Page) {
   // Wait up to 30s for either success badge or URL redirect
-  const successBadge = page.locator("text=Tersimpan");
   try {
     await page.waitForFunction(
       () => document.body.innerText.includes('Tersimpan') || !window.location.pathname.includes('/transactions/new'),
