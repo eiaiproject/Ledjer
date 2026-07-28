@@ -18,7 +18,8 @@ async function clickDialogSubmit(page: import("@playwright/test").Page, dialogNa
   const dlg = page.getByRole('dialog', { name: dialogName });
   // The footer buttons are div children, not <footer> — use role button last()
   await dlg.getByRole('button', { name: /simpan|tambah/i }).last().click();
-  await page.waitForTimeout(2000);
+  // Wait for dialog to close (form submission processed)
+  await dlg.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 }
 
 /** Check if the page crashed with React Error #31 */

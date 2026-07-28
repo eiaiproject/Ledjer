@@ -28,9 +28,8 @@ async function selectFirstComboboxOption(page: import("@playwright/test").Page, 
   if (!(await input.isVisible().catch(() => false))) return false;
 
   await input.click();
-  await page.waitForTimeout(600);
 
-  // The dropdown has role="listbox" and contains <button> children
+  // Wait for the dropdown to appear
   const listbox = page.locator(`#${id}-listbox`);
   if (!(await listbox.isVisible({ timeout: 3000 }).catch(() => false))) return false;
 
@@ -39,7 +38,8 @@ async function selectFirstComboboxOption(page: import("@playwright/test").Page, 
   if (count === 0) return false;
 
   await optionBtns.first().click();
-  await page.waitForTimeout(500);
+  // Wait for listbox to close (selection registered)
+  await listbox.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
   return true;
 }
 
@@ -49,10 +49,9 @@ async function createNewComboboxOption(page: import("@playwright/test").Page, id
   if (!(await input.isVisible().catch(() => false))) return false;
 
   await input.click();
-  await page.waitForTimeout(300);
   await input.fill(value);
-  await page.waitForTimeout(800);
 
+  // Wait for the dropdown to show the "Buat ..." option
   const listbox = page.locator(`#${id}-listbox`);
   if (!(await listbox.isVisible({ timeout: 3000 }).catch(() => false))) return false;
 
@@ -60,13 +59,13 @@ async function createNewComboboxOption(page: import("@playwright/test").Page, id
   const createBtn = listbox.locator("button").filter({ hasText: /^Buat / });
   if (await createBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await createBtn.click();
-    await page.waitForTimeout(500);
+    await listbox.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
     return true;
   }
 
   // Fallback: just press Enter
   await page.keyboard.press("Enter");
-  await page.waitForTimeout(500);
+  await listbox.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
   return false;
 }
 
@@ -77,19 +76,19 @@ async function selectTransactionType(page: import("@playwright/test").Page, type
   const label = page.locator(`label[for="tx-type-${type}"]`);
   await expect(label).toBeAttached({ timeout: 5000 });
   await label.click();
-  await page.waitForTimeout(800);
+  // Wait for the form to re-render after type change (look for amount input)
+  await page.locator('input[name="amount"]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 }
 
 // ─── Success waiter ───────────────────────────────────────────────
 
 async function waitForTransactionSuccess(page: import("@playwright/test").Page) {
-  await page.waitForTimeout(3000);
-  for (let i = 0; i < 20; i++) {
+  // Wait up to 30s for success badge or URL change
+  for (let i = 0; i < 30; i++) {
     const successBadge = page.locator("text=Tersimpan");
-    if (await successBadge.isVisible({ timeout: 2000 }).catch(() => false)) return true;
+    if (await successBadge.isVisible({ timeout: 1000 }).catch(() => false)) return true;
     const url = page.url();
     if (!url.includes("/transactions/new")) return true;
-    await page.waitForTimeout(1000);
   }
   return false;
 }

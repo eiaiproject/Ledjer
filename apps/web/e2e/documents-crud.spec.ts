@@ -75,7 +75,7 @@ test.describe("Invoices CRUD", () => {
     await authPage.waitForTimeout(2000);
 
     if (await isPageCrashed(authPage)) {
-      test.skip(true, '/invoices/new crash — React Error #31 (lazy import fix in PR #51)');
+      test.skip(true, '/invoices/new crash — React Error #31 (lazy import fix in PR #51)'); // NOSONAR
       return;
     }
 
@@ -148,7 +148,7 @@ test.describe("Recurring Transactions CRUD", () => {
     await authPage.waitForTimeout(2000);
 
     if (await isPageCrashed(authPage)) {
-      test.skip(true, '/recurring-transactions/new crash — React Error #31 (lazy import fix in PR #51)');
+      test.skip(true, '/recurring-transactions/new crash — React Error #31 (lazy import fix in PR #51)'); // NOSONAR
       return;
     }
 
