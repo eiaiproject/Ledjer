@@ -350,6 +350,44 @@ async function postExtraOpeningBalance(
   return entriesCount + 1;
 }
 
+async function postCashOpeningBalance(params: {
+  db: D1Database;
+  organizationId: string;
+  userId: string;
+  input: CreateOrganizationInput;
+  openingBalanceAccountId: string;
+  entriesCount: number;
+  statements: D1PreparedStatement[];
+  current: number;
+}): Promise<number> {
+  const { db, organizationId, userId, input, openingBalanceAccountId, entriesCount, statements, current } = params;
+  const cashAmount = Math.round(input.openingCashBalance ?? 0);
+  if (cashAmount <= 0) return entriesCount;
+
+  const cashAccountId = await findAccountIdByCode(db, organizationId, "1110");
+  if (!cashAccountId) throw badRequest("account_not_found", "Cash account (1110) not found");
+
+  const entryId = generateId();
+  const entryNumber = `JE-${String(entriesCount).padStart(6, "0")}`;
+
+  statements.push(
+    statement(db,
+      `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal kas', 'posted', ?, ?, ?)`,
+      [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
+    ),
+    statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal kas', 1, ?)`,
+      [generateId(), organizationId, entryId, cashAccountId, cashAmount, current],
+    ),
+    statement(db,
+      `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal kas', 2, ?)`,
+      [generateId(), organizationId, entryId, openingBalanceAccountId, cashAmount, current],
+    ),
+  );
+
+  return entriesCount + 1;
+}
+
 async function postOpeningBalances(
   db: D1Database,
   organizationId: string,
@@ -369,65 +407,22 @@ async function postOpeningBalances(
   let entriesCount = 1;
 
   // Post cash/bank opening balance
-  const cashAmount = Math.round(input.openingCashBalance ?? 0);
-  if (cashAmount > 0) {
-    const cashAccountId = await findAccountIdByCode(db, organizationId, "1110");
-    if (!cashAccountId) throw badRequest("account_not_found", "Cash account (1110) not found");
-
-    const entryId = generateId();
-    const entryNumber = `JE-${String(entriesCount++).padStart(6, "0")}`;
-
-    statements.push(
-      statement(db,
-        `INSERT INTO journal_entries (id, organization_id, entry_number, entry_date, entry_type, description, status, posted_at, posted_by, created_at) VALUES (?, ?, ?, ?, 'opening_balance', 'Saldo awal kas', 'posted', ?, ?, ?)`,
-        [entryId, organizationId, entryNumber, input.booksStartDate, current, userId, current],
-      ),
-      statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, ?, 0, 'Saldo awal kas', 1, ?)`,
-        [generateId(), organizationId, entryId, cashAccountId, cashAmount, current],
-      ),
-      statement(db,
-        `INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) VALUES (?, ?, ?, ?, 0, ?, 'Saldo awal kas', 2, ?)`,
-        [generateId(), organizationId, entryId, openingBalanceAccountId, cashAmount, current],
-      ),
-    );
-
-  }
+  entriesCount = await postCashOpeningBalance({ db, organizationId, userId, input, openingBalanceAccountId, entriesCount, statements, current });
 
   // Post extra opening balances
   for (const extra of input.extraOpeningBalances ?? []) {
     entriesCount = await postExtraOpeningBalance({ db, organizationId, userId, openingBalanceAccountId, extra, booksStartDate: input.booksStartDate, entriesCount, statements, current });
   }
 
-  // H-10: Validate opening balance journal is balanced
-  let totalDebit = 0;
-  let totalCredit = 0;
-  for (let i = 0; i < statements.length; i++) {
-    const stmt = statements[i];
-    // Only check journal_line inserts (they have debit/credit at index 4 and 5)
-    if (stmt.toString().includes('journal_lines')) {
-      // We can't easily parse the bind values, so check at the SQL level
-    }
-  }
-  // Simple balance check from the inputs
-  const cashAmount2 = Math.round(input.openingCashBalance ?? 0);
-  if (cashAmount2 > 0) {
-    totalDebit += cashAmount2;
-    totalCredit += cashAmount2;
-  }
+  // H-10: Validate each extra opening balance entry is valid (non-negative, has account)
   for (const extra of input.extraOpeningBalances ?? []) {
     const amount = Math.round(extra.amount ?? extra.openingBalance ?? 0);
-    if (amount > 0) {
-      const account = extra.accountId || (extra.accountCode ? 'found' : null);
-      if (account) {
-        totalDebit += amount;
-        totalCredit += amount;
-      }
+    if (amount < 0) {
+      throw badRequest('negative_balance', 'Opening balance amount cannot be negative');
     }
-  }
-  if (totalDebit !== totalCredit) {
-    throw badRequest('opening_balance_unbalanced',
-      `Opening balance journal is not balanced: debit=${totalDebit}, credit=${totalCredit}`);
+    if (!extra.accountId && !extra.accountCode) {
+      throw badRequest('missing_account', 'Each opening balance must specify an account');
+    }
   }
 
   if (statements.length > 0) {

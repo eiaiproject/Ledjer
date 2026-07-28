@@ -1192,7 +1192,7 @@ export async function settlePartialTransaction(
 
   // H-01: Validate cash account is actually a cash/bank account
   const cashAccountForSettlement = await getAccountById(db, organizationId, cashAccountId);
-  if (!cashAccountForSettlement || cashAccountForSettlement.is_cash_account !== 1) {
+  if (cashAccountForSettlement?.is_cash_account !== 1) {
     throw badRequest('cash_account_invalid', 'Settlement account must be a cash/bank account');
   }
 

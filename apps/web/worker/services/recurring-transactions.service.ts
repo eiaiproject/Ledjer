@@ -664,6 +664,27 @@ async function findOrgAdminUserId(
   return row?.user_id ?? null;
 }
 
+/** Retry a function up to 3 times on transient errors */
+async function executeWithRetry<T>(fn: () => Promise<T>): Promise<{ result?: T; error?: Error | null }> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, [100, 500][attempt - 1] ?? 500));
+    }
+    try {
+      const result = await fn();
+      return { result, error: null };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const msg = lastError.message.toLowerCase();
+      if (!msg.includes('timeout') && !msg.includes('d1') && !msg.includes('network')) {
+        break;
+      }
+    }
+  }
+  return { error: lastError };
+}
+
 /**
  * Execute all due recurring transactions for an organization (or all orgs).
  * Called by the worker's scheduled handler.
@@ -703,38 +724,22 @@ export async function executeAllDueTransactions(
       }
 
       // H-08: Retry logic for transient errors
-      let lastError: Error | null = null;
-      let result: ExecutionLogOutput | null = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) {
-          await new Promise((r) => setTimeout(r, [100, 500][attempt - 1] ?? 500));
-        }
-        try {
-          result = await executeRecurringTransaction(
-            db, recurring.organizationId, effectiveUserId, recurring.id, postTransactionFn,
-          );
-          lastError = null;
-          break;
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          const msg = lastError.message.toLowerCase();
-          // Only retry on transient errors
-          if (!msg.includes('timeout') && !msg.includes('d1') && !msg.includes('network')) {
-            break;
-          }
-        }
-      }
+      const { result: retryResult, error: retryError } = await executeWithRetry(
+        () => executeRecurringTransaction(
+          db, recurring.organizationId, effectiveUserId, recurring.id, postTransactionFn,
+        ),
+      );
 
-      if (lastError) {
+      if (retryError) {
         failed++;
-        errors.push(`[${recurring.name}] ${lastError.message}`);
+        errors.push(`[${recurring.name}] ${retryError.message}`);
         continue;
       }
 
-      if (result) {
-        if (result.status === "success") executed++;
-        else if (result.status === "skipped") skipped++;
-        else if (result.status === "failed") { failed++; errors.push(`[${recurring.name}] ${result.errorMessage}`); }
+      if (retryResult) {
+        if (retryResult.status === "success") executed++;
+        else if (retryResult.status === "skipped") skipped++;
+        else if (retryResult.status === "failed") { failed++; errors.push(`[${recurring.name}] ${retryResult.errorMessage}`); }
       }
     } catch (error) {
       failed++;
