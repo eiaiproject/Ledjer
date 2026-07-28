@@ -10,28 +10,11 @@ import { formatIDR, formatDate } from "@/lib/utils";
 import { listInvoices, type InvoiceOutput } from "@/lib/api/invoices";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { getStatus } from "@/lib/status-registry";
+import { PageShell } from "@/components/ui/page-shell";
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  issued: "Diterbitkan",
-  sent: "Terkirim",
-  partially_paid: "Dibayar Sebagian",
-  paid: "Lunas",
-  overdue: "Jatuh Tempo",
-  voided: "Batal",
-  credited: "Dikreditkan",
-};
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-wood-100 text-wood-600",
-  issued: "bg-blue-100 text-blue-700",
-  sent: "bg-blue-100 text-blue-700",
-  partially_paid: "bg-yellow-100 text-yellow-700",
-  paid: "bg-emerald-100 text-emerald-700",
-  overdue: "bg-red-100 text-red-700",
-  voided: "bg-wood-200 text-wood-500",
-  credited: "bg-violet-100 text-violet-700",
-};
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
@@ -47,11 +30,12 @@ export default function InvoiceListPage() {
   });
 
   return (
-    <div className="space-y-6 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-wood-800">Faktur</h1>
-        <Button onClick={() => navigate("/invoices/new")}>+ Faktur Baru</Button>
-      </div>
+    <PageShell
+      header={{
+        title: "Faktur",
+        actions: [{ key: "create", children: <Button onClick={() => navigate("/invoices/new")}>+ Faktur Baru</Button> }],
+      }}
+    >
 
       {isLoading && (
         <div className="space-y-3">
@@ -90,9 +74,9 @@ export default function InvoiceListPage() {
                     <td className="px-4 py-3 text-wood-600">{formatDate(inv.dueDate)}</td>
                     <td className="px-4 py-3 text-right font-medium text-wood-800">{formatIDR(inv.totalMinor)}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[inv.status] ?? "bg-wood-100 text-wood-600"}`}>
-                        {STATUS_LABELS[inv.status] ?? inv.status}
-                      </span>
+                      <Badge variant={getStatus("invoices", inv.status).variant} size="sm">
+                        {getStatus("invoices", inv.status).label}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
@@ -110,6 +94,6 @@ export default function InvoiceListPage() {
           )}
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

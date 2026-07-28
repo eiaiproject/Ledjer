@@ -1,3 +1,5 @@
+import { getStatus } from "./status-registry";
+
 // Transaction labels — single flat map, includes historical/opening types.
 // Opening types not in UI selector but kept for display of stored records.
 export const TRANSACTION_LABELS: Record<string, string> = {
@@ -44,18 +46,16 @@ export const usesParty = (t?: string) => !!features(t).party;
 export const usesCategory = (t?: string) => !!features(t).category;
 export const usesPaymentStatus = (t?: string) => !!features(t).payment;
 
+/**
+ * Delegasikan ke status-registry terpusat.
+ * Fungsi ini tetap ada untuk backward compatibility.
+ */
 export function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
-  if (status === "posted") return "success";
-  if (status === "voided") return "error";
-  if (status === "reversed") return "warning";
-  return "neutral";
+  return getStatus("transactions", status).variant as "success" | "warning" | "error" | "neutral";
 }
 
-export function statusLabel(status: string) {
-  if (status === "posted") return "Posted";
-  if (status === "voided") return "Dibatalkan";
-  if (status === "reversed") return "Reversal";
-  return status;
+export function statusLabel(status: string): string {
+  return getStatus("transactions", status).label;
 }
 
 export function partyTypeForTransaction(type?: string) {
