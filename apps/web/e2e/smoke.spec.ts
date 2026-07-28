@@ -70,7 +70,7 @@ test.describe("Auth pages", () => {
     const pwFields = page.locator('input[type="password"]');
     await expect(pwFields.first()).toBeVisible({ timeout: 15_000 });
     // Submit button
-    const registerBtn = page.getByRole("button", { name: /^daftar$/i }).first();
+    const registerBtn = page.getByRole("button", { name: /buat akun gratis/i }).first();
     await expect(registerBtn).toBeVisible({ timeout: 15_000 });
   });
 

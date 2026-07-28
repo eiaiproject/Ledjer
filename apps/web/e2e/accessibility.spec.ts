@@ -13,6 +13,13 @@ test.describe("axe-core automated audits (public pages)", () => {
     { url: "/login", name: "Login" },
     { url: "/register", name: "Register" },
     { url: "/forgot-password", name: "Forgot Password" },
+    { url: "/reset-password", name: "Reset Password" },
+    { url: "/privacy", name: "Privacy" },
+    { url: "/terms", name: "Terms" },
+    { url: "/contact", name: "Contact" },
+    { url: "/security", name: "Security" },
+    { url: "/refund", name: "Refund" },
+    { url: "/nonexistent-page", name: "404" },
   ];
 
   for (const p of publicPages) {
@@ -47,6 +54,12 @@ test.describe("HTML semantics", () => {
     { url: "/login", name: "Login" },
     { url: "/register", name: "Register" },
     { url: "/forgot-password", name: "Forgot Password" },
+    { url: "/reset-password", name: "Reset Password" },
+    { url: "/privacy", name: "Privacy" },
+    { url: "/terms", name: "Terms" },
+    { url: "/contact", name: "Contact" },
+    { url: "/security", name: "Security" },
+    { url: "/refund", name: "Refund" },
   ];
 
   for (const p of pages) {
@@ -65,6 +78,14 @@ test.describe("HTML semantics", () => {
       expect(h1Count).toBeGreaterThanOrEqual(1);
     });
   }
+
+  test("404 page has a semantic h1 heading", async ({ page }) => {
+    await page.goto("/nonexistent-page");
+    await page.waitForLoadState("networkidle");
+    const h1 = page.locator("h1");
+    const h1Count = await h1.count();
+    expect(h1Count).toBeGreaterThanOrEqual(1);
+  });
 });
 
 test.describe("Form accessibility", () => {
@@ -134,11 +155,35 @@ test.describe("Error announcements", () => {
 
 authTest.describe("axe-core automated audits (authenticated pages)", () => {
   const authedPages = [
+    // Dashboard & core data
     { url: "/dashboard", name: "Dashboard" },
     { url: "/transactions", name: "Transactions" },
     { url: "/accounts", name: "Accounts" },
     { url: "/products", name: "Products" },
+    { url: "/invoices", name: "Invoices" },
+    { url: "/documents", name: "Documents" },
+    { url: "/journals", name: "Journals" },
+    { url: "/budgets", name: "Budgets" },
+    { url: "/dimensions", name: "Dimensions" },
+    { url: "/fixed-assets", name: "Fixed Assets" },
+    { url: "/recurring-transactions", name: "Recurring Transactions" },
+    // Reports
+    { url: "/reports/general-ledger", name: "General Ledger" },
     { url: "/reports/trial-balance", name: "Trial Balance" },
+    { url: "/reports/profit-loss", name: "Profit & Loss" },
+    { url: "/reports/balance-sheet", name: "Balance Sheet" },
+    { url: "/reports/cash-flow", name: "Cash Flow" },
+    { url: "/reports/aging", name: "Aging" },
+    { url: "/notifications", name: "Notifications" },
+    // Settings & operations
+    { url: "/settings/team", name: "Team Settings" },
+    { url: "/settings/period-locks", name: "Period Locks" },
+    { url: "/approvals", name: "Approvals" },
+    { url: "/period-close", name: "Period Close" },
+    { url: "/exports", name: "Exports" },
+    { url: "/import", name: "Import" },
+    { url: "/reconciliation", name: "Reconciliation" },
+    { url: "/opening-balance", name: "Opening Balance" },
   ];
 
   for (const p of authedPages) {

@@ -4,9 +4,6 @@ import { expect } from "@playwright/test";
 /**
  * Masterdata CRUD: Accounts, Products, Budgets, Dimensions, Fixed Assets
  *
- * NOTE: budgets, dimensions, fixed-assets pages currently crash with
- * React Error #31 on production (lazy import bug fix not yet deployed).
- * Their tests will fail until the fix is live.
  */
 
 const TEST_PREFIX = `[E2E] ${Date.now()}`;
@@ -20,12 +17,6 @@ async function clickDialogSubmit(page: import("@playwright/test").Page, dialogNa
   await dlg.getByRole('button', { name: /simpan|tambah/i }).last().click();
   // Wait for dialog to close (form submission processed)
   await dlg.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-}
-
-/** Check if the page crashed with React Error #31 */
-async function isPageCrashed(page: import("@playwright/test").Page) {
-  return await page.locator('text=Unexpected Application Error')
-    .isVisible({ timeout: 2000 }).catch(() => false);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -130,14 +121,9 @@ test.describe("Products CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Budgets CRUD", () => {
-  // Known crash: React Error #31 on production (lazy import fix in PR #51)
-  test.fixme("Create a new budget", async ({ authPage }) => {
+  test("Create a new budget", async ({ authPage }) => {
     await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
-
-    if (await isPageCrashed(authPage)) {
-      return;
-    }
 
     await expect(authPage.getByRole("button", { name: /buat anggaran/i })).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /buat anggaran/i }).click();
@@ -170,14 +156,9 @@ test.describe("Budgets CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Dimensions CRUD", () => {
-  // Known crash: React Error #31 on production (lazy import fix in PR #51)
-  test.fixme("Create a new dimension", async ({ authPage }) => {
+  test("Create a new dimension", async ({ authPage }) => {
     await authPage.goto("/dimensions", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
-
-    if (await isPageCrashed(authPage)) {
-      return;
-    }
 
     await expect(authPage.getByRole("button", { name: /tambah/i }).first()).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /tambah/i }).first().click();
@@ -207,14 +188,9 @@ test.describe("Dimensions CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Fixed Assets CRUD", () => {
-  // Known crash: React Error #31 on production (lazy import fix in PR #51)
-  test.fixme("Create a new fixed asset", async ({ authPage }) => {
+  test("Create a new fixed asset", async ({ authPage }) => {
     await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
-
-    if (await isPageCrashed(authPage)) {
-      return;
-    }
 
     await expect(authPage.getByRole("button", { name: /tambah aset/i })).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /tambah aset/i }).click();
