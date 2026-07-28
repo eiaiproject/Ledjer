@@ -83,14 +83,17 @@ async function selectTransactionType(page: import("@playwright/test").Page, type
 // ─── Success waiter ───────────────────────────────────────────────
 
 async function waitForTransactionSuccess(page: import("@playwright/test").Page) {
-  // Wait up to 30s for success badge or URL change
-  for (let i = 0; i < 30; i++) {
-    const successBadge = page.locator("text=Tersimpan");
-    if (await successBadge.isVisible({ timeout: 1000 }).catch(() => false)) return true;
-    const url = page.url();
-    if (!url.includes("/transactions/new")) return true;
+  // Wait up to 30s for either success badge or URL redirect
+  const successBadge = page.locator("text=Tersimpan");
+  try {
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Tersimpan') || !window.location.pathname.includes('/transactions/new'),
+      { timeout: 30000 }
+    );
+    return true;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 // ─── Transactions: Cash Sale ──────────────────────────────────────
