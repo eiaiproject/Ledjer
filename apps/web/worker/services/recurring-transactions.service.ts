@@ -664,6 +664,18 @@ async function findOrgAdminUserId(
   return row?.user_id ?? null;
 }
 
+/** Track result of a recurring transaction execution */
+function trackExecutionResult(
+  result: ExecutionLogOutput | undefined,
+  name: string,
+  counters: { executed: () => void; skipped: () => void; failed: (msg: string) => void },
+): void {
+  if (!result) return;
+  if (result.status === "success") counters.executed();
+  else if (result.status === "skipped") counters.skipped();
+  else if (result.status === "failed") counters.failed(`[${name}] ${result.errorMessage}`);
+}
+
 /** Retry a function up to 3 times on transient errors */
 async function executeWithRetry<T>(fn: () => Promise<T>): Promise<{ result?: T; error?: Error | null }> {
   let lastError: Error | null = null;
@@ -736,11 +748,11 @@ export async function executeAllDueTransactions(
         continue;
       }
 
-      if (retryResult) {
-        if (retryResult.status === "success") executed++;
-        else if (retryResult.status === "skipped") skipped++;
-        else if (retryResult.status === "failed") { failed++; errors.push(`[${recurring.name}] ${retryResult.errorMessage}`); }
-      }
+      trackExecutionResult(retryResult, recurring.name, {
+        executed: () => executed++,
+        skipped: () => skipped++,
+        failed: (msg) => { failed++; errors.push(msg); },
+      });
     } catch (error) {
       failed++;
       errors.push(`[${recurring.name}] ${error instanceof Error ? error.message : String(error)}`);
