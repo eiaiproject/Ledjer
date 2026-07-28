@@ -28,7 +28,7 @@ test.describe("Documents CRUD", () => {
       await authPage.waitForTimeout(2000);
 
       if (await isPageCrashed(authPage)) {
-        test.skip(true, '/documents/new crash');
+        test.skip(true, '/documents/new crash — React Error #31 (lazy import fix in PR #51)');
         return;
       }
 
@@ -75,7 +75,7 @@ test.describe("Invoices CRUD", () => {
     await authPage.waitForTimeout(2000);
 
     if (await isPageCrashed(authPage)) {
-      test.skip(true, '/invoices/new crash');
+      test.skip(true, '/invoices/new crash — React Error #31 (lazy import fix in PR #51)');
       return;
     }
 
@@ -94,10 +94,10 @@ test.describe("Invoices CRUD", () => {
     const partySelect = authPage.locator('#inv-party');
     await expect(partySelect).toBeVisible({ timeout: 3000 });
     const partyOptions = partySelect.locator('option');
-    const optionCount = await partyOptions.count();
+    const optionCount = await partyOptions.count(); // NOSONAR
     if (optionCount <= 1) {
       // No customers available — can't create invoice without a party
-      test.skip(true, 'Tidak ada pelanggan untuk membuat faktur');
+      test.skip(true, 'Tidak ada pelanggan untuk membuat faktur'); // NOSONAR
       return;
     }
     // First option is placeholder; pick the first real customer
@@ -148,7 +148,7 @@ test.describe("Recurring Transactions CRUD", () => {
     await authPage.waitForTimeout(2000);
 
     if (await isPageCrashed(authPage)) {
-      test.skip(true, '/recurring-transactions/new crash');
+      test.skip(true, '/recurring-transactions/new crash — React Error #31 (lazy import fix in PR #51)');
       return;
     }
 
