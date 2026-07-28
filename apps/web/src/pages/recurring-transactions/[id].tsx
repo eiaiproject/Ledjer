@@ -99,7 +99,7 @@ export function RecurringTransactionDetailPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
-        <Loader className="h-6 w-6 animate-spin text-wood-400" />
+        <Loader className="h-6 w-6 animate-spin text-wood-500" />
       </div>
     );
   }
@@ -252,12 +252,12 @@ export function RecurringTransactionDetailPage() {
           <h2 className="text-sm font-semibold text-text-primary">
             Riwayat Eksekusi
             {logs && logs.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-wood-400">({logs.length} entries)</span>
+              <span className="ml-2 text-xs font-normal text-wood-500">({logs.length} entries)</span>
             )}
           </h2>
         </div>
         {(!logs || logs.length === 0) ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-wood-400">
+          <div className="flex flex-col items-center gap-2 py-8 text-wood-500">
             <Clock className="h-6 w-6" />
             <p className="text-xs">Belum ada riwayat eksekusi</p>
           </div>
@@ -265,7 +265,7 @@ export function RecurringTransactionDetailPage() {
           <div className="divide-y divide-wood-100">
             {logs.map((log) => (
               <div key={log.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                {EXEC_STATUS_ICONS[log.status] ?? <Clock className="h-4 w-4 text-wood-400" />}
+                {EXEC_STATUS_ICONS[log.status] ?? <Clock className="h-4 w-4 text-wood-500" />}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-text-primary">
@@ -277,7 +277,7 @@ export function RecurringTransactionDetailPage() {
                     <p className="mt-0.5 text-xs text-red-500 truncate">{log.errorMessage}</p>
                   )}
                 </div>
-                <span className="text-xs text-wood-400 whitespace-nowrap">
+                <span className="text-xs text-wood-500 whitespace-nowrap">
                   {new Date(log.executedAt).toLocaleTimeString("id-ID")}
                 </span>
                 {log.transactionId && (

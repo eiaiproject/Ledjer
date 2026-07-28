@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
+import { PageShell } from "@/components/ui/page-shell";
 
 type EntityType = "coa" | "products" | "parties" | "opening-balance";
 
@@ -223,11 +224,13 @@ export default function ImportPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4">
-      <div>
-        <h1 className="text-xl font-semibold text-wood-800">Import Data</h1>
-        <p className="text-sm text-wood-500">Import data dari CSV</p>
-      </div>
+    <PageShell
+      header={{
+        title: "Import Data",
+        description: "Import data dari CSV",
+      }}
+    >
+
 
       {/* Entity type tabs */}
       <div className="flex gap-2 border-b border-wood-200 overflow-x-auto">
@@ -238,7 +241,7 @@ export default function ImportPage() {
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px shrink-0 ${
               entityType === type
                 ? "border-wood-800 text-wood-800"
-                : "border-transparent text-wood-400 hover:text-wood-600"
+                : "border-transparent text-wood-500 hover:text-wood-600"
             }`}
             onClick={() => { setEntityType(type); setPreview(null); setResult(null); setStep("input"); }}
           >
@@ -414,7 +417,7 @@ export default function ImportPage() {
                 >
                   Batalkan Import
                 </Button>
-                <p className="text-xs text-wood-400 mt-1">
+                <p className="text-xs text-wood-500 mt-1">
                   Akan menonaktifkan data yang baru saja diimport. Data tidak akan dihapus permanen.
                 </p>
               </div>
@@ -433,6 +436,6 @@ export default function ImportPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

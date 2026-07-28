@@ -12,6 +12,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 import { CheckCircle } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 interface BalanceLine {
   accountId: string;
@@ -140,11 +141,12 @@ export default function OpeningBalancePage() {
   const stepIndex = STEPS.indexOf(step);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4">
-      <div>
-        <h1 className="text-xl font-semibold text-wood-800">Saldo Awal</h1>
-        <p className="text-sm text-wood-500">Masukkan saldo awal akun per tanggal mulai pembukuan.</p>
-      </div>
+    <PageShell
+      header={{
+        title: "Saldo Awal",
+        description: "Masukkan saldo awal akun per tanggal mulai pembukuan.",
+      }}
+    >
 
       {/* Wizard Steps indicator */}
       <div className="flex items-center justify-center gap-2.5" aria-label={`Langkah ${stepIndex + 1} dari 3`}>
@@ -153,7 +155,7 @@ export default function OpeningBalancePage() {
             <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors duration-200 ${
               idx <= stepIndex
                 ? "bg-leaf-500 text-white"
-                : "bg-wood-100 text-wood-400"
+                : "bg-wood-100 text-wood-500"
             }`} aria-current={step === s ? "step" : undefined}>
               {idx < stepIndex ? (
                 <CheckCircle className="h-3.5 w-3.5" />
@@ -179,7 +181,7 @@ export default function OpeningBalancePage() {
               </div>
 
               {lines.length === 0 && (
-                <p className="text-xs text-wood-400 py-4 text-center">Belum ada akun. Klik "Tambah Akun" untuk mulai.</p>
+                <p className="text-xs text-wood-500 py-4 text-center">Belum ada akun. Klik "Tambah Akun" untuk mulai.</p>
               )}
 
               {lines.map((line, i) => (
@@ -264,7 +266,7 @@ export default function OpeningBalancePage() {
                       {(preview.lines as { accountName: string; accountCode: string; debit: number; credit: number }[]).map((line: { accountName: string; accountCode: string; debit: number; credit: number }) => (
                         <tr key={line.accountCode} className="border-b border-wood-100">
                           <td className="py-2 pr-4 text-wood-800">
-                            <span className="text-wood-400 text-xs">{line.accountCode}</span>{' '}
+                            <span className="text-wood-500 text-xs">{line.accountCode}</span>{' '}
                             {line.accountName}
                           </td>
                           <td className="py-2 pr-4 text-right text-wood-800">{line.debit > 0 ? formatIDR(line.debit * 100) : "-"}</td>
@@ -342,7 +344,7 @@ export default function OpeningBalancePage() {
                     {postResult.snapshot.accounts.map((acct) => (
                       <tr key={acct.accountCode} className="border-b border-wood-100">
                         <td className="py-1.5 pr-3 text-wood-800">
-                          <span className="text-wood-400 text-xs">{acct.accountCode}</span>{' '}
+                          <span className="text-wood-500 text-xs">{acct.accountCode}</span>{' '}
                           {acct.accountName}
                         </td>
                         <td className="py-1.5 pr-3 text-right text-wood-800">{acct.debit > 0 ? formatIDR(acct.debit * 100) : "-"}</td>
@@ -370,6 +372,6 @@ export default function OpeningBalancePage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

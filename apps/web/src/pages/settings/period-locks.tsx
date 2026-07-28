@@ -25,6 +25,7 @@ import {
   InfoCircle,
   ShieldCheck,
 } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 /* ─── Helpers ────────────────────────────────────────────────────── */
 
@@ -308,7 +309,7 @@ function EffectiveLockCard({
                   {effective.reason && (
                     <p className="mt-1 text-xs text-wood-600 italic">{effective.reason}</p>
                   )}
-                  <p className="mt-1 text-xs text-wood-400">
+                  <p className="mt-1 text-xs text-wood-500">
                     Dikunci {formatShort(effective.createdAt)}
                   </p>
                 </div>
@@ -328,7 +329,7 @@ function EffectiveLockCard({
             </div>
           </div>
           {sorted.length > 1 && (
-            <p className="mt-3 text-xs text-wood-400">
+            <p className="mt-3 text-xs text-wood-500">
               {sorted.length} catatan histori tercatat
             </p>
           )}
@@ -411,7 +412,7 @@ function LockHistoryList({
                       {lock.reason && (
                         <p className="mt-1 text-xs text-wood-600 italic">{lock.reason}</p>
                       )}
-                      <p className="mt-1 text-xs text-wood-400">
+                      <p className="mt-1 text-xs text-wood-500">
                         {formatShort(lock.createdAt)}
                       </p>
                     </div>
@@ -460,7 +461,7 @@ function LockHistoryList({
                       <td className="px-4 py-3 text-sm text-wood-500 max-w-[200px] truncate">
                         {lock.reason || "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-wood-400">
+                      <td className="px-4 py-3 text-sm text-wood-500">
                         {formatShort(lock.createdAt)}
                       </td>
                     </tr>
@@ -664,9 +665,9 @@ function CreateLockForm({
                     placeholder="Contoh: Tutup buku bulan Juni 2026"
                     disabled={disabled || createMutation.isPending}
                     aria-describedby="alasan-kunci-help"
-                    className="mt-1 min-h-[80px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 placeholder:text-wood-400 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 disabled:opacity-50"
+                    className="mt-1 min-h-[80px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 placeholder:text-wood-500 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 disabled:opacity-50"
                   />
-                  <p id="alasan-kunci-help" className="mt-1 text-xs text-wood-400">
+                  <p id="alasan-kunci-help" className="mt-1 text-xs text-wood-500">
                     Maksimal 500 karakter
                   </p>
                 </div>
@@ -754,47 +755,43 @@ export function PeriodLocksPage() {
   /* ─── Loading ──────────────────────────────────────────────────── */
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Kunci Periode</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Kunci Periode",
+          description: "Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.",
+        }}
+      >
         <LockSkeleton />
-      </div>
+      </PageShell>
     );
   }
 
   /* ─── Error ────────────────────────────────────────────────────── */
   if (locksError) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Kunci Periode</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Kunci Periode",
+          description: "Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.",
+        }}
+      >
         <ErrorState
           error={locksError}
           message="Kunci periode gagal dimuat. Periksa koneksi Anda, lalu coba lagi."
           onRetry={refetch}
         />
-      </div>
+      </PageShell>
     );
   }
 
   /* ─── Render ───────────────────────────────────────────────────── */
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Kunci Periode</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.
-        </p>
-      </div>
+    <PageShell
+      header={{
+        title: "Kunci Periode",
+        description: "Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.",
+      }}
+    >
 
       {/* Effective lock (prominent) */}
       {locks.length > 0 && (
@@ -831,7 +828,7 @@ export function PeriodLocksPage() {
       {/* Read-only notice */}
       {!canManageTeam && (
         <div className="flex items-start gap-2 rounded-lg border border-wood-100 bg-cream-50 px-4 py-3 text-xs text-wood-500">
-          <InfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-wood-400" />
+          <InfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-wood-500" />
           <span>
             Anda dapat melihat kunci periode, tetapi tidak memiliki izin untuk mengubahnya.
           </span>
@@ -851,6 +848,6 @@ export function PeriodLocksPage() {
         lock={selectedLock}
         loading={deleteMutation.isPending}
       />
-    </div>
+    </PageShell>
   );
 }

@@ -113,7 +113,7 @@ export function DocumentDetailPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
-        <Loader className="h-6 w-6 animate-spin text-wood-400" aria-hidden="true" />
+        <Loader className="h-6 w-6 animate-spin text-wood-500" aria-hidden="true" />
       </div>
     );
   }
@@ -356,7 +356,7 @@ export function DocumentDetailPage() {
             <tbody>
               {doc.lines.map((line, i) => (
                 <tr key={line.id || i} className="border-b border-wood-100 last:border-b-0">
-                  <td className="px-4 py-3 text-wood-400">{i + 1}</td>
+                  <td className="px-4 py-3 text-wood-500">{i + 1}</td>
                   <td className="px-4 py-3 font-medium text-text-primary">{line.description}</td>
                   <td className="px-4 py-3 text-right text-text-primary">
                     {(line.quantityMilli / 1000).toFixed(2)}

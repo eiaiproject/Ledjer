@@ -14,6 +14,7 @@ import { Download, Refresh } from "reicon-react";
 import { getTrialBalance } from "@/lib/api/reports";
 import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { ReportShell } from "@/components/ui/report-shell";
 
 export function TrialBalancePage() {
   const { data: orgData } = useOrganization();
@@ -93,20 +94,11 @@ export function TrialBalancePage() {
   const isRefreshing = isFetching && !isLoading;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">
-          Neraca Saldo
-          <HelpTooltip topic="trial_balance" position="right" />
-        </h1>
-        <p className="text-sm text-text-secondary mt-1" aria-live="polite">
-          {isRefreshing ? (
-            <span className="text-text-secondary">Memperbarui laporan...</span>
-          ) : (
-            <>Per {formatDateLong(appliedDate)}</>
-          )}
-        </p>
-      </div>
+    <ReportShell
+      title="Neraca Saldo"
+      helpTopic="trial_balance"
+      description={isRefreshing ? "Memperbarui laporan..." : `Per ${formatDateLong(appliedDate)}`}
+    >
 
       {/* Toolbar: date + actions */}
       <Card>
@@ -292,6 +284,6 @@ export function TrialBalancePage() {
           </div>
         </Card>
       )}
-    </div>
+    </ReportShell>
   );
 }

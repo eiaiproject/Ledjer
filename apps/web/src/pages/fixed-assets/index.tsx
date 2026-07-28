@@ -36,6 +36,7 @@ import {
   Chart,
   TrendDown,
 } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 const CURRENT_DATE = new Date().toISOString().slice(0, 10);
@@ -243,35 +244,32 @@ export function FixedAssetsPage() {
   const assetList = assets ?? [];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Aset Tetap</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Daftar aset tetap, depresiasi, dan nilai buku
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleOpenBookValue}>
-            <Chart className="h-4 w-4" />
-            Nilai Buku
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => {
-            setShowDepreciationModal(true);
-          }}>
-            <TrendDown className="h-4 w-4" />
-            Depresiasi
-          </Button>
-          {canManage && (
+    <PageShell
+      header={{
+        title: "Aset Tetap",
+        description: "Daftar aset tetap, depresiasi, dan nilai buku",
+        actions: [
+          { key: "book-value", children: (
+            <Button variant="outline" size="sm" onClick={handleOpenBookValue}>
+              <Chart className="h-4 w-4" />
+              Nilai Buku
+            </Button>
+          )},
+          { key: "depreciation", children: (
+            <Button variant="outline" size="sm" onClick={() => setShowDepreciationModal(true)}>
+              <TrendDown className="h-4 w-4" />
+              Depresiasi
+            </Button>
+          )},
+          ...(canManage ? [{ key: "create", children: (
             <Button size="sm" onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4" />
               Aset Baru
             </Button>
-          )}
-        </div>
-      </header>
-
+          ) }] : []),
+        ],
+      }}
+    >
       {/* Asset list */}
       {assetList.length === 0 ? (
         <Card>
@@ -767,7 +765,7 @@ export function FixedAssetsPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </div>
+    </PageShell>
   );
 }
 

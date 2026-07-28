@@ -469,7 +469,7 @@ export const ProductDetailFields = memo(function ProductDetailFields({
 
         <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-400">
+            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
               Rp
             </span>
             <input

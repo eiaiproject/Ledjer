@@ -14,6 +14,7 @@ import { Download, Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 import { useReportDateRange, handleReportExport } from "./_components";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { ReportShell } from "@/components/ui/report-shell";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -201,21 +202,11 @@ export function ProfitLossPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">
-          Laba Rugi
-          <HelpTooltip topic="profit_loss" position="right" />
-        </h1>
-        <p className="text-sm text-text-secondary mt-1" aria-live="polite">
-          {isRefreshing ? (
-            <span className="text-text-secondary">Memperbarui laporan...</span>
-          ) : (
-            formatDateRange(appliedFrom, appliedTo)
-          )}
-        </p>
-      </div>
+    <ReportShell
+      title="Laba Rugi"
+      helpTopic="profit_loss"
+      description={isRefreshing ? "Memperbarui laporan..." : formatDateRange(appliedFrom, appliedTo)}
+    >
 
       {/* Toolbar */}
       <Card>
@@ -348,7 +339,7 @@ export function ProfitLossPage() {
           </Card>
         </>
       )}
-    </div>
+    </ReportShell>
   );
 }
 
@@ -416,7 +407,7 @@ function SectionMobile({
       </div>
       {section.items.length === 0 && (
         <div className="px-4 py-3 border-t border-wood-100">
-          <p className="text-sm text-wood-400">Tidak ada akun</p>
+          <p className="text-sm text-wood-500">Tidak ada akun</p>
         </div>
       )}
       {section.items.map((item) => (
@@ -426,7 +417,7 @@ function SectionMobile({
         >
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm text-wood-700">{item.account_name}</p>
-            <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+            <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
           </div>
           <span className="shrink-0 text-right font-mono text-sm text-wood-800 tabular-nums">
             {formatIDR(item.amount)}
@@ -565,7 +556,7 @@ function SectionRows({
       </tr>
       {section.items.length === 0 && (
         <tr className="border-b border-wood-50">
-          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-400 italic">
+          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-500 italic">
             Tidak ada akun
           </td>
         </tr>

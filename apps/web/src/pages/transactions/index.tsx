@@ -68,6 +68,7 @@ import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
 import { Receipt, Search, Download, ChevronDown, ChevronUp, Check, X, ArrowRight, Filter, XCircle } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   listTransactions,
   type TransactionStatus,
@@ -198,67 +199,63 @@ export function TransactionListPage() {
   });
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Transaksi</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            {isDatasetEmpty
-              ? "Mulai mencatat transaksi bisnis Anda"
-              : "Lihat dan kelola seluruh transaksi bisnis Anda"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canExport && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => { handleExport(); }}
-              disabled={exporting}
-              className="hidden sm:inline-flex"
-            >
-              {exporting ? (
-                <>
+    <PageShell
+      header={{
+        title: "Transaksi",
+        description: isDatasetEmpty
+          ? "Mulai mencatat transaksi bisnis Anda"
+          : "Lihat dan kelola seluruh transaksi bisnis Anda",
+        actions: [
+          ...(canExport ? [{ key: "export", children: (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => { handleExport(); }}
+                disabled={exporting}
+                className="hidden sm:inline-flex"
+              >
+                {exporting ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span>Mengekspor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    Ekspor CSV
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => { handleExport(); }}
+                disabled={exporting}
+                className="sm:hidden min-h-[44px] min-w-[44px]"
+                aria-label="Ekspor transaksi"
+              >
+                {exporting ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <span>Mengekspor...</span>
-                </>
-              ) : (
-                <>
+                ) : (
                   <Download className="h-4 w-4" />
-                  Ekspor CSV
-                </>
-              )}
-            </Button>
-          )}
-          {canExport && (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => { handleExport(); }}
-              disabled={exporting}
-              className="sm:hidden min-h-[44px] min-w-[44px]"
-              aria-label="Ekspor transaksi"
-            >
-              {exporting ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-            </Button>
-          )}
-          {canCreateTransaction && (
+                )}
+              </Button>
+            </>
+          ) }] : []),
+          ...(canCreateTransaction ? [{ key: "create", children: (
             <Link
               to="/transactions/new"
               className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600"
             >
               Transaksi Baru
             </Link>
-          )}
-        </div>
-      </div>
+          ) }] : []),
+        ],
+      }}
+    >
 
       {/* Search & Filter — only show when data exists or has active criteria */}
       {!isDatasetEmpty && (
@@ -268,7 +265,7 @@ export function TransactionListPage() {
             <label htmlFor="transaction-search" className="sr-only">
               Cari transaksi
             </label>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" aria-hidden="true" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
             <input
               id="transaction-search"
               type="search"
@@ -280,7 +277,7 @@ export function TransactionListPage() {
             {search && (
               <button                 type="button"
                 onClick={resetSearch}
-                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] -my-[9px]"
+                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] -my-[9px]"
                 aria-label="Hapus pencarian"
               >
                 <XCircle className="h-4 w-4" />
@@ -573,6 +570,6 @@ export function TransactionListPage() {
           </Button>
         </nav>
       )}
-    </div>
+    </PageShell>
   );
 }

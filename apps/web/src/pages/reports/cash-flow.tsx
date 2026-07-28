@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatIDR, formatShortDate } from "@/lib/utils";
 import { getCashFlowReport, type CashFlowReport } from "@/lib/api/reports";
 import { ReportPermissionGate } from "./_components";
+import { ReportShell } from "@/components/ui/report-shell";
 
 const SECTION_LABELS: Record<string, string> = {
   operating: "Aktivitas Operasi",
@@ -81,7 +82,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
                         <span className="flex items-center gap-1.5">
                           {row.label}
                           {row.transactionIds && row.transactionIds.length > 0 && onDrillDown && (
-                            <TrendUp className="h-3 w-3 text-wood-400 shrink-0" />
+                            <TrendUp className="h-3 w-3 text-wood-500 shrink-0" />
                           )}
                         </span>
                       </td>
@@ -92,7 +93,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
                       </td>
                       {showComparison && (
                         <>
-                          <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-emerald-600" : "text-red-600") : "text-wood-300")}>{/* NOSONAR typescript:S3358 */}
+                          <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-emerald-600" : "text-red-600") : "text-wood-500")}>{/* NOSONAR typescript:S3358 */}
                             {row.prevNet !== undefined ? formatIDR(row.prevNet) : "—"}
                           </td>
                           <td className="px-4 py-2 text-right text-xs text-wood-500">
@@ -135,7 +136,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
             <span className="text-wood-600">Saldo Awal Kas</span>
             <span className="font-medium text-wood-800">{formatIDR(report.totals.openingCash)}</span>
             {showComparison && (
-              <span className="text-xs text-wood-400 ml-auto">
+              <span className="text-xs text-wood-500 ml-auto">
                 Sebelumnya: {formatIDR(report.prevTotals?.openingCash ?? 0)}
               </span>
             )}
@@ -146,7 +147,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
               {formatIDR(report.totals.netCashFlow)}
             </span>
             {showComparison && (
-              <span className="text-xs text-wood-400 ml-auto">
+              <span className="text-xs text-wood-500 ml-auto">
                 {report.prevTotals ? formatChange(report.totals.netCashFlow, report.prevTotals.netCashFlow) : ""}
               </span>
             )}
@@ -155,7 +156,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
             <span className="font-semibold text-wood-800">Saldo Akhir Kas</span>
             <span className="font-semibold text-wood-800">{formatIDR(report.totals.closingCash)}</span>
             {showComparison && (
-              <span className="text-xs text-wood-400 ml-auto self-center">
+              <span className="text-xs text-wood-500 ml-auto self-center">
                 Sebelumnya: {formatIDR(report.prevTotals?.closingCash ?? 0)}
               </span>
             )}
@@ -198,12 +199,15 @@ export default function CashFlowPage() {
     );
   }
 
+  if (!permissions.canViewReports) {
+    return <ReportPermissionGate><div /></ReportPermissionGate>;
+  }
+
   return (
-    <ReportPermissionGate>
-      <h1 className="text-2xl font-bold text-text-primary mb-4">
-        Arus Kas
-        <HelpTooltip topic="cash_flow" position="right" />
-      </h1>
+    <ReportShell
+      title="Arus Kas"
+      helpTopic="cash_flow"
+    >
       {/* Filter bar */}
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div>
@@ -249,7 +253,7 @@ export default function CashFlowPage() {
       {report && (report.rows.length > 0 || report.totals.openingCash !== 0) && (
         <>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-wood-400">
+            <p className="text-xs text-wood-500">
               Periode: {formatShortDate(appliedFrom)} — {formatShortDate(appliedTo)}
               {comparePeriod && report.prevPeriod && (
                 <> | Sebelumnya: {formatShortDate(report.prevPeriod.fromDate)} — {formatShortDate(report.prevPeriod.toDate)}</>
@@ -280,6 +284,6 @@ export default function CashFlowPage() {
           <CashFlowTable report={report} onDrillDown={handleDrillDown} />
         </>
       )}
-    </ReportPermissionGate>
+    </ReportShell>
   );
 }

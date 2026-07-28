@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { PageShell } from "@/components/ui/page-shell";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { formatShortDate } from "@/lib/utils";
@@ -121,22 +122,21 @@ export function ExportsPage() {
   const exportJobs = jobs ?? [];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Export Data</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Export data ke CSV dengan latar belakang
-          </p>
-        </div>
-        {canCreateExports && (
-          <Button size="sm" onClick={() => setShowCreateModal(true)}>
-            <Download className="h-4 w-4" />
-            Export Baru
-          </Button>
-        )}
-      </header>
+    <PageShell
+      header={{
+        title: "Export Data",
+        description: "Export data ke CSV dengan latar belakang",
+        actions: canCreateExports ? [{
+          key: "new-export",
+          children: (
+            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+              <Download className="h-4 w-4" />
+              Export Baru
+            </Button>
+          ),
+        }] : undefined,
+      }}
+    >
 
       {/* Active exports banner */}
       {pollingIds.size > 0 && (
@@ -272,7 +272,7 @@ export function ExportsPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </div>
+    </PageShell>
   );
 }
 

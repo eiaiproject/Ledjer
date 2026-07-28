@@ -6,6 +6,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Repeat, Plus, Play, Pause, FastForward } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 const FREQ_LABELS: Record<string, string> = {
   daily: "Harian",
@@ -102,23 +103,22 @@ export function RecurringTransactionsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Transaksi Berulang</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Atur transaksi otomatis: sewa, langganan, gaji, dan lainnya
-          </p>
-        </div>
-        <Link
-          to="/recurring-transactions/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Buat Baru
-        </Link>
-      </div>
+    <PageShell
+      header={{
+        title: "Transaksi Berulang",
+        description: "Atur transaksi otomatis: sewa, langganan, gaji, dan lainnya",
+        actions: [{ key: "create", children: (
+          <Link
+            to="/recurring-transactions/new"
+            className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Buat Baru
+          </Link>
+        ) }],
+      }}
+    >
+
 
       {/* Status filter */}
       <div className="flex flex-wrap gap-1.5">
@@ -139,7 +139,7 @@ export function RecurringTransactionsPage() {
 
       {/* Content */}
       {content}
-    </div>
+    </PageShell>
   );
 }
 
@@ -205,7 +205,7 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
                 <button type="button"
                   onClick={() => statusMutation.mutate("paused")}
                   disabled={statusMutation.isPending}
-                  className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-amber-600"
+                  className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-wood-100 hover:text-amber-600"
                   title="Jeda"
                 >
                   <Pause className="h-3.5 w-3.5" />
@@ -218,7 +218,7 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
                       // handled via skip endpoint
                     }
                   }}
-                  className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-amber-600"
+                  className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-wood-100 hover:text-amber-600"
                   title="Lewati"
                 >
                   <FastForward className="h-3.5 w-3.5" />
@@ -229,7 +229,7 @@ function RecurringCard({ item }: { readonly item: RecurringOutput }) {
               <button type="button"
                 onClick={() => statusMutation.mutate("active")}
                 disabled={statusMutation.isPending}
-                className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-leaf-600"
+                className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-wood-100 hover:text-leaf-600"
                 title="Aktifkan"
               >
                 <Play className="h-3.5 w-3.5" />

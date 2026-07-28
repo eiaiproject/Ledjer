@@ -176,7 +176,7 @@ export function NewDocumentPage() {
                   value={partyId}
                   onChange={(e) => setPartyId(e.target.value)}
                   placeholder="ID pihak (atau ketik manual)"
-                  className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
+                  className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-500 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
                 />
               </div>
             </div>
@@ -208,7 +208,7 @@ export function NewDocumentPage() {
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     placeholder="Tunai, Transfer, dll."
-                    className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
+                    className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-500 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
                   />
                 </div>
                 <div>
@@ -221,7 +221,7 @@ export function NewDocumentPage() {
                     value={paymentRef}
                     onChange={(e) => setPaymentRef(e.target.value)}
                     placeholder="No. referensi"
-                    className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
+                    className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-500 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
                   />
                 </div>
               </div>
@@ -288,7 +288,7 @@ export function NewDocumentPage() {
                     <button                       type="button"
                       onClick={() => removeLine(i)}
                       disabled={lines.length <= 1}
-                      className="flex h-8 w-8 items-center justify-center rounded text-wood-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                      className="flex h-8 w-8 items-center justify-center rounded text-wood-500 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -322,7 +322,7 @@ export function NewDocumentPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Catatan tambahan..."
-                className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
+                className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-500 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
               />
             </div>
 
@@ -335,7 +335,7 @@ export function NewDocumentPage() {
                 onChange={(e) => setTerms(e.target.value)}
                 rows={2}
                 placeholder="Syarat pembayaran, garansi, dll."
-                className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
+                className="w-full rounded-lg border border-wood-200 bg-surface px-3 py-2.5 text-sm placeholder:text-wood-500 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
               />
             </div>
 

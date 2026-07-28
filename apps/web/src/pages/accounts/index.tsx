@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
+import { PageShell } from "@/components/ui/page-shell";
 import { exportAccountsCsv } from "@/lib/csv-export";
 import {
   createCashBankAccount,
@@ -751,32 +752,30 @@ export function AccountsPage() {
   // ── Error state ──
   if (error) {
     return (
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Akun</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola kas, bank, dan akun pembukuan bisnis Anda.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Akun",
+          description: "Kelola kas, bank, dan akun pembukuan bisnis Anda.",
+        }}
+      >
         <ErrorState
           error={error}
           message="Periksa koneksi Anda, lalu coba lagi."
           onRetry={() => { refetch(); }}
         />
-      </div>
+      </PageShell>
     );
   }
 
   // ── Loading state ──
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Akun</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola kas, bank, dan akun pembukuan bisnis Anda.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Akun",
+          description: "Kelola kas, bank, dan akun pembukuan bisnis Anda.",
+        }}
+      >
         {/* Toolbar skeleton */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex gap-2">
@@ -800,7 +799,7 @@ export function AccountsPage() {
             <Skeleton key={key} className="h-24 w-full rounded-xl" />
           ))}
         </div>
-      </div>
+      </PageShell>
     );
   }
 
@@ -808,45 +807,40 @@ export function AccountsPage() {
   const panelIds = { cashbank: "panel-cashbank", all: "panel-all" } as const;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Akun</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola kas, bank, dan akun pembukuan bisnis Anda.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canCreateExports && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => { handleExport(); }}
-              disabled={!allAccounts.length || isExporting}
-              className="hidden sm:inline-flex"
-              aria-busy={isExporting || undefined}
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              {isExporting ? "Mengekspor..." : "Ekspor CSV"}
-            </Button>
-          )}
-          {canCreateExports && (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => { handleExport(); }}
-              disabled={!allAccounts.length || isExporting}
-              className="sm:hidden min-h-[44px] min-w-[44px]"
-              aria-label={isExporting ? "Mengekspor akun ke CSV" : "Ekspor akun ke CSV"}
-              aria-busy={isExporting || undefined}
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          )}
-          {canManageAccounts && activeTab === "cashbank" && (
+    <PageShell
+      header={{
+        title: "Akun",
+        description: "Kelola kas, bank, dan akun pembukuan bisnis Anda.",
+        actions: [
+          ...(canCreateExports ? [{ key: "export", children: (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => { handleExport(); }}
+                disabled={!allAccounts.length || isExporting}
+                className="hidden sm:inline-flex"
+                aria-busy={isExporting || undefined}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                {isExporting ? "Mengekspor..." : "Ekspor CSV"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => { handleExport(); }}
+                disabled={!allAccounts.length || isExporting}
+                className="sm:hidden min-h-[44px] min-w-[44px]"
+                aria-label={isExporting ? "Mengekspor akun ke CSV" : "Ekspor akun ke CSV"}
+                aria-busy={isExporting || undefined}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </>
+          ) }] : []),
+          ...(canManageAccounts && activeTab === "cashbank" ? [{ key: "create", children: (
             <Button
               type="button"
               onClick={() => setAddModalOpen(true)}
@@ -855,16 +849,17 @@ export function AccountsPage() {
               <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
               Tambah Kas/Bank
             </Button>
-          )}
-        </div>
-      </div>
+          ) }] : []),
+        ],
+      }}
+    >
 
       {/* Search */}
       <div className="relative">
         <label htmlFor="account-search" className="sr-only" id={searchLabelId}>
           Cari akun
         </label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" aria-hidden="true" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
         <input
           ref={searchInputRef}
           id="account-search"
@@ -879,7 +874,7 @@ export function AccountsPage() {
         {hasSearch && (
           <button             type="button"
             onClick={handleClearSearch}
-            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Hapus pencarian"
           >
             <X className="h-4 w-4" />
@@ -975,7 +970,7 @@ export function AccountsPage() {
         {activeTab === "cashbank" && (() => {
           if (cashBankEmpty && hasSearch) {
             return (
-              <EmptyState icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+              <EmptyState icon={<Search className="h-7 w-7 text-wood-500" aria-hidden="true" />}
                 title="Akun tidak ditemukan"
                 description={`Tidak ada akun yang cocok dengan "${search}".`}
                 action={<Button type="button" variant="outline" size="sm" onClick={handleClearSearch}>Hapus pencarian</Button>} />
@@ -984,7 +979,7 @@ export function AccountsPage() {
           if (cashBankEmpty && isCashBankEmpty) {
             const addAction = canManageAccounts ? <Button type="button" onClick={() => setAddModalOpen(true)}><Plus className="mr-2 h-4 w-4" aria-hidden="true" />Tambah Kas/Bank</Button> : undefined;
             return (
-              <EmptyState icon={<Wallet className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+              <EmptyState icon={<Wallet className="h-7 w-7 text-wood-500" aria-hidden="true" />}
                 title="Belum ada akun kas atau bank"
                 description="Tambahkan tempat penyimpanan uang bisnis Anda."
                 action={addAction} />
@@ -1015,7 +1010,7 @@ export function AccountsPage() {
         {activeTab === "all" && (() => {
           if (allEmpty && hasSearch) {
             return (
-              <EmptyState icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+              <EmptyState icon={<Search className="h-7 w-7 text-wood-500" aria-hidden="true" />}
                 title="Akun tidak ditemukan"
                 description={`Tidak ada akun yang cocok dengan "${search}".`}
                 action={<Button type="button" variant="outline" size="sm" onClick={handleClearSearch}>Hapus pencarian</Button>} />
@@ -1023,7 +1018,7 @@ export function AccountsPage() {
           }
           if (allEmpty && typeFilter !== "all") {
             return (
-              <EmptyState icon={<BookOpen className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+              <EmptyState icon={<BookOpen className="h-7 w-7 text-wood-500" aria-hidden="true" />}
                 title="Tidak ada akun dalam kategori ini"
                 description="Pilih kategori lain atau lihat semua akun."
                 action={<Button type="button" variant="outline" size="sm" onClick={() => setTypeFilter("all")}>Lihat semua akun</Button>} />
@@ -1052,7 +1047,7 @@ export function AccountsPage() {
         onClose={() => { setEditModalOpen(false); setEditAccount(null); }}
         onSuccess={() => {}}
       />
-    </div>
+    </PageShell>
   );
 }
 

@@ -25,7 +25,7 @@ import {
   InfoCircle,
   Shield,
 } from "reicon-react";
-
+import { PageShell } from "@/components/ui/page-shell";
 
 
 export function PeriodClosePage() {
@@ -84,13 +84,12 @@ export function PeriodClosePage() {
 
   if (!canClose) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Tutup Periode</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Validasi dan kunci periode akuntansi.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Tutup Periode",
+          description: "Validasi dan kunci periode akuntansi.",
+        }}
+      >
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-sm text-wood-500">
@@ -98,7 +97,7 @@ export function PeriodClosePage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
@@ -113,18 +112,14 @@ export function PeriodClosePage() {
     : null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">
-          {completed ? "Periode Berhasil Ditutup" : "Tutup Periode"}
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          {completed
-            ? `Periode ${formatShortDate(periodEndDate)} telah dikunci.`
-            : "Jalankan pemeriksaan sebelum menutup periode akuntansi."}
-        </p>
-      </div>
+    <PageShell
+      header={{
+        title: completed ? "Periode Berhasil Ditutup" : "Tutup Periode",
+        description: completed
+          ? `Periode ${formatShortDate(periodEndDate)} telah dikunci.`
+          : "Jalankan pemeriksaan sebelum menutup periode akuntansi.",
+      }}
+    >
 
       {/* Period date selector */}
       {!completed && (
@@ -228,7 +223,7 @@ export function PeriodClosePage() {
         <Card>
           <CardContent className="py-10 text-center">
             <div className="flex flex-col items-center gap-3">
-              <Shield className="h-8 w-8 text-wood-300" />
+              <Shield className="h-8 w-8 text-wood-500" />
               <p className="text-sm text-wood-500">
                 Pilih tanggal periode dan klik "Jalankan Pemeriksaan" untuk memulai.
               </p>
@@ -281,7 +276,7 @@ export function PeriodClosePage() {
         confirmLabel="Kunci Periode"
         loading={closeMutation.isPending}
       />
-    </div>
+    </PageShell>
   );
 }
 
@@ -290,7 +285,7 @@ function CheckItem({ check }: { readonly check: CloseCheck }) {
     passed: { icon: CheckCircle, bg: "bg-leaf-50", border: "border-leaf-200", iconColor: "text-leaf-600" },
     failed: { icon: XCircle, bg: "bg-error-bg", border: "border-error-border", iconColor: "text-error" },
     warning: { icon: AlertTriangle, bg: "bg-honey-50", border: "border-honey-300", iconColor: "text-honey-600" },
-    skipped: { icon: InfoCircle, bg: "bg-cream-50", border: "border-wood-200", iconColor: "text-wood-400" },
+    skipped: { icon: InfoCircle, bg: "bg-cream-50", border: "border-wood-200", iconColor: "text-wood-500" },
   };
 
   const config = statusConfig[check.status];
