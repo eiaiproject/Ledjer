@@ -48,7 +48,16 @@ export interface ImportResult {
   createdAt: number;
 }
 
-/** RFC 4180 CSV parse. Returns rows as arrays, then maps to headers. */
+/** RFC 4180 CSV parse. Returns rows as arrays, then maps to headers.
+ *
+ * Handles:
+ * - Quoted fields containing commas: "field1,with,commas"
+ * - Escaped quotes: "" inside quoted fields -> "
+ * - BOM, CRLF/LF line endings
+ *
+ * NOTE: Does not handle multi-line quoted fields (RFC 4180 §2.7).
+ * Upgrade to a streaming parser for large imports.
+ */
 export function parseCsv(text: string): { headers: string[]; rows: string[][] } {
   // Strip BOM
   const clean = text.replace(/^\uFEFF/, "").replaceAll('\r\n', '\n').replaceAll('\r', '\n');

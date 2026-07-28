@@ -16,6 +16,12 @@ import type { D1Input } from "./client";
  *
  * The `orgIndex` parameter specifies the index of the organization_id
  * value in the bindings array (default 0).
+ *
+ * ARCHITECTURE NOTE: TenantScopedRepository is opt-in.
+ * All service functions MUST use organization_id in WHERE clauses.
+ * CI script check-org-scoping.sh enforces this via grep.
+ * Future: Consider making TenantScopedRepository mandatory via
+ * a lint rule or DI container that injects org-scoped queries.
  */
 export interface TenantScopeConfig {
   /** The tenant-scoped table being queried */

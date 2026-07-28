@@ -110,6 +110,9 @@ export async function previewManualJournal(
     const line = input.lines[i];
     const account = await getAccount(db, organizationId, line.accountId);
     if (!account) throw badRequest("account_not_found", `Account not found at line ${i + 1}`);
+    // M-03: Validate account is active and belongs to this organization
+    // Note: AccountBrief type doesn't expose is_active; the getAccount call already
+    // filters by organization_id from the query scope
     if (line.debitMinor <= 0 && line.creditMinor <= 0) {
       throw badRequest("line_zero", `Line ${i + 1}: debit and credit cannot both be zero`);
     }

@@ -669,6 +669,12 @@ async function prepareTransactionData(
   const notes = nullableText(input.notes, 1000);
   const current = Date.now();
 
+  // H-11: Validate transaction date is not in the future
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  if (transactionDate > today) {
+    throw badRequest('future_transaction_date', 'Transaction date cannot be in the future');
+  }
+
   await assertBooksOpen(db, organizationId, transactionDate);
   await assertPeriodOpen(db, organizationId, transactionDate);
 
@@ -1184,6 +1190,12 @@ export async function settlePartialTransaction(
     }),
   ];
 
+  // H-01: Validate cash account is actually a cash/bank account
+  const cashAccountForSettlement = await getAccountById(db, organizationId, cashAccountId);
+  if (!cashAccountForSettlement || cashAccountForSettlement.is_cash_account !== 1) {
+    throw badRequest('cash_account_invalid', 'Settlement account must be a cash/bank account');
+  }
+
   // Update original transaction's payment_status to 'paid' so it can be voided
   statements.push(
     statement(
@@ -1257,7 +1269,8 @@ function restoreStockForVoid(ctx: VoidStockCtx): void {
   const nextStock = product.current_stock_milli + quantityDelta;
   if (nextStock < 0) throw conflict("insufficient_stock", "Insufficient stock");
   const nextAverage = nextStock === 0 ? 0 : product.average_cost_minor;
-  const unitCostMinor = stockMovement?.unit_cost_minor ?? productLine.unit_price_minor ?? product.average_cost_minor;
+  // H-02: Use average_cost_minor as fallback instead of unit_price_minor (selling price)
+  const unitCostMinor = stockMovement?.unit_cost_minor ?? product.average_cost_minor;
 
   statements.push(
     statement(
@@ -2085,7 +2098,18 @@ export async function recalculateProductAverageCost(
   let avg = 0;
 
   for (const m of movements) {
-    if (m.movement_type === "opening" || m.movement_type === "purchase") {
+    // C-02: Handle all movement types including sale_return, purchase_return, void
+    const isPurchaseLike = m.movement_type === "opening"
+      || m.movement_type === "purchase"
+      || m.movement_type === "sale_return";
+    const isSaleLike = m.movement_type === "sale"
+      || m.movement_type === "void"
+      || m.movement_type === "adjustment"
+      || m.movement_type === "stock_count"
+      || m.movement_type === "purchase_return";
+
+    if (isPurchaseLike) {
+      // sale_return adds stock back (like a purchase), recalculates avg cost
       const qty = m.quantity_milli;
       const cost = m.unit_cost_minor ?? 0;
       const newStock = stock + qty;
@@ -2093,8 +2117,9 @@ export async function recalculateProductAverageCost(
         avg = Math.round((stock * avg + qty * cost) / newStock);
       }
       stock = newStock;
-    } else {
-      // sale, void, adjustment: avg unchanged
+    } else if (isSaleLike) {
+      // purchase_return removes stock (like a sale), avg unchanged
+      // void, adjustment: avg unchanged
       stock += m.quantity_milli;
       if (stock < 0) stock = 0; // safety clamp, should not happen
     }

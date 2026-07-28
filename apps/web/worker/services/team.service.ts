@@ -173,6 +173,7 @@ export async function createTeamInvitation(
     requestId?: string;
   },
 ): Promise<CreatedTeamInvitation> {
+
   const email = normalizeInvitationEmail(input.email);
   const role = input.role ?? "member";
   assertInvitableRole(role);

@@ -364,6 +364,11 @@ export async function recordStockCount(
   difference: string;
   movement: PublicStockMovement | null;
 }> {
+  // M-05: Validate physical stock is not negative
+  if (input.physicalStock < 0) {
+    throw badRequest('negative_physical_stock', 'Physical stock cannot be negative');
+  }
+
   const product = await getProductRow(db, organizationId, input.productId);
   if (!product) throw notFound("product_not_found", "Produk tidak ditemukan");
 
@@ -451,6 +456,12 @@ export async function recordStockMovement(
 ): Promise<PublicStockMovement> {
   const product = await getProductRow(db, organizationId, input.productId);
   if (!product) throw notFound("product_not_found", "Product not found");
+
+  // M-04: Validate movement date is not in the future
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  if (input.movementDate > today) {
+    throw badRequest('future_movement_date', 'Movement date cannot be in the future');
+  }
 
   const quantityMilli = toSignedQuantityMilli(input.quantity);
   if (quantityMilli === 0) {

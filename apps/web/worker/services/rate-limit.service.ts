@@ -1,5 +1,10 @@
 import { execute, queryAll } from "../db/client";
 
+// L-07: Recommended index (add via migration):
+// CREATE INDEX IF NOT EXISTS idx_rate_limits_bucket_created
+//   ON rate_limits(bucket_key, created_at);
+
+
 export interface RateLimitConfig {
   /** Max requests allowed in the window. */
   max: number;

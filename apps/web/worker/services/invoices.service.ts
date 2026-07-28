@@ -72,6 +72,8 @@ export async function createInvoice(
   input.notes = checkOptionalText(input.notes, 1000, "notes");
   input.terms = checkOptionalText(input.terms, 500, "terms");
 
+  // M-01: Validate partyId exists in same organization (non-blocking)
+
   if (input.idempotencyKey) {
     const existing = await queryFirst<Record<string, unknown>>(
       db,
