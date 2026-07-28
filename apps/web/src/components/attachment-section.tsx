@@ -64,7 +64,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
         {isLoading && <Skeleton className="h-12 w-full" />}
 
         {attachments.length === 0 && !isLoading && (
-          <p className="text-xs text-wood-400 py-2">Belum ada lampiran.</p>
+          <p className="text-xs text-wood-500 py-2">Belum ada lampiran.</p>
         )}
 
         {attachments.length > 0 && (
@@ -80,7 +80,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
                   {att.fileName}
                 </a>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <span className="text-xs text-wood-400">{formatFileSize(att.fileSize)}</span>
+                  <span className="text-xs text-wood-500">{formatFileSize(att.fileSize)}</span>
                   <button                     type="button"
                     onClick={() => {
                       if (confirm("Hapus lampiran ini?")) deleteMutation.mutate(att.id);

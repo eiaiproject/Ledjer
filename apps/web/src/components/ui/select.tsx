@@ -25,7 +25,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       <Field label={label} error={error} helperText={helperText} required={required} htmlFor={selectId} feedbackId={feedbackId}>
         <div className="relative">
           {leftIcon && (
-            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-wood-400">
+            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-wood-500">
               {leftIcon}
             </span>
           )}
@@ -58,7 +58,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ))}
             {children}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" />
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" />
         </div>
       </Field>
     );

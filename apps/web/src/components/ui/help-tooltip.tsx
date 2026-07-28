@@ -67,8 +67,8 @@ export function HelpTooltip({
         onClick={() => setOpen(!open)}
         className={`inline-flex items-center justify-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ink/20 ${
           size === "sm"
-            ? "h-4 w-4 text-wood-400 hover:text-wood-600 hover:bg-wood-100"
-            : "h-5 w-5 text-wood-400 hover:text-wood-600 hover:bg-wood-100"
+            ? "h-4 w-4 text-wood-500 hover:text-wood-600 hover:bg-wood-100"
+            : "h-5 w-5 text-wood-500 hover:text-wood-600 hover:bg-wood-100"
         }`}
         aria-label={`Bantuan: ${title ?? content.title}`}
         aria-expanded={open}
@@ -89,7 +89,7 @@ export function HelpTooltip({
               </h4>
               <button                 type="button"
                 onClick={() => setOpen(false)}
-                className="shrink-0 rounded p-0.5 text-wood-400 hover:bg-wood-100 hover:text-wood-600"
+                className="shrink-0 rounded p-0.5 text-wood-500 hover:bg-wood-100 hover:text-wood-600"
                 aria-label="Tutup"
               >
                 <X className="h-3.5 w-3.5" />
@@ -175,11 +175,11 @@ export function HelpSection({ topic, defaultOpen = false }: { readonly topic: st
         aria-expanded={open}
       >
         <div className="flex items-center gap-2">
-          <MentionCircle className="h-4 w-4 text-wood-400" aria-hidden="true" />
+          <MentionCircle className="h-4 w-4 text-wood-500" aria-hidden="true" />
           <span className="text-sm font-medium text-text-primary">{content.title}</span>
         </div>
         <svg
-          className={`h-4 w-4 text-wood-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-wood-500 transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

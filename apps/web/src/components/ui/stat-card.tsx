@@ -107,7 +107,7 @@ export function StatCard({
         <ChevronRight
           className={cn(
             "mt-3 h-4 w-4 shrink-0 text-right transition-transform duration-200 group-hover:translate-x-0.5",
-            hero ? "opacity-80" : "text-wood-400",
+            hero ? "opacity-80" : "text-wood-500",
           )}
           aria-hidden="true"
         />

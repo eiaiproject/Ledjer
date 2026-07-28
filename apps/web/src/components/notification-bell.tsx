@@ -133,12 +133,12 @@ export function NotificationBell() {
   if (isLoading) {
     notificationListContent = (
       <div className="flex items-center justify-center py-8">
-        <Loader className="h-5 w-5 animate-spin text-wood-400" />
+        <Loader className="h-5 w-5 animate-spin text-wood-500" />
       </div>
     );
   } else if (!notifications.length) {
     notificationListContent = (
-      <div className="flex flex-col items-center gap-2 py-8 text-wood-400">
+      <div className="flex flex-col items-center gap-2 py-8 text-wood-500">
         <Bell className="h-6 w-6" />
         <p className="text-xs">Tidak ada notifikasi</p>
       </div>
@@ -176,7 +176,7 @@ export function NotificationBell() {
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${SEVERITY_DOTS[notif.severity] ?? "bg-wood-400"}`} aria-hidden="true" />
               </div>
               <p className="mt-0.5 text-xs text-wood-500 line-clamp-2">{notif.message}</p>
-              <p className="mt-0.5 text-[10px] text-wood-400">{timeAgo(notif.createdAt)}</p>
+              <p className="mt-0.5 text-[10px] text-wood-500">{timeAgo(notif.createdAt)}</p>
             </div>
 
             {/* Actions */}
@@ -184,7 +184,7 @@ export function NotificationBell() {
               {!notif.isRead && (
                 <button type="button"
                   onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(notif.id); }}
-                  className="flex h-6 w-6 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-wood-600"
+                  className="flex h-6 w-6 items-center justify-center rounded text-wood-500 hover:bg-wood-100 hover:text-wood-600"
                   title="Tandai dibaca"
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -192,7 +192,7 @@ export function NotificationBell() {
               )}
               <button type="button"
                 onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
-                className="flex h-6 w-6 items-center justify-center rounded text-wood-400 hover:bg-red-50 hover:text-red-500"
+                className="flex h-6 w-6 items-center justify-center rounded text-wood-500 hover:bg-red-50 hover:text-red-500"
                 title="Hapus"
               >
                 <Trash2 className="h-3.5 w-3.5" />

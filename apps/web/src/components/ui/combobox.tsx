@@ -197,7 +197,7 @@ export function Combobox({
             "sm:min-h-0",
           )}
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-wood-400">
+        <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-wood-500">
           {loading ? <Loader className="h-4 w-4 animate-spin" /> : <ChevronDown className="h-4 w-4" />}
         </span>
 
@@ -238,7 +238,7 @@ export function Combobox({
                   <span className="min-w-0 flex-1 truncate">
                     {option.label}
                     {option.secondaryLabel && (
-                      <span className="ml-2 text-xs text-wood-400">{option.secondaryLabel}</span>
+                      <span className="ml-2 text-xs text-wood-500">{option.secondaryLabel}</span>
                     )}
                   </span>
                   {isSelected && <Check className="h-4 w-4 shrink-0 text-wood-600" />}
