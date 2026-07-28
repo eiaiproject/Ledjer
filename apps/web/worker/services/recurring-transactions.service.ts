@@ -107,6 +107,9 @@ function computeNextDate( // NOSONAR typescript:S3776 â€” date computation for 5
   monthOfYear: number | null,
   endDateStr: string | null,
 ): string | null {
+  // C-08: Safety guard against intervalValue < 1
+  if (intervalValue < 1) return null;
+
   const current = new Date(currentDateStr + "T00:00:00+07:00");
   let next: Date;
 
@@ -195,6 +198,61 @@ export async function createRecurringTransaction( // NOSONAR typescript:S3776 â€
   const now = Date.now();
   const intervalValue = input.intervalValue ?? 1;
 
+  // C-08: Validate intervalValue >= 1
+  if (input.intervalValue !== undefined && input.intervalValue < 1) {
+    throw badRequest('invalid_interval', 'intervalValue must be >= 1');
+  }
+
+  // M-08: Validate cashAccountId exists and is a cash account
+  if (input.cashAccountId) {
+    const cashAcct = await queryFirst<{ id: string; is_cash_account: number }>(
+      db,
+      'SELECT id, is_cash_account FROM accounts WHERE id = ? AND organization_id = ? AND is_active = 1',
+      [input.cashAccountId, organizationId],
+    );
+    if (!cashAcct) throw notFound('cash_account_not_found', 'Cash account not found in this organization');
+    if (cashAcct.is_cash_account !== 1) throw badRequest('cash_account_invalid', 'Account is not a cash/bank account');
+  }
+
+  // M-09: Validate debitAccountId exists in same organization
+  if (input.debitAccountId) {
+    const debitAcct = await queryFirst<{ id: string }>(
+      db,
+      'SELECT id FROM accounts WHERE id = ? AND organization_id = ? AND is_active = 1',
+      [input.debitAccountId, organizationId],
+    );
+    if (!debitAcct) throw notFound('debit_account_not_found', 'Debit account not found in this organization');
+  }
+
+  // M-10: Validate partyId exists in same organization
+  if (input.partyId) {
+    const party = await queryFirst<{ id: string }>(
+      db,
+      'SELECT id FROM parties WHERE id = ? AND organization_id = ? AND is_active = 1',
+      [input.partyId, organizationId],
+    );
+    if (!party) throw notFound('party_not_found', 'Party not found in this organization');
+  }
+
+  // C-09: Validate range values
+  if (input.dayOfMonth !== undefined && (input.dayOfMonth < 1 || input.dayOfMonth > 31))
+    throw badRequest('invalid_day_of_month', 'dayOfMonth must be 1-31');
+  if (input.dayOfWeek !== undefined && (input.dayOfWeek < 0 || input.dayOfWeek > 6))
+    throw badRequest('invalid_day_of_week', 'dayOfWeek must be 0-6');
+  if (input.monthOfYear !== undefined && (input.monthOfYear < 1 || input.monthOfYear > 12))
+    throw badRequest('invalid_month_of_year', 'monthOfYear must be 1-12');
+
+  // C-10: Validate endDate > startDate
+  if (input.endDate && input.endDate <= input.startDate) {
+    throw badRequest('invalid_date_range', 'endDate must be after startDate');
+  }
+
+  // H-06: Validate startDate is not in the past
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  if (input.startDate < today) {
+    throw badRequest('past_start_date', 'startDate cannot be in the past');
+  }
+
   // Validate frequency-specific fields
   if (input.frequency === "weekly" && input.dayOfWeek === undefined) {
     throw badRequest("day_of_week_required", "Hari dalam minggu diperlukan untuk jadwal mingguan");
@@ -233,7 +291,10 @@ export async function createRecurringTransaction( // NOSONAR typescript:S3776 â€
       input.amountMinor,
       input.partyId ?? null, input.cashAccountId ?? null, input.debitAccountId ?? null,
       input.description ?? "", input.notes ?? null,
-      input.startDate, input.endDate ?? null, nextDate,
+      input.startDate, input.endDate ?? null,
+      // M-08, M-09, M-10: entity validation should be done by the route handler before calling this service
+      // For now, we store the values as-is (DB constraints will catch invalid FK references)
+      nextDate,
       input.postAsDraft ? 1 : 0, userId, now, now,
     ],
   );
@@ -419,7 +480,8 @@ export async function findDueTransactions(
        AND next_execution_date IS NOT NULL
        AND next_execution_date <= ?
        ${orgFilter}
-     ORDER BY next_execution_date ASC`,
+     ORDER BY next_execution_date ASC
+     LIMIT 100`,
     params,
   );
 
@@ -444,10 +506,23 @@ export async function executeRecurringTransaction(
   ) => Promise<PostTransactionResult>,
 ): Promise<ExecutionLogOutput> {
   const recurring = await getRecurringTransaction(db, organizationId, recurringId);
+
+  // C-07: Validate recurring transaction status
+  if (recurring.status !== 'active') {
+    throw badRequest('recurring_not_active',
+      `Recurring transaction is ${recurring.status}, cannot execute`);
+  }
+
+  // C-07: Validate next execution date is not in the future
+  const today = todayWib();
+  if (recurring.nextExecutionDate && recurring.nextExecutionDate > today) {
+    throw badRequest('recurring_not_due',
+      `Next execution date ${recurring.nextExecutionDate} is in the future`);
+  }
+
   const logId = generateId();
   const now = Date.now();
   const scheduledDate = recurring.nextExecutionDate!;
-  const today = todayWib();
 
   // Check skip_next flag
   if (recurring.skipNext) {
@@ -589,6 +664,39 @@ async function findOrgAdminUserId(
   return row?.user_id ?? null;
 }
 
+/** Track result of a recurring transaction execution */
+function trackExecutionResult(
+  result: ExecutionLogOutput | undefined,
+  name: string,
+  counters: { executed: () => void; skipped: () => void; failed: (msg: string) => void },
+): void {
+  if (!result) return;
+  if (result.status === "success") counters.executed();
+  else if (result.status === "skipped") counters.skipped();
+  else if (result.status === "failed") counters.failed(`[${name}] ${result.errorMessage}`);
+}
+
+/** Retry a function up to 3 times on transient errors */
+async function executeWithRetry<T>(fn: () => Promise<T>): Promise<{ result?: T; error?: Error | null }> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, [100, 500][attempt - 1] ?? 500));
+    }
+    try {
+      const result = await fn();
+      return { result, error: null };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const msg = lastError.message.toLowerCase();
+      if (!msg.includes('timeout') && !msg.includes('d1') && !msg.includes('network')) {
+        break;
+      }
+    }
+  }
+  return { error: lastError };
+}
+
 /**
  * Execute all due recurring transactions for an organization (or all orgs).
  * Called by the worker's scheduled handler.
@@ -627,12 +735,24 @@ export async function executeAllDueTransactions(
         continue;
       }
 
-      const result = await executeRecurringTransaction(
-        db, recurring.organizationId, effectiveUserId, recurring.id, postTransactionFn,
+      // H-08: Retry logic for transient errors
+      const { result: retryResult, error: retryError } = await executeWithRetry(
+        () => executeRecurringTransaction(
+          db, recurring.organizationId, effectiveUserId, recurring.id, postTransactionFn,
+        ),
       );
-      if (result.status === "success") executed++;
-      else if (result.status === "skipped") skipped++;
-      else if (result.status === "failed") { failed++; errors.push(`[${recurring.name}] ${result.errorMessage}`); }
+
+      if (retryError) {
+        failed++;
+        errors.push(`[${recurring.name}] ${retryError.message}`);
+        continue;
+      }
+
+      trackExecutionResult(retryResult, recurring.name, {
+        executed: () => executed++,
+        skipped: () => skipped++,
+        failed: (msg) => { failed++; errors.push(msg); },
+      });
     } catch (error) {
       failed++;
       errors.push(`[${recurring.name}] ${error instanceof Error ? error.message : String(error)}`);

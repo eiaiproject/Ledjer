@@ -313,6 +313,9 @@ export async function updateAsset(
 
 /**
  * Calculate monthly depreciation for an asset based on its method.
+ *
+ * H-03: decliningBalanceRate is a MONTHLY rate (0-1).
+ * Default (no custom rate): uses 2/usefulMonths (double-declining monthly rate).
  */
 function calculateMonthlyDepreciation(
   asset: FixedAsset,

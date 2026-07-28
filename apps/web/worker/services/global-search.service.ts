@@ -64,6 +64,9 @@ export async function globalSearch(
     searchMembers(db, organizationId, searchPattern, limitPerType),
   ]);
 
+  // L-09: Hard limit of 50 total results across all entity types
+  const MAX_TOTAL_RESULTS = 50;
+
   // Merge and sort by score descending
   const allResults = [
     ...transactions,
@@ -76,8 +79,8 @@ export async function globalSearch(
 
   return {
     query: trimmed,
-    results: allResults.slice(0, limit),
-    total: allResults.length,
+    results: allResults.slice(0, Math.min(limit, MAX_TOTAL_RESULTS)),
+    total: Math.min(allResults.length, MAX_TOTAL_RESULTS),
   };
 }
 

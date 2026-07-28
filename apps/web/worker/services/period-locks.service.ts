@@ -32,6 +32,17 @@ export async function createPeriodLock(
 ): Promise<PeriodLock> {
   const date = normalizeDate(input.lockedThroughDate, "locked_date_invalid");
 
+  // H-04: Validate period lock date is not in the future
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  if (date > today) {
+    throw badRequest('future_lock_date', 'Cannot lock a future period');
+  }
+
+  // M-12: Validate reason max length
+  if (input.reason && input.reason.length > 500) {
+    throw badRequest('reason_too_long', 'Reason max 500 chars');
+  }
+
   // Check for existing lock on or after this date
   const existing = await queryFirst<{ id: string; locked_through_date: string }>(
     db,
@@ -153,6 +164,16 @@ export async function deletePeriodLock(
 
   if (!lock) {
     throw notFound("period_lock_not_found", "Period lock not found");
+  }
+
+  // H-05: Verify this is the latest lock
+  const latestLock = await queryFirst<{ id: string }>(
+    db,
+    `SELECT id FROM period_locks WHERE organization_id = ? ORDER BY locked_through_date DESC LIMIT 1`,
+    [organizationId],
+  );
+  if (latestLock && latestLock.id !== lockId) {
+    throw badRequest('not_latest_lock', 'Can only delete the most recent period lock');
   }
 
   // Check if approval is needed for period reopening

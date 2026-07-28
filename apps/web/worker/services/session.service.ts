@@ -3,6 +3,11 @@ import { generateId, generateToken, hashToken } from "../auth/tokens";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
+// Rotate token only when token age > 50% of TTL (15 days).
+// This prevents race conditions when the SPA makes parallel API calls
+// during page load — all requests within the interval share the same token.
+const TOKEN_ROTATION_INTERVAL_MS = 15 * 24 * 60 * 60 * 1000; // 15 days
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -40,33 +45,34 @@ export async function createSession(
   db: D1Database,
   userId: string,
   request: Request,
+  organizationId?: string,
 ): Promise<CreatedSession> {
   const token = generateToken();
   const tokenHash = await hashToken(token);
   const createdAt = Date.now();
   const expiresAt = createdAt + SESSION_TTL_MS;
 
+  // Include current_organization_id in INSERT if organizationId provided
+  const hasOrg = organizationId !== undefined;
   await execute(
     db,
-    `INSERT INTO sessions (
-       id, user_id, token_hash, ip_address, user_agent, expires_at, last_used_at, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      userId,
-      tokenHash,
-      request.headers.get("CF-Connecting-IP"),
-      request.headers.get("User-Agent"),
-      expiresAt,
-      createdAt,
-      createdAt,
-    ],
+    hasOrg
+      ? `INSERT INTO sessions (
+         id, user_id, token_hash, ip_address, user_agent, current_organization_id, expires_at, last_used_at, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      : `INSERT INTO sessions (
+         id, user_id, token_hash, ip_address, user_agent, expires_at, last_used_at, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    hasOrg
+      ? [generateId(), userId, tokenHash, request.headers.get("CF-Connecting-IP"), request.headers.get("User-Agent"), organizationId, expiresAt, createdAt, createdAt]
+      : [generateId(), userId, tokenHash, request.headers.get("CF-Connecting-IP"), request.headers.get("User-Agent"), expiresAt, createdAt, createdAt],
   );
 
   return { token, expiresAt };
 }
 
-const TOKEN_ROTATION_INTERVAL_MS = 5 * 60 * 1000; // Only rotate token every 5 minutes
+  // This is handled above with the organizationId logic
+
 
 export async function getSessionByToken(
   db: D1Database,
@@ -75,7 +81,7 @@ export async function getSessionByToken(
   const tokenHash = await hashToken(token);
   const current = Date.now();
 
-  const row = await queryFirst<CurrentSessionRow & { last_used_at: number }>(
+  const row = await queryFirst<CurrentSessionRow & { last_used_at: number; last_rotated_at?: number }>(
     db,
     `SELECT
        s.id AS session_id,
@@ -85,7 +91,8 @@ export async function getSessionByToken(
        u.email,
        u.full_name,
        u.email_verified_at,
-       s.last_used_at
+       s.last_used_at,
+       s.last_rotated_at
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ?
@@ -96,7 +103,7 @@ export async function getSessionByToken(
 
   if (!row) return null;
 
-  // Only rotate token if enough time has passed since last rotation/use.
+  // Only rotate token if enough time has passed (15 days since last use).
   // This prevents race conditions when the SPA makes parallel API calls
   // during page load — all requests within the interval share the same token.
   const shouldRotate = current - row.last_used_at > TOKEN_ROTATION_INTERVAL_MS;
@@ -105,24 +112,60 @@ export async function getSessionByToken(
     const newToken = generateToken();
     const newTokenHash = await hashToken(newToken);
 
-    const result = await execute(
+    // Check last_rotated_at: only rotate if never rotated or rotated > 15 days ago
+    const shouldExecuteRotation = row.last_rotated_at === undefined
+      || row.last_rotated_at === null
+      || current - row.last_rotated_at > TOKEN_ROTATION_INTERVAL_MS;
+
+    if (shouldExecuteRotation) {
+      const result = await execute(
+        db,
+        `UPDATE sessions
+         SET token_hash = ?,
+             last_used_at = ?,
+             last_rotated_at = ?
+         WHERE id = ?
+           AND token_hash = ?
+           AND revoked_at IS NULL`,
+        [newTokenHash, current, current, row.session_id, tokenHash],
+      );
+
+      if (result.meta.changes > 0) {
+        return { ...row, newToken };
+      }
+    }
+
+    // Another request already rotated the token — re-read the session
+    // by session id + user_id to get the current (already rotated) session.
+    const refreshedRow = await queryFirst<CurrentSessionRow & { last_used_at: number }>(
       db,
-      `UPDATE sessions
-       SET token_hash = ?,
-           last_used_at = ?
-       WHERE id = ?
-         AND token_hash = ?
-         AND revoked_at IS NULL`,
-      [newTokenHash, current, row.session_id, tokenHash],
+      `SELECT
+         s.id AS session_id,
+         s.user_id,
+         s.expires_at,
+         s.current_organization_id,
+         u.email,
+         u.full_name,
+         u.email_verified_at,
+         s.last_used_at
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.id = ?
+         AND s.user_id = ?
+         AND s.revoked_at IS NULL
+         AND s.expires_at > ?`,
+      [row.session_id, row.user_id, current],
     );
 
-    if (result.meta.changes > 0) {
-      return { ...row, newToken };
+    if (refreshedRow) {
+      return refreshedRow; // No newToken — caller should NOT set a new cookie
     }
-    // Another request already rotated the token — fall through to update last_used_at
+
+    // Session was revoked or expired between checks — return null
+    return null;
   }
 
-  // Update last_used_at so the sliding window stays accurate
+  // Rotation skipped — just update last_used_at so the sliding window stays accurate
   await execute(
     db,
     `UPDATE sessions

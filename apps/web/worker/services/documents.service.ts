@@ -145,9 +145,25 @@ export async function createDocument(
   userId: string,
   input: CreateDocumentInput,
 ): Promise<DocumentOutput> {
+  // C-06: Validate documentType against DOCUMENT_PREFIXES
+  if (!DOCUMENT_PREFIXES[input.documentType]) {
+    throw badRequest('invalid_document_type',
+      `Invalid document type: ${input.documentType}. Valid types: ${Object.keys(DOCUMENT_PREFIXES).join(', ')}`);
+  }
+
   validateLines(input.lines);
   input.notes = checkOptionalText(input.notes, 1000, "notes");
   input.terms = checkOptionalText(input.terms, 500, "terms");
+
+  // M-02: Validate partyId exists in same organization
+  if (input.partyId) {
+    const party = await queryFirst<{ id: string }>(
+      db,
+      'SELECT id FROM parties WHERE id = ? AND organization_id = ?',
+      [input.partyId, organizationId],
+    );
+    if (!party) throw notFound('party_not_found', 'Party not found in this organization');
+  }
 
   if (input.idempotencyKey) {
     const existing = await queryFirst<Record<string, unknown>>(
@@ -340,6 +356,11 @@ export async function updateDocumentStatus(
   }
 
   const now = Date.now();
+  // M-13: Validate reason max length
+  if (reason && reason.length > 500) {
+    throw badRequest('reason_too_long', 'Reason max 500 chars');
+  }
+
   const voidedAt = newStatus === "cancelled" ? now : null;
   const voidReason = newStatus === "cancelled" ? (reason ?? null) : null;
 
