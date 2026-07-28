@@ -34,5 +34,29 @@
   "vars": {
     "APP_ENV": "production",
     "APP_ORIGIN": "https://ledjer.id"
+  },
+
+  "env": {
+    "staging": {
+      "name": "ledjer-staging",
+      "vars": {
+        "APP_ENV": "staging",
+        "APP_ORIGIN": "https://ledjer-staging.eiai.workers.dev"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ledjer-staging",
+          "database_id": "6bb8c1af-cf43-4d8e-b28c-ee8b9ce13a1d",
+          "migrations_dir": "worker/db/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BACKUP_BUCKET",
+          "bucket_name": "ledjer-backups-staging"
+        }
+      ]
+    }
   }
 }
