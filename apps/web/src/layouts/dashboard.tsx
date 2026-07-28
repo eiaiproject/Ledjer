@@ -24,9 +24,11 @@ import {
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
-import { cn } from "@/lib/utils";
+import { cn, SUPPORT_URL } from "@/lib/utils";
+import { trackSupportClick } from "@/lib/analytics";
 import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
+import { SupportBanner } from "@/components/ui/support-banner";
 import { GlobalSearchModal, SearchTrigger } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -304,7 +306,25 @@ export function DashboardLayout() {
           </ul>
         </nav>
 
-
+        {/* Trakteer Support */}
+        <div className={cn("border-t border-wood-600 px-3 py-2", sidebarCollapsed && "px-2")}>
+          <a
+            href={SUPPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Dukung pengembangan Ledjer melalui Trakteer, terbuka di tab baru"
+            onClick={() => { trackSupportClick("app_menu"); }}
+            className={cn(
+              "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
+              sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
+              "text-wood-300 hover:bg-wood-600/50 hover:text-cream-50"
+            )}
+            data-placement="app_menu"
+          >
+            <span className="text-base" aria-hidden="true">☕</span>
+            {!sidebarCollapsed && <span className="min-w-0 break-words">Traktir pengembang</span>}
+          </a>
+        </div>
 
         {/* User Section */}
         <div className={cn(
@@ -482,6 +502,23 @@ export function DashboardLayout() {
               })}
             </ul>
           </nav>
+
+          {/* Mobile Trakteer Support */}
+          <div className="shrink-0 border-t border-wood-600 px-4 py-3">
+            <a
+              href={SUPPORT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Dukung pengembangan Ledjer melalui Trakteer, terbuka di tab baru"
+              onClick={() => { trackSupportClick("app_menu"); }}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-wood-300 transition-colors hover:bg-wood-600/50 hover:text-cream-50 min-h-[44px]"
+              data-placement="app_menu"
+            >
+              <span className="text-base" aria-hidden="true">☕</span>
+              <span className="min-w-0 break-words">Traktir pengembang</span>
+            </a>
+          </div>
+
           <div className="shrink-0 border-t border-wood-600 p-4 ledger-safe-bottom">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-full bg-wood-500 flex items-center justify-center text-cream-50 text-sm font-medium shrink-0">
@@ -522,6 +559,10 @@ export function DashboardLayout() {
         </div>
         <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
+          {/* Value-moment support banner — hidden on transaction input & error pages */}
+          {location.pathname !== "/transactions/new" && (
+            <SupportBanner className="mb-4 md:mb-6" />
+          )}
           <Outlet />
         </div>
       </main>
