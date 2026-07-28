@@ -82,7 +82,6 @@ export function PrivacyPolicyPage() {
             <ul className="list-disc pl-5 space-y-1">
               <li>Penyedia infrastruktur (Cloudflare)</li>
               <li>Penyedia error tracking (Sentry)</li>
-              <li>Penyedia pembayaran (saat fitur pembayaran aktif)</li>
             </ul>
           </section>
 

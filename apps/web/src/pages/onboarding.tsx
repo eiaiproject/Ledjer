@@ -228,7 +228,7 @@ export function OnboardingPage() {
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-[background-color,color,transform] duration-200 ease-out ${
                 step >= stepNumber
                   ? "bg-leaf-500 text-text-on-success"
-                  : "bg-cream-200 text-wood-400"
+                  : "bg-cream-200 text-wood-500"
               }`} aria-current={step === stepNumber ? "step" : undefined}>
                 {step > stepNumber ? (
                   <CheckCircle className="h-4 w-4" />

@@ -235,9 +235,9 @@ export function RegisterPage() {
 
           <Card className="p-6">
             <CardContent>
-              <h1 className="text-xl font-bold text-text-primary">Daftar</h1>
+              <h1 className="text-xl font-bold text-text-primary">Mulai pembukuan usaha Anda</h1>
               <p className="mt-1 text-sm text-text-secondary">
-                Buat akun Ledjer.
+                Buat akun Ledjer dan mulai mencatat transaksi, mengelola stok, serta melihat laporan keuangan usaha Anda.
               </p>
 
               {error && (
@@ -251,7 +251,7 @@ export function RegisterPage() {
                   {...register("fullName")}
                   label="Nama lengkap"
                   placeholder="Nama lengkap"
-                  prefix={<User className="h-4 w-4 text-wood-400" />}
+                  prefix={<User className="h-4 w-4 text-wood-500" />}
                   error={errors.fullName?.message}
                   autoComplete="name"
                 />
@@ -261,7 +261,7 @@ export function RegisterPage() {
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
-                  prefix={<Envelope className="h-4 w-4 text-wood-400" />}
+                  prefix={<Envelope className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
                   autoComplete="email"
                 />
@@ -271,7 +271,7 @@ export function RegisterPage() {
                   label="Password"
                   type="password"
                   placeholder="Minimal 8 karakter, 1 huruf besar, 1 angka"
-                  prefix={<Lock className="h-4 w-4 text-wood-400" />}
+                  prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.password?.message}
                   autoComplete="new-password"
                 />
@@ -281,13 +281,13 @@ export function RegisterPage() {
                   label="Konfirmasi password"
                   type="password"
                   placeholder="Konfirmasi password"
-                  prefix={<Lock className="h-4 w-4 text-wood-400" />}
+                  prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.confirmPassword?.message}
                   autoComplete="new-password"
                 />
 
                 <Button type="submit" fullWidth loading={loading} disabled={loading || oauthLoading}>
-                  Daftar
+                  Buat akun gratis
                 </Button>
               </form>
 
@@ -312,6 +312,9 @@ export function RegisterPage() {
                 <Link to={loginPath} className="font-medium text-wood-600 hover:text-wood-800">
                   Masuk
                 </Link>
+              </p>
+              <p className="mt-3 text-center text-xs text-wood-500">
+                Gratis digunakan saat ini &middot; Tanpa kartu kredit
               </p>
             </CardContent>
           </Card>

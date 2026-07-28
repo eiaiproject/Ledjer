@@ -168,7 +168,7 @@ export function LoginPage() {
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
-                  prefix={<Envelope className="h-4 w-4 text-wood-400" />}
+                  prefix={<Envelope className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
                   disabled={rateLimited}
                   autoComplete="email"
@@ -179,7 +179,7 @@ export function LoginPage() {
                   label="Password"
                   type="password"
                   placeholder="Password"
-                  prefix={<Lock className="h-4 w-4 text-wood-400" />}
+                  prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.password?.message}
                   disabled={rateLimited}
                   autoComplete="current-password"

@@ -29,6 +29,14 @@ export function RefundPolicyPage() {
             <h2 className="text-lg font-semibold text-wood-800">2. Biaya</h2>
             <p>
               Selama periode gratis ini, Ledjer tidak memungut biaya penggunaan atau biaya transaksi.
+              Pengguna dapat memberikan dukungan sukarela melalui Trakteer. Dukungan tidak
+              memengaruhi akses ke Ledjer.
+            </p>
+            <p className="mt-2 text-xs text-wood-500">
+              ⚠️ Dukungan dilakukan di platform eksternal (Trakteer) dan tidak diproses oleh
+              Ledjer. Kebijakan Trakteer berlaku untuk transaksi dukungan tersebut.
+            </p>
+            <p className="mt-1 text-xs text-wood-500">
               Jika kebijakan harga berubah, kami akan memperbarui informasi layanan terlebih dahulu.
             </p>
           </section>
@@ -37,7 +45,8 @@ export function RefundPolicyPage() {
             <h2 className="text-lg font-semibold text-wood-800">3. Pengembalian Dana</h2>
             <p>
               Karena Ledjer saat ini tidak memproses pembayaran, tidak ada pengembalian dana yang
-              berlaku untuk penggunaan layanan.
+              berlaku untuk penggunaan layanan. Dukungan sukarela melalui Trakteer diatur oleh
+              kebijakan Trakteer.
             </p>
           </section>
 
