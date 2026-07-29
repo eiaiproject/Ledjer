@@ -132,8 +132,11 @@ test.describe("Budgets CRUD", () => {
     await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(5000);
 
-    await expect(authPage.getByRole("button", { name: /buat anggaran/i })).toBeVisible({ timeout: 5000 });
-    await authPage.getByRole("button", { name: /buat anggaran/i }).click();
+    // Try both EmptyState action button and PageShell header button
+    const budgetBtn = authPage.getByRole("button", { name: /buat anggaran/i })
+      .or(authPage.getByRole("button", { name: /anggaran baru/i }));
+    await expect(budgetBtn.first()).toBeVisible({ timeout: 5000 });
+    await budgetBtn.first().click();
     await authPage.waitForTimeout(1000);
 
     // Dialog accessible from text content (Modal used without title prop)
@@ -210,8 +213,11 @@ test.describe("Fixed Assets CRUD", () => {
     await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(5000);
 
-    await expect(authPage.getByRole("button", { name: /tambah aset/i })).toBeVisible({ timeout: 5000 });
-    await authPage.getByRole("button", { name: /tambah aset/i }).click();
+    // Try both EmptyState action button and PageShell header button
+    const assetBtn = authPage.getByRole("button", { name: /tambah aset/i })
+      .or(authPage.getByRole("button", { name: /aset baru/i }));
+    await expect(assetBtn.first()).toBeVisible({ timeout: 5000 });
+    await assetBtn.first().click();
     await authPage.waitForTimeout(1000);
 
     // Dialog accessible from text content (Modal used without title prop)
