@@ -274,7 +274,7 @@ export function NotificationsPage() {
             onClick={() => setCategoryFilter(c.value)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
               (c.value === "" && !categoryFilter) || categoryFilter === c.value
-                ? "bg-ink text-white"
+                ? "bg-wood-500 text-white"
                 : "bg-wood-100 text-wood-700 hover:bg-wood-200"
             }`}
           >
