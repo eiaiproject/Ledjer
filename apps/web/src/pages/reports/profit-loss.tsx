@@ -384,11 +384,11 @@ function ReportMobile({
   const layout = buildReportLayout(report);
   return (
     <>
-      {layout.map((def, i) =>
+      {layout.map((def) =>
         def.type === "section" ? (
-          <SectionMobile key={`s-${i}`} section={sections[def.index]} showTotal={def.showTotal} />
+          <SectionMobile key={`section-${def.index}`} section={sections[def.index]} showTotal={def.showTotal} />
         ) : (
-          <ResultRow key={`r-${i}`} label={def.label} value={def.value} variant={def.variant} />
+          <ResultRow key={`result-${def.label}`} label={def.label} value={def.value} variant={def.variant} />
         )
       )}
     </>
@@ -484,13 +484,13 @@ function ReportTableBody({
   const layout = buildReportLayout(report);
   return (
     <>
-      {layout.map((def, i) =>
+      {layout.map((def) =>
         def.type === "section" ? (
-          <tbody key={`s-${i}`}>
+          <tbody key={`section-${def.index}`}>
             <SectionRows section={sections[def.index]} showTotal={def.showTotal} />
           </tbody>
         ) : (
-          <tbody key={`r-${i}`}>
+          <tbody key={`result-${def.label}`}>
             <ResultRowDesktop label={def.label} value={def.value} variant={def.variant} />
           </tbody>
         )

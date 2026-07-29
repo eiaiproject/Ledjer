@@ -7,15 +7,15 @@ type SupportPlacement = "landing" | "footer" | "app_menu" | "value_moment";
 interface SupportLinkProps
   extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "target" | "rel" | "children"> {
   /** Visual variant */
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
+  readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
   /** Placement identifier for analytics */
-  placement?: SupportPlacement;
+  readonly placement?: SupportPlacement;
   /** Label teks — default berbeda per placement */
-  label?: string;
+  readonly label?: string;
   /** Sembunyikan ikon external-link */
-  hideIcon?: boolean;
+  readonly hideIcon?: boolean;
   /** Kelas tambahan */
-  className?: string;
+  readonly className?: string;
 }
 
 const DEFAULT_LABELS: Record<SupportPlacement, string> = {

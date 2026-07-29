@@ -60,25 +60,15 @@ describe("SupportLink", () => {
   });
 
   describe("placement variant", () => {
-    it('defaults to "footer" placement', () => {
-      render(<SupportLink />);
-      const link = screen.getByRole("link");
-      expect(link).toHaveAttribute("data-placement", "footer");
-    });
-
-    it('sets data-placement to "landing"', () => {
-      render(<SupportLink placement="landing" />);
-      expect(screen.getByRole("link")).toHaveAttribute("data-placement", "landing");
-    });
-
-    it('sets data-placement to "app_menu"', () => {
-      render(<SupportLink placement="app_menu" />);
-      expect(screen.getByRole("link")).toHaveAttribute("data-placement", "app_menu");
-    });
-
-    it('sets data-placement to "value_moment"', () => {
-      render(<SupportLink placement="value_moment" />);
-      expect(screen.getByRole("link")).toHaveAttribute("data-placement", "value_moment");
+    it.each([
+      ["footer", undefined],
+      ["landing", "landing" as const],
+      ["app_menu", "app_menu" as const],
+      ["value_moment", "value_moment" as const],
+    ])("defaults data-placement to %s", (expected, placement) => {
+      const props = placement ? { placement } : {};
+      render(<SupportLink {...props} />);
+      expect(screen.getByRole("link")).toHaveAttribute("data-placement", expected);
     });
   });
 

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { SupportLink } from "@/components/ui/support-link";
 import { X } from "reicon-react";
@@ -8,13 +8,13 @@ import { isBannerDismissed, persistDismissal } from "./support-banner-utils";
 
 interface SupportBannerProps {
   /** Tambahan class CSS */
-  className?: string;
+  readonly className?: string;
   /** Jika true, cooldown diabaikan (dipaksa tampil) */
-  forceShow?: boolean;
+  readonly forceShow?: boolean;
   /** Callback saat banner ditutup */
-  onDismiss?: () => void;
+  readonly onDismiss?: () => void;
   /** Callback saat CTA diklik */
-  onSupportClick?: () => void;
+  readonly onSupportClick?: () => void;
 }
 
 /**
@@ -43,14 +43,19 @@ export function SupportBanner({
     onDismiss?.();
   }, [onDismiss]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+  // Escape key global listener — dipasang sebelum early return agar hook compliance
+  useEffect(() => {
+    if (dismissed) return;
+    const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        handleDismiss();
+        setUserDismissed(true);
+        persistDismissal();
+        onDismiss?.();
       }
-    },
-    [handleDismiss]
-  );
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [dismissed, onDismiss]);
 
   if (dismissed) return null;
 
@@ -58,7 +63,6 @@ export function SupportBanner({
     <div
       role="status"
       aria-live="polite"
-      onKeyDown={handleKeyDown}
       className={cn(
         "relative overflow-hidden rounded-xl border border-honey-200 bg-honey-50 p-4 pr-10 shadow-sm",
         "animate-[ledger-page-in_300ms_var(--ease-out)]",

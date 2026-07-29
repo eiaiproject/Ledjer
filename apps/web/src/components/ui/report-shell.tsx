@@ -65,9 +65,9 @@ export function ReportShell({
           )}
           {statusBadges && statusBadges.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
-              {statusBadges.map((badge, i) => (
+              {statusBadges.map((badge) => (
                 <span
-                  key={i}
+                  key={badge.label}
                   className={cn(
                     "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
                     badge.variant === "success" && "bg-leaf-100 text-leaf-700",
