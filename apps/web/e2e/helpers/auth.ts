@@ -72,8 +72,16 @@ export const test = base.extend<AuthFixtures>({
 
     // Navigate to the app root
     await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
-    // Give SPA time to render and settle
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000);
+
+    // Explicitly fetch current org to set current_organization_id in session.
+    // Without this, session.current_organization_id stays null and pages that
+    // check useOrgPermissions() (budgets, dimensions, fixed-assets) won't show
+    // action buttons because permissions resolve to false.
+    await page.evaluate(async () => {
+      await fetch("/api/organizations/current");
+    });
+    await page.waitForTimeout(1000);
 
     // Debug: check cookies
     const cookies = await context.cookies();

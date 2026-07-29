@@ -12,7 +12,10 @@ const TEST_PREFIX = `[E2E] ${Date.now()}`;
 
 /** Click the submit button inside a dialog (button with text Simpan/Tambah) */
 async function clickDialogSubmit(page: import("@playwright/test").Page, dialogName: RegExp) {
-  const dlg = page.getByRole('dialog', { name: dialogName });
+  // First try to find dialog by ARIA name; fall back to text content
+  const dlg = page.getByRole('dialog', { name: dialogName }).or(
+    page.locator('dialog[open]').filter({ hasText: dialogName })
+  );
   // The footer buttons are div children, not <footer> — use role button last()
   await dlg.getByRole('button', { name: /simpan|tambah/i }).last().click();
   // Wait for dialog to close (form submission processed)
@@ -122,14 +125,19 @@ test.describe("Products CRUD", () => {
 
 test.describe("Budgets CRUD", () => {
   test("Create a new budget", async ({ authPage }) => {
-    await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
+    // Navigate to dashboard first to initialize org context
+    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
+
+    await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.waitForTimeout(5000);
 
     await expect(authPage.getByRole("button", { name: /buat anggaran/i })).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /buat anggaran/i }).click();
     await authPage.waitForTimeout(1000);
 
-    const dlg = authPage.getByRole('dialog', { name: /buat anggaran baru/i });
+    // Dialog accessible from text content (Modal used without title prop)
+    const dlg = authPage.locator('dialog[open]').filter({ hasText: /buat anggaran baru/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
     // Period from
@@ -157,14 +165,19 @@ test.describe("Budgets CRUD", () => {
 
 test.describe("Dimensions CRUD", () => {
   test("Create a new dimension", async ({ authPage }) => {
-    await authPage.goto("/dimensions", { waitUntil: "networkidle", timeout: 15000 });
+    // Navigate to dashboard first to initialize org context
+    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
+
+    await authPage.goto("/dimensions", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.waitForTimeout(5000);
 
     await expect(authPage.getByRole("button", { name: /tambah/i }).first()).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /tambah/i }).first().click();
     await authPage.waitForTimeout(1000);
 
-    const dlg = authPage.getByRole('dialog', { name: /tambah .*/i });
+    // Dialog accessible from text content (Modal used without title prop)
+    const dlg = authPage.locator('dialog[open]').filter({ hasText: /tambah/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
     const nameInput = authPage.locator('#nama-dimensi');
@@ -189,14 +202,19 @@ test.describe("Dimensions CRUD", () => {
 
 test.describe("Fixed Assets CRUD", () => {
   test("Create a new fixed asset", async ({ authPage }) => {
-    await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
+    // Navigate to dashboard first to initialize org context
+    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
+
+    await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.waitForTimeout(5000);
 
     await expect(authPage.getByRole("button", { name: /tambah aset/i })).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /tambah aset/i }).click();
     await authPage.waitForTimeout(1000);
 
-    const dlg = authPage.getByRole('dialog', { name: /tambah aset tetap/i });
+    // Dialog accessible from text content (Modal used without title prop)
+    const dlg = authPage.locator('dialog[open]').filter({ hasText: /tambah aset tetap/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
     const codeInput = authPage.locator('#kode-aset');
