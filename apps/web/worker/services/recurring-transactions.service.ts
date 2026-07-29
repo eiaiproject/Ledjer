@@ -15,80 +15,17 @@ import { badRequest, notFound } from "../http/errors";
 import type {
   PostTransactionInput,
   PostTransactionResult,
-  TransactionType,
 } from "./transactions.service";
-
-export type Frequency = "daily" | "weekly" | "monthly" | "yearly" | "custom_days";
-export type RecurringStatus = "active" | "paused" | "completed" | "cancelled";
-export type ExecStatus = "success" | "failed" | "skipped";
-
-export interface CreateRecurringInput {
-  name: string;
-  transactionType: TransactionType;
-  frequency: Frequency;
-  intervalValue?: number;
-  dayOfMonth?: number;
-  dayOfWeek?: number;
-  monthOfYear?: number;
-  amountMinor: number;
-  partyId?: string;
-  cashAccountId?: string;
-  debitAccountId?: string;
-  description?: string;
-  notes?: string;
-  startDate: string;
-  endDate?: string;
-  postAsDraft?: boolean;
-}
-
-export interface UpdateRecurringInput {
-  name?: string;
-  amountMinor?: number;
-  partyId?: string;
-  cashAccountId?: string;
-  debitAccountId?: string;
-  description?: string;
-  notes?: string;
-  endDate?: string;
-  postAsDraft?: boolean;
-}
-
-export interface RecurringOutput {
-  id: string;
-  organizationId: string;
-  name: string;
-  transactionType: TransactionType;
-  frequency: Frequency;
-  intervalValue: number;
-  dayOfMonth: number | null;
-  dayOfWeek: number | null;
-  monthOfYear: number | null;
-  amountMinor: number;
-  partyId: string | null;
-  cashAccountId: string | null;
-  debitAccountId: string | null;
-  description: string;
-  notes: string | null;
-  startDate: string;
-  endDate: string | null;
-  nextExecutionDate: string | null;
-  status: RecurringStatus;
-  postAsDraft: boolean;
-  executionCount: number;
-  lastExecutedAt: number | null;
-  skipNext: boolean;
-  createdAt: number;
-}
-
-export interface ExecutionLogOutput {
-  id: string;
-  recurringTransactionId: string;
-  scheduledDate: string;
-  executedAt: number;
-  transactionId: string | null;
-  status: ExecStatus;
-  errorMessage: string | null;
-}
+import type {
+  Frequency,
+  RecurringStatus,
+  ExecStatus,
+  TransactionType,
+  CreateRecurringInput,
+  UpdateRecurringInput,
+  RecurringOutput,
+  ExecutionLogOutput,
+} from "../shared/recurring-transactions.types";
 
 // ---------------------------------------------------------------------------
 // Date computation
