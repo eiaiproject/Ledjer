@@ -73,24 +73,14 @@ describe("SupportLink", () => {
   });
 
   describe("default labels per placement", () => {
-    it('landing defaults to "Dukung Ledjer di Trakteer"', () => {
-      render(<SupportLink placement="landing" />);
-      expect(screen.getByRole("link")).toHaveTextContent("Dukung Ledjer di Trakteer");
-    });
-
-    it('footer defaults to "Dukung pengembangan Ledjer"', () => {
-      render(<SupportLink placement="footer" />);
-      expect(screen.getByRole("link")).toHaveTextContent("Dukung pengembangan Ledjer");
-    });
-
-    it('app_menu defaults to "Traktir pengembang"', () => {
-      render(<SupportLink placement="app_menu" />);
-      expect(screen.getByRole("link")).toHaveTextContent("Traktir pengembang");
-    });
-
-    it('value_moment defaults to "Dukung Ledjer"', () => {
-      render(<SupportLink placement="value_moment" />);
-      expect(screen.getByRole("link")).toHaveTextContent("Dukung Ledjer");
+    it.each([
+      ["landing", "Dukung Ledjer di Trakteer"],
+      ["footer", "Dukung pengembangan Ledjer"],
+      ["app_menu", "Traktir pengembang"],
+      ["value_moment", "Dukung Ledjer"],
+    ] as const)("placement %s defaults to %s", (placement, expected) => {
+      render(<SupportLink placement={placement} />);
+      expect(screen.getByRole("link")).toHaveTextContent(expected);
     });
   });
 
