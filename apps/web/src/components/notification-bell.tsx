@@ -11,37 +11,34 @@ import {
 } from "@/lib/api/notifications";
 import { Bell, Loader, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, Check } from "reicon-react";
 
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  overdue_receivable: <AlertTriangle className="h-4 w-4" />,
-  upcoming_payable: <Clock className="h-4 w-4" />,
-  low_stock: <Package className="h-4 w-4" />,
-  pending_approval: <Clock className="h-4 w-4" />,
-  unclosed_period: <Lock className="h-4 w-4" />,
-  team_invitation: <Upload className="h-4 w-4" />,
-  import_failed: <Upload className="h-4 w-4" />,
-  export_completed: <Download className="h-4 w-4" />,
-  backup_failed: <Ban className="h-4 w-4" />,
-  role_changed: <Shield className="h-4 w-4" />,
-  new_device_login: <Shield className="h-4 w-4" />,
-  recurring_failed: <Repeat className="h-4 w-4" />,
-  system: <Refresh className="h-4 w-4" />,
+interface CategoryConfig {
+  icon: React.ReactNode;
+  color: string;
+}
+
+const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
+  overdue_receivable: { icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
+  upcoming_payable: { icon: <Clock className="h-4 w-4" />, color: "text-amber-600 bg-amber-50" },
+  low_stock: { icon: <Package className="h-4 w-4" />, color: "text-yellow-600 bg-yellow-50" },
+  pending_approval: { icon: <Clock className="h-4 w-4" />, color: "text-blue-600 bg-blue-50" },
+  unclosed_period: { icon: <Lock className="h-4 w-4" />, color: "text-purple-600 bg-purple-50" },
+  team_invitation: { icon: <Upload className="h-4 w-4" />, color: "text-green-600 bg-green-50" },
+  import_failed: { icon: <Upload className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
+  export_completed: { icon: <Download className="h-4 w-4" />, color: "text-green-600 bg-green-50" },
+  backup_failed: { icon: <Ban className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
+  role_changed: { icon: <Shield className="h-4 w-4" />, color: "text-indigo-600 bg-indigo-50" },
+  new_device_login: { icon: <Shield className="h-4 w-4" />, color: "text-orange-600 bg-orange-50" },
+  recurring_failed: { icon: <Repeat className="h-4 w-4" />, color: "text-rose-600 bg-rose-50" },
+  system: { icon: <Refresh className="h-4 w-4" />, color: "text-wood-600 bg-wood-50" },
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  overdue_receivable: "text-red-600 bg-red-50",
-  upcoming_payable: "text-amber-600 bg-amber-50",
-  low_stock: "text-yellow-600 bg-yellow-50",
-  pending_approval: "text-blue-600 bg-blue-50",
-  unclosed_period: "text-purple-600 bg-purple-50",
-  team_invitation: "text-green-600 bg-green-50",
-  import_failed: "text-red-600 bg-red-50",
-  export_completed: "text-green-600 bg-green-50",
-  backup_failed: "text-red-600 bg-red-50",
-  role_changed: "text-indigo-600 bg-indigo-50",
-  new_device_login: "text-orange-600 bg-orange-50",
-  recurring_failed: "text-rose-600 bg-rose-50",
-  system: "text-wood-600 bg-wood-50",
-};
+function getCategoryIcon(category: string): React.ReactNode {
+  return CATEGORY_CONFIG[category]?.icon ?? <Bell className="h-4 w-4" />;
+}
+
+function getCategoryColor(category: string): string {
+  return CATEGORY_CONFIG[category]?.color ?? "bg-wood-100 text-wood-500";
+}
 
 const SEVERITY_DOTS: Record<string, string> = {
   critical: "bg-red-500",
@@ -163,8 +160,8 @@ export function NotificationBell() {
             )}
 
             {/* Icon */}
-            <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${CATEGORY_COLORS[notif.category] ?? "bg-wood-100 text-wood-500"}`}>
-              {CATEGORY_ICONS[notif.category] ?? <Bell className="h-4 w-4" />}
+            <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${getCategoryColor(notif.category)}`}>
+              {getCategoryIcon(notif.category)}
             </div>
 
             {/* Content */}

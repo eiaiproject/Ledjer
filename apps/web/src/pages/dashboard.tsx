@@ -128,7 +128,7 @@ export function DashboardPage() {
   return (
     <PageShell
       header={{
-        title: `Halo${orgData?.organization ? `, ${orgData.organization.name}` : ""}`,
+        title: orgData?.organization ? `Halo, ${orgData.organization.name}` : "Halo",
         description: "Berikut ringkasan keuangan bisnis Anda",
         actions: summary?.period_from && summary?.period_to
           ? [{ key: "period", children: (

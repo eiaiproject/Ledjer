@@ -113,169 +113,157 @@ export function RegisterPage() {
   };
 
   const pageContent = pendingEmail ? (
-    <>
-      <Card className="p-6">
-        <CardContent>
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
-              <Envelope className="h-6 w-6" />
-            </div>
-            <h1 className="text-xl font-bold text-text-primary">
-              Cek email Anda
-            </h1>
-            <p className="mt-2 text-sm text-text-secondary">
-              Kami telah mengirim tautan konfirmasi ke{" "}
-              <span className="font-medium break-words text-text-primary">{pendingEmail}</span>. Klik tautan tersebut untuk mengaktifkan akun Anda.
-            </p>
+    <Card className="p-6">
+      <CardContent>
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-leaf-50 text-leaf-700">
+            <Envelope className="h-6 w-6" />
           </div>
-
-          <div className="mt-6 space-y-3 rounded-lg border border-wood-100 bg-cream-50 p-4 text-xs text-text-secondary">
-            <p>Tidak menerima email? Periksa folder spam atau promosi.</p>
-          </div>
-
-          {resendMessage && (
-            <output
-              className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success"
-            >
-              {resendMessage}
-            </output>
-          )}
-          {resendError && (
-            <div
-              className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error"
-              role="alert"
-            >
-              {resendError}
-            </div>
-          )}
-
-          <div className="mt-6 space-y-2">
-            <Button
-              type="button"
-              fullWidth
-              onClick={handleResend}
-              loading={resendLoading}
-              disabled={resendLoading || resendCooldown.isActive}
-            >
-              {resendCooldown.isActive
-                ? `Kirim ulang (${resendCooldown.remaining}s)`
-                : "Kirim ulang email"}
-            </Button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setPendingEmail(null);
-                setResendMessage(null);
-                setResendError(null);
-                resendCooldown.reset();
-              }}
-              className="w-full rounded-md px-3 py-2 text-sm text-wood-600 hover:text-wood-800 hover:bg-cream-100"
-            >
-              Gunakan email lain
-            </button>
-          </div>
-
-          <p className="mt-4 text-center text-sm text-wood-500">
-            Sudah konfirmasi?{" "}
-            <Link
-              to={loginPath}
-              className="font-medium text-wood-600 hover:text-wood-800"
-            >
-              Masuk
-            </Link>
+          <h1 className="text-xl font-bold text-text-primary">
+            Cek email Anda
+          </h1>
+          <p className="mt-2 text-sm text-text-secondary">
+            Kami telah mengirim tautan konfirmasi ke{" "}
+            <span className="font-medium break-words text-text-primary">{pendingEmail}</span>. Klik tautan tersebut untuk mengaktifkan akun Anda.
           </p>
-        </CardContent>
-      </Card>
-    </>
+        </div>
+
+        <div className="mt-6 space-y-3 rounded-lg border border-wood-100 bg-cream-50 p-4 text-xs text-text-secondary">
+          <p>Tidak menerima email? Periksa folder spam atau promosi.</p>
+        </div>
+
+        {resendMessage && (
+          <output className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success">
+            {resendMessage}
+          </output>
+        )}
+        {resendError && (
+          <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+            {resendError}
+          </div>
+        )}
+
+        <div className="mt-6 space-y-2">
+          <Button
+            type="button"
+            fullWidth
+            onClick={handleResend}
+            loading={resendLoading}
+            disabled={resendLoading || resendCooldown.isActive}
+          >
+            {resendCooldown.isActive
+              ? `Kirim ulang (${resendCooldown.remaining}s)`
+              : "Kirim ulang email"}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPendingEmail(null);
+              setResendMessage(null);
+              setResendError(null);
+              resendCooldown.reset();
+            }}
+            className="w-full rounded-md px-3 py-2 text-sm text-wood-600 hover:text-wood-800 hover:bg-cream-100"
+          >
+            Gunakan email lain
+          </button>
+        </div>
+
+        <p className="mt-4 text-center text-sm text-wood-500">
+          Sudah konfirmasi?{" "}
+          <Link to={loginPath} className="font-medium text-wood-600 hover:text-wood-800">
+            Masuk
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
   ) : (
-    <>
-      <Card className="p-6">
-        <CardContent>
-          <h1 className="text-xl font-bold text-text-primary">Mulai pembukuan usaha Anda</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Buat akun Ledjer dan mulai mencatat transaksi, mengelola stok, serta melihat laporan keuangan usaha Anda.
-          </p>
+    <Card className="p-6">
+      <CardContent>
+        <h1 className="text-xl font-bold text-text-primary">Mulai pembukuan usaha Anda</h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          Buat akun Ledjer dan mulai mencatat transaksi, mengelola stok, serta melihat laporan keuangan usaha Anda.
+        </p>
 
-          {error && (
-            <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-            <Input
-              {...register("fullName")}
-              label="Nama lengkap"
-              placeholder="Nama lengkap"
-              prefix={<User className="h-4 w-4 text-wood-500" />}
-              error={errors.fullName?.message}
-              autoComplete="name"
-            />
-
-            <Input
-              {...register("email")}
-              label="Email"
-              type="email"
-              placeholder="email@contoh.com"
-              prefix={<Envelope className="h-4 w-4 text-wood-500" />}
-              error={errors.email?.message}
-              autoComplete="email"
-            />
-
-            <Input
-              {...register("password")}
-              label="Password"
-              type="password"
-              placeholder="Minimal 8 karakter, 1 huruf besar, 1 angka"
-              prefix={<Lock className="h-4 w-4 text-wood-500" />}
-              error={errors.password?.message}
-              autoComplete="new-password"
-            />
-
-            <Input
-              {...register("confirmPassword")}
-              label="Konfirmasi password"
-              type="password"
-              placeholder="Konfirmasi password"
-              prefix={<Lock className="h-4 w-4 text-wood-500" />}
-              error={errors.confirmPassword?.message}
-              autoComplete="new-password"
-            />
-
-            <Button type="submit" fullWidth loading={loading} disabled={loading || oauthLoading}>
-              Buat akun gratis
-            </Button>
-          </form>
-
-          <div className="relative mt-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-wood-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-surface px-2 text-wood-500">atau</span>
-            </div>
+        {error && (
+          <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+            {error}
           </div>
+        )}
 
-          <GoogleAuthButton
-            mode="signup"
-            onClick={handleGoogleSignUp}
-            loading={oauthLoading}
-            disabled={loading || oauthLoading}
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+          <Input
+            {...register("fullName")}
+            label="Nama lengkap"
+            placeholder="Nama lengkap"
+            prefix={<User className="h-4 w-4 text-wood-500" />}
+            error={errors.fullName?.message}
+            autoComplete="name"
           />
 
-          <p className="mt-4 text-center text-sm text-wood-500">
-            Sudah punya akun?{" "}
-            <Link to={loginPath} className="font-medium text-wood-600 hover:text-wood-800">
-              Masuk
-            </Link>
-          </p>
-          <p className="mt-3 text-center text-xs text-wood-500">
-            Gratis digunakan saat ini &middot; Tanpa kartu kredit
-          </p>
-        </CardContent>
-      </Card>
-    </>
+          <Input
+            {...register("email")}
+            label="Email"
+            type="email"
+            placeholder="email@contoh.com"
+            prefix={<Envelope className="h-4 w-4 text-wood-500" />}
+            error={errors.email?.message}
+            autoComplete="email"
+          />
+
+          <Input
+            {...register("password")}
+            label="Password"
+            type="password"
+            placeholder="Minimal 8 karakter, 1 huruf besar, 1 angka"
+            prefix={<Lock className="h-4 w-4 text-wood-500" />}
+            error={errors.password?.message}
+            autoComplete="new-password"
+          />
+
+          <Input
+            {...register("confirmPassword")}
+            label="Konfirmasi password"
+            type="password"
+            placeholder="Konfirmasi password"
+            prefix={<Lock className="h-4 w-4 text-wood-500" />}
+            error={errors.confirmPassword?.message}
+            autoComplete="new-password"
+          />
+
+          <Button type="submit" fullWidth loading={loading} disabled={loading || oauthLoading}>
+            Buat akun gratis
+          </Button>
+        </form>
+
+        <div className="relative mt-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-wood-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-surface px-2 text-wood-500">atau</span>
+          </div>
+        </div>
+
+        <GoogleAuthButton
+          mode="signup"
+          onClick={handleGoogleSignUp}
+          loading={oauthLoading}
+          disabled={loading || oauthLoading}
+        />
+
+        <p className="mt-4 text-center text-sm text-wood-500">
+          Sudah punya akun?{" "}
+          <Link to={loginPath} className="font-medium text-wood-600 hover:text-wood-800">
+            Masuk
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-xs text-wood-500">
+          Gratis digunakan saat ini &middot; Tanpa kartu kredit
+        </p>
+      </CardContent>
+    </Card>
   );
 
   return (
