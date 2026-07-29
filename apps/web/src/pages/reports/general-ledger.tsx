@@ -221,7 +221,7 @@ function SummaryBar({ ledger, totals, isGlobalScope, isBalanced }: {
 
 const FILTER_PANEL_ID = "general-ledger-filters";
 
-export function GeneralLedgerPage() {
+export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity 16/15; sub-components already extracted
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
 

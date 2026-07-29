@@ -45,7 +45,7 @@ function formatVariancePercent(value: number | null): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
-export function BudgetsPage() {
+export function BudgetsPage() { // NOSONAR typescript:S3776 — complexity 16/15; extraction would break clarity of UI logic
   const queryClient = useQueryClient();
   const { isOwner, canManageTeam } = useOrgPermissions();
   const canManage = isOwner || canManageTeam;

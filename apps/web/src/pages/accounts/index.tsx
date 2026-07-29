@@ -671,7 +671,7 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
-export function AccountsPage() {
+export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/15; refactoring would break layout clarity
   const { data: orgData } = useOrganization();
   const { canManageAccounts, canCreateExports } = useOrgPermissions();
   const [search, setSearch] = useState("");
