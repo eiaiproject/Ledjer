@@ -25,6 +25,7 @@ import {
   type DimensionType,
   
 } from "@/lib/api/dimensions";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   Plus,
   
@@ -211,26 +212,26 @@ export function DimensionsPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Dimensi</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Kelola cabang, departemen, proyek, pusat biaya, dan pusat laba
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleOpenReport}>
-            <Chart className="h-4 w-4" />
-            Laporan Dimensi
-          </Button>
-          {canManage && (
-            <Button size="sm" onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4" />
-              Tambah
-            </Button>
-          )}
-        </div>
-      </header>
+      <PageShell
+        header={{
+          title: "Dimensi",
+          description: "Kelola cabang, departemen, proyek, pusat biaya, dan pusat laba",
+          actions: [
+            { key: "report", children: (
+              <Button variant="outline" size="sm" onClick={handleOpenReport}>
+                <Chart className="h-4 w-4" />
+                Laporan Dimensi
+              </Button>
+            )},
+            ...(canManage ? [{ key: "create", children: (
+              <Button size="sm" onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4" />
+                Tambah
+              </Button>
+            ) }] : []),
+          ],
+        }}
+      >
 
       {/* Dimension Type Tabs */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -358,6 +359,8 @@ export function DimensionsPage() {
           })}
         </div>
       )}
+
+    </PageShell>
 
       {/* ── Create Modal ──────────────────────────────────── */}
 

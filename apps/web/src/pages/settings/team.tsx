@@ -41,6 +41,7 @@ import {
   Ban,
   InfoCircle,
 } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 // ── Canonical role and permission model ─────────────────────────────
 // Backend source of truth: organization.service.ts ROLE_PERMISSIONS
@@ -355,13 +356,12 @@ export function TeamSettingsPage() {
 
   if (!canReadTeam) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Tim dan izin</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola anggota tim dan hak akses mereka.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Tim dan izin",
+          description: "Kelola anggota tim dan hak akses mereka.",
+        }}
+      >
         <Card>
           <CardContent>
             <div className="rounded-lg border border-wood-100 bg-cream-50 p-4 text-center">
@@ -380,9 +380,9 @@ export function TeamSettingsPage() {
                         {hasPermission ? (
                           <Check className="h-3.5 w-3.5 text-leaf-600" />
                         ) : (
-                          <X className="h-3.5 w-3.5 text-wood-400" />
+                          <X className="h-3.5 w-3.5 text-wood-500" />
                         )}
-                        <span className={hasPermission ? "text-wood-700" : "text-wood-400"}>
+                        <span className={hasPermission ? "text-wood-700" : "text-wood-500"}>
                           {PERMISSION_LABELS[key]}
                         </span>
                       </div>
@@ -393,7 +393,7 @@ export function TeamSettingsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </PageShell>
     );
   }
 
@@ -401,32 +401,29 @@ export function TeamSettingsPage() {
 
   if (membersError) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Tim dan izin</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola anggota tim dan hak akses mereka.
-          </p>
-        </div>
+      <PageShell
+        header={{
+          title: "Tim dan izin",
+          description: "Kelola anggota tim dan hak akses mereka.",
+        }}
+      >
         <ErrorState
           error={membersError}
           onRetry={refetchMembers}
         />
-      </div>
+      </PageShell>
     );
   }
 
   // ── Render ──────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Tim dan izin</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Undang anggota dan atur hak akses mereka ke bisnis Anda.
-        </p>
-      </div>
+    <PageShell
+      header={{
+        title: "Tim dan izin",
+        description: "Undang anggota dan atur hak akses mereka ke bisnis Anda.",
+      }}
+    >
 
       {/* Owner section */}
       <section aria-labelledby="owners-heading">
@@ -626,7 +623,7 @@ export function TeamSettingsPage() {
         confirmLabel="Hapus dari tim"
         loading={removeMutation.isPending}
       />
-    </div>
+    </PageShell>
   );
 }
 
@@ -959,7 +956,7 @@ function MemberCard({
             <p className="break-words text-xs text-wood-500">
               {member.email}
               {joinedDate && (
-                <span className="text-wood-300 sm:ml-2">
+                <span className="text-wood-500 sm:ml-2">
                   Bergabung {joinedDate}
                 </span>
               )}
@@ -1136,9 +1133,9 @@ function RoleChangeDialog({
                       {enabled ? (
                         <Check className="h-3 w-3 text-leaf-600" />
                       ) : (
-                        <X className="h-3 w-3 text-wood-300" />
+                        <X className="h-3 w-3 text-wood-500" />
                       )}
-                      <span className={enabled ? "text-wood-700" : "text-wood-400"}>
+                      <span className={enabled ? "text-wood-700" : "text-wood-500"}>
                         {PERMISSION_LABELS[key]}
                       </span>
                     </li>
@@ -1215,9 +1212,9 @@ function RoleComparisonGuide() {
                           {enabled ? (
                             <Check className="h-3.5 w-3.5 text-leaf-600" />
                           ) : (
-                            <X className="h-3.5 w-3.5 text-wood-300" />
+                            <X className="h-3.5 w-3.5 text-wood-500" />
                           )}
-                          <span className={enabled ? "text-wood-700" : "text-wood-400"}>
+                          <span className={enabled ? "text-wood-700" : "text-wood-500"}>
                             {PERMISSION_LABELS[key]}
                           </span>
                         </div>

@@ -14,6 +14,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 import { CheckCircle, AlertTriangle } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 /* Tab: Import statement */
 interface ImportResult {
@@ -293,21 +294,22 @@ export default function ReconciliationPage() {
   const [tab, setTab] = useState<"import" | "report">("import");
 
   return (
-    <div className="space-y-6 p-4">
-      <h1 className="text-xl font-semibold text-wood-800">
-        Rekonsiliasi Bank
-        <HelpTooltip topic="reconciliation" position="right" />
-      </h1>
+    <PageShell
+      header={{
+        title: "Rekonsiliasi Bank",
+        actions: [{ key: "help", children: <HelpTooltip topic="reconciliation" position="right" /> }],
+      }}
+    >
 
       <div className="flex gap-2 border-b border-wood-200">
         <button           type="button"
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "import" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-400 hover:text-wood-600"}`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "import" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-500 hover:text-wood-600"}`}
           onClick={() => setTab("import")}
         >
           Import Statement
         </button>
         <button           type="button"
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "report" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-400 hover:text-wood-600"}`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "report" ? "border-wood-800 text-wood-800" : "border-transparent text-wood-500 hover:text-wood-600"}`}
           onClick={() => setTab("report")}
         >
           Laporan
@@ -316,6 +318,6 @@ export default function ReconciliationPage() {
 
       {tab === "import" && <ImportStatementTab onImported={(id) => { setStatementId(id); setTab("report"); }} />}
       {tab === "report" && (statementId ? <StatementReportTab statementId={statementId} /> : <EmptyState title="Import Statement Dulu" description="Import statement bank untuk melihat laporan." />)}
-    </div>
+    </PageShell>
   );
 }

@@ -42,7 +42,7 @@ describe('RegisterPage', () => {
         expect(screen.getByLabelText(/nama lengkap/i)).toBeTruthy();
         expect(screen.getByLabelText(/email/i)).toBeTruthy();
         expect(screen.getAllByLabelText(/password/i)).toHaveLength(2);
-        expect(screen.getByRole('button', { name: /^daftar$/i })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /buat akun gratis/i })).toBeTruthy();
       },
     },
     {
@@ -108,7 +108,7 @@ describe('RegisterPage', () => {
     );
 
     const googleButton = screen.getByRole('button', { name: /daftar dengan google/i });
-    const submitButton = screen.getByRole('button', { name: /^daftar$/i });
+    const submitButton = screen.getByRole('button', { name: /buat akun gratis/i });
 
     expect(submitButton).not.toBeDisabled();
     expect(googleButton).not.toBeDisabled();

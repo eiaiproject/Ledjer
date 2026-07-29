@@ -4,9 +4,6 @@ import { expect } from "@playwright/test";
 /**
  * Masterdata CRUD: Accounts, Products, Budgets, Dimensions, Fixed Assets
  *
- * NOTE: budgets, dimensions, fixed-assets pages currently crash with
- * React Error #31 on production (lazy import bug fix not yet deployed).
- * Their tests will fail until the fix is live.
  */
 
 const TEST_PREFIX = `[E2E] ${Date.now()}`;
@@ -15,17 +12,14 @@ const TEST_PREFIX = `[E2E] ${Date.now()}`;
 
 /** Click the submit button inside a dialog (button with text Simpan/Tambah) */
 async function clickDialogSubmit(page: import("@playwright/test").Page, dialogName: RegExp) {
-  const dlg = page.getByRole('dialog', { name: dialogName });
+  // First try to find dialog by ARIA name; fall back to text content
+  const dlg = page.getByRole('dialog', { name: dialogName }).or(
+    page.locator('dialog[open]').filter({ hasText: dialogName })
+  );
   // The footer buttons are div children, not <footer> — use role button last()
   await dlg.getByRole('button', { name: /simpan|tambah/i }).last().click();
   // Wait for dialog to close (form submission processed)
   await dlg.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-}
-
-/** Check if the page crashed with React Error #31 */
-async function isPageCrashed(page: import("@playwright/test").Page) {
-  return await page.locator('text=Unexpected Application Error')
-    .isVisible({ timeout: 2000 }).catch(() => false);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -130,31 +124,39 @@ test.describe("Products CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Budgets CRUD", () => {
-  // Known crash: React Error #31 on production (lazy import fix in PR #51)
-  test.fixme("Create a new budget", async ({ authPage }) => {
-    await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
+  test("Create a new budget", async ({ authPage }) => {
+    // Navigate to dashboard first to initialize org context
+    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    if (await isPageCrashed(authPage)) {
-      return;
-    }
+    await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.waitForTimeout(5000);
 
-    await expect(authPage.getByRole("button", { name: /buat anggaran/i })).toBeVisible({ timeout: 5000 });
-    await authPage.getByRole("button", { name: /buat anggaran/i }).click();
+    // Try both EmptyState action button and PageShell header button
+    const budgetBtn = authPage.getByRole("button", { name: /buat anggaran/i })
+      .or(authPage.getByRole("button", { name: /anggaran baru/i }));
+    await expect(budgetBtn.first()).toBeVisible({ timeout: 5000 });
+    await budgetBtn.first().click();
     await authPage.waitForTimeout(1000);
 
-    const dlg = authPage.getByRole('dialog', { name: /buat anggaran baru/i });
+    // Dialog accessible from text content (Modal used without title prop)
+    const dlg = authPage.locator('dialog[open]').filter({ hasText: /buat anggaran baru/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
-    // Period from
-    const periodFrom = authPage.locator('#periode-dari');
-    if (await periodFrom.isVisible({ timeout: 2000 }).catch(() => false)) {
-      const now = new Date();
-      await periodFrom.fill(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    // Select an account (required — submit disabled without accountId)
+    const accountSelect = dlg.locator('#budgetAccount');
+    await expect(accountSelect).toBeVisible({ timeout: 3000 });
+    const firstOption = accountSelect.locator('option:not([value=""])').first();
+    const accountValue = await firstOption.getAttribute('value');
+    if (accountValue) {
+      await accountSelect.selectOption(accountValue);
     }
 
-    // Notes
-    const notes = authPage.locator('#catatan');
+    // Fill amount (required for meaningful budget)
+    await dlg.locator('#budgetAmount').fill('1000000');
+
+    // Notes (optional)
+    const notes = dlg.locator('#budgetNotes');
     if (await notes.isVisible({ timeout: 2000 }).catch(() => false)) {
       await notes.fill(`E2E Budget ${TEST_PREFIX}`);
     }
@@ -170,31 +172,27 @@ test.describe("Budgets CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Dimensions CRUD", () => {
-  // Known crash: React Error #31 on production (lazy import fix in PR #51)
-  test.fixme("Create a new dimension", async ({ authPage }) => {
-    await authPage.goto("/dimensions", { waitUntil: "networkidle", timeout: 15000 });
+  test("Create a new dimension", async ({ authPage }) => {
+    // Navigate to dashboard first to initialize org context
+    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    if (await isPageCrashed(authPage)) {
-      return;
-    }
+    await authPage.goto("/dimensions", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.waitForTimeout(5000);
 
     await expect(authPage.getByRole("button", { name: /tambah/i }).first()).toBeVisible({ timeout: 5000 });
     await authPage.getByRole("button", { name: /tambah/i }).first().click();
     await authPage.waitForTimeout(1000);
 
-    const dlg = authPage.getByRole('dialog', { name: /tambah .*/i });
+    // Dialog accessible from text content (Modal used without title prop)
+    const dlg = authPage.locator('dialog[open]').filter({ hasText: /tambah/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
-    const nameInput = authPage.locator('#nama-dimensi');
-    if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nameInput.fill(`Dimensi E2E ${TEST_PREFIX}`);
-    }
+    // Fill code (required — submit disabled without code && name)
+    await dlg.locator('#dimCode').fill(`BR-${TEST_PREFIX}`);
 
-    const typeSelect = authPage.locator('#tipe-dimensi');
-    if (await typeSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await typeSelect.selectOption('customer');
-    }
+    // Fill name (required)
+    await dlg.locator('#dimName').fill(`Cabang E2E ${TEST_PREFIX}`);
 
     await clickDialogSubmit(authPage, /tambah .*/i);
     await authPage.waitForTimeout(3000);
@@ -207,36 +205,52 @@ test.describe("Dimensions CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Fixed Assets CRUD", () => {
-  // Known crash: React Error #31 on production (lazy import fix in PR #51)
-  test.fixme("Create a new fixed asset", async ({ authPage }) => {
-    await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
+  test("Create a new fixed asset", async ({ authPage }) => {
+    // Navigate to dashboard first to initialize org context
+    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    if (await isPageCrashed(authPage)) {
-      return;
-    }
+    await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.waitForTimeout(5000);
 
-    await expect(authPage.getByRole("button", { name: /tambah aset/i })).toBeVisible({ timeout: 5000 });
-    await authPage.getByRole("button", { name: /tambah aset/i }).click();
+    // Try both EmptyState action button and PageShell header button
+    const assetBtn = authPage.getByRole("button", { name: /tambah aset/i })
+      .or(authPage.getByRole("button", { name: /aset baru/i }));
+    await expect(assetBtn.first()).toBeVisible({ timeout: 5000 });
+    await assetBtn.first().click();
     await authPage.waitForTimeout(1000);
 
-    const dlg = authPage.getByRole('dialog', { name: /tambah aset tetap/i });
+    // Dialog accessible from text content (Modal used without title prop)
+    const dlg = authPage.locator('dialog[open]').filter({ hasText: /tambah aset tetap/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
-    const codeInput = authPage.locator('#kode-aset');
-    if (await codeInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await codeInput.fill(`FA-${TEST_PREFIX}`);
-    }
+    // Fill asset code (required)
+    await dlg.locator('#assetCode').fill(`FA-${TEST_PREFIX}`);
 
-    const nameInput = authPage.locator('#nama-aset');
-    if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nameInput.fill(`Aset E2E ${TEST_PREFIX}`);
-    }
+    // Fill asset name (required)
+    await dlg.locator('#assetName').fill(`Aset E2E ${TEST_PREFIX}`);
 
-    const priceInput = authPage.locator('#harga-perolehan');
-    if (await priceInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await priceInput.fill('10000000');
-    }
+    // Select account asset (required)
+    const assetSelect = dlg.locator('#accountAssetId');
+    await expect(assetSelect).toBeVisible({ timeout: 3000 });
+    const firstAssetOpt = assetSelect.locator('option:not([value=""])').first();
+    const assetVal = await firstAssetOpt.getAttribute('value');
+    if (assetVal) await assetSelect.selectOption(assetVal);
+
+    // Select depreciation account (required)
+    const deprSelect = dlg.locator('#accountDepreciationId');
+    const firstDeprOpt = deprSelect.locator('option:not([value=""])').first();
+    const deprVal = await firstDeprOpt.getAttribute('value');
+    if (deprVal) await deprSelect.selectOption(deprVal);
+
+    // Select expense account (required)
+    const expenseSelect = dlg.locator('#accountExpenseId');
+    const firstExpenseOpt = expenseSelect.locator('option:not([value=""])').first();
+    const expenseVal = await firstExpenseOpt.getAttribute('value');
+    if (expenseVal) await expenseSelect.selectOption(expenseVal);
+
+    // Fill acquisition cost
+    await dlg.locator('#acquisitionCostMinor').fill('10000000');
 
     await clickDialogSubmit(authPage, /tambah aset tetap/i);
     await authPage.waitForTimeout(3000);

@@ -29,6 +29,7 @@ import {
   InfoCircle,
 } from "reicon-react";
 import type { BadgeProps } from "@/components/ui/badge";
+import { PageShell } from "@/components/ui/page-shell";
 
 const STATUS_BADGE: Record<ApprovalStatus, { variant: BadgeProps["variant"]; label: string }> = {
   pending: { variant: "info", label: "Menunggu" },
@@ -121,21 +122,15 @@ export function ApprovalsPage() {
   }, [selectedRequest, rejectReason, rejectNote, rejectMutation]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Persetujuan</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola permintaan persetujuan dari anggota tim.
-          </p>
-        </div>
-        {pendingCount !== undefined && pendingCount > 0 && (
-          <Badge variant="info" size="md">
-            {pendingCount} menunggu
-          </Badge>
-        )}
-      </div>
+    <PageShell
+      header={{
+        title: "Persetujuan",
+        description: "Kelola permintaan persetujuan dari anggota tim.",
+        actions: pendingCount !== undefined && pendingCount > 0
+          ? [{ key: "pending", children: <Badge variant="info" size="md">{pendingCount} menunggu</Badge> }]
+          : undefined,
+      }}
+    >
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -358,6 +353,6 @@ export function ApprovalsPage() {
           </Button>
         </ModalFooter>
       </Modal>
-    </div>
+    </PageShell>
   );
 }

@@ -21,6 +21,7 @@ import {
   type Budget,
 } from "@/lib/api/budgets";
 import { listAccounts } from "@/lib/api/accounts";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   Wallet,
   Plus,
@@ -44,7 +45,7 @@ function formatVariancePercent(value: number | null): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
-export function BudgetsPage() {
+export function BudgetsPage() { // NOSONAR typescript:S3776 — complexity 16/15; extraction would break clarity of UI logic
   const queryClient = useQueryClient();
   const { isOwner, canManageTeam } = useOrgPermissions();
   const canManage = isOwner || canManageTeam;
@@ -204,26 +205,26 @@ export function BudgetsPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Anggaran</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Kelola anggaran per akun dan bandingkan dengan realisasi
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleOpenReport}>
-            <Chart className="h-4 w-4" />
-            Realisasi vs Anggaran
-          </Button>
-          {canManage && (
-            <Button size="sm" onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4" />
-              Anggaran Baru
-            </Button>
-          )}
-        </div>
-      </header>
+      <PageShell
+        header={{
+          title: "Anggaran",
+          description: "Kelola anggaran per akun dan bandingkan dengan realisasi",
+          actions: [
+            { key: "report", children: (
+              <Button variant="outline" size="sm" onClick={handleOpenReport}>
+                <Chart className="h-4 w-4" />
+                Realisasi vs Anggaran
+              </Button>
+            )},
+            ...(canManage ? [{ key: "create", children: (
+              <Button size="sm" onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4" />
+                Anggaran Baru
+              </Button>
+            ) }] : []),
+          ],
+        }}
+      >
 
       {/* Variance Alerts */}
       {alertData && alertData.length > 0 && (
@@ -336,6 +337,8 @@ export function BudgetsPage() {
           })}
         </div>
       )}
+
+    </PageShell>
 
       {/* ── Create Budget Modal ───────────────────────────── */}
 

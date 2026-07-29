@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import { badRequest, tooManyRequests } from "../http/errors";
 import { checkRateLimit } from "../services/rate-limit.service";
+import type { CreateRecurringInput, RecurringStatus } from "../shared/recurring-transactions.types";
 import {
   createRecurringTransaction,
   getRecurringTransaction,
@@ -13,8 +14,6 @@ import {
   skipNextOccurrence,
   executeRecurringTransaction,
   getExecutionLog,
-  type CreateRecurringInput,
-  type RecurringStatus,
 } from "../services/recurring-transactions.service";
 import { postTransaction } from "../services/transactions.service";
 

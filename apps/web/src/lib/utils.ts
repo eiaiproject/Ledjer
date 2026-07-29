@@ -1,6 +1,12 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/**
+ * Terpusat URL dukungan sukarela.
+ * Bersifat publik — bukan secret.
+ */
+export const SUPPORT_URL = "https://trakteer.id/eiaiproject/tip" as const;
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

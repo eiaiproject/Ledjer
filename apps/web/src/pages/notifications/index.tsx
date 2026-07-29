@@ -11,6 +11,7 @@ import {
   type NotificationCategory,
 } from "@/lib/api/notifications";
 import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, Check } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 const CATEGORY_LABELS: Record<string, string> = {
   overdue_receivable: "Piutang Jatuh Tempo",
@@ -152,7 +153,7 @@ export function NotificationsPage() {
     );
   } else if (!filtered.length) {
     notificationListContent = (
-      <div className="flex flex-col items-center gap-3 py-12 text-wood-400">
+      <div className="flex flex-col items-center gap-3 py-12 text-wood-500">
         <Bell className="h-10 w-10" />
         <p className="text-sm font-medium">Tidak ada notifikasi</p>
         <p className="text-xs">
@@ -195,7 +196,7 @@ export function NotificationsPage() {
                 )}
               </div>
               <p className="mt-0.5 text-sm text-text-secondary">{notif.message}</p>
-              <div className="mt-1 flex items-center gap-3 text-[11px] text-wood-400">
+              <div className="mt-1 flex items-center gap-3 text-[11px] text-wood-500">
                 <span>{CATEGORY_LABELS[notif.category] ?? notif.category}</span>
                 <span>{timeAgo(notif.createdAt)}</span>
                 {notif.actionUrl && (
@@ -209,7 +210,7 @@ export function NotificationsPage() {
               {!notif.isRead && (
                 <button type="button"
                   onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(notif.id); }}
-                  className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-wood-100 hover:text-wood-600"
+                  className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-wood-100 hover:text-wood-600"
                   title="Tandai dibaca"
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -217,7 +218,7 @@ export function NotificationsPage() {
               )}
               <button type="button"
                 onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
-                className="flex h-7 w-7 items-center justify-center rounded text-wood-400 hover:bg-red-50 hover:text-red-500"
+                className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-red-50 hover:text-red-500"
                 title="Hapus"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -230,45 +231,41 @@ export function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Pusat Notifikasi</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            {unreadCount > 0
-              ? `${unreadCount} notifikasi belum dibaca`
-              : "Semua notifikasi sudah dibaca"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <>
-              <button type="button"
-                onClick={() => markAllReadMutation.mutate()}
-                disabled={markAllReadMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
-              >
-                <Check className="h-3.5 w-3.5" />
-                Baca Semua
-              </button>
-              <button type="button"
-                onClick={() => {
-                  if (window.confirm(`Hapus semua ${unreadCount} notifikasi?`)) {
-                    dismissAllMutation.mutate();
-                  }
-                }}
-                disabled={dismissAllMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition-all hover:bg-red-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Hapus Semua
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
+    <PageShell
+      header={{
+        title: "Pusat Notifikasi",
+        description: unreadCount > 0
+          ? `${unreadCount} notifikasi belum dibaca`
+          : "Semua notifikasi sudah dibaca",
+        actions: unreadCount > 0 ? [
+          { key: "mark-read", children: (
+            <button type="button"
+              onClick={() => markAllReadMutation.mutate()}
+              disabled={markAllReadMutation.isPending}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Baca Semua
+            </button>
+          ) },
+          { key: "dismiss", children: (
+            <button type="button"
+              onClick={() => {
+                if (window.confirm(`Hapus semua ${unreadCount} notifikasi?`)) {
+                  dismissAllMutation.mutate();
+                }
+              }}
+              disabled={dismissAllMutation.isPending}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition-all hover:bg-red-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Hapus Semua
+            </button>
+          ) },
+        ] : undefined,
+      }}
+      className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8"
+    >
       {/* Category filter */}
       <div className="flex flex-wrap gap-1.5">
         {CATEGORIES.map((c) => (
@@ -277,7 +274,7 @@ export function NotificationsPage() {
             onClick={() => setCategoryFilter(c.value)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
               (c.value === "" && !categoryFilter) || categoryFilter === c.value
-                ? "bg-ink text-white"
+                ? "bg-wood-500 text-white"
                 : "bg-wood-100 text-wood-700 hover:bg-wood-200"
             }`}
           >
@@ -288,6 +285,6 @@ export function NotificationsPage() {
 
       {/* List */}
       {notificationListContent}
-    </div>
+    </PageShell>
   );
 }

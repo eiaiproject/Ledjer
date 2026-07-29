@@ -15,6 +15,7 @@ import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast";
+import { PageShell } from "@/components/ui/page-shell";
 import { exportProductsCsv } from "@/lib/csv-export";
 import {
   createProduct,
@@ -423,13 +424,13 @@ function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchI
     <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
       <div className="relative">
         <label htmlFor="product-search" className="sr-only">Cari produk</label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" aria-hidden="true" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
         <input ref={searchInputRef} id="product-search" type="search" placeholder="Cari kode atau nama produk..."
           value={search} onChange={(e) => setSearch(e.target.value)}
           className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0" />
         {hasSearch && (
           <button type="button" onClick={onClearSearch}
-            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-400 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Hapus pencarian">
             <X className="h-4 w-4" />
           </button>
@@ -540,7 +541,7 @@ function ProductsEmptyStates({ isEmpty, isSearchEmpty, hasSearch, hasFilter, sea
 }) {
   if (isEmpty) {
     return (
-      <EmptyState icon={<Package className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+      <EmptyState icon={<Package className="h-7 w-7 text-wood-500" aria-hidden="true" />}
         title="Belum ada produk"
         description="Tambahkan produk pertama untuk mulai mencatat stok dan penjualan."
         action={canManageProducts ? <Button onClick={onCreate} className="min-h-[44px]"><Plus className="mr-2 h-4 w-4" aria-hidden="true" />Tambah Produk Pertama</Button> : undefined} />
@@ -548,7 +549,7 @@ function ProductsEmptyStates({ isEmpty, isSearchEmpty, hasSearch, hasFilter, sea
   }
   if (isSearchEmpty) {
     return (
-      <EmptyState icon={<Search className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+      <EmptyState icon={<Search className="h-7 w-7 text-wood-500" aria-hidden="true" />}
         title={hasSearch && hasFilter ? "Tidak ada produk yang sesuai" : "Produk tidak ditemukan"}
         description={hasSearch && hasFilter ? "Coba ubah pencarian atau status stok yang dipilih." : `Tidak ada produk yang cocok dengan "${search}".`}
         action={<div className="flex flex-wrap justify-center gap-2">
@@ -559,45 +560,6 @@ function ProductsEmptyStates({ isEmpty, isSearchEmpty, hasSearch, hasFilter, sea
     );
   }
   return null;
-}
-
-function ProductsPageHeader({ canCreateExports, canManageProducts, isExporting, allProductsLength, onExport, onCreate }: {
-  readonly canCreateExports: boolean;
-  readonly canManageProducts: boolean;
-  readonly isExporting: boolean;
-  readonly allProductsLength: number;
-  readonly onExport: () => void;
-  readonly onCreate: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <ProductsHeader />
-      <div className="flex items-center gap-2">
-        {canCreateExports && (
-          <Button type="button" variant="outline" size="sm" onClick={onExport}
-            disabled={!allProductsLength || isExporting} className="hidden sm:inline-flex"
-            aria-busy={isExporting || undefined}>
-            <Download className="h-4 w-4" aria-hidden="true" />
-            {isExporting ? "Mengekspor..." : "Ekspor CSV"}
-          </Button>
-        )}
-        {canCreateExports && (
-          <Button type="button" variant="outline" size="icon" onClick={onExport}
-            disabled={!allProductsLength || isExporting} className="sm:hidden min-h-[44px] min-w-[44px]"
-            aria-label={isExporting ? "Mengekspor produk ke CSV" : "Ekspor produk ke CSV"}
-            aria-busy={isExporting || undefined}>
-            <Download className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        )}
-        {canManageProducts && (
-          <Button onClick={onCreate} className="min-h-[44px]">
-            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-            Tambah Produk
-          </Button>
-        )}
-      </div>
-    </div>
-  );
 }
 
 function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete, onAdjust, onStockCount }: {
@@ -682,7 +644,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
                   <div className="flex flex-col items-center gap-1">
                     <StockBadge product={product} />
                     <span className="num-mono text-xs text-wood-500">{formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
-                    {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-400">Min: {formatNumber(product.min_stock)}</span>}
+                    {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-500">Min: {formatNumber(product.min_stock)}</span>}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatIDR(product.purchase_price)}</td>
@@ -867,16 +829,36 @@ export function ProductsPage() {
   const filterValues: StockFilter[] = ["all", "in_stock", "low", "out"];
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <ProductsPageHeader
-        canCreateExports={canCreateExports}
-        canManageProducts={canManageProducts}
-        isExporting={isExporting}
-        allProductsLength={allProducts.length}
-        onExport={handleExport}
-        onCreate={openCreateModal}
-      />
+    <PageShell
+      header={{
+        title: "Produk",
+        description: "Kelola produk, harga, dan ketersediaan stok.",
+        actions: [
+          ...(canCreateExports ? [{ key: "export", children: (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={handleExport}
+                disabled={!allProducts.length || isExporting} className="hidden sm:inline-flex"
+                aria-busy={isExporting || undefined}>
+                <Download className="h-4 w-4" aria-hidden="true" />
+                {isExporting ? "Mengekspor..." : "Ekspor CSV"}
+              </Button>
+              <Button type="button" variant="outline" size="icon" onClick={handleExport}
+                disabled={!allProducts.length || isExporting} className="sm:hidden min-h-[44px] min-w-[44px]"
+                aria-label={isExporting ? "Mengekspor produk ke CSV" : "Ekspor produk ke CSV"}
+                aria-busy={isExporting || undefined}>
+                <Download className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </>
+          ) }] : []),
+          ...(canManageProducts ? [{ key: "create", children: (
+            <Button onClick={openCreateModal} className="min-h-[44px]">
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Tambah Produk
+            </Button>
+          ) }] : []),
+        ],
+      }}
+    >
 
       {/* Search + Filter */}
       <ProductFilter
@@ -960,6 +942,6 @@ export function ProductsPage() {
         confirmLabel={deleteMutation.isPending ? "Menonaktifkan..." : "Ya, Nonaktifkan"}
         loading={deleteMutation.isPending}
       />
-    </div>
+    </PageShell>
   );
 }

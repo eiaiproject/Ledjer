@@ -115,7 +115,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
         <div className="overflow-hidden rounded-2xl border border-wood-200 bg-surface shadow-2xl">
           {/* Search input */}
           <div className="flex items-center gap-3 border-b border-wood-100 px-4 py-3">
-            <Search className="h-5 w-5 shrink-0 text-wood-400" aria-hidden="true" />
+            <Search className="h-5 w-5 shrink-0 text-wood-500" aria-hidden="true" />
             <input
               ref={inputRef}
               type="search"
@@ -123,16 +123,16 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Cari transaksi, faktur, kontak, produk, akun..."
-              className="flex-1 border-0 bg-transparent text-sm text-text-primary placeholder:text-wood-400 focus:outline-none"
+              className="flex-1 border-0 bg-transparent text-sm text-text-primary placeholder:text-wood-500 focus:outline-none"
               autoComplete="off"
               aria-label="Kata kunci pencarian"
             />
             {isLoading && (
-              <Loader className="h-4 w-4 animate-spin text-wood-400" aria-hidden="true" />
+              <Loader className="h-4 w-4 animate-spin text-wood-500" aria-hidden="true" />
             )}
             <button type="button"
               onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-wood-400 hover:bg-wood-100 hover:text-wood-600"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-wood-500 hover:bg-wood-100 hover:text-wood-600"
               aria-label="Tutup pencarian"
             >
               <X className="h-4 w-4" />
@@ -142,11 +142,11 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
           {/* Shortcut hint */}
           {!query.trim() && (
             <div className="px-4 py-6 text-center">
-              <Search className="mx-auto mb-2 h-8 w-8 text-wood-300" aria-hidden="true" />
-              <p className="text-sm text-wood-400">
+              <Search className="mx-auto mb-2 h-8 w-8 text-wood-500" aria-hidden="true" />
+              <p className="text-sm text-wood-500">
                 Ketik minimal 2 karakter untuk mulai mencari
               </p>
-              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-wood-400">
+              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-wood-500">
                 <kbd className="rounded border border-wood-200 bg-wood-50 px-1.5 py-0.5 font-mono text-[10px]">
                   ↑↓
                 </kbd>
@@ -168,7 +168,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
             <div className="max-h-[50vh] overflow-y-auto">
               {results.length === 0 && !isLoading && (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-sm text-wood-400">
+                  <p className="text-sm text-wood-500">
                     Tidak ditemukan hasil untuk "{query}"
                   </p>
                 </div>
@@ -203,7 +203,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
                     </div>
                     <p className="mt-0.5 text-xs text-wood-500 truncate">{item.subtitle}</p>
                   </div>
-                  <ArrowRight className="mt-1 h-3.5 w-3.5 shrink-0 text-wood-300" aria-hidden="true" />
+                  <ArrowRight className="mt-1 h-3.5 w-3.5 shrink-0 text-wood-500" aria-hidden="true" />
                 </button>
               ))}
             </div>
@@ -211,7 +211,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
 
           {/* Footer */}
           {results.length > 0 && (
-            <div className="border-t border-wood-100 px-4 py-2 text-center text-[10px] text-wood-400">
+            <div className="border-t border-wood-100 px-4 py-2 text-center text-[10px] text-wood-500">
               {data?.total ?? 0} hasil ditemukan
             </div>
           )}
@@ -233,12 +233,12 @@ export function SearchTrigger({ onClick }: SearchTriggerProps) {
   return (
     <button type="button"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm text-wood-400 transition-all hover:border-wood-300 hover:text-wood-600 focus:outline-none focus:ring-2 focus:ring-ink/20 sm:w-56"
+      className="flex items-center gap-2 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm text-wood-500 transition-all hover:border-wood-300 hover:text-wood-600 focus:outline-none focus:ring-2 focus:ring-ink/20 sm:w-56"
       aria-label="Buka pencarian"
     >
       <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span className="hidden sm:inline flex-1 text-left">Cari...</span>
-      <kbd className="hidden rounded border border-wood-200 bg-wood-50 px-1.5 py-0.5 font-mono text-[10px] text-wood-400 sm:inline">
+      <kbd className="hidden rounded border border-wood-200 bg-wood-50 px-1.5 py-0.5 font-mono text-[10px] text-wood-500 sm:inline">
         Ctrl+K
       </kbd>
     </button>

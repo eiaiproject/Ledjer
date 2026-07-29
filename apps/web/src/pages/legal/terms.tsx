@@ -45,8 +45,13 @@ export function TermsOfServicePage() {
           <section>
             <h2 className="text-lg font-semibold text-wood-800">4. Akses Layanan</h2>
             <p>
-              Ledjer saat ini tersedia gratis tanpa kartu kredit. Jika model akses berubah di masa
-              depan, informasi layanan akan diperbarui sebelum diberlakukan.
+              Ledjer saat ini tersedia gratis tanpa kartu kredit dan tanpa biaya berlangganan.
+              Anda dapat memberikan dukungan sukarela melalui Trakteer. Dukungan ini tidak
+              memengaruhi akses Anda ke Ledjer.
+            </p>
+            <p className="mt-2 text-xs text-wood-500">
+              ⚠️ Transaksi dukungan dilakukan di platform Trakteer dan diatur oleh kebijakan
+              Trakteer. Ledjer tidak memproses pembayaran dukungan secara langsung.
             </p>
           </section>
 

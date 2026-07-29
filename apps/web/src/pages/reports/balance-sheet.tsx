@@ -14,6 +14,7 @@ import { Refresh, Download } from "reicon-react";
 import { getBalanceSheet, type BalanceSheetItem } from "@/lib/api/reports";
 import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { ReportShell } from "@/components/ui/report-shell";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -116,6 +117,14 @@ export function BalanceSheetPage() {
     refetch();
   }, [syncPending, refetch]);
 
+  if (!canViewReports) {
+    return (
+      <ReportPermissionGate>
+        <div />
+      </ReportPermissionGate>
+    );
+  }
+
   if (error) {
     return (
       <div className="space-y-6">
@@ -157,22 +166,11 @@ export function BalanceSheetPage() {
   };
 
   return (
-    <ReportPermissionGate>
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">
-          Neraca
-          <HelpTooltip topic="balance_sheet" position="right" />
-        </h1>
-        <p className="text-sm text-text-secondary mt-1" aria-live="polite">
-          {isRefreshing ? (
-            <span className="text-text-secondary">Memperbarui laporan...</span>
-          ) : (
-            `Posisi aset, kewajiban, dan ekuitas per ${formatDateLong(appliedDate)}.`
-          )}
-        </p>
-      </div>
+    <ReportShell
+      title="Neraca"
+      helpTopic="balance_sheet"
+      description={isRefreshing ? "Memperbarui laporan..." : `Posisi aset, kewajiban, dan ekuitas per ${formatDateLong(appliedDate)}.`}
+    >
 
       {/* Toolbar */}
       <Card>
@@ -294,8 +292,7 @@ export function BalanceSheetPage() {
           <EquationSummary report={report} />
         </>
       )}
-    </div>
-    </ReportPermissionGate>
+    </ReportShell>
   );
 }
 
@@ -400,7 +397,7 @@ function SectionMobile({
       </div>
       {section.items.length === 0 && (
         <div className="px-4 py-3 border-t border-wood-100">
-          <p className="text-sm text-wood-400">Tidak ada saldo</p>
+          <p className="text-sm text-wood-500">Tidak ada saldo</p>
         </div>
       )}
       {section.items.map((item) => (
@@ -410,7 +407,7 @@ function SectionMobile({
         >
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm text-wood-700">{item.account_name}</p>
-            <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+            <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
           </div>
           <span className="shrink-0 text-right font-mono text-sm text-wood-800 tabular-nums">
             {formatIDR(item.amount)}
@@ -494,7 +491,7 @@ function SectionRows({
       </tr>
       {section.items.length === 0 && (
         <tr className="border-b border-wood-50">
-          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-400 italic">
+          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-500 italic">
             Tidak ada saldo
           </td>
         </tr>

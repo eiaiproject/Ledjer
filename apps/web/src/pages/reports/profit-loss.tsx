@@ -13,7 +13,7 @@ import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Download, Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 import { useReportDateRange, handleReportExport } from "./_components";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { ReportShell } from "@/components/ui/report-shell";
 
 // ── Canonical report model ──────────────────────────────────────────
 
@@ -106,6 +106,36 @@ function buildReportModel(data: ProfitLossItem[]): ReportModel {
 
 function resultLabel(value: number, gain: string, loss: string): string {
   return value >= 0 ? gain : loss;
+}
+
+// ── Shared report layout definition ─────────────────────────────────
+
+interface SectionDef {
+  type: "section";
+  index: number;
+  showTotal: boolean;
+}
+
+interface ResultDef {
+  type: "result";
+  label: string;
+  value: number;
+  variant: "intermediate" | "final";
+}
+
+type ReportLayoutItem = SectionDef | ResultDef;
+
+function buildReportLayout(report: ReportModel): ReportLayoutItem[] {
+  return [
+    { type: "section", index: 0, showTotal: true },
+    { type: "section", index: 1, showTotal: true },
+    { type: "result", label: resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor"), value: report.grossResult, variant: "intermediate" },
+    { type: "section", index: 2, showTotal: true },
+    { type: "result", label: resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional"), value: report.operatingResult, variant: "intermediate" },
+    { type: "section", index: 3, showTotal: true },
+    { type: "section", index: 4, showTotal: true },
+    { type: "result", label: resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih"), value: report.netResult, variant: "final" },
+  ];
 }
 
 // ── Component ───────────────────────────────────────────────────────
@@ -201,21 +231,11 @@ export function ProfitLossPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">
-          Laba Rugi
-          <HelpTooltip topic="profit_loss" position="right" />
-        </h1>
-        <p className="text-sm text-text-secondary mt-1" aria-live="polite">
-          {isRefreshing ? (
-            <span className="text-text-secondary">Memperbarui laporan...</span>
-          ) : (
-            formatDateRange(appliedFrom, appliedTo)
-          )}
-        </p>
-      </div>
+    <ReportShell
+      title="Laba Rugi"
+      helpTopic="profit_loss"
+      description={isRefreshing ? "Memperbarui laporan..." : formatDateRange(appliedFrom, appliedTo)}
+    >
 
       {/* Toolbar */}
       <Card>
@@ -348,11 +368,11 @@ export function ProfitLossPage() {
           </Card>
         </>
       )}
-    </div>
+    </ReportShell>
   );
 }
 
-// ── Mobile renderer ─────────────────────────────────────────────────
+// ── Shared layout renderers (mobile + desktop from single layout def) ─
 
 function ReportMobile({
   sections,
@@ -361,42 +381,16 @@ function ReportMobile({
   readonly sections: ReportSection[];
   readonly report: ReportModel;
 }) {
+  const layout = buildReportLayout(report);
   return (
     <>
-      {/* Revenue */}
-      <SectionMobile section={sections[0]} showTotal />
-      {/* COGS */}
-      <SectionMobile section={sections[1]} showTotal />
-
-      {/* Gross Result */}
-      <ResultRow
-        label={resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor")}
-        value={report.grossResult}
-        variant="intermediate"
-      />
-
-      {/* Operating Expenses */}
-      <SectionMobile section={sections[2]} showTotal />
-
-      {/* Operating Result */}
-      <ResultRow
-        label={resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional")}
-        value={report.operatingResult}
-        variant="intermediate"
-      />
-
-      {/* Other Income */}
-      <SectionMobile section={sections[3]} showTotal />
-
-      {/* Other Expense */}
-      <SectionMobile section={sections[4]} showTotal />
-
-      {/* Net Result */}
-      <ResultRow
-        label={resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih")}
-        value={report.netResult}
-        variant="final"
-      />
+      {layout.map((def) =>
+        def.type === "section" ? (
+          <SectionMobile key={`section-${def.index}`} section={sections[def.index]} showTotal={def.showTotal} />
+        ) : (
+          <ResultRow key={`result-${def.label}`} label={def.label} value={def.value} variant={def.variant} />
+        )
+      )}
     </>
   );
 }
@@ -416,7 +410,7 @@ function SectionMobile({
       </div>
       {section.items.length === 0 && (
         <div className="px-4 py-3 border-t border-wood-100">
-          <p className="text-sm text-wood-400">Tidak ada akun</p>
+          <p className="text-sm text-wood-500">Tidak ada akun</p>
         </div>
       )}
       {section.items.map((item) => (
@@ -426,7 +420,7 @@ function SectionMobile({
         >
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm text-wood-700">{item.account_name}</p>
-            <p className="font-mono text-xs text-wood-400">{item.account_code}</p>
+            <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
           </div>
           <span className="shrink-0 text-right font-mono text-sm text-wood-800 tabular-nums">
             {formatIDR(item.amount)}
@@ -487,59 +481,20 @@ function ReportTableBody({
   readonly sections: ReportSection[];
   readonly report: ReportModel;
 }) {
+  const layout = buildReportLayout(report);
   return (
     <>
-      {/* Revenue tbody */}
-      <tbody>
-        <SectionRows section={sections[0]} showTotal />
-      </tbody>
-
-      {/* COGS tbody */}
-      <tbody>
-        <SectionRows section={sections[1]} showTotal />
-      </tbody>
-
-      {/* Gross Result */}
-      <tbody>
-        <ResultRowDesktop
-          label={resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor")}
-          value={report.grossResult}
-          variant="intermediate"
-        />
-      </tbody>
-
-      {/* Operating Expenses tbody */}
-      <tbody>
-        <SectionRows section={sections[2]} showTotal />
-      </tbody>
-
-      {/* Operating Result */}
-      <tbody>
-        <ResultRowDesktop
-          label={resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional")}
-          value={report.operatingResult}
-          variant="intermediate"
-        />
-      </tbody>
-
-      {/* Other Income tbody */}
-      <tbody>
-        <SectionRows section={sections[3]} showTotal />
-      </tbody>
-
-      {/* Other Expense tbody */}
-      <tbody>
-        <SectionRows section={sections[4]} showTotal />
-      </tbody>
-
-      {/* Net Result */}
-      <tbody>
-        <ResultRowDesktop
-          label={resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih")}
-          value={report.netResult}
-          variant="final"
-        />
-      </tbody>
+      {layout.map((def) =>
+        def.type === "section" ? (
+          <tbody key={`section-${def.index}`}>
+            <SectionRows section={sections[def.index]} showTotal={def.showTotal} />
+          </tbody>
+        ) : (
+          <tbody key={`result-${def.label}`}>
+            <ResultRowDesktop label={def.label} value={def.value} variant={def.variant} />
+          </tbody>
+        )
+      )}
     </>
   );
 }
@@ -565,7 +520,7 @@ function SectionRows({
       </tr>
       {section.items.length === 0 && (
         <tr className="border-b border-wood-50">
-          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-400 italic">
+          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-500 italic">
             Tidak ada akun
           </td>
         </tr>

@@ -1,7 +1,7 @@
+import { isValidElement, type ComponentType } from "react";
 import { Button } from "./button";
 import { FileText } from "reicon-react";
 import { cn } from "@/lib/utils";
-import type { ComponentType } from "react";
 
 type IconProp = ComponentType<{ className?: string }> | React.ReactNode;
 type ActionProp =
@@ -18,10 +18,13 @@ interface EmptyStateProps {
 }
 
 function renderIcon(icon: IconProp | undefined): React.ReactNode {
-  if (!icon) return <FileText className="h-8 w-8 text-wood-400" />;
-  if (typeof icon === "function") {
-    const Icon = icon;
-    return <Icon className="h-8 w-8 text-wood-400" />;
+  if (!icon) return <FileText className="h-8 w-8 text-wood-500" />;
+  // React element — render directly
+  if (isValidElement(icon)) return icon;
+  // Component type (function, forwardRef, memo, lazy) — render as <Icon />
+  if (typeof icon === "function" || (typeof icon === "object" && icon !== null)) {
+    const Icon = icon as React.ComponentType<{ className?: string }>;
+    return <Icon className="h-8 w-8 text-wood-500" />;
   }
   return icon;
 }

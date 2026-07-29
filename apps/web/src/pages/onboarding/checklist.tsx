@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
+import { SupportBanner } from "@/components/ui/support-banner";
 import { translateError } from "@/lib/errors";
 
 /* ───── Step-to-action mapping ───── */
@@ -87,7 +88,7 @@ function ChecklistStep({
               <CheckCircle className="h-5 w-5" />
             </div>
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-wood-100 text-wood-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-wood-100 text-wood-500">
               <span className="text-sm font-semibold">{index + 1}</span>
             </div>
           )}
@@ -383,12 +384,17 @@ export function OnboardingChecklistPage() {
         {!isLoading && !status && !error && (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-              <Refresh className="h-8 w-8 text-wood-300" />
+              <Refresh className="h-8 w-8 text-wood-500" />
               <p className="text-sm text-text-secondary">
                 Status onboarding belum tersedia.
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Value-moment support banner after onboarding completion */}
+        {allDone && (
+          <SupportBanner className="mt-2" />
         )}
 
         {/* Back to dashboard link */}

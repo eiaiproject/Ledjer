@@ -196,7 +196,7 @@ export default function InvoiceDetailPage() {
                   style={{ width: `${Math.min(100, (invoice.paidMinor / invoice.totalMinor) * 100)}%` }}
                 />
               </div>
-              <p className="text-xs text-wood-400">{Math.round((invoice.paidMinor / invoice.totalMinor) * 100)}% lunas</p>
+              <p className="text-xs text-wood-500">{Math.round((invoice.paidMinor / invoice.totalMinor) * 100)}% lunas</p>
             </div>
           )}
         </CardContent>

@@ -21,6 +21,7 @@ import {
 } from "reicon-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { SupportLink } from "@/components/ui/support-link";
 import { cn } from "@/lib/utils";
 
 /* ===========================================================
@@ -45,8 +46,8 @@ const navLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Cara Kerja", href: "#cara-kerja" },
   { label: "Laporan", href: "#laporan" },
+  { label: "Akses", href: "#akses" },
   { label: "Keamanan", href: "#keamanan" },
-  { label: "Harga", href: "#harga" },
 ] as const;
 
 const footerLinks = [
@@ -228,8 +229,20 @@ const faqItems = [
     a: "Bisa. Tampilan disesuaikan untuk ponsel, tablet, dan desktop. Catat transaksi dan lihat laporan dari mana saja.",
   },
   {
-    q: "Apakah Ledjer benar-benar gratis?",
-    a: "Ya, selama masa akses awal. Tidak ada kartu pembayaran, tidak ada penagihan otomatis, dan tidak ada batas transaksi.",
+    q: "Apakah Ledjer gratis?",
+    a: "Ya. Saat ini, fitur utama Ledjer dapat digunakan tanpa biaya berlangganan dan tanpa kartu kredit.",
+  },
+  {
+    q: "Apakah saya wajib mendukung melalui Trakteer?",
+    a: "Tidak. Dukungan melalui Trakteer sepenuhnya sukarela dan tidak memengaruhi akses Anda ke Ledjer.",
+  },
+  {
+    q: "Untuk apa dukungan melalui Trakteer digunakan?",
+    a: "Dukungan membantu biaya operasional, pemeliharaan sistem, peningkatan keamanan, dan pengembangan Ledjer.",
+  },
+  {
+    q: "Apakah Ledjer akan selalu gratis?",
+    a: "Kami berkomitmen menjaga Ledjer tetap mudah dijangkau. Jika model layanan berubah di kemudian hari, perubahan akan disampaikan secara transparan sebelum berlaku.",
   },
   {
     q: "Apakah data dapat diekspor?",
@@ -238,10 +251,6 @@ const faqItems = [
   {
     q: "Apakah saya bisa mengundang staf?",
     a: "Bisa. Undang staf dan atur aksesnya per fitur. Setiap perubahan penting tercatat di audit log.",
-  },
-  {
-    q: "Bagaimana Ledjer melindungi data usaha?",
-    a: "Data dipisahkan per bisnis, akses dibatasi per peran, dan perubahan tercatat. Detail tersedia di halaman Keamanan.",
   },
 ] as const;
 
@@ -292,7 +301,7 @@ function FaqAccordion({ items }: { readonly items: ReadonlyArray<{ readonly q: s
                 <span>{item.q}</span>
                 <ChevronRight
                   className={cn(
-                    "h-4 w-4 shrink-0 text-wood-400 transition-transform duration-200 motion-reduce:transition-none",
+                    "h-4 w-4 shrink-0 text-wood-500 transition-transform duration-200 motion-reduce:transition-none",
                     isOpen && "rotate-90"
                   )}
                   aria-hidden="true"
@@ -557,16 +566,16 @@ export function LandingPage() {
 
                 <h1
                   id="hero-heading"
-                  className="max-w-none text-balance text-[clamp(2.125rem,8vw,4rem)] font-bold leading-[1.02] tracking-[-0.03em] text-wood-900 sm:max-w-[14ch]"
+                  className="max-w-none text-balance text-[clamp(2.125rem,8vw,4rem)] font-bold leading-[1.02] tracking-[-0.03em] text-wood-900 sm:max-w-[16ch]"
                   style={stagger(1)}
                 >
-                  Catat transaksi sekali. Laporan langsung tersusun.
+                  Pembukuan usaha yang rapi, tanpa harus menjadi ahli akuntansi.
                 </h1>
                 <p
                   className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-wood-700 sm:text-lg"
                   style={stagger(2)}
                 >
-                  Ledjer memperbarui kas, stok, piutang, utang, HPP (Harga Pokok Penjualan), dan laporan usaha secara otomatis—tanpa rumus spreadsheet.
+                  Catat penjualan, pembelian, stok, utang-piutang, dan pantau laporan keuangan usaha dalam satu tempat. Ledjer menggunakan sistem pembukuan berpasangan agar setiap transaksi tercatat dengan benar.
                 </p>
 
                 <div
@@ -596,7 +605,7 @@ export function LandingPage() {
                   className="mt-3 text-sm text-wood-500"
                   style={stagger(3)}
                 >
-                  Tanpa kartu pembayaran &bull; Siap dalam beberapa menit
+                  Saat ini gratis digunakan &bull; Tanpa kartu kredit
                 </p>
               </div>
 
@@ -1049,53 +1058,47 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           PRICING — single panel
+           AKSES & DUKUNGAN — single panel
            ---------------------------------------------------------- */}
         <section
-          id="harga"
-          aria-labelledby="pricing-heading"
+          id="akses"
+          aria-labelledby="access-heading"
           className="border-y border-wood-200 bg-cream-100 py-14 sm:py-16 lg:py-20"
         >
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="rounded-xl border border-wood-200 bg-cream-50 p-5 sm:p-6">
               <h2
-                id="pricing-heading"
+                id="access-heading"
                 className="text-balance text-2xl font-bold tracking-[-0.02em] text-wood-900 sm:text-3xl"
               >
-                Gratis selama masa akses awal.
+                Ledjer dapat digunakan secara gratis
               </h2>
               <p className="mt-2 max-w-[60ch] text-sm text-wood-600">
-                Ledjer saat ini gratis digunakan. Tidak ada kartu pembayaran, tidak ada penagihan otomatis, dan tidak ada batas transaksi.
+                Saat ini, Anda dapat menggunakan fitur-fitur utama Ledjer tanpa biaya berlangganan dan tanpa kartu kredit.
+              </p>
+              <p className="mt-3 max-w-[60ch] text-sm text-wood-600">
+                Jika Ledjer bermanfaat bagi usaha Anda, Anda dapat ikut mendukung biaya operasional dan pengembangannya melalui Trakteer. Dukungan sepenuhnya sukarela dan tidak memengaruhi akses Anda ke Ledjer.
               </p>
 
-              <ul className="mt-4 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
-                {[
-                  "Tanpa kartu pembayaran.",
-                  "Tidak ada penagihan otomatis.",
-                  "Transaksi tanpa batas.",
-                  "Laporan, stok, HPP, dan akses staf tersedia.",
-                  "Pengguna akan diberi tahu sebelum paket berbayar diperkenalkan.",
-                  "Data dapat diekspor kapan saja.",
-                ].map((point) => (
-                  <li key={point} className="flex items-start gap-2 text-sm text-wood-700">
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden="true" />
-                    {point}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-5">
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
                   as={Link}
                   to="/register"
                   variant="primary"
                   size="md"
-                  fullWidth
                   className="sm:w-auto"
                 >
                   Mulai Gratis
                 </Button>
+                <SupportLink
+                  variant="outline"
+                  placement="landing"
+                  className="px-4 py-2.5 text-sm"
+                />
               </div>
+              <p className="mt-3 text-xs text-wood-500">
+                Anda tetap dapat menggunakan Ledjer meskipun tidak memberikan dukungan.
+              </p>
             </div>
           </div>
         </section>
@@ -1155,8 +1158,8 @@ export function LandingPage() {
                 Lihat cara kerja
               </a>
             </div>
-            <p className="mt-3 text-xs text-wood-300">
-              Tanpa kartu pembayaran &bull; Data tetap milik Anda
+            <p className="mt-3 text-xs text-wood-500">
+              Saat ini gratis digunakan &bull; Tanpa kartu kredit
             </p>
           </div>
         </section>
@@ -1201,6 +1204,13 @@ export function LandingPage() {
               <p className="break-words text-sm text-wood-600">
                 Pembukuan UMKM Indonesia yang sederhana dan rapi.
               </p>
+              <p className="break-words text-sm text-wood-500">
+                Ledjer saat ini gratis digunakan. Jika bermanfaat, Anda dapat mendukung pengembangannya melalui Trakteer.
+              </p>
+              <SupportLink
+                variant="link"
+                placement="footer"
+              />
             </div>
             <nav aria-label="Tautan footer">
               <ul className="grid grid-cols-2 gap-1 text-sm sm:grid-cols-3 sm:gap-2">

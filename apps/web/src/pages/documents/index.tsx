@@ -6,6 +6,9 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, Plus, Search } from "reicon-react";
+import { Badge } from "@/components/ui/badge";
+import { getStatus } from "@/lib/status-registry";
+import { PageShell } from "@/components/ui/page-shell";
 
 const DOCUMENT_TYPES: { value: DocumentType | ""; label: string }[] = [
   { value: "", label: "Semua" },
@@ -28,27 +31,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
   return_note: "Nota Retur",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  confirmed: "Dikonfirmasi",
-  issued: "Diterbitkan",
-  sent: "Terkirim",
-  partially_received: "Diterima Sebagian",
-  received: "Diterima",
-  cancelled: "Dibatalkan",
-  converted: "Dikonversi",
-};
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-wood-100 text-wood-700",
-  confirmed: "bg-blue-100 text-blue-700",
-  issued: "bg-leaf-100 text-leaf-700",
-  sent: "bg-sky-100 text-sky-700",
-  partially_received: "bg-amber-100 text-amber-700",
-  received: "bg-leaf-100 text-leaf-700",
-  cancelled: "bg-red-100 text-red-700",
-  converted: "bg-purple-100 text-purple-700",
-};
 
 const TYPE_COLORS: Record<string, string> = {
   quotation: "border-l-blue-400",
@@ -137,23 +120,22 @@ export function DocumentsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Dokumen Bisnis</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kelola penawaran, pesanan, surat jalan, dan bukti pembayaran
-          </p>
-        </div>
-        <Link
-          to="/documents/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Buat Dokumen
-        </Link>
-      </div>
+    <PageShell
+      header={{
+        title: "Dokumen Bisnis",
+        description: "Kelola penawaran, pesanan, surat jalan, dan bukti pembayaran",
+        actions: [{ key: "create", children: (
+          <Link
+            to="/documents/new"
+            className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-ink/90 focus:outline-none focus:ring-2 focus:ring-ink/30"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Buat Dokumen
+          </Link>
+        ) }],
+      }}
+    >
+
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -170,7 +152,7 @@ export function DocumentsPage() {
               }}
               className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
                 (t.value === "" && !activeType) || activeType === t.value
-                  ? "bg-ink text-white"
+                  ? "bg-wood-500 text-white"
                   : "bg-wood-100 text-wood-700 hover:bg-wood-200"
               }`}
             >
@@ -181,13 +163,13 @@ export function DocumentsPage() {
 
         {/* Search */}
         <div className="relative sm:ml-auto sm:w-56">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-400" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
           <input
             type="text"
             placeholder="Cari dokumen..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-wood-200 bg-surface py-2 pl-9 pr-3 text-sm placeholder:text-wood-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
+            className="w-full rounded-lg border border-wood-200 bg-surface py-2 pl-9 pr-3 text-sm placeholder:text-wood-500 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink/20"
           />
         </div>
       </div>
@@ -197,11 +179,11 @@ export function DocumentsPage() {
 
       {/* Summary */}
       {data && !isLoading && (
-        <p className="text-center text-xs text-wood-400">
+        <p className="text-center text-xs text-wood-500">
           Menampilkan {filtered.length} dari {data.total} dokumen
         </p>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -227,13 +209,9 @@ function DocumentCard({ doc }: { readonly doc: DocumentOutput }) {
               <span className="text-sm font-semibold text-text-primary">
                 {doc.documentNumber}
               </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                  STATUS_COLORS[doc.status] ?? "bg-wood-100 text-wood-600"
-                }`}
-              >
-                {STATUS_LABELS[doc.status] ?? doc.status}
-              </span>
+              <Badge variant={getStatus("documents", doc.status).variant} size="sm">
+                {getStatus("documents", doc.status).label}
+              </Badge>
             </div>
             <p className="mt-0.5 text-xs text-text-secondary">
               {DOCUMENT_LABELS[doc.documentType] ?? doc.documentType}

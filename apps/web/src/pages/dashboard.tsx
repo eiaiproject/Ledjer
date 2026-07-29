@@ -12,6 +12,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatShortDate, cn } from "@/lib/utils";
+import { PageShell } from "@/components/ui/page-shell";
 import { getDashboardSummary, getDashboardAlerts, type DashboardAlert } from "@/lib/api/dashboard";
 
 type ProfitState = {
@@ -125,23 +126,20 @@ export function DashboardPage() {
   const metricError = !!error;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <header className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <h1 className="break-words text-2xl font-bold text-text-primary" style={{ textWrap: "balance" }}>
-            Halo{orgData?.organization ? `, ${orgData.organization.name}` : ""}
-          </h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Berikut ringkasan keuangan bisnis Anda
-          </p>
-        </div>
-        {summary?.period_from && summary?.period_to && (
-          <p className="text-xs sm:text-sm text-text-tertiary sm:text-right shrink-0 mt-1 sm:mt-0">
-            {formatPeriodRange(summary.period_from, summary.period_to)}
-          </p>
-        )}
-      </header>
+    <PageShell
+      header={{
+        title: orgData?.organization ? `Halo, ${orgData.organization.name}` : "Halo",
+        description: "Berikut ringkasan keuangan bisnis Anda",
+        actions: summary?.period_from && summary?.period_to
+          ? [{ key: "period", children: (
+              <p className="text-xs sm:text-sm text-text-tertiary sm:text-right">
+                {formatPeriodRange(summary.period_from, summary.period_to)}
+              </p>
+            ) }]
+          : undefined,
+      }}
+      className="sm:space-y-6"
+    >
 
       {/* Actionable Alerts */}
       {canViewReports && alerts.length > 0 && (
@@ -317,7 +315,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 }
 

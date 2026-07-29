@@ -15,6 +15,7 @@ import { Download, ChevronDown, ChevronRight, BookOpen } from "reicon-react";
 import { listAccounts } from "@/lib/api/accounts";
 import { getGeneralLedger, type LedgerEntry } from "@/lib/api/reports";
 import { useReportDateRange, ReportPermissionGate, handleReportExport } from "./_components";
+import { ReportShell } from "@/components/ui/report-shell";
 
 /* ------------------------------------------------------------------ */
 /*  Types & Helpers                                                    */
@@ -220,7 +221,7 @@ function SummaryBar({ ledger, totals, isGlobalScope, isBalanced }: {
 
 const FILTER_PANEL_ID = "general-ledger-filters";
 
-export function GeneralLedgerPage() {
+export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity 16/15; sub-components already extracted
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
 
@@ -295,23 +296,17 @@ export function GeneralLedgerPage() {
   if (error) return <ErrorState error={error} message="Buku besar gagal dimuat. Periksa koneksi Anda, lalu coba lagi." onRetry={refetch} />;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Buku Besar</h1>
-          <p className="mt-1 text-sm text-text-secondary">Rincian transaksi per akun</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canCreateExports && (
-            <ExportButtons
-              disabled={!ledger?.length || dateRangeInvalid || isExporting}
-              isExporting={isExporting}
-              onExport={handleExport}
-            />
-          )}
-        </div>
-      </div>
+    <ReportShell
+      title="Buku Besar"
+      description="Rincian transaksi per akun"
+      actions={canCreateExports ? (
+        <ExportButtons
+          disabled={!ledger?.length || dateRangeInvalid || isExporting}
+          isExporting={isExporting}
+          onExport={handleExport}
+        />
+      ) : undefined}
+    >
 
       {/* Filter summary + toggle */}
       <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
@@ -377,7 +372,7 @@ export function GeneralLedgerPage() {
           {/* Empty state */}
           {(!ledger || ledger.length === 0) && (
             <EmptyState
-              icon={<BookOpen className="h-7 w-7 text-wood-400" aria-hidden="true" />}
+              icon={<BookOpen className="h-7 w-7 text-wood-500" aria-hidden="true" />}
               title="Belum ada transaksi pada periode ini"
               description="Ubah periode atau catat transaksi baru."
             />
@@ -413,7 +408,7 @@ export function GeneralLedgerPage() {
           )}
         </>
       )}
-    </div>
+    </ReportShell>
   );
 }
 

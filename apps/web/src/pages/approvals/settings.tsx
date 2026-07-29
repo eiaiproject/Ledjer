@@ -192,7 +192,7 @@ export function ApprovalSettingsPage() {
                             <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M17 7l-5 5-5-5-2 2 7 7 7-7z"/></svg>
                           </span>
                         ) : (
-                          <span className="h-4 w-4 flex items-center justify-center text-wood-400">
+                          <span className="h-4 w-4 flex items-center justify-center text-wood-500">
                             <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M7 7l5 5 5-5 2 2-7 7-7-7z"/></svg>
                           </span>
                         )}

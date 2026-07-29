@@ -32,6 +32,7 @@ import {
   
   
 } from "reicon-react";
+import { PageShell } from "@/components/ui/page-shell";
 
 interface LineEntry {
   id: string;
@@ -237,27 +238,25 @@ export function ManualJournalPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Jurnal Manual</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Buat jurnal umum, penyesuaian, atau jurnal penutup.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setShowTemplates(!showTemplates)}
-          >
-            <BookOpen className="h-4 w-4" />
-            Template
-          </Button>
-        </div>
-      </div>
+    <PageShell
+      header={{
+        title: "Jurnal Manual",
+        description: "Buat jurnal umum, penyesuaian, atau jurnal penutup.",
+        actions: [
+          { key: "templates", children: (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowTemplates(!showTemplates)}
+            >
+              <BookOpen className="h-4 w-4" />
+              Template
+            </Button>
+          )},
+        ],
+      }}
+    >
 
       {/* Journal form */}
       <Card>
@@ -369,7 +368,7 @@ export function ManualJournalPage() {
                 <button                   type="button"
                   onClick={() => handleRemoveLine(line.id)}
                   disabled={lines.length <= 2}
-                  className="flex h-[44px] w-[44px] items-center justify-center rounded-md text-wood-400 hover:bg-error/10 hover:text-error disabled:opacity-30 sm:h-8 sm:w-8"
+                  className="flex h-[44px] w-[44px] items-center justify-center rounded-md text-wood-500 hover:bg-error/10 hover:text-error disabled:opacity-30 sm:h-8 sm:w-8"
                   aria-label={`Hapus baris ${index + 1}`}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -387,7 +386,7 @@ export function ManualJournalPage() {
                 <span className="text-wood-500">
                   Debit: <strong className="text-wood-700">Rp {(totalDebit / 100).toLocaleString("id-ID")}</strong>
                 </span>
-                <span className="text-wood-300">|</span>
+                <span className="text-wood-500">|</span>
                 <span className="text-wood-500">
                   Kredit: <strong className="text-wood-700">Rp {(totalCredit / 100).toLocaleString("id-ID")}</strong>
                 </span>
@@ -529,6 +528,6 @@ export function ManualJournalPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

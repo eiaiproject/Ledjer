@@ -168,7 +168,7 @@ export function ForgotPasswordPage() {
                   label="Email"
                   type="email"
                   placeholder="email@contoh.com"
-                  prefix={<Envelope className="h-4 w-4 text-wood-400" />}
+                  prefix={<Envelope className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
                   disabled={loading}
                   autoComplete="email"
