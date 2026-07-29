@@ -140,15 +140,20 @@ test.describe("Budgets CRUD", () => {
     const dlg = authPage.locator('dialog[open]').filter({ hasText: /buat anggaran baru/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
-    // Period from
-    const periodFrom = authPage.locator('#periode-dari');
-    if (await periodFrom.isVisible({ timeout: 2000 }).catch(() => false)) {
-      const now = new Date();
-      await periodFrom.fill(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    // Select an account (required — submit disabled without accountId)
+    const accountSelect = dlg.locator('#budgetAccount');
+    await expect(accountSelect).toBeVisible({ timeout: 3000 });
+    const firstOption = accountSelect.locator('option:not([value=""])').first();
+    const accountValue = await firstOption.getAttribute('value');
+    if (accountValue) {
+      await accountSelect.selectOption(accountValue);
     }
 
-    // Notes
-    const notes = authPage.locator('#catatan');
+    // Fill amount (required for meaningful budget)
+    await dlg.locator('#budgetAmount').fill('1000000');
+
+    // Notes (optional)
+    const notes = dlg.locator('#budgetNotes');
     if (await notes.isVisible({ timeout: 2000 }).catch(() => false)) {
       await notes.fill(`E2E Budget ${TEST_PREFIX}`);
     }
@@ -180,15 +185,11 @@ test.describe("Dimensions CRUD", () => {
     const dlg = authPage.locator('dialog[open]').filter({ hasText: /tambah/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
-    const nameInput = authPage.locator('#nama-dimensi');
-    if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nameInput.fill(`Dimensi E2E ${TEST_PREFIX}`);
-    }
+    // Fill code (required — submit disabled without code && name)
+    await dlg.locator('#dimCode').fill(`BR-${TEST_PREFIX}`);
 
-    const typeSelect = authPage.locator('#tipe-dimensi');
-    if (await typeSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await typeSelect.selectOption('customer');
-    }
+    // Fill name (required)
+    await dlg.locator('#dimName').fill(`Cabang E2E ${TEST_PREFIX}`);
 
     await clickDialogSubmit(authPage, /tambah .*/i);
     await authPage.waitForTimeout(3000);
@@ -217,20 +218,33 @@ test.describe("Fixed Assets CRUD", () => {
     const dlg = authPage.locator('dialog[open]').filter({ hasText: /tambah aset tetap/i });
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
-    const codeInput = authPage.locator('#kode-aset');
-    if (await codeInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await codeInput.fill(`FA-${TEST_PREFIX}`);
-    }
+    // Fill asset code (required)
+    await dlg.locator('#assetCode').fill(`FA-${TEST_PREFIX}`);
 
-    const nameInput = authPage.locator('#nama-aset');
-    if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await nameInput.fill(`Aset E2E ${TEST_PREFIX}`);
-    }
+    // Fill asset name (required)
+    await dlg.locator('#assetName').fill(`Aset E2E ${TEST_PREFIX}`);
 
-    const priceInput = authPage.locator('#harga-perolehan');
-    if (await priceInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await priceInput.fill('10000000');
-    }
+    // Select account asset (required)
+    const assetSelect = dlg.locator('#accountAssetId');
+    await expect(assetSelect).toBeVisible({ timeout: 3000 });
+    const firstAssetOpt = assetSelect.locator('option:not([value=""])').first();
+    const assetVal = await firstAssetOpt.getAttribute('value');
+    if (assetVal) await assetSelect.selectOption(assetVal);
+
+    // Select depreciation account (required)
+    const deprSelect = dlg.locator('#accountDepreciationId');
+    const firstDeprOpt = deprSelect.locator('option:not([value=""])').first();
+    const deprVal = await firstDeprOpt.getAttribute('value');
+    if (deprVal) await deprSelect.selectOption(deprVal);
+
+    // Select expense account (required)
+    const expenseSelect = dlg.locator('#accountExpenseId');
+    const firstExpenseOpt = expenseSelect.locator('option:not([value=""])').first();
+    const expenseVal = await firstExpenseOpt.getAttribute('value');
+    if (expenseVal) await expenseSelect.selectOption(expenseVal);
+
+    // Fill acquisition cost
+    await dlg.locator('#acquisitionCostMinor').fill('10000000');
 
     await clickDialogSubmit(authPage, /tambah aset tetap/i);
     await authPage.waitForTimeout(3000);
