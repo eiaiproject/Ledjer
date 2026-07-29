@@ -108,6 +108,36 @@ function resultLabel(value: number, gain: string, loss: string): string {
   return value >= 0 ? gain : loss;
 }
 
+// ── Shared report layout definition ─────────────────────────────────
+
+interface SectionDef {
+  type: "section";
+  index: number;
+  showTotal: boolean;
+}
+
+interface ResultDef {
+  type: "result";
+  label: string;
+  value: number;
+  variant: "intermediate" | "final";
+}
+
+type ReportLayoutItem = SectionDef | ResultDef;
+
+function buildReportLayout(report: ReportModel): ReportLayoutItem[] {
+  return [
+    { type: "section", index: 0, showTotal: true },
+    { type: "section", index: 1, showTotal: true },
+    { type: "result", label: resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor"), value: report.grossResult, variant: "intermediate" },
+    { type: "section", index: 2, showTotal: true },
+    { type: "result", label: resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional"), value: report.operatingResult, variant: "intermediate" },
+    { type: "section", index: 3, showTotal: true },
+    { type: "section", index: 4, showTotal: true },
+    { type: "result", label: resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih"), value: report.netResult, variant: "final" },
+  ];
+}
+
 // ── Component ───────────────────────────────────────────────────────
 
 export function ProfitLossPage() {
@@ -342,7 +372,7 @@ export function ProfitLossPage() {
   );
 }
 
-// ── Mobile renderer ─────────────────────────────────────────────────
+// ── Shared layout renderers (mobile + desktop from single layout def) ─
 
 function ReportMobile({
   sections,
@@ -351,42 +381,16 @@ function ReportMobile({
   readonly sections: ReportSection[];
   readonly report: ReportModel;
 }) {
+  const layout = buildReportLayout(report);
   return (
     <>
-      {/* Revenue */}
-      <SectionMobile section={sections[0]} showTotal />
-      {/* COGS */}
-      <SectionMobile section={sections[1]} showTotal />
-
-      {/* Gross Result */}
-      <ResultRow
-        label={resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor")}
-        value={report.grossResult}
-        variant="intermediate"
-      />
-
-      {/* Operating Expenses */}
-      <SectionMobile section={sections[2]} showTotal />
-
-      {/* Operating Result */}
-      <ResultRow
-        label={resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional")}
-        value={report.operatingResult}
-        variant="intermediate"
-      />
-
-      {/* Other Income */}
-      <SectionMobile section={sections[3]} showTotal />
-
-      {/* Other Expense */}
-      <SectionMobile section={sections[4]} showTotal />
-
-      {/* Net Result */}
-      <ResultRow
-        label={resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih")}
-        value={report.netResult}
-        variant="final"
-      />
+      {layout.map((def, i) =>
+        def.type === "section" ? (
+          <SectionMobile key={`s-${i}`} section={sections[def.index]} showTotal={def.showTotal} />
+        ) : (
+          <ResultRow key={`r-${i}`} label={def.label} value={def.value} variant={def.variant} />
+        )
+      )}
     </>
   );
 }
@@ -477,59 +481,20 @@ function ReportTableBody({
   readonly sections: ReportSection[];
   readonly report: ReportModel;
 }) {
+  const layout = buildReportLayout(report);
   return (
     <>
-      {/* Revenue tbody */}
-      <tbody>
-        <SectionRows section={sections[0]} showTotal />
-      </tbody>
-
-      {/* COGS tbody */}
-      <tbody>
-        <SectionRows section={sections[1]} showTotal />
-      </tbody>
-
-      {/* Gross Result */}
-      <tbody>
-        <ResultRowDesktop
-          label={resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor")}
-          value={report.grossResult}
-          variant="intermediate"
-        />
-      </tbody>
-
-      {/* Operating Expenses tbody */}
-      <tbody>
-        <SectionRows section={sections[2]} showTotal />
-      </tbody>
-
-      {/* Operating Result */}
-      <tbody>
-        <ResultRowDesktop
-          label={resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional")}
-          value={report.operatingResult}
-          variant="intermediate"
-        />
-      </tbody>
-
-      {/* Other Income tbody */}
-      <tbody>
-        <SectionRows section={sections[3]} showTotal />
-      </tbody>
-
-      {/* Other Expense tbody */}
-      <tbody>
-        <SectionRows section={sections[4]} showTotal />
-      </tbody>
-
-      {/* Net Result */}
-      <tbody>
-        <ResultRowDesktop
-          label={resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih")}
-          value={report.netResult}
-          variant="final"
-        />
-      </tbody>
+      {layout.map((def, i) =>
+        def.type === "section" ? (
+          <tbody key={`s-${i}`}>
+            <SectionRows section={sections[def.index]} showTotal={def.showTotal} />
+          </tbody>
+        ) : (
+          <tbody key={`r-${i}`}>
+            <ResultRowDesktop label={def.label} value={def.value} variant={def.variant} />
+          </tbody>
+        )
+      )}
     </>
   );
 }
