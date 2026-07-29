@@ -9,8 +9,6 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
-// ExternalLink icon replaced with inline SVG
-import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ReportShell } from "@/components/ui/report-shell";
 
 interface AgingBucket {

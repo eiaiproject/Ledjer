@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SupportBanner, resetSupportBannerDismiss } from "@/components/ui/support-banner";
+import { SupportBanner } from "@/components/ui/support-banner";
+import { resetSupportBannerDismiss } from "@/components/ui/support-banner-utils";
 
 /* ───── Setup ───── */
 

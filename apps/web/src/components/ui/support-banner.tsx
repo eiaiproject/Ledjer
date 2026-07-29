@@ -1,42 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { SupportLink } from "@/components/ui/support-link";
 import { X } from "reicon-react";
-
-/* ───── Cooldown key ───── */
-
-const DISMISS_KEY = "ledjer:support_banner_dismissed_at";
-const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 hari
-
-/* ───── Helpers ───── */
-
-function isBannerDismissed(): boolean {
-  try {
-    const stored = localStorage.getItem(DISMISS_KEY);
-    if (!stored) return false;
-    const dismissedAt = Number(stored);
-    if (!Number.isFinite(dismissedAt)) return false;
-    return Date.now() - dismissedAt < COOLDOWN_MS;
-  } catch {
-    return false;
-  }
-}
-
-function persistDismissal(): void {
-  try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
-  } catch {
-    // Storage penuh atau tidak tersedia — abaikan
-  }
-}
-
-function clearDismissal(): void {
-  try {
-    localStorage.removeItem(DISMISS_KEY);
-  } catch {
-    // abaikan
-  }
-}
+import { isBannerDismissed, persistDismissal } from "./support-banner-utils";
 
 /* ───── Props ───── */
 
@@ -66,18 +32,13 @@ export function SupportBanner({
   onDismiss,
   onSupportClick,
 }: SupportBannerProps) {
-  const [dismissed, setDismissed] = useState(() => {
-    if (forceShow) return false;
-    return isBannerDismissed();
-  });
+  const [userDismissed, setUserDismissed] = useState(() => isBannerDismissed());
 
-  // Reset ketika forceShow berubah
-  useEffect(() => {
-    if (forceShow) setDismissed(false);
-  }, [forceShow]);
+  // Derive dismissed state: forceShow overrides user dismissal
+  const dismissed = !forceShow && userDismissed;
 
   const handleDismiss = useCallback(() => {
-    setDismissed(true);
+    setUserDismissed(true);
     persistDismissal();
     onDismiss?.();
   }, [onDismiss]);
@@ -144,7 +105,4 @@ export function SupportBanner({
   );
 }
 
-/** Hapus dismiss state (untuk testing / debug) */
-export function resetSupportBannerDismiss(): void {
-  clearDismissal();
-}
+

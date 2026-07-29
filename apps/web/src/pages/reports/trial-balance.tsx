@@ -13,7 +13,6 @@ import { exportTrialBalanceCsv } from "@/lib/csv-export";
 import { Download, Refresh } from "reicon-react";
 import { getTrialBalance } from "@/lib/api/reports";
 import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ReportShell } from "@/components/ui/report-shell";
 
 export function TrialBalancePage() {

@@ -13,7 +13,6 @@ import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Download, Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 import { useReportDateRange, handleReportExport } from "./_components";
-import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ReportShell } from "@/components/ui/report-shell";
 
 // ── Canonical report model ──────────────────────────────────────────
