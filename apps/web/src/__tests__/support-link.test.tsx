@@ -118,28 +118,15 @@ describe("SupportLink", () => {
       expect(link.className).toContain("underline-offset-4");
     });
 
-    it('applies primary variant classes', () => {
-      render(<SupportLink variant="primary" />);
+    it.each([
+      ["primary", "bg-wood-500"],
+      ["secondary", "bg-cream-50"],
+      ["outline", "border-wood-300"],
+      ["ghost", "hover:bg-cream-100"],
+    ] as const)('applies %s variant classes', (variant, expectedClass) => {
+      render(<SupportLink variant={variant} />);
       const link = screen.getByRole("link");
-      expect(link.className).toContain("bg-wood-500");
-    });
-
-    it('applies secondary variant classes', () => {
-      render(<SupportLink variant="secondary" />);
-      const link = screen.getByRole("link");
-      expect(link.className).toContain("bg-cream-50");
-    });
-
-    it('applies outline variant classes', () => {
-      render(<SupportLink variant="outline" />);
-      const link = screen.getByRole("link");
-      expect(link.className).toContain("border-wood-300");
-    });
-
-    it('applies ghost variant classes', () => {
-      render(<SupportLink variant="ghost" />);
-      const link = screen.getByRole("link");
-      expect(link.className).toContain("hover:bg-cream-100");
+      expect(link.className).toContain(expectedClass);
     });
   });
 
