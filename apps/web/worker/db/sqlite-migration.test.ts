@@ -79,10 +79,14 @@ describe("Migrations against real SQLite", () => {
   });
 
   it("journal_lines CHECK constraint allows valid debit-only entry", () => {
-    db.exec("INSERT OR IGNORE INTO organizations (id, name, business_type, base_currency, books_start_date, onboarding_status, created_by, created_at, updated_at) VALUES ('org-1', 'Test', 'simple_trading', 'IDR', '2026-01-01', 'completed', 'user-1', 1, 1)");
-    db.exec("INSERT OR IGNORE INTO accounts (id, organization_id, code, name, account_type, normal_balance, is_active, is_cash_account, created_at, updated_at) VALUES ('acct-1', 'org-1', '1110', 'Cash', 'asset', 'debit', 1, 1, 1, 1)");
-    db.exec("INSERT OR IGNORE INTO journal_entries (id, organization_id, transaction_id, entry_number, entry_date, entry_type, status, posted_by, created_at, updated_at) VALUES ('je-1', 'org-1', 'tx-1', 'JE-001', '2026-01-01', 'reversal', 'posted', 'user-1', 1, 1)");
-    db.exec("INSERT OR IGNORE INTO transactions (id, organization_id, transaction_number, transaction_date, transaction_type, amount_minor, payment_status, status, description, created_by, created_at, updated_at) VALUES ('tx-1', 'org-1', 'TRX-001', '2026-01-01', 'cash_sale', 100000, 'paid', 'posted', 'test', 'user-1', 1, 1)");
+    // Temporarily disable FK for setup inserts to avoid silent failures
+    db.exec("PRAGMA foreign_keys=OFF");
+    db.exec("INSERT INTO users (id, email, full_name, password_hash, created_at, updated_at) VALUES ('user-1', 'test@example.com', 'Test User', 'hash', 1, 1)");
+    db.exec("INSERT INTO organizations (id, name, business_type, base_currency, books_start_date, onboarding_status, created_by, created_at, updated_at) VALUES ('org-1', 'Test', 'simple_trading', 'IDR', '2026-01-01', 'completed', 'user-1', 1, 1)");
+    db.exec("INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, is_active, is_cash_account, created_at, updated_at) VALUES ('acct-1', 'org-1', '1110', 'Cash', 'asset', 'debit', 1, 1, 1, 1)");
+    db.exec("INSERT INTO transactions (id, organization_id, transaction_number, transaction_date, transaction_type, amount_minor, payment_status, status, description, created_by, created_at, updated_at) VALUES ('tx-1', 'org-1', 'TRX-001', '2026-01-01', 'cash_sale', 100000, 'paid', 'posted', 'test', 'user-1', 1, 1)");
+    db.exec("INSERT INTO journal_entries (id, organization_id, transaction_id, entry_number, entry_date, entry_type, status, posted_by, created_at, updated_at) VALUES ('je-1', 'org-1', 'tx-1', 'JE-001', '2026-01-01', 'reversal', 'posted', 'user-1', 1, 1)");
+    db.exec("PRAGMA foreign_keys=ON");
 
     expect(() => {
       db.exec(
