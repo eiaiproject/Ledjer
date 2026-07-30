@@ -13,7 +13,7 @@ export type NotificationCategory =
   | "overdue_receivable" | "upcoming_payable" | "low_stock"
   | "pending_approval" | "unclosed_period" | "team_invitation"
   | "import_failed" | "export_completed" | "backup_failed"
-  | "role_changed" | "new_device_login" | "recurring_failed"
+  | "role_changed" | "new_device_login"
   | "system";
 
 export type NotificationSeverity = "critical" | "high" | "medium" | "low" | "info";
@@ -290,25 +290,6 @@ export async function generateDraftTransactionNotifications(
 
   return createForAllUsers(db, organizationId, adminUserIds, {
     category, title, message, severity, actionUrl, createdBy: "system",
-  });
-}
-
-export async function generateRecurringFailedNotification(
-  db: D1Database,
-  organizationId: string,
-  userId: string,
-  recurringName: string,
-  errorMessage: string,
-): Promise<NotificationOutput> {
-  return createNotification(db, {
-    organizationId,
-    recipientUserId: userId,
-    category: "recurring_failed",
-    title: `Gagal: ${recurringName}`,
-    message: `Transaksi berulang "${recurringName}" gagal: ${errorMessage}`,
-    severity: "high",
-    actionUrl: "/recurring-transactions",
-    createdBy: "system",
   });
 }
 

@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0027", () => {
-    const expected = Array.from({ length: 27 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0029", () => {
+    const expected = Array.from({ length: 29 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);
@@ -150,6 +150,20 @@ describe("Database Migrations", () => {
     // Dropped tables should not exist
     expect(final.tables.has("export_jobs")).toBe(false);
     expect(final.tables.has("account_mappings")).toBe(false);
+    expect(final.tables.has("business_documents")).toBe(false);
+    expect(final.tables.has("document_lines")).toBe(false);
+    expect(final.tables.has("recurring_transactions")).toBe(false);
+    expect(final.tables.has("recurring_execution_log")).toBe(false);
+    expect(final.tables.has("approval_requests")).toBe(false);
+    expect(final.tables.has("approval_configs")).toBe(false);
+    expect(final.tables.has("budgets")).toBe(false);
+    expect(final.tables.has("budget_lines")).toBe(false);
+    expect(final.tables.has("dimensions")).toBe(false);
+    expect(final.tables.has("transaction_tags")).toBe(false);
+    expect(final.tables.has("journal_line_tags")).toBe(false);
+    expect(final.tables.has("fixed_assets")).toBe(false);
+    expect(final.tables.has("asset_depreciation")).toBe(false);
+    expect(final.tables.has("export_jobs_v2")).toBe(false);
   });
 
   it("each core table has at least one column", () => {

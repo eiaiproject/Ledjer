@@ -61,7 +61,7 @@ const footerLinks = [
 const legalLinks = [
   { label: "Syarat & Ketentuan", to: "/terms" as const },
   { label: "Kebijakan Privasi", to: "/privacy" as const },
-  { label: "Kebijakan Layanan", to: "/refund" as const },
+
   { label: "Keamanan", to: "/security" as const },
   { label: "Hubungi Kami", to: "/contact" as const },
 ] as const;

@@ -11,7 +11,6 @@ import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
 import { badRequest, conflict, HttpError, notFound } from "../http/errors";
-import { requireApprovalOrContinue, type ActionType } from "./approvals.service";
 
 export type TransactionType =
   | "cash_sale"
@@ -922,20 +921,6 @@ export async function previewTransaction(
   };
 }
 
-/** Map transaction type to approval action type, or null if no approval needed. */
-function getApprovalActionType(type: TransactionType): ActionType | null {
-  if (type === "expense_payment" || type === "cash_purchase" || type === "credit_purchase" || type === "pay_payable") {
-    return "transaction_create";
-  }
-  if (type === "cash_sale" || type === "credit_sale" || type === "receive_receivable" || type === "owner_capital" || type === "owner_draw" || type === "cash_transfer") {
-    return "transaction_create";
-  }
-  if (type === "sale_return" || type === "purchase_return") {
-    return "transaction_create";
-  }
-  return null;
-}
-
 export async function postTransaction(
   db: D1Database,
   organizationId: string,
@@ -947,20 +932,6 @@ export async function postTransaction(
   if ("existing" in prepared) return prepared.existing;
 
   const { data } = prepared;
-
-  // Check if approval is needed for high-value transactions
-  const approvalActionType = getApprovalActionType(data.transactionType);
-  if (approvalActionType) {
-    const approval = await requireApprovalOrContinue(
-      db, organizationId, userId, approvalActionType, "transaction", "pending", data.amountMinor,
-      { entitySummary: `${transactionTypeLabel(data.transactionType)} - ${formatIDRMinor(data.amountMinor)}` },
-    );
-    if (approval) {
-      throw badRequest("approval_required",
-        `This transaction requires approval. Request ID: ${approval.id}. Please wait for an admin to approve it.`,
-      );
-    }
-  }
 
   const { idempotencyKey, transactionType, transactionDate, description, current } = data;
 
@@ -1392,17 +1363,6 @@ export async function voidTransaction(
   }
 
   const { original, voidDate, reason } = await validateVoidableTransaction(db, organizationId, transactionId, input);
-
-  // Check if approval is needed for voids
-  const voidApproval = await requireApprovalOrContinue(
-    db, organizationId, userId, "transaction_void", "transaction", transactionId, original.amount_minor,
-    { entitySummary: `Pembatalan ${transactionTypeLabel(original.transaction_type as TransactionType)} - ${formatIDRMinor(original.amount_minor)}` },
-  );
-  if (voidApproval) {
-    throw badRequest("approval_required",
-      `This void requires approval. Request ID: ${voidApproval.id}. Please wait for an admin to approve it.`,
-    );
-  }
 
   const originalJournalLines = await journalLinesForTransaction(db, organizationId, transactionId);
   if (!originalJournalLines.length) {

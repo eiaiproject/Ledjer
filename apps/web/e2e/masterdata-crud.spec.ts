@@ -124,19 +124,14 @@ test.describe("Products CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Budgets CRUD", () => {
-  test("Create a new budget", async ({ authPage }) => {
     // Navigate to dashboard first to initialize org context
     await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    await authPage.goto("/budgets", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(5000);
 
     // Try both EmptyState action button and PageShell header button
-    const budgetBtn = authPage.getByRole("button", { name: /buat anggaran/i })
       .or(authPage.getByRole("button", { name: /anggaran baru/i }));
-    await expect(budgetBtn.first()).toBeVisible({ timeout: 5000 });
-    await budgetBtn.first().click();
     await authPage.waitForTimeout(1000);
 
     // Dialog accessible from text content (Modal used without title prop)
@@ -144,7 +139,6 @@ test.describe("Budgets CRUD", () => {
     await expect(dlg).toBeVisible({ timeout: 5000 });
 
     // Select an account (required — submit disabled without accountId)
-    const accountSelect = dlg.locator('#budgetAccount');
     await expect(accountSelect).toBeVisible({ timeout: 3000 });
     const firstOption = accountSelect.locator('option:not([value=""])').first();
     const accountValue = await firstOption.getAttribute('value');
@@ -152,11 +146,8 @@ test.describe("Budgets CRUD", () => {
       await accountSelect.selectOption(accountValue);
     }
 
-    // Fill amount (required for meaningful budget)
-    await dlg.locator('#budgetAmount').fill('1000000');
 
     // Notes (optional)
-    const notes = dlg.locator('#budgetNotes');
     if (await notes.isVisible({ timeout: 2000 }).catch(() => false)) {
       await notes.fill(`E2E Budget ${TEST_PREFIX}`);
     }
@@ -172,12 +163,10 @@ test.describe("Budgets CRUD", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Dimensions CRUD", () => {
-  test("Create a new dimension", async ({ authPage }) => {
     // Navigate to dashboard first to initialize org context
     await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    await authPage.goto("/dimensions", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(5000);
 
     await expect(authPage.getByRole("button", { name: /tambah/i }).first()).toBeVisible({ timeout: 5000 });
@@ -210,7 +199,6 @@ test.describe("Fixed Assets CRUD", () => {
     await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    await authPage.goto("/fixed-assets", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(5000);
 
     // Try both EmptyState action button and PageShell header button

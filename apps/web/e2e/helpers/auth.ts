@@ -76,7 +76,6 @@ export const test = base.extend<AuthFixtures>({
 
     // Explicitly fetch current org to set current_organization_id in session.
     // Without this, session.current_organization_id stays null and pages that
-    // check useOrgPermissions() (budgets, dimensions, fixed-assets) won't show
     // action buttons because permissions resolve to false.
     await page.evaluate(async () => {
       await fetch("/api/organizations/current");

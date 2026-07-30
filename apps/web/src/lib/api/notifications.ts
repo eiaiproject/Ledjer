@@ -2,9 +2,9 @@ import { apiRequest } from "./client";
 
 export type NotificationCategory =
   | "overdue_receivable" | "upcoming_payable" | "low_stock"
-  | "pending_approval" | "unclosed_period" | "team_invitation"
+  | "unclosed_period" | "team_invitation"
   | "import_failed" | "export_completed" | "backup_failed"
-  | "role_changed" | "new_device_login" | "recurring_failed"
+  | "role_changed" | "new_device_login"
   | "system";
 
 export type NotificationSeverity = "critical" | "high" | "medium" | "low" | "info";

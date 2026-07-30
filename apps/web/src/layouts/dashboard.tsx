@@ -5,7 +5,6 @@ import * as Sentry from "@sentry/react";
 import {
   Home,
   Receipt,
-  BookOpen,
   Package,
   FileText,
   Chart,
@@ -16,11 +15,7 @@ import {
   X,
   ChevronDown,
   AnglesLeft,
-  Repeat,
   Wallet,
-  Folder,
-  Download,
-  Lock,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
@@ -38,45 +33,41 @@ type NavItem =
 
 type NavItemWithPerm = NavItem & { requires?: string };
 
+// ── Target Navigation ────────────────────────────────────────────
+// Beranda | Transaksi | Penjualan | Produk | Kas & Bank
+// Laporan → Laba Rugi, Neraca, Arus Kas, Piutang & Utang, Buku Besar, Neraca Saldo
+// Pengaturan → Profil Usaha, Akun & Keamanan, Saldo Awal, Tim, Impor Data, Lanjutan
+
 const NAV_ITEMS: NavItemWithPerm[] = [
-  { to: "/dashboard", label: "Dashboard", icon: Home },
+  { to: "/dashboard", label: "Beranda", icon: Home },
   { to: "/transactions", label: "Transaksi", icon: Receipt, requires: "canCreateTransaction" },
-  { to: "/accounts", label: "Akun", icon: BookOpen, requires: "canManageAccounts" },
+  { to: "/invoices", label: "Penjualan", icon: FileText, requires: "canCreateTransaction" },
   { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
-  { to: "/documents", label: "Dokumen", icon: FileText },
-  { to: "/recurring-transactions", label: "Berulang", icon: Repeat },
-  { to: "/invoices", label: "Faktur", icon: FileText, requires: "canCreateTransaction" },
-  { to: "/period-close", label: "Tutup Periode", icon: Lock, requires: "canManageTeam" },
-  { to: "/journals", label: "Jurnal Manual", icon: BookOpen, requires: "canManageAccounts" },
-  { to: "/reconciliation", label: "Rekonsiliasi", icon: BookOpen, requires: "canCreateTransaction" },
-  { to: "/opening-balance", label: "Saldo Awal", icon: BookOpen, requires: "canManageAccounts" },
-  { to: "/budgets", label: "Anggaran", icon: Wallet },
-  { to: "/exports", label: "Export", icon: Download },
-  { to: "/dimensions", label: "Dimensi", icon: Folder },
-  { to: "/fixed-assets", label: "Aset Tetap", icon: Chart },
-  { to: "/import", label: "Import Data", icon: FileText, requires: "canManageAccounts" },
+  { to: "/accounts", label: "Kas & Bank", icon: Wallet },
   {
     label: "Laporan",
     icon: Chart,
     requires: "canViewReports",
     children: [
-      { to: "/reports/general-ledger", label: "Buku Besar" },
-      { to: "/reports/trial-balance", label: "Neraca Saldo" },
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
       { to: "/reports/cash-flow", label: "Arus Kas" },
       { to: "/reports/aging", label: "Piutang & Utang" },
+      { to: "/reports/general-ledger", label: "Buku Besar" },
+      { to: "/reports/trial-balance", label: "Neraca Saldo" },
     ],
   },
   {
     label: "Pengaturan",
     icon: Settings,
-    requires: "canManageTeam",
     children: [
+      { to: "/settings/organization", label: "Profil Usaha" },
+      { to: "/settings/security", label: "Akun & Keamanan" },
+      { to: "/opening-balance", label: "Saldo Awal" },
       { to: "/settings/team", label: "Tim" },
-      { to: "/settings/period-locks", label: "Kunci Periode" },
-      { to: "/approvals", label: "Persetujuan" },
-      { to: "/approvals/settings", label: "Atur Persetujuan" },
+      { to: "/import", label: "Impor Data" },
+      { to: "/settings/period-locks", label: "Cegah Perubahan Transaksi Lama" },
+      { to: "/journals", label: "Penyesuaian Akuntansi" },
     ],
   },
 ];

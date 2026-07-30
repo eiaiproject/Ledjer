@@ -23,7 +23,7 @@ interface DashboardSummaryRow {
 
 export interface DashboardAlert {
   id: string;
-  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period" | "pending_approval";
+  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period";
   severity: "high" | "medium" | "low";
   title: string;
   description: string;
@@ -53,7 +53,6 @@ export async function getDashboardAlerts(
     checkLowStock,
     checkDraftTransactions,
     checkUnreconciledStatements,
-    checkPendingApprovals,
     checkUnclosedPeriod,
   ];
 
@@ -177,25 +176,6 @@ async function checkUnreconciledStatements(
       title: "Rekonsiliasi Belum Selesai",
       description: `${unreconciledRow.count} rekening koran masih perlu direkonsiliasi. Cocokkan transaksi untuk memastikan saldo sesuai.`,
       count: unreconciledRow.count, actionLabel: "Rekonsiliasi", actionPath: "/reconciliation",
-    });
-  }
-}
-
-async function checkPendingApprovals(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const approvalRow = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) as count FROM approval_requests
-     WHERE organization_id = ? AND status = 'pending'`,
-    [orgId],
-  );
-  if (approvalRow && approvalRow.count > 0) {
-    alerts.push({
-      id: "pending_approval", type: "pending_approval", severity: "high",
-      title: "Persetujuan Menunggu",
-      description: `${approvalRow.count} permintaan menunggu persetujuan Anda. Segera tinjau untuk melanjutkan proses.`,
-      count: approvalRow.count, actionLabel: "Tinjau Persetujuan", actionPath: "/approvals",
     });
   }
 }

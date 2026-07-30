@@ -4,12 +4,14 @@ import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { forbidden } from "../http/errors";
 import { readJson } from "../http/json";
+import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import {
   createOrganization,
   getCurrentOrganization,
   getOrganizationContextForUser,
   listOrganizationsForUser,
   setCurrentOrganization,
+  updateOrganization,
 } from "../services/organization.service";
 
 const businessTypeSchema = z.enum(["service", "simple_trading"]);
@@ -35,6 +37,10 @@ const createOrganizationSchema = z.object({
 
 const selectCurrentOrganizationSchema = z.object({
   organizationId: z.string().min(1),
+});
+
+const updateOrganizationSchema = z.object({
+  name: z.string().min(2).max(160),
 });
 
 export const organizationRoutes = new Hono<AppContext>();
@@ -73,6 +79,16 @@ organizationRoutes.post("/current", async (c) => {
     body.organizationId,
   );
   return c.json(state);
+});
+
+organizationRoutes.put("/current", loadCurrentOrganization(), requirePermission("organization:update"), async (c) => {
+  const session = c.get("session");
+  const state = await getCurrentOrganization(c.env.DB, session);
+  if (!state.organization) throw forbidden("organization_forbidden", "Organization access denied");
+  const body = await readJson(c, updateOrganizationSchema);
+  await updateOrganization(c.env.DB, state.organization.id, session.user_id, body.name);
+  const updated = await getCurrentOrganization(c.env.DB, session);
+  return c.json(updated);
 });
 
 organizationRoutes.get("/:organizationId", async (c) => {

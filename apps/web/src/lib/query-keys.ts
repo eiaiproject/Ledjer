@@ -101,60 +101,14 @@ export const queryKeys = {
     unreadCount: () => ["notifications", "unread-count"] as const,
   },
 
-  recurringTransactions: {
-    all: () => ["recurring-transactions"] as const,
-    list: (status?: string) => ["recurring-transactions", "list", status ?? "all"] as const,
-    detail: (id: string) => ["recurring-transactions", id] as const,
-    logs: (id: string) => ["recurring-transactions", id, "logs"] as const,
-  },
-
-  documents: {
-    all: () => ["documents"] as const,
-    list: (type?: string) => ["documents", "list", type ?? "all"] as const,
-    detail: (id: string) => ["documents", id] as const,
-  },
-
   periodLocks: {
     list: (orgId: string | undefined) => ["period-locks", orgId] as const,
     all: () => ["period-locks"] as const,
   },
 
-  approvals: {
-    all: () => ["approvals"] as const,
-    list: (status?: string, actionType?: string) => ["approvals", "list", status ?? "", actionType ?? ""] as const,
-    configs: () => ["approvals", "configs"] as const,
-    pendingCount: () => ["approvals", "pending-count"] as const,
-  },
-
   journals: {
     all: () => ["journal-templates"] as const,
     templates: (entryType?: string) => ["journal-templates", entryType ?? "all"] as const,
-  },
-
-  budgets: {
-    all: () => ["budgets"] as const,
-    list: (periodFrom?: string, periodTo?: string) => ["budgets", "list", periodFrom ?? "", periodTo ?? ""] as const,
-    report: (periodFrom: string, periodTo: string) => ["budgets", "report", periodFrom, periodTo] as const,
-    varianceAlerts: (threshold: number) => ["budgets", "variance-alerts", threshold] as const,
-  },
-
-  fixedAssets: {
-    all: () => ["fixed-assets"] as const,
-    list: (status?: string) => ["fixed-assets", "list", status ?? ""] as const,
-    bookValue: (asOfDate?: string) => ["fixed-assets", "book-value", asOfDate ?? ""] as const,
-  },
-
-  dimensions: {
-    all: () => ["dimensions"] as const,
-    list: (type?: string) => ["dimensions", "list", type ?? ""] as const,
-    summary: () => ["dimensions", "summary"] as const,
-    report: (type: string, from: string, to: string) => ["dimensions", "report", type, from, to] as const,
-  },
-
-  exports: {
-    all: () => ["exports"] as const,
-    list: (status?: string) => ["exports", "list", status ?? ""] as const,
-    detail: (id: string) => ["exports", id] as const,
   },
 
 } as const;

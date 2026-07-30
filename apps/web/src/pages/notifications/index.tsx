@@ -10,14 +10,13 @@ import {
   dismissNotification,
   type NotificationCategory,
 } from "@/lib/api/notifications";
-import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, Check } from "reicon-react";
+import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Check } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
 
 const CATEGORY_LABELS: Record<string, string> = {
   overdue_receivable: "Piutang Jatuh Tempo",
   upcoming_payable: "Tagihan Mendekati Jatuh Tempo",
   low_stock: "Stok Menipis",
-  pending_approval: "Menunggu Persetujuan",
   unclosed_period: "Periode Belum Ditutup",
   team_invitation: "Undangan Tim",
   import_failed: "Import Gagal",
@@ -25,7 +24,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   backup_failed: "Backup Gagal",
   role_changed: "Perubahan Peran",
   new_device_login: "Login Perangkat Baru",
-  recurring_failed: "Transaksi Berulang Gagal",
   system: "Sistem",
 };
 
@@ -33,7 +31,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   overdue_receivable: <AlertTriangle className="h-4 w-4" />,
   upcoming_payable: <Clock className="h-4 w-4" />,
   low_stock: <Package className="h-4 w-4" />,
-  pending_approval: <Clock className="h-4 w-4" />,
   unclosed_period: <Lock className="h-4 w-4" />,
   team_invitation: <Shield className="h-4 w-4" />,
   import_failed: <Upload className="h-4 w-4" />,
@@ -41,7 +38,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   backup_failed: <Ban className="h-4 w-4" />,
   role_changed: <Shield className="h-4 w-4" />,
   new_device_login: <Shield className="h-4 w-4" />,
-  recurring_failed: <Repeat className="h-4 w-4" />,
   system: <Refresh className="h-4 w-4" />,
 };
 
@@ -49,7 +45,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   overdue_receivable: "text-red-600 bg-red-50",
   upcoming_payable: "text-amber-600 bg-amber-50",
   low_stock: "text-yellow-600 bg-yellow-50",
-  pending_approval: "text-blue-600 bg-blue-50",
   unclosed_period: "text-purple-600 bg-purple-50",
   team_invitation: "text-green-600 bg-green-50",
   import_failed: "text-red-600 bg-red-50",
@@ -57,7 +52,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   backup_failed: "text-red-600 bg-red-50",
   role_changed: "text-indigo-600 bg-indigo-50",
   new_device_login: "text-orange-600 bg-orange-50",
-  recurring_failed: "text-rose-600 bg-rose-50",
   system: "text-wood-600 bg-wood-50",
 };
 
@@ -91,7 +85,6 @@ const CATEGORIES: { value: NotificationCategory | ""; label: string }[] = [
   { value: "upcoming_payable", label: "Utang" },
   { value: "low_stock", label: "Stok" },
   { value: "unclosed_period", label: "Periode" },
-  { value: "recurring_failed", label: "Berulang" },
   { value: "system", label: "Sistem" },
 ];
 

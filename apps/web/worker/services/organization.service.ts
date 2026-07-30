@@ -21,9 +21,7 @@ export type Permission =
   | "reports:read"
   | "team:read"
   | "team:manage"
-  | "exports:create"
-  | "approvals:read"
-  | "approvals:approve";
+  | "exports:create";
 
 export interface PublicOrganization {
   id: string;
@@ -139,13 +137,11 @@ const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     "organization:read", "organization:update", "accounts:read", "accounts:write",
     "products:read", "products:write", "transactions:read", "transactions:create",
     "transactions:void", "reports:read", "team:read", "team:manage", "exports:create",
-    "approvals:read", "approvals:approve",
   ]),
   admin: new Set([
     "organization:read", "organization:update", "accounts:read", "accounts:write",
     "products:read", "products:write", "transactions:read", "transactions:create",
     "transactions:void", "reports:read", "team:read", "team:manage", "exports:create",
-    "approvals:read", "approvals:approve",
   ]),
   member: new Set([
     "organization:read", "accounts:read", "products:read",
@@ -436,6 +432,21 @@ async function findAccountIdByCode(db: D1Database, organizationId: string, code:
     [organizationId, code],
   );
   return row?.id ?? null;
+}
+
+export async function updateOrganization(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  name: string,
+): Promise<void> {
+  const current = Date.now();
+  await execute(
+    db,
+    `UPDATE organizations SET name = ?, updated_at = ? WHERE id = ?`,
+    [name.trim(), current, organizationId],
+  );
+  await logAuthEvent(db, userId, organizationId, "organization_updated", { name });
 }
 
 async function createDefaultAccounts(
