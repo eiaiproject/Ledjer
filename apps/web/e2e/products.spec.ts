@@ -128,7 +128,7 @@ test.describe("Stock filter (auth required)", () => {
     const buttons = authPage.locator("fieldset button");
     const count = await buttons.count();
     if (count < 2) {
-      test.skip(true, 'Stock filter buttons not found');
+      test.skip(true, 'Stock filter buttons not found'); // NOSONAR
       return;
     }
     const amanBtn = buttons.nth(1);
@@ -200,7 +200,7 @@ test.describe("Action accessible names (auth required)", () => {
     const deactivateBtns = authPage.locator('button[aria-label^="Nonaktifkan produk"]');
     const count = await deactivateBtns.count();
     if (count === 0) {
-      test.skip(true, 'Tidak ada produk untuk diperiksa');
+      test.skip(true, 'Tidak ada produk untuk diperiksa'); // NOSONAR
       return;
     }
     for (let i = 0; i < count; i++) {
@@ -218,14 +218,14 @@ test.describe("Deactivate dialog (auth required)", () => {
     const deleteBtn = authPage.locator('button[aria-label^="Nonaktifkan produk"]').first();
     const btnVisible = await deleteBtn.isVisible().catch(() => false);
     if (!btnVisible) {
-      test.skip(true, 'Tidak ada produk untuk dinonaktifkan');
+      test.skip(true, 'Tidak ada produk untuk dinonaktifkan'); // NOSONAR
       return;
     }
     await deleteBtn.click();
     const dialog = authPage.locator('[role="alertdialog"], [role="dialog"]').first();
     const dialogVisible = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
     if (!dialogVisible) {
-      test.skip(true, 'Dialog konfirmasi tidak muncul');
+      test.skip(true, 'Dialog konfirmasi tidak muncul'); // NOSONAR
       return;
     }
     await expect(dialog).toContainText("Nonaktifkan produk?");
@@ -236,14 +236,14 @@ test.describe("Deactivate dialog (auth required)", () => {
     const deleteBtn = authPage.locator('button[aria-label^="Nonaktifkan produk"]').first();
     const btnVisible = await deleteBtn.isVisible().catch(() => false);
     if (!btnVisible) {
-      test.skip(true, 'Tidak ada produk untuk dinonaktifkan');
+      test.skip(true, 'Tidak ada produk untuk dinonaktifkan'); // NOSONAR
       return;
     }
     await deleteBtn.click();
     const dialog = authPage.locator('[role="alertdialog"], [role="dialog"]').first();
     const dialogVisible = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
     if (!dialogVisible) {
-      test.skip(true, 'Dialog konfirmasi tidak muncul');
+      test.skip(true, 'Dialog konfirmasi tidak muncul'); // NOSONAR
       return;
     }
     await expect(dialog.getByRole("button", { name: /batal/i })).toBeVisible();

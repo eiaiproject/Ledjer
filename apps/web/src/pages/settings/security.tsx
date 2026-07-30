@@ -72,7 +72,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function formatAction(action: string): string {
-  return ACTION_LABELS[action] || action.replace(/_/g, " ");
+  return ACTION_LABELS[action] || action.replaceAll("_", " ");
 }
 
 function formatAuditDate(epochStr: string): string {
@@ -154,6 +154,73 @@ export function SecuritySettingsPage() {
 
   const auditLogs = auditData?.auditLogs ?? [];
 
+  // Compute audit log content to avoid nested ternary (S3358)
+  const auditLogContent = (() => {
+    if (!canViewAuditLog) {
+      return (
+        <div className="flex items-start gap-2 rounded-lg border border-wood-100 bg-cream-50 p-4">
+          <InfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-wood-400" />
+          <p className="text-sm text-wood-500">
+            Hanya pemilik dan admin yang dapat melihat aktivitas akun.
+          </p>
+        </div>
+      );
+    }
+    if (auditLoading) {
+      return (
+        <div className="flex items-center justify-center py-6">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-wood-500 border-t-transparent" />
+        </div>
+      );
+    }
+    if (auditError) {
+      return (
+        <div className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-4">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+          <p className="text-sm text-error">
+            Gagal memuat aktivitas. Coba lagi nanti.
+          </p>
+        </div>
+      );
+    }
+    if (auditLogs.length === 0) {
+      return (
+        <EmptyState
+          icon={<History className="h-6 w-6" />}
+          title="Belum ada aktivitas"
+          description="Aktivitas akun akan muncul di sini."
+        />
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {auditLogs.map((log) => (
+          <div
+            key={log.id}
+            className="flex items-start gap-3 rounded-lg border border-wood-100 bg-cream-50 p-3 transition-colors hover:bg-cream-100"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wood-100 text-wood-600">
+              <History className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-wood-700">
+                  {formatAction(log.action)}
+                </span>
+                <span className="text-xs text-wood-500">
+                  {formatAuditDate(log.created_at)}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-wood-500">
+                {log.actor_email || "—"}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  })();
+
   return (
     <PageShell
       header={{
@@ -169,13 +236,13 @@ export function SecuritySettingsPage() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-wood-700">Nama</label>
+              <span className="block text-sm font-medium text-wood-700">Nama</span>
               <p className="mt-1 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
                 {user?.full_name || "—"}
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-wood-700">Email</label>
+              <span className="block text-sm font-medium text-wood-700">Email</span>
               <p className="mt-1 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
                 {user?.email || "—"}
               </p>
@@ -183,7 +250,7 @@ export function SecuritySettingsPage() {
           </div>
 
           <div className="mt-4">
-            <label className="block text-sm font-medium text-wood-700">Metode Masuk</label>
+            <span className="block text-sm font-medium text-wood-700">Metode Masuk</span>
             <div className="mt-1 flex items-center gap-2 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
               <ShieldCheck className="h-4 w-4 text-wood-400" />
               <span>Email & Password</span>
@@ -262,57 +329,7 @@ export function SecuritySettingsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {!canViewAuditLog ? (
-            <div className="flex items-start gap-2 rounded-lg border border-wood-100 bg-cream-50 p-4">
-              <InfoCircle className="mt-0.5 h-4 w-4 shrink-0 text-wood-400" />
-              <p className="text-sm text-wood-500">
-                Hanya pemilik dan admin yang dapat melihat aktivitas akun.
-              </p>
-            </div>
-          ) : auditLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-wood-500 border-t-transparent" />
-            </div>
-          ) : auditError ? (
-            <div className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-4">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
-              <p className="text-sm text-error">
-                Gagal memuat aktivitas. Coba lagi nanti.
-              </p>
-            </div>
-          ) : auditLogs.length === 0 ? (
-            <EmptyState
-              icon={<History className="h-6 w-6" />}
-              title="Belum ada aktivitas"
-              description="Aktivitas akun akan muncul di sini."
-            />
-          ) : (
-            <div className="space-y-2">
-              {auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 rounded-lg border border-wood-100 bg-cream-50 p-3 transition-colors hover:bg-cream-100"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wood-100 text-wood-600">
-                    <History className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-wood-700">
-                        {formatAction(log.action)}
-                      </span>
-                      <span className="text-xs text-wood-500">
-                        {formatAuditDate(log.created_at)}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-wood-500">
-                      {log.actor_email || "—"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {auditLogContent}
         </CardContent>
       </Card>
     </PageShell>

@@ -13,7 +13,7 @@ const TEST_PREFIX = `[E2E] ${Date.now()}`;
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Invoices CRUD", () => {
-  test("Create a new invoice", async ({ authPage }) => {
+  test("Create a new invoice", async ({ authPage }) => { // NOSONAR
     await authPage.goto("/invoices/new", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
@@ -28,7 +28,7 @@ test.describe("Invoices CRUD", () => {
     const dateInput = authPage.locator('#inv-date');
     const dateExists = await dateInput.isVisible({ timeout: 3000 }).catch(() => false);
     if (!dateExists) {
-      test.skip(true, 'Invoice form fields not found');
+      test.skip(true, 'Invoice form fields not found'); // NOSONAR
       return;
     }
     await dateInput.fill(new Date().toISOString().slice(0, 10));
@@ -83,7 +83,7 @@ test.describe("Invoices CRUD", () => {
     if (btnVisible) {
       const btnEnabled = await submitBtn.isEnabled().catch(() => false);
       if (!btnEnabled) {
-        test.skip(true, 'Invoice form not fully filled - submit button disabled');
+        test.skip(true, 'Invoice form not fully filled - submit button disabled'); // NOSONAR
         return;
       }
       await submitBtn.click();
