@@ -1,5 +1,4 @@
 import { test } from "./helpers/auth";
-import { expect } from "@playwright/test";
 
 /**
  * Invoices CRUD: /invoices/new
