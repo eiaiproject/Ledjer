@@ -70,3 +70,12 @@ export function selectCurrentOrganization(
     body: JSON.stringify({ organizationId }),
   });
 }
+
+export function updateOrganization(
+  name: string,
+): Promise<OrganizationState> {
+  return apiRequest<OrganizationState>("/api/organizations/current", {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+}

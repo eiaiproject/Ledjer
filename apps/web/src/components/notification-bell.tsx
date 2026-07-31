@@ -9,7 +9,7 @@ import {
   dismissNotification,
   type NotificationOutput,
 } from "@/lib/api/notifications";
-import { Bell, Loader, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Repeat, Check } from "reicon-react";
+import { Bell, Loader, Eye, Trash2, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Check } from "reicon-react";
 
 interface CategoryConfig {
   icon: React.ReactNode;
@@ -20,7 +20,6 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   overdue_receivable: { icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
   upcoming_payable: { icon: <Clock className="h-4 w-4" />, color: "text-amber-600 bg-amber-50" },
   low_stock: { icon: <Package className="h-4 w-4" />, color: "text-yellow-600 bg-yellow-50" },
-  pending_approval: { icon: <Clock className="h-4 w-4" />, color: "text-blue-600 bg-blue-50" },
   unclosed_period: { icon: <Lock className="h-4 w-4" />, color: "text-purple-600 bg-purple-50" },
   team_invitation: { icon: <Upload className="h-4 w-4" />, color: "text-green-600 bg-green-50" },
   import_failed: { icon: <Upload className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
@@ -28,7 +27,6 @@ const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
   backup_failed: { icon: <Ban className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
   role_changed: { icon: <Shield className="h-4 w-4" />, color: "text-indigo-600 bg-indigo-50" },
   new_device_login: { icon: <Shield className="h-4 w-4" />, color: "text-orange-600 bg-orange-50" },
-  recurring_failed: { icon: <Repeat className="h-4 w-4" />, color: "text-rose-600 bg-rose-50" },
   system: { icon: <Refresh className="h-4 w-4" />, color: "text-wood-600 bg-wood-50" },
 };
 

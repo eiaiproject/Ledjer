@@ -32,7 +32,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
-  const { canViewReports, canVoidTransaction } = useOrgPermissions();
+  const { canViewReports, canVoidTransaction, canCreateTransaction } = useOrgPermissions();
   const [showVoidForm, setShowVoidForm] = useState(false);
   const [showSettleForm, setShowSettleForm] = useState(false);
   const [settleCashAccountId, setSettleCashAccountId] = useState("");
@@ -266,11 +266,27 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
               <dd className="mt-1 break-words">{transaction.created_by_profile?.full_name || "-"}</dd>
             </div>
           <div>
-            <dt className="text-wood-500">Diposting</dt>
-            <dd className="mt-1">{transaction.posted_at ? formatShortDate(transaction.posted_at) : "-"}</dd>
-          </div>
+            <dt className="text-wood-500">Diposting</dt>              <dd className="mt-1">{transaction.posted_at ? formatShortDate(transaction.posted_at) : "-"}</dd>
+            </div>
         </dl>
       </div>
+
+      {/* Catat Lagi — for posted transactions */}
+      {transaction.status === "posted" && canCreateTransaction && (
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(`/transactions/new?type=${transaction.transaction_type}&amount=${transaction.amount}&desc=${encodeURIComponent(transaction.description || "")}`)}
+            className="border-sky-300 text-sky-700 hover:bg-sky-50"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M10 3a.75.75 0 01.75.75v5.5h5.5a.75.75 0 010 1.5h-5.5v5.5a.75.75 0 01-1.5 0v-5.5h-5.5a.75.75 0 010-1.5h5.5v-5.5A.75.75 0 0110 3z" />
+            </svg>
+            Catat Lagi
+          </Button>
+        </div>
+      )}
 
       {/* Settle Section — for partially paid credit transactions */}
       {transaction.status === "posted" && (transaction.transaction_type === "credit_sale" || transaction.transaction_type === "credit_purchase") && transaction.payment_status === "partial" && (

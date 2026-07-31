@@ -311,7 +311,7 @@ async function loginViaAPI(page) {
 
 // ── Fetch data IDs for detail pages ────────────────────────────────
 async function fetchDataIDs(page) {
-  const ids = { transactions: [], invoices: [], documents: [], recurring: [] };
+  const ids = { transactions: [], invoices: [] };
 
   try {
     const txns = await page.evaluate(async () => {
@@ -335,30 +335,6 @@ async function fetchDataIDs(page) {
     ids.invoices = invs.slice(0, 2);
   } catch (e) {
     console.log(`  ⚠️ Could not fetch invoices: ${e.message}`);
-  }
-
-  try {
-    const docs = await page.evaluate(async () => {
-      const res = await fetch("/api/documents?limit=5");
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data.documents || []).map(d => d.id).filter(Boolean);
-    });
-    ids.documents = docs.slice(0, 2);
-  } catch (e) {
-    console.log(`  ⚠️ Could not fetch documents: ${e.message}`);
-  }
-
-  try {
-    const recs = await page.evaluate(async () => {
-      const res = await fetch("/api/recurring-transactions?limit=5");
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data.transactions || []).map(t => t.id).filter(Boolean);
-    });
-    ids.recurring = recs.slice(0, 2);
-  } catch (e) {
-    console.log(`  ⚠️ Could not fetch recurring transactions: ${e.message}`);
   }
 
   return ids;
@@ -425,24 +401,6 @@ async function scanInvoiceDetails(page, ids) {
   }
   if (ids.invoices.length === 0) {
     console.log("  ⏭️  No invoice IDs available                       ");
-  }
-}
-
-async function scanDocumentDetails(page, ids) {
-  for (const id of ids.documents) {
-    await testPage(page, `Document Detail (${id.substring(0, 8)}...)`, `/documents/${id}`, true);
-  }
-  if (ids.documents.length === 0) {
-    console.log("  ⏭️  No document IDs available                      ");
-  }
-}
-
-async function scanRecurringDetails(page, ids) {
-  for (const id of ids.recurring) {
-    await testPage(page, `Recurring Detail (${id.substring(0, 8)}...)`, `/recurring-transactions/${id}`, true);
-  }
-  if (ids.recurring.length === 0) {
-    console.log("  ⏭️  No recurring transaction IDs available         ");
   }
 }
 
@@ -619,10 +577,7 @@ async function scanProtectedPages(page) {
     { path: "/products",                label: "Products" },
     { path: "/invoices",                label: "Invoices List" },
     { path: "/invoices/new",            label: "New Invoice" },
-    { path: "/documents",               label: "Documents List" },
-    { path: "/documents/new",           label: "New Document" },
-    { path: "/recurring-transactions",  label: "Recurring Transactions" },
-    { path: "/recurring-transactions/new", label: "New Recurring" },
+
     { path: "/notifications",           label: "Notifications" },
     { path: "/reports/general-ledger",  label: "General Ledger" },
     { path: "/reports/trial-balance",   label: "Trial Balance" },
@@ -635,13 +590,6 @@ async function scanProtectedPages(page) {
     { path: "/import",                  label: "Import Data" },
     { path: "/settings/team",           label: "Team Settings" },
     { path: "/settings/period-locks",   label: "Period Locks" },
-    { path: "/approvals",               label: "Approvals" },
-    { path: "/approvals/settings",      label: "Approval Settings" },
-    { path: "/period-close",            label: "Period Close" },
-    { path: "/budgets",                 label: "Budgets" },
-    { path: "/exports",                 label: "Exports" },
-    { path: "/dimensions",              label: "Dimensions" },
-    { path: "/fixed-assets",            label: "Fixed Assets" },
     { path: "/journals",                label: "Manual Journals" },
     { path: "/onboarding",              label: "Onboarding" },
     { path: "/onboarding/checklist",    label: "Onboarding Checklist" },
@@ -657,8 +605,6 @@ async function scanDetailPages(page, ids) {
   console.log("┌─ DETAIL PAGES (dynamic routes) ──────────────────────┐");
   await scanTransactionDetails(page, ids);
   await scanInvoiceDetails(page, ids);
-  await scanDocumentDetails(page, ids);
-  await scanRecurringDetails(page, ids);
   await scanPartyStatement(page);
   console.log("└──────────────────────────────────────────────────────┘\n");
 }
@@ -703,7 +649,7 @@ async function main() {
   console.log("┌─ FETCH DATA IDs untuk detail pages ──────────────────┐");
   const ids = await fetchDataIDs(page);
   console.log(`│   Transactions: ${ids.transactions.length}        Invoices: ${ids.invoices.length}          │`);
-  console.log(`│   Documents: ${ids.documents.length}            Recurring: ${ids.recurring.length}          │`);
+
   console.log("└──────────────────────────────────────────────────────┘\n");
 
   await scanPublicPages(page);

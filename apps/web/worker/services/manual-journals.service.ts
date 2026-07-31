@@ -8,7 +8,6 @@ import { execute, executeBatch, queryAll, queryFirst, statement, type D1Input } 
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import { badRequest, conflict, notFound } from "../http/errors";
-import { requireApprovalOrContinue } from "./approvals.service";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -171,18 +170,6 @@ export async function postManualJournal(
 
   // Check period is open
   await assertPeriodOpen(db, organizationId, entryDate);
-
-  // Check if approval is needed for manual journals
-  const totalMinor = input.lines.reduce((s, l) => s + l.debitMinor, 0);
-  const approval = await requireApprovalOrContinue(
-    db, organizationId, userId, "manual_journal", "journal_entry", "pending", totalMinor,
-    { entitySummary: `${entryTypeLabel(input.entryType)}: ${description}` },
-  );
-  if (approval) {
-    throw badRequest("approval_required",
-      `This journal entry requires approval. Request ID: ${approval.id}. Please wait for an admin to approve it.`,
-    );
-  }
 
   // Preview to validate
   const preview = await previewManualJournal(db, organizationId, input);

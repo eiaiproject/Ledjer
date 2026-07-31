@@ -25,23 +25,14 @@ import attachmentRoutes from "./routes/attachments.routes";
 import invoiceRoutes from "./routes/invoices.routes";
 import receivablesRoutes from "./routes/receivables.routes";
 import reconciliationRoutes from "./routes/reconciliation.routes";
-import importRoutes from "./routes/import.routes";import documentRoutes from "./routes/documents.routes";
-import recurringTransactionRoutes from "./routes/recurring-transactions.routes";
+import importRoutes from "./routes/import.routes";
 import notificationRoutes from "./routes/notifications.routes";
-import { approvalsRoutes } from "./routes/approvals.routes";
-import { periodCloseRoutes } from "./routes/period-close.routes";
 import { manualJournalRoutes } from "./routes/manual-journals.routes";
-import { dimensionsRoutes } from "./routes/dimensions.routes";
-import { fixedAssetsRoutes } from "./routes/fixed-assets.routes";
-import { budgetsRoutes } from "./routes/budgets.routes";
-import { exportsV2Routes } from "./routes/exports-v2.routes";
 import { pushRoutes } from "./routes/push.routes";
 import { onboardingRoutes } from "./routes/onboarding.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
 import { cleanupOrphanedAttachments } from "./services/attachments.service";
-import { executeAllDueTransactions } from "./services/recurring-transactions.service";
-import { postTransaction } from "./services/transactions.service";
 
 const app = new Hono<AppContext>();
 
@@ -120,16 +111,8 @@ app.route("/api/reconciliation", reconciliationRoutes);
 app.route("/api/invoices", invoiceRoutes);
 app.route("/api/receivables", receivablesRoutes);
 app.route("/api/import", importRoutes);
-app.route("/api/documents", documentRoutes);
-app.route("/api/recurring-transactions", recurringTransactionRoutes);
 app.route("/api/notifications", notificationRoutes);
-app.route("/api/approvals", approvalsRoutes);
-app.route("/api/period-close", periodCloseRoutes);
 app.route("/api/manual-journals", manualJournalRoutes);
-app.route("/api/dimensions", dimensionsRoutes);
-app.route("/api/fixed-assets", fixedAssetsRoutes);
-app.route("/api/budgets", budgetsRoutes);
-app.route("/api/exports-v2", exportsV2Routes);
 app.route("/api/push", pushRoutes);
 app.route("/api/onboarding", onboardingRoutes);
 
@@ -167,17 +150,7 @@ async function runAttachmentCleanup(env: AppContext["Bindings"]): Promise<void> 
   }
 }
 
-/** Execute due recurring transactions and log results. */
-async function runRecurringTransactions(env: AppContext["Bindings"]): Promise<void> {
-  try {
-    const result = await executeAllDueTransactions(env.DB, undefined, undefined, postTransaction);
-    if (result.executed > 0 || result.failed > 0) {
-      console.log(JSON.stringify({ type: "recurring_transactions", ...result, status: "completed" }));
-    }
-  } catch (err) {
-    console.error(JSON.stringify({ type: "recurring_transactions", status: "failed", error: err instanceof Error ? err.message : String(err) }));
-  }
-}
+
 
 /** Create a daily backup and run restore drill, logging results. */
 async function runBackupAndDrill(env: AppContext["Bindings"]): Promise<void> {
@@ -216,7 +189,6 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
   ) {
     await cleanupExpiredRows(env.DB);
     await runAttachmentCleanup(env);
-    await runRecurringTransactions(env);
     await runBackupAndDrill(env);
   },
 };

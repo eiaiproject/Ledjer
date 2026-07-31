@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState, useCallback, startTransition } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, startTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { globalSearch as searchApi, type SearchResultItem } from "@/lib/api/global-search";
 import { Search, Loader, X, FileText, Receipt, User, Package, BookOpen, Users, ArrowRight } from "reicon-react";
@@ -61,7 +61,7 @@ export function GlobalSearchModal({ open, onClose }: GlobalSearchModalProps) {
     enabled: query.trim().length >= 2,
   });
 
-  const results = data?.results ?? [];
+  const results = useMemo(() => data?.results ?? [], [data]);
 
   // Reset selection when results change
   useEffect(() => {

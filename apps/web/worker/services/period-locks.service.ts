@@ -3,7 +3,6 @@ import { queryAll, queryFirst, statement, executeBatch } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import { conflict, notFound, badRequest } from "../http/errors";
-import { requireApprovalOrContinue } from "./approvals.service";
 
 export interface PeriodLock {
   id: string;
@@ -174,17 +173,6 @@ export async function deletePeriodLock(
   );
   if (latestLock && latestLock.id !== lockId) {
     throw badRequest('not_latest_lock', 'Can only delete the most recent period lock');
-  }
-
-  // Check if approval is needed for period reopening
-  const reopenApproval = await requireApprovalOrContinue(
-    db, organizationId, userId, "period_reopen", "period_lock", lockId, 0,
-    { entitySummary: `Pembukaan periode ${lock.locked_through_date}` },
-  );
-  if (reopenApproval) {
-    throw badRequest("approval_required",
-      `This period reopening requires approval. Request ID: ${reopenApproval.id}. Please wait for an admin to approve it.`,
-    );
   }
 
   // Find the next effective lock after deletion

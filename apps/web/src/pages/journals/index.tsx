@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgPermissions } from "@/hooks/useOrganization";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -69,7 +69,10 @@ export function ManualJournalPage() {
     enabled: canManageAccounts,
   });
 
-  const accountMap = new Map(accounts.map((a) => [a.id, a] as const));
+  const accountMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a] as const)),
+    [accounts],
+  );
 
   // Templates query
   const { data: templates = [], refetch: refetchTemplates } = useQuery({

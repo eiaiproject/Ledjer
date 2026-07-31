@@ -161,12 +161,7 @@ authTest.describe("axe-core automated audits (authenticated pages)", () => {
     { url: "/accounts", name: "Accounts" },
     { url: "/products", name: "Products" },
     { url: "/invoices", name: "Invoices" },
-    { url: "/documents", name: "Documents" },
     { url: "/journals", name: "Journals" },
-    { url: "/budgets", name: "Budgets" },
-    { url: "/dimensions", name: "Dimensions" },
-    { url: "/fixed-assets", name: "Fixed Assets" },
-    { url: "/recurring-transactions", name: "Recurring Transactions" },
     // Reports
     { url: "/reports/general-ledger", name: "General Ledger" },
     { url: "/reports/trial-balance", name: "Trial Balance" },
@@ -178,9 +173,6 @@ authTest.describe("axe-core automated audits (authenticated pages)", () => {
     // Settings & operations
     { url: "/settings/team", name: "Team Settings" },
     { url: "/settings/period-locks", name: "Period Locks" },
-    { url: "/approvals", name: "Approvals" },
-    { url: "/period-close", name: "Period Close" },
-    { url: "/exports", name: "Exports" },
     { url: "/import", name: "Import" },
     { url: "/reconciliation", name: "Reconciliation" },
     { url: "/opening-balance", name: "Opening Balance" },

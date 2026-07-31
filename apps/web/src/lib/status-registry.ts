@@ -110,93 +110,6 @@ export const STATUS_REGISTRY: Registry = {
     },
   },
 
-  // ── Documents ────────────────────────────────────────────────
-  documents: {
-    draft: {
-      label: "Draft",
-      variant: "neutral",
-      accessibleDescription: "Dokumen masih dalam bentuk draft",
-    },
-    sent: {
-      label: "Terkirim",
-      variant: "info",
-      accessibleDescription: "Dokumen telah dikirim",
-    },
-    confirmed: {
-      label: "Dikonfirmasi",
-      variant: "success",
-      accessibleDescription: "Dokumen telah dikonfirmasi",
-    },
-    issued: {
-      label: "Diterbitkan",
-      variant: "info",
-      accessibleDescription: "Dokumen telah diterbitkan",
-    },
-    partially_received: {
-      label: "Diterima Sebagian",
-      variant: "warning",
-      accessibleDescription: "Dokumen telah diterima sebagian",
-    },
-    received: {
-      label: "Diterima",
-      variant: "success",
-      accessibleDescription: "Dokumen telah diterima seluruhnya",
-    },
-    converted: {
-      label: "Dikonversi",
-      variant: "info",
-      accessibleDescription: "Dokumen telah dikonversi ke tipe lain",
-    },
-    cancelled: {
-      label: "Dibatalkan",
-      variant: "error",
-      accessibleDescription: "Dokumen telah dibatalkan",
-    },
-  },
-
-  // ── Recurring Transactions ────────────────────────────────────
-  recurring_transactions: {
-    active: {
-      label: "Aktif",
-      variant: "success",
-      accessibleDescription: "Transaksi berulang sedang aktif berjalan",
-    },
-    paused: {
-      label: "Dihentikan Sementara",
-      variant: "warning",
-      accessibleDescription: "Transaksi berulang dihentikan sementara",
-    },
-    completed: {
-      label: "Selesai",
-      variant: "success",
-      accessibleDescription: "Semua jadwal transaksi berulang telah selesai",
-    },
-    cancelled: {
-      label: "Dibatalkan",
-      variant: "error",
-      accessibleDescription: "Transaksi berulang telah dibatalkan",
-    },
-  },
-
-  // ── Approvals ────────────────────────────────────────────────
-  approvals: {
-    pending: {
-      label: "Menunggu",
-      variant: "warning",
-      accessibleDescription: "Menunggu persetujuan",
-    },
-    approved: {
-      label: "Disetujui",
-      variant: "success",
-      accessibleDescription: "Telah disetujui",
-    },
-    rejected: {
-      label: "Ditolak",
-      variant: "error",
-      accessibleDescription: "Permintaan ditolak",
-    },
-  },
-
   // ── Period Locks ────────────────────────────────────────────
   period_locks: {
     active: {
@@ -259,30 +172,6 @@ export const STATUS_REGISTRY: Registry = {
     },
   },
 
-  // ── Export Jobs ──────────────────────────────────────────────
-  exports: {
-    pending: {
-      label: "Menunggu",
-      variant: "info",
-      accessibleDescription: "Ekspor sedang menunggu untuk diproses",
-    },
-    processing: {
-      label: "Memproses",
-      variant: "info",
-      accessibleDescription: "Ekspor sedang diproses",
-    },
-    completed: {
-      label: "Selesai",
-      variant: "success",
-      accessibleDescription: "Ekspor telah selesai",
-    },
-    failed: {
-      label: "Gagal",
-      variant: "error",
-      accessibleDescription: "Ekspor gagal diproses",
-    },
-  },
-
   // ── Onboarding ──────────────────────────────────────────────
   onboarding: {
     not_started: {
@@ -299,20 +188,6 @@ export const STATUS_REGISTRY: Registry = {
       label: "Selesai",
       variant: "success",
       accessibleDescription: "Tahap onboarding telah selesai",
-    },
-  },
-
-  // ── Budgets ──────────────────────────────────────────────────
-  budgets: {
-    active: {
-      label: "Aktif",
-      variant: "success",
-      accessibleDescription: "Anggaran aktif dan sedang dipantau",
-    },
-    inactive: {
-      label: "Nonaktif",
-      variant: "neutral",
-      accessibleDescription: "Anggaran tidak aktif",
     },
   },
 

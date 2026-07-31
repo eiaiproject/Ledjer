@@ -59,14 +59,16 @@ export function SupportLink({
   const displayLabel = label ?? DEFAULT_LABELS[placement];
   const accessibleLabel = `${displayLabel} — terbuka di tab baru`;
 
+  const { onClick: externalOnClick } = props;
+
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>) => {
       // Fire-and-forget analytics — tidak menghalangi navigasi
       trackSupportClick(placement);
       // Props onClick jika ada dari parent
-      props.onClick?.(e);
+      externalOnClick?.(e);
     },
-    [placement, props.onClick],
+    [placement, externalOnClick],
   );
 
   return (
