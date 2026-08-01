@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { deleteAccount } from "@/lib/api/auth";
+import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -83,9 +85,9 @@ function formatAuditDate(epochStr: string): string {
 // ── Component ──────────────────────────────────────────────────────
 
 export function SecuritySettingsPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { data: orgData } = useOrganization();
-  const { canViewAuditLog } = useOrgPermissions();
+  const { canViewAuditLog, isOwner } = useOrgPermissions();
 
   // Password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -139,6 +141,32 @@ export function SecuritySettingsPage() {
     },
     [currentPassword, newPassword, confirmPassword, changePasswordMutation],
   );
+
+  // ── Delete account state ────────────────────────────────────────
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (input: { password?: string; confirmation?: string }) => deleteAccount(input),
+    onSuccess: async () => {
+      await signOut();
+      window.location.href = "/";
+    },
+    onError: (err) => {
+      const msg = translateError(err);
+      setDeleteError(msg);
+      toast.error(msg);
+    },
+  });
+
+  const handleDeleteAccount = useCallback(() => {
+    setDeleteError(null);
+    deleteMutation.mutate(
+      user?.has_oauth ? { confirmation: deleteInput.trim() } : { password: deleteInput },
+    );
+  }, [user?.has_oauth, deleteInput, deleteMutation]);
 
   // Audit log query
   const {
@@ -332,6 +360,82 @@ export function SecuritySettingsPage() {
           {auditLogContent}
         </CardContent>
       </Card>
+
+      {/* Danger Zone — owner only */}
+      {isOwner && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-error">Hapus Akun</h2>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-wood-600">
+              Menghapus akun akan menghapus permanen{" "}
+              {orgData?.organization?.name || "organisasi Anda"} beserta seluruh datanya
+              (transaksi, jurnal, invoice, dan lainnya). Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="mt-4">
+              <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+                <AlertTriangle className="h-4 w-4" />
+                Hapus Akun
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} size="sm" ariaLabel="Hapus Akun">
+        <ModalContent>
+          <h3 className="text-lg font-semibold text-wood-800">Hapus Akun Permanen</h3>
+          <p className="mt-2 text-sm text-wood-600">
+            Akun <span className="font-medium">{user?.email}</span> dan organisasi yang Anda
+            miliki sendiri beserta seluruh datanya akan dihapus permanen. Tindakan ini tidak dapat
+            dibatalkan.
+          </p>
+          <div className="mt-2 rounded-md border border-wood-100 bg-cream-50 p-3 text-xs text-wood-500">
+            Sebelum menghapus, unduh backup data Anda:{" "}
+            <a className="font-medium text-wood-700 underline" href="/api/exports/transactions.csv" download>
+              Transaksi (CSV)
+            </a>
+            {" · "}
+            <a className="font-medium text-wood-700 underline" href="/api/exports/accounts.csv" download>
+              Akun (CSV)
+            </a>
+          </div>
+          <div className="mt-4">
+            <Input
+              label={user?.has_oauth ? "Ketik HAPUS untuk konfirmasi" : "Password"}
+              type={user?.has_oauth ? "text" : "password"}
+              value={deleteInput}
+              onChange={(e) => {
+                setDeleteInput(e.target.value);
+                setDeleteError(null);
+              }}
+              placeholder={user?.has_oauth ? "HAPUS" : "Masukkan password"}
+              autoComplete={user?.has_oauth ? "off" : "current-password"}
+              disabled={deleteMutation.isPending}
+            />
+          </div>
+          {deleteError && (
+            <div className="mt-2 flex items-start gap-2 rounded-md border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
+              <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
+            Batal
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDeleteAccount}
+            loading={deleteMutation.isPending}
+            disabled={!deleteInput.trim() || deleteMutation.isPending}
+          >
+            Hapus Akun
+          </Button>
+        </ModalFooter>
+      </Modal>
     </PageShell>
   );
 }

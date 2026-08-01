@@ -75,6 +75,7 @@ function session(overrides: Partial<CurrentSessionRow> = {}): CurrentSessionRow 
     email: "invitee@example.com",
     full_name: "Invitee",
     email_verified_at: Date.now(),
+    has_oauth: 0,
     ...overrides,
   };
 }
