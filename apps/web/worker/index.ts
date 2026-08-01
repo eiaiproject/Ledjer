@@ -63,6 +63,10 @@ app.use("/api/*", async (c, next) => {
   const origin = c.req.header("Origin") || c.req.header("Referer");
   const allowed = c.env.APP_ORIGIN;
 
+  // Local builds (vite preview, wrangler dev) run with APP_ENV=development
+  // via vite.config.ts customizer / .dev.vars — trust the local origin.
+  if (c.env.APP_ENV === "development") return next();
+
   if (!origin) {
     const cookie = c.req.header("Cookie");
     if (cookie && (cookie.includes("ledjer_session=") || cookie.includes("__Host-ledjer_session="))) {

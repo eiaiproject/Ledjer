@@ -71,7 +71,15 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    cloudflare(),
+    cloudflare({
+      // Vite preview (local E2E) runs the worker with wrangler vars, where
+      // APP_ORIGIN=https://ledjer.id would reject localhost origins (CSRF).
+      // Override vars for the local build only; production deploys read
+      // wrangler.jsonc directly and are unaffected.
+      config: (cfg) => {
+        cfg.vars = { APP_ENV: "development", APP_ORIGIN: "http://localhost:4173" };
+      },
+    }),
     tailwindcss(),
     // Upload source maps to Sentry for readable stack traces
     // Requires SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN in env
