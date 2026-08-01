@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * Privacy Policy page.
- * ⚠️ REQUIRES LEGAL REVIEW before public launch.
+ * REQUIRES LEGAL REVIEW before public launch.
  */
 
 export function PrivacyPolicyPage() {
@@ -11,7 +11,7 @@ export function PrivacyPolicyPage() {
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Kebijakan Privasi</h1>
         <p className="mt-1 text-sm text-wood-500">
-          Terakhir diperbarui: 26 Juni 2026 · ⚠️ Membutuhkan review legal sebelum peluncuran
+          Terakhir diperbarui: 26 Juni 2026 · Membutuhkan review legal sebelum peluncuran
         </p>
       </div>
 

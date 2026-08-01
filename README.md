@@ -212,7 +212,7 @@ CI pipeline: typecheck → lint → unit tests → production build → D1 migra
 
 ## Contributing
 
-> **ℹ️ Note:** Contribution guidelines are still being drafted.
+> **Note:** Contribution guidelines are still being drafted.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/my-feature`)

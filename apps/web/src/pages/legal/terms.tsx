@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * Terms of Service page.
- * ⚠️ REQUIRES LEGAL REVIEW before public launch.
+ * REQUIRES LEGAL REVIEW before public launch.
  * This is a scaffold with reasonable defaults for an Indonesian SaaS.
  */
 
@@ -12,7 +12,7 @@ export function TermsOfServicePage() {
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Syarat & Ketentuan</h1>
         <p className="mt-1 text-sm text-wood-500">
-          Terakhir diperbarui: 26 Juni 2026 · ⚠️ Membutuhkan review legal sebelum peluncuran
+          Terakhir diperbarui: 26 Juni 2026 · Membutuhkan review legal sebelum peluncuran
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export function TermsOfServicePage() {
               memengaruhi akses Anda ke Ledjer.
             </p>
             <p className="mt-2 text-xs text-wood-500">
-              ⚠️ Transaksi dukungan dilakukan di platform Trakteer dan diatur oleh kebijakan
+Transaksi dukungan dilakukan di platform Trakteer dan diatur oleh kebijakan
               Trakteer. Ledjer tidak memproses pembayaran dukungan secara langsung.
             </p>
           </section>
