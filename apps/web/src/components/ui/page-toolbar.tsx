@@ -2,13 +2,26 @@ import { type ReactNode, useState } from "react";
 import { Search, Filter, ChevronDown, ChevronUp, XCircle } from "reicon-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
-import { Badge } from "./badge";
+import { Badge, type BadgeVariant } from "./badge";
+
+const FILTER_SPAN_CLASS: Record<number, string> = {
+  2: "xl:col-span-2",
+  3: "xl:col-span-3",
+  4: "xl:col-span-4",
+  6: "xl:col-span-6",
+};
 
 interface ToolbarFilter {
   readonly key: string;
   readonly label: string;
   readonly children: ReactNode;
   readonly active?: boolean;
+  /** xl grid span (default 2) */
+  readonly span?: 2 | 3 | 4 | 6;
+  /** chip badge variant (default "info") */
+  readonly chipVariant?: BadgeVariant;
+  /** per-filter chip clear; falls back to onResetFilters */
+  readonly onClear?: () => void;
 }
 
 export interface PageToolbarProps {
@@ -112,7 +125,7 @@ export function PageToolbar({
           >
             <div className="grid grid-cols-1 gap-3 border-t border-wood-100 p-4 sm:border-0 sm:p-0 md:grid-cols-2 xl:grid-cols-12 xl:items-end">
               {filters.map((filter) => (
-                <div key={filter.key} className="xl:col-span-2">
+                <div key={filter.key} className={FILTER_SPAN_CLASS[filter.span ?? 2]}>
                   {filter.children}
                 </div>
               ))}
@@ -152,13 +165,16 @@ export function PageToolbar({
             </Badge>
           )}
           {activeFilters.map((filter) => (
-            <Badge key={filter.key} variant="info">
+            <Badge key={filter.key} variant={filter.chipVariant ?? "info"}>
               {filter.label}
               <button
                 type="button"
                 onClick={() => {
-                  // Individual filter clearing is handled by parent
-                  onResetFilters?.();
+                  if (filter.onClear) {
+                    filter.onClear();
+                  } else {
+                    onResetFilters?.();
+                  }
                 }}
                 className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-info-bg min-h-[44px] min-w-[44px] -my-[10px]"
                 aria-label={`Hapus filter ${filter.label}`}
