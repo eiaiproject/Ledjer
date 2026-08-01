@@ -347,8 +347,8 @@ export function ManualJournalPage() {
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={line.debitMinor || ""}
-                  onChange={(e) => handleLineChange(line.id, "debitMinor", Math.round(Number.parseFloat(e.target.value) * 100))}
+                  value={line.debitMinor ? String(line.debitMinor / 100) : ""}
+                  onChange={(e) => handleLineChange(line.id, "debitMinor", Math.round((Number.parseFloat(e.target.value) || 0) * 100))}
                   className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Debit baris ${index + 1}`}
@@ -358,8 +358,8 @@ export function ManualJournalPage() {
                 <input
                   type="text"
                   inputMode="decimal"
-                  value={line.creditMinor || ""}
-                  onChange={(e) => handleLineChange(line.id, "creditMinor", Math.round(Number.parseFloat(e.target.value) * 100))}
+                  value={line.creditMinor ? String(line.creditMinor / 100) : ""}
+                  onChange={(e) => handleLineChange(line.id, "creditMinor", Math.round((Number.parseFloat(e.target.value) || 0) * 100))}
                   className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Kredit baris ${index + 1}`}
