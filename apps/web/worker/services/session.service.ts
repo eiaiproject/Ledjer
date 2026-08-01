@@ -34,6 +34,7 @@ interface CurrentSessionRow {
   email: string;
   full_name: string;
   email_verified_at: number | null;
+  has_oauth: number;
 }
 
 export interface CreatedSession {
@@ -91,6 +92,7 @@ export async function getSessionByToken(
        u.email,
        u.full_name,
        u.email_verified_at,
+       EXISTS(SELECT 1 FROM oauth_accounts oa WHERE oa.user_id = u.id) AS has_oauth,
        s.last_used_at,
        s.last_rotated_at
      FROM sessions s

@@ -11,7 +11,7 @@ import { formatIDR } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
-import { CheckCircle } from "reicon-react";
+import { CheckCircle, Check, X } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
 
 interface BalanceLine {
@@ -222,7 +222,15 @@ export default function OpeningBalancePage() {
               {lines.length > 0 && (
                 <div className="text-right text-sm space-y-1 pt-2 border-t border-wood-200">
                   <div className={balanced ? "text-emerald-600" : "text-red-600"}>
-                    {balanced ? "✓ Seimbang" : "✗ Tidak Seimbang"} —
+                    {balanced ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Check className="h-4 w-4" /> Seimbang
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <X className="h-4 w-4" /> Tidak Seimbang
+                      </span>
+                    )} —
                     Debit: {formatIDR(totalDebit * 100)}, Kredit: {formatIDR(totalCredit * 100)}
                   </div>
                 </div>

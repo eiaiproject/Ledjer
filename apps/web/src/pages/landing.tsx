@@ -602,7 +602,7 @@ export function LandingPage() {
                 </div>
 
                 <p
-                  className="mt-3 text-sm text-wood-500"
+                  className="mt-3 text-sm text-wood-300"
                   style={stagger(3)}
                 >
                   Saat ini gratis digunakan &bull; Tanpa kartu kredit
@@ -1158,7 +1158,7 @@ export function LandingPage() {
                 Lihat cara kerja
               </a>
             </div>
-            <p className="mt-3 text-xs text-wood-500">
+            <p className="mt-3 text-xs text-wood-300">
               Saat ini gratis digunakan &bull; Tanpa kartu kredit
             </p>
           </div>

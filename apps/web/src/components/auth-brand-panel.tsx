@@ -1,11 +1,11 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { CheckCircle } from "reicon-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
 interface AuthLedgerEntry {
   label: string;
-  amount: string;
+  amount: ReactNode;
   tone?: "leaf" | "wood" | "clay";
 }
 

@@ -71,7 +71,19 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    cloudflare(),
+    cloudflare({
+      // Local E2E only: vite preview runs the worker with wrangler vars, where
+      // APP_ORIGIN=https://ledjer.id would reject localhost origins (CSRF).
+      // Only override vars when LEDJER_E2E_LOCAL=1 (set by playwright webServer).
+      // Production builds keep the real vars so `wrangler deploy` (which reads
+      // the built dist/ledjer/wrangler.json via .wrangler/deploy/config.json
+      // redirect) never deploys dev values.
+      config: (cfg) => {
+        if (process.env.LEDJER_E2E_LOCAL === "1") {
+          cfg.vars = { APP_ENV: "development", APP_ORIGIN: "http://localhost:4173" };
+        }
+      },
+    }),
     tailwindcss(),
     // Upload source maps to Sentry for readable stack traces
     // Requires SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN in env

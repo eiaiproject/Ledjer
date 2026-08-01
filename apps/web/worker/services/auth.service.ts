@@ -1,5 +1,5 @@
-import { execute, queryAll, queryFirst } from "../db/client";
-import { forbidden, unauthorized } from "../http/errors";
+import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
+import { badRequest, forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 import { logAuthEvent } from "./auth-audit.service";
@@ -274,6 +274,89 @@ export async function changePassword(
     throw unauthorized("Invalid current password");
   }
   await resetPassword(db, userId, nextPassword, pepper);
+}
+
+export interface DeleteAccountInput {
+  password?: string;
+  confirmation?: string;
+}
+
+export interface DeleteAccountResult {
+  deletedOrganizations: string[];
+}
+
+/**
+ * Permanently delete the requesting account. Owner-only: orgs where the user
+ * is the sole owner are cascade-deleted; orgs with another owner survive.
+ * OAuth users (no known password) confirm with the literal "HAPUS".
+ */
+export async function deleteAccount(
+  db: D1Database,
+  userId: string,
+  input: DeleteAccountInput,
+  pepper?: string,
+): Promise<DeleteAccountResult> {
+  const user = await queryFirst<UserRow>(
+    db,
+    "SELECT id, email, password_hash FROM users WHERE id = ?",
+    [userId],
+  );
+  if (!user) throw unauthorized();
+
+  const ownedOrgs = await queryAll<{ organization_id: string }>(
+    db,
+    "SELECT organization_id FROM organization_members WHERE user_id = ? AND role = 'owner'",
+    [userId],
+  );
+  if (ownedOrgs.length === 0) {
+    throw forbidden("account_delete_not_owner", "Only organization owners can delete their account");
+  }
+
+  const hasOAuth = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM oauth_accounts WHERE user_id = ? LIMIT 1",
+    [userId],
+  );
+  if (hasOAuth) {
+    if (input.confirmation !== "HAPUS") {
+      throw badRequest("confirmation_required", "Ketik HAPUS untuk konfirmasi penghapusan");
+    }
+  } else if (!input.password || !(await verifyPassword(input.password, user.password_hash, pepper))) {
+    throw unauthorized("Invalid password");
+  }
+
+  // Orgs deleted: owned orgs where the user is the only owner.
+  const deletedOrganizations: string[] = [];
+  for (const org of ownedOrgs) {
+    const ownerCount = await queryFirst<{ c: number }>(
+      db,
+      "SELECT COUNT(*) AS c FROM organization_members WHERE organization_id = ? AND role = 'owner'",
+      [org.organization_id],
+    );
+    if (!ownerCount || ownerCount.c <= 1) deletedOrganizations.push(org.organization_id);
+  }
+
+  const current = Date.now();
+  // Audit trail first — actor NULL survives the user delete (actor_user_id has no cascade).
+  await execute(
+    db,
+    `INSERT INTO audit_logs (
+       id, organization_id, actor_user_id, entity_type, entity_id, action, created_at
+     ) VALUES (?, NULL, NULL, 'user', ?, 'account_deleted', ?)`,
+    [generateId(), user.email, current],
+  );
+
+  // Batch is atomic in D1 — all deletes succeed or roll back together.
+  await executeBatch(db, [
+    statement(db, "DELETE FROM audit_logs WHERE actor_user_id = ?", [userId]),
+    ...deletedOrganizations.map((orgId) =>
+      statement(db, "DELETE FROM organizations WHERE id = ?", [orgId]),
+    ),
+    statement(db, "DELETE FROM login_attempts WHERE email = ?", [user.email]),
+    statement(db, "DELETE FROM users WHERE id = ?", [userId]),
+  ]);
+
+  return { deletedOrganizations };
 }
 
 async function findUserByEmail(db: D1Database, email: string): Promise<UserRow | null> {

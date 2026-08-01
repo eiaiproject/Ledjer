@@ -44,8 +44,12 @@ if [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
 fi
 
 if [[ "$mode" == "upload" ]]; then
-  cd "${webDir}" && exec npx wrangler versions upload
+  cd "${webDir}" && exec npx wrangler versions upload --config wrangler.jsonc
 fi
 
 # Default: deploy (upload + activate 100% traffic).
-cd "${webDir}" && exec npx wrangler deploy
+# ponytail: --config wrangler.jsonc is REQUIRED — the vite build writes
+# .wrangler/deploy/config.json redirecting to dist/ledjer/wrangler.json,
+# which has no env blocks (--env would silently target the default worker)
+# and can carry local-only vars when built with LEDJER_E2E_LOCAL=1.
+cd "${webDir}" && exec npx wrangler deploy --config wrangler.jsonc

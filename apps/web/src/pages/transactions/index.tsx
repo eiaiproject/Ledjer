@@ -56,7 +56,7 @@ function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty,
 }
 import { queryKeys } from "@/lib/query-keys";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { cn, formatIDR, formatShortDate, localDate } from "@/lib/utils";
+import { formatIDR, formatShortDate, localDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -67,7 +67,7 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
-import { Receipt, Search, Download, ChevronDown, ChevronUp, Check, X, ArrowRight, Filter, XCircle } from "reicon-react";
+import { Receipt, Search, Download, Check, X, ArrowRight, Filter } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
 import {
   listTransactions,
@@ -108,7 +108,6 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
   const [fromDate, setFromDate] = useState(() => localDate(-30));
   const [toDate, setToDate] = useState(() => localDate());
   const [page, setPage] = useState(0);
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [exporting, setExporting] = useState(false);
   const limit = 20;
 
@@ -124,8 +123,6 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
   const hasDateFilter = fromDate !== DEFAULT_FROM || toDate !== DEFAULT_TO;
   const hasActiveFilters = hasTypeFilter || hasStatusFilter || hasDateFilter;
   const hasAnyActiveCriteria = hasSearchQuery || hasActiveFilters;
-
-  const activeFilterCount = [hasTypeFilter, hasStatusFilter, hasDateFilter].filter(Boolean).length;
 
   const { data: transactions, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.transactions.list(orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page),
@@ -255,175 +252,79 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
           ) }] : []),
         ],
       }}
+      toolbar={!isDatasetEmpty ? {
+        searchValue: search,
+        onSearchChange: (value: string) => { setSearch(value); setPage(0); },
+        searchPlaceholder: "Cari transaksi...",
+        onResetSearch: resetSearch,
+        onResetFilters: resetFilters,
+        onResetAll: resetAll,
+        filters: [
+          {
+            key: "dari",
+            label: `Dari: ${fromDate || "-"}`,
+            active: hasDateFilter,
+            chipVariant: "neutral",
+            onClear: () => { setFromDate(DEFAULT_FROM); setPage(0); },
+            children: (
+              <Input label="Dari" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} />
+            ),
+          },
+          {
+            key: "sampai",
+            label: `Sampai: ${toDate || "-"}`,
+            active: hasDateFilter,
+            chipVariant: "neutral",
+            onClear: () => { setToDate(DEFAULT_TO); setPage(0); },
+            children: (
+              <Input label="Sampai" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} />
+            ),
+          },
+          {
+            key: "jenis",
+            label: `Jenis: ${TRANSACTION_LABELS[typeFilter] || typeFilter}`,
+            active: hasTypeFilter,
+            span: 4,
+            onClear: () => { setTypeFilter(""); setPage(0); },
+            children: (
+              <Select
+                label="Jenis"
+                id="jenis-filter"
+                value={typeFilter}
+                onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
+                placeholder="Semua Jenis"
+                options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
+              />
+            ),
+          },
+          {
+            key: "status",
+            label: `Status: ${statusLabel(statusFilter)}`,
+            active: hasStatusFilter,
+            chipVariant: statusVariant(statusFilter),
+            onClear: () => { setStatusFilter(""); setPage(0); },
+            children: (
+              <Select
+                label="Status"
+                id="status-filter"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as TransactionStatus | ""); setPage(0); }}
+                placeholder="Semua Status"
+                options={[
+                  { value: "posted", label: "Posted" },
+                  { value: "voided", label: "Dibatalkan" },
+                ]}
+              />
+            ),
+          },
+        ],
+      } : undefined}
     >
-
-      {/* Search & Filter — only show when data exists or has active criteria */}
-      {!isDatasetEmpty && (
-        <>
-          {/* Search */}
-          <div className="relative">
-            <label htmlFor="transaction-search" className="sr-only">
-              Cari transaksi
-            </label>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-            <input
-              id="transaction-search"
-              type="search"
-              placeholder="Cari transaksi..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-10 text-sm text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:h-10 sm:min-h-0"
-            />
-            {search && (
-              <button                 type="button"
-                onClick={resetSearch}
-                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] -my-[9px]"
-                aria-label="Hapus pencarian"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Filters — collapsible on mobile */}
-          <div className="rounded-xl border border-wood-200 bg-surface-elevated">
-            <button               type="button"
-              onClick={() => setFiltersExpanded(!filtersExpanded)}
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-text-secondary sm:pointer-events-none sm:hidden min-h-[44px]"
-              aria-expanded={filtersExpanded}
-              aria-controls="transaction-filters-panel"
-            >
-              <span className="flex items-center gap-2">
-                <Filter className="h-4 w-4" aria-hidden="true" />
-                Filter
-                {activeFilterCount > 0 && (
-                  <Badge variant="info" size="sm">{activeFilterCount}</Badge>
-                )}
-              </span>
-              {filtersExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-
-            <div
-              id="transaction-filters-panel"
-              className={cn(
-                "overflow-hidden transition-all duration-200 sm:block",
-                filtersExpanded ? "block" : "hidden"
-              )}
-            >
-              <div className="grid grid-cols-1 gap-3 border-t border-wood-100 p-4 sm:border-0 sm:p-0 md:grid-cols-2 xl:grid-cols-12 xl:items-end">
-                <div className="xl:col-span-2">
-                  <Input
-                    label="Dari"
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => { setFromDate(e.target.value); setPage(0); }}
-                  />
-                </div>
-                <div className="xl:col-span-2">
-                  <Input
-                    label="Sampai"
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => { setToDate(e.target.value); setPage(0); }}
-                  />
-                </div>
-                <div className="xl:col-span-4">
-                  <Select
-                    label="Jenis"
-                    id="jenis-filter"
-                    value={typeFilter}
-                    onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
-                    placeholder="Semua Jenis"
-                    options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
-                  />
-                </div>
-                <div className="xl:col-span-2">
-                  <Select
-                    label="Status"
-                    id="status-filter"
-                    value={statusFilter}
-                    onChange={(e) => { setStatusFilter(e.target.value as TransactionStatus | ""); setPage(0); }}
-                    placeholder="Semua Status"
-                    options={[
-                      { value: "posted", label: "Posted" },
-                      { value: "voided", label: "Dibatalkan" },
-                    ]}
-                  />
-                </div>
-                <div className="xl:col-span-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={resetFilters}
-                    disabled={!hasActiveFilters}
-                    className="w-full sm:w-auto"
-                  >
-                    Reset filter
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
       {dateRangeInvalid && (
         <p className="text-sm text-error" role="alert">
           Tanggal awal tidak boleh melewati tanggal akhir.
         </p>
-      )}
-
-      {/* Active filter chips */}
-      {hasAnyActiveCriteria && !isDatasetEmpty && (
-        <div className="flex flex-wrap items-center gap-2" aria-label="Filter aktif">
-          {hasSearchQuery && (
-            <Badge variant="neutral">
-              Cari: {search}
-              <button                 type="button"
-                onClick={resetSearch}
-                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-wood-200 min-h-[44px] min-w-[44px] -my-[10px]"
-                aria-label="Hapus pencarian"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-          {hasTypeFilter && (
-            <Badge variant="info">
-              Jenis: {TRANSACTION_LABELS[typeFilter] || typeFilter}
-              <button                 type="button"
-                onClick={() => { setTypeFilter(""); setPage(0); }}
-                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-info-bg min-h-[44px] min-w-[44px] -my-[10px]"
-                aria-label={`Hapus filter jenis ${TRANSACTION_LABELS[typeFilter] || typeFilter}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-          {hasStatusFilter && (
-            <Badge variant={statusVariant(statusFilter)}>
-              Status: {statusLabel(statusFilter)}
-              <button                 type="button"
-                onClick={() => { setStatusFilter(""); setPage(0); }}
-                className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-wood-200 min-h-[44px] min-w-[44px] -my-[10px]"
-                aria-label={`Hapus filter status ${statusLabel(statusFilter)}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )}
-          {(hasSearchQuery || hasActiveFilters) && (
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              onClick={resetAll}
-            >
-              Reset semua
-            </Button>
-          )}
-        </div>
       )}
 
       {/* Background refresh indicator */}

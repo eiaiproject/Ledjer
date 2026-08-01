@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Envelope } from "reicon-react";
+import { Envelope, CheckCircle } from "reicon-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -68,7 +68,7 @@ export function ForgotPasswordPage() {
           title="Pemulihan password."
           description="Kami akan mengirim tautan untuk mengatur ulang password Anda. Cek kotak masuk dan folder spam."
           entries={[
-            { label: "Email dikirim", amount: "✓", tone: "leaf" },
+            { label: "Email dikirim", amount: <CheckCircle className="h-4 w-4" />, tone: "leaf" },
             { label: "Atur password baru", amount: "—", tone: "wood" },
             { label: "Masuk kembali", amount: "—", tone: "clay" },
           ]}

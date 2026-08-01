@@ -16,6 +16,7 @@ import {
   ChevronDown,
   AnglesLeft,
   Wallet,
+  Coffee,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
@@ -312,7 +313,9 @@ export function DashboardLayout() {
             )}
             data-placement="app_menu"
           >
-            <span className="text-base" aria-hidden="true">☕</span>
+            <span className="text-wood-300">
+              <Coffee className="h-5 w-5" aria-hidden="true" />
+            </span>
             {!sidebarCollapsed && <span className="min-w-0 break-words">Traktir pengembang</span>}
           </a>
         </div>
@@ -505,7 +508,9 @@ export function DashboardLayout() {
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-wood-300 transition-colors hover:bg-wood-600/50 hover:text-cream-50 min-h-[44px]"
               data-placement="app_menu"
             >
-              <span className="text-base" aria-hidden="true">☕</span>
+              <span className="text-wood-300">
+                <Coffee className="h-5 w-5" aria-hidden="true" />
+              </span>
               <span className="min-w-0 break-words">Traktir pengembang</span>
             </a>
           </div>

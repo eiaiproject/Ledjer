@@ -28,6 +28,7 @@ import { readJson } from "../http/json";
 import {
   changePassword,
   createPasswordReset,
+  deleteAccount,
   loginUser,
   registerUser,
   resendEmailVerification,
@@ -48,7 +49,7 @@ import { logAuthEvent } from "../services/auth-audit.service";
 // RFC 2606 reserved example domains — blocked to prevent email send errors
 const BLOCKED_EMAIL_DOMAINS = new Set(["example.com", "example.org", "example.net", "example.edu"]);
 
-const emailSchema = z.string().email()
+const emailSchema = z.email()
   .refine((val) => {
     const domain = val.split("@")[1];
     return domain ? !BLOCKED_EMAIL_DOMAINS.has(domain.toLowerCase()) : true;
@@ -87,6 +88,11 @@ const resetPasswordSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(256),
   password: passwordSchema,
+});
+
+const deleteAccountSchema = z.object({
+  password: z.string().max(256).optional(),
+  confirmation: z.string().max(32).optional(),
 });
 
 export const authRoutes = new Hono<AppContext>();
@@ -170,6 +176,7 @@ authRoutes.get("/me", async (c) => {
       email: row.email,
       full_name: row.full_name,
       email_verified_at: row.email_verified_at,
+      has_oauth: row.has_oauth === 1,
     },
     session: {
       id: row.session_id,
@@ -237,6 +244,14 @@ authRoutes.post("/change-password", async (c) => {
   );
   deleteCookie(c, cookieName(c), cookieOptions(c));
   return c.json({ ok: true });
+});
+
+authRoutes.post("/delete-account", async (c) => {
+  const body = await readJson(c, deleteAccountSchema);
+  const row = await requireSession(c);
+  const result = await deleteAccount(c.env.DB, row.user_id, body, c.env.PASSWORD_PEPPER);
+  deleteCookie(c, cookieName(c), cookieOptions(c));
+  return c.json({ ok: true, deletedOrganizations: result.deletedOrganizations });
 });
 
 authRoutes.get("/google/start", (c) => {

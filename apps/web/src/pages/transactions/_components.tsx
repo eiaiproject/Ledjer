@@ -2,10 +2,8 @@ import {
   forwardRef,
   memo,
   useCallback,
-  useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -431,15 +429,6 @@ export const ProductDetailFields = memo(function ProductDetailFields({
     stockBadgeClass = "border border-warning-border bg-warning-bg text-warning";
   }
 
-  const qtyRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const el = qtyRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => e.preventDefault();
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, []);
-
   return (
     <div className="min-w-0 space-y-4 rounded-lg border border-wood-100 bg-cream-100 p-4">
       <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
@@ -450,13 +439,11 @@ export const ProductDetailFields = memo(function ProductDetailFields({
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Kuantitas" error={quantityError} htmlFor="product-quantity" feedbackId="product-quantity-feedback">
           <input
-            ref={qtyRef}
             id="product-quantity"
-            type="number"
-            min="1"
-            step="1"
-            value={quantity || ""}
-            onChange={(e) => onQuantityChange(Number(e.target.value) || 0)}
+            type="text"
+            inputMode="numeric"
+            value={quantity ? String(quantity) : ""}
+            onChange={(e) => onQuantityChange(parseAmountInput(e.target.value, 0) ?? 0)}
             className={cn(
               "min-h-[44px] h-10 w-full min-w-0 rounded-md border bg-cream-50 px-3 text-sm text-wood-900 num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               quantityError ? "border-error" : "border-wood-200",

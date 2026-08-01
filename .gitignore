@@ -86,3 +86,6 @@ temporary.md
 supabase-credentials.*
 graphify-out/
 DISASTER_RECOVERY.md
+
+# SonarScanner local analysis artifacts
+.scannerwork/

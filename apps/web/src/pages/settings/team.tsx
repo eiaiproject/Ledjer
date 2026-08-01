@@ -657,7 +657,7 @@ function InvitationForm({
         <UserAdd className="h-4 w-4 text-leaf-600" />
         <p className="text-sm font-medium text-leaf-800">Buat link undangan</p>
       </div>
-      <p className="mb-3 text-xs text-leaf-700/80">
+      <p className="mb-3 text-xs text-leaf-700">
         Masukkan email dan pilih role. Link hanya dapat digunakan oleh akun dengan email tersebut.
       </p>
 

@@ -197,7 +197,7 @@ export async function createCashBankAccount(
     ],
   );
 
-  await writeAuditStatement(db, {
+  writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
     entityType: "account",
@@ -260,7 +260,7 @@ export async function createAccount(
     ],
   );
 
-  await writeAuditStatement(db, {
+  writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
     entityType: "account",
@@ -320,7 +320,7 @@ export async function patchAccount(
   );
 
   const after = await getAccount(db, organizationId, accountId);
-  await writeAuditStatement(db, {
+  writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
     entityType: "account",
@@ -354,7 +354,7 @@ export async function deleteAccount(
     [accountId, organizationId],
   );
 
-  await writeAuditStatement(db, {
+  writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
     entityType: "account",

@@ -3,11 +3,11 @@ import { Button } from "./button";
 import { FileText } from "reicon-react";
 import { cn } from "@/lib/utils";
 
-type IconProp = ComponentType<{ className?: string }> | React.ReactNode;
+type IconProp = ComponentType<{ className?: string }> | React.ReactElement;
 type ActionProp =
   | { label: string; onClick: () => void }
   | { label: string; onClick: () => void | Promise<void> }
-  | React.ReactNode;
+  | React.ReactElement;
 
 interface EmptyStateProps {
   readonly icon?: IconProp;

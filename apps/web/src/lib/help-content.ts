@@ -55,7 +55,7 @@ export const HELP: Record<string, HelpContent> = {
     explanation:
       "Neraca adalah laporan yang menunjukkan posisi keuangan bisnis pada tanggal tertentu. Terdiri dari tiga unsur: Aset (harta), Kewajiban (utang), dan Ekuitas (modal). Rumus dasarnya: Aset = Kewajiban + Ekuitas. Laporan ini disebut 'balance' karena kedua sisi harus selalu sama. Neraca adalah potret kondisi keuangan sesaat.",
     example:
-      "Aset: Kas Rp 15jt + Piutang Rp 5jt + Persediaan Rp 10jt = Rp 30jt. Kewajiban: Utang Rp 5jt. Ekuitas: Modal Rp 25jt. Total: Rp 30jt = Rp 30jt ✓",
+      "Aset: Kas Rp 15jt + Piutang Rp 5jt + Persediaan Rp 10jt = Rp 30jt. Kewajiban: Utang Rp 5jt. Ekuitas: Modal Rp 25jt. Total: Rp 30jt = Rp 30jt",
     related: ["trial_balance", "equity"],
   },
   period_closing: {

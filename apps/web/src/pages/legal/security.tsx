@@ -3,7 +3,7 @@ import { Shield, Lock, Eye, Database, Key, AlertTriangle } from "reicon-react";
 
 /**
  * Security Policy / Responsible Disclosure page.
- * ⚠️ REQUIRES REVIEW before public launch.
+ * REQUIRES REVIEW before public launch.
  */
 
 const securityMeasures = [

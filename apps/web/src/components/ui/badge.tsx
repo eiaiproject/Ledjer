@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type BadgeVariant = "success" | "warning" | "error" | "info" | "neutral" | "premium" | "secondary";
+export type BadgeVariant = "success" | "warning" | "error" | "info" | "neutral" | "premium" | "secondary";
 type BadgeSize = "sm" | "md" | "lg";
 
 export interface BadgeProps {

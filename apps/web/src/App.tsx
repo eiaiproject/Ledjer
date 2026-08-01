@@ -274,7 +274,7 @@ const routerConfig = [
   },
 ];
 
-const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouterV7(createBrowserRouter);
+const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouter(createBrowserRouter);
 const sentryRouter = sentryCreateBrowserRouter(routerConfig);
 
 function App() {

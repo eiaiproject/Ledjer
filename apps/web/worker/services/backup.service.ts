@@ -537,8 +537,7 @@ async function findLatestBackup(bucket: R2Bucket): Promise<string | null> {
   const manifestKeys = backupList.objects
     .filter((o) => o.key.endsWith("/manifest.json"))
     .map((o) => o.key.replace("/manifest.json", "").replace("backups/", ""))
-    .sort()
-    .reverse();
+    .sort((a, b) => b.localeCompare(a));
   return manifestKeys.length > 0 ? manifestKeys[0] : null;
 }
 
