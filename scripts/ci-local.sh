@@ -62,6 +62,9 @@ if [[ "$FULL" -eq 1 ]]; then
   section "D1 migration list"
   pnpm --filter web db:migrations:list
 
+  section "Seed E2E fixture"
+  bash "${ROOT}/scripts/seed-e2e-local.sh"
+
   section "Playwright public E2E"
   E2E_MODE=local-full \
   E2E_BASE_URL=http://localhost:4173 \
