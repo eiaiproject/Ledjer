@@ -345,9 +345,8 @@ export function ManualJournalPage() {
 
                 {/* Debit */}
                 <input
-                  type="number"
-                  min="0"
-                  step="100"
+                  type="text"
+                  inputMode="decimal"
                   value={line.debitMinor || ""}
                   onChange={(e) => handleLineChange(line.id, "debitMinor", Math.round(Number.parseFloat(e.target.value) * 100))}
                   className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
@@ -357,9 +356,8 @@ export function ManualJournalPage() {
 
                 {/* Credit */}
                 <input
-                  type="number"
-                  min="0"
-                  step="100"
+                  type="text"
+                  inputMode="decimal"
                   value={line.creditMinor || ""}
                   onChange={(e) => handleLineChange(line.id, "creditMinor", Math.round(Number.parseFloat(e.target.value) * 100))}
                   className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
@@ -414,7 +412,15 @@ export function ManualJournalPage() {
                 ))}
                 <div className="border-t border-leaf-300 pt-1 font-medium">
                   Total: Debit Rp {(preview.totalDebit / 100).toLocaleString()} = Kredit Rp {(preview.totalCredit / 100).toLocaleString()}
-                  {preview.balanced ? " ✅ Balance" : " ❌ Tidak balance"}
+                  {preview.balanced ? (
+                    <span className="inline-flex items-center gap-1 text-leaf-600">
+                      <Check className="h-4 w-4" /> Balance
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-error">
+                      <X className="h-4 w-4" /> Tidak balance
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
