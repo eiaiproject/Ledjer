@@ -49,7 +49,7 @@ import { logAuthEvent } from "../services/auth-audit.service";
 // RFC 2606 reserved example domains — blocked to prevent email send errors
 const BLOCKED_EMAIL_DOMAINS = new Set(["example.com", "example.org", "example.net", "example.edu"]);
 
-const emailSchema = z.string().email()
+const emailSchema = z.email()
   .refine((val) => {
     const domain = val.split("@")[1];
     return domain ? !BLOCKED_EMAIL_DOMAINS.has(domain.toLowerCase()) : true;

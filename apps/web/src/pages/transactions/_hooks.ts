@@ -463,7 +463,7 @@ export function useTransactionEffects(params: {
   successTransactionId: string | null;
   setIsTypeSelectorExpanded: (expanded: boolean) => void;
   activeFieldsRef: React.RefObject<HTMLDivElement | null>;
-  previousTypeRef: React.MutableRefObject<string>;
+  previousTypeRef: React.RefObject<string>;
   cashAccountOptions: Array<{ id: string }>;
   debitAccountOptions: Array<{ value: string }>;
   selectedProduct: { name: string; selling_price?: number; purchase_price?: number } | undefined;
@@ -611,7 +611,7 @@ export function useTransactionMutation(params: {
   expenseCogsAccounts: ReturnType<typeof useTransactionLookups>["expenseCogsAccounts"];
   setSuccessTransactionId: (id: string) => void;
   setClientToken: (token: string) => void;
-  submitInFlightRef: React.MutableRefObject<boolean>;
+  submitInFlightRef: React.RefObject<boolean>;
 }) {
   const { orgId, expenseCogsAccounts, setSuccessTransactionId, setClientToken, submitInFlightRef } = params;
   const queryClient = useQueryClient();

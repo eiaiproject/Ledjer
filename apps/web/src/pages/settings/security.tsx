@@ -112,7 +112,7 @@ export function SecuritySettingsPage() {
   });
 
   const handleChangePassword = useCallback(
-    (e: React.FormEvent) => {
+    (e: React.SyntheticEvent) => {
       e.preventDefault();
       setPasswordError(null);
 

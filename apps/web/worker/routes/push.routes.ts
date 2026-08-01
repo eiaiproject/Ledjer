@@ -18,7 +18,7 @@ const subscriptionKeysSchema = z.object({
 });
 
 const subscribeSchema = z.object({
-  endpoint: z.string().url(),
+  endpoint: z.url(),
   keys: subscriptionKeysSchema,
   userAgent: z.string().optional(),
 });
@@ -55,7 +55,7 @@ pushRoutes.post("/subscribe", async (c) => {
 });
 
 pushRoutes.post("/unsubscribe", async (c) => {
-  const body = await readJson(c, z.object({ endpoint: z.string().url() }));
+  const body = await readJson(c, z.object({ endpoint: z.url() }));
   await unsubscribe(c.env.DB, body.endpoint);
   return c.json({ success: true });
 });

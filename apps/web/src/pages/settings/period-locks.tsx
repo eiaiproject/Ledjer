@@ -531,7 +531,7 @@ function CreateLockForm({
   );
 
   const handleOpenConfirm = useCallback(
-    (e: React.FormEvent) => {
+    (e: React.SyntheticEvent) => {
       e.preventDefault();
       const err = validateDate(selectedDate);
       if (err) {

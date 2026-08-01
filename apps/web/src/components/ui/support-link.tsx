@@ -5,7 +5,7 @@ import { trackSupportClick } from "@/lib/analytics";
 type SupportPlacement = "landing" | "footer" | "app_menu" | "value_moment";
 
 interface SupportLinkProps
-  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "target" | "rel" | "children"> {
+  extends Readonly<Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "target" | "rel" | "children">> {
   /** Visual variant */
   readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
   /** Placement identifier for analytics */

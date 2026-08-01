@@ -207,7 +207,7 @@ export async function createProduct(
   }
 
   const product = await getProduct(db, organizationId, productId);
-  await writeAuditStatement(db, {
+  writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
     entityType: "product",
@@ -281,7 +281,7 @@ export async function patchProduct(
   );
 
   const after = await getProduct(db, organizationId, productId);
-  await writeAuditStatement(db, {
+  writeAuditStatement(db, {
     organizationId,
     actorUserId: userId,
     entityType: "product",
