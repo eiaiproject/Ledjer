@@ -40,7 +40,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           workingDirectory: apps/web
-          command: deploy --env=staging
+          command: deploy --env=staging --config=wrangler.jsonc
         continue-on-error: true
 
       - name: Determine test target URL
