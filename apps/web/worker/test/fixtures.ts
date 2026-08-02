@@ -104,6 +104,10 @@ export function createSeedFixtures(): {
     batch: createBatchHandler(),
   });
 
+  // ponytail: PRODUCTS is mutated by rememberInserted/UpdatedProduct (FakeD1 is
+  // stateless), so re-seed it per fixture to isolate tests.
+  PRODUCTS = SEED_PRODUCTS.map(p => ({ ...p }));
+
   const tokens = {
     ownerA: "session-token-orga-000001",
     adminA: "session-token-orga-admin-000001",
@@ -149,8 +153,10 @@ interface SeedAccount {
 }
 interface SeedProduct {
   id: string; organization_id: string; code: string; name: string;
+  unit?: string;
   purchase_price_minor: number; selling_price_minor: number;
   average_cost_minor: number; current_stock_milli: number;
+  min_stock_milli?: number;
   is_active: number; created_at: number; updated_at: number;
 }
 interface SeedParty {
@@ -233,11 +239,14 @@ const ACCOUNTS: SeedAccount[] = [
   { id: FIXTURE_IDS.accounts.revenueB, organization_id: FIXTURE_IDS.orgs.b, code: "4110", name: "Pendapatan B", account_type: "revenue", normal_balance: "credit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
 ];
 
-const PRODUCTS: SeedProduct[] = [
+const SEED_PRODUCTS: SeedProduct[] = [
   { id: FIXTURE_IDS.products.widget, organization_id: FIXTURE_IDS.orgs.a, code: "WGT-001", name: "Widget A", purchase_price_minor: 50000, selling_price_minor: 100000, average_cost_minor: 50000, current_stock_milli: 100_000, is_active: 1, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.products.gadget, organization_id: FIXTURE_IDS.orgs.a, code: "GDT-001", name: "Gadget A", purchase_price_minor: 150000, selling_price_minor: 250000, average_cost_minor: 150000, current_stock_milli: 50_000, is_active: 1, created_at: NOW, updated_at: NOW },
   { id: FIXTURE_IDS.products.widgetB, organization_id: FIXTURE_IDS.orgs.b, code: "WGT-001", name: "Widget B", purchase_price_minor: 60000, selling_price_minor: 120000, average_cost_minor: 60000, current_stock_milli: 200_000, is_active: 1, created_at: NOW, updated_at: NOW },
 ];
+// ponytail: mutable mirror of SEED_PRODUCTS; rememberInserted/UpdatedProduct
+// mutate it because FakeD1 is stateless. Re-seeded per fixture in createSeedFixtures.
+let PRODUCTS: SeedProduct[] = SEED_PRODUCTS.map(p => ({ ...p }));
 
 // ponytail: These const arrays are intentionally declared for documentation and
 // future use. The _ prefix tricks no-unused-vars but in TS we use a comment.
@@ -503,6 +512,11 @@ function handleAccountQuery(sql: string, values: unknown[]) {
 
 function handleProductQuery(sql: string, values: unknown[]) {
   if (!sql.includes("FROM products") || !sql.includes("WHERE")) return undefined;
+  if (sql.includes("lower(name)")) {
+    const orgId = values[0] as string;
+    const name = String(values[1]).toLowerCase();
+    return PRODUCTS.find(p => p.organization_id === orgId && p.name.toLowerCase() === name) ?? null;
+  }
   return PRODUCTS.find(p => p.id === values[0]) ?? null;
 }
 
@@ -689,15 +703,55 @@ function createAllHandler() {
 }
 
 function createRunHandler() {
-  return (_sql: string, _values: unknown[]) => {
-    validateJournalLine(_sql, _values);
+  return (sql: string, values: unknown[]) => {
+    validateJournalLine(sql, values);
+    rememberInsertedProduct(sql, values);
+    rememberUpdatedProduct(sql, values);
     return { success: true, meta: { changes: 1 } } as D1Result;
   };
 }
 
 function createBatchHandler() {
-  return (_statements: { sql: string; values: unknown[] }[]) => {
-    for (const s of _statements) validateJournalLine(s.sql, s.values);
-    return _statements.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
+  return (statements: { sql: string; values: unknown[] }[]) => {
+    for (const s of statements) {
+      validateJournalLine(s.sql, s.values);
+      rememberInsertedProduct(s.sql, s.values);
+      rememberUpdatedProduct(s.sql, s.values);
+    }
+    return statements.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
   };
+}
+
+// ponytail: FakeD1 is stateless, so INSERT/UPDATE on products would be
+// invisible to later SELECTs. Remember them so findOrCreateProductByName
+// readbacks and stock/WAC assertions work.
+function rememberInsertedProduct(sql: string, values: unknown[]) {
+  if (!sql.toLowerCase().includes("insert into products")) return;
+  PRODUCTS.push({
+    id: String(values[0]),
+    organization_id: String(values[1]),
+    code: String(values[2]),
+    name: String(values[3]),
+    unit: String(values[5]),
+    purchase_price_minor: Number(values[6]),
+    selling_price_minor: Number(values[7]),
+    average_cost_minor: Number(values[8]),
+    current_stock_milli: Number(values[9]),
+    min_stock_milli: Number(values[10]),
+    is_active: Number(values[14]),
+    created_at: Number(values[17]),
+    updated_at: Number(values[18]),
+  });
+}
+
+function rememberUpdatedProduct(sql: string, values: unknown[]) {
+  if (!sql.toLowerCase().includes("update products set")) return;
+  const product = PRODUCTS.find(p => p.id === String(values[values.length - 3]));
+  if (!product) return;
+  // UPDATE products SET current_stock_milli = ?, average_cost_minor = ?,
+  //   purchase_price_minor = ?, updated_at = ? WHERE id = ? ...
+  if (sql.toLowerCase().includes("current_stock_milli = ?")) {
+    product.current_stock_milli = Number(values[0]);
+    product.average_cost_minor = Number(values[1]);
+  }
 }

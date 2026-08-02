@@ -71,7 +71,7 @@ function validateAccountFields(
   if (formState.showDestinationAccount && !data.destinationCashAccountId) {
     return { field: "destinationCashAccountId", message: "Pilih akun tujuan" };
   }
-  if (formState.showCategory && !data.productId && !data.debitAccountId) {
+  if (formState.showCategory && !data.productId && !data.productName && !data.debitAccountId) {
     return { field: "debitAccountId", message: "Pilih akun CoA" };
   }
   if (data.transactionType === "cash_transfer" && data.cashAccountId === data.destinationCashAccountId) {
@@ -99,10 +99,11 @@ function validateProductFields(
   selectedProduct: { current_stock?: number } | undefined,
   stockAfterSale: number | null,
 ): { field: string; message: string } | null {
-  if (data.productId && (!data.quantity || data.quantity <= 0)) {
+  const hasProduct = Boolean(data.productId || data.productName?.trim());
+  if (hasProduct && (!data.quantity || data.quantity <= 0)) {
     return { field: "quantity", message: "Isi kuantitas produk (minimal 1)" };
   }
-  if (data.productId && (data.unitPrice === undefined || data.unitPrice < 0)) {
+  if (hasProduct && (data.unitPrice === undefined || data.unitPrice < 0)) {
     return { field: "unitPrice", message: "Isi harga satuan produk" };
   }
   if (data.productId && formState.isSaleType && stockAfterSale !== null && stockAfterSale < 0) {
@@ -162,6 +163,7 @@ export function NewTransactionPage() {
     selectedPaymentStatus,
     selectedAmount,
     selectedProductId,
+    selectedProductName,
     selectedQuantity,
     selectedUnitPrice,
     selectedCashAccountId,
@@ -179,6 +181,7 @@ export function NewTransactionPage() {
     showCategory,
     showDueDate,
     isProductType,
+    isPurchaseType,
     isSaleType,
   } = formState;
 
@@ -200,6 +203,7 @@ export function NewTransactionPage() {
     selectedType,
     selectedAmount,
     selectedProductId,
+    selectedProductName,
     selectedQuantity,
     selectedUnitPrice,
     selectedCashAccountId,
@@ -232,6 +236,7 @@ export function NewTransactionPage() {
     form,
     selectedType,
     selectedProductId,
+    selectedProductName,
     selectedQuantity,
     selectedUnitPrice,
     selectedDueDate,
@@ -291,7 +296,7 @@ export function NewTransactionPage() {
     cashAccountLabel: selectedCashAccountOption?.label || "Kas / Bank",
     destinationAccountLabel: selectedDestinationCashAccountOption?.label || "Akun tujuan",
     categoryName: debitAccountName,
-    productName: selectedProduct?.name || "",
+    productName: selectedProduct?.name || selectedProductName,
   });
 
   const showUnsavedDialog = blocker.state === "blocked" && form.formState.isDirty && !successTransactionId;
@@ -387,6 +392,12 @@ export function NewTransactionPage() {
                 onChange={(type) => {
                   form.setValue("transactionType", type, { shouldDirty: true, shouldValidate: true });
                   form.clearErrors("transactionType");
+                  // Reset product selection when switching type: a typed product
+                  // name is only valid for the purchase flow that created it.
+                  form.setValue("productId", "", { shouldDirty: true });
+                  form.setValue("productName", "", { shouldDirty: true });
+                  form.setValue("quantity", undefined, { shouldDirty: true });
+                  form.setValue("unitPrice", undefined, { shouldDirty: true });
                 }}
                 error={errors.transactionType?.message}
               />
@@ -421,11 +432,19 @@ export function NewTransactionPage() {
                     <Combobox
                       id="productId"
                       name="productId"
-                      label="Produk / Jasa"
+                      label={isPurchaseType ? "Nama Barang" : "Produk / Jasa"}
                       value={selectedProductId || ""}
                       onChange={(value) => {
                         setManualAmount(false);
-                        form.setValue("productId", value, { shouldDirty: true, shouldValidate: true });
+                        // Picked an existing option → its ID; created a new name → raw text.
+                        const isExisting = (products || []).some((product) => product.id === value);
+                        if (isExisting) {
+                          form.setValue("productId", value, { shouldDirty: true, shouldValidate: true });
+                          form.setValue("productName", "", { shouldDirty: true });
+                        } else {
+                          form.setValue("productId", "", { shouldDirty: true });
+                          form.setValue("productName", value, { shouldDirty: true, shouldValidate: true });
+                        }
                         form.clearErrors("productId");
                       }}
                       options={(products || []).map((product) => ({
@@ -433,15 +452,31 @@ export function NewTransactionPage() {
                         label: `${product.code} - ${product.name}`,
                         secondaryLabel: `Stok: ${formatNumber(product.current_stock)} ${product.unit}`,
                       }))}
-                      placeholder="Pilih produk atau ketik nama item"
+                      placeholder={isPurchaseType ? "Ketik nama barang (baru atau sudah ada)" : "Pilih produk atau ketik nama item"}
                       loading={productsLoading}
-                      emptyText="Tidak ada produk. Tambahkan dari menu Produk."
+                      emptyText={isPurchaseType ? "Tidak ada hasil. Ketik nama barang baru untuk membuatnya." : "Tidak ada produk. Tambahkan dari menu Produk."}
+                      displayValue={selectedProductName || undefined}
+                      allowCreate={isPurchaseType}
+                      onCreate={(input) => {
+                        setManualAmount(false);
+                        form.setValue("productId", "", { shouldDirty: true });
+                        form.setValue("productName", input.trim(), { shouldDirty: true, shouldValidate: true });
+                        form.clearErrors("productId");
+                      }}
                     />
 
                     {/* Product detail fields */}
-                    {selectedProductId && selectedProduct && (
+                    {(selectedProductId && selectedProduct) || (isPurchaseType && selectedProductName) ? (
                       <ProductDetailFields
-                        product={selectedProduct}
+                        product={selectedProduct || {
+                          id: "new",
+                          code: "Baru",
+                          name: selectedProductName,
+                          unit: "pcs",
+                          purchase_price: 0,
+                          selling_price: 0,
+                          current_stock: 0,
+                        }}
                         isSaleType={isSaleType}
                         quantity={selectedQuantity || 0}
                         unitPrice={selectedUnitPrice || 0}
@@ -452,7 +487,7 @@ export function NewTransactionPage() {
                         quantityError={errors.quantity?.message}
                         unitPriceError={errors.unitPrice?.message}
                       />
-                    )}
+                    ) : null}
                   </>
                 )}
 
@@ -615,7 +650,7 @@ export function NewTransactionPage() {
               )}
 
               {/* Debit account from CoA, hidden when product is selected */}
-              {showCategory && !selectedProductId && (
+              {showCategory && !selectedProductId && !selectedProductName && (
                 <Combobox
                   id="debitAccountId"
                   name="debitAccountId"
@@ -655,7 +690,7 @@ export function NewTransactionPage() {
               amount={selectedAmount}
               stockWarning={stockAfterSale}
               cashAccountLabel={selectedCashAccountOption?.label || "Kas / Bank"}
-              productName={selectedProduct?.name}
+              productName={selectedProduct?.name || selectedProductName}
             />
           )}
 
@@ -695,7 +730,7 @@ export function NewTransactionPage() {
                     transactionType={selectedType}
                     amount={selectedAmount}
                     cashAccountLabel={selectedCashAccountOption?.label || "Kas / Bank"}
-                    productName={selectedProduct?.name}
+                    productName={selectedProduct?.name || selectedProductName}
                   />
                 </CardContent>
               </Card>

@@ -7,6 +7,7 @@ import {
   statement,
   type D1Input,
 } from "../db/client";
+import { createProduct } from "./products.service";
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { AccountType, NormalBalance } from "../db/schema";
@@ -43,6 +44,8 @@ export interface PostTransactionInput {
   description: string;
   notes?: string | null;
   productId?: string | null;
+  /** Product name for purchases: matches existing product by name or creates one. */
+  productName?: string | null;
   quantity?: number | null;
   unitPrice?: number | null;
   debitAccountId?: string | null;
@@ -934,6 +937,17 @@ export async function postTransaction(
   const { data } = prepared;
 
   const { idempotencyKey, transactionType, transactionDate, description, current } = data;
+
+  // Purchase with a free-text product name: reuse existing product by name
+  // or create a new one. Only purchases may create products; sales must
+  // reference an existing product.
+  if (!input.productId && input.productName) {
+    const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+    if (!isPurchase) {
+      throw badRequest("product_name_invalid", "Products must be selected from the list for this transaction type");
+    }
+    input.productId = await findOrCreateProductByName(db, organizationId, userId, input.productName, input.unitPrice ?? 0, requestId);
+  }
 
   const entities = await resolveTransactionEntities(
     db, organizationId, transactionType,
@@ -2153,6 +2167,42 @@ async function resolveProductFields(
     quantityMilli: toQuantityMilli(input.quantity),
     unitPriceMinor: toMoneyMinor(input.unitPrice ?? 0),
   };
+}
+
+/**
+ * Purchase helper: reuse an existing product whose name matches, otherwise
+ * create a new one (auto code PRD-###, unit pcs, cost = purchase price).
+ */
+async function findOrCreateProductByName(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  productName: string,
+  unitPrice: number,
+  requestId?: string,
+): Promise<string> {
+  const name = productName.trim();
+  const existing = await queryFirst<{ id: string }>(
+    db,
+    `SELECT id FROM products
+     WHERE organization_id = ? AND lower(name) = lower(?) AND is_active = 1
+     LIMIT 1`,
+    [organizationId, name],
+  );
+  if (existing) return existing.id;
+
+  const next = await nextCounter(db, organizationId, "product_code");
+  const code = `PRD-${String(next).padStart(3, "0")}`;
+  const product = await createProduct(db, organizationId, userId, {
+    code,
+    name,
+    unit: "pcs",
+    purchasePrice: unitPrice,
+    sellingPrice: 0,
+    currentStock: 0,
+    minStock: 0,
+  }, requestId);
+  return product.id;
 }
 
 async function accountByCode(
