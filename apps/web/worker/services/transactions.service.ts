@@ -536,7 +536,7 @@ type RetryCtx = {
   transactionType: TransactionType;
   product: ProductRow | null;
   quantityMilli: number | null;
-  unitPriceMinor: number | null;
+  unitPrice: number | null;
   statements: D1PreparedStatement[];
   reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null;
   transactionDate: string;
@@ -574,7 +574,7 @@ async function retryBatchOnStockConflict(
   attempt: number,
   stockUpdateIndex: number,
 ): Promise<PostTransactionResult | "retry"> {
-  const { db, organizationId, transactionId, transactionType, product, quantityMilli, unitPriceMinor, transactionDate } = ctx;
+  const { db, organizationId, transactionId, transactionType, product, quantityMilli, unitPrice, transactionDate } = ctx;
 
   await assertPeriodOpen(db, organizationId, transactionDate);
   const results = await executeBatch(db, ctx.statements);
@@ -590,8 +590,8 @@ async function retryBatchOnStockConflict(
         `SELECT * FROM products WHERE id = ? AND organization_id = ?`,
         [product!.id, organizationId],
       );
-      if (freshProduct && quantityMilli !== null && unitPriceMinor !== null) {
-        ctx.reservedStock = await reserveStockForTransaction(transactionType, freshProduct, quantityMilli, unitPriceMinor);
+      if (freshProduct && quantityMilli !== null && unitPrice !== null) {
+        ctx.reservedStock = await reserveStockForTransaction(transactionType, freshProduct, quantityMilli, unitPrice);
         rebuildStockStatements(ctx, freshProduct, ctx.reservedStock, stockUpdateIndex);
       }
       return "retry";
@@ -693,7 +693,7 @@ interface ResolvedTransactionEntities {
   destinationCashAccount: AccountRow | null;
   product: ProductRow | null;
   quantityMilli: number | null;
-  unitPriceMinor: number | null;
+  unitPrice: number | null;
   reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null;
   resolved: PostingAccountsResult;
   journalLines: JournalLineInput[];
@@ -718,15 +718,17 @@ async function resolveTransactionEntities(
   const cashAccount = await resolveOptionalAccount(db, organizationId, input.cashAccountId);
   const destinationCashAccount = await resolveOptionalAccount(db, organizationId, input.destinationCashAccountId);
 
-  const { product: initialProduct, quantityMilli, unitPriceMinor } = await resolveProductFields(db, organizationId, input);
+  const { product: initialProduct, quantityMilli } = await resolveProductFields(db, organizationId, input);
   const product = initialProduct;
-  if (product && quantityMilli !== null && unitPriceMinor !== null) {
-    validateProductIntent(transactionType, product, quantityMilli, unitPriceMinor, amountMinor);
+  // Purchase stock-update price: explicit unitPrice, else total ÷ qty (fractional ok).
+  const unitPrice = effectiveUnitPrice(input, transactionType, amountMinor);
+  if (product && quantityMilli !== null && unitPrice !== null) {
+    validateProductIntent(transactionType, product, quantityMilli, unitPrice, amountMinor);
   }
 
   let reservedStock: { nextStock: number; unitCost: number; nextAverage: number } | null = null;
-  if (product && quantityMilli !== null && unitPriceMinor !== null && isStockTransactionType(transactionType)) {
-    reservedStock = await reserveStockForTransaction(transactionType, product, quantityMilli, unitPriceMinor);
+  if (product && quantityMilli !== null && unitPrice !== null && isStockTransactionType(transactionType)) {
+    reservedStock = await reserveStockForTransaction(transactionType, product, quantityMilli, unitPrice);
   }
 
   const resolved = await resolvePostingAccounts(db, organizationId, transactionType, {
@@ -759,7 +761,7 @@ async function resolveTransactionEntities(
     destinationCashAccount,
     product,
     quantityMilli,
-    unitPriceMinor,
+    unitPrice,
     reservedStock,
     resolved,
     journalLines,
@@ -786,7 +788,7 @@ function buildPostTransactionStatements(
 ): D1PreparedStatement[] {
   const { db, organizationId, userId, data, entities, input, requestId, transactionId, journalEntryId, transactionNumber, entryNumber } = ctx;
   const { idempotencyKey, transactionType, transactionDate, amountMinor, paymentStatus, description, notes, current } = data;
-  const { partyId, cashAccount, destinationCashAccount, product, quantityMilli, unitPriceMinor, reservedStock, resolved, journalLines } = entities;
+  const { partyId, cashAccount, destinationCashAccount, product, quantityMilli, unitPrice, reservedStock, resolved, journalLines } = entities;
   const categoryName = resolved.categoryName ?? nullableText(input.categoryName, 120);
 
   const statements: D1PreparedStatement[] = [
@@ -843,7 +845,7 @@ function buildPostTransactionStatements(
       accountId: product ? null : resolved.debitAccount.id,
       description,
       quantityMilli,
-      unitPriceMinor,
+      unitPrice,
       amountMinor,
       lineOrder: 1,
       current,
@@ -948,7 +950,9 @@ export async function postTransaction(
     if (!isPurchase) {
       throw badRequest("product_name_invalid", "Products must be selected from the list for this transaction type");
     }
-    input.productId = await findOrCreateProductByName(db, organizationId, userId, input.productName, input.unitPrice ?? 0, input.unit, requestId);
+    const unitPrice = effectiveUnitPrice(input, transactionType, data.amountMinor);
+    input.unitPrice = unitPrice;
+    input.productId = await findOrCreateProductByName(db, organizationId, userId, input.productName, unitPrice ?? 0, input.unit, requestId);
   }
 
   const entities = await resolveTransactionEntities(
@@ -970,7 +974,7 @@ export async function postTransaction(
     db, organizationId, transactionId, idempotencyKey,
     transactionType, product: entities.product,
     quantityMilli: entities.quantityMilli,
-    unitPriceMinor: entities.unitPriceMinor,
+    unitPrice: entities.unitPrice,
     statements, reservedStock: entities.reservedStock,
     transactionDate, description, userId, current,
   });
@@ -2157,17 +2161,31 @@ async function resolveOptionalAccount(
   return getAccountById(db, organizationId, accountId);
 }
 
+// Stock-update price for a product transaction. When the caller omits it
+// (optional on purchases), derive price = total ÷ qty so the paid amount
+// matches qty × price exactly, even when price is fractional
+// (e.g. 495000 ÷ 251 = 1,971.31/unit).
+function effectiveUnitPrice(
+  input: PostTransactionInput,
+  transactionType: TransactionType,
+  amountMinor: number,
+): number | null {
+  if (input.unitPrice !== null && input.unitPrice !== undefined) return input.unitPrice;
+  const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
+  if (isPurchase && input.quantity && input.quantity > 0) return amountMinor / input.quantity;
+  return null;
+}
+
 async function resolveProductFields(
   db: D1Database,
   organizationId: string,
   input: PostTransactionInput,
-): Promise<{ product: ProductRow | null; quantityMilli: number | null; unitPriceMinor: number | null }> {
-  if (!input.productId) return { product: null, quantityMilli: null, unitPriceMinor: null };
+): Promise<{ product: ProductRow | null; quantityMilli: number | null }> {
+  if (!input.productId) return { product: null, quantityMilli: null };
   const product = await getProductRow(db, organizationId, input.productId);
   return {
     product,
     quantityMilli: toQuantityMilli(input.quantity),
-    unitPriceMinor: toMoneyMinor(input.unitPrice ?? 0),
   };
 }
 
@@ -2286,7 +2304,8 @@ function validateProductIntent(
     throw badRequest("overflow", "Quantity × unit price would overflow");
   }
   const expectedAmount = Math.round((quantityMilli * unitPriceMinor) / 1000);
-  if (expectedAmount !== amountMinor) {
+  // Allow 1 rupiah rounding drift (e.g. price 1971.31 × qty 251 → 494,999 vs amount 495,000).
+  if (Math.abs(expectedAmount - amountMinor) > 1) {
     throw badRequest("product_amount_mismatch", "Transaction amount must equal quantity times unit price");
   }
   if ((transactionType === "cash_sale" || transactionType === "credit_sale") && productCostMinor(product) <= 0) {
@@ -2332,7 +2351,7 @@ function insertTransactionLineStatement(
     accountId: string | null;
     description: string;
     quantityMilli: number | null;
-    unitPriceMinor: number | null;
+    unitPrice: number | null;
     amountMinor: number;
     lineOrder: number;
     current: number;
@@ -2353,7 +2372,7 @@ function insertTransactionLineStatement(
       input.accountId,
       input.description,
       input.quantityMilli,
-      input.unitPriceMinor,
+      input.unitPrice,
       input.amountMinor,
       input.lineOrder,
       input.current,
@@ -2583,7 +2602,8 @@ function nextAverageCostMinor(
   if (nextStockMilli <= 0) return unitCostMinor;
   const currentValue = product.current_stock_milli * product.average_cost_minor;
   const addedValue = quantityMilli * unitCostMinor;
-  return Math.round((currentValue + addedValue) / nextStockMilli);
+  // Fractional cost stays exact (economy: REAL column); round only to 4dp.
+  return Math.round(((currentValue + addedValue) / nextStockMilli) * 1e4) / 1e4;
 }
 
 function notesWithPartial(

@@ -466,7 +466,7 @@ export const ProductDetailFields = memo(function ProductDetailFields({
             <input
               id="product-unit"
               type="text"
-              value={unit || "pcs"}
+              defaultValue={unit || "pcs"}
               onChange={(e) => onUnitChange(e.target.value)}
               placeholder="pcs"
               className={cn(
@@ -477,7 +477,7 @@ export const ProductDetailFields = memo(function ProductDetailFields({
             />
           </Field>
         ) : (
-          <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
+          <Field label="Harga Satuan (opsional)" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
                 Rp
@@ -486,7 +486,7 @@ export const ProductDetailFields = memo(function ProductDetailFields({
                 id="product-unit-price"
                 type="text"
                 inputMode="numeric"
-                value={formatAmountInput(unitPrice)}
+                value={formatAmountInput(unitPrice, true)}
                 onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
                 className={cn(
                   "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
@@ -511,7 +511,7 @@ export const ProductDetailFields = memo(function ProductDetailFields({
                 id="product-unit-price"
                 type="text"
                 inputMode="numeric"
-                value={formatAmountInput(unitPrice)}
+                value={formatAmountInput(unitPrice, true)}
                 onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
                 className={cn(
                   "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",

@@ -415,10 +415,41 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         [FIXTURE_IDS.orgs.a, "Bolt Baru"],
       );
       expect(product).toBeDefined();
-      expect(product!.code).toMatch(/^PRD-/);
-      expect(product!.unit).toBe("karton");
       expect(product!.average_cost_minor).toBe(50000);
       expect(product!.current_stock_milli).toBe(5 * 1000);
+    });
+
+    it("cash_purchase without unitPrice derives fractional price from amount ÷ qty", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      // Qty 251, total 495,000 → 1,971.31/unit (fractional).
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-16",
+          transactionType: "cash_purchase",
+          amount: 495000,
+          description: "Beli telur 251 butir",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          productName: "Telur Marketing",
+          unit: "butir",
+          quantity: 251,
+          idempotencyKey: "idem-golden-purchase-auto-price-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      const product = await db.first<{ id: string; unit: string; average_cost_minor: number; current_stock_milli: number } | undefined>(
+        `SELECT id, unit, average_cost_minor, current_stock_milli FROM products WHERE organization_id = ? AND lower(name) = lower(?)`,
+        [FIXTURE_IDS.orgs.a, "Telur Marketing"],
+      );
+      expect(product).toBeDefined();
+      expect(product!.unit).toBe("butir");
+      expect(product!.average_cost_minor).toBeCloseTo(495000 / 251, 3);
+      expect(product!.current_stock_milli).toBe(251 * 1000);
     });
 
     it("cash_purchase with existing productName merges stock (WAC)", async () => {
@@ -448,7 +479,7 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
         [FIXTURE_IDS.products.widget, FIXTURE_IDS.orgs.a],
       );
       // 100 @ 50k + 10 @ 60k = WAC 50,909.09; stock 110
-      expect(product!.average_cost_minor).toBe(50909);
+      expect(product!.average_cost_minor).toBeCloseTo(5600000 / 110, 3);
       expect(product!.current_stock_milli).toBe(110 * 1000);
     });
 

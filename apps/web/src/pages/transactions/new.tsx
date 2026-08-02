@@ -103,7 +103,7 @@ function validateProductFields(
   if (hasProduct && (!data.quantity || data.quantity <= 0)) {
     return { field: "quantity", message: "Isi kuantitas produk (minimal 1)" };
   }
-  if (hasProduct && (data.unitPrice === undefined || data.unitPrice < 0)) {
+  if (hasProduct && formState.isSaleType && (data.unitPrice === undefined || data.unitPrice < 0)) {
     return { field: "unitPrice", message: "Isi harga satuan produk" };
   }
   if (data.productId && formState.isSaleType && stockAfterSale !== null && stockAfterSale < 0) {
