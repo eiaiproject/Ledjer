@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR, formatDate } from "@/lib/utils";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 
 interface StatementInvoice {
   invoiceId: string;
@@ -84,6 +85,7 @@ export default function PartyStatementPage() {
           <p className="text-sm text-wood-500">
             {data.invoices.length} faktur — Total outstanding: {formatIDR(data.totalOutstanding)}
           </p>
+          <FieldHelp topic="party_statement" label="Riwayat lengkap transaksi dengan pihak ini" />
         </div>
         <Button variant="ghost" onClick={() => navigate("/reports/aging")}>Kembali</Button>
       </div>

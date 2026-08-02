@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
@@ -491,9 +492,12 @@ function ProductFormModal({ open, formBusy, editingProduct, form, onClosing, onS
             onChange={(e) => form.setField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
             isCurrency error={form.formErrors.selling_price} disabled={formBusy} />
           {!editingProduct && !onboardingCompleted && (
-            <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
-              onChange={(e) => form.setField("current_stock", Number(e.target.value))}
-              placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
+            <>
+              <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
+                onChange={(e) => form.setField("current_stock", Number(e.target.value))}
+                placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
+              <FieldHelp topic="initial_stock" label="Hanya bisa diisi sebelum onboarding selesai" />
+            </>
           )}
           {!editingProduct && onboardingCompleted && (
             <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">

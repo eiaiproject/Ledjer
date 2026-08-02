@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
 import { translateError } from "@/lib/errors";
@@ -131,6 +132,7 @@ export function OrganizationSettingsPage() {
           <h2 className="text-sm font-semibold text-wood-700">Detail Akuntansi</h2>
         </CardHeader>
         <CardContent>
+          <FieldHelp topic="account_locked" label="Detail akuntansi terkunci untuk menjaga konsistensi laporan" />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-sm font-medium text-wood-700">Tanggal Mulai Pembukuan</span>

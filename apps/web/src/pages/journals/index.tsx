@@ -33,6 +33,7 @@ import {
   
 } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 
 interface LineEntry {
   id: string;
@@ -284,6 +285,7 @@ export function ManualJournalPage() {
                 <option value="adjustment">Jurnal Penyesuaian</option>
                 <option value="closing">Jurnal Penutup</option>
               </select>
+              <FieldHelp topic="journal_types" label="Kapan memakai masing-masing jenis" />
             </div>
             <Input
               label="Deskripsi"
