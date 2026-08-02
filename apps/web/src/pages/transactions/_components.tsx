@@ -408,6 +408,10 @@ interface ProductDetailFieldsProps {
   readonly onUnitPriceChange: (value: number) => void;
   readonly quantityError?: string;
   readonly unitPriceError?: string;
+  /** Unit input, shown only for brand-new products (no existing id). */
+  readonly unit?: string;
+  readonly onUnitChange?: (value: string) => void;
+  readonly isNewProduct?: boolean;
 }
 
 export const ProductDetailFields = memo(function ProductDetailFields({
@@ -421,6 +425,9 @@ export const ProductDetailFields = memo(function ProductDetailFields({
   onUnitPriceChange,
   quantityError,
   unitPriceError,
+  unit,
+  onUnitChange,
+  isNewProduct,
 }: ProductDetailFieldsProps) {
   let stockBadgeClass = "text-text-tertiary";
   if (stockAfterSale !== null && stockAfterSale < 0) {
@@ -454,27 +461,69 @@ export const ProductDetailFields = memo(function ProductDetailFields({
           />
         </Field>
 
-        <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
-              Rp
-            </span>
+        {isNewProduct && onUnitChange ? (
+          <Field label="Satuan" htmlFor="product-unit" feedbackId="product-unit-feedback">
             <input
-              id="product-unit-price"
+              id="product-unit"
               type="text"
-              inputMode="numeric"
-              value={formatAmountInput(unitPrice)}
-              onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+              value={unit || "pcs"}
+              onChange={(e) => onUnitChange(e.target.value)}
+              placeholder="pcs"
               className={cn(
-                "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
-                unitPriceError ? "border-error" : "border-wood-200"
+                "min-h-[44px] h-10 w-full min-w-0 rounded-md border bg-cream-50 px-3 text-sm text-wood-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
+                "sm:min-h-0"
               )}
-              aria-invalid={unitPriceError ? true : undefined}
-              aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
+              aria-describedby="product-unit-feedback"
             />
-          </div>
-        </Field>
+          </Field>
+        ) : (
+          <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
+                Rp
+              </span>
+              <input
+                id="product-unit-price"
+                type="text"
+                inputMode="numeric"
+                value={formatAmountInput(unitPrice)}
+                onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+                className={cn(
+                  "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
+                  unitPriceError ? "border-error" : "border-wood-200"
+                )}
+                aria-invalid={unitPriceError ? true : undefined}
+                aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
+              />
+            </div>
+          </Field>
+        )}
       </div>
+
+      {isNewProduct && onUnitChange && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
+                Rp
+              </span>
+              <input
+                id="product-unit-price"
+                type="text"
+                inputMode="numeric"
+                value={formatAmountInput(unitPrice)}
+                onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+                className={cn(
+                  "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
+                  unitPriceError ? "border-error" : "border-wood-200"
+                )}
+                aria-invalid={unitPriceError ? true : undefined}
+                aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
+              />
+            </div>
+          </Field>
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md bg-cream-50 px-3 py-2">
         <span className="text-sm text-text-secondary">Subtotal</span>

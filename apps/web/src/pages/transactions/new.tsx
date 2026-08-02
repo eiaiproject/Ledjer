@@ -164,6 +164,7 @@ export function NewTransactionPage() {
     selectedAmount,
     selectedProductId,
     selectedProductName,
+    selectedUnit,
     selectedQuantity,
     selectedUnitPrice,
     selectedCashAccountId,
@@ -472,12 +473,15 @@ export function NewTransactionPage() {
                           id: "new",
                           code: "Baru",
                           name: selectedProductName,
-                          unit: "pcs",
+                          unit: selectedUnit || "pcs",
                           purchase_price: 0,
                           selling_price: 0,
                           current_stock: 0,
                         }}
                         isSaleType={isSaleType}
+                        isNewProduct={isPurchaseType && !selectedProductId}
+                        unit={selectedUnit}
+                        onUnitChange={(value) => form.setValue("unit", value, { shouldDirty: true })}
                         quantity={selectedQuantity || 0}
                         unitPrice={selectedUnitPrice || 0}
                         subtotal={productSubtotal}

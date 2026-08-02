@@ -402,6 +402,7 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
           description: "Purchase creates product",
           cashAccountId: FIXTURE_IDS.accounts.cashA,
           productName: "Bolt Baru",
+          unit: "karton",
           quantity: 5,
           unitPrice: 50000,
           idempotencyKey: "idem-golden-purchase-name-01",
@@ -415,7 +416,7 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       );
       expect(product).toBeDefined();
       expect(product!.code).toMatch(/^PRD-/);
-      expect(product!.unit).toBe("pcs");
+      expect(product!.unit).toBe("karton");
       expect(product!.average_cost_minor).toBe(50000);
       expect(product!.current_stock_milli).toBe(5 * 1000);
     });

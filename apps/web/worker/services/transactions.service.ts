@@ -46,6 +46,8 @@ export interface PostTransactionInput {
   productId?: string | null;
   /** Product name for purchases: matches existing product by name or creates one. */
   productName?: string | null;
+  /** Unit for a newly created product (default "pcs"); ignored when product exists. */
+  unit?: string | null;
   quantity?: number | null;
   unitPrice?: number | null;
   debitAccountId?: string | null;
@@ -946,7 +948,7 @@ export async function postTransaction(
     if (!isPurchase) {
       throw badRequest("product_name_invalid", "Products must be selected from the list for this transaction type");
     }
-    input.productId = await findOrCreateProductByName(db, organizationId, userId, input.productName, input.unitPrice ?? 0, requestId);
+    input.productId = await findOrCreateProductByName(db, organizationId, userId, input.productName, input.unitPrice ?? 0, input.unit, requestId);
   }
 
   const entities = await resolveTransactionEntities(
@@ -2179,6 +2181,7 @@ async function findOrCreateProductByName(
   userId: string,
   productName: string,
   unitPrice: number,
+  unit: string | null | undefined,
   requestId?: string,
 ): Promise<string> {
   const name = productName.trim();
@@ -2196,13 +2199,19 @@ async function findOrCreateProductByName(
   const product = await createProduct(db, organizationId, userId, {
     code,
     name,
-    unit: "pcs",
+    unit: normalizeProductUnit(unit),
     purchasePrice: unitPrice,
     sellingPrice: 0,
     currentStock: 0,
     minStock: 0,
   }, requestId);
   return product.id;
+}
+
+// Default to "pcs" when unit is missing or blank.
+function normalizeProductUnit(unit: string | null | undefined): string {
+  const value = unit?.trim();
+  return value || "pcs";
 }
 
 async function accountByCode(

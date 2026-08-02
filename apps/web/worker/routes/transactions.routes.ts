@@ -51,6 +51,7 @@ const postTransactionSchema = z.object({
   notes: z.string().max(1000).nullable().optional(),
   productId: z.string().nullable().optional(),
   productName: z.string().max(120).nullable().optional(),
+  unit: z.string().max(32).nullable().optional(),
   quantity: z.number().positive().nullable().optional(),
   unitPrice: z.number().min(0).nullable().optional(),
   debitAccountId: z.string().nullable().optional(),

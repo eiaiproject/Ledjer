@@ -88,8 +88,15 @@ function buildNotesParams(data: TransactionSubmission): Partial<PostTransactionI
 }
 
 function buildProductParams(data: TransactionSubmission): Partial<PostTransactionInput> {
-  if (!data.productId) return {};
-  const params: Partial<PostTransactionInput> = { productId: data.productId };
+  const params: Partial<PostTransactionInput> = {};
+  if (data.productId) {
+    params.productId = data.productId;
+  } else if (data.productName?.trim()) {
+    params.productName = data.productName.trim();
+    if (data.unit?.trim()) params.unit = data.unit.trim();
+  } else {
+    return {};
+  }
   if (data.quantity !== undefined) params.quantity = data.quantity;
   if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
   return params;
@@ -144,6 +151,7 @@ export const transactionSchema = z.object({
   notes: z.string().optional(),
   productId: z.string().optional(),
   productName: z.string().max(120).optional(),
+  unit: z.string().max(32).optional(),
   quantity: z.number().optional(),
   unitPrice: z.number().optional(),
   debitAccountId: z.string().optional(),
@@ -197,6 +205,7 @@ export function useTransactionForm() {
   const selectedAmount = useWatch({ control, name: "amount" }) || 0;
   const selectedProductId = useWatch({ control, name: "productId" });
   const selectedProductName = useWatch({ control, name: "productName" }) || "";
+  const selectedUnit = useWatch({ control, name: "unit" }) || "";
   const selectedQuantity = useWatch({ control, name: "quantity" });
   const selectedUnitPrice = useWatch({ control, name: "unitPrice" });
   const selectedCashAccountId = useWatch({ control, name: "cashAccountId" });
@@ -235,6 +244,7 @@ export function useTransactionForm() {
     selectedAmount,
     selectedProductId,
     selectedProductName,
+    selectedUnit,
     selectedQuantity,
     selectedUnitPrice,
     selectedCashAccountId,
