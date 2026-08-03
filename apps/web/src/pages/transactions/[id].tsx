@@ -219,7 +219,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
       </div>
 
       {/* Lifecycle status flow + hint why actions may be missing */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-2 pt-2">
         <StatusFlow
           steps={[
             { key: "draft", label: "Draft" },

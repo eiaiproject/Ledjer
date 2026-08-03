@@ -170,7 +170,7 @@ export function Combobox({
 
   return (
     <Field label={label} error={error} helperText={helperText} htmlFor={inputId} feedbackId={feedbackId}>
-      <div ref={containerRef} className="relative z-10">
+      <div ref={containerRef} className={cn("relative", open && "z-[var(--z-dropdown)]")}>
         <input
           ref={inputRef}
           id={inputId}
