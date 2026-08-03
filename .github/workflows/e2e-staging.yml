@@ -14,8 +14,8 @@ jobs:
   deploy-and-test:
     runs-on: ubuntu-latest
     env:
-      E2E_EMAIL: ledjer@yopmail.com
-      E2E_PASSWORD: Ledjer26#
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL || 'staging@yopmail.com' }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD || 'Staging1234' }}
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

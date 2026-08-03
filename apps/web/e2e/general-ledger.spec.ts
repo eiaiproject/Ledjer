@@ -170,15 +170,16 @@ test.describe("Account disclosure (auth required)", () => {
 
   test("account panels have matching IDs", async ({ authPage }) => {
     await gotoLedger(authPage);
-    const triggers = authPage.locator("[aria-expanded][aria-controls]");
+    const triggers = authPage.locator("[id^='ledger-account-'][aria-expanded][aria-controls]");
     const count = await triggers.count();
+    // ponytail: skip the test only if no account groups are rendered
+    test.skip(count === 0, "no account groups in this dataset");
     for (let i = 0; i < Math.min(count, 5); i++) {
       const controlsId = await triggers.nth(i).getAttribute("aria-controls");
       expect(controlsId).toBeTruthy();
       if (controlsId) {
-        const panel = authPage.locator("#" + CSS.escape(controlsId));
-        const exists = await panel.isVisible().catch(() => false);
-        expect(exists || i === 0).toBeTruthy();
+        const panel = authPage.locator("#" + controlsId.replace(/"/g, '\\"')).first();
+        await expect(panel).toBeAttached();
       }
     }
   });

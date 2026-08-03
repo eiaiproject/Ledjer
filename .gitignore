@@ -46,6 +46,7 @@ supabase/functions/.env
 .wrangler
 **/.wrangler
 coverage
+apps/web/eslint-report.json
 .pnpm-store/
 
 # Load tests
