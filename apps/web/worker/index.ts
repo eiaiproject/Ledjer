@@ -121,7 +121,8 @@ app.route("/api/push", pushRoutes);
 app.route("/api/onboarding", onboardingRoutes);
 
 app.notFound((c) => {
-  if (new URL(c.req.url).pathname.startsWith("/api/")) {
+  const path = new URL(c.req.url).pathname;
+  if (path.startsWith("/api/")) {
     return c.json(
       {
         error: {
@@ -133,7 +134,12 @@ app.notFound((c) => {
       404,
     );
   }
-
+  // ponytail: for hashed assets, return 404 (not SPA HTML) so the browser
+  // surfaces a real missing-file error instead of a misleading MIME mismatch.
+  // Stale cached HTML referring to old hashes will fail, prompting a reload.
+  if (path.startsWith("/assets/")) {
+    return c.text("Not found", 404);
+  }
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
