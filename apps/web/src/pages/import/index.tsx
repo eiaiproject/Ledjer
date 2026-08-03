@@ -7,6 +7,86 @@ import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageShell } from "@/components/ui/page-shell";
 
+interface PreviewRow {
+  index: number;
+  row: Record<string, string>;
+  parsed: Record<string, unknown> | null;
+  errors: string[];
+}
+
+interface PreviewPayload {
+  headers: string[];
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  rows: PreviewRow[];
+  errors: { row: number; field: string; message: string }[];
+}
+
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+/** Render preview rows as a table (fields from parsed data or raw CSV row). */
+function PreviewTable({ preview }: { readonly preview: PreviewPayload }) {
+  const sample = preview.rows[0];
+  const headers = sample ? Object.keys(sample.parsed ?? sample.row) : [];
+
+const shown = preview.rows.slice(0, 20);
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-wood-500">
+        {preview.totalRows} baris — {preview.validRows} valid, {preview.errorRows} error
+        {preview.totalRows > shown.length ? ` (menampilkan ${shown.length} pertama)` : ""}
+      </p>
+      <div className="overflow-x-auto rounded-lg border border-wood-100">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-wood-50">
+            <tr>
+              <th className="px-2 py-1.5 font-medium text-wood-500">#</th>
+              {headers.map((h) => <th key={h} className="px-2 py-1.5 font-medium text-wood-600">{h}</th>)}
+              <th className="px-2 py-1.5 font-medium text-wood-500">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-wood-50">
+            {shown.map((r) => {
+              const data = r.parsed ?? r.row;
+              return (
+                <tr key={r.index} className="align-top">
+                  <td className="px-2 py-1.5 text-wood-400">{r.index + 1}</td>
+              {headers.map((h) => (
+                    <td key={h} className="px-2 py-1.5 text-wood-700">
+                      {cellText(data[h])}
+                    </td>
+                  ))}
+                  <td className="px-2 py-1.5">
+                    {r.errors.length === 0 ? (
+                      <span className="text-leaf-600">✓ Valid</span>
+                    ) : (
+                      <span className="text-error" title={r.errors.join("; ")}>{r.errors.length} error</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {preview.errors.length > 0 && (
+        <ul className="space-y-1 text-xs text-error">
+          {preview.errors.slice(0, 10).map((e) => (
+            <li key={e.row}>Baris {e.row}: {e.message}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 type EntityType = "coa" | "products" | "parties" | "opening-balance";
 
 const ENTITY_LABELS: Record<EntityType, string> = {
@@ -305,7 +385,7 @@ export default function ImportPage() {
             <Card>
               <CardContent className="p-4">
                 <h3 className="text-sm font-semibold text-wood-700 mb-2">Preview</h3>
-                <pre className="text-xs text-wood-600 whitespace-pre-wrap overflow-x-auto">{JSON.stringify(preview, null, 2)}</pre>
+                <PreviewTable preview={preview as unknown as PreviewPayload} />
               </CardContent>
             </Card>
           )}
@@ -361,7 +441,7 @@ export default function ImportPage() {
         <Card>
           <CardContent className="space-y-3 p-4">
             <h3 className="text-sm font-semibold text-wood-700">Preview Data</h3>
-            <pre className="text-xs text-wood-600 whitespace-pre-wrap overflow-x-auto">{JSON.stringify(preview, null, 2)}</pre>
+            <PreviewTable preview={preview as unknown as PreviewPayload} />
             <div className="flex gap-2 justify-end">
               <Button variant="ghost" onClick={() => setStep("mapping")}>Kembali</Button>
               <Button

@@ -40,5 +40,8 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10"
   }
 }

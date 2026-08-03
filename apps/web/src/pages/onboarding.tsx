@@ -4,7 +4,7 @@ import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatAmountInput, formatDateInputValue, parseAmountInput } from "@/lib/utils";
+import { formatDateInputValue, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/organizations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
@@ -277,6 +278,7 @@ export function OnboardingPage() {
                     render={({ field }) => (
                       <div>
                         <p className="mb-2.5 text-sm font-medium text-text-secondary">Jenis Bisnis</p>
+                        <FieldHelp topic="business_type" label="Menentukan struktur akun otomatis" />
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Jenis bisnis" aria-describedby={businessForm.formState.errors.businessType ? "business-type-error" : undefined}>
                           {BUSINESS_TYPES.map((type) => (
                             <button
@@ -379,7 +381,7 @@ export function OnboardingPage() {
                               label="Saldo Awal"
                               type="text"
                               inputMode="numeric"
-                              value={formatAmountInput(field.value, true)}
+                              value={field.value}
                               onBlur={field.onBlur}
                               onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                               placeholder="0"
@@ -402,7 +404,7 @@ export function OnboardingPage() {
 
                 {/* Optional non-cash opening balances for migrating businesses */}
                 <div className="space-y-3 rounded-lg border border-wood-200 bg-cream-50 p-4">
-                  <div className="space-y-0.5">
+                        <div className="space-y-0.5">
                     <p className="text-sm font-medium text-wood-700">Saldo awal lainnya</p>
                     <p className="text-xs text-text-tertiary">
                       Opsional. Untuk bisnis yang sudah berjalan: isi piutang, utang, atau modal awal.
@@ -417,7 +419,7 @@ export function OnboardingPage() {
                         label="Piutang Usaha (belum tertagih dari pelanggan)"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value, true)}
+                        value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
@@ -434,7 +436,7 @@ export function OnboardingPage() {
                         label="Utang Usaha (belum dibayar ke pemasok)"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value, true)}
+                        value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
@@ -451,7 +453,7 @@ export function OnboardingPage() {
                         label="Modal Pemilik"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value, true)}
+                        value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"

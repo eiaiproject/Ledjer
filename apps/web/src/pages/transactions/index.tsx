@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
@@ -67,7 +67,7 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
-import { Receipt, Search, Download, Check, X, ArrowRight, Filter } from "reicon-react";
+import { Receipt, Search, Download, Check, X, ArrowRight, Filter, Calendar, XCircle } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
 import {
   listTransactions,
@@ -99,9 +99,136 @@ function StatusIcon({ status }: { readonly status: string }) {
   return <ArrowRight className="h-3 w-3" />;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Transaction Filter Bar                                              */
+/* ------------------------------------------------------------------ */
+
+interface TransactionFilterBarProps {
+  readonly search: string;
+  readonly setSearch: (v: string) => void;
+  readonly fromDate: string;
+  readonly setFromDate: (v: string) => void;
+  readonly toDate: string;
+  readonly setToDate: (v: string) => void;
+  readonly typeFilter: string;
+  readonly setTypeFilter: (v: string) => void;
+  readonly statusFilter: string;
+  readonly setStatusFilter: (v: TransactionStatus | "") => void;
+  readonly hasSearchQuery: boolean;
+  readonly hasDateFilter: boolean;
+  readonly hasTypeFilter: boolean;
+  readonly hasStatusFilter: boolean;
+  readonly onResetSearch: () => void;
+  readonly onResetFilters: () => void;
+  readonly onResetAll: () => void;
+  readonly searchInputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+function TransactionFilterBar({
+  search,
+  setSearch,
+  fromDate,
+  setFromDate,
+  toDate,
+  setToDate,
+  typeFilter,
+  setTypeFilter,
+  statusFilter,
+  setStatusFilter,
+  hasSearchQuery,
+  hasDateFilter,
+  hasTypeFilter,
+  hasStatusFilter,
+  onResetSearch,
+  onResetFilters,
+  onResetAll,
+  searchInputRef,
+}: TransactionFilterBarProps) {
+  const hasActiveFilters = hasDateFilter || hasTypeFilter || hasStatusFilter;
+  const hasAnyFilter = hasSearchQuery || hasActiveFilters;
+
+  return (
+    <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
+      <div className="relative">
+        <label htmlFor="transaction-search" className="sr-only">Cari transaksi</label>
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
+        <input
+          ref={searchInputRef}
+          id="transaction-search"
+          type="search"
+          placeholder="Cari transaksi..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
+        />
+        {hasSearchQuery && (
+          <button
+            type="button"
+            onClick={onResetSearch}
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Hapus pencarian"
+          >
+            <XCircle className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      <fieldset className="mt-3 border-0 p-0 m-0">
+        <legend className="sr-only">Filter transaksi</legend>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+          <div className="relative sm:min-w-[140px] flex-1">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
+            <Input
+              label="Dari"
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="relative sm:min-w-[140px] flex-1">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
+            <Input
+              label="Sampai"
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select
+            label="Jenis"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            placeholder="Semua Jenis"
+            options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
+          />
+          <Select
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
+            placeholder="Semua Status"
+            options={[
+              { value: "posted", label: "Posted" },
+              { value: "voided", label: "Dibatalkan" },
+            ]}
+          />
+        </div>
+      </fieldset>
+      {hasAnyFilter && (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-wood-100 pt-3">
+          {hasSearchQuery && <Button type="button" variant="outline" size="sm" onClick={onResetSearch}>Hapus pencarian</Button>}
+          {hasActiveFilters && <Button type="button" variant="outline" size="sm" onClick={onResetFilters}>Reset filter</Button>}
+          {hasSearchQuery && hasActiveFilters && <Button type="button" variant="outline" size="sm" onClick={onResetAll}>Reset semua</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TransactionListPage() { // NOSONAR typescript:S3776 — complexity 16/15; page-level conditions are inherently complex
   const { data: orgData } = useOrganization();
   const { canCreateTransaction, canCreateExports } = useOrgPermissions();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
@@ -252,74 +379,29 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
           ) }] : []),
         ],
       }}
-      toolbar={!isDatasetEmpty ? {
-        searchValue: search,
-        onSearchChange: (value: string) => { setSearch(value); setPage(0); },
-        searchPlaceholder: "Cari transaksi...",
-        onResetSearch: resetSearch,
-        onResetFilters: resetFilters,
-        onResetAll: resetAll,
-        filters: [
-          {
-            key: "dari",
-            label: `Dari: ${fromDate || "-"}`,
-            active: hasDateFilter,
-            chipVariant: "neutral",
-            onClear: () => { setFromDate(DEFAULT_FROM); setPage(0); },
-            children: (
-              <Input label="Dari" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(0); }} />
-            ),
-          },
-          {
-            key: "sampai",
-            label: `Sampai: ${toDate || "-"}`,
-            active: hasDateFilter,
-            chipVariant: "neutral",
-            onClear: () => { setToDate(DEFAULT_TO); setPage(0); },
-            children: (
-              <Input label="Sampai" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} />
-            ),
-          },
-          {
-            key: "jenis",
-            label: `Jenis: ${TRANSACTION_LABELS[typeFilter] || typeFilter}`,
-            active: hasTypeFilter,
-            span: 4,
-            onClear: () => { setTypeFilter(""); setPage(0); },
-            children: (
-              <Select
-                label="Jenis"
-                id="jenis-filter"
-                value={typeFilter}
-                onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
-                placeholder="Semua Jenis"
-                options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
-              />
-            ),
-          },
-          {
-            key: "status",
-            label: `Status: ${statusLabel(statusFilter)}`,
-            active: hasStatusFilter,
-            chipVariant: statusVariant(statusFilter),
-            onClear: () => { setStatusFilter(""); setPage(0); },
-            children: (
-              <Select
-                label="Status"
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as TransactionStatus | ""); setPage(0); }}
-                placeholder="Semua Status"
-                options={[
-                  { value: "posted", label: "Posted" },
-                  { value: "voided", label: "Dibatalkan" },
-                ]}
-              />
-            ),
-          },
-        ],
-      } : undefined}
     >
+
+      {/* Search + Filter */}
+      <TransactionFilterBar
+        search={search}
+        setSearch={setSearch}
+        fromDate={fromDate}
+        setFromDate={setFromDate}
+        toDate={toDate}
+        setToDate={setToDate}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        hasSearchQuery={hasSearchQuery}
+        hasDateFilter={hasDateFilter}
+        hasTypeFilter={hasTypeFilter}
+        hasStatusFilter={hasStatusFilter}
+        onResetSearch={resetSearch}
+        onResetFilters={resetFilters}
+        onResetAll={resetAll}
+        searchInputRef={searchInputRef}
+      />
 
       {dateRangeInvalid && (
         <p className="text-sm text-error" role="alert">

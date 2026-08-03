@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useBlocker, useNavigate } from "react-router-dom";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod/v3";
@@ -88,8 +88,15 @@ function buildNotesParams(data: TransactionSubmission): Partial<PostTransactionI
 }
 
 function buildProductParams(data: TransactionSubmission): Partial<PostTransactionInput> {
-  if (!data.productId) return {};
-  const params: Partial<PostTransactionInput> = { productId: data.productId };
+  const params: Partial<PostTransactionInput> = {};
+  if (data.productId) {
+    params.productId = data.productId;
+  } else if (data.productName?.trim()) {
+    params.productName = data.productName.trim();
+    if (data.unit?.trim()) params.unit = data.unit.trim();
+  } else {
+    return {};
+  }
   if (data.quantity !== undefined) params.quantity = data.quantity;
   if (data.unitPrice !== undefined) params.unitPrice = data.unitPrice;
   return params;
@@ -143,6 +150,8 @@ export const transactionSchema = z.object({
   description: z.string().min(1, "Deskripsi wajib diisi"),
   notes: z.string().optional(),
   productId: z.string().optional(),
+  productName: z.string().max(120).optional(),
+  unit: z.string().max(32).optional(),
   quantity: z.number().optional(),
   unitPrice: z.number().optional(),
   debitAccountId: z.string().optional(),
@@ -195,6 +204,8 @@ export function useTransactionForm() {
   const selectedPaymentStatus = useWatch({ control, name: "paymentStatus" }) || "unpaid";
   const selectedAmount = useWatch({ control, name: "amount" }) || 0;
   const selectedProductId = useWatch({ control, name: "productId" });
+  const selectedProductName = useWatch({ control, name: "productName" }) || "";
+  const selectedUnit = useWatch({ control, name: "unit" }) || "";
   const selectedQuantity = useWatch({ control, name: "quantity" });
   const selectedUnitPrice = useWatch({ control, name: "unitPrice" });
   const selectedCashAccountId = useWatch({ control, name: "cashAccountId" });
@@ -214,6 +225,7 @@ export function useTransactionForm() {
   const showCategory = usesCategory(selectedType);
   const showDueDate = showPaymentStatus && selectedPaymentStatus !== "paid";
   const isProductType = selectedType === "cash_purchase" || selectedType === "credit_purchase" || selectedType === "cash_sale" || selectedType === "credit_sale";
+  const isPurchaseType = selectedType === "cash_purchase" || selectedType === "credit_purchase";
   const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
 
   return {
@@ -231,6 +243,8 @@ export function useTransactionForm() {
     selectedPaymentStatus,
     selectedAmount,
     selectedProductId,
+    selectedProductName,
+    selectedUnit,
     selectedQuantity,
     selectedUnitPrice,
     selectedCashAccountId,
@@ -248,6 +262,7 @@ export function useTransactionForm() {
     showCategory,
     showDueDate,
     isProductType,
+    isPurchaseType,
     isSaleType,
   };
 }
@@ -349,6 +364,7 @@ export function useTransactionDerived(params: {
   selectedType: string;
   selectedAmount: number;
   selectedProductId: string | undefined;
+  selectedProductName: string;
   selectedQuantity: number | undefined;
   selectedUnitPrice: number | undefined;
   selectedCashAccountId: string | undefined;
@@ -364,6 +380,7 @@ export function useTransactionDerived(params: {
     selectedType,
     selectedAmount,
     selectedProductId,
+    selectedProductName,
     selectedQuantity,
     selectedUnitPrice,
     selectedCashAccountId,
@@ -407,17 +424,18 @@ export function useTransactionDerived(params: {
   const cashAccountLabel = CASH_ACCOUNT_LABELS[selectedType] || "Akun kas/bank";
   const categoryLabel = CATEGORY_LABELS[selectedType] || "Kategori";
   const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
-  const productSubtotal = selectedProductId && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
+  const productSubtotal = (selectedProductId || selectedProductName) && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
   const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
   const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
-  const stockAdjustment = isSaleType ? -selectedQuantity! : selectedQuantity!;
-  const stockAfterSale = selectedProduct && selectedQuantity
-    ? (selectedProduct.current_stock ?? 0) + stockAdjustment
+  const stockAdjustment = Number(isSaleType ? -(selectedQuantity ?? 0) : (selectedQuantity ?? 0));
+  const stockAfterSale = selectedProduct && selectedQuantity !== undefined
+    ? Number(selectedProduct.current_stock ?? 0) + stockAdjustment
     : null;
 
   // ponytail: derive account name for preview from CoA or fallback to category/product name
   const debitAccountName = (() => {
     if (selectedProductId && selectedProduct) return selectedProduct.name;
+    if (selectedProductName) return selectedProductName;
     if (selectedDebitAccountId) {
       const account = expenseCogsAccounts?.find((a) => a.id === selectedDebitAccountId);
       if (account) return account.name;
@@ -451,6 +469,7 @@ export function useTransactionEffects(params: {
   form: UseFormReturn<TransactionForm>;
   selectedType: string;
   selectedProductId: string | undefined;
+  selectedProductName: string;
   selectedQuantity: number | undefined;
   selectedUnitPrice: number | undefined;
   selectedDueDate: string | undefined;
@@ -472,6 +491,7 @@ export function useTransactionEffects(params: {
     form,
     selectedType,
     selectedProductId,
+    selectedProductName,
     selectedQuantity,
     selectedUnitPrice,
     selectedDueDate,
@@ -521,13 +541,13 @@ export function useTransactionEffects(params: {
     }
 
     // Auto-select first debit account when type changes and no product is selected
-    if (usesCategory(selectedType) && !selectedProductId && debitAccountOptions.length > 0) {
+    if (usesCategory(selectedType) && !selectedProductId && !selectedProductName && debitAccountOptions.length > 0) {
       const current = getValues("debitAccountId");
       if (!current || !debitAccountOptions.some((a) => a.value === current)) {
         setValue("debitAccountId", debitAccountOptions[0].value, { shouldDirty: true, shouldValidate: true });
       }
     }
-  }, [cashAccountOptions, debitAccountOptions, getValues, selectedProductId, selectedType, setValue]);
+  }, [cashAccountOptions, debitAccountOptions, getValues, selectedProductId, selectedProductName, selectedType, setValue]);
 
   // Auto-set due date if empty
   useEffect(() => {
@@ -537,7 +557,7 @@ export function useTransactionEffects(params: {
   // Auto-fill product price and quantity
   useEffect(() => {
     if (!selectedProductId || !selectedProduct) return;
-    if (!selectedQuantity) setValue("quantity", 1, { shouldDirty: true, shouldValidate: true });
+    if (selectedQuantity === undefined) setValue("quantity", 0, { shouldDirty: true, shouldValidate: true });
     const defaultPrice = (isSaleType ? selectedProduct.selling_price : selectedProduct.purchase_price) ?? 0;
     if ((!selectedUnitPrice || selectedUnitPrice <= 0) && defaultPrice > 0) {
       setValue("unitPrice", defaultPrice, { shouldDirty: true, shouldValidate: true });
@@ -546,25 +566,26 @@ export function useTransactionEffects(params: {
 
   // Auto-fill amount from product subtotal
   useEffect(() => {
-    if (!selectedProductId || manualAmount || productSubtotal <= 0) return;
+    if ((!selectedProductId && !selectedProductName) || manualAmount || productSubtotal <= 0) return;
     setValue("amount", productSubtotal, { shouldDirty: true, shouldValidate: true });
-  }, [manualAmount, productSubtotal, selectedProductId, setValue]);
+  }, [manualAmount, productSubtotal, selectedProductId, selectedProductName, setValue]);
 
   // Auto-generate description for sale/purchase types when product is selected
   useEffect(() => {
     if (!isSaleType && !isProductType) return;
-    if (!selectedProductId || !selectedProduct) return;
+    const productName = selectedProduct?.name || selectedProductName;
+    if (!productName) return;
     const currentDesc = getValues("description");
     // Only auto-fill if description is empty or auto-generated
     if (currentDesc && !currentDesc.startsWith("Penjualan ") && !currentDesc.startsWith("Pembelian ")) return;
     const autoDesc = generateAutoDescription({
       transactionType: selectedType,
-      productName: selectedProduct.name,
+      productName,
       quantity: selectedQuantity,
       totalAmount: selectedAmount,
     });
     setValue("description", autoDesc, { shouldDirty: true });
-  }, [selectedType, selectedProduct, selectedProductId, selectedQuantity, selectedAmount, isSaleType, isProductType, getValues, setValue]);
+  }, [selectedType, selectedProduct, selectedProductName, selectedProductId, selectedQuantity, selectedAmount, isSaleType, isProductType, getValues, setValue]);
 
   // Auto-navigate after success
   useEffect(() => {
@@ -641,4 +662,40 @@ export function useTransactionMutation(params: {
   });
 
   return { postMutation };
+}
+
+export function useReplacementPrefill(
+  form: ReturnType<typeof useTransactionForm>["form"],
+  params: {
+    replaceType: string | null;
+    replaceAmount: string | null;
+    replaceDesc: string | null;
+    setIsTypeSelectorExpanded: (v: boolean) => void;
+  },
+) {
+  const { replaceType, replaceAmount, replaceDesc, setIsTypeSelectorExpanded } = params;
+
+  // Pre-fill form from replacement URL params after void
+  useEffect(() => {
+    if (replaceType && !form.getValues("transactionType")) {
+      form.setValue("transactionType", replaceType, { shouldDirty: false });
+    }
+    if (replaceAmount && !form.getValues("amount")) {
+      form.setValue("amount", Number(replaceAmount), { shouldDirty: false });
+    }
+    if (replaceDesc && !form.getValues("description")) {
+      form.setValue("description", decodeURIComponent(replaceDesc), { shouldDirty: false });
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Separate effect to avoid set-state-in-effect for setIsTypeSelectorExpanded
+  useEffect(() => {
+    if (replaceType) {
+      startTransition(() => {
+        setIsTypeSelectorExpanded(false);
+      });
+    }
+  }, [replaceType, setIsTypeSelectorExpanded]);
 }

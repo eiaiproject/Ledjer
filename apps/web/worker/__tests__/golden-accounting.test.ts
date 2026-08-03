@@ -387,6 +387,121 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       expect(result.impact.amount).toBeGreaterThan(0); // uses cash account balance from fixture
     });
 
+    it("cash_purchase with new productName creates product and posts", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-16",
+          transactionType: "cash_purchase",
+          amount: 250000,
+          description: "Purchase creates product",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          productName: "Bolt Baru",
+          unit: "karton",
+          quantity: 5,
+          unitPrice: 50000,
+          idempotencyKey: "idem-golden-purchase-name-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      const product = await db.first<{ id: string; code: string; name: string; average_cost_minor: number; current_stock_milli: number; unit: string } | undefined>(
+        `SELECT id, code, name, average_cost_minor, current_stock_milli, unit FROM products WHERE organization_id = ? AND lower(name) = lower(?)`,
+        [FIXTURE_IDS.orgs.a, "Bolt Baru"],
+      );
+      expect(product).toBeDefined();
+      expect(product!.average_cost_minor).toBe(50000);
+      expect(product!.current_stock_milli).toBe(5 * 1000);
+    });
+
+    it("cash_purchase without unitPrice derives fractional price from amount ÷ qty", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      // Qty 251, total 495,000 → 1,971.31/unit (fractional).
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-16",
+          transactionType: "cash_purchase",
+          amount: 495000,
+          description: "Beli telur 251 butir",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          productName: "Telur Marketing",
+          unit: "butir",
+          quantity: 251,
+          idempotencyKey: "idem-golden-purchase-auto-price-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      const product = await db.first<{ id: string; unit: string; average_cost_minor: number; current_stock_milli: number } | undefined>(
+        `SELECT id, unit, average_cost_minor, current_stock_milli FROM products WHERE organization_id = ? AND lower(name) = lower(?)`,
+        [FIXTURE_IDS.orgs.a, "Telur Marketing"],
+      );
+      expect(product).toBeDefined();
+      expect(product!.unit).toBe("butir");
+      expect(product!.average_cost_minor).toBeCloseTo(495000 / 251, 3);
+      expect(product!.current_stock_milli).toBe(251 * 1000);
+    });
+
+    it("cash_purchase with existing productName merges stock (WAC)", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      const result = await postTransaction(
+        db as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        {
+          transactionDate: "2026-02-16",
+          transactionType: "cash_purchase",
+          amount: 600000,
+          description: "Purchase merges into existing product",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          productName: "Widget A",
+          quantity: 10,
+          unitPrice: 60000,
+          idempotencyKey: "idem-golden-purchase-merge-01",
+        },
+      );
+
+      expect(result.transaction_id).toBeTypeOf("string");
+      const product = await db.first<{ id: string; code: string; name: string; average_cost_minor: number; current_stock_milli: number } | undefined>(
+        `SELECT id, code, name, average_cost_minor, current_stock_milli FROM products WHERE id = ? AND organization_id = ?`,
+        [FIXTURE_IDS.products.widget, FIXTURE_IDS.orgs.a],
+      );
+      // 100 @ 50k + 10 @ 60k = WAC 50,909.09; stock 110
+      expect(product!.average_cost_minor).toBeCloseTo(5600000 / 110, 3);
+      expect(product!.current_stock_milli).toBe(110 * 1000);
+    });
+
+    it("cash_sale with productName (no id) is rejected", async () => {
+      const { db } = createSeedFixtures();
+      const { postTransaction } = await import("../services/transactions.service");
+
+      await expect(
+        postTransaction(db as unknown as D1Database, FIXTURE_IDS.orgs.a, FIXTURE_IDS.users.ownerA, {
+          transactionDate: "2026-02-16",
+          transactionType: "cash_sale",
+          amount: 100000,
+          description: "Sale must pick existing product",
+          cashAccountId: FIXTURE_IDS.accounts.cashA,
+          productName: "Whatever",
+          quantity: 1,
+          unitPrice: 100000,
+          idempotencyKey: "idem-golden-sale-name-01",
+        }),
+      ).rejects.toMatchObject({ code: "product_name_invalid" });
+    });
+
     it("credit_sale (unpaid) posts via postTransaction with partyId", async () => {
       const { db } = createSeedFixtures();
       const { postTransaction } = await import("../services/transactions.service");
