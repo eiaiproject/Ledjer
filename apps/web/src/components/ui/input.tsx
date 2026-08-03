@@ -1,5 +1,5 @@
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { forwardRef, useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode, type MutableRefObject } from "react";
+import { cn, formatAmountInput } from "@/lib/utils";
 import { Field } from "./field";
 import { SIZE_STYLES } from "./size-styles";
 
@@ -46,6 +46,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const numericInputMode = isCurrency || isNumeric ? "numeric" : inputMode;
     // ponytail: number inputs use text+inputmode to prevent scroll increment
     const resolvedType = type === "number" ? "text" : type;
+    const isNumericInput = isCurrency || isNumeric;
+    const internalRef = useRef<HTMLInputElement | null>(null);
+    const setRefs = (node: HTMLInputElement | null) => {
+      internalRef.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) (ref as MutableRefObject<HTMLInputElement | null>).current = node;
+    };
+    const numericDisplay = isNumericInput ? formatAmountInput(props.value, true) : undefined;
+    // Sync external value changes while user is not actively editing
+    useEffect(() => {
+      if (!isNumericInput) return;
+      const el = internalRef.current;
+      if (!el) return;
+      const external = numericDisplay ?? "";
+      if (document.activeElement !== el && el.value !== external) {
+        el.value = external;
+      }
+    }, [numericDisplay, isNumericInput]);
 
     return (
       <Field label={label} error={error} helperText={helperText} required={required} htmlFor={inputId} feedbackId={feedbackId} className={containerClassName}>
@@ -56,7 +74,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </span>
           )}
           <input
-            ref={ref}
+            ref={setRefs}
             id={inputId}
             required={required}
             type={resolvedType}
@@ -64,6 +82,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy}
             dir={isCurrency ? "rtl" : undefined}
+            // ponytail: numeric inputs use defaultValue so the caret stays put
+            // during typing. Parent state (number) is the source of truth.
+            defaultValue={isNumericInput ? numericDisplay : undefined}
+            value={isNumericInput ? undefined : props.value}
             className={cn(
               "w-full rounded-md border bg-cream-50 text-wood-900",
               "placeholder:text-text-muted",

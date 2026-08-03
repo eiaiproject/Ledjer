@@ -4,7 +4,7 @@ import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatAmountInput, formatDateInputValue, parseAmountInput } from "@/lib/utils";
+import { formatDateInputValue, parseAmountInput } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -381,7 +381,7 @@ export function OnboardingPage() {
                               label="Saldo Awal"
                               type="text"
                               inputMode="numeric"
-                              value={formatAmountInput(field.value, true)}
+                              value={field.value}
                               onBlur={field.onBlur}
                               onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                               placeholder="0"
@@ -419,7 +419,7 @@ export function OnboardingPage() {
                         label="Piutang Usaha (belum tertagih dari pelanggan)"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value, true)}
+                        value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
@@ -436,7 +436,7 @@ export function OnboardingPage() {
                         label="Utang Usaha (belum dibayar ke pemasok)"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value, true)}
+                        value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"
@@ -453,7 +453,7 @@ export function OnboardingPage() {
                         label="Modal Pemilik"
                         type="text"
                         inputMode="numeric"
-                        value={formatAmountInput(field.value, true)}
+                        value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
                         placeholder="0"

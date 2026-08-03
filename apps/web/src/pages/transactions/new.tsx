@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, startTransition } from "react";
 import { Controller } from "react-hook-form";
-import { createClientToken, formatAmountInput, formatNumber, parseAmountInput } from "@/lib/utils";
+import { createClientToken, formatNumber, parseAmountInput } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -504,7 +504,7 @@ export function NewTransactionPage() {
                       ref={field.ref}
                       name={field.name}
                       label={amountLabel(isSaleType, isProductType)}
-                      value={formatAmountInput(field.value, true)}
+                      value={field.value}
                       onBlur={field.onBlur}
                       onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
                       placeholder="0"
@@ -556,7 +556,7 @@ export function NewTransactionPage() {
                           ref={field.ref}
                           name={field.name}
                           label="Jumlah yang dibayar"
-                          value={formatAmountInput(field.value, true)}
+                          value={field.value}
                           onBlur={field.onBlur}
                           onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
                           placeholder="0"
@@ -568,7 +568,7 @@ export function NewTransactionPage() {
                     />
                     <Input
                       label="Sisa Tagihan"
-                      value={formatAmountInput(remainingAmount)}
+                      value={remainingAmount}
                       isCurrency
                       readOnly
                       helperText={remainingAmount > 0 ? "Belum dibayar" : undefined}

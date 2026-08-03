@@ -16,7 +16,8 @@ import {
   Package,
 } from "reicon-react";
 import type { FieldErrors } from "react-hook-form";
-import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { cn, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -445,19 +446,18 @@ export const ProductDetailFields = memo(function ProductDetailFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Kuantitas" error={quantityError} htmlFor="product-quantity" feedbackId="product-quantity-feedback">
-          <input
+          <Input
             id="product-quantity"
             type="text"
             inputMode="numeric"
-            value={quantity ? String(quantity) : ""}
+            isNumeric
+            value={quantity}
             onChange={(e) => onQuantityChange(parseAmountInput(e.target.value, 0) ?? 0)}
             className={cn(
               "min-h-[44px] h-10 w-full min-w-0 rounded-md border bg-cream-50 px-3 text-sm text-wood-900 num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               quantityError ? "border-error" : "border-wood-200",
               "sm:min-h-0"
             )}
-            aria-invalid={quantityError ? true : undefined}
-            aria-describedby={quantityError ? "product-quantity-feedback" : undefined}
           />
         </Field>
 
@@ -479,21 +479,17 @@ export const ProductDetailFields = memo(function ProductDetailFields({
         ) : (
           <Field label="Harga Satuan (opsional)" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
-                Rp
-              </span>
-              <input
+              <Input
                 id="product-unit-price"
                 type="text"
                 inputMode="numeric"
-                value={formatAmountInput(unitPrice, true)}
+                isCurrency
+                value={unitPrice}
                 onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
                 className={cn(
                   "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
                   unitPriceError ? "border-error" : "border-wood-200"
                 )}
-                aria-invalid={unitPriceError ? true : undefined}
-                aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
               />
             </div>
           </Field>
@@ -504,21 +500,17 @@ export const ProductDetailFields = memo(function ProductDetailFields({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
-                Rp
-              </span>
-              <input
+              <Input
                 id="product-unit-price"
                 type="text"
                 inputMode="numeric"
-                value={formatAmountInput(unitPrice, true)}
+                isCurrency
+                value={unitPrice}
                 onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
                 className={cn(
                   "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
                   unitPriceError ? "border-error" : "border-wood-200"
                 )}
-                aria-invalid={unitPriceError ? true : undefined}
-                aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
               />
             </div>
           </Field>
