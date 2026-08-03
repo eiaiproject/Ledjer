@@ -150,7 +150,14 @@ test.describe("Transactions - Cash Purchase", () => {
 
     const amountInput = authPage.locator('input[name="amount"]');
     const val = (await amountInput.inputValue()).replace(/[^0-9]/g, "");
-    if (!val || val === "0") await amountInput.fill("200000");
+    if (!val || val === "0") {
+      // amount may be auto-filled and readonly; click "Edit manual" first
+      const editManual = authPage.getByRole("button", { name: /edit manual/i });
+      if (await editManual.isVisible().catch(() => false)) {
+        await editManual.click();
+      }
+      await amountInput.fill("200000");
+    }
 
     const descInput = authPage.locator('input[name="description"]');
     if (await descInput.isVisible()) {
@@ -231,7 +238,13 @@ test.describe("Transactions - Credit Sale", () => {
 
     const amountInput = authPage.locator('input[name="amount"]');
     const val = (await amountInput.inputValue()).replace(/[^0-9]/g, "");
-    if (!val || val === "0") await amountInput.fill("300000");
+    if (!val || val === "0") {
+      const editManual = authPage.getByRole("button", { name: /edit manual/i });
+      if (await editManual.isVisible().catch(() => false)) {
+        await editManual.click();
+      }
+      await amountInput.fill("300000");
+    }
 
     const descInput = authPage.locator('input[name="description"]');
     if (await descInput.isVisible()) {
@@ -327,7 +340,13 @@ test.describe("Transactions - Credit Purchase", () => {
 
     const amountInput = authPage.locator('input[name="amount"]');
     const val = (await amountInput.inputValue()).replace(/[^0-9]/g, "");
-    if (!val || val === "0") await amountInput.fill("400000");
+    if (!val || val === "0") {
+      const editManual = authPage.getByRole("button", { name: /edit manual/i });
+      if (await editManual.isVisible().catch(() => false)) {
+        await editManual.click();
+      }
+      await amountInput.fill("400000");
+    }
 
     const descInput = authPage.locator('input[name="description"]');
     if (await descInput.isVisible()) {

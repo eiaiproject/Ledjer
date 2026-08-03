@@ -183,7 +183,7 @@ test.describe("Balance status (auth required)", () => {
       await expect(unbalanced.first()).toContainText(/selisih/i);
     } else {
       // Data may be balanced - verify the balanced status appears
-      await expect(authPage.getByText(/neraca saldo seimbang/i)).toBeAttached();
+      await expect(authPage.getByText(/neraca saldo seimbang/i).first()).toBeAttached();
     }
   });
 });
