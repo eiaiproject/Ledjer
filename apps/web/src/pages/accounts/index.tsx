@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 import { exportAccountsCsv } from "@/lib/csv-export";
 import {
   createCashBankAccount,
@@ -924,6 +925,12 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
       </div>
 
       {/* Type filter — only for "Semua akun" tab */}
+      {activeTab === "all" && (
+        <div className="space-y-1">
+          <FieldHelp topic="account_locked" label="Akun sistem terkunci agar laporan konsisten" />
+          <FieldHelp topic="account_mapping" label="Transaksi otomatis memilih akun debit/kredit" />
+        </div>
+      )}
       {activeTab === "all" && (
         <fieldset className="flex flex-wrap gap-2 border-0 p-0 m-0">
           <Button

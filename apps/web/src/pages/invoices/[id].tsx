@@ -10,6 +10,8 @@ import { formatIDR, formatDate } from "@/lib/utils";
 import { getInvoice, updateInvoiceStatus, createCreditNote as createCreditNoteApi, getCreditNotes, sendInvoiceEmail, printInvoiceUrl } from "@/lib/api/invoices";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useState } from "react";
+import { StatusFlow } from "@/components/ui/status-flow";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -127,6 +129,22 @@ export default function InvoiceDetailPage() {
           <p className="text-sm text-wood-500">Faktur {STATUS_LABELS[invoice.status]}</p>
         </div>
         <Button variant="ghost" onClick={() => navigate("/invoices")}>Kembali</Button>
+      </div>
+
+      {/* Lifecycle status flow */}
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusFlow
+          steps={[
+            { key: "draft", label: "Draft" },
+            { key: "issued", label: "Terbit" },
+            { key: "sent", label: "Terkirim" },
+            { key: "paid", label: "Lunas" },
+            { key: "credited", label: "Nota Kredit" },
+            { key: "voided", label: "Dibatalkan" },
+          ]}
+          current={invoice.status}
+        />
+        <FieldHelp topic="invoice_journal" label="Setiap faktur otomatis membuat jurnal" />
       </div>
 
       <Card>

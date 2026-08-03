@@ -652,10 +652,8 @@ function toMoneyMinor(value: number): number {
   if (!Number.isFinite(value) || value < 0) {
     throw badRequest("money_invalid", "Money value must be non-negative");
   }
-  if (!Number.isInteger(value)) {
-    throw badRequest("money_not_integer", "Money value must be a whole number of rupiah");
-  }
-  return Math.round(value);
+  // Prices may be fractional (e.g. 495000 ÷ 251 butir = 1,971.31 per unit).
+  return value;
 }
 
 function toQuantityMilli(value: number): number {
@@ -696,7 +694,8 @@ function nextAverageCostMinor(
 
   const currentValue = currentStockMilli * product.average_cost_minor;
   const addedValue = quantityMilli * unitCostMinor;
-  return Math.round((currentValue + addedValue) / nextStockMilli);
+  // Fractional cost stays exact (economy: REAL column); round only to 4dp.
+  return Math.round(((currentValue + addedValue) / nextStockMilli) * 1e4) / 1e4;
 }
 
 async function ensureUniqueProductCode(

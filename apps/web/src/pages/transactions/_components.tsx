@@ -15,8 +15,12 @@ import {
   ChevronUp,
   Package,
 } from "reicon-react";
-import type { FieldErrors } from "react-hook-form";
-import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
+import type { FieldErrors, Control, UseFormReturn } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import type { TransactionForm } from "./_hooks";
+import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
+import { cn, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -24,8 +28,10 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Field } from "@/components/ui/field";
 import {
   addRecentTransactionType,
+  CASH_ACCOUNT_PLACEHOLDERS,
   localDate,
   MOBILE_PRIORITY_TYPES,
+  SECTION_LABELS,
   TRANSACTION_GROUPS,
   TRANSACTION_META,
   type PreviewLine,
@@ -408,6 +414,10 @@ interface ProductDetailFieldsProps {
   readonly onUnitPriceChange: (value: number) => void;
   readonly quantityError?: string;
   readonly unitPriceError?: string;
+  /** Unit input, shown only for brand-new products (no existing id). */
+  readonly unit?: string;
+  readonly onUnitChange?: (value: string) => void;
+  readonly isNewProduct?: boolean;
 }
 
 export const ProductDetailFields = memo(function ProductDetailFields({
@@ -421,6 +431,9 @@ export const ProductDetailFields = memo(function ProductDetailFields({
   onUnitPriceChange,
   quantityError,
   unitPriceError,
+  unit,
+  onUnitChange,
+  isNewProduct,
 }: ProductDetailFieldsProps) {
   let stockBadgeClass = "text-text-tertiary";
   if (stockAfterSale !== null && stockAfterSale < 0) {
@@ -438,43 +451,76 @@ export const ProductDetailFields = memo(function ProductDetailFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Kuantitas" error={quantityError} htmlFor="product-quantity" feedbackId="product-quantity-feedback">
-          <input
+          <Input
             id="product-quantity"
             type="text"
             inputMode="numeric"
-            value={quantity ? String(quantity) : ""}
+            isNumeric
+            value={quantity}
             onChange={(e) => onQuantityChange(parseAmountInput(e.target.value, 0) ?? 0)}
             className={cn(
               "min-h-[44px] h-10 w-full min-w-0 rounded-md border bg-cream-50 px-3 text-sm text-wood-900 num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               quantityError ? "border-error" : "border-wood-200",
               "sm:min-h-0"
             )}
-            aria-invalid={quantityError ? true : undefined}
-            aria-describedby={quantityError ? "product-quantity-feedback" : undefined}
           />
         </Field>
 
-        <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
-              Rp
-            </span>
+        {isNewProduct && onUnitChange ? (
+          <Field label="Satuan" htmlFor="product-unit" feedbackId="product-unit-feedback">
             <input
-              id="product-unit-price"
+              id="product-unit"
               type="text"
-              inputMode="numeric"
-              value={formatAmountInput(unitPrice)}
-              onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+              defaultValue={unit || "pcs"}
+              onChange={(e) => onUnitChange(e.target.value)}
+              placeholder="pcs"
               className={cn(
-                "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
-                unitPriceError ? "border-error" : "border-wood-200"
+                "min-h-[44px] h-10 w-full min-w-0 rounded-md border bg-cream-50 px-3 text-sm text-wood-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
+                "sm:min-h-0"
               )}
-              aria-invalid={unitPriceError ? true : undefined}
-              aria-describedby={unitPriceError ? "product-unit-price-feedback" : undefined}
+              aria-describedby="product-unit-feedback"
             />
-          </div>
-        </Field>
+          </Field>
+        ) : (
+          <Field label="Harga Satuan (opsional)" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
+            <div className="relative">
+              <Input
+                id="product-unit-price"
+                type="text"
+                inputMode="numeric"
+                isCurrency
+                value={unitPrice}
+                onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+                className={cn(
+                  "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
+                  unitPriceError ? "border-error" : "border-wood-200"
+                )}
+              />
+            </div>
+          </Field>
+        )}
       </div>
+
+      {isNewProduct && onUnitChange && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Harga Satuan" error={unitPriceError} htmlFor="product-unit-price" feedbackId="product-unit-price-feedback">
+            <div className="relative">
+              <Input
+                id="product-unit-price"
+                type="text"
+                inputMode="numeric"
+                isCurrency
+                value={unitPrice}
+                onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+                className={cn(
+                  "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
+                  unitPriceError ? "border-error" : "border-wood-200"
+                )}
+              />
+            </div>
+          </Field>
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md bg-cream-50 px-3 py-2">
         <span className="text-sm text-text-secondary">Subtotal</span>
@@ -862,5 +908,432 @@ export function UnsavedChangesDialog({ open, onConfirm, onCancel, loading }: Uns
       variant="danger"
       loading={loading}
     />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Form sections (extracted from new.tsx to cap cognitive complexity) */
+/* ------------------------------------------------------------------ */
+
+interface TransactionTypeSectionProps {
+  readonly selectedType: string | null;
+  readonly isTypeSelectorExpanded: boolean;
+  readonly error: string | undefined;
+  readonly selectedTypeLabel: string;
+  readonly onTypeChange: (type: string) => void;
+  readonly onExpand: () => void;
+}
+
+export function TransactionTypeSection({
+  selectedType,
+  isTypeSelectorExpanded,
+  error,
+  selectedTypeLabel,
+  onTypeChange,
+  onExpand,
+}: TransactionTypeSectionProps) {
+  return (
+    <SectionCard
+      id="section-type"
+      title={SECTION_LABELS[selectedType ?? ""]?.detail || "Pilih jenis transaksi"}
+      step={1}
+    >
+      {(!selectedType || isTypeSelectorExpanded) && (
+        <TransactionTypeSelector value={selectedType || ""} onChange={onTypeChange} error={error} />
+      )}
+
+      {selectedType && !isTypeSelectorExpanded && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-wood-200 bg-cream-50 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm font-semibold text-text-primary">
+              {selectedTypeLabel}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onExpand}
+            className="shrink-0"
+          >
+            Ganti jenis
+          </Button>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+type ProductFormLike = UseFormReturn<TransactionForm>;
+
+function handleProductSelect(
+  form: ProductFormLike,
+  products: ReadonlyArray<{ id: string }> | undefined,
+  value: string,
+  setManualAmount: (v: boolean) => void,
+) {
+  setManualAmount(false);
+  const isExisting = (products || []).some((product) => product.id === value);
+  if (isExisting) {
+    form.setValue("productId", value, { shouldDirty: true, shouldValidate: true });
+    form.setValue("productName", "", { shouldDirty: true });
+  } else {
+    form.setValue("productId", "", { shouldDirty: true });
+    form.setValue("productName", value, { shouldDirty: true, shouldValidate: true });
+  }
+  form.clearErrors("productId");
+}
+
+function handleProductCreate(form: ProductFormLike, input: string, setManualAmount: (v: boolean) => void) {
+  setManualAmount(false);
+  form.setValue("productId", "", { shouldDirty: true });
+  form.setValue("productName", input.trim(), { shouldDirty: true, shouldValidate: true });
+  form.clearErrors("productId");
+}
+
+function amountFieldLabel(isSaleType: boolean, isProductType: boolean): string {
+  if (isSaleType) return "Total Penjualan";
+  if (isProductType) return "Total Pembelian";
+  return "Nominal";
+}
+
+interface ProductFieldsSectionProps {
+  readonly isProductType: boolean;
+  readonly isPurchaseType: boolean;
+  readonly isSaleType: boolean;
+  readonly form: ProductFormLike;
+  readonly control: Control<TransactionForm>;
+  readonly errors: FieldErrors;
+  readonly products: ReadonlyArray<{
+    id: string;
+    code: string;
+    name: string;
+    unit: string;
+    current_stock: number;
+  }> | undefined;
+  readonly productsLoading: boolean;
+  readonly selectedProductId: string | undefined;
+  readonly selectedProductName: string;
+  readonly selectedProduct: { name: string; selling_price?: number; purchase_price?: number } | undefined;
+  readonly selectedUnit: string;
+  readonly selectedQuantity: number | undefined;
+  readonly selectedUnitPrice: number | undefined;
+  readonly manualAmount: boolean;
+  readonly setManualAmount: (v: boolean) => void;
+  readonly productSubtotal: number;
+  readonly stockAfterSale: number | null;
+  readonly remainingAmount: number;
+  readonly descriptionPlaceholder: string;
+  readonly showPaymentStatus: boolean;
+  readonly selectedPaymentStatus: string;
+  readonly selectedDueDate: string | undefined;
+  readonly showDueDate: boolean;
+}
+
+export function ProductFieldsSection(props: ProductFieldsSectionProps) {
+  const {
+    isProductType,
+    isPurchaseType,
+    isSaleType,
+    form,
+    control,
+    errors,
+    products,
+    productsLoading,
+    selectedProductId,
+    selectedProductName,
+    selectedProduct,
+    selectedUnit,
+    selectedQuantity,
+    selectedUnitPrice,
+    manualAmount,
+    setManualAmount,
+    productSubtotal,
+    stockAfterSale,
+    remainingAmount,
+    descriptionPlaceholder,
+    showPaymentStatus,
+    selectedPaymentStatus,
+    selectedDueDate,
+    showDueDate,
+  } = props;
+
+  const productDetail = selectedProduct
+    ? {
+        id: selectedProductId || "new",
+        code: "Baru",
+        name: selectedProduct.name,
+        unit: selectedUnit || "pcs",
+        purchase_price: selectedProduct.purchase_price ?? 0,
+        selling_price: selectedProduct.selling_price ?? 0,
+        current_stock: 0,
+      }
+    : {
+        id: "new",
+        code: "Baru",
+        name: selectedProductName,
+        unit: selectedUnit || "pcs",
+        purchase_price: 0,
+        selling_price: 0,
+        current_stock: 0,
+      };
+
+  return (
+    <div className="space-y-4 pt-1">
+      <Combobox
+        id="productId"
+        name="productId"
+        label={isPurchaseType ? "Nama Barang" : "Produk / Jasa"}
+        value={selectedProductId || ""}
+        onChange={(value) => handleProductSelect(form, products, value, setManualAmount)}
+        options={(products || []).map((product) => ({
+          value: product.id,
+          label: `${product.code} - ${product.name}`,
+          secondaryLabel: `Stok: ${formatNumber(product.current_stock)} ${product.unit}`,
+        }))}
+        placeholder={isPurchaseType ? "Ketik nama barang (baru atau sudah ada)" : "Pilih produk atau ketik nama item"}
+        loading={productsLoading}
+        emptyText={isPurchaseType ? "Tidak ada hasil. Ketik nama barang baru untuk membuatnya." : "Tidak ada produk. Tambahkan dari menu Produk."}
+        displayValue={selectedProductName || undefined}
+        allowCreate={isPurchaseType}
+        onCreate={(input) => handleProductCreate(form, input, setManualAmount)}
+      />
+
+      {(selectedProductId && selectedProduct) || (isPurchaseType && selectedProductName) ? (
+        <ProductDetailFields
+          product={productDetail}
+          isSaleType={isSaleType}
+          isNewProduct={isPurchaseType && !selectedProductId}
+          unit={selectedUnit}
+          onUnitChange={(value) => form.setValue("unit", value, { shouldDirty: true })}
+          quantity={selectedQuantity || 0}
+          unitPrice={selectedUnitPrice || 0}
+          subtotal={productSubtotal}
+          stockAfterSale={stockAfterSale}
+          onQuantityChange={(value) => form.setValue("quantity", value, { shouldDirty: true, shouldValidate: true })}
+          onUnitPriceChange={(value) => form.setValue("unitPrice", value, { shouldDirty: true, shouldValidate: true })}
+          quantityError={errors.quantity?.message as string | undefined}
+          unitPriceError={errors.unitPrice?.message as string | undefined}
+        />
+      ) : null}
+
+      {control ? (
+        <Controller
+          control={control}
+          name="amount"
+          render={({ field }) => (
+            <Input
+              ref={field.ref}
+              name={field.name}
+              label={amountFieldLabel(isSaleType, isProductType)}
+              value={field.value}
+              onBlur={field.onBlur}
+              onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
+              placeholder="0"
+              isCurrency
+              readOnly={Boolean(selectedProductId && !manualAmount)}
+              helperText={selectedProductId && !manualAmount ? "Otomatis: kuantitas x harga satuan" : undefined}
+              error={errors.amount?.message as string | undefined}
+              required
+            />
+          )}
+        />
+      ) : null}
+
+      {selectedProductId && (
+        <Button type="button" variant="link" size="xs" onClick={() => setManualAmount(!manualAmount)}>
+          {manualAmount ? "Gunakan otomatis" : "Edit manual"}
+        </Button>
+      )}
+
+      <Input
+        label="Keterangan"
+        {...(form.register("description") as Record<string, unknown>)}
+        placeholder={descriptionPlaceholder}
+        error={errors.description?.message as string | undefined}
+      />
+
+      {showPaymentStatus && (
+        <PaymentStatusSelector
+          value={selectedPaymentStatus as "unpaid" | "partial"}
+          onChange={(status) => {
+            form.setValue("paymentStatus", status, { shouldDirty: true, shouldValidate: true });
+            if (status !== "partial") form.setValue("partialAmount", undefined);
+          }}
+          showDueDate={showDueDate}
+          dueDate={selectedDueDate || ""}
+          onDueDateChange={(date) => form.setValue("dueDate", date, { shouldDirty: true })}
+        />
+      )}
+
+      {selectedPaymentStatus === "partial" && control ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Controller
+            control={control}
+            name="partialAmount"
+            render={({ field }) => (
+              <Input
+                ref={field.ref}
+                name={field.name}
+                label="Jumlah yang dibayar"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
+                placeholder="0"
+                isCurrency
+                error={errors.partialAmount?.message as string | undefined}
+                required
+              />
+            )}
+          />
+          <Input
+            label="Sisa Tagihan"
+            value={remainingAmount}
+            isCurrency
+            readOnly
+            helperText={remainingAmount > 0 ? "Belum dibayar" : undefined}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+interface PartyAccountSectionProps {
+  readonly showParty: boolean;
+  readonly showCashAccount: boolean;
+  readonly showBankNameField: boolean;
+  readonly showDestinationAccount: boolean;
+  readonly showCategory: boolean;
+  readonly selectedProductId: string | undefined;
+  readonly selectedProductName: string;
+          readonly form: ProductFormLike;
+          readonly errors: FieldErrors;
+          readonly partyCopy: { label: string; placeholder: string; helper?: string };
+          readonly parties: ReadonlyArray<{ name: string }> | undefined;
+          readonly partiesLoading: boolean;
+          readonly selectedPartyName: string;
+          readonly cashAccountLabel: string;
+          readonly cashAccountOptions: ReadonlyArray<{ id: string; value: string; label: string }>;
+          readonly accountsLoading: boolean;
+          readonly selectedCashAccountId: string | undefined;
+          readonly selectedType: string | null;
+          readonly selectedDestinationCashAccountId: string | undefined;
+          readonly categoryLabel: string;
+          readonly debitAccountOptions: ReadonlyArray<{ value: string; label: string }>;
+          readonly expenseAccountsLoading: boolean;
+          readonly selectedDebitAccountId: string;
+}
+
+export function PartyAccountSection(props: PartyAccountSectionProps) {
+  const {
+    showParty,
+    showCashAccount,
+    showBankNameField,
+    showDestinationAccount,
+    showCategory,
+    selectedProductId,
+    selectedProductName,
+    form,
+    errors,
+    partyCopy,
+    parties,
+    partiesLoading,
+    selectedPartyName,
+    cashAccountLabel,
+    cashAccountOptions,
+    accountsLoading,
+    selectedCashAccountId,
+    selectedType,
+    selectedDestinationCashAccountId,
+    categoryLabel,
+    debitAccountOptions,
+    expenseAccountsLoading,
+    selectedDebitAccountId,
+  } = props;
+
+  return (
+    <>
+      {showParty && (
+        <Combobox
+          id="partyName"
+          name="partyName"
+          label={partyCopy.label}
+          value={selectedPartyName}
+          onChange={(value) => {
+            form.setValue("partyName", value, { shouldDirty: true, shouldValidate: true });
+            form.clearErrors("partyName");
+          }}
+          options={(parties || []).map((party) => ({ value: party.name, label: party.name }))}
+          placeholder={partyCopy.placeholder}
+          helperText={partyCopy.helper}
+          allowCreate
+          loading={partiesLoading}
+          emptyText="Ketik nama baru untuk membuat data"
+          error={errors.partyName?.message as string | undefined}
+        />
+      )}
+
+      {showCashAccount && (
+        <>
+          <Combobox
+            id="cashAccountId"
+            name="cashAccountId"
+            label={cashAccountLabel}
+            value={selectedCashAccountId || ""}
+            onChange={(value) => {
+              form.setValue("cashAccountId", value, { shouldDirty: true, shouldValidate: true });
+              form.clearErrors("cashAccountId");
+            }}
+            options={cashAccountOptions}
+            placeholder={CASH_ACCOUNT_PLACEHOLDERS[selectedType || ""] || "Pilih akun kas/bank..."}
+            loading={accountsLoading}
+            error={errors.cashAccountId?.message as string | undefined}
+          />
+          {showBankNameField && (
+            <Input
+              label="Nama Bank (opsional)"
+              {...(form.register("bankName") as Record<string, unknown>)}
+              placeholder="Contoh: BCA, Mandiri, BRI, BNI..."
+            />
+          )}
+        </>
+      )}
+
+      {showDestinationAccount && (
+        <Combobox
+          id="destinationCashAccountId"
+          name="destinationCashAccountId"
+          label="Akun Tujuan"
+          value={selectedDestinationCashAccountId || ""}
+          onChange={(value) => {
+            form.setValue("destinationCashAccountId", value, { shouldDirty: true, shouldValidate: true });
+            form.clearErrors("destinationCashAccountId");
+          }}
+          options={cashAccountOptions.filter((account) => account.id !== selectedCashAccountId)}
+          placeholder="Pilih akun tujuan..."
+          helperText={selectedCashAccountId === selectedDestinationCashAccountId ? "Akun tujuan harus berbeda dari sumber." : undefined}
+          loading={accountsLoading}
+          error={errors.destinationCashAccountId?.message as string | undefined}
+        />
+      )}
+
+      {showCategory && !selectedProductId && !selectedProductName && (
+        <Combobox
+          id="debitAccountId"
+          name="debitAccountId"
+          label={categoryLabel}
+          value={selectedDebitAccountId}
+          onChange={(value) => {
+            form.setValue("debitAccountId", value, { shouldDirty: true, shouldValidate: true });
+            form.clearErrors("debitAccountId");
+          }}
+          options={debitAccountOptions}
+          placeholder="Pilih akun CoA..."
+          loading={expenseAccountsLoading}
+          error={errors.debitAccountId?.message as string | undefined}
+        />
+      )}
+    </>
   );
 }
