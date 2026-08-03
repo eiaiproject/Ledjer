@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useBlocker, useNavigate } from "react-router-dom";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod/v3";
@@ -662,4 +662,40 @@ export function useTransactionMutation(params: {
   });
 
   return { postMutation };
+}
+
+export function useReplacementPrefill(
+  form: ReturnType<typeof useTransactionForm>["form"],
+  params: {
+    replaceType: string | null;
+    replaceAmount: string | null;
+    replaceDesc: string | null;
+    setIsTypeSelectorExpanded: (v: boolean) => void;
+  },
+) {
+  const { replaceType, replaceAmount, replaceDesc, setIsTypeSelectorExpanded } = params;
+
+  // Pre-fill form from replacement URL params after void
+  useEffect(() => {
+    if (replaceType && !form.getValues("transactionType")) {
+      form.setValue("transactionType", replaceType, { shouldDirty: false });
+    }
+    if (replaceAmount && !form.getValues("amount")) {
+      form.setValue("amount", Number(replaceAmount), { shouldDirty: false });
+    }
+    if (replaceDesc && !form.getValues("description")) {
+      form.setValue("description", decodeURIComponent(replaceDesc), { shouldDirty: false });
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Separate effect to avoid set-state-in-effect for setIsTypeSelectorExpanded
+  useEffect(() => {
+    if (replaceType) {
+      startTransition(() => {
+        setIsTypeSelectorExpanded(false);
+      });
+    }
+  }, [replaceType, setIsTypeSelectorExpanded]);
 }
