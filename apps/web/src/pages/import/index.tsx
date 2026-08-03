@@ -49,9 +49,11 @@ function PreviewTable({ preview }: { readonly preview: PreviewPayload }) {
               return (
                 <tr key={r.index} className="align-top">
                   <td className="px-2 py-1.5 text-wood-400">{r.index + 1}</td>
-                  {headers.map((h) => (
+              {headers.map((h) => (
                     <td key={h} className="px-2 py-1.5 text-wood-700">
-                      {String(data[h] ?? "")}
+                      {typeof data[h] === "object" && data[h] !== null
+                        ? JSON.stringify(data[h])
+                        : String(data[h] ?? "")}
                     </td>
                   ))}
                   <td className="px-2 py-1.5">
@@ -69,8 +71,8 @@ function PreviewTable({ preview }: { readonly preview: PreviewPayload }) {
       </div>
       {preview.errors.length > 0 && (
         <ul className="space-y-1 text-xs text-error">
-          {preview.errors.slice(0, 10).map((e, i) => (
-            <li key={i}>Baris {e.row}: {e.message}</li>
+          {preview.errors.slice(0, 10).map((e) => (
+            <li key={e.row}>Baris {e.row}: {e.message}</li>
           ))}
         </ul>
       )}

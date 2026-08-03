@@ -746,7 +746,7 @@ function rememberInsertedProduct(sql: string, values: unknown[]) {
 
 function rememberUpdatedProduct(sql: string, values: unknown[]) {
   if (!sql.toLowerCase().includes("update products set")) return;
-  const product = PRODUCTS.find(p => p.id === String(values[values.length - 3]));
+  const product = PRODUCTS.find(p => p.id === String(values.at(-3)));
   if (!product) return;
   // UPDATE products SET current_stock_milli = ?, average_cost_minor = ?,
   //   purchase_price_minor = ?, updated_at = ? WHERE id = ? ...
