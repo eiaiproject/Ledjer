@@ -23,15 +23,18 @@ interface PreviewPayload {
   errors: { row: number; field: string; message: string }[];
 }
 
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
 /** Render preview rows as a table (fields from parsed data or raw CSV row). */
 function PreviewTable({ preview }: { readonly preview: PreviewPayload }) {
   const sample = preview.rows[0];
   const headers = sample ? Object.keys(sample.parsed ?? sample.row) : [];
-  function cellText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
 
 const shown = preview.rows.slice(0, 20);
   return (
