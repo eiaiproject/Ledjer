@@ -95,6 +95,20 @@ async function waitForTransactionSuccess(page: import("@playwright/test").Page) 
   }
 }
 
+// ─── Product detail fields ─────────────────────────────────────────
+
+/** Fill quantity (required) and optional unit price after product selection. */
+async function fillProductFields(page: import("@playwright/test").Page, opts: { quantity: string; unitPrice?: string }) {
+  const qty = page.locator("#product-quantity");
+  await qty.fill(opts.quantity);
+  if (opts.unitPrice) {
+    const price = page.locator("#product-unit-price");
+    if (await price.isVisible().catch(() => false)) {
+      await price.fill(opts.unitPrice);
+    }
+  }
+}
+
 // ─── Transactions: Cash Sale ──────────────────────────────────────
 
 test.describe("Transactions - Cash Sale", () => {
@@ -146,7 +160,11 @@ test.describe("Transactions - Cash Purchase", () => {
 
     await selectTransactionType(authPage, "cash_purchase");
 
-    await selectFirstComboboxOption(authPage, "productId");
+    const productOk = await selectFirstComboboxOption(authPage, "productId");
+    if (!productOk) {
+      await createNewComboboxOption(authPage, "productId", `E2E Barang ${TEST_PREFIX}`);
+    }
+    await fillProductFields(authPage, { quantity: "3", unitPrice: "50000" });
 
     const amountInput = authPage.locator('input[name="amount"]');
     const val = (await amountInput.inputValue()).replace(/[^0-9]/g, "");
@@ -234,7 +252,10 @@ test.describe("Transactions - Credit Sale", () => {
 
     await selectTransactionType(authPage, "credit_sale");
 
-    await selectFirstComboboxOption(authPage, "productId");
+    const productOk = await selectFirstComboboxOption(authPage, "productId");
+    if (productOk) {
+      await fillProductFields(authPage, { quantity: "2", unitPrice: "150000" });
+    }
 
     const amountInput = authPage.locator('input[name="amount"]');
     const val = (await amountInput.inputValue()).replace(/[^0-9]/g, "");
@@ -336,7 +357,11 @@ test.describe("Transactions - Credit Purchase", () => {
 
     await selectTransactionType(authPage, "credit_purchase");
 
-    await selectFirstComboboxOption(authPage, "productId");
+    const productOk = await selectFirstComboboxOption(authPage, "productId");
+    if (!productOk) {
+      await createNewComboboxOption(authPage, "productId", `E2E Barang ${TEST_PREFIX}`);
+    }
+    await fillProductFields(authPage, { quantity: "4", unitPrice: "60000" });
 
     const amountInput = authPage.locator('input[name="amount"]');
     const val = (await amountInput.inputValue()).replace(/[^0-9]/g, "");
