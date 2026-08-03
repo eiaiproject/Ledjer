@@ -16,7 +16,6 @@ function applyMigrations(db: DatabaseSync, files: string[], migDir: string): voi
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
     for (const stmt of statements) {
-      if (stmt.toUpperCase().startsWith("PRAGMA")) continue;
       if (stmt.toUpperCase().startsWith("CREATE INDEX")) {
         db.exec(stmt + ";");
         continue;

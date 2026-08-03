@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
 import { createInvoice } from "@/lib/api/invoices";
 import { listParties } from "@/lib/api/parties";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 
 interface LineItem {
   productId?: string;
@@ -98,6 +99,7 @@ export default function NewInvoicePage() {
       <div>
         <h1 className="text-xl font-semibold text-wood-800">Faktur Baru</h1>
         <p className="text-sm text-wood-500">Buat faktur untuk pelanggan</p>
+        <FieldHelp topic="invoice_journal" label="Faktur yang diterbitkan otomatis membuat jurnal akuntansi" />
       </div>
 
       <Card>

@@ -21,6 +21,8 @@ type ComboboxProps = Readonly<{
   error?: string;
   allowCreate?: boolean;
   onCreate?: (input: string) => void;
+  /** Shown when no option is selected (e.g. a created free-text name). */
+  displayValue?: string;
   loading?: boolean;
   emptyText?: string;
 }>;
@@ -37,6 +39,7 @@ export function Combobox({
   error,
   allowCreate,
   onCreate,
+  displayValue: displayValueOverride,
   loading,
   emptyText = "Tidak ada hasil",
 }: ComboboxProps) {
@@ -75,7 +78,7 @@ export function Combobox({
     query.trim() &&
     !options.some((o) => o.label.toLowerCase() === query.toLowerCase());
 
-  const displayValue = open ? query : (selectedOption?.label ?? "");
+  const displayValue = open ? query : (selectedOption?.label ?? displayValueOverride ?? "");
 
   // Close on outside click
   useEffect(() => {
@@ -167,7 +170,7 @@ export function Combobox({
 
   return (
     <Field label={label} error={error} helperText={helperText} htmlFor={inputId} feedbackId={feedbackId}>
-      <div ref={containerRef} className="relative z-10">
+      <div ref={containerRef} className={cn("relative", open && "z-[var(--z-dropdown)]")}>
         <input
           ref={inputRef}
           id={inputId}

@@ -13,6 +13,7 @@ import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 import { CheckCircle, Check, X } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 
 interface BalanceLine {
   accountId: string;
@@ -179,6 +180,7 @@ export default function OpeningBalancePage() {
                 <h2 className="text-sm font-semibold text-wood-700">Pilih Akun & Masukkan Saldo</h2>
                 <Button variant="ghost" size="sm" onClick={addLine}>+ Tambah Akun</Button>
               </div>
+              <FieldHelp topic="opening_balance_guide" label="Aset = debit (positif), utang & modal = kredit (negatif)" />
 
               {lines.length === 0 && (
                 <p className="text-xs text-wood-500 py-4 text-center">Belum ada akun. Klik "Tambah Akun" untuk mulai.</p>

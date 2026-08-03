@@ -135,6 +135,9 @@ function ConfirmLockDialog({
               <p className="text-xs text-wood-600">Semua transaksi hingga {formatShort(date)}</p>
               <p className="mt-1 text-xs font-medium text-wood-700">Tetap terbuka:</p>
               <p className="text-xs text-wood-600">Transaksi mulai {formatShort(nextOpen)}</p>
+              <p className="mt-2 border-t border-wood-100 pt-2 text-xs text-wood-500">
+                Transaksi baru atau perubahan pada periode terkunci akan ditolak sistem.
+              </p>
             </div>
             {reason && (
               <p className="text-xs text-wood-500 italic">Alasan: {reason}</p>

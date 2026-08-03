@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatAmountInput, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
+import { cn, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
@@ -183,12 +184,12 @@ function useProductMutations({ orgId, form, editingProduct, setEditingProduct, s
       const basePayload = {
         code: data.code.trim(), name: data.name.trim(),
         description: data.description.trim() || null, unit: data.unit,
-        sellingPrice: data.selling_price, minStock: data.min_stock,
+        sellingPrice: Number(data.selling_price), minStock: Number(data.min_stock),
       };
       if (editingProduct) {
         await updateProduct(editingProduct.id, basePayload);
       } else {
-        await createProduct({ ...basePayload, purchasePrice: data.purchase_price, currentStock: data.current_stock });
+        await createProduct({ ...basePayload, purchasePrice: Number(data.purchase_price), currentStock: Number(data.current_stock) });
       }
     },
     onSuccess: () => {
@@ -483,17 +484,20 @@ function ProductFormModal({ open, formBusy, editingProduct, form, onClosing, onS
           <Select label="Satuan" value={form.formData.unit} onChange={(e) => form.setField("unit", e.target.value)}
             options={UNITS.map((u) => ({ value: u, label: u }))} error={form.formErrors.unit} disabled={formBusy} />
           <Input label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
-            value={formatAmountInput(form.formData.purchase_price)}
+            value={form.formData.purchase_price}
             onChange={(e) => form.setField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
             readOnly={!!editingProduct} isCurrency error={form.formErrors.purchase_price} disabled={formBusy} />
           {editingProduct && <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>}
-          <Input label="Harga Jual" value={formatAmountInput(form.formData.selling_price)}
+          <Input label="Harga Jual" value={form.formData.selling_price}
             onChange={(e) => form.setField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
             isCurrency error={form.formErrors.selling_price} disabled={formBusy} />
           {!editingProduct && !onboardingCompleted && (
-            <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
-              onChange={(e) => form.setField("current_stock", Number(e.target.value))}
-              placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
+            <>
+              <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
+                onChange={(e) => form.setField("current_stock", Number(e.target.value))}
+                placeholder="0" error={form.formErrors.current_stock} disabled={formBusy} />
+              <FieldHelp topic="initial_stock" label="Hanya bisa diisi sebelum onboarding selesai" />
+            </>
           )}
           {!editingProduct && onboardingCompleted && (
             <div className="rounded-lg bg-cream-100 px-4 py-3 text-xs text-text-tertiary">
