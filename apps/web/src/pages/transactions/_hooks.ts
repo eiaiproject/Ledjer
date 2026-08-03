@@ -427,9 +427,9 @@ export function useTransactionDerived(params: {
   const productSubtotal = (selectedProductId || selectedProductName) && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
   const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
   const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
-  const stockAdjustment = isSaleType ? -selectedQuantity! : selectedQuantity!;
-  const stockAfterSale = selectedProduct && selectedQuantity
-    ? (selectedProduct.current_stock ?? 0) + stockAdjustment
+  const stockAdjustment = Number(isSaleType ? -(selectedQuantity ?? 0) : (selectedQuantity ?? 0));
+  const stockAfterSale = selectedProduct && selectedQuantity !== undefined
+    ? Number(selectedProduct.current_stock ?? 0) + stockAdjustment
     : null;
 
   // ponytail: derive account name for preview from CoA or fallback to category/product name
@@ -557,7 +557,7 @@ export function useTransactionEffects(params: {
   // Auto-fill product price and quantity
   useEffect(() => {
     if (!selectedProductId || !selectedProduct) return;
-    if (!selectedQuantity) setValue("quantity", 1, { shouldDirty: true, shouldValidate: true });
+    if (selectedQuantity === undefined) setValue("quantity", 0, { shouldDirty: true, shouldValidate: true });
     const defaultPrice = (isSaleType ? selectedProduct.selling_price : selectedProduct.purchase_price) ?? 0;
     if ((!selectedUnitPrice || selectedUnitPrice <= 0) && defaultPrice > 0) {
       setValue("unitPrice", defaultPrice, { shouldDirty: true, shouldValidate: true });
