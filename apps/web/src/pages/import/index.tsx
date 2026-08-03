@@ -27,7 +27,13 @@ interface PreviewPayload {
 function PreviewTable({ preview }: { readonly preview: PreviewPayload }) {
   const sample = preview.rows[0];
   const headers = sample ? Object.keys(sample.parsed ?? sample.row) : [];
-  const shown = preview.rows.slice(0, 20);
+  function cellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+const shown = preview.rows.slice(0, 20);
   return (
     <div className="space-y-2">
       <p className="text-xs text-wood-500">
@@ -51,9 +57,7 @@ function PreviewTable({ preview }: { readonly preview: PreviewPayload }) {
                   <td className="px-2 py-1.5 text-wood-400">{r.index + 1}</td>
               {headers.map((h) => (
                     <td key={h} className="px-2 py-1.5 text-wood-700">
-                      {typeof data[h] === "object" && data[h] !== null
-                        ? JSON.stringify(data[h])
-                        : String(data[h] ?? "")}
+                      {cellText(data[h])}
                     </td>
                   ))}
                   <td className="px-2 py-1.5">

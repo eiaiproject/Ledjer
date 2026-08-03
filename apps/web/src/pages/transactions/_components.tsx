@@ -15,8 +15,9 @@ import {
   ChevronUp,
   Package,
 } from "reicon-react";
-import type { FieldErrors } from "react-hook-form";
+import type { FieldErrors, Control, UseFormReturn } from "react-hook-form";
 import { Controller } from "react-hook-form";
+import type { TransactionForm } from "./_hooks";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
 import { cn, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
@@ -934,11 +935,11 @@ export function TransactionTypeSection({
   return (
     <SectionCard
       id="section-type"
-      title={SECTION_LABELS[selectedType]?.detail || "Pilih jenis transaksi"}
+      title={SECTION_LABELS[selectedType ?? ""]?.detail || "Pilih jenis transaksi"}
       step={1}
     >
       {(!selectedType || isTypeSelectorExpanded) && (
-        <TransactionTypeSelector value={selectedType} onChange={onTypeChange} error={error} />
+        <TransactionTypeSelector value={selectedType || ""} onChange={onTypeChange} error={error} />
       )}
 
       {selectedType && !isTypeSelectorExpanded && (
@@ -963,11 +964,7 @@ export function TransactionTypeSection({
   );
 }
 
-type ProductFormLike = {
-  setValue: (name: string, value: unknown, opts?: { shouldDirty?: boolean; shouldValidate?: boolean }) => void;
-  clearErrors: (name?: string) => void;
-  register: (name: string) => Record<string, unknown>;
-};
+type ProductFormLike = UseFormReturn<TransactionForm>;
 
 function handleProductSelect(
   form: ProductFormLike,
@@ -994,12 +991,18 @@ function handleProductCreate(form: ProductFormLike, input: string, setManualAmou
   form.clearErrors("productId");
 }
 
+function amountFieldLabel(isSaleType: boolean, isProductType: boolean): string {
+  if (isSaleType) return "Total Penjualan";
+  if (isProductType) return "Total Pembelian";
+  return "Nominal";
+}
+
 interface ProductFieldsSectionProps {
   readonly isProductType: boolean;
   readonly isPurchaseType: boolean;
   readonly isSaleType: boolean;
   readonly form: ProductFormLike;
-  readonly control: unknown;
+  readonly control: Control<TransactionForm>;
   readonly errors: FieldErrors;
   readonly products: ReadonlyArray<{
     id: string;
@@ -1009,9 +1012,9 @@ interface ProductFieldsSectionProps {
     current_stock: number;
   }> | undefined;
   readonly productsLoading: boolean;
-  readonly selectedProductId: string | null;
+  readonly selectedProductId: string | undefined;
   readonly selectedProductName: string;
-  readonly selectedProduct: { current_stock?: number } | undefined;
+  readonly selectedProduct: { name: string; selling_price?: number; purchase_price?: number } | undefined;
   readonly selectedUnit: string;
   readonly selectedQuantity: number | undefined;
   readonly selectedUnitPrice: number | undefined;
@@ -1023,7 +1026,7 @@ interface ProductFieldsSectionProps {
   readonly descriptionPlaceholder: string;
   readonly showPaymentStatus: boolean;
   readonly selectedPaymentStatus: string;
-  readonly selectedDueDate: string;
+  readonly selectedDueDate: string | undefined;
   readonly showDueDate: boolean;
 }
 
@@ -1055,6 +1058,26 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
     showDueDate,
   } = props;
 
+  const productDetail = selectedProduct
+    ? {
+        id: selectedProductId || "new",
+        code: "Baru",
+        name: selectedProduct.name,
+        unit: selectedUnit || "pcs",
+        purchase_price: selectedProduct.purchase_price ?? 0,
+        selling_price: selectedProduct.selling_price ?? 0,
+        current_stock: 0,
+      }
+    : {
+        id: "new",
+        code: "Baru",
+        name: selectedProductName,
+        unit: selectedUnit || "pcs",
+        purchase_price: 0,
+        selling_price: 0,
+        current_stock: 0,
+      };
+
   return (
     <div className="space-y-4 pt-1">
       <Combobox
@@ -1078,15 +1101,7 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
 
       {(selectedProductId && selectedProduct) || (isPurchaseType && selectedProductName) ? (
         <ProductDetailFields
-          product={selectedProduct || {
-            id: "new",
-            code: "Baru",
-            name: selectedProductName,
-            unit: selectedUnit || "pcs",
-            purchase_price: 0,
-            selling_price: 0,
-            current_stock: 0,
-          }}
+          product={productDetail}
           isSaleType={isSaleType}
           isNewProduct={isPurchaseType && !selectedProductId}
           unit={selectedUnit}
@@ -1102,15 +1117,15 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
         />
       ) : null}
 
-      {control && (
+      {control ? (
         <Controller
-          control={control as never}
+          control={control}
           name="amount"
           render={({ field }) => (
             <Input
               ref={field.ref}
               name={field.name}
-              label={isSaleType ? "Total Penjualan" : isProductType ? "Total Pembelian" : "Nominal"}
+              label={amountFieldLabel(isSaleType, isProductType)}
               value={field.value}
               onBlur={field.onBlur}
               onChange={(event) => field.onChange(parseAmountInput(event.target.value, 0))}
@@ -1123,7 +1138,7 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
             />
           )}
         />
-      )}
+      ) : null}
 
       {selectedProductId && (
         <Button type="button" variant="link" size="xs" onClick={() => setManualAmount(!manualAmount)}>
@@ -1151,10 +1166,10 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
         />
       )}
 
-      {selectedPaymentStatus === "partial" && control && (
+      {selectedPaymentStatus === "partial" && control ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Controller
-            control={control as never}
+            control={control}
             name="partialAmount"
             render={({ field }) => (
               <Input
@@ -1179,7 +1194,7 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
             helperText={remainingAmount > 0 ? "Belum dibayar" : undefined}
           />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1190,24 +1205,24 @@ interface PartyAccountSectionProps {
   readonly showBankNameField: boolean;
   readonly showDestinationAccount: boolean;
   readonly showCategory: boolean;
-  readonly selectedProductId: string | null;
+  readonly selectedProductId: string | undefined;
   readonly selectedProductName: string;
-  readonly form: ProductFormLike;
-  readonly errors: FieldErrors;
-  readonly partyCopy: { label: string; placeholder: string; helper?: string };
-  readonly parties: ReadonlyArray<{ name: string }> | undefined;
-  readonly partiesLoading: boolean;
-  readonly selectedPartyName: string;
-  readonly cashAccountLabel: string;
-  readonly cashAccountOptions: ReadonlyArray<{ id: string; label: string }>;
-  readonly accountsLoading: boolean;
-  readonly selectedCashAccountId: string | null;
-  readonly selectedType: string | null;
-  readonly selectedDestinationCashAccountId: string | null;
-  readonly categoryLabel: string;
-  readonly debitAccountOptions: ReadonlyArray<{ id: string; label: string }>;
-  readonly expenseAccountsLoading: boolean;
-  readonly selectedDebitAccountId: string;
+          readonly form: ProductFormLike;
+          readonly errors: FieldErrors;
+          readonly partyCopy: { label: string; placeholder: string; helper?: string };
+          readonly parties: ReadonlyArray<{ name: string }> | undefined;
+          readonly partiesLoading: boolean;
+          readonly selectedPartyName: string;
+          readonly cashAccountLabel: string;
+          readonly cashAccountOptions: ReadonlyArray<{ id: string; value: string; label: string }>;
+          readonly accountsLoading: boolean;
+          readonly selectedCashAccountId: string | undefined;
+          readonly selectedType: string | null;
+          readonly selectedDestinationCashAccountId: string | undefined;
+          readonly categoryLabel: string;
+          readonly debitAccountOptions: ReadonlyArray<{ value: string; label: string }>;
+          readonly expenseAccountsLoading: boolean;
+          readonly selectedDebitAccountId: string;
 }
 
 export function PartyAccountSection(props: PartyAccountSectionProps) {
