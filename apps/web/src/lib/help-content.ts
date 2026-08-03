@@ -106,6 +106,102 @@ export const HELP: Record<string, HelpContent> = {
       "Pendapatan Rp 100jt - HPP Rp 60jt = Laba Kotor Rp 40jt. Laba Kotor Rp 40jt - Beban Rp 25jt = Laba Operasional Rp 15jt. + Pendapatan Lain Rp 1jt - Beban Lain Rp 500rb = Laba Bersih Rp 15,5jt.",
     related: ["gross_profit", "cogs", "cash_flow"],
   },
+  business_type: {
+    title: "Jenis Bisnis",
+    explanation:
+      "Jenis bisnis menentukan struktur akun otomatis yang dibuat sistem. 'Jual Beli Barang' membuat akun persediaan dan HPP untuk pencatatan stok. 'Penyedia Jasa' tidak memakai akun persediaan karena tidak ada barang dagang. Pilihan ini menentukan bagan akun, mapping transaksi otomatis, dan laporan yang relevan. Dapat diubah nanti di Pengaturan, tetapi struktur akun yang sudah terlanjur dipakai tetap ada.",
+    example:
+      "Toko kelontong memilih 'Jual Beli Barang' → sistem membuat akun Persediaan (1140), HPP, dan akun penjualan. Konsultan memilih 'Penyedia Jasa' → tanpa akun persediaan.",
+    related: ["account_mapping", "cogs"],
+  },
+  account_locked: {
+    title: "Akun Terkunci",
+    explanation:
+      "Akun sistem dibuat otomatis oleh Ledjer dan terkunci agar tidak bisa diubah atau dihapus. Ini menjaga konsistensi laporan keuangan: jika kode atau nama akun sistem berubah, semua laporan lama ikut berubah dan menjadi tidak bisa dibandingkan. Akun kas/bank yang Anda tambahkan sendiri bisa diedit namanya.",
+    example:
+      "Akun 'Kas Besar' (kode 1110) terkunci. Nama rekening bank Anda sendiri bisa diubah kapan saja.",
+    related: ["account_mapping"],
+  },
+  account_mapping: {
+    title: "Mapping Akun Otomatis",
+    explanation:
+      "Saat Anda mencatat transaksi, Ledjer otomatis memilih akun debit dan kredit berdasarkan jenis transaksi dan mapping yang sudah disiapkan. Misalnya penjualan tunai otomatis men-debit Kas dan meng-kredit Pendapatan Penjualan. Anda tidak perlu memilih akun setiap kali mencatat transaksi.",
+    example:
+      "Catat penjualan tunai Rp 100.000 → sistem otomatis: Debit Kas 100.000, Kredit Pendapatan 100.000.",
+    related: ["debit_credit", "account_locked"],
+  },
+  transaction_status: {
+    title: "Status Transaksi",
+    explanation:
+      "Transaksi mengalir melalui status: Draft (belum final, bisa diedit) → Diposting (sudah memengaruhi laporan keuangan) → Dibatalkan (void, tidak dihapus tetapi dibalik dengan jurnal reversal). Transaksi kredit juga punya status pembayaran: Belum Dibayar → Sebagian → Lunas. Tombol aksi hanya muncul jika status memungkinkan.",
+    example:
+      "Transaksi draft belum muncul di laporan. Setelah diposting, baru terlihat di Laba Rugi dan Neraca.",
+    related: ["void_reversal", "posting"],
+  },
+  journal_types: {
+    title: "Jenis Jurnal Manual",
+    explanation:
+      "Jurnal Manual untuk pencatatan umum sehari-hari. Jurnal Penyesuaian untuk koreksi di akhir periode (misal penyusutan, beban dibayar di muka). Jurnal Penutup untuk menutup akun nominal ke laba ditahan saat pergantian periode. Ketiganya sama-sama jurnal double-entry; perbedaannya hanya label untuk memudahkan identifikasi di laporan.",
+    example:
+      "Akhir bulan: catat beban penyusutan aset sebagai Jurnal Penyesuaian, bukan Manual.",
+    related: ["debit_credit", "period_closing"],
+  },
+  invoice_journal: {
+    title: "Faktur dan Jurnal Otomatis",
+    explanation:
+      "Setiap faktur yang diterbitkan otomatis membuat jurnal akuntansi: Debit Piutang Usaha (atau Kas jika tunai) dan Kredit Pendapatan. Saat faktur dibayar atau dibuatkan nota kredit, sistem memperbarui jurnal terkait. Anda tidak perlu mencatat jurnal terpisah untuk faktur — laporan keuangan sudah terisi otomatis.",
+    example:
+      "Faktur Rp 500.000 ke pelanggan → Debit Piutang 500.000, Kredit Pendapatan 500.000.",
+    related: ["debit_credit", "receivables"],
+  },
+  notification_triggers: {
+    title: "Pemicu Notifikasi",
+    explanation:
+      "Ledjer mengirim notifikasi untuk kejadian yang butuh tindakan: faktur jatuh tempo, stok menipis, transaksi draft belum diposting, statement bank belum direkonsiliasi, dan periode yang belum dikunci. Notifikasi bersifat informasi — tidak ada alur persetujuan antar anggota tim.",
+    example:
+      "Faktur mendekati jatuh tempo → notifikasi 'Faktur segera jatuh tempo' muncul di pusat notifikasi.",
+    related: ["aging", "period_closing"],
+  },
+  period_lock: {
+    title: "Kunci Periode",
+    explanation:
+      "Mengunci periode membekukan semua transaksi sampai tanggal tertentu — transaksi baru atau perubahan di periode terkunci akan ditolak. Ini melindungi laporan yang sudah final dari revisi tidak sengaja. Periode yang belum terkunci bisa diubah; periode yang sudah terkunci hanya bisa dibuka ulang dengan alasan, dan semua perubahan tercatat.",
+    example:
+      "Kunci hingga 31 Januari → transaksi Februari tetap bisa dicatat, tetapi transaksi Januari ditolak.",
+    related: ["period_closing", "audit"],
+  },
+  opening_balance_guide: {
+    title: "Saldo Awal per Akun",
+    explanation:
+      "Saldo awal diisi dengan aturan: Aset (kas, bank, piutang, persediaan) memakai Debit (positif). Kewajiban (utang) dan Ekuitas (modal) memakai Kredit (negatif). Pendapatan dan Beban biasanya saldonya nol di awal. Total Debit harus sama dengan total Kredit — ini memastikan persamaan akuntansi seimbang sejak hari pertama.",
+    example:
+      "Kas Rp 10jt (Debit) + Piutang Rp 2jt (Debit) = Utang Rp 3jt (Kredit) + Modal Rp 9jt (Kredit). Total debit 12jt = total kredit 12jt.",
+    related: ["debit_credit", "balance_sheet"],
+  },
+  initial_stock: {
+    title: "Stok Awal Produk",
+    explanation:
+      "Stok awal hanya bisa diisi saat produk dibuat sebelum onboarding selesai. Setelah onboarding selesai, stok masuk melalui alur pembelian atau penyesuaian stok — sehingga setiap perubahan stok selalu punya jejak audit. Harga beli pertama menjadi biaya rata-rata awal.",
+    example:
+      "Produk pertama dengan stok awal 10 unit @ Rp 5.000 → biaya rata-rata Rp 5.000. Pembelian berikutnya menggeser rata-ratanya.",
+    related: ["inventory_valuation", "cogs"],
+  },
+  general_ledger: {
+    title: "Buku Besar",
+    explanation:
+      "Buku Besar (General Ledger) menampilkan semua pergerakan setiap akun dalam rentang tanggal: saldo awal, setiap jurnal yang masuk (debit/kredit), dan saldo berjalan. Ini adalah jejak audit lengkap — dari sini Anda bisa menelusuri setiap angka laporan ke jurnal asalnya.",
+    example:
+      "Akun Kas: saldo awal 10jt, +5jt (penjualan), -2jt (pembelian) → saldo akhir 13jt.",
+    related: ["trial_balance", "debit_credit"],
+  },
+  party_statement: {
+    title: "Laporan Pelanggan/Vendor",
+    explanation:
+      "Laporan ini menampilkan seluruh transaksi dengan satu pelanggan atau vendor: faktur yang diterbitkan, pembayaran yang diterima, dan saldo terutang. Berguna untuk mengingatkan tagihan atau memverifikasi riwayat transaksi dengan pihak tertentu.",
+    example:
+      "Laporan pelanggan Toko Maju: faktur 2jt, bayar 1,5jt → saldo terutang 500rb.",
+    related: ["aging", "receivables"],
+  },
   cash_flow: {
     title: "Arus Kas",
     explanation:

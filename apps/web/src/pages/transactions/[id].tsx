@@ -12,6 +12,8 @@ import {
   statusLabel,
 } from "@/lib/transactions";
 import { Badge } from "@/components/ui/badge";
+import { StatusFlow } from "@/components/ui/status-flow";
+import { FieldHelp } from "@/components/ui/help-tooltip";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/ui/error-state";
@@ -214,6 +216,19 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
         <Badge variant={statusVariant(transaction.status)} size="md" className="shrink-0">
           {statusLabel(transaction.status)}
         </Badge>
+      </div>
+
+      {/* Lifecycle status flow + hint why actions may be missing */}
+      <div className="mb-6 flex flex-wrap items-center gap-2 pt-2">
+        <StatusFlow
+          steps={[
+            { key: "draft", label: "Draft" },
+            { key: "posted", label: "Diposting" },
+            { key: "voided", label: "Dibatalkan" },
+          ]}
+          current={transaction.status}
+        />
+        <FieldHelp topic="transaction_status" label="Aksi muncul sesuai status" />
       </div>
 
       {/* Transaction Details */}
