@@ -575,10 +575,12 @@ export function DashboardLayout() {
       </main>
       {showBottomNav && (
       <nav
-        className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom ledger-scroll-x no-scrollbar"
+        className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
         aria-label="Navigasi mobile"
       >
-        <div className="mx-auto flex items-stretch justify-center gap-1 px-2">
+        {/* flex-1 items + label truncation keep every tab visible on phones —
+            no horizontal scroll (was ~400px wide, wider than all phones) */}
+        <div className="mx-auto flex w-full max-w-md items-stretch gap-0.5 px-1.5">
           {visibleNavItems.filter((item) => !item.children).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.to!);
@@ -588,35 +590,35 @@ export function DashboardLayout() {
                 to={item.to!}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex shrink-0 flex-col items-center justify-center gap-0.5 py-2 px-3 text-[11px] font-medium transition-colors min-h-[56px] relative",
+                  "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium leading-tight transition-colors min-h-[56px]",
                   active
                     ? "text-wood-800"
                     : "text-wood-500 hover:text-wood-700"
                 )}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[3px] bg-wood-700 rounded-full" aria-hidden="true" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-wood-700 rounded-full" aria-hidden="true" />
                 )}
                 <div className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                  "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
                   active ? "bg-wood-100 text-wood-800" : ""
                 )}>
                   <Icon className={cn("h-5 w-5", active && "text-wood-700 font-semibold")} />
                 </div>
-                <span className={cn(active && "font-semibold")}>{item.label}</span>
+                <span className={cn("max-w-full truncate", active && "font-semibold")}>{item.label}</span>
               </Link>
             );
           })}
           {visibleNavItems.some((item) => !item.children) && (
             <button               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex shrink-0 flex-col items-center justify-center gap-0.5 py-2 px-3 text-[11px] font-medium text-wood-500 min-h-[56px]"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium leading-tight text-wood-500 min-h-[56px]"
               aria-label="Menu lainnya"
             >
-              <div className="flex h-9 w-9 items-center justify-center">
+              <div className="flex h-8 w-8 items-center justify-center">
                 <Menu className="h-5 w-5" />
               </div>
-              <span>Lainnya</span>
+              <span className="max-w-full truncate">Lainnya</span>
             </button>
           )}
         </div>

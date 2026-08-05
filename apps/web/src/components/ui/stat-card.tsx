@@ -72,22 +72,37 @@ export function StatCard({
     if (isError) return "data belum tersedia";
     return null;
   })();
-  const accessibleLabel = [label, ariaDescription, statusText].filter(Boolean).join(", ");
+  const accessibleLabel = [label, ariaDescription, displayValue, statusText].filter(Boolean).join(", ");
 
   const valueContent = (() => {
     if (isLoading) return <div className="h-6 w-32 animate-pulse rounded bg-white/15" />;
     // opacity-85 keeps the 12-14px edge-state text above WCAG AA (4.5:1) on
     // both white cards and the darker hero fills
     if (isError) return <span className="text-sm italic text-current opacity-85">Data belum tersedia</span>;
+    // Length-aware size tiers for compact 2-col cards: long currency values
+    // shrink so the whole number stays on one line instead of breaking
+    // mid-digit (hero cards are full-width on mobile and keep the big size).
+    const len = (displayValue ?? "").length;
+    const currencySize = hero
+      ? "text-[clamp(1rem,3.5vw,1.5rem)] sm:text-2xl"
+      : len <= 12
+        ? "text-[clamp(0.9375rem,4vw,1.5rem)] sm:text-2xl"
+        : len <= 15
+          ? "text-[clamp(0.8125rem,3.5vw,1.25rem)] sm:text-xl"
+          : "text-[clamp(0.75rem,3vw,1.125rem)] sm:text-lg";
+    // formatIDR joins "Rp" and the digits with a non-breaking space; a regular
+    // space lets the prefix wrap onto its own line when tight, so digits never
+    // break mid-number (currency only — text values keep their spacing intact).
+    const displayText = isCurrency ? displayValue?.replace(/\u00A0/g, " ") : displayValue;
     return (
       <span
         className={cn(
-          "inline-flex max-w-full items-baseline leading-none tracking-tight break-all",
-          isCurrency ? "num-mono text-[clamp(1rem,3.5vw,1.5rem)] font-bold tabular-nums sm:text-2xl" : "font-sans text-xl font-bold sm:text-2xl",
+          "inline-flex max-w-full items-baseline leading-none tracking-tight break-words",
+          isCurrency ? cn("num-mono font-bold tabular-nums", currencySize) : "font-sans text-xl font-bold sm:text-2xl",
           hero ? "" : "text-text-primary",
         )}
       >
-        {displayValue}
+        {displayText}
       </span>
     );
   })();
@@ -95,19 +110,17 @@ export function StatCard({
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className={cn("break-words text-sm", hero ? "opacity-85" : "text-text-secondary")}>{label}</p>
-          <div className="mt-1.5">
-            {valueContent}
-          </div>
-          {isZero && zeroLabel && !isLoading && !isError && (
-            <p className="mt-1 text-xs text-current opacity-85">{zeroLabel}</p>
-          )}
-        </div>
-        <div className={cn("ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", hero ? "bg-white/15" : colors.bg)}>
+        <p className={cn("min-w-0 break-words text-sm", hero ? "opacity-85" : "text-text-secondary")}>{label}</p>
+        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", hero ? "bg-white/15" : colors.bg)}>
           <Icon className={cn("h-5 w-5", hero ? "" : colors.icon)} />
         </div>
       </div>
+      <div className="mt-1.5">
+        {valueContent}
+      </div>
+      {isZero && zeroLabel && !isLoading && !isError && (
+        <p className="mt-1 text-xs text-current opacity-85">{zeroLabel}</p>
+      )}
       {href && (
         <ChevronRight
           className={cn(
