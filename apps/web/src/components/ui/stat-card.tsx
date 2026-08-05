@@ -47,6 +47,16 @@ function formatValue(value: number | string | null | undefined, format: StatCard
   return typeof value === "number" ? formatIDR(value) : value;
 }
 
+/** Size tiers for the currency value: hero cards keep the big size on mobile,
+ * compact 2-col cards shrink long values so the whole number stays on one
+ * line instead of breaking mid-digit. */
+function currencySizeClass(hero: boolean, length: number): string {
+  if (hero) return "text-[clamp(1rem,3.5vw,1.5rem)] sm:text-2xl";
+  if (length <= 12) return "text-[clamp(0.9375rem,4vw,1.5rem)] sm:text-2xl";
+  if (length <= 15) return "text-[clamp(0.8125rem,3.5vw,1.25rem)] sm:text-xl";
+  return "text-[clamp(0.75rem,3vw,1.125rem)] sm:text-lg";
+}
+
 
 export function StatCard({
   label,
@@ -83,17 +93,11 @@ export function StatCard({
     // shrink so the whole number stays on one line instead of breaking
     // mid-digit (hero cards are full-width on mobile and keep the big size).
     const len = (displayValue ?? "").length;
-    const currencySize = hero
-      ? "text-[clamp(1rem,3.5vw,1.5rem)] sm:text-2xl"
-      : len <= 12
-        ? "text-[clamp(0.9375rem,4vw,1.5rem)] sm:text-2xl"
-        : len <= 15
-          ? "text-[clamp(0.8125rem,3.5vw,1.25rem)] sm:text-xl"
-          : "text-[clamp(0.75rem,3vw,1.125rem)] sm:text-lg";
+    const currencySize = currencySizeClass(hero, len);
     // formatIDR joins "Rp" and the digits with a non-breaking space; a regular
     // space lets the prefix wrap onto its own line when tight, so digits never
     // break mid-number (currency only — text values keep their spacing intact).
-    const displayText = isCurrency ? displayValue?.replace(/\u00A0/g, " ") : displayValue;
+    const displayText = isCurrency ? displayValue?.replaceAll("\u00A0", " ") : displayValue;
     return (
       <span
         className={cn(

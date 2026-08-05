@@ -154,17 +154,22 @@ export function parseSignedDecimalInput(
   value: unknown,
   emptyValue: number | undefined = undefined
 ): number | undefined {
-  const raw = value == null ? "" : String(value).trim();
-  if (!raw || raw === "-" || raw === "-." || raw === "-,") return emptyValue;
-  const negative = raw.startsWith("-");
-  let normalized = raw.replace(/[^\d.,]/g, "");
+  // Accept strings (form values) and numbers; anything else (e.g. objects)
+  // is rejected instead of being stringified as "[object Object]".
+  let raw = "";
+  if (typeof value === "string") raw = value;
+  else if (typeof value === "number") raw = String(value);
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "-" || trimmed === "-." || trimmed === "-,") return emptyValue;
+  const negative = trimmed.startsWith("-");
+  let normalized = trimmed.replace(/[^\d.,]/g, "");
   const dotCount = (normalized.match(/\./g) ?? []).length;
   if (normalized.includes(".") && normalized.includes(",")) {
     // Indonesian convention: "." thousands, "," decimal — "1.234,5"
-    normalized = normalized.replace(/\./g, "").replace(",", ".");
+    normalized = normalized.replaceAll(".", "").replace(",", ".");
   } else if (dotCount > 1) {
     // Several dots with no comma — treat them as thousands separators
-    normalized = normalized.replace(/\./g, "");
+    normalized = normalized.replaceAll(".", "");
   } else if (normalized.includes(",")) {
     normalized = normalized.replace(",", ".");
   }

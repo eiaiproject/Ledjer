@@ -8,6 +8,13 @@ describe("parseSignedDecimalInput", () => {
     expect(parseSignedDecimalInput("007")).toBe(7);
   });
 
+  it("accepts number values directly and rejects objects", () => {
+    expect(parseSignedDecimalInput(-5)).toBe(-5);
+    expect(parseSignedDecimalInput(0.5)).toBe(0.5);
+    expect(parseSignedDecimalInput({})).toBeUndefined();
+    expect(parseSignedDecimalInput(["1"], 0)).toBe(0);
+  });
+
   it("accepts a leading minus typed first", () => {
     expect(parseSignedDecimalInput("-5")).toBe(-5);
     expect(parseSignedDecimalInput("-")).toBeUndefined();

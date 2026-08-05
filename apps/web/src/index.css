@@ -212,6 +212,9 @@ html {
   text-rendering: optimizeLegibility;
   min-width: 320px;
   overflow-x: hidden;
+  /* Kill the grey tap flash on Android Chrome; :focus-visible outlines still
+     provide the keyboard/accessibility focus indicator. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -255,12 +258,6 @@ body {
 }
 
 /* === ANDROID & TOUCH HARDENING === */
-
-/* Kill the grey tap flash on Android Chrome; :focus-visible outlines still
-   provide the keyboard/accessibility focus indicator. */
-html {
-  -webkit-tap-highlight-color: transparent;
-}
 
 /* App-like feel: prevent the root scroller's edge glow and accidental
    pull-to-refresh inside the authenticated app. Toggled on <html> by the
