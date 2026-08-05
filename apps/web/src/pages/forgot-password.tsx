@@ -61,8 +61,9 @@ export function ForgotPasswordPage() {
 
   // ── Success view ──────────────────────────────────────────────────
   if (submittedEmail) {
+    // ledger-safe-top keeps content below the status bar on edge-to-edge Android
     return (
-      <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
+      <div className="ledger-page ledger-safe-top ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
         <AuthBrandPanel
           className="col-span-1"
           title="Pemulihan password."
@@ -126,7 +127,9 @@ export function ForgotPasswordPage() {
   }
 
   // ── Email form view ──────────────────────────────────────────────
-  return (      <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
+  // ledger-safe-top keeps content below the status bar on edge-to-edge Android
+  return (
+    <div className="ledger-page ledger-safe-top ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
       <AuthBrandPanel
         className="col-span-1"
         title="Lupa password Anda?"

@@ -29,12 +29,15 @@ const colorStyles = {
   honey: { bg: "bg-honey-100", icon: "text-honey-600", border: "border-honey-200" },
 };
 
+// Hero card fills sit one step darker than the default tones so the cream
+// text (label + bold value) clears WCAG AA (4.5:1) at the mobile clamp floor
+// of 16px. leaf/wood/clay/sky-600 and honey-700 (honey-600 alone is 4.41:1).
 const heroStyles = {
-  leaf: "bg-leaf-500",
-  wood: "bg-wood-500",
-  clay: "bg-clay-500",
-  sky: "bg-sky-500",
-  honey: "bg-honey-500",
+  leaf: "bg-leaf-600",
+  wood: "bg-wood-600",
+  clay: "bg-clay-600",
+  sky: "bg-sky-600",
+  honey: "bg-honey-700",
 };
 
 function formatValue(value: number | string | null | undefined, format: StatCardProps["format"]) {
@@ -73,7 +76,9 @@ export function StatCard({
 
   const valueContent = (() => {
     if (isLoading) return <div className="h-6 w-32 animate-pulse rounded bg-white/15" />;
-    if (isError) return <span className="text-sm italic text-current opacity-70">Data belum tersedia</span>;
+    // opacity-85 keeps the 12-14px edge-state text above WCAG AA (4.5:1) on
+    // both white cards and the darker hero fills
+    if (isError) return <span className="text-sm italic text-current opacity-85">Data belum tersedia</span>;
     return (
       <span
         className={cn(
@@ -96,7 +101,7 @@ export function StatCard({
             {valueContent}
           </div>
           {isZero && zeroLabel && !isLoading && !isError && (
-            <p className="mt-1 text-xs text-current opacity-60">{zeroLabel}</p>
+            <p className="mt-1 text-xs text-current opacity-85">{zeroLabel}</p>
           )}
         </div>
         <div className={cn("ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", hero ? "bg-white/15" : colors.bg)}>

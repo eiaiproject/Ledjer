@@ -245,6 +245,66 @@ body {
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Safe area top — notches / punch-hole cameras and Android 15 edge-to-edge
+   status bar. Combine with sticky/fixed headers that sit at top: 0.
+   Note: unlayered, so it intentionally wins over layered Tailwind pt-*
+   utilities on the same element — keep it off elements that carry pt-* or
+   p-* padding of their own (prefer the inner child for spacing). */
+.ledger-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* === ANDROID & TOUCH HARDENING === */
+
+/* Kill the grey tap flash on Android Chrome; :focus-visible outlines still
+   provide the keyboard/accessibility focus indicator. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* App-like feel: prevent the root scroller's edge glow and accidental
+   pull-to-refresh inside the authenticated app. Toggled on <html> by the
+   dashboard layout so the public landing page keeps native browser behavior. */
+.ledger-app-scroll {
+  overscroll-behavior-y: none;
+}
+
+/* Instant taps on Android — removes the double-tap-to-zoom gesture on
+   controls so taps register on the first touch, not the second. */
+button, a, label, [role="button"], [role="switch"], [role="tab"], [role="radio"],
+input, select, textarea, summary {
+  touch-action: manipulation;
+}
+
+/* Android Chrome autofill — keep the cream surface instead of a yellow/blue
+   flash while autofilling credentials or addresses. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  transition: background-color 9999s ease-out;
+}
+
+/* Inputs under 16px trigger auto-zoom on focus in several mobile browsers
+   (Samsung Internet, older Chrome builds, some WebView shells). All form
+   controls on phones are intentionally set to 16px (the app's form inputs
+   are designed at text-sm/text-xs, so this only bumps them up). */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* Make every anchor target sit below the sticky header.
    Header height is exposed as --header-h by the sticky <header> element
    (mobile: 72px when the sub-nav is below, desktop: 60px). */
