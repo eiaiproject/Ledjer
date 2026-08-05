@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
+import { cn, formatIDR, formatNumber, parseAmountInput, parseSignedDecimalInput } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -227,10 +227,25 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
   readonly product: Product | null;
   readonly onSuccess: () => void;
 }) {
+  // quantityText holds what the user is typing (so a leading "-" stays
+  // visible); quantity is the parsed number sent to the API. The text is
+  // reformatted with id-ID separators on blur only, so the caret never jumps
+  // mid-typing.
+  const [quantityText, setQuantityText] = useState("");
   const [quantity, setQuantity] = useState(0);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setQuantityText(raw);
+    setQuantity(parseSignedDecimalInput(raw, 0) ?? 0);
+  };
+
+  const handleQuantityBlur = () => {
+    setQuantityText(formatNumber(quantity, 3));
+  };
 
   const handleSubmit = async () => {
     if (!product || !reason.trim()) return;
@@ -258,9 +273,12 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
           </p>
           <Input
             label="Jumlah Penyesuaian"
-            type="number"
-            value={quantity || ""}
-            onChange={(e) => setQuantity(Number(e.target.value))}
+            type="text"
+            inputMode="decimal"
+            value={quantityText}
+            onChange={handleQuantityChange}
+            onBlur={handleQuantityBlur}
+            placeholder="0"
             helperText="Nilai positif = tambah stok, negatif = kurangi stok"
             disabled={loading}
           />
@@ -294,8 +312,21 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
   readonly product: Product | null;
   readonly onSuccess: () => void;
 }) {
+  // Same signed-decimal input pattern as the adjustment modal — physical
+  // stock can be fractional (0.5 kg) even though it can't be negative.
+  const [physicalStockText, setPhysicalStockText] = useState("");
   const [physicalStock, setPhysicalStock] = useState(0);
   const [notes, setNotes] = useState("");
+
+  const handlePhysicalStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setPhysicalStockText(raw);
+    setPhysicalStock(Math.max(0, parseSignedDecimalInput(raw, 0) ?? 0));
+  };
+
+  const handlePhysicalStockBlur = () => {
+    setPhysicalStockText(formatNumber(physicalStock, 3));
+  };
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ systemStock: string; physicalStock: string; difference: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -343,10 +374,12 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
               </p>
               <Input
                 label="Stok Fisik"
-                type="number"
-                min={0}
-                value={physicalStock || ""}
-                onChange={(e) => setPhysicalStock(Number(e.target.value))}
+                type="text"
+                inputMode="decimal"
+                value={physicalStockText}
+                onChange={handlePhysicalStockChange}
+                onBlur={handlePhysicalStockBlur}
+                placeholder="0"
                 disabled={loading}
               />
               <Input
