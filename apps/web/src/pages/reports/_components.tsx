@@ -10,8 +10,129 @@ import { useOrgPermissions } from "@/hooks/useOrganization";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "reicon-react";
-import { formatDateInputValue } from "@/lib/utils";
+import { formatDateInputValue, formatIDR } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
+
+// ── Shared section rendering (Neraca / Laba Rugi) ───────────────────
+
+/** Minimal shape of a report line item (account + amount). */
+export interface ReportLine {
+  account_code: string | number;
+  account_name: string;
+  amount: number;
+}
+
+export interface ReportSection<T extends ReportLine = ReportLine> {
+  id: string;
+  label: string;
+  items: T[];
+}
+
+/** Mobile card for one report section — shared by Neraca & Laba Rugi. */
+export function ReportSectionMobile<T extends ReportLine>({
+  section,
+  showTotal,
+  emptyText = "Tidak ada data",
+}: {
+  readonly section: ReportSection<T>;
+  readonly showTotal?: boolean;
+  readonly emptyText?: string;
+}) {
+  const total = section.items.reduce((s, i) => s + i.amount, 0);
+
+  return (
+    <li className="rounded-lg border border-wood-200 overflow-hidden list-none">
+      <div className="bg-cream-100/50 px-4 py-2.5">
+        <p className="text-sm font-semibold text-wood-700">{section.label}</p>
+      </div>
+      {section.items.length === 0 && (
+        <div className="px-4 py-3 border-t border-wood-100">
+          <p className="text-sm text-wood-500">{emptyText}</p>
+        </div>
+      )}
+      {section.items.map((item) => (
+        <div
+          key={item.account_code}
+          className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 border-t border-wood-100 px-4 py-2.5"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm text-wood-700">{item.account_name}</p>
+            <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
+          </div>
+          <span className="shrink-0 text-right font-mono text-sm text-wood-800 tabular-nums">
+            {formatIDR(item.amount)}
+          </span>
+        </div>
+      ))}
+      {showTotal && (
+        <div className="flex items-center justify-between border-t border-wood-200 bg-cream-100/30 px-4 py-2.5">
+          <span className="text-sm font-semibold text-wood-700">
+            Total {section.label}
+          </span>
+          <span className="font-mono text-sm font-bold text-wood-800 tabular-nums">
+            {formatIDR(total)}
+          </span>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Desktop table rows for one report section — shared by Neraca & Laba Rugi. */
+export function ReportSectionRows<T extends ReportLine>({
+  section,
+  showTotal,
+  emptyText = "Tidak ada data",
+}: {
+  readonly section: ReportSection<T>;
+  readonly showTotal?: boolean;
+  readonly emptyText?: string;
+}) {
+  const total = section.items.reduce((s, i) => s + i.amount, 0);
+
+  return (
+    <>
+      <tr className="border-b border-wood-100 bg-cream-100/50">
+        <td
+          colSpan={2}
+          scope="rowgroup"
+          className="px-5 py-2 font-semibold text-wood-700"
+        >
+          {section.label}
+        </td>
+      </tr>
+      {section.items.length === 0 && (
+        <tr className="border-b border-wood-50">
+          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-500 italic">
+            {emptyText}
+          </td>
+        </tr>
+      )}
+      {section.items.map((item) => (
+        <tr key={item.account_code} className="border-b border-wood-50">
+          <td className="min-w-0 max-w-[520px] break-words px-5 py-2 pl-8 text-wood-600">
+            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
+            {item.account_name}
+          </td>
+          <td className="px-5 py-2 text-right tabular-nums text-wood-800">
+            {formatIDR(item.amount)}
+          </td>
+        </tr>
+      ))}
+      {showTotal && (
+        <tr className="border-b border-wood-200 bg-cream-100/30">
+          <td scope="row" className="px-5 py-2.5 font-semibold text-wood-700">
+            Total {section.label}
+          </td>
+          <td className="px-5 py-2.5 text-right font-bold tabular-nums text-wood-800">
+            {formatIDR(total)}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 
 // ── Single date hook ────────────────────────────────────────────────
 

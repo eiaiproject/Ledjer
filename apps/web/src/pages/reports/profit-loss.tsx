@@ -12,7 +12,12 @@ import { formatDateRange, formatIDR } from "@/lib/utils";
 import { exportProfitLossCsv } from "@/lib/csv-export";
 import { Download, Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
-import { useReportDateRange, handleReportExport } from "./_components";
+import {
+  useReportDateRange,
+  handleReportExport,
+  ReportSectionMobile,
+  ReportSectionRows,
+} from "./_components";
 import { ReportShell } from "@/components/ui/report-shell";
 
 // ── Canonical report model ──────────────────────────────────────────
@@ -386,7 +391,7 @@ function ReportMobile({
     <>
       {layout.map((def) =>
         def.type === "section" ? (
-          <SectionMobile key={`section-${def.index}`} section={sections[def.index]} showTotal={def.showTotal} />
+          <ReportSectionMobile key={`section-${def.index}`} section={sections[def.index]} showTotal={def.showTotal} emptyText="Tidak ada akun" />
         ) : (
           <ResultRow key={`result-${def.label}`} label={def.label} value={def.value} variant={def.variant} />
         )
@@ -395,51 +400,7 @@ function ReportMobile({
   );
 }
 
-function SectionMobile({
-  section,
-  showTotal,
-}: {
-  readonly section: ReportSection;
-  readonly showTotal?: boolean;
-}) {
-  const total = section.items.reduce((s, i) => s + i.amount, 0);
-  return (
-    <li className="rounded-lg border border-wood-200 overflow-hidden list-none">
-      <div className="bg-cream-100/50 px-4 py-2.5">
-        <p className="text-sm font-semibold text-wood-700">{section.label}</p>
-      </div>
-      {section.items.length === 0 && (
-        <div className="px-4 py-3 border-t border-wood-100">
-          <p className="text-sm text-wood-500">Tidak ada akun</p>
-        </div>
-      )}
-      {section.items.map((item) => (
-        <div
-          key={item.account_code}
-          className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 border-t border-wood-100 px-4 py-2.5"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-sm text-wood-700">{item.account_name}</p>
-            <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
-          </div>
-          <span className="shrink-0 text-right font-mono text-sm text-wood-800 tabular-nums">
-            {formatIDR(item.amount)}
-          </span>
-        </div>
-      ))}
-      {showTotal && (
-        <div className="flex items-center justify-between border-t border-wood-200 bg-cream-100/30 px-4 py-2.5">
-          <span className="text-sm font-semibold text-wood-700">
-            Total {section.label}
-          </span>
-          <span className="font-mono text-sm font-bold text-wood-800 tabular-nums">
-            {formatIDR(total)}
-          </span>
-        </div>
-      )}
-    </li>
-  );
-}
+
 
 function ResultRow({
   label,
@@ -487,7 +448,7 @@ function ReportTableBody({
       {layout.map((def) =>
         def.type === "section" ? (
           <tbody key={`section-${def.index}`}>
-            <SectionRows section={sections[def.index]} showTotal={def.showTotal} />
+            <ReportSectionRows section={sections[def.index]} showTotal={def.showTotal} emptyText="Tidak ada akun" />
           </tbody>
         ) : (
           <tbody key={`result-${def.label}`}>
@@ -499,56 +460,7 @@ function ReportTableBody({
   );
 }
 
-function SectionRows({
-  section,
-  showTotal,
-}: {
-  readonly section: ReportSection;
-  readonly showTotal?: boolean;
-}) {
-  const total = section.items.reduce((s, i) => s + i.amount, 0);
-  return (
-    <>
-      <tr className="border-b border-wood-100 bg-cream-100/50">
-        <td
-          colSpan={2}
-          scope="rowgroup"
-          className="px-5 py-2 font-semibold text-wood-700"
-        >
-          {section.label}
-        </td>
-      </tr>
-      {section.items.length === 0 && (
-        <tr className="border-b border-wood-50">
-          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-500 italic">
-            Tidak ada akun
-          </td>
-        </tr>
-      )}
-      {section.items.map((item) => (
-        <tr key={item.account_code} className="border-b border-wood-50">
-          <td className="min-w-0 max-w-[520px] break-words px-5 py-2 pl-8 text-wood-600">
-            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
-            {item.account_name}
-          </td>
-          <td className="px-5 py-2 text-right tabular-nums text-wood-800">
-            {formatIDR(item.amount)}
-          </td>
-        </tr>
-      ))}
-      {showTotal && (
-        <tr className="border-b border-wood-200 bg-cream-100/30">
-          <td scope="row" className="px-5 py-2.5 font-semibold text-wood-700">
-            Total {section.label}
-          </td>
-          <td className="px-5 py-2.5 text-right font-bold tabular-nums text-wood-800">
-            {formatIDR(total)}
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
+
 
 function ResultRowDesktop({
   label,

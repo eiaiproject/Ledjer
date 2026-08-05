@@ -91,8 +91,9 @@ export function PwaInstallPrompt() {
   // Don't show if already installed, dismissed, or no prompt
   if (isInstalled || isStandalone || dismissed || !deferredPrompt) return null;
 
+  // bottom offset clears the 56px bottom nav + gesture bar on Android
   return (
-    <Card className="fixed bottom-20 left-4 right-4 z-[var(--z-toast)] shadow-lg border-wood-300 bg-white/95 backdrop-blur-sm lg:bottom-4 lg:left-auto lg:right-4 lg:w-80">
+    <Card className="fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[var(--z-toast)] shadow-lg border-wood-300 bg-white/95 backdrop-blur-sm lg:bottom-4 lg:left-auto lg:right-4 lg:w-80">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 min-w-0">

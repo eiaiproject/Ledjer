@@ -414,36 +414,83 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
 }
 
 /* ------------------------------------------------------------------ */
-/*  Account Group Section (Mobile)                                     */
+/*  Shared: Account Group Trigger Header                               */
 /* ------------------------------------------------------------------ */
 
-function AccountGroupSection({ group }: { readonly group: AccountGroup }) {
-  const [expanded, setExpanded] = useState(true);
+function AccountGroupTrigger({
+  group,
+  expanded,
+  onToggle,
+  className,
+}: {
+  readonly group: AccountGroup;
+  readonly expanded: boolean;
+  readonly onToggle: () => void;
+  readonly className: string;
+}) {
   const isPositive = group.runningBalance >= 0;
   const panelId = `ledger-account-${group.code}-panel`;
   const triggerId = `ledger-account-${group.code}-trigger`;
 
   return (
+    <button type="button" id={triggerId} onClick={onToggle}
+      aria-expanded={expanded} aria-controls={panelId}
+      className={cn(
+        className,
+        expanded ? "rounded-t-xl" : "rounded-xl",
+      )}>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-text-primary">{group.code} — {group.name}</p>
+        <p className="mt-0.5 text-xs text-text-tertiary">
+          {group.entries.length} entri · Saldo:{" "}
+          <span className={cn("font-mono font-medium", isPositive ? "text-text-primary" : "text-clay-600")}>
+            {formatIDR(group.runningBalance)}
+          </span>
+        </p>
+      </div>
+      {expanded
+        ? <ChevronDown className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+        : <ChevronRight className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Shared: Ledger Table Header (6 columns)                            */
+/* ------------------------------------------------------------------ */
+
+function LedgerTableHeader() {
+  return (
+    <thead>
+      <tr className="border-b border-wood-200 bg-cream-50">
+        <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">Tanggal</th>
+        <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">No. Ref</th>
+        <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">Keterangan</th>
+        <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Debit</th>
+        <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Kredit</th>
+        <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Saldo</th>
+      </tr>
+    </thead>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Account Group Section (Mobile)                                     */
+/* ------------------------------------------------------------------ */
+
+function AccountGroupSection({ group }: { readonly group: AccountGroup }) {
+  const [expanded, setExpanded] = useState(true);
+  const panelId = `ledger-account-${group.code}-panel`;
+  const triggerId = `ledger-account-${group.code}-trigger`;
+
+  return (
     <div className="rounded-xl border border-wood-200">
-      <button type="button" id={triggerId} onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded} aria-controls={panelId}
-        className={cn(
-          "sticky top-[56px] z-10 flex w-full items-center justify-between bg-cream-100 px-3 py-2.5 text-left min-h-[44px]",
-          expanded ? "rounded-t-xl" : "rounded-xl",
-        )}>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-text-primary">{group.code} — {group.name}</p>
-          <p className="mt-0.5 text-xs text-text-tertiary">
-            {group.entries.length} entri · Saldo:{" "}
-            <span className={cn("font-mono font-medium", isPositive ? "text-text-primary" : "text-clay-600")}>
-              {formatIDR(group.runningBalance)}
-            </span>
-          </p>
-        </div>
-        {expanded
-          ? <ChevronDown className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
-          : <ChevronRight className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />}
-      </button>
+      <AccountGroupTrigger
+        group={group}
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        className="sticky top-[56px] z-10 flex w-full items-center justify-between bg-cream-100 px-3 py-2.5 text-left min-h-[44px]"
+      />
 
       {expanded && (
         <section id={panelId} aria-labelledby={triggerId} className="divide-y divide-wood-100 border-t border-wood-200">
@@ -492,16 +539,7 @@ function SingleAccountTable({ entries, accountName }: { readonly entries: Ledger
     <section className="overflow-hidden rounded-xl border border-wood-200">
       <table className="ledger-table w-full">
         <caption className="sr-only">Buku besar akun {accountName}</caption>
-        <thead>
-          <tr className="border-b border-wood-200 bg-cream-50">
-            <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">Tanggal</th>
-            <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">No. Ref</th>
-            <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">Keterangan</th>
-            <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Debit</th>
-            <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Kredit</th>
-            <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Saldo</th>
-          </tr>
-        </thead>
+        <LedgerTableHeader />
         <tbody>
           {entries.map((entry) => (
             <DesktopEntryRow key={entry.journal_entry_id} entry={entry} />
@@ -524,40 +562,18 @@ function AccountGroupTableSection({ group }: { readonly group: AccountGroup }) {
 
   return (
     <section className="rounded-xl border border-wood-200">
-      <button type="button" id={triggerId} onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded} aria-controls={panelId}
-        className={cn(
-          "sticky top-0 z-10 flex w-full items-center justify-between bg-cream-100 px-4 py-2.5 text-left min-h-[44px]",
-          expanded ? "rounded-t-xl" : "rounded-xl",
-        )}>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-text-primary">{group.code} — {group.name}</p>
-          <p className="mt-0.5 text-xs text-text-tertiary">
-            {group.entries.length} entri · Saldo:{" "}
-            <span className={cn("font-mono font-medium", isPositive ? "text-text-primary" : "text-clay-600")}>
-              {formatIDR(group.runningBalance)}
-            </span>
-          </p>
-        </div>
-        {expanded
-          ? <ChevronDown className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
-          : <ChevronRight className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />}
-      </button>
+      <AccountGroupTrigger
+        group={group}
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        className="sticky top-0 z-10 flex w-full items-center justify-between bg-cream-100 px-4 py-2.5 text-left min-h-[44px]"
+      />
 
       {expanded && (
         <section id={panelId} aria-labelledby={triggerId}>
           <table className="ledger-table w-full">
             <caption className="sr-only">Buku besar akun {group.code} — {group.name}</caption>
-            <thead>
-              <tr className="border-b border-wood-200 bg-cream-50">
-                <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">Tanggal</th>
-                <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">No. Ref</th>
-                <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-text-secondary">Keterangan</th>
-                <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Debit</th>
-                <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Kredit</th>
-                <th scope="col" className="px-4 py-2.5 text-right text-xs font-medium text-text-secondary">Saldo</th>
-              </tr>
-            </thead>
+            <LedgerTableHeader />
             <tbody>
               {group.entries.map((entry) => (
                 <DesktopEntryRow key={`${group.code}-${entry.journal_entry_id}`} entry={entry} />

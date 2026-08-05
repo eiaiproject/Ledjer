@@ -103,7 +103,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="ledger-page ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
+    // ledger-safe-top keeps content below the status bar on edge-to-edge Android
+    <div className="ledger-page ledger-safe-top ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
       {/* Brand panel — 33% */}
       <AuthBrandPanel
         className="col-span-1"

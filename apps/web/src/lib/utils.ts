@@ -143,6 +143,45 @@ export function parseAmountInput(
   return Number.isFinite(amount) ? amount : emptyValue;
 }
 
+/**
+ * Parse a signed decimal input (e.g. "-12,5", "-12.5", "1.234,56") into a
+ * number. Accepts an optional leading "-", Indonesian or international
+ * separators, and caps precision to 3 decimals (matches milli stock units).
+ * Blank or a lone "-" returns emptyValue — so typing a minus sign first
+ * keeps working instead of being swallowed by Number("").
+ */
+export function parseSignedDecimalInput(
+  value: unknown,
+  emptyValue: number | undefined = undefined
+): number | undefined {
+  // Accept strings (form values) and numbers; anything else (e.g. objects)
+  // is rejected instead of being stringified as "[object Object]".
+  let raw = "";
+  if (typeof value === "string") raw = value;
+  else if (typeof value === "number") raw = String(value);
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "-" || trimmed === "-." || trimmed === "-,") return emptyValue;
+  const negative = trimmed.startsWith("-");
+  let normalized = trimmed.replace(/[^\d.,]/g, "");
+  const dotCount = (normalized.match(/\./g) ?? []).length;
+  if (normalized.includes(".") && normalized.includes(",")) {
+    // Indonesian convention: "." thousands, "," decimal — "1.234,5"
+    normalized = normalized.replaceAll(".", "").replace(",", ".");
+  } else if (dotCount > 1) {
+    // Several dots with no comma — treat them as thousands separators
+    normalized = normalized.replaceAll(".", "");
+  } else if (normalized.includes(",")) {
+    normalized = normalized.replace(",", ".");
+  }
+  if (!normalized) return emptyValue;
+  // Note: a single dot without commas is read as the decimal separator
+  // ("1.5" = 1.5); multiple dots are Indonesian thousands ("1.234.567").
+  const amount = Number(`${negative ? "-" : ""}${normalized}`);
+  if (!Number.isFinite(amount)) return emptyValue;
+  const rounded = Math.round(amount * 1000) / 1000;
+  return rounded === 0 ? 0 : rounded;
+}
+
 /** Format bytes to human-readable string. */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";

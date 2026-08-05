@@ -209,7 +209,9 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 py-8 sm:py-12">
+    // pt includes env(safe-area-inset-top) so content clears the status bar on
+    // edge-to-edge Android while preserving the py-8 / sm:py-12 rhythm
+    <div className="ledger-page flex ledger-min-dvh items-center justify-center bg-cream-100 px-4 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-8 sm:pt-[calc(3rem+env(safe-area-inset-top,0px))] sm:pb-12">
       <div className="w-full max-w-lg space-y-7">
         {/* Header */}
         <div className="space-y-3 text-center">

@@ -2,8 +2,13 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#8B5A3C" />
+    <!-- interactive-widget=resizes-content: on Android Chrome, shrink the layout
+         viewport when the virtual keyboard opens so focused inputs stay visible
+         (native-app feel) instead of the keyboard covering the form. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#8B5A3C" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#2A1B17" media="(prefers-color-scheme: dark)" />
     <meta name="robots" content="index, follow" />
     <meta name="description" content="Ledjer adalah aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet." />
     <meta property="og:site_name" content="Ledjer" />

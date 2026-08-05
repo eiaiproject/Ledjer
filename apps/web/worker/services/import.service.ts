@@ -343,6 +343,21 @@ export interface UndoResult {
   message: string;
 }
 
+/** Soft-delete imported rows (is_active = 0) for the given entity table. */
+async function softDeleteByIds(
+  db: D1Database,
+  organizationId: string,
+  table: "accounts" | "products" | "parties",
+  createdIds: string[],
+): Promise<number> {
+  for (const id of createdIds) {
+    await db.prepare(
+      `UPDATE ${table} SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
+    ).bind(Date.now(), id, organizationId).run();
+  }
+  return createdIds.length;
+}
+
 /**
  * Undo a previously executed import by its audit-logged import ID.
  * Deletes the entities that were created during the import.
@@ -392,34 +407,15 @@ export async function undoImport(
   let undoneRows = 0;
 
   switch (importType) {
-    case "coa_import": {
-      // Soft-delete: set is_active = 0
-      for (const id of createdIds) {
-        await db.prepare(
-          `UPDATE accounts SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
-        ).bind(Date.now(), id, organizationId).run();
-        undoneRows++;
-      }
+    case "coa_import":
+      undoneRows += await softDeleteByIds(db, organizationId, "accounts", createdIds);
       break;
-    }
-    case "product_import": {
-      for (const id of createdIds) {
-        await db.prepare(
-          `UPDATE products SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
-        ).bind(Date.now(), id, organizationId).run();
-        undoneRows++;
-      }
+    case "product_import":
+      undoneRows += await softDeleteByIds(db, organizationId, "products", createdIds);
       break;
-    }
-    case "party_import": {
-      for (const id of createdIds) {
-        await db.prepare(
-          `UPDATE parties SET is_active = 0, updated_at = ? WHERE id = ? AND organization_id = ?`,
-        ).bind(Date.now(), id, organizationId).run();
-        undoneRows++;
-      }
+    case "party_import":
+      undoneRows += await softDeleteByIds(db, organizationId, "parties", createdIds);
       break;
-    }
     case "opening_balance_import": {
       // Delete journal lines + journal entry
       for (const id of createdIds) {

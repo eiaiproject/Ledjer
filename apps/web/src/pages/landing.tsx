@@ -466,7 +466,9 @@ export function LandingPage() {
       {/* ============================================================
          HEADER & NAVIGATION
          ============================================================ */}
-      <header className="sticky top-0 z-sticky border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm [--header-h:72px] md:[--header-h:60px]">
+      {/* ledger-safe-top keeps the sticky header below the status bar on notched
+          phones and Android 15 edge-to-edge; --header-h drives anchor scroll margins */}
+      <header className="ledger-safe-top sticky top-0 z-sticky border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm [--header-h:calc(72px+env(safe-area-inset-top,0px))] md:[--header-h:calc(60px+env(safe-area-inset-top,0px))]">
         <nav
           aria-label="Navigasi utama"
           className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8"
