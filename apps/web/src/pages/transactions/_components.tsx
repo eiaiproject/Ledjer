@@ -551,6 +551,30 @@ export const ProductDetailFields = memo(function ProductDetailFields({
 });
 
 /* ------------------------------------------------------------------ */
+/*  JournalLineRow                                                     */
+/* ------------------------------------------------------------------ */
+
+function JournalLineRow({
+  line,
+  side,
+}: {
+  readonly line: PreviewLine;
+  readonly side: "debit" | "credit";
+}) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
+      <span className="min-w-0 break-words text-text-secondary">
+        <span className={`inline-block w-12 font-medium ${side === "debit" ? "text-leaf-600" : "text-clay-600"}`}>
+          {side === "debit" ? "Debet" : "Kredit"}
+        </span>
+        {line.account}
+      </span>
+      <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  ReviewPanel (seller-first summary)                                 */
 /* ------------------------------------------------------------------ */
 
@@ -664,22 +688,10 @@ export const ReviewPanel = memo(function ReviewPanel({
           {journalOpen && (
             <div className="mt-3 space-y-2">
               {debit.map((line) => (
-                <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
-                  <span className="min-w-0 break-words text-text-secondary">
-                    <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
-                    {line.account}
-                  </span>
-                  <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
-                </div>
+                <JournalLineRow key={`${line.account}-${line.amount}-${line.direction}`} line={line} side="debit" />
               ))}
               {credit.map((line) => (
-                <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
-                  <span className="min-w-0 break-words text-text-secondary">
-                    <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
-                    {line.account}
-                  </span>
-                  <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
-                </div>
+                <JournalLineRow key={`${line.account}-${line.amount}-${line.direction}`} line={line} side="credit" />
               ))}
             </div>
           )}
@@ -696,22 +708,10 @@ export const ReviewPanel = memo(function ReviewPanel({
               {hasPreview ? (
                 <>
                   {debit.map((line) => (
-                    <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
-                      <span className="min-w-0 break-words text-text-secondary">
-                        <span className="inline-block w-12 font-medium text-leaf-600">Debet</span>
-                        {line.account}
-                      </span>
-                      <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
-                    </div>
+                    <JournalLineRow key={`${line.account}-${line.amount}-${line.direction}`} line={line} side="debit" />
                   ))}
                   {credit.map((line) => (
-                    <div key={`${line.account}-${line.amount}-${line.direction}`} className="flex min-w-0 items-start justify-between gap-3 text-sm">
-                      <span className="min-w-0 break-words text-text-secondary">
-                        <span className="inline-block w-12 font-medium text-clay-600">Kredit</span>
-                        {line.account}
-                      </span>
-                      <span className="shrink-0 text-right num-mono font-medium text-text-primary">{formatIDR(line.amount)}</span>
-                    </div>
+                    <JournalLineRow key={`${line.account}-${line.amount}-${line.direction}`} line={line} side="credit" />
                   ))}
                 </>
               ) : (

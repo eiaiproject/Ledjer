@@ -12,47 +12,21 @@ export interface QuickEntryTemplate {
   color?: string;
 }
 
+const template = (
+  id: string,
+  name: string,
+  description: string,
+  type: QuickEntryTemplate['type'],
+  icon: string,
+  color: string,
+): QuickEntryTemplate => ({ id, name, description, type, icon, color });
+
 const DEFAULT_TEMPLATES: QuickEntryTemplate[] = [
-  {
-    id: 'quick-expense',
-    name: 'Catat Biaya',
-    description: 'Biaya operasional harian',
-    type: 'expense',
-    icon: 'receipt',
-    color: '#E8A87C',
-  },
-  {
-    id: 'quick-income',
-    name: 'Catat Pendapatan',
-    description: 'Pendapatan penjualan',
-    type: 'income',
-    icon: 'trending-up',
-    color: '#85C7A0',
-  },
-  {
-    id: 'quick-transfer',
-    name: 'Transfer Kas',
-    description: 'Pindahkan antar akun',
-    type: 'transfer',
-    icon: 'arrows-h',
-    color: '#7BA7D6',
-  },
-  {
-    id: 'quick-expense-rent',
-    name: 'Bayar Sewa',
-    description: 'Biaya sewa bulanan',
-    type: 'expense',
-    icon: 'building',
-    color: '#C9A97C',
-  },
-  {
-    id: 'quick-expense-electricity',
-    name: 'Bayar Listrik',
-    description: 'Biaya listrik bulanan',
-    type: 'expense',
-    icon: 'lightbulb',
-    color: '#E8C84C',
-  },
+  template('quick-expense', 'Catat Biaya', 'Biaya operasional harian', 'expense', 'receipt', '#E8A87C'),
+  template('quick-income', 'Catat Pendapatan', 'Pendapatan penjualan', 'income', 'trending-up', '#85C7A0'),
+  template('quick-transfer', 'Transfer Kas', 'Pindahkan antar akun', 'transfer', 'arrows-h', '#7BA7D6'),
+  template('quick-expense-rent', 'Bayar Sewa', 'Biaya sewa bulanan', 'expense', 'building', '#C9A97C'),
+  template('quick-expense-electricity', 'Bayar Listrik', 'Biaya listrik bulanan', 'expense', 'lightbulb', '#E8C84C'),
 ];
 
 export function getDefaultTemplates(): QuickEntryTemplate[] {

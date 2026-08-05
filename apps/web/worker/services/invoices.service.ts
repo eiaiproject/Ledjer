@@ -126,24 +126,11 @@ export async function createInvoice(
   };
 }
 
-export async function getInvoice(
-  db: D1Database,
-  organizationId: string,
-  invoiceId: string,
-): Promise<InvoiceOutput | null> {
-  const row = await queryFirst<Record<string, unknown>>(
-    db,
-    `SELECT * FROM invoices WHERE id = ? AND organization_id = ?`,
-    [invoiceId, organizationId],
-  );
-  if (!row) return null;
-
-  const lines = await queryAll<Record<string, unknown>>(
-    db,
-    `SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY line_order`,
-    [invoiceId],
-  );
-
+/** Map an invoices row + its lines into the InvoiceOutput shape. */
+function mapInvoiceOutput(
+  row: Record<string, unknown>,
+  lines: Record<string, unknown>[],
+): InvoiceOutput {
   return {
     id: row.id as string, invoiceNumber: row.invoice_number as string,
     invoiceDate: row.invoice_date as string, dueDate: row.due_date as string,
@@ -163,6 +150,27 @@ export async function getInvoice(
     creditedByInvoiceId: row.credited_by_invoice_id as string | null,
     createdAt: row.created_at as number,
   };
+}
+
+export async function getInvoice(
+  db: D1Database,
+  organizationId: string,
+  invoiceId: string,
+): Promise<InvoiceOutput | null> {
+  const row = await queryFirst<Record<string, unknown>>(
+    db,
+    `SELECT * FROM invoices WHERE id = ? AND organization_id = ?`,
+    [invoiceId, organizationId],
+  );
+  if (!row) return null;
+
+  const lines = await queryAll<Record<string, unknown>>(
+    db,
+    `SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY line_order`,
+    [invoiceId],
+  );
+
+  return mapInvoiceOutput(row, lines);
 }
 
 
@@ -187,25 +195,7 @@ export async function getCreditNotesForInvoice(
       `SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY line_order`,
       [row.id as string],
     );
-    result.push({
-      id: row.id as string, invoiceNumber: row.invoice_number as string,
-      invoiceDate: row.invoice_date as string, dueDate: row.due_date as string,
-      partyId: row.party_id as string, status: row.status as string,
-      subtotalMinor: row.subtotal_minor as number,
-      discountMinor: row.discount_minor as number,
-      taxMinor: row.tax_minor as number, totalMinor: row.total_minor as number,
-      paidMinor: row.paid_minor as number,
-      lines: lines.map((l) => ({
-        id: l.id as string, productId: l.product_id as string | null,
-        description: l.description as string,
-        quantityMilli: l.quantity_milli as number,
-        unitPriceMinor: l.unit_price_minor as number,
-        amountMinor: l.amount_minor as number, lineOrder: l.line_order as number,
-      })),
-      notes: row.notes as string | null, terms: row.terms as string | null,
-      creditedByInvoiceId: row.credited_by_invoice_id as string | null,
-      createdAt: row.created_at as number,
-    });
+    result.push(mapInvoiceOutput(row, lines));
   }
   return result;
 }
@@ -346,25 +336,7 @@ export async function listInvoices(
       `SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY line_order`,
       [row.id as string],
     );
-    invoices.push({
-      id: row.id as string, invoiceNumber: row.invoice_number as string,
-      invoiceDate: row.invoice_date as string, dueDate: row.due_date as string,
-      partyId: row.party_id as string, status: row.status as string,
-      subtotalMinor: row.subtotal_minor as number,
-      discountMinor: row.discount_minor as number,
-      taxMinor: row.tax_minor as number, totalMinor: row.total_minor as number,
-      paidMinor: row.paid_minor as number,
-      lines: lines.map((l) => ({
-        id: l.id as string, productId: l.product_id as string | null,
-        description: l.description as string,
-        quantityMilli: l.quantity_milli as number,
-        unitPriceMinor: l.unit_price_minor as number,
-        amountMinor: l.amount_minor as number, lineOrder: l.line_order as number,
-      })),
-      notes: row.notes as string | null, terms: row.terms as string | null,
-      creditedByInvoiceId: row.credited_by_invoice_id as string | null,
-      createdAt: row.created_at as number,
-    });
+    invoices.push(mapInvoiceOutput(row, lines));
   }
 
   return { invoices, total: totalRow?.cnt ?? 0 };

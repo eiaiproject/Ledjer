@@ -182,6 +182,24 @@ interface AddCashBankModalProps {
   readonly accounts: Account[];
 }
 
+/** Shared name validation for cash/bank modals (tambah & edit nama akun). */
+function validateAccountName(
+  name: string,
+  setError: (message: string) => void,
+): string | null {
+  setError("");
+  const trimmed = name.trim();
+  if (!trimmed) {
+    setError("Nama akun wajib diisi");
+    return null;
+  }
+  if (trimmed.length > 60) {
+    setError("Nama akun maksimal 60 karakter");
+    return null;
+  }
+  return trimmed;
+}
+
 function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankModalProps) {
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
@@ -221,16 +239,8 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
   });
 
   const handleSubmit = () => {
-    setError("");
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Nama akun wajib diisi");
-      return;
-    }
-    if (trimmed.length > 60) {
-      setError("Nama akun maksimal 60 karakter");
-      return;
-    }
+    const trimmed = validateAccountName(name, setError);
+    if (trimmed === null) return;
     createMutation.mutate({ kind: selectedKind, name: trimmed });
   };
 
@@ -388,16 +398,8 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
   });
 
   const handleSubmit = () => {
-    setError("");
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Nama akun wajib diisi");
-      return;
-    }
-    if (trimmed.length > 60) {
-      setError("Nama akun maksimal 60 karakter");
-      return;
-    }
+    const trimmed = validateAccountName(name, setError);
+    if (trimmed === null) return;
     updateMutation.mutate(trimmed);
   };
 

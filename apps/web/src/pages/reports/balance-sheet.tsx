@@ -12,7 +12,13 @@ import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportBalanceSheetCsv } from "@/lib/csv-export";
 import { Refresh, Download } from "reicon-react";
 import { getBalanceSheet, type BalanceSheetItem } from "@/lib/api/reports";
-import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
+import {
+  useReportDate,
+  ReportPermissionGate,
+  handleReportExport,
+  ReportSectionMobile,
+  ReportSectionRows,
+} from "./_components";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { ReportShell } from "@/components/ui/report-shell";
 
@@ -360,13 +366,13 @@ function ReportMobile({
   return (
     <>
       {/* Assets */}
-      <SectionMobile section={sections[0]} showTotal />
+      <ReportSectionMobile section={sections[0]} showTotal emptyText="Tidak ada saldo" />
 
       {/* Liabilities */}
-      <SectionMobile section={sections[1]} showTotal />
+      <ReportSectionMobile section={sections[1]} showTotal emptyText="Tidak ada saldo" />
 
       {/* Equity */}
-      <SectionMobile section={sections[2]} showTotal />
+      <ReportSectionMobile section={sections[2]} showTotal emptyText="Tidak ada saldo" />
 
       {/* Final total: Kewajiban + Ekuitas */}
       <li
@@ -378,53 +384,6 @@ function ReportMobile({
         </span>
       </li>
     </>
-  );
-}
-
-function SectionMobile({
-  section,
-  showTotal,
-}: {
-  readonly section: ReportSection;
-  readonly showTotal?: boolean;
-}) {
-  const total = section.items.reduce((s, i) => s + i.amount, 0);
-
-  return (
-    <li className="rounded-lg border border-wood-200 overflow-hidden list-none">
-      <div className="bg-cream-100/50 px-4 py-2.5">
-        <p className="text-sm font-semibold text-wood-700">{section.label}</p>
-      </div>
-      {section.items.length === 0 && (
-        <div className="px-4 py-3 border-t border-wood-100">
-          <p className="text-sm text-wood-500">Tidak ada saldo</p>
-        </div>
-      )}
-      {section.items.map((item) => (
-        <div
-          key={item.account_code}
-          className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 border-t border-wood-100 px-4 py-2.5"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-sm text-wood-700">{item.account_name}</p>
-            <p className="font-mono text-xs text-wood-500">{item.account_code}</p>
-          </div>
-          <span className="shrink-0 text-right font-mono text-sm text-wood-800 tabular-nums">
-            {formatIDR(item.amount)}
-          </span>
-        </div>
-      ))}
-      {showTotal && (
-        <div className="flex items-center justify-between border-t border-wood-200 bg-cream-100/30 px-4 py-2.5">
-          <span className="text-sm font-semibold text-wood-700">
-            Total {section.label}
-          </span>
-          <span className="font-mono text-sm font-bold text-wood-800 tabular-nums">
-            {formatIDR(total)}
-          </span>
-        </div>
-      )}
-    </li>
   );
 }
 
@@ -441,17 +400,17 @@ function ReportTableBody({
     <>
       {/* Assets tbody */}
       <tbody>
-        <SectionRows section={sections[0]} showTotal />
+        <ReportSectionRows section={sections[0]} showTotal emptyText="Tidak ada saldo" />
       </tbody>
 
       {/* Liabilities tbody */}
       <tbody>
-        <SectionRows section={sections[1]} showTotal />
+        <ReportSectionRows section={sections[1]} showTotal emptyText="Tidak ada saldo" />
       </tbody>
 
       {/* Equity tbody */}
       <tbody>
-        <SectionRows section={sections[2]} showTotal />
+        <ReportSectionRows section={sections[2]} showTotal emptyText="Tidak ada saldo" />
       </tbody>
 
       {/* Kewajiban + Ekuitas total */}
@@ -465,58 +424,6 @@ function ReportTableBody({
           </td>
         </tr>
       </tbody>
-    </>
-  );
-}
-
-function SectionRows({
-  section,
-  showTotal,
-}: {
-  readonly section: ReportSection;
-  readonly showTotal?: boolean;
-}) {
-  const total = section.items.reduce((s, i) => s + i.amount, 0);
-
-  return (
-    <>
-      <tr className="border-b border-wood-100 bg-cream-100/50">
-        <td
-          colSpan={2}
-          scope="rowgroup"
-          className="px-5 py-2 font-semibold text-wood-700"
-        >
-          {section.label}
-        </td>
-      </tr>
-      {section.items.length === 0 && (
-        <tr className="border-b border-wood-50">
-          <td colSpan={2} className="px-5 py-2 pl-8 text-sm text-wood-500 italic">
-            Tidak ada saldo
-          </td>
-        </tr>
-      )}
-      {section.items.map((item) => (
-        <tr key={item.account_code} className="border-b border-wood-50">
-          <td className="min-w-0 max-w-[520px] break-words px-5 py-2 pl-8 text-wood-600">
-            <span className="font-mono text-xs text-wood-500 mr-2">{item.account_code}</span>
-            {item.account_name}
-          </td>
-          <td className="px-5 py-2 text-right tabular-nums text-wood-800">
-            {formatIDR(item.amount)}
-          </td>
-        </tr>
-      ))}
-      {showTotal && (
-        <tr className="border-b border-wood-200 bg-cream-100/30">
-          <td scope="row" className="px-5 py-2.5 font-semibold text-wood-700">
-            Total {section.label}
-          </td>
-          <td className="px-5 py-2.5 text-right font-bold tabular-nums text-wood-800">
-            {formatIDR(total)}
-          </td>
-        </tr>
-      )}
     </>
   );
 }
