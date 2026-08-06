@@ -54,6 +54,7 @@ inventoryRoutes.post("/adjust", requirePermission("products:write"), async (c) =
     context.organization.id,
     context.member.user_id,
     body,
+    c.get("requestId"),
   );
   return c.json({ movement });
 });

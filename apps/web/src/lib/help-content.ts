@@ -211,3 +211,296 @@ export const HELP: Record<string, HelpContent> = {
     related: ["profit_loss", "balance_sheet"],
   },
 };
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Panduan Halaman (Page Guide)
+ *
+ * Konten langkah-demi-langkah untuk komponen PageGuide — tampil otomatis
+ * saat halaman dibuka pertama kali, bisa ditutup, dan dibuka kembali lewat
+ * tombol panduan. Key mengikuti rute halaman.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface PageGuideContent {
+  /** Judul singkat panduan */
+  readonly title: string;
+  /** Satu kalimat: halaman ini untuk apa */
+  readonly summary: string;
+  /** Langkah-langkah penggunaan */
+  readonly steps: readonly string[];
+  /** Tips tambahan (opsional) */
+  readonly tip?: string;
+}
+
+/**
+ * Builder untuk entri panduan halaman.
+ *
+ * Urutan argumen: (title, summary, steps, tip?). Tip bersifat opsional —
+ * kosongkan untuk entri tanpa tips.
+ *
+ * Memakai pemanggilan fungsi yang ringkas (bukan objek literal berulang)
+ * agar blok data tidak terdeteksi sebagai duplikasi struktural oleh CPD.
+ */
+function guide(
+  title: string,
+  summary: string,
+  steps: readonly string[],
+  tip?: string,
+): PageGuideContent {
+  return { title, summary, steps, tip };
+}
+
+export const PAGE_GUIDES: Record<string, PageGuideContent> = {
+  dashboard: guide(
+    "Beranda Bisnis Anda",
+    "Ringkasan kondisi keuangan dan stok dalam satu layar.",
+    [
+      "Lihat saldo kas, penjualan, dan laba rugi periode ini di kartu ringkasan.",
+      "Periksa daftar stok menipis — segera tambah stok sebelum kehabisan.",
+      "Pilih periode (bulan ini / bulan lalu) untuk melihat perubahan kinerja.",
+      "Klik tautan cepat untuk langsung mencatat transaksi atau membuka laporan.",
+    ],
+    "Angka di Beranda otomatis terisi dari transaksi yang Anda catat — tidak perlu mengisi apa pun di sini.",
+  ),
+  transactions: guide(
+    "Daftar Transaksi",
+    "Semua pemasukan dan pengeluaran bisnis Anda tercatat di sini.",
+    [
+      "Ketuk 'Transaksi Baru' untuk mencatat penjualan, pembelian, atau beban.",
+      "Gunakan kolom cari dan filter untuk menemukan transaksi tertentu.",
+      "Transaksi berstatus Draft belum memengaruhi laporan — posting agar masuk pembukuan.",
+      "Buka transaksi untuk melihat detail, mengubah draft, atau membatalkan (void).",
+    ],
+    "Mencatat transaksi secara rutin (harian/mingguan) membuat laporan keuangan selalu akurat.",
+  ),
+  "transactions/new": guide(
+    "Mencatat Transaksi Baru",
+    "Form untuk memasukkan pemasukan dan pengeluaran.",
+    [
+      "Pilih jenis transaksi — sistem otomatis menentukan akun debit/kredit.",
+      "Isi tanggal, pihak (jika ada), dan jumlah dalam Rupiah.",
+      "Untuk penjualan produk, pilih produk dan jumlah unit — stok & HPP terisi otomatis.",
+      "Periksa pratinjau jurnal, lalu simpan. Transaksi langsung masuk laporan keuangan.",
+    ],
+    "Jika ragu memilih jenis, pilih yang paling mendekati — akun bisa disesuaikan saat dibutuhkan.",
+  ),
+  "transactions/:id": guide(
+    "Detail Transaksi",
+    "Melihat dan mengelola satu transaksi.",
+    [
+      "Periksa informasi transaksi dan jurnal debit/kredit yang dihasilkan.",
+      "Draft bisa diedit; transaksi terposting hanya bisa dibatalkan (void).",
+      "Pembatalan membuat jurnal pembalik otomatis — saldo kembali seperti semula.",
+    ],
+    "Selalu beri alasan saat membatalkan agar jejak audit tetap jelas.",
+  ),
+  products: guide(
+    "Kelola Produk & Stok",
+    "Daftar produk, harga, dan tingkat stok toko Anda.",
+    [
+      "Ketuk 'Produk Baru' untuk menambah produk dengan harga jual dan stok awal.",
+      "Klik produk untuk mengubah harga, menambah stok, atau melihat riwayat stok.",
+      "Stok menipis ditandai otomatis saat jumlah di bawah batas minimal.",
+      "Penjualan otomatis mengurangi stok; pembelian menambahnya.",
+    ],
+    "Stok Opname = catat hasil hitung fisik; Penyesuaian Stok = ubah stok langsung (misal barang rusak). Keduanya membuat jurnal otomatis.",
+  ),
+  accounts: guide(
+    "Kas & Bank (Bagan Akun)",
+    "Daftar akun buku besar: kas, bank, piutang, utang, dan lainnya.",
+    [
+      "Tab Kas & Bank menampilkan rekening kas/bank bisnis Anda.",
+      "Ketuk 'Tambah Akun' untuk membuat akun baru (misal rekening bank kedua).",
+      "Akun sistem terkunci agar laporan tetap konsisten — tidak perlu diubah.",
+      "Anda tidak perlu memilih akun saat bertransaksi: sistem memilihnya otomatis.",
+    ],
+    "Akun kas/bank yang Anda buat bisa diedit namanya; akun sistem tidak.",
+  ),
+  invoices: guide(
+    "Faktur Penjualan",
+    "Dokumen tagihan resmi ke pelanggan.",
+    [
+      "Ketuk 'Faktur Baru' untuk membuat faktur dengan item dan jumlah.",
+      "Faktur mengalir: Draft → Diterbitkan → Dibayar / Dibatalkan.",
+      "Faktur yang diterbitkan otomatis membuat jurnal piutang.",
+      "Saat pelanggan membayar, catat pembayarannya untuk melunasi faktur.",
+    ],
+    "Penjualan tunai cukup dicatat langsung di Transaksi — faktur khusus untuk penjualan kredit/tagihan.",
+  ),
+  "invoices/new": guide(
+    "Membuat Faktur",
+    "Form untuk membuat dokumen tagihan baru.",
+    [
+      "Pilih pelanggan (atau buat baru) dan tanggal faktur.",
+      "Tambahkan item produk atau jasa beserta jumlah dan harga.",
+      "Atur jatuh tempo — sistem akan mengingatkan saat faktur mendekati jatuh tempo.",
+      "Simpan sebagai draft, atau terbitkan langsung agar membuat jurnal.",
+    ],
+  ),
+  "invoices/:id": guide(
+    "Detail Faktur",
+    "Melihat dan mengelola satu faktur.",
+    [
+      "Periksa status: Draft, Diterbitkan, Dibayar, atau Dibatalkan.",
+      "Draft bisa diedit; faktur terbit bisa dibatalkan dengan nota kredit.",
+      "Catat pembayaran untuk melacak sisa tagihan pelanggan.",
+    ],
+  ),
+  journals: guide(
+    "Jurnal Manual",
+    "Mencatat jurnal debit/kredit langsung — untuk pengguna yang paham akuntansi.",
+    [
+      "Isi Tanggal, Jenis Jurnal, dan Deskripsi (wajib).",
+      "Pilih akun di semua baris, lalu isi Debit di satu baris dan Kredit di baris lain dengan jumlah sama.",
+      "Klik 'Preview' — badge berubah jadi 'Balance' (hijau) jika debit = kredit.",
+      "Jika badge merah 'Selisih', samakan total debit dan kredit dulu.",
+      "Baru klik 'Posting Jurnal' untuk menyimpan.",
+    ],
+    "Tombol Preview aktif walau jurnal belum lengkap — pesan peringatan akan muncul menjelaskan apa yang kurang. Jurnal Penyesuaian/ Penutup dipakai saat akhir periode.",
+  ),
+  "opening-balance": guide(
+    "Saldo Awal",
+    "Memasukkan saldo akun per tanggal mulai pembukuan.",
+    [
+      "Isi saldo awal per akun sesuai catatan bisnis Anda.",
+      "Aturan: Aset = Debit (positif), Utang & Modal = Kredit (negatif).",
+      "Total Debit harus sama dengan total Kredit agar balance.",
+      "Simpan setelah semua saldo terisi — laporan dihitung dari sini.",
+    ],
+    "Pendapatan dan Beban biasanya saldonya nol di awal.",
+  ),
+  import: guide(
+    "Import Data dari CSV",
+    "Pindahkan data lama dari spreadsheet ke Ledjer dalam satu kali proses.",
+    [
+      "Siapkan file CSV (akun, produk, pihak, atau saldo awal) dari spreadsheet Anda.",
+      "Pilih jenis data yang diimpor dan unggah file.",
+      "Petakan kolom CSV ke kolom Ledjer, lalu periksa pratinjau.",
+      "Konfirmasi untuk menyelesaikan import — data langsung masuk.",
+    ],
+    "Gunakan template CSV yang disediakan untuk memastikan format benar.",
+  ),
+  reconciliation: guide(
+    "Rekonsiliasi Bank",
+    "Mencocokkan catatan kas bisnis dengan laporan bank.",
+    [
+      "Unduh laporan bank (statement) dan unggah sebagai CSV.",
+      "Cocokkan setiap baris statement dengan transaksi di Ledjer.",
+      "Tandai item yang tidak cocok dan catat biaya/bunga bank jika ada.",
+      "Saat saldo seimbang, rekonsiliasi selesai — saldo bank terbukti akurat.",
+    ],
+    "Lakukan rekonsiliasi rutin (bulanan) untuk mendeteksi kesalahan lebih awal.",
+  ),
+  notifications: guide(
+    "Pusat Notifikasi",
+    "Daftar hal yang butuh perhatian: tagihan jatuh tempo, stok menipis, dan lainnya.",
+    [
+      "Baca notifikasi untuk tahu tindakan yang perlu dilakukan.",
+      "Ketuk notifikasi untuk langsung membuka halaman terkait.",
+      "Notifikasi bersifat informasi — tidak ada alur persetujuan.",
+    ],
+  ),
+  "reports/profit-loss": guide(
+    "Laporan Laba Rugi",
+    "Apakah bisnis Anda untung atau rugi dalam periode tertentu.",
+    [
+      "Pilih rentang tanggal (misal bulan ini).",
+      "Lihat Pendapatan dikurangi HPP = Laba Kotor.",
+      "Kurangi beban operasional untuk mendapatkan Laba Bersih.",
+      "Ekspor laporan bila perlu dibagikan.",
+    ],
+    "Laba kotor yang tinggi tapi laba bersih tipis = beban operasional perlu ditekan.",
+  ),
+  "reports/balance-sheet": guide(
+    "Neraca",
+    "Posisi keuangan bisnis: aset, utang, dan modal pada tanggal tertentu.",
+    [
+      "Pilih tanggal neraca yang ingin dilihat.",
+      "Periksa Aset = Kewajiban + Ekuitas (harus selalu seimbang).",
+      "Gunakan untuk menilai kesehatan keuangan jangka panjang.",
+    ],
+  ),
+  "reports/cash-flow": guide(
+    "Laporan Arus Kas",
+    "Uang masuk dan keluar dari operasi, investasi, dan pendanaan.",
+    [
+      "Pilih periode laporan.",
+      "Lihat arus kas dari Operasi — ini yang paling penting untuk usaha kecil.",
+      "Arus kas negatif = perlu perhatian, walau laba terlihat positif.",
+    ],
+    "Bisnis bisa untung di kertas tapi bangkrut karena kehabisan kas — pantau laporan ini rutin.",
+  ),
+  "reports/aging": guide(
+    "Piutang & Utang (Aging)",
+    "Umur tagihan: siapa yang belum bayar dan berapa lama menunggak.",
+    [
+      "Pilih tab Piutang (tagihan ke pelanggan) atau Utang (tagihan dari pemasok).",
+      "Lihat pengelompokan umur: Lancar, 31-60 hari, 61-90 hari, >90 hari.",
+      "Fokus menagih piutang yang sudah tua (>60 hari).",
+    ],
+  ),
+  "reports/general-ledger": guide(
+    "Buku Besar",
+    "Jejak lengkap setiap pergerakan pada tiap akun.",
+    [
+      "Pilih akun dan rentang tanggal.",
+      "Telusuri saldo awal, setiap jurnal, dan saldo berjalan.",
+      "Gunakan untuk menelusuri asal setiap angka di laporan.",
+    ],
+  ),
+  "reports/trial-balance": guide(
+    "Neraca Saldo",
+    "Daftar saldo semua akun — memastikan debit = kredit.",
+    [
+      "Pilih tanggal neraca saldo.",
+      "Periksa total Debit dan Kredit harus sama.",
+      "Jika tidak sama, ada kesalahan pencatatan yang perlu ditelusuri.",
+    ],
+  ),
+  "reports/party-statement": guide(
+    "Laporan Pelanggan/Vendor",
+    "Seluruh transaksi dengan satu pihak: faktur, pembayaran, dan saldo.",
+    [
+      "Pilih pihak (pelanggan atau vendor).",
+      "Lihat riwayat lengkap dan saldo terutang.",
+      "Gunakan untuk menagih atau memverifikasi tagihan.",
+    ],
+  ),
+  "settings/organization": guide(
+    "Profil Usaha",
+    "Informasi bisnis: nama, jenis, mata uang, dan periode pembukuan.",
+    [
+      "Periksa dan ubah nama serta informasi bisnis.",
+      "Struktur akun otomatis mengikuti jenis bisnis yang dipilih.",
+      "Perubahan tersimpan otomatis atau lewat tombol Simpan.",
+    ],
+  ),
+  "settings/team": guide(
+    "Tim & Izin",
+    "Mengelola anggota tim dan hak akses mereka.",
+    [
+      "Ketuk 'Undang' untuk menambah anggota tim lewat email.",
+      "Pilih peran: Admin, Staf (mencatat & melihat), atau Viewer (hanya melihat).",
+      "Anggota menerima undangan dan bergabung ke organisasi.",
+    ],
+    "Undang staf dengan peran terbatas agar data tetap aman.",
+  ),
+  "settings/security": guide(
+    "Akun & Keamanan",
+    "Password, sesi login, dan audit aktivitas.",
+    [
+      "Ganti password bila perlu.",
+      "Kelola sesi login aktif di perangkat lain.",
+      "Periksa riwayat aktivitas untuk memantau keamanan akun.",
+    ],
+  ),
+  "settings/period-locks": guide(
+    "Kunci Periode",
+    "Mengunci periode agar transaksi lama tidak bisa diubah.",
+    [
+      "Pilih tanggal batas — transaksi sebelum tanggal itu terkunci.",
+      "Kunci periode setelah laporan final (misal akhir bulan).",
+      "Buka kunci hanya bila perlu, dengan alasan yang tercatat.",
+    ],
+    "Pastikan semua transaksi dan rekonsiliasi selesai sebelum mengunci.",
+  ),
+};

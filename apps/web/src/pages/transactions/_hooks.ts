@@ -424,7 +424,12 @@ export function useTransactionDerived(params: {
   const cashAccountLabel = CASH_ACCOUNT_LABELS[selectedType] || "Akun kas/bank";
   const categoryLabel = CATEGORY_LABELS[selectedType] || "Kategori";
   const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
-  const productSubtotal = (selectedProductId || selectedProductName) && selectedQuantity && selectedUnitPrice ? selectedQuantity * selectedUnitPrice : 0;
+  // Unit prices may be fractional (e.g. Rp 500.000 ÷ 251 butir = 1.992,03), so
+  // round the auto amount to a whole rupiah — the backend rejects non-integer
+  // amounts (it tolerates ±1 rounding drift in validateProductIntent).
+  const productSubtotal = (selectedProductId || selectedProductName) && selectedQuantity && selectedUnitPrice
+    ? Math.round(selectedQuantity * selectedUnitPrice)
+    : 0;
   const remainingAmount = Math.max(selectedAmount - selectedPartialAmount, 0);
   const isSaleType = selectedType === "cash_sale" || selectedType === "credit_sale";
   const stockAdjustment = Number(isSaleType ? -(selectedQuantity ?? 0) : (selectedQuantity ?? 0));

@@ -175,6 +175,7 @@ export function BalanceSheetPage() {
     <ReportShell
       title="Neraca"
       helpTopic="balance_sheet"
+      guide="reports/balance-sheet"
       description={isRefreshing ? "Memperbarui laporan..." : `Posisi aset, kewajiban, dan ekuitas per ${formatDateLong(appliedDate)}.`}
     >
 

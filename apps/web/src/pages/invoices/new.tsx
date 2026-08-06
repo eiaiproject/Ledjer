@@ -10,10 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatIDR } from "@/lib/utils";
+import { formatDecimalIDR, formatIDR, parseSignedDecimalInput } from "@/lib/utils";
 import { createInvoice } from "@/lib/api/invoices";
 import { listParties } from "@/lib/api/parties";
 import { FieldHelp } from "@/components/ui/help-tooltip";
+import { PageGuide } from "@/components/ui/page-guide";
 
 interface LineItem {
   productId?: string;
@@ -102,6 +103,9 @@ export default function NewInvoicePage() {
         <FieldHelp topic="invoice_journal" label="Faktur yang diterbitkan otomatis membuat jurnal akuntansi" />
       </div>
 
+      {/* Panduan halaman */}
+      <PageGuide guideKey="invoices/new" />
+
       <Card>
         <CardContent className="space-y-4 p-4">
           {/* Date fields */}
@@ -149,11 +153,11 @@ export default function NewInvoicePage() {
                 <Input id={`inv-line-${i}-qty`} type="number" min={0} step={1} value={line.quantity} onChange={(e) => updateLine(i, "quantity", Number.parseFloat(e.target.value) || 0)} />
               </div>
               <div className="col-span-2">
-                <label htmlFor={`inv-line-${i}-price`} className="block text-xs text-wood-500 mb-0.5">Harga</label>
-                <Input id={`inv-line-${i}-price`} type="number" min={0} value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", Number.parseFloat(e.target.value) || 0)} />
+                <label htmlFor={`inv-line-${i}-price`} className="block text-xs text-wood-500 mb-0.5">Harga Satuan</label>
+                <Input id={`inv-line-${i}-price`} isCurrency allowDecimals min={0} value={line.unitPrice} onChange={(e) => updateLine(i, "unitPrice", parseSignedDecimalInput(e.target.value, 0) ?? 0)} />
               </div>
               <div className="col-span-2 text-right text-sm text-wood-700 pt-5">
-                {formatIDR(line.quantity * line.unitPrice * 100)}
+                {formatDecimalIDR(line.quantity * line.unitPrice)}
               </div>
               <div className="col-span-1 pt-5">
                 {lines.length > 1 && (
@@ -171,11 +175,11 @@ export default function NewInvoicePage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="inv-discount" className="mb-1 block text-xs font-medium text-wood-600">Diskon (Rp)</label>
-              <Input id="inv-discount" type="number" min={0} value={discount} onChange={(e) => setDiscount(Number.parseFloat(e.target.value) || 0)} />
+              <Input id="inv-discount" isCurrency min={0} value={discount} onChange={(e) => setDiscount(Number.parseFloat(e.target.value) || 0)} />
             </div>
             <div>
               <label htmlFor="inv-tax" className="mb-1 block text-xs font-medium text-wood-600">Pajak (Rp)</label>
-              <Input id="inv-tax" type="number" min={0} value={tax} onChange={(e) => setTax(Number.parseFloat(e.target.value) || 0)} />
+              <Input id="inv-tax" isCurrency min={0} value={tax} onChange={(e) => setTax(Number.parseFloat(e.target.value) || 0)} />
             </div>
           </div>
           <div>
@@ -187,10 +191,10 @@ export default function NewInvoicePage() {
 
       {/* Totals */}
       <div className="text-right space-y-1 text-sm">
-        <div className="text-wood-600">Subtotal: {formatIDR(subtotal * 100)}</div>
-        {discount > 0 && <div className="text-red-600">Diskon: -{formatIDR(discount * 100)}</div>}
-        {tax > 0 && <div className="text-wood-600">Pajak: {formatIDR(tax * 100)}</div>}
-        <div className="text-lg font-semibold text-wood-800 border-t border-wood-200 pt-1">Total: {formatIDR(total * 100)}</div>
+        <div className="text-wood-600">Subtotal: {formatDecimalIDR(subtotal)}</div>
+        {discount > 0 && <div className="text-red-600">Diskon: -{formatIDR(discount)}</div>}
+        {tax > 0 && <div className="text-wood-600">Pajak: {formatIDR(tax)}</div>}
+        <div className="text-lg font-semibold text-wood-800 border-t border-wood-200 pt-1">Total: {formatDecimalIDR(total)}</div>
       </div>
 
       {/* Actions */}

@@ -381,8 +381,7 @@ export function OnboardingPage() {
                           render={({ field }) => (
                             <Input
                               label="Saldo Awal"
-                              type="text"
-                              inputMode="numeric"
+                              isCurrency
                               value={field.value}
                               onBlur={field.onBlur}
                               onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
@@ -419,8 +418,7 @@ export function OnboardingPage() {
                     render={({ field }) => (
                       <Input
                         label="Piutang Usaha (belum tertagih dari pelanggan)"
-                        type="text"
-                        inputMode="numeric"
+                        isCurrency
                         value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
@@ -436,8 +434,7 @@ export function OnboardingPage() {
                     render={({ field }) => (
                       <Input
                         label="Utang Usaha (belum dibayar ke pemasok)"
-                        type="text"
-                        inputMode="numeric"
+                        isCurrency
                         value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}
@@ -453,8 +450,7 @@ export function OnboardingPage() {
                     render={({ field }) => (
                       <Input
                         label="Modal Pemilik"
-                        type="text"
-                        inputMode="numeric"
+                        isCurrency
                         value={field.value}
                         onBlur={field.onBlur}
                         onChange={(e) => field.onChange(parseAmountInput(e.target.value, 0))}

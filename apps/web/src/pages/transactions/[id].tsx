@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/ui/error-state";
 import { AttachmentSection } from "@/components/attachment-section";
+import { PageGuide } from "@/components/ui/page-guide";
 import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
@@ -217,6 +218,9 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
           {statusLabel(transaction.status)}
         </Badge>
       </div>
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="transactions/:id" className="mb-6" />
 
       {/* Lifecycle status flow + hint why actions may be missing */}
       <div className="mb-6 flex flex-wrap items-center gap-2 pt-2">

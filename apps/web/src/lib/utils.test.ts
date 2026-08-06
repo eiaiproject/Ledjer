@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatNumber, parseSignedDecimalInput } from "./utils";
+import { formatDecimalIDR, formatDecimalInput, formatNumber, parseSignedDecimalInput } from "./utils";
 
 describe("parseSignedDecimalInput", () => {
   it("parses plain integers", () => {
@@ -55,5 +55,50 @@ describe("formatNumber (blur display contract for signed-decimal inputs)", () =>
     expect(formatNumber(0, 3)).toBe("0");
     expect(formatNumber(0.5, 3)).toBe("0,5");
     expect(formatNumber(-0.5, 3)).toBe("-0,5");
+  });
+});
+
+describe("formatDecimalInput (unit-price input display)", () => {
+  it("formats whole values without decimals (dot = thousands)", () => {
+    expect(formatDecimalInput(1992)).toBe("1.992");
+    expect(formatDecimalInput(500000)).toBe("500.000");
+    expect(formatDecimalInput(0)).toBe("0");
+  });
+
+  it("formats fractional values with id-ID comma decimals (up to 4dp)", () => {
+    expect(formatDecimalInput(1992.03)).toBe("1.992,03");
+    expect(formatDecimalInput(0.5)).toBe("0,5");
+    expect(formatDecimalInput(1234.567)).toBe("1.234,567");
+    expect(formatDecimalInput(1992.0319)).toBe("1.992,0319");
+  });
+
+  it("supports blankWhenZero for input display", () => {
+    expect(formatDecimalInput(0, true)).toBe("");
+    expect(formatDecimalInput(1992.03, true)).toBe("1.992,03");
+    expect(formatDecimalInput(null, true)).toBe("");
+    expect(formatDecimalInput(undefined, true)).toBe("");
+  });
+});
+
+describe("formatDecimalIDR (unit-price display)", () => {
+  // Intl currency output uses a non-breaking space (U+00A0) after "Rp" —
+  // same convention as formatIDR. Normalize it here for readable assertions.
+  const nbsp = "\u00A0";
+  const render = (v: number | null | undefined) => formatDecimalIDR(v).replaceAll(nbsp, " ");
+
+  it("renders whole amounts exactly like formatIDR", () => {
+    expect(render(1992)).toBe("Rp 1.992");
+    expect(render(500000)).toBe("Rp 500.000");
+  });
+
+  it("preserves up to 4 fractional digits with comma (matches 4dp average cost)", () => {
+    expect(render(1992.03)).toBe("Rp 1.992,03");
+    expect(render(1234.567)).toBe("Rp 1.234,567");
+    expect(render(1992.0319)).toBe("Rp 1.992,0319");
+  });
+
+  it("returns em dash for missing values", () => {
+    expect(formatDecimalIDR(null)).toBe("—");
+    expect(formatDecimalIDR(undefined)).toBe("—");
   });
 });

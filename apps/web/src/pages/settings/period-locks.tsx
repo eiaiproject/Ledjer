@@ -26,6 +26,7 @@ import {
   ShieldCheck,
 } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 
 /* ─── Helpers ────────────────────────────────────────────────────── */
 
@@ -795,6 +796,9 @@ export function PeriodLocksPage() {
         description: "Kunci transaksi hingga tanggal tertentu agar pembukuan yang sudah ditutup tidak berubah.",
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="settings/period-locks" />
 
       {/* Effective lock (prominent) */}
       {locks.length > 0 && (

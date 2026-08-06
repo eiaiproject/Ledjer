@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import { translateError } from "@/lib/errors";
 import { Store, Building } from "reicon-react";
 
@@ -71,6 +72,9 @@ export function OrganizationSettingsPage() {
         description: "Informasi dan pengaturan bisnis Anda.",
       }}
     >
+      {/* Panduan halaman */}
+      <PageGuide guideKey="settings/organization" />
+
       {/* Business Name */}
       <Card>
         <CardHeader>

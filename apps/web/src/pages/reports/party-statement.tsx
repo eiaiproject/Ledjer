@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR, formatDate } from "@/lib/utils";
 import { FieldHelp } from "@/components/ui/help-tooltip";
+import { PageGuide } from "@/components/ui/page-guide";
 
 interface StatementInvoice {
   invoiceId: string;
@@ -83,12 +84,15 @@ export default function PartyStatementPage() {
         <div>
           <h1 className="text-xl font-semibold text-wood-800">{data.partyName}</h1>
           <p className="text-sm text-wood-500">
-            {data.invoices.length} faktur — Total outstanding: {formatIDR(data.totalOutstanding)}
+            {data.invoices.length} faktur — Total outstanding: {formatIDR(data.totalOutstanding / 100)}
           </p>
           <FieldHelp topic="party_statement" label="Riwayat lengkap transaksi dengan pihak ini" />
         </div>
         <Button variant="ghost" onClick={() => navigate("/reports/aging")}>Kembali</Button>
       </div>
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="reports/party-statement" />
 
       {/* Unpaid invoices */}
       {unpaidInvoices.length > 0 && (
@@ -117,8 +121,8 @@ export default function PartyStatementPage() {
                       <td className="px-3 py-2.5 font-medium text-wood-800">{inv.invoiceNumber}</td>
                       <td className="px-3 py-2.5 text-wood-600">{formatDate(inv.date)}</td>
                       <td className="px-3 py-2.5 text-wood-600">{formatDate(inv.dueDate)}</td>
-                      <td className="px-3 py-2.5 text-right text-wood-700">{formatIDR(inv.totalMinor)}</td>
-                      <td className="px-3 py-2.5 text-right font-medium text-amber-600">{formatIDR(inv.outstandingMinor)}</td>
+                      <td className="px-3 py-2.5 text-right text-wood-700">{formatIDR(inv.totalMinor / 100)}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-amber-600">{formatIDR(inv.outstandingMinor / 100)}</td>
                       <td className={`px-3 py-2.5 font-medium ${STATUS_COLORS[inv.status] ?? ""}`}>
                         {STATUS_LABELS[inv.status] ?? inv.status}
                       </td>
@@ -153,7 +157,7 @@ export default function PartyStatementPage() {
                       <td className="px-3 py-2.5 font-medium text-wood-800">{inv.invoiceNumber}</td>
                       <td className="px-3 py-2.5 text-wood-600">{formatDate(inv.date)}</td>
                       <td className="px-3 py-2.5 text-wood-600">{formatDate(inv.dueDate)}</td>
-                      <td className="px-3 py-2.5 text-right text-wood-700">{formatIDR(inv.totalMinor)}</td>
+                      <td className="px-3 py-2.5 text-right text-wood-700">{formatIDR(inv.totalMinor / 100)}</td>
                       <td className={`px-3 py-2.5 font-medium ${STATUS_COLORS[inv.status] ?? ""}`}>
                         {STATUS_LABELS[inv.status] ?? inv.status}
                       </td>
@@ -180,7 +184,7 @@ export default function PartyStatementPage() {
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Total Outstanding</span>
-              <span className="font-semibold text-amber-600">{formatIDR(data.totalOutstanding)}</span>
+              <span className="font-semibold text-amber-600">{formatIDR(data.totalOutstanding / 100)}</span>
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Lunas</span>

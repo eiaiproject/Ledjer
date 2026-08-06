@@ -181,18 +181,39 @@ export async function generateSampleData(
   try {
     const statements: D1PreparedStatement[] = [];
 
-    // 1. Sample products
+    // 1. Sample products — insert with the current products schema. (Older
+    // columns price_minor/initial_stock_minor no longer exist; code is NOT NULL.)
     const sampleProducts = [
       { name: `${SAMPLE_PREFIX}Produk A`, unit: "pcs", price: 50000, cost: 35000 },
       { name: `${SAMPLE_PREFIX}Produk B`, unit: "pcs", price: 75000, cost: 50000 },
       { name: `${SAMPLE_PREFIX}Jasa Konsultasi`, unit: "jam", price: 150000, cost: 0 },
     ];
 
-    for (const p of sampleProducts) {
+    const findAccountId = async (code: string) => {
+      const row = await queryFirst<{ id: string }>(
+        db, "SELECT id FROM accounts WHERE organization_id = ? AND code = ?", [organizationId, code],
+      );
+      return row?.id ?? null;
+    };
+    const inventoryAccountId = await findAccountId("1300");
+    const cogsAccountId = await findAccountId("5100");
+    const revenueAccountId = await findAccountId("4100");
+
+    for (let i = 0; i < sampleProducts.length; i++) {
+      const p = sampleProducts[i];
       statements.push(
         statement(db,
-          `INSERT INTO products (id, organization_id, name, unit, price_minor, initial_stock_minor, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-          [generateId(), organizationId, p.name, p.unit, p.price, userId, now, now],
+          `INSERT INTO products (
+             id, organization_id, code, name, unit,
+             purchase_price_minor, selling_price_minor, average_cost_minor,
+             current_stock_milli, min_stock_milli,
+             inventory_account_id, cogs_account_id, revenue_account_id,
+             is_active, created_by, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, 1, ?, ?, ?)`,
+          [
+            generateId(), organizationId, `${SAMPLE_PREFIX}${String(i + 1).padStart(2, "0")}`, p.name, p.unit,
+            p.cost, p.price, inventoryAccountId, cogsAccountId, revenueAccountId, userId, now, now,
+          ],
         ),
       );
     }

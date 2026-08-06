@@ -42,6 +42,7 @@ import {
   InfoCircle,
 } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 
 // ── Canonical role and permission model ─────────────────────────────
 // Backend source of truth: organization.service.ts ROLE_PERMISSIONS
@@ -424,6 +425,9 @@ export function TeamSettingsPage() {
         description: "Undang anggota dan atur hak akses mereka ke bisnis Anda.",
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="settings/team" />
 
       {/* Owner section */}
       <section aria-labelledby="owners-heading">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 
 interface PreviewRow {
   index: number;
@@ -311,6 +312,8 @@ export default function ImportPage() {
       }}
     >
 
+      {/* Panduan halaman */}
+      <PageGuide guideKey="import" />
 
       {/* Entity type tabs */}
       <div className="flex gap-2 border-b border-wood-200 overflow-x-auto">

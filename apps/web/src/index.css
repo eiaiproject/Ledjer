@@ -266,6 +266,19 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* No native number spinners anywhere — nominal/number fields are text inputs
+   with a numeric keypad; removing the up/down arrows avoids accidental
+   scroll-increment and keeps a clean cash-register look. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Instant taps on Android — removes the double-tap-to-zoom gesture on
    controls so taps register on the first touch, not the second. */
 button, a, label, [role="button"], [role="switch"], [role="tab"], [role="radio"],

@@ -13,6 +13,7 @@ import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 import { CheckCircle, Check, X } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 
 interface BalanceLine {
@@ -149,6 +150,9 @@ export default function OpeningBalancePage() {
       }}
     >
 
+      {/* Panduan halaman */}
+      <PageGuide guideKey="opening-balance" />
+
       {/* Wizard Steps indicator */}
       <div className="flex items-center justify-center gap-2.5" aria-label={`Langkah ${stepIndex + 1} dari 3`}>
         {STEPS.map((s, idx) => (
@@ -208,7 +212,7 @@ export default function OpeningBalancePage() {
                     </label>
                     <Input
                       id={`obal-line-${i}-amount`}
-                      type="number"
+                      isCurrency
                       value={line.amount}
                       onChange={(e) => updateLine(i, "amount", Number.parseInt(e.target.value, 10) || 0)}
                     />
@@ -233,7 +237,7 @@ export default function OpeningBalancePage() {
                         <X className="h-4 w-4" /> Tidak Seimbang
                       </span>
                     )} —
-                    Debit: {formatIDR(totalDebit * 100)}, Kredit: {formatIDR(totalCredit * 100)}
+                    Debit: {formatIDR(totalDebit)}, Kredit: {formatIDR(totalCredit)}
                   </div>
                 </div>
               )}
@@ -279,16 +283,16 @@ export default function OpeningBalancePage() {
                             <span className="text-wood-500 text-xs">{line.accountCode}</span>{' '}
                             {line.accountName}
                           </td>
-                          <td className="py-2 pr-4 text-right text-wood-800">{line.debit > 0 ? formatIDR(line.debit * 100) : "-"}</td>
-                          <td className="py-2 text-right text-wood-800">{line.credit > 0 ? formatIDR(line.credit * 100) : "-"}</td>
+                          <td className="py-2 pr-4 text-right text-wood-800">{line.debit > 0 ? formatIDR(line.debit) : "-"}</td>
+                          <td className="py-2 text-right text-wood-800">{line.credit > 0 ? formatIDR(line.credit) : "-"}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-wood-400 font-semibold">
                         <td className="py-2 pr-4 text-wood-800">Total</td>
-                        <td className="py-2 pr-4 text-right text-wood-800">{formatIDR((preview.totalDebit as number) * 100)}</td>
-                        <td className="py-2 text-right text-wood-800">{formatIDR((preview.totalCredit as number) * 100)}</td>
+                        <td className="py-2 pr-4 text-right text-wood-800">{formatIDR(preview.totalDebit as number)}</td>
+                        <td className="py-2 text-right text-wood-800">{formatIDR(preview.totalCredit as number)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -357,16 +361,16 @@ export default function OpeningBalancePage() {
                           <span className="text-wood-500 text-xs">{acct.accountCode}</span>{' '}
                           {acct.accountName}
                         </td>
-                        <td className="py-1.5 pr-3 text-right text-wood-800">{acct.debit > 0 ? formatIDR(acct.debit * 100) : "-"}</td>
-                        <td className="py-1.5 text-right text-wood-800">{acct.credit > 0 ? formatIDR(acct.credit * 100) : "-"}</td>
+                        <td className="py-1.5 pr-3 text-right text-wood-800">{acct.debit > 0 ? formatIDR(acct.debit) : "-"}</td>
+                        <td className="py-1.5 text-right text-wood-800">{acct.credit > 0 ? formatIDR(acct.credit) : "-"}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-wood-400 font-semibold">
                       <td className="py-1.5 pr-3 text-wood-800">Total</td>
-                      <td className="py-1.5 pr-3 text-right text-wood-800">{formatIDR(postResult.snapshot.totalDebit * 100)}</td>
-                      <td className="py-1.5 text-right text-wood-800">{formatIDR(postResult.snapshot.totalCredit * 100)}</td>
+                      <td className="py-1.5 pr-3 text-right text-wood-800">{formatIDR(postResult.snapshot.totalDebit)}</td>
+                      <td className="py-1.5 text-right text-wood-800">{formatIDR(postResult.snapshot.totalCredit)}</td>
                     </tr>
                   </tfoot>
                 </table>

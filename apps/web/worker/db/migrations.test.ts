@@ -86,7 +86,7 @@ function buildFinalSchema(migrations: { name: string; sql: string }[]): Migratio
     }
 
     // Handle RENAME TO pattern (expand-contract: v2 → original)
-    const renameRe2 = /ALTER TABLE (\w+_v2)\s+RENAME TO (\w+)/g;
+    const renameRe2 = /ALTER TABLE (\w+_v\d+)\s+RENAME TO (\w+)/g;
     let rmatch: RegExpExecArray | null;
     while ((rmatch = renameRe2.exec(mig.sql)) !== null) {
       const v2Name = rmatch[1]; // e.g. audit_logs_v2
@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0030", () => {
-    const expected = Array.from({ length: 30 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0031", () => {
+    const expected = Array.from({ length: 31 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,6 +13,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatShortDate, cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { getDashboardSummary, getDashboardAlerts, type DashboardAlert } from "@/lib/api/dashboard";
 
 type ProfitState = {
@@ -95,19 +97,28 @@ export function DashboardPage() {
     data: summary,
     isLoading,
     error,
+    refetch: refetchSummary,
   } = useQuery({
     queryKey: queryKeys.dashboard(orgData?.organization?.id),
     queryFn: () => getDashboardSummary(),
     enabled: !!orgData?.organization?.id && canViewReports,
+    // Auto-refresh so numbers stay current while the page is open.
+    refetchInterval: 60_000,
   });
 
   // Fetch dashboard alerts
-  const { data: alertsData } = useQuery({
+  const { data: alertsData, refetch: refetchAlerts } = useQuery({
     queryKey: [...queryKeys.dashboard(orgData?.organization?.id), "alerts"],
     queryFn: () => getDashboardAlerts(),
     enabled: !!orgData?.organization?.id && canViewReports,
     refetchInterval: 60_000,
   });
+
+  // Pull-to-refresh on mobile re-fetches summary + alerts together.
+  const handleRefresh = useCallback(async () => {
+    if (!canViewReports) return; // queries are disabled without report access
+    await Promise.allSettled([refetchSummary(), refetchAlerts()]);
+  }, [canViewReports, refetchSummary, refetchAlerts]);
 
   // Empty-state heuristic: no revenue or expense activity this period
   const hasActivity = !!summary && (summary.revenue_current_period !== 0 || summary.expense_current_period !== 0);
@@ -126,6 +137,7 @@ export function DashboardPage() {
   const metricError = !!error;
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <PageShell
       header={{
         title: orgData?.organization ? `Halo, ${orgData.organization.name}` : "Halo",
@@ -140,6 +152,9 @@ export function DashboardPage() {
       }}
       className="sm:space-y-6"
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="dashboard" />
 
       {/* Actionable Alerts */}
       {canViewReports && alerts.length > 0 && (
@@ -316,6 +331,7 @@ export function DashboardPage() {
         </Card>
       )}
     </PageShell>
+    </PullToRefresh>
   );
 }
 

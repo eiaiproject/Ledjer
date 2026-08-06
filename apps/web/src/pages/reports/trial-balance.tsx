@@ -96,6 +96,7 @@ export function TrialBalancePage() {
     <ReportShell
       title="Neraca Saldo"
       helpTopic="trial_balance"
+      guide="reports/trial-balance"
       description={isRefreshing ? "Memperbarui laporan..." : `Per ${formatDateLong(appliedDate)}`}
     >
 

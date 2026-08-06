@@ -239,6 +239,7 @@ export function ProfitLossPage() {
     <ReportShell
       title="Laba Rugi"
       helpTopic="profit_loss"
+      guide="reports/profit-loss"
       description={isRefreshing ? "Memperbarui laporan..." : formatDateRange(appliedFrom, appliedTo)}
     >
 

@@ -206,6 +206,7 @@ export default function CashFlowPage() {
     <ReportShell
       title="Arus Kas"
       helpTopic="cash_flow"
+      guide="reports/cash-flow"
     >
       {/* Filter bar */}
       <div className="mb-6 flex flex-wrap items-end gap-3">

@@ -91,8 +91,17 @@ export interface StockCountResult {
   movement: unknown;
 }
 
-export function adjustStock(input: StockAdjustmentInput): Promise<{ movement: unknown }> {
-  return apiRequest("/api/inventory/adjust", {
+export interface StockAdjustmentResult {
+  movement: {
+    id: string;
+    /** True when the paired journal entry was posted. */
+    journal_posted: boolean;
+    journal_skip_reason?: string;
+  };
+}
+
+export function adjustStock(input: StockAdjustmentInput): Promise<StockAdjustmentResult> {
+  return apiRequest<StockAdjustmentResult>("/api/inventory/adjust", {
     method: "POST",
     body: JSON.stringify(input),
   });

@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 import { exportAccountsCsv } from "@/lib/csv-export";
 import {
@@ -856,6 +857,9 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
         ],
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="accounts" />
 
       {/* Search */}
       <div className="relative">
