@@ -35,7 +35,7 @@ type NavItem =
 type NavItemWithPerm = NavItem & { requires?: string };
 
 // ── Target Navigation ────────────────────────────────────────────
-// Beranda | Transaksi | Penjualan | Produk | Kas & Bank
+// Bottom nav (mobile): Beranda | Transaksi | Produk | Lainnya
 // Laporan → Laba Rugi, Neraca, Arus Kas, Piutang & Utang, Buku Besar, Neraca Saldo
 // Pengaturan → Profil Usaha, Akun & Keamanan, Saldo Awal, Tim, Impor Data, Lanjutan
 
@@ -72,6 +72,11 @@ const NAV_ITEMS: NavItemWithPerm[] = [
     ],
   },
 ];
+
+// Mobile bottom nav keeps only the most-used destinations as quick tabs.
+// Penjualan (invoices) & Kas & Bank (Chart of Accounts) are rarely used by
+// casual users — they stay reachable via the "Lainnya" mobile menu instead.
+const BOTTOM_NAV_ROUTES: readonly string[] = ["/dashboard", "/transactions", "/products"];
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -114,6 +119,11 @@ export function DashboardLayout() {
     if (!item.requires) return true;
     return (navPermissions as Record<string, boolean>)[item.requires] === true;
   });
+
+  // Bottom nav (mobile) tabs — subset of the top-level destinations.
+  const bottomNavItems = visibleNavItems.filter(
+    (item) => !item.children && BOTTOM_NAV_ROUTES.includes(item.to ?? ""),
+  );
 
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -581,7 +591,7 @@ export function DashboardLayout() {
         {/* flex-1 items + label truncation keep every tab visible on phones —
             no horizontal scroll (was ~400px wide, wider than all phones) */}
         <div className="mx-auto flex w-full max-w-md items-stretch gap-0.5 px-1.5">
-          {visibleNavItems.filter((item) => !item.children).map((item) => {
+          {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.to!);
             return (
@@ -609,7 +619,7 @@ export function DashboardLayout() {
               </Link>
             );
           })}
-          {visibleNavItems.some((item) => !item.children) && (
+          {visibleNavItems.some((item) => !item.children && !BOTTOM_NAV_ROUTES.includes(item.to ?? "")) && (
             <button               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium leading-tight text-wood-500 min-h-[56px]"

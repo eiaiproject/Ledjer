@@ -262,12 +262,16 @@ for (const vp of viewports) {
 // ── Bottom navigation (auth required) ──────────────────────────────
 
 test.describe("Bottom navigation", () => {
-  test("Akun link has aria-current=page", async ({ authPage }) => {
+  test("Akun tidak ada di bottom nav, diakses via menu Lainnya", async ({ authPage }) => {
     await gotoAccounts(authPage);
-    // Check bottom nav (mobile only)
-    const akunLink = authPage.locator('nav[aria-label="Navigasi mobile"] a[href="/accounts"]');
-    await expect(akunLink.first()).toBeAttached();
-    await expect(akunLink.first()).toHaveAttribute("aria-current", "page");
+    const bottomNav = authPage.locator('nav[aria-label="Navigasi mobile"]');
+    // Kas & Bank di-demote dari bottom nav (bottom nav = Beranda | Transaksi | Produk | Lainnya)
+    await expect(bottomNav.locator('a[href="/accounts"]')).toHaveCount(0);
+    // Tombol "Lainnya" membuka menu navigasi yang tetap memuat link /accounts
+    await bottomNav.getByRole("button", { name: /menu lainnya/i }).click();
+    const menu = authPage.locator('dialog[aria-label="Menu navigasi"]');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('a[href="/accounts"]').first()).toBeVisible();
   });
 });
 
