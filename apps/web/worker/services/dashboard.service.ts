@@ -114,30 +114,35 @@ async function checkUpcomingPayables(
 async function checkLowStock(
   db: D1Database, orgId: string, alerts: DashboardAlert[],
 ): Promise<void> {
-  const lowStockRow = await queryFirst<{ count: number }>(
+  const outRow = await queryFirst<{ count: number }>(
     db,
-    `SELECT COUNT(*) as count
-     FROM (
-       SELECT p.id,
-         p.initial_stock_minor + COALESCE(SUM(
-           CASE WHEN sm.movement_type = 'in' THEN sm.quantity_minor
-                WHEN sm.movement_type = 'out' THEN -sm.quantity_minor
-                ELSE 0 END
-         ), 0) as current_stock
-       FROM products p
-       LEFT JOIN stock_movements sm ON sm.product_id = p.id AND sm.organization_id = p.organization_id
-       WHERE p.organization_id = ? AND p.is_active = 1
-       GROUP BY p.id
-       HAVING current_stock <= 0
-     )`,
+    `SELECT COUNT(*) as count FROM products
+     WHERE organization_id = ? AND is_active = 1 AND current_stock_milli <= 0`,
     [orgId],
   );
-  if (lowStockRow && lowStockRow.count > 0) {
+  if (outRow && outRow.count > 0) {
     alerts.push({
-      id: "low_stock", type: "low_stock", severity: "medium",
+      id: "low_stock", type: "low_stock", severity: "high",
       title: "Stok Habis",
-      description: `${lowStockRow.count} produk memiliki stok 0. Segera lakukan pengadaan atau penyesuaian stok.`,
-      count: lowStockRow.count, actionLabel: "Kelola Produk", actionPath: "/products",
+      description: `${outRow.count} produk memiliki stok habis. Segera lakukan pengadaan atau penyesuaian stok.`,
+      count: outRow.count, actionLabel: "Kelola Produk", actionPath: "/products",
+    });
+  }
+
+  const lowRow = await queryFirst<{ count: number }>(
+    db,
+    `SELECT COUNT(*) as count FROM products
+     WHERE organization_id = ? AND is_active = 1
+       AND current_stock_milli > 0 AND min_stock_milli > 0
+       AND current_stock_milli <= min_stock_milli`,
+    [orgId],
+  );
+  if (lowRow && lowRow.count > 0) {
+    alerts.push({
+      id: "low_stock_threshold", type: "low_stock", severity: "medium",
+      title: "Stok Menipis",
+      description: `${lowRow.count} produk sudah mencapai atau di bawah stok minimum.`,
+      count: lowRow.count, actionLabel: "Kelola Produk", actionPath: "/products",
     });
   }
 }

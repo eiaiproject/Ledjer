@@ -66,7 +66,7 @@ export async function importStatement(
   );
   if (sameBalance) {
     warnings.push(
-      `Saldo akhir Rp ${(input.closingBalance / 100).toLocaleString("id-ID")} sudah pernah direkonsiliasi sebelumnya. Periksa apakah ini duplikat.`
+      `Saldo akhir Rp ${input.closingBalance.toLocaleString("id-ID")} sudah pernah direkonsiliasi sebelumnya. Periksa apakah ini duplikat.`
     );
   }
 

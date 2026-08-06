@@ -1,7 +1,8 @@
 import { generateId } from "../auth/tokens";
-import { execute, queryAll, queryFirst } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
 import { writeAuditStatement } from "../http/audit";
 import { badRequest, conflict, notFound } from "../http/errors";
+import { nextSequentialNumber } from "./document-utils";
 
 export type StockMovementType = "opening" | "purchase" | "sale" | "adjustment" | "void" | "stock_count" | "sale_return" | "purchase_return";
 
@@ -55,6 +56,12 @@ export interface StockAdjustmentInput {
   quantity: number;
   reason: string;
   movementDate?: string;
+}
+
+export interface StockAdjustmentResult extends PublicStockMovement {
+  /** Whether the paired journal entry was posted (false when accounts are missing). */
+  journal_posted: boolean;
+  journal_skip_reason?: string;
 }
 
 export interface StockCountInput {
@@ -196,13 +203,22 @@ export async function createProduct(
   );
 
   if (initialStockMilli > 0) {
+    const movementDate = new Date(current).toISOString().slice(0, 10);
     await recordStockMovement(db, organizationId, userId, {
       productId,
       movementType: "opening",
-      movementDate: new Date(current).toISOString().slice(0, 10),
+      movementDate,
       quantity: input.currentStock,
       unitCost: input.purchasePrice,
       notes: "Stok awal produk",
+    });
+    await postOpeningStockJournal(db, organizationId, userId, {
+      productName: name,
+      quantity: input.currentStock,
+      unitCostMinor: purchasePriceMinor,
+      inventoryAccountId: accounts.inventoryAccountId,
+      movementDate,
+      requestId,
     });
   }
 
@@ -317,15 +333,21 @@ export async function deactivateProduct(
  * Record a manual stock adjustment with a required reason.
  * Creates an adjustment stock movement and, if quantity changes, updates
  * the product's current stock and average cost.
- * The adjustment does NOT post journal entries — that requires a
- * separate inventory-adjustment transaction for financial impact.
+ *
+ * Also posts a balanced journal entry so the inventory control account
+ * stays in sync with the stock subledger:
+ *   stock increase → Dr Persediaan / Cr Pendapatan Lain-lain
+ *   stock decrease → Dr Beban Lain-lain / Cr Persediaan
+ * The journal is skipped when the adjustment has no monetary value or the
+ * required accounts are not configured (the movement is still recorded).
  */
 export async function recordStockAdjustment(
   db: D1Database,
   organizationId: string,
   userId: string,
   input: StockAdjustmentInput,
-): Promise<PublicStockMovement> {
+  requestId?: string,
+): Promise<StockAdjustmentResult> {
   if (!input.reason.trim()) {
     throw badRequest("reason_required", "Alasan penyesuaian stok wajib diisi.");
   }
@@ -336,13 +358,33 @@ export async function recordStockAdjustment(
   const product = await getProductRow(db, organizationId, input.productId);
   if (!product) throw notFound("product_not_found", "Produk tidak ditemukan");
 
-  return recordStockMovement(db, organizationId, userId, {
+  const movementDate = input.movementDate ?? new Date().toISOString().slice(0, 10);
+  await assertPeriodOpen(db, organizationId, movementDate);
+
+  // NOTE: the movement and its journal are recorded sequentially, not in one
+  // batch. Period-lock and account guards run before the movement, so the only
+  // residual non-atomic window is a DB failure on the journal batch itself.
+  const movement = await recordStockMovement(db, organizationId, userId, {
     productId: input.productId,
     movementType: "adjustment",
-    movementDate: input.movementDate ?? new Date().toISOString().slice(0, 10),
+    movementDate,
     quantity: input.quantity,
     notes: `[ADJ] ${input.reason.trim()}`,
   });
+
+  const journal = await postStockAdjustmentJournal(db, organizationId, userId, {
+    product,
+    quantity: input.quantity,
+    reason: input.reason.trim(),
+    movementDate,
+    requestId,
+  });
+
+  return {
+    ...movement,
+    journal_posted: journal.posted,
+    journal_skip_reason: journal.skipReason,
+  };
 }
 
 /**
@@ -715,6 +757,212 @@ async function ensureUniqueProductCode(
     exceptProductId ? [organizationId, code, exceptProductId] : [organizationId, code],
   );
   if (existing) throw conflict("product_code_duplicate", "Product code is already used");
+}
+
+/**
+ * Guard against posting stock adjustments inside a locked period.
+ * Local copy of the same guard used by manual-journals/transactions to
+ * avoid a circular import between the products and transactions services.
+ */
+async function assertPeriodOpen(db: D1Database, organizationId: string, date: string): Promise<void> {
+  const lock = await queryFirst<{ id: string }>(
+    db,
+    `SELECT id FROM period_locks
+     WHERE organization_id = ? AND locked_through_date >= ?
+     ORDER BY locked_through_date DESC LIMIT 1`,
+    [organizationId, date],
+  );
+  if (lock) throw conflict("period_locked", "The selected date is inside a locked period");
+}
+
+interface StockAdjustmentJournalInput {
+  product: ProductRow;
+  quantity: number;
+  reason: string;
+  movementDate: string;
+  requestId?: string;
+}
+
+/**
+ * Post a balanced journal entry for a manual stock adjustment.
+ * Amount = |quantity| × weighted-average cost. Skips posting when the
+ * adjustment has no monetary value or the needed accounts are missing.
+ */
+async function postStockAdjustmentJournal(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: StockAdjustmentJournalInput,
+): Promise<{ posted: boolean; skipReason?: string }> {
+  const value = Math.round(Math.abs(input.quantity) * input.product.average_cost_minor);
+  if (value <= 0) {
+    return { posted: false, skipReason: "no_value" };
+  }
+
+  const inventoryAccountId = input.product.inventory_account_id
+    ?? await findActiveAccountId(db, organizationId, "1300");
+  if (!inventoryAccountId) {
+    return { posted: false, skipReason: "inventory_account_missing" };
+  }
+
+  const isDecrease = input.quantity < 0;
+  const counterpartCode = isDecrease ? "8100" : "7100";
+  const counterpartAccountId = await findActiveAccountId(db, organizationId, counterpartCode);
+  if (!counterpartAccountId) {
+    return { posted: false, skipReason: "counterpart_account_missing" };
+  }
+
+  const current = Date.now();
+  const journalEntryId = generateId();
+  const entryNumber = await nextSequentialNumber(db, organizationId, "stock_adjustment", "AJ");
+  const description = `Penyesuaian stok ${input.product.name} — ${input.reason}`;
+  const debitAccountId = isDecrease ? counterpartAccountId : inventoryAccountId;
+  const creditAccountId = isDecrease ? inventoryAccountId : counterpartAccountId;
+
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, entry_number, entry_date, entry_type,
+         description, status, posted_at, posted_by, created_at
+       ) VALUES (?, ?, ?, ?, 'adjustment', ?, 'posted', ?, ?, ?)`,
+      [journalEntryId, organizationId, entryNumber, input.movementDate, description, current, userId, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id,
+         debit_minor, credit_minor, description, line_order, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      [generateId(), organizationId, journalEntryId, debitAccountId, value, 0, description, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id,
+         debit_minor, credit_minor, description, line_order, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 2, ?)`,
+      [generateId(), organizationId, journalEntryId, creditAccountId, 0, value, description, current],
+    ),
+  ];
+
+  statements.push(
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "journal_entry",
+      entityId: journalEntryId,
+      action: "post",
+      after: {
+        entry_type: "adjustment",
+        entry_number: entryNumber,
+        entry_date: input.movementDate,
+        total_debit: value,
+        total_credit: value,
+        stock_adjustment: true,
+      },
+      requestId: input.requestId,
+      current,
+    }),
+  );
+
+  await executeBatch(db, statements);
+
+  return { posted: true };
+}
+
+interface OpeningStockJournalInput {
+  productName: string;
+  quantity: number;
+  unitCostMinor: number;
+  inventoryAccountId: string | null;
+  movementDate: string;
+  requestId?: string;
+}
+
+/**
+ * Post the opening-stock journal so the Persediaan control account matches
+ * the stock subledger from day one (otherwise selling the opening stock would
+ * drive the inventory account negative). Dr Persediaan / Cr Saldo Awal (3200).
+ * Skipped when the value is zero or the accounts are not configured.
+ */
+async function postOpeningStockJournal(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: OpeningStockJournalInput,
+): Promise<void> {
+  const value = Math.round(input.quantity * input.unitCostMinor);
+  if (value <= 0) return;
+
+  const inventoryAccountId = input.inventoryAccountId
+    ?? await findActiveAccountId(db, organizationId, "1300");
+  if (!inventoryAccountId) return;
+  const openingBalanceAccountId = await findActiveAccountId(db, organizationId, "3200");
+  if (!openingBalanceAccountId) return;
+
+  const current = Date.now();
+  const journalEntryId = generateId();
+  const entryNumber = await nextSequentialNumber(db, organizationId, "opening_stock", "OP");
+  const description = `Stok awal produk ${input.productName}`;
+
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, entry_number, entry_date, entry_type,
+         description, status, posted_at, posted_by, created_at
+       ) VALUES (?, ?, ?, ?, 'opening_balance', ?, 'posted', ?, ?, ?)`,
+      [journalEntryId, organizationId, entryNumber, input.movementDate, description, current, userId, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id,
+         debit_minor, credit_minor, description, line_order, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+      [generateId(), organizationId, journalEntryId, inventoryAccountId, value, 0, description, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id,
+         debit_minor, credit_minor, description, line_order, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, 2, ?)`,
+      [generateId(), organizationId, journalEntryId, openingBalanceAccountId, 0, value, description, current],
+    ),
+  ];
+
+  statements.push(
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "journal_entry",
+      entityId: journalEntryId,
+      action: "post",
+      after: {
+        entry_type: "opening_balance",
+        entry_number: entryNumber,
+        entry_date: input.movementDate,
+        total_debit: value,
+        total_credit: value,
+        opening_stock: true,
+      },
+      requestId: input.requestId,
+      current,
+    }),
+  );
+
+  await executeBatch(db, statements);
+}
+
+async function findActiveAccountId(db: D1Database, organizationId: string, code: string): Promise<string | null> {
+  const row = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM accounts WHERE organization_id = ? AND code = ? AND is_active = 1",
+    [organizationId, code],
+  );
+  return row?.id ?? null;
 }
 
 async function getOrganizationOnboardingStatus(

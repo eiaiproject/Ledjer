@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getOnboardingStatus } from "./onboarding.service";
+import { getOnboardingStatus, generateSampleData } from "./onboarding.service";
 import { FakeD1Database } from "../test/fake-d1";
 import { FIXTURE_IDS } from "../test/fixtures";
 
@@ -30,6 +30,35 @@ describe("Onboarding Service", () => {
     expect(incompleteSteps).toContain("view_first_report");
     expect(incompleteSteps).toContain("invite_team_member");
     expect(incompleteSteps).toContain("first_period_close");
+  });
+
+  it("generates sample products with the current schema and account links", async () => {
+    const statements: { sql: string; values: unknown[] }[] = [];
+    const db = new FakeD1Database({
+      first: async (sql: string, values: unknown[]) => {
+        const s = sql.replace(/\s+/g, " ");
+        if (s.includes("COUNT(*)")) return { count: 0 };
+        if (s.includes("FROM accounts")) {
+          const ids: Record<string, string> = { "1300": "acct-1300", "5100": "acct-5100", "4100": "acct-4100" };
+          const id = ids[values[1] as string];
+          return id ? { id } : null;
+        }
+        return null;
+      },
+      batch: async (stmts) => {
+        statements.push(...stmts);
+        return stmts.map(() => ({ success: true, meta: { changes: 1 } }) as D1Result);
+      },
+    });
+
+    const result = await generateSampleData(db as unknown as D1Database, FIXTURE_IDS.orgs.a, "user-1");
+
+    expect(result.success).toBe(true);
+    const productInserts = statements.filter((s) => s.sql.includes("INSERT INTO products"));
+    expect(productInserts).toHaveLength(3);
+    expect(productInserts[0].values[2]).toBe("[SAMPLE] 01"); // code
+    expect(productInserts[0].values[5]).toBe(35000); // purchase_price_minor
+    expect(productInserts[0].values[7]).toBe("acct-1300"); // inventory_account_id
   });
 
   it("all steps complete for seeded org", async () => {
