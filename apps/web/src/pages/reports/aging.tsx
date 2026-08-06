@@ -48,6 +48,7 @@ export default function AgingReportPage() {
     <ReportShell
       title="Piutang & Utang"
       helpTopic="aging"
+      guide="reports/aging"
     >
       <div className="flex items-end gap-3">
         <div className="w-48">
@@ -105,14 +106,14 @@ export default function AgingReportPage() {
                       </td>
                       {party.buckets.map((bucket) => (
                         <td key={bucket.label} className="px-4 py-3 text-right text-wood-700">
-                          {bucket.totalMinor > 0 ? formatIDR(bucket.totalMinor) : "—"}
+                          {bucket.totalMinor > 0 ? formatIDR(bucket.totalMinor / 100) : "—"}
                         </td>
                       ))}
                       {/* Fill remaining buckets if fewer than 5 */}
                       {Array.from({ length: Math.max(0, 5 - party.buckets.length) }, (_, idx) => (
                         <td key={`empty-${idx}`} className="px-4 py-3 text-right text-wood-500">—</td>
                       ))}
-                      <td className="px-4 py-3 text-right font-semibold text-wood-800">{formatIDR(party.totalOutstanding)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-wood-800">{formatIDR(party.totalOutstanding / 100)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -121,10 +122,10 @@ export default function AgingReportPage() {
                     <td className="px-4 py-3 text-wood-800">Total</td>
                     {allItems[0].buckets.map((bucket, i) => (
                       <td key={bucket.label} className="px-4 py-3 text-right text-wood-800">
-                        {formatIDR(allItems.reduce((s, p) => s + (p.buckets[i]?.totalMinor ?? 0), 0))}
+                        {formatIDR(allItems.reduce((s, p) => s + (p.buckets[i]?.totalMinor ?? 0), 0) / 100)}
                       </td>
                     ))}
-                    <td className="px-4 py-3 text-right text-wood-800">{formatIDR(totalOutstanding)}</td>
+                    <td className="px-4 py-3 text-right text-wood-800">{formatIDR(totalOutstanding / 100)}</td>
                   </tr>
                 </tfoot>
               </table>

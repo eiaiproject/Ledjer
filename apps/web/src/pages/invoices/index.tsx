@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { getStatus } from "@/lib/status-registry";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 
 
 
@@ -36,6 +37,9 @@ export default function InvoiceListPage() {
         actions: [{ key: "create", children: <Button onClick={() => navigate("/invoices/new")}>+ Faktur Baru</Button> }],
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="invoices" />
 
       {isLoading && (
         <div className="space-y-3">
@@ -72,7 +76,7 @@ export default function InvoiceListPage() {
                     <td className="px-4 py-3 text-wood-700">{inv.partyName ?? inv.partyId}</td>
                     <td className="px-4 py-3 text-wood-600">{formatDate(inv.invoiceDate)}</td>
                     <td className="px-4 py-3 text-wood-600">{formatDate(inv.dueDate)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-wood-800">{formatIDR(inv.totalMinor)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-wood-800">{formatIDR(inv.totalMinor / 100)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={getStatus("invoices", inv.status).variant} size="sm">
                         {getStatus("invoices", inv.status).label}

@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
+import { formatAmountInput, parseAmountInput } from "@/lib/utils";
 
 import {
   postManualJournal,
@@ -29,10 +30,10 @@ import {
   X,
   Eye,
   BookOpen,
-  
-  
+  InfoCircle,
 } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 
 interface LineEntry {
@@ -87,6 +88,27 @@ export function ManualJournalPage() {
   const totalCredit = lines.reduce((s, l) => s + (l.creditMinor || 0), 0);
   const balanced = totalDebit > 0 && totalCredit > 0 && totalDebit === totalCredit;
   const difference = Math.abs(totalDebit - totalCredit);
+  const rupiah = (n: number) => n.toLocaleString("id-ID");
+
+  // Status panduan inline — menjelaskan apa yang kurang agar tombol bisa dipakai
+  const missingDescription = description.trim().length === 0;
+  const missingAccount = lines.some((l) => !l.accountId);
+  const status: { tone: "neutral" | "warning" | "error" | "success"; text: string } = (() => {
+    if (missingDescription) return { tone: "neutral", text: "Langkah 1: isi Deskripsi jurnal di atas." };
+    if (missingAccount) return { tone: "warning", text: "Pilih akun untuk semua baris jurnal agar bisa Preview." };
+    if (!balanced) {
+      return {
+        tone: "error",
+        text: `Jurnal belum balance — selisih Rp ${rupiah(difference)}. Samakan total Debit dan Kredit.`,
+      };
+    }
+    if (!preview) return { tone: "warning", text: "Jurnal sudah balance. Klik Preview untuk memeriksa, lalu Posting Jurnal." };
+    return { tone: "success", text: "Jurnal balance — siap diposting." };
+  })();
+
+  // Preview dianggap basi jika jurnal berubah setelah preview — cegah
+  // posting data lama yang tidak sesuai isian terakhir.
+  const invalidatePreview = useCallback(() => setPreview(null), []);
 
   // Mutations
   const postMutation = useMutation({
@@ -137,14 +159,17 @@ export function ManualJournalPage() {
   });
 
   const handleAddLine = useCallback(() => {
+    setPreview(null);
     setLines(prev => [...prev, newLine()]);
   }, []);
 
   const handleRemoveLine = useCallback((id: string) => {
+    setPreview(null);
     setLines(prev => prev.filter(l => l.id !== id));
   }, []);
 
   const handleLineChange = useCallback((id: string, field: keyof LineEntry, value: string | number) => {
+    setPreview(null);
     setLines(prev => prev.map(l => {
       if (l.id !== id) return l;
       const updated = { ...l, [field]: value };
@@ -179,6 +204,7 @@ export function ManualJournalPage() {
     setLines(loadedLines.length >= 2 ? loadedLines : [newLine(), newLine()]);
     setDescription(template.description);
     setEntryType(template.entryType);
+    setPreview(null);
     setShowTemplates(false);
   }, [accountMap]);
 
@@ -186,6 +212,10 @@ export function ManualJournalPage() {
   const handlePreview = useCallback(() => {
     if (!description.trim()) {
       toast.error("Deskripsi jurnal harus diisi");
+      return;
+    }
+    if (lines.some((l) => !l.accountId)) {
+      toast.error("Pilih akun untuk semua baris jurnal");
       return;
     }
     previewMutation.mutate({
@@ -204,11 +234,11 @@ export function ManualJournalPage() {
 
   const handlePost = useCallback(() => {
     if (!preview) {
-      toast.error("Preview jurnal terlebih dahulu");
+      toast.error("Klik Preview terlebih dahulu untuk memeriksa jurnal");
       return;
     }
     if (!balanced) {
-      toast.error("Jurnal belum balance (debit ≠ credit)");
+      toast.error("Jurnal belum balance (debit ≠ kredit)");
       return;
     }
     postMutation.mutate({
@@ -262,6 +292,9 @@ export function ManualJournalPage() {
       }}
     >
 
+      {/* Panduan halaman */}
+      <PageGuide guideKey="journals" />
+
       {/* Journal form */}
       <Card>
         <CardContent className="space-y-4 py-4">
@@ -271,14 +304,14 @@ export function ManualJournalPage() {
               label="Tanggal"
               type="date"
               value={entryDate}
-              onChange={(e) => setEntryDate(e.target.value)}
+              onChange={(e) => { setEntryDate(e.target.value); invalidatePreview(); }}
             />
             <div>
               <label htmlFor="journalEntryType" className="block text-sm font-medium text-wood-700">Jenis Jurnal</label>
               <select
                 id="journalEntryType"
                 value={entryType}
-                onChange={(e) => setEntryType(e.target.value)}
+                onChange={(e) => { setEntryType(e.target.value); invalidatePreview(); }}
                 className="mt-1 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
               >
                 <option value="manual_journal">Jurnal Manual</option>
@@ -290,7 +323,7 @@ export function ManualJournalPage() {
             <Input
               label="Deskripsi"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value); invalidatePreview(); }}
               placeholder="Deskripsi jurnal..."
             />
           </div>
@@ -300,7 +333,7 @@ export function ManualJournalPage() {
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-wood-700">Baris Jurnal</p>
               <Badge variant={balanced ? "success" : totalDebit > 0 || totalCredit > 0 ? "error" : "neutral"} size="sm">{/* NOSONAR */}
-                {balanced ? "Balance" : `Selisih: Rp ${(difference / 100).toLocaleString("id-ID")}`}
+                {balanced ? "Balance" : `Selisih: Rp ${rupiah(difference)}`}
               </Badge>
             </div>
 
@@ -309,10 +342,13 @@ export function ManualJournalPage() {
               <span>Akun</span>
               <span>Deskripsi</span>
               <span></span>
-              <span className="text-right">Debit</span>
-              <span className="text-right">Kredit</span>
+              <span className="text-right">Debit (Rp)</span>
+              <span className="text-right">Kredit (Rp)</span>
               <span></span>
             </div>
+            <p className="text-xs text-text-tertiary">
+              Masukkan nominal dalam Rupiah — contoh: <strong>100000</strong> = Rp 100.000.
+            </p>
 
             {lines.map((line, index) => (
               <div key={line.id} className="grid grid-cols-1 gap-2 rounded-md border border-wood-100 bg-cream-50 p-3 sm:grid-cols-[1fr_1fr_1fr_80px_80px_40px] sm:items-center">
@@ -345,24 +381,24 @@ export function ManualJournalPage() {
                 )}
                 {!line.accountName && <div className="hidden sm:block" />}
 
-                {/* Debit */}
+                {/* Debit — nominal dalam Rupiah (bukan sen); pemisah ribuan otomatis */}
                 <input
                   type="text"
-                  inputMode="decimal"
-                  value={line.debitMinor ? String(line.debitMinor / 100) : ""}
-                  onChange={(e) => handleLineChange(line.id, "debitMinor", Math.round((Number.parseFloat(e.target.value) || 0) * 100))}
-                  className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
+                  inputMode="numeric"
+                  value={line.debitMinor ? formatAmountInput(line.debitMinor, true) : ""}
+                  onChange={(e) => handleLineChange(line.id, "debitMinor", parseAmountInput(e.target.value, 0) ?? 0)}
+                  className="num-mono min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Debit baris ${index + 1}`}
                 />
 
-                {/* Credit */}
+                {/* Credit — nominal dalam Rupiah (bukan sen); pemisah ribuan otomatis */}
                 <input
                   type="text"
-                  inputMode="decimal"
-                  value={line.creditMinor ? String(line.creditMinor / 100) : ""}
-                  onChange={(e) => handleLineChange(line.id, "creditMinor", Math.round((Number.parseFloat(e.target.value) || 0) * 100))}
-                  className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
+                  inputMode="numeric"
+                  value={line.creditMinor ? formatAmountInput(line.creditMinor, true) : ""}
+                  onChange={(e) => handleLineChange(line.id, "creditMinor", parseAmountInput(e.target.value, 0) ?? 0)}
+                  className="num-mono min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Kredit baris ${index + 1}`}
                 />
@@ -387,11 +423,11 @@ export function ManualJournalPage() {
 
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-wood-500">
-                  Debit: <strong className="text-wood-700">Rp {(totalDebit / 100).toLocaleString("id-ID")}</strong>
+                  Debit: <strong className="text-wood-700">Rp {rupiah(totalDebit)}</strong>
                 </span>
                 <span className="text-wood-500">|</span>
                 <span className="text-wood-500">
-                  Kredit: <strong className="text-wood-700">Rp {(totalCredit / 100).toLocaleString("id-ID")}</strong>
+                  Kredit: <strong className="text-wood-700">Rp {rupiah(totalCredit)}</strong>
                 </span>
               </div>
             </div>
@@ -406,14 +442,14 @@ export function ManualJournalPage() {
                   <div key={line.accountCode + "-" + i} className="flex justify-between">
                     <span>
                       {line.accountCode} - {line.accountName}
-                      {line.debitMinor > 0 ? ` (Debit: Rp ${(line.debitMinor / 100).toLocaleString()})` : ""}
-                      {line.creditMinor > 0 ? ` (Kredit: Rp ${(line.creditMinor / 100).toLocaleString()})` : ""}
+                      {line.debitMinor > 0 ? ` (Debit: Rp ${rupiah(line.debitMinor)})` : ""}
+                      {line.creditMinor > 0 ? ` (Kredit: Rp ${rupiah(line.creditMinor)})` : ""}
                     </span>
                     <span className="text-leaf-600">{line.description}</span>
                   </div>
                 ))}
                 <div className="border-t border-leaf-300 pt-1 font-medium">
-                  Total: Debit Rp {(preview.totalDebit / 100).toLocaleString()} = Kredit Rp {(preview.totalCredit / 100).toLocaleString()}
+                  Total: Debit Rp {rupiah(preview.totalDebit)} = Kredit Rp {rupiah(preview.totalCredit)}
                   {preview.balanced ? (
                     <span className="inline-flex items-center gap-1 text-leaf-600">
                       <Check className="h-4 w-4" /> Balance
@@ -428,6 +464,24 @@ export function ManualJournalPage() {
             </div>
           )}
 
+          {/* Status panduan inline — selalu terlihat */}
+          <div
+            role="status"
+            aria-live="polite"
+            className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${
+              status.tone === "success"
+                ? "border-leaf-200 bg-leaf-50 text-leaf-800"
+                : status.tone === "error"
+                  ? "border-error-border bg-error-bg text-error"
+                  : status.tone === "warning"
+                    ? "border-honey-300 bg-honey-50 text-honey-800"
+                    : "border-wood-200 bg-wood-50 text-wood-700"
+            }`}
+          >
+            <InfoCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 break-words">{status.text}</span>
+          </div>
+
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-2">
             <Button
@@ -435,7 +489,7 @@ export function ManualJournalPage() {
               variant="secondary"
               onClick={handlePreview}
               loading={previewMutation.isPending}
-              disabled={description.trim().length === 0 || lines.some(l => !l.accountId)}
+              disabled={previewMutation.isPending}
             >
               <Eye className="h-4 w-4" />
               Preview
@@ -445,7 +499,7 @@ export function ManualJournalPage() {
               variant="primary"
               onClick={handlePost}
               loading={postMutation.isPending}
-              disabled={!preview || !balanced || postMutation.isPending}
+              disabled={postMutation.isPending}
             >
               <Check className="h-4 w-4" />
               Posting Jurnal
@@ -514,7 +568,7 @@ export function ManualJournalPage() {
                     <div>
                       <p className="text-sm font-medium text-wood-700">{t.name}</p>
                       <p className="text-xs text-wood-500">
-                        {t.lines.length} baris | Rp {(t.totalDebitMinor / 100).toLocaleString()}
+                        {t.lines.length} baris | Rp {rupiah(t.totalDebitMinor)}
                       </p>
                     </div>
                     <div className="flex gap-2">

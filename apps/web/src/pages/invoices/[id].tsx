@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatIDR, formatDate } from "@/lib/utils";
+import { formatDecimalIDR, formatIDR, formatDate } from "@/lib/utils";
 import { getInvoice, updateInvoiceStatus, createCreditNote as createCreditNoteApi, getCreditNotes, sendInvoiceEmail, printInvoiceUrl } from "@/lib/api/invoices";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useState } from "react";
 import { StatusFlow } from "@/components/ui/status-flow";
 import { FieldHelp } from "@/components/ui/help-tooltip";
+import { PageGuide } from "@/components/ui/page-guide";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
@@ -131,6 +132,9 @@ export default function InvoiceDetailPage() {
         <Button variant="ghost" onClick={() => navigate("/invoices")}>Kembali</Button>
       </div>
 
+      {/* Panduan halaman */}
+      <PageGuide guideKey="invoices/:id" />
+
       {/* Lifecycle status flow */}
       <div className="flex flex-wrap items-center gap-2">
         <StatusFlow
@@ -182,8 +186,8 @@ export default function InvoiceDetailPage() {
                     <td className="px-4 py-2 text-wood-500">{line.lineNumber ?? i + 1}</td>
                     <td className="px-4 py-2 text-wood-800">{line.description}</td>
                     <td className="px-4 py-2 text-right text-wood-700">{(line.quantityMilli / 1000).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-right text-wood-700">{formatIDR(line.unitPriceMinor)}</td>
-                    <td className="px-4 py-2 text-right font-medium text-wood-800">{formatIDR(line.amountMinor)}</td>
+                    <td className="px-4 py-2 text-right text-wood-700">{formatDecimalIDR(line.unitPriceMinor / 100)}</td>
+                    <td className="px-4 py-2 text-right font-medium text-wood-800">{formatDecimalIDR(line.amountMinor / 100)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -191,10 +195,10 @@ export default function InvoiceDetailPage() {
           </div>
 
           <div className="text-right space-y-1 text-sm border-t border-wood-200 pt-3">
-            <div className="text-wood-600">Subtotal: {formatIDR(invoice.subtotalMinor)}</div>
-            {invoice.discountMinor > 0 && <div className="text-red-600">Diskon: -{formatIDR(invoice.discountMinor)}</div>}
-            {invoice.taxMinor > 0 && <div className="text-wood-600">Pajak: {formatIDR(invoice.taxMinor)}</div>}
-            <div className="text-lg font-semibold text-wood-800">Total: {formatIDR(invoice.totalMinor)}</div>
+            <div className="text-wood-600">Subtotal: {formatDecimalIDR(invoice.subtotalMinor / 100)}</div>
+            {invoice.discountMinor > 0 && <div className="text-red-600">Diskon: -{formatIDR(invoice.discountMinor / 100)}</div>}
+            {invoice.taxMinor > 0 && <div className="text-wood-600">Pajak: {formatIDR(invoice.taxMinor / 100)}</div>}
+            <div className="text-lg font-semibold text-wood-800">Total: {formatDecimalIDR(invoice.totalMinor / 100)}</div>
           </div>
 
           {/* Payment progress */}
@@ -202,11 +206,11 @@ export default function InvoiceDetailPage() {
             <div className="border-t border-wood-200 pt-3 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-wood-600">Telah Dibayar</span>
-                <span className="font-medium text-emerald-600">{formatIDR(invoice.paidMinor)}</span>
+                <span className="font-medium text-emerald-600">{formatIDR(invoice.paidMinor / 100)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-wood-600">Sisa Tagihan</span>
-                <span className="font-medium text-amber-600">{formatIDR(invoice.totalMinor - invoice.paidMinor)}</span>
+                <span className="font-medium text-amber-600">{formatIDR((invoice.totalMinor - invoice.paidMinor) / 100)}</span>
               </div>
               <div className="w-full h-2 bg-wood-100 rounded-full overflow-hidden">
                 <div
@@ -241,7 +245,7 @@ export default function InvoiceDetailPage() {
                   <span className="font-medium text-violet-800">{cn.invoiceNumber}</span>
                   <span className="ml-2 text-xs text-violet-500">{STATUS_LABELS[cn.status] ?? cn.status}</span>
                 </div>
-                <span className="font-medium text-violet-700">{formatIDR(cn.totalMinor)}</span>
+                <span className="font-medium text-violet-700">{formatIDR(cn.totalMinor / 100)}</span>
               </div>
             ))}
           </CardContent>
@@ -317,7 +321,7 @@ export default function InvoiceDetailPage() {
                       <label htmlFor={`cr-line-${i}-amount`} className="block text-xs text-wood-500 mb-0.5">Jumlah (Rp)</label>
                       <Input
                         id={`cr-line-${i}-amount`}
-                        type="number"
+                        isCurrency
                         min={0}
                         value={cl.amount}
                         onChange={(e) => {
