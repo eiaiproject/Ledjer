@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import { translateError } from "@/lib/errors";
 import { apiRequest } from "@/lib/api/client";
 import { formatShortDate } from "@/lib/utils";
@@ -256,6 +257,9 @@ export function SecuritySettingsPage() {
         description: "Kelola akun, password, dan aktivitas keamanan.",
       }}
     >
+      {/* Panduan halaman */}
+      <PageGuide guideKey="settings/security" />
+
       {/* User Info */}
       <Card>
         <CardHeader>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/notifications";
 import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Check } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -260,6 +261,9 @@ export function NotificationsPage() {
       }}
       className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8"
     >
+      {/* Panduan halaman */}
+      <PageGuide guideKey="notifications" />
+
       {/* Category filter */}
       <FieldHelp topic="notification_triggers" label="Notifikasi datang dari apa saja?" />
       <div className="flex flex-wrap gap-1.5">

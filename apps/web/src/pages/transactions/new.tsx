@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { Textarea } from "@/components/ui/textarea";
+import { PageGuide } from "@/components/ui/page-guide";
 import {
   TransactionTypeSection,
   ProductFieldsSection,
@@ -337,6 +338,9 @@ export function NewTransactionPage() {
         </div>
         {successTransactionId && <Badge variant="success">Tersimpan, membuka detail...</Badge>}
       </div>
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="transactions/new" />
 
       {/* Error summary (after failed submit) */}
       <ErrorSummary ref={errorSummaryRef} errors={errors} formErrorMessage={postMutation.isError ? (postMutation.error as Error).message || "Gagal memproses transaksi" : undefined} />

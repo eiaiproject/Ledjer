@@ -300,6 +300,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
       title="Buku Besar"
       description="Rincian transaksi per akun"
       helpTopic="general_ledger"
+      guide="reports/general-ledger"
       actions={canCreateExports ? (
         <ExportButtons
           disabled={!ledger?.length || dateRangeInvalid || isExporting}

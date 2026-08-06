@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
+import { PageGuide } from "@/components/ui/page-guide";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface ReportShellProps {
@@ -10,6 +11,8 @@ interface ReportShellProps {
   readonly description?: string;
   /** Key untuk HelpTooltip (opsional) */
   readonly helpTopic?: string;
+  /** Key untuk PageGuide (opsional) — panduan langkah per halaman */
+  readonly guide?: string;
   /** Filter bar content */
   readonly filters?: ReactNode;
   /** Action buttons (export, dll.) */
@@ -43,6 +46,7 @@ export function ReportShell({
   title,
   description,
   helpTopic,
+  guide,
   filters,
   actions,
   statusBadges,
@@ -51,6 +55,9 @@ export function ReportShell({
 }: ReportShellProps) {
   return (
     <div className={cn("space-y-4", className)}>
+      {/* Panduan halaman */}
+      {guide && <PageGuide guideKey={guide} />}
+
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">

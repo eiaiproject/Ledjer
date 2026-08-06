@@ -69,6 +69,7 @@ import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
 import { Receipt, Search, Download, Check, X, ArrowRight, Filter, Calendar, XCircle } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 import {
   listTransactions,
   type TransactionStatus,
@@ -380,6 +381,9 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
         ],
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="transactions" />
 
       {/* Search + Filter */}
       <TransactionFilterBar
