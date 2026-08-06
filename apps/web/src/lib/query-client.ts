@@ -19,7 +19,9 @@ export const queryClient = new QueryClient({
         return false;
       },
       retryDelay: (attempt) => [500, 1500][attempt - 1] ?? 1500,
-      refetchOnWindowFocus: false,
+      // Auto-refresh when the user returns to the tab so data from other
+      // devices/sessions (or stale caches) is not shown as current.
+      refetchOnWindowFocus: true,
     },
     mutations: {
       onError: (error) => {
