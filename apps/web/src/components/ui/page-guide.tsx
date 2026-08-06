@@ -92,7 +92,6 @@ export function PageGuide({ guideKey, className }: PageGuideProps) {
   return (
     <section
       ref={sectionRef}
-      role="region"
       aria-label={`Panduan: ${guide.title}`}
       className={cn(
         "relative overflow-hidden rounded-xl border border-sky-200 bg-sky-50 shadow-sm",
@@ -143,7 +142,7 @@ export function PageGuide({ guideKey, className }: PageGuideProps) {
 
           <ol className="mt-3 space-y-2">
             {guide.steps.map((step, index) => (
-              <li key={index} className="flex items-start gap-2.5 text-sm text-text-primary">
+              <li key={step} className="flex items-start gap-2.5 text-sm text-text-primary">
                 <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-600 text-[10px] font-bold text-white">
                   {index + 1}
                 </span>

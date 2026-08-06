@@ -46,6 +46,16 @@ interface LineEntry {
   accountCode?: string;
 }
 
+type JournalStatusTone = "neutral" | "warning" | "error" | "success";
+
+/** Tailwind classes per status tone — lookup map instead of a nested ternary. */
+const TONE_CLASSES: Record<JournalStatusTone, string> = {
+  success: "border-leaf-200 bg-leaf-50 text-leaf-800",
+  error: "border-error-border bg-error-bg text-error",
+  warning: "border-honey-300 bg-honey-50 text-honey-800",
+  neutral: "border-wood-200 bg-wood-50 text-wood-700",
+};
+
 let lineCounter = 0;
 function newLine(): LineEntry {
   lineCounter++;
@@ -93,7 +103,7 @@ export function ManualJournalPage() {
   // Status panduan inline — menjelaskan apa yang kurang agar tombol bisa dipakai
   const missingDescription = description.trim().length === 0;
   const missingAccount = lines.some((l) => !l.accountId);
-  const status: { tone: "neutral" | "warning" | "error" | "success"; text: string } = (() => {
+  const status: { tone: JournalStatusTone; text: string } = (() => {
     if (missingDescription) return { tone: "neutral", text: "Langkah 1: isi Deskripsi jurnal di atas." };
     if (missingAccount) return { tone: "warning", text: "Pilih akun untuk semua baris jurnal agar bisa Preview." };
     if (!balanced) {
@@ -468,15 +478,7 @@ export function ManualJournalPage() {
           <div
             role="status"
             aria-live="polite"
-            className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${
-              status.tone === "success"
-                ? "border-leaf-200 bg-leaf-50 text-leaf-800"
-                : status.tone === "error"
-                  ? "border-error-border bg-error-bg text-error"
-                  : status.tone === "warning"
-                    ? "border-honey-300 bg-honey-50 text-honey-800"
-                    : "border-wood-200 bg-wood-50 text-wood-700"
-            }`}
+            className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${TONE_CLASSES[status.tone]}`}
           >
             <InfoCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0 break-words">{status.text}</span>

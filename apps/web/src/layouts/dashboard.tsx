@@ -76,7 +76,7 @@ const NAV_ITEMS: NavItemWithPerm[] = [
 // Mobile bottom nav keeps only the most-used destinations as quick tabs.
 // Penjualan (invoices) & Kas & Bank (Chart of Accounts) are rarely used by
 // casual users — they stay reachable via the "Lainnya" mobile menu instead.
-const BOTTOM_NAV_ROUTES: readonly string[] = ["/dashboard", "/transactions", "/products"];
+const BOTTOM_NAV_ROUTES: ReadonlySet<string> = new Set(["/dashboard", "/transactions", "/products"]);
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -122,7 +122,7 @@ export function DashboardLayout() {
 
   // Bottom nav (mobile) tabs — subset of the top-level destinations.
   const bottomNavItems = visibleNavItems.filter(
-    (item) => !item.children && BOTTOM_NAV_ROUTES.includes(item.to ?? ""),
+    (item) => !item.children && BOTTOM_NAV_ROUTES.has(item.to ?? ""),
   );
 
   const toggleMenu = (label: string) => {
@@ -619,7 +619,7 @@ export function DashboardLayout() {
               </Link>
             );
           })}
-          {visibleNavItems.some((item) => !item.children && !BOTTOM_NAV_ROUTES.includes(item.to ?? "")) && (
+          {visibleNavItems.some((item) => !item.children && !BOTTOM_NAV_ROUTES.has(item.to ?? "")) && (
             <button               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium leading-tight text-wood-500 min-h-[56px]"

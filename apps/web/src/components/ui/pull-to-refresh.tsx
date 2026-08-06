@@ -111,6 +111,15 @@ export function PullToRefresh({ onRefresh, children, className, label = "Memperb
 
   const showIndicator = pullDistance > 0 || refreshing;
 
+  // Indicator text depends on the pull state — kept in an if/else chain so
+  // the three-way status never becomes a nested ternary.
+  let statusText = "Tarik ke bawah untuk memperbarui";
+  if (refreshing) {
+    statusText = `${label}...`;
+  } else if (pullDistance >= THRESHOLD_PX) {
+    statusText = "Lepaskan untuk memperbarui";
+  }
+
   return (
     <div className={cn("relative", className)}>
       {/* Pull indicator */}
@@ -130,12 +139,10 @@ export function PullToRefresh({ onRefresh, children, className, label = "Memperb
                 className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-wood-300 border-t-wood-600"
                 aria-hidden="true"
               />
-              <span role="status">{label}...</span>
+              <output>{statusText}</output>
             </>
-          ) : pullDistance >= THRESHOLD_PX ? (
-            <span>Lepaskan untuk memperbarui</span>
           ) : (
-            <span>Tarik ke bawah untuk memperbarui</span>
+            <span>{statusText}</span>
           )}
         </div>
       </div>
