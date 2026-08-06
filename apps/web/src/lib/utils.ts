@@ -200,3 +200,36 @@ export function formatAmountInput(value: unknown, blankWhenZero = false) {
   }).format(amount);
 }
 
+/**
+ * Format a possibly-fractional amount with id-ID separators (dot = thousands,
+ * comma = decimals). Used ONLY for unit-price inputs where a non-even division
+ * (e.g. Rp 500.000 ÷ 251 butir = 1.992,03) is legitimate. Whole-number money
+ * fields must keep using formatAmountInput so a stray decimal is never read
+ * as a thousands separator.
+ */
+export function formatDecimalInput(value: unknown, blankWhenZero = false) {
+  if (value === undefined || value === null || value === "") return "";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "";
+  if (blankWhenZero && amount === 0) return "";
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  }).format(amount);
+}
+
+/**
+ * Like formatIDR but preserves up to 3 fractional digits — for displaying
+ * unit prices / average costs that legitimately end in decimals
+ * (e.g. Rp 1.992,03). Whole values render exactly like formatIDR.
+ */
+export function formatDecimalIDR(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return "—";
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  }).format(amount);
+}
+

@@ -20,7 +20,7 @@ import { Controller } from "react-hook-form";
 import type { TransactionForm } from "./_hooks";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
-import { cn, formatIDR, formatNumber, parseAmountInput } from "@/lib/utils";
+import { cn, formatIDR, formatNumber, parseAmountInput, parseSignedDecimalInput } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -487,10 +487,11 @@ export const ProductDetailFields = memo(function ProductDetailFields({
               <Input
                 id="product-unit-price"
                 type="text"
-                inputMode="numeric"
+                inputMode="decimal"
                 isCurrency
+                allowDecimals
                 value={unitPrice}
-                onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+                onChange={(e) => onUnitPriceChange(parseSignedDecimalInput(e.target.value, 0) ?? 0)}
                 className={cn(
                   "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
                   unitPriceError ? "border-error" : "border-wood-200"
@@ -508,10 +509,11 @@ export const ProductDetailFields = memo(function ProductDetailFields({
               <Input
                 id="product-unit-price"
                 type="text"
-                inputMode="numeric"
+                inputMode="decimal"
                 isCurrency
+                allowDecimals
                 value={unitPrice}
-                onChange={(e) => onUnitPriceChange(parseAmountInput(e.target.value, 0) ?? 0)}
+                onChange={(e) => onUnitPriceChange(parseSignedDecimalInput(e.target.value, 0) ?? 0)}
                 className={cn(
                   "min-h-[44px] h-10 w-full rounded-md border bg-surface pl-10 pr-3 text-right text-sm num-mono focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0",
                   unitPriceError ? "border-error" : "border-wood-200"

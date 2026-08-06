@@ -15,6 +15,7 @@ import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 import { CheckCircle, AlertTriangle } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
 
 /* Tab: Import statement */
 interface ImportResult {
@@ -103,11 +104,11 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="recOpeningBalance" className="mb-1 block text-xs font-medium text-wood-600">Saldo Awal</label>
-              <Input id="recOpeningBalance" type="number" value={openingBalance} onChange={(e) => setOpeningBalance(Number.parseInt(e.target.value) || 0)} />
+              <Input id="recOpeningBalance" isCurrency value={openingBalance} onChange={(e) => setOpeningBalance(Number.parseInt(e.target.value) || 0)} />
             </div>
             <div>
               <label htmlFor="recClosingBalance" className="mb-1 block text-xs font-medium text-wood-600">Saldo Akhir</label>
-              <Input id="recClosingBalance" type="number" value={closingBalance} onChange={(e) => setClosingBalance(Number.parseInt(e.target.value) || 0)} />
+              <Input id="recClosingBalance" isCurrency value={closingBalance} onChange={(e) => setClosingBalance(Number.parseInt(e.target.value) || 0)} />
             </div>
           </div>
           <div>
@@ -300,6 +301,9 @@ export default function ReconciliationPage() {
         actions: [{ key: "help", children: <HelpTooltip topic="reconciliation" position="right" /> }],
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="reconciliation" />
 
       <div className="flex gap-2 border-b border-wood-200">
         <button           type="button"

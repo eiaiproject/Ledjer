@@ -2,8 +2,8 @@ import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { queryKeys } from "@/lib/query-keys";
-import { cn, formatIDR, formatNumber, parseAmountInput, parseSignedDecimalInput } from "@/lib/utils";
+import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
+import { cn, formatDecimalIDR, formatNumber, parseSignedDecimalInput } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -17,6 +17,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageGuide } from "@/components/ui/page-guide";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { exportProductsCsv } from "@/lib/csv-export";
 import {
   createProduct,
@@ -49,8 +51,11 @@ type ProductFormErrors = Partial<Record<keyof ProductFormData, string>>;
 type StockFilter = "all" | "in_stock" | "low" | "out";
 
 function getStockStatus(p: Product): StockFilter {
-  const stock = p.current_stock ?? 0;
-  const minStock = p.min_stock ?? 0;
+  // The API serializes stock as a fixed-3 string (e.g. "9.000"). Coerce both
+  // sides to numbers — comparing the raw strings would be lexicographic and
+  // mislabel e.g. stock 9 vs min 10 as "Aman" ("9" > "1").
+  const stock = Number(p.current_stock ?? 0);
+  const minStock = Number(p.min_stock ?? 0);
   if (stock <= 0) return "out";
   if (minStock > 0 && stock <= minStock) return "low";
   return "in_stock";
@@ -104,7 +109,7 @@ function MarkupIndicator({ purchase, selling }: { readonly purchase: number; rea
 
   return (
     <span className={cn("text-xs font-medium", colorClass)}>
-      {isPositive ? "+" : ""}{formatIDR(diff)} / {pct}%
+      {isPositive ? "+" : ""}{formatDecimalIDR(diff)} / {pct}%
     </span>
   );
 }
@@ -253,8 +258,11 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
     setLoading(true);
     setError(null);
     try {
-      await adjustStock({ productId: product.id, quantity, reason: reason.trim() });
+      const res = await adjustStock({ productId: product.id, quantity, reason: reason.trim() });
       onSuccess();
+      if (res.movement?.journal_posted === false) {
+        toast.warning("Stok disesuaikan, tetapi jurnal penyesuaian tidak diposting karena akun terkait belum dikonfigurasi. Periksa Bagan Akun.");
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal menyesuaikan stok");
@@ -518,12 +526,12 @@ function ProductFormModal({ open, formBusy, editingProduct, form, onClosing, onS
             options={UNITS.map((u) => ({ value: u, label: u }))} error={form.formErrors.unit} disabled={formBusy} />
           <Input label={editingProduct ? "Biaya Rata-rata" : "Harga Beli"}
             value={form.formData.purchase_price}
-            onChange={(e) => form.setField("purchase_price", parseAmountInput(e.target.value, 0) ?? 0)}
-            readOnly={!!editingProduct} isCurrency error={form.formErrors.purchase_price} disabled={formBusy} />
-          {editingProduct && <p className="text-xs text-text-tertiary">Dihitung otomatis dari pembelian stok.</p>}
+            onChange={(e) => form.setField("purchase_price", parseSignedDecimalInput(e.target.value, 0) ?? 0)}
+            readOnly={!!editingProduct} isCurrency allowDecimals error={form.formErrors.purchase_price} disabled={formBusy}
+            helperText={editingProduct ? "Dihitung otomatis dari pembelian stok (boleh desimal)." : "Boleh desimal bila pembelian tidak habis dibagi (mis. Rp 500.000 ÷ 251 butir)."} />
           <Input label="Harga Jual" value={form.formData.selling_price}
-            onChange={(e) => form.setField("selling_price", parseAmountInput(e.target.value, 0) ?? 0)}
-            isCurrency error={form.formErrors.selling_price} disabled={formBusy} />
+            onChange={(e) => form.setField("selling_price", parseSignedDecimalInput(e.target.value, 0) ?? 0)}
+            isCurrency allowDecimals error={form.formErrors.selling_price} disabled={formBusy} />
           {!editingProduct && !onboardingCompleted && (
             <>
               <Input label="Stok Awal" type="number" min={0} value={form.formData.current_stock || ""}
@@ -624,11 +632,11 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
             <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
               <div>
                 <p className="text-xs text-text-tertiary">Beli</p>
-                <p className="num-mono font-medium text-text-secondary">{formatIDR(product.purchase_price)}</p>
+                <p className="num-mono font-medium text-text-secondary">{formatDecimalIDR(product.purchase_price)}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-text-tertiary">Jual</p>
-                <p className="num-mono font-semibold text-text-primary">{formatIDR(product.selling_price)}</p>
+                <p className="num-mono font-semibold text-text-primary">{formatDecimalIDR(product.selling_price)}</p>
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between">
@@ -684,8 +692,8 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
                     {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-500">Min: {formatNumber(product.min_stock)}</span>}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatIDR(product.purchase_price)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right num-mono font-medium text-wood-800">{formatIDR(product.selling_price)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatDecimalIDR(product.purchase_price)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right num-mono font-medium text-wood-800">{formatDecimalIDR(product.selling_price)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
                 </td>
@@ -845,7 +853,9 @@ export function ProductsPage() {
   const openStockCountModal = useCallback((product: Product) => { setStockCountProduct(product); setStockCountModalOpen(true); }, []);
 
   const handleInventoryChange = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.products.all(orgData?.organization?.id ?? "") });
+    // Penyesuaian stok kini memposting jurnal — segarkan dashboard, laporan,
+    // dan cache produk agar tidak menampilkan data basi.
+    invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id ?? "");
     toast.success("Stok berhasil diperbarui.");
   }, [queryClient, orgData]);
 
@@ -866,6 +876,7 @@ export function ProductsPage() {
   const filterValues: StockFilter[] = ["all", "in_stock", "low", "out"];
 
   return (
+    <PullToRefresh onRefresh={refetch}>
     <PageShell
       header={{
         title: "Produk",
@@ -896,6 +907,9 @@ export function ProductsPage() {
         ],
       }}
     >
+
+      {/* Panduan halaman */}
+      <PageGuide guideKey="products" />
 
       {/* Search + Filter */}
       <ProductFilter
@@ -980,5 +994,6 @@ export function ProductsPage() {
         loading={deleteMutation.isPending}
       />
     </PageShell>
+    </PullToRefresh>
   );
 }
