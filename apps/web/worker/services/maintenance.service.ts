@@ -1,4 +1,5 @@
 import { execute } from "../db/client";
+import { IDLE_TIMEOUT_MS } from "./session.service";
 
 const MS_PER_DAY = 86400000;
 
@@ -20,8 +21,8 @@ export async function cleanupExpiredRows(
 
   const sessions = await execute(
     db,
-    "DELETE FROM sessions WHERE expires_at <= ? OR (revoked_at IS NOT NULL AND revoked_at <= ?)",
-    [current, current],
+    "DELETE FROM sessions WHERE expires_at <= ? OR (revoked_at IS NOT NULL AND revoked_at <= ?) OR COALESCE(last_used_at, created_at) <= ?",
+    [current, current, current - IDLE_TIMEOUT_MS],
   );
   const emailVerifications = await execute(
     db,
