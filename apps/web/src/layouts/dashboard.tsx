@@ -17,6 +17,7 @@ import {
   AnglesLeft,
   Wallet,
   Coffee,
+  Refresh,
 } from "reicon-react";
 import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
@@ -24,7 +25,9 @@ import { cn, SUPPORT_URL } from "@/lib/utils";
 import { trackSupportClick } from "@/lib/analytics";
 import { Logo } from "@/components/ui/logo";
 import { OfflineBanner } from "@/components/ui/offline-banner";
+import { toast } from "@/components/ui/toast";
 import { SupportBanner } from "@/components/ui/support-banner";
+import { refreshAllData } from "@/lib/query-client";
 import { GlobalSearchModal, SearchTrigger } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -90,6 +93,7 @@ export function DashboardLayout() {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // P1.4: Onboarding guard — redirect to onboarding if not completed
   useEffect(() => {
@@ -139,6 +143,20 @@ export function DashboardLayout() {
     await signOut();
     navigate("/login");
   };
+
+  // Global refresh: one action refetches every page's cached data at once
+  // (current page refetched immediately, other pages invalidated so their
+  // next visit shows fresh data).
+  const handleGlobalRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await refreshAllData();
+      toast.success("Semua data diperbarui.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing]);
 
   // Keyboard shortcut: Ctrl+K / Cmd+K to open search
   useEffect(() => {
@@ -396,6 +414,17 @@ export function DashboardLayout() {
           <Link to="/dashboard" className="flex h-11 items-center">
             <Logo size="sm" variant="full" className="h-7" />
           </Link>
+          {location.pathname !== '/transactions/new' && (
+            <button
+              type="button"
+              onClick={handleGlobalRefresh}
+              disabled={refreshing}
+              aria-label={refreshing ? "Memperbarui data..." : "Perbarui semua data"}
+              className="flex h-11 w-11 items-center justify-center text-wood-600 hover:bg-cream-200 rounded-lg disabled:opacity-60"
+            >
+              <Refresh className={cn("h-5 w-5", refreshing && "animate-spin")} aria-hidden="true" />
+            </button>
+          )}
           {canCreateTransaction && location.pathname !== '/transactions/new' && (
             <Link
               to="/transactions/new"
@@ -571,6 +600,16 @@ export function DashboardLayout() {
       >
         <OfflineBanner />
         <div className="hidden border-b border-wood-100 bg-surface px-4 py-2 lg:flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleGlobalRefresh}
+            disabled={refreshing}
+            aria-label={refreshing ? "Memperbarui data..." : "Perbarui semua data"}
+            title="Perbarui semua data"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-wood-600 transition-colors hover:bg-cream-200 hover:text-wood-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Refresh className={cn("h-4 w-4", refreshing && "animate-spin")} aria-hidden="true" />
+          </button>
           <SearchTrigger onClick={() => setSearchOpen(true)} />
           <NotificationBell />
         </div>
