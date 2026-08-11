@@ -219,7 +219,7 @@ export default function OpeningBalancePage() {
                   </div>
                   <div className="col-span-1">
                     {lines.length > 1 && (
-                      <button type="button" onClick={() => removeLine(i)} className="text-red-500 text-sm mt-5" aria-label="Hapus">×</button>
+                      <button type="button" onClick={() => removeLine(i)} className="text-error text-sm mt-5" aria-label="Hapus">×</button>
                     )}
                   </div>
                 </div>
@@ -227,7 +227,7 @@ export default function OpeningBalancePage() {
 
               {lines.length > 0 && (
                 <div className="text-right text-sm space-y-1 pt-2 border-t border-wood-200">
-                  <div className={balanced ? "text-emerald-600" : "text-red-600"}>
+                  <div className={balanced ? "text-leaf-600" : "text-error"}>
                     {balanced ? (
                       <span className="inline-flex items-center gap-1">
                         <Check className="h-4 w-4" /> Seimbang
@@ -300,12 +300,12 @@ export default function OpeningBalancePage() {
               )}
 
               {preview.valid ? (
-                <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-md px-3 py-2">
+                <div className="flex items-center gap-2 text-sm text-leaf-700 bg-success-bg rounded-md px-3 py-2">
                   <CheckCircle className="h-4 w-4" />
                   <span>Jurnal seimbang — siap diposting</span>
                 </div>
               ) : (
-                <div className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+                <div className="text-sm text-error bg-error-bg rounded-md px-3 py-2">
                   {(preview.errors as string[])?.join("; ")}
                 </div>
               )}

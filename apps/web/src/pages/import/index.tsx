@@ -368,7 +368,7 @@ export default function ImportPage() {
 
               {/* Duplicate warning */}
               {isDuplicate && (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                <p className="text-xs text-warning bg-warning-bg border border-warning-border rounded px-3 py-2">
                   Data ini sudah pernah diimport. Hapus centang duplikat untuk mengimport ulang.
                 </p>
               )}
@@ -472,13 +472,13 @@ export default function ImportPage() {
             <h3 className="text-sm font-semibold text-wood-700">Hasil Import</h3>
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div><span className="block text-wood-500">Diproses</span><span className="font-medium">{result.rowsProcessed ?? 0}</span></div>
-              <div><span className="block text-wood-500">Berhasil</span><span className="font-medium text-emerald-600">{result.rowsSucceeded ?? 0}</span></div>
-              <div><span className="block text-wood-500">Gagal</span><span className="font-medium text-red-600">{result.rowsFailed ?? 0}</span></div>
+              <div><span className="block text-wood-500">Berhasil</span><span className="font-medium text-leaf-600">{result.rowsSucceeded ?? 0}</span></div>
+              <div><span className="block text-wood-500">Gagal</span><span className="font-medium text-error">{result.rowsFailed ?? 0}</span></div>
             </div>
             {result.errors && result.errors.length > 0 && (
               <div className="mt-2">
-                <p className="text-xs font-medium text-red-600 mb-1">Error:</p>
-                <ul className="list-disc list-inside text-xs text-red-500 space-y-0.5">
+                <p className="text-xs font-medium text-error mb-1">Error:</p>
+                <ul className="list-disc list-inside text-xs text-error space-y-0.5">
                   {result.errors.map((e, i) => <li key={e + "-" + i}>{e}</li>)}
                 </ul>
               </div>
@@ -496,7 +496,7 @@ export default function ImportPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleUndo(result)}
-                  className="text-red-600 border-red-300 hover:bg-red-50"
+                  className="text-error border-error-border hover:bg-error-bg"
                 >
                   Batalkan Import
                 </Button>
@@ -508,7 +508,7 @@ export default function ImportPage() {
 
             {undoResult && (
               <div className={`border-t border-wood-200 pt-3 mt-2`}>
-                <p className={`text-sm font-medium ${undoResult.success ? "text-amber-600" : "text-red-600"}`}>
+                <p className={`text-sm font-medium ${undoResult.success ? "text-leaf-600" : "text-error"}`}>
                   {undoResult.message}
                 </p>
                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setStep("input"); setCsv(""); setPreview(null); setResult(null); setUndoResult(null); }}>

@@ -139,13 +139,13 @@ export function LoginPage() {
               )}
 
               {unverifiedEmail && (
-                <div className="mt-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+                <div className="mt-4 space-y-3 rounded-lg border border-warning-border bg-warning-bg p-3 text-sm text-warning" role="alert">
                   <p>
                     Email <span className="font-medium break-all">{unverifiedEmail}</span>{" "}
                     belum dikonfirmasi.
                   </p>
                   {resendMessage && (
-                    <p className="text-amber-800">{resendMessage}</p>
+                    <p className="text-warning">{resendMessage}</p>
                   )}
                   <Button
                     type="button"

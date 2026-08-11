@@ -5,15 +5,14 @@
     "title": "Ledjer — Pembukuan UMKM Indonesia",
     "tokens": {
       "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
+        "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
       ],
       "fontSizes": [
-        "64px",
-        "18px",
+        "34px",
+        "16px",
         "14px",
         "12px",
-        "30px",
-        "16px"
+        "24px"
       ],
       "radii": [
         "0px",
@@ -25,13 +24,13 @@
       ],
       "spacings": [
         "0px/0px/0px/0px",
-        "80px/80px/0px/0px",
+        "56px/56px/0px/0px",
         "8px/8px/0px/0px",
         "10px/10px/0px/0px",
-        "64px/64px/0px/0px"
+        "48px/48px/0px/0px"
       ],
-      "containerMaxWidth": "1280",
-      "h1FontSize": "64px",
+      "containerMaxWidth": "390",
+      "h1FontSize": "34px",
       "bodyFontSize": "16px"
     },
     "structure": {
@@ -62,8 +61,8 @@
     "chrome": {
       "hasHeader": true,
       "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
+      "headerWidth": 390,
+      "footerWidth": 390,
       "stickyHeader": true
     },
     "forms": {
@@ -73,7 +72,7 @@
       "inputsTotal": 0
     },
     "touchTargets": {
-      "total": 43,
+      "total": 44,
       "below44": 5,
       "smallestW": 1,
       "smallestH": 1
@@ -90,8 +89,8 @@
     "whitespace": {
       "bodyPaddingTop": 0,
       "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
+      "contentWidth": 390,
+      "viewportWidth": 390
     }
   },
   {
@@ -100,7 +99,7 @@
     "title": "Masuk - Ledjer",
     "tokens": {
       "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
+        "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
       ],
       "fontSizes": [
         "24px",
@@ -120,7 +119,7 @@
         "0px/0px/0px/0px",
         "0px/0px/16px/0px"
       ],
-      "containerMaxWidth": "1280",
+      "containerMaxWidth": "390",
       "h1FontSize": "20px",
       "bodyFontSize": "16px"
     },
@@ -143,8 +142,8 @@
     "chrome": {
       "hasHeader": true,
       "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
+      "headerWidth": 390,
+      "footerWidth": 390,
       "stickyHeader": true
     },
     "forms": {
@@ -176,8 +175,8 @@
     "whitespace": {
       "bodyPaddingTop": 0,
       "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
+      "contentWidth": 390,
+      "viewportWidth": 390
     }
   },
   {
@@ -186,7 +185,7 @@
     "title": "Daftar - Ledjer",
     "tokens": {
       "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
+        "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
       ],
       "fontSizes": [
         "24px",
@@ -206,7 +205,7 @@
         "0px/0px/0px/0px",
         "0px/0px/16px/0px"
       ],
-      "containerMaxWidth": "1280",
+      "containerMaxWidth": "390",
       "h1FontSize": "20px",
       "bodyFontSize": "16px"
     },
@@ -229,8 +228,8 @@
     "chrome": {
       "hasHeader": true,
       "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
+      "headerWidth": 390,
+      "footerWidth": 390,
       "stickyHeader": true
     },
     "forms": {
@@ -262,8 +261,8 @@
     "whitespace": {
       "bodyPaddingTop": 0,
       "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
+      "contentWidth": 390,
+      "viewportWidth": 390
     }
   },
   {
@@ -272,7 +271,7 @@
     "title": "Lupa password - Ledjer",
     "tokens": {
       "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
+        "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
       ],
       "fontSizes": [
         "24px",
@@ -291,7 +290,7 @@
       "spacings": [
         "0px/0px/0px/0px"
       ],
-      "containerMaxWidth": "1280",
+      "containerMaxWidth": "390",
       "h1FontSize": "20px",
       "bodyFontSize": "16px"
     },
@@ -314,8 +313,8 @@
     "chrome": {
       "hasHeader": true,
       "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
+      "headerWidth": 390,
+      "footerWidth": 390,
       "stickyHeader": true
     },
     "forms": {
@@ -347,8 +346,8 @@
     "whitespace": {
       "bodyPaddingTop": 0,
       "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
+      "contentWidth": 390,
+      "viewportWidth": 390
     }
   },
   {
@@ -357,7 +356,7 @@
     "title": "Reset password - Ledjer",
     "tokens": {
       "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
+        "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
       ],
       "fontSizes": [
         "20px",
@@ -371,7 +370,7 @@
         "0px/0px/0px/0px",
         "0px/0px/8px/0px"
       ],
-      "containerMaxWidth": "384",
+      "containerMaxWidth": "358",
       "h1FontSize": "20px",
       "bodyFontSize": "16px"
     },
@@ -407,7 +406,7 @@
     "touchTargets": {
       "total": 1,
       "below44": 0,
-      "smallestW": 294,
+      "smallestW": 268,
       "smallestH": 44
     },
     "contrast": {
@@ -427,423 +426,8 @@
     "whitespace": {
       "bodyPaddingTop": 0,
       "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
-    }
-  },
-  {
-    "url": "/privacy",
-    "status": 200,
-    "title": "Kebijakan Privasi - Ledjer",
-    "tokens": {
-      "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
-      ],
-      "fontSizes": [
-        "24px",
-        "14px",
-        "18px",
-        "12px"
-      ],
-      "radii": [
-        "8px",
-        "12px"
-      ],
-      "spacings": [
-        "0px/0px/0px/0px",
-        "0px/0px/0px/16px"
-      ],
-      "containerMaxWidth": "1280",
-      "h1FontSize": "24px",
-      "bodyFontSize": "16px"
-    },
-    "structure": {
-      "h1Count": 1,
-      "h1Texts": [
-        "Kebijakan Privasi"
-      ],
-      "headingOrder": [
-        "h1",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2"
-      ],
-      "landmarks": {
-        "header": 1,
-        "main": 1,
-        "nav": 2,
-        "footer": 1
-      }
-    },
-    "chrome": {
-      "hasHeader": true,
-      "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
-      "stickyHeader": true
-    },
-    "forms": {
-      "formCount": 0,
-      "inputsWithoutLabel": 0,
-      "inputsWithAutocomplete": 0,
-      "inputsTotal": 0
-    },
-    "touchTargets": {
-      "total": 7,
-      "below44": 1,
-      "smallestW": 47,
-      "smallestH": 18
-    },
-    "contrast": {
-      "body": {
-        "fg": "rgb(42, 27, 23)",
-        "bg": "rgb(249, 244, 235)",
-        "ratio": 15.12,
-        "passes": true
-      },
-      "cta": null
-    },
-    "whitespace": {
-      "bodyPaddingTop": 0,
-      "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
-    }
-  },
-  {
-    "url": "/terms",
-    "status": 200,
-    "title": "Syarat & Ketentuan - Ledjer",
-    "tokens": {
-      "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
-      ],
-      "fontSizes": [
-        "24px",
-        "14px",
-        "18px",
-        "12px"
-      ],
-      "radii": [
-        "8px",
-        "12px"
-      ],
-      "spacings": [
-        "0px/0px/0px/0px",
-        "0px/0px/0px/16px"
-      ],
-      "containerMaxWidth": "1280",
-      "h1FontSize": "24px",
-      "bodyFontSize": "16px"
-    },
-    "structure": {
-      "h1Count": 1,
-      "h1Texts": [
-        "Syarat & Ketentuan"
-      ],
-      "headingOrder": [
-        "h1",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2",
-        "h2"
-      ],
-      "landmarks": {
-        "header": 1,
-        "main": 1,
-        "nav": 2,
-        "footer": 1
-      }
-    },
-    "chrome": {
-      "hasHeader": true,
-      "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
-      "stickyHeader": true
-    },
-    "forms": {
-      "formCount": 0,
-      "inputsWithoutLabel": 0,
-      "inputsWithAutocomplete": 0,
-      "inputsTotal": 0
-    },
-    "touchTargets": {
-      "total": 7,
-      "below44": 1,
-      "smallestW": 47,
-      "smallestH": 18
-    },
-    "contrast": {
-      "body": {
-        "fg": "rgb(42, 27, 23)",
-        "bg": "rgb(249, 244, 235)",
-        "ratio": 15.12,
-        "passes": true
-      },
-      "cta": null
-    },
-    "whitespace": {
-      "bodyPaddingTop": 0,
-      "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
-    }
-  },
-  {
-    "url": "/contact",
-    "status": 200,
-    "title": "Kontak - Ledjer",
-    "tokens": {
-      "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
-      ],
-      "fontSizes": [
-        "24px",
-        "14px",
-        "12px"
-      ],
-      "radii": [
-        "8px",
-        "12px"
-      ],
-      "spacings": [
-        "0px/0px/0px/0px",
-        "0px/0px/0px/12px"
-      ],
-      "containerMaxWidth": "1280",
-      "h1FontSize": "24px",
-      "bodyFontSize": "16px"
-    },
-    "structure": {
-      "h1Count": 1,
-      "h1Texts": [
-        "Hubungi Kami"
-      ],
-      "headingOrder": [
-        "h1",
-        "h3",
-        "h3",
-        "h3",
-        "h2"
-      ],
-      "landmarks": {
-        "header": 1,
-        "main": 1,
-        "nav": 2,
-        "footer": 1
-      }
-    },
-    "chrome": {
-      "hasHeader": true,
-      "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
-      "stickyHeader": true
-    },
-    "forms": {
-      "formCount": 0,
-      "inputsWithoutLabel": 0,
-      "inputsWithAutocomplete": 0,
-      "inputsTotal": 0
-    },
-    "touchTargets": {
-      "total": 10,
-      "below44": 4,
-      "smallestW": 47,
-      "smallestH": 15
-    },
-    "contrast": {
-      "body": {
-        "fg": "rgb(42, 27, 23)",
-        "bg": "rgb(249, 244, 235)",
-        "ratio": 15.12,
-        "passes": true
-      },
-      "cta": null
-    },
-    "whitespace": {
-      "bodyPaddingTop": 0,
-      "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
-    }
-  },
-  {
-    "url": "/security",
-    "status": 200,
-    "title": "Keamanan - Ledjer",
-    "tokens": {
-      "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
-      ],
-      "fontSizes": [
-        "24px",
-        "14px",
-        "18px",
-        "12px"
-      ],
-      "radii": [
-        "8px",
-        "12px"
-      ],
-      "spacings": [
-        "0px/0px/0px/0px",
-        "0px/0px/0px/24px",
-        "0px/0px/0px/16px"
-      ],
-      "containerMaxWidth": "1280",
-      "h1FontSize": "24px",
-      "bodyFontSize": "16px"
-    },
-    "structure": {
-      "h1Count": 1,
-      "h1Texts": [
-        "Kebijakan Keamanan"
-      ],
-      "headingOrder": [
-        "h1",
-        "h2",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h2",
-        "h2",
-        "h2"
-      ],
-      "landmarks": {
-        "header": 1,
-        "main": 1,
-        "nav": 2,
-        "footer": 1
-      }
-    },
-    "chrome": {
-      "hasHeader": true,
-      "hasFooter": true,
-      "headerWidth": 1280,
-      "footerWidth": 1280,
-      "stickyHeader": true
-    },
-    "forms": {
-      "formCount": 0,
-      "inputsWithoutLabel": 0,
-      "inputsWithAutocomplete": 0,
-      "inputsTotal": 0
-    },
-    "touchTargets": {
-      "total": 7,
-      "below44": 1,
-      "smallestW": 47,
-      "smallestH": 18
-    },
-    "contrast": {
-      "body": {
-        "fg": "rgb(42, 27, 23)",
-        "bg": "rgb(249, 244, 235)",
-        "ratio": 15.12,
-        "passes": true
-      },
-      "cta": null
-    },
-    "whitespace": {
-      "bodyPaddingTop": 0,
-      "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
-    }
-  },
-  {
-    "url": "/refund",
-    "status": 200,
-    "title": "Halaman tidak ditemukan - Ledjer",
-    "tokens": {
-      "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
-      ],
-      "fontSizes": [
-        "20px",
-        "14px"
-      ],
-      "radii": [
-        "12px",
-        "9999px",
-        "8px"
-      ],
-      "spacings": [
-        "0px/0px/0px/0px",
-        "0px/0px/8px/0px"
-      ],
-      "containerMaxWidth": "384",
-      "h1FontSize": "20px",
-      "bodyFontSize": "16px"
-    },
-    "structure": {
-      "h1Count": 1,
-      "h1Texts": [
-        "Halaman tidak ditemukan"
-      ],
-      "headingOrder": [
-        "h1",
-        "h2"
-      ],
-      "landmarks": {
-        "header": 0,
-        "main": 0,
-        "nav": 0,
-        "footer": 0
-      }
-    },
-    "chrome": {
-      "hasHeader": false,
-      "hasFooter": false,
-      "headerWidth": 0,
-      "footerWidth": 0,
-      "stickyHeader": false
-    },
-    "forms": {
-      "formCount": 0,
-      "inputsWithoutLabel": 0,
-      "inputsWithAutocomplete": 0,
-      "inputsTotal": 0
-    },
-    "touchTargets": {
-      "total": 2,
-      "below44": 0,
-      "smallestW": 143,
-      "smallestH": 44
-    },
-    "contrast": {
-      "body": {
-        "fg": "rgb(42, 27, 23)",
-        "bg": "rgb(249, 244, 235)",
-        "ratio": 15.12,
-        "passes": true
-      },
-      "cta": null
-    },
-    "whitespace": {
-      "bodyPaddingTop": 0,
-      "bodyPaddingBottom": 0,
-      "contentWidth": 1280,
-      "viewportWidth": 1280
+      "contentWidth": 390,
+      "viewportWidth": 390
     }
   }
 ]

@@ -196,7 +196,7 @@ export default function InvoiceDetailPage() {
 
           <div className="text-right space-y-1 text-sm border-t border-wood-200 pt-3">
             <div className="text-wood-600">Subtotal: {formatDecimalIDR(invoice.subtotalMinor / 100)}</div>
-            {invoice.discountMinor > 0 && <div className="text-red-600">Diskon: -{formatIDR(invoice.discountMinor / 100)}</div>}
+            {invoice.discountMinor > 0 && <div className="text-error">Diskon: -{formatIDR(invoice.discountMinor / 100)}</div>}
             {invoice.taxMinor > 0 && <div className="text-wood-600">Pajak: {formatIDR(invoice.taxMinor / 100)}</div>}
             <div className="text-lg font-semibold text-wood-800">Total: {formatDecimalIDR(invoice.totalMinor / 100)}</div>
           </div>
@@ -206,15 +206,15 @@ export default function InvoiceDetailPage() {
             <div className="border-t border-wood-200 pt-3 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-wood-600">Telah Dibayar</span>
-                <span className="font-medium text-emerald-600">{formatIDR(invoice.paidMinor / 100)}</span>
+                <span className="font-medium text-leaf-600">{formatIDR(invoice.paidMinor / 100)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-wood-600">Sisa Tagihan</span>
-                <span className="font-medium text-amber-600">{formatIDR((invoice.totalMinor - invoice.paidMinor) / 100)}</span>
+                <span className="font-medium text-warning">{formatIDR((invoice.totalMinor - invoice.paidMinor) / 100)}</span>
               </div>
               <div className="w-full h-2 bg-wood-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full transition-all"
+                  className="h-full bg-leaf-500 rounded-full transition-all"
                   style={{ width: `${Math.min(100, (invoice.paidMinor / invoice.totalMinor) * 100)}%` }}
                 />
               </div>
@@ -240,12 +240,12 @@ export default function InvoiceDetailPage() {
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-wood-700">Credit Note</h3>
             {fetchedCreditNotes.map((cn) => (
-              <div key={cn.id} className="flex items-center justify-between rounded-lg border border-violet-200 bg-violet-50 p-3">
+              <div key={cn.id} className="flex items-center justify-between rounded-lg border border-warning-border bg-warning-bg p-3">
                 <div>
-                  <span className="font-medium text-violet-800">{cn.invoiceNumber}</span>
-                  <span className="ml-2 text-xs text-violet-500">{STATUS_LABELS[cn.status] ?? cn.status}</span>
+                  <span className="font-medium text-clay-800">{cn.invoiceNumber}</span>
+                  <span className="ml-2 text-xs text-clay-600">{STATUS_LABELS[cn.status] ?? cn.status}</span>
                 </div>
-                <span className="font-medium text-violet-700">{formatIDR(cn.totalMinor / 100)}</span>
+                <span className="font-medium text-clay-700">{formatIDR(cn.totalMinor / 100)}</span>
               </div>
             ))}
           </CardContent>
@@ -296,7 +296,7 @@ export default function InvoiceDetailPage() {
               <Button
                 variant="outline"
                 onClick={() => setShowCreditForm(true)}
-                className="border-violet-300 text-violet-700 hover:bg-violet-50"
+                className="border-warning-border text-warning hover:bg-warning-bg"
               >
                 Buat Credit Note
               </Button>
@@ -335,7 +335,7 @@ export default function InvoiceDetailPage() {
                       {creditLines.length > 1 && (
                         <button                           type="button"
                           onClick={() => setCreditLines(creditLines.filter((_, j) => j !== i))}
-                          className="text-red-500 text-sm"
+                          className="text-error text-sm"
                           aria-label="Hapus"
                         >×</button>
                       )}
@@ -405,7 +405,7 @@ export default function InvoiceDetailPage() {
                 </Button>
               </div>
               {emailMutation.isSuccess && (
-                <p className="text-xs text-emerald-600">Email berhasil dikirim!</p>
+                <p className="text-xs text-leaf-600">Email berhasil dikirim!</p>
               )}
               {emailMutation.isError && (
                 <ErrorState message={(emailMutation.error as Error)?.message ?? "Gagal mengirim email"} />

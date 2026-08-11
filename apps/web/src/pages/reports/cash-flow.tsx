@@ -22,9 +22,9 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 const SECTION_COLORS: Record<string, string> = {
-  operating: "border-l-emerald-500",
-  investing: "border-l-blue-500",
-  financing: "border-l-violet-500",
+  operating: "border-l-leaf-500",
+  investing: "border-l-sky-500",
+  financing: "border-l-honey-500",
 };
 
 function formatChange(current: number, previous: number): string {
@@ -87,12 +87,12 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
                       </td>
                       <td className="px-4 py-2 text-right text-wood-700">{row.inflow > 0 ? formatIDR(row.inflow) : "—"}</td>
                       <td className="px-4 py-2 text-right text-wood-700">{row.outflow > 0 ? formatIDR(row.outflow) : "—"}</td>
-                      <td className={cn("px-4 py-2 text-right font-medium", row.net >= 0 ? "text-emerald-600" : "text-red-600")}>
+                      <td className={cn("px-4 py-2 text-right font-medium", row.net >= 0 ? "text-leaf-600" : "text-error")}>
                         {formatIDR(row.net)}
                       </td>
                       {showComparison && (
                         <>
-                          <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-emerald-600" : "text-red-600") : "text-wood-500")}>{/* NOSONAR typescript:S3358 */}
+                          <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-leaf-600" : "text-error") : "text-wood-500")}>{/* NOSONAR typescript:S3358 */}
                             {row.prevNet !== undefined ? formatIDR(row.prevNet) : "—"}
                           </td>
                           <td className="px-4 py-2 text-right text-xs text-wood-500">
@@ -107,12 +107,12 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
                   <tr className="bg-wood-50/50 font-semibold">
                     <td className="px-4 py-2 text-wood-800">Subtotal {SECTION_LABELS[section]}</td>
                     <td colSpan={2} />
-                    <td className={cn("px-4 py-2 text-right", total >= 0 ? "text-emerald-600" : "text-red-600")}>
+                    <td className={cn("px-4 py-2 text-right", total >= 0 ? "text-leaf-600" : "text-error")}>
                       {formatIDR(Math.abs(total))}
                     </td>
                     {showComparison && (
                       <>
-                        <td className={cn("px-4 py-2 text-right", prevTotal >= 0 ? "text-emerald-600" : "text-red-600")}>
+                        <td className={cn("px-4 py-2 text-right", prevTotal >= 0 ? "text-leaf-600" : "text-error")}>
                           {formatIDR(Math.abs(prevTotal))}
                         </td>
                         <td className="px-4 py-2 text-right text-xs text-wood-500">
@@ -142,7 +142,7 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-wood-600">Arus Kas Bersih</span>
-            <span className={cn("font-medium", report.totals.netCashFlow >= 0 ? "text-emerald-600" : "text-red-600")}>
+            <span className={cn("font-medium", report.totals.netCashFlow >= 0 ? "text-leaf-600" : "text-error")}>
               {formatIDR(report.totals.netCashFlow)}
             </span>
             {showComparison && (

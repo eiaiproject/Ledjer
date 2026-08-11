@@ -129,24 +129,24 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
 
           {/* Duplicate warnings */}
           {importResult?.warnings && importResult.warnings.length > 0 && (
-            <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-amber-700 mb-1">
+            <div className="rounded-md bg-warning-bg border border-warning-border p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-warning mb-1">
                 <AlertTriangle className="h-4 w-4" />
                 Peringatan
               </div>
-              <ul className="list-disc list-inside text-xs text-amber-600 space-y-0.5">
+              <ul className="list-disc list-inside text-xs text-warning space-y-0.5">
                 {importResult.warnings.map((w, i) => <li key={w + "-" + i}>{w}</li>)}
               </ul>
             </div>
           )}
 
           {importResult?.duplicatedLines && importResult.duplicatedLines.length > 0 && (
-            <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-amber-700 mb-1">
+            <div className="rounded-md bg-warning-bg border border-warning-border p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-warning mb-1">
                 <AlertTriangle className="h-4 w-4" />
                 Kemungkinan Duplikat Baris
               </div>
-              <ul className="list-disc list-inside text-xs text-amber-600 space-y-0.5">
+              <ul className="list-disc list-inside text-xs text-warning space-y-0.5">
                 {importResult.duplicatedLines.map((d, i) => <li key={d.line + "-" + i}>{d.reason}</li>)}
               </ul>
             </div>
@@ -211,19 +211,19 @@ function StatementReportTab({ statementId }: { readonly statementId: string }) {
                 {formatIDR(Number(r.statementBalance))}
               </span>
             </div>
-            <div className={`rounded-lg border p-3 ${balanced ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <div className={`rounded-lg border p-3 ${balanced ? "border-success-border bg-success-bg" : "border-warning-border bg-warning-bg"}`}>
               <span className="block text-wood-500 text-xs mb-0.5">Selisih</span>
-              <span className={`font-semibold text-base ${balanced ? "text-emerald-600" : "text-amber-600"}`}>
+              <span className={`font-semibold text-base ${balanced ? "text-leaf-600" : "text-warning"}`}>
                 {r.difference != null ? formatIDR(Number(r.difference)) : "—"}
               </span>
               {balanced && (
-                <div className="flex items-center gap-1 text-xs text-emerald-600 mt-1">
+                <div className="flex items-center gap-1 text-xs text-leaf-600 mt-1">
                   <CheckCircle className="h-3 w-3" />
                   Seimbang
                 </div>
               )}
               {!balanced && r.difference != null && (
-                <div className="flex items-center gap-1 text-xs text-amber-600 mt-1">
+                <div className="flex items-center gap-1 text-xs text-warning mt-1">
                   <AlertTriangle className="h-3 w-3" />
                   Belum Seimbang
                 </div>
@@ -243,15 +243,15 @@ function StatementReportTab({ statementId }: { readonly statementId: string }) {
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Tercocokkan</span>
-              <span className="font-semibold text-emerald-600">{String(r.matchedLines ?? 0)}{/* NOSONAR typescript:S6551 */}</span>
+              <span className="font-semibold text-leaf-600">{String(r.matchedLines ?? 0)}{/* NOSONAR typescript:S6551 */}</span>
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Belum Tercocokkan</span>
-              <span className="font-semibold text-amber-600">{String(r.unmatchedLines ?? 0)}{/* NOSONAR typescript:S6551 */}</span>
+              <span className="font-semibold text-warning">{String(r.unmatchedLines ?? 0)}{/* NOSONAR typescript:S6551 */}</span>
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Status</span>
-              <span className={`font-semibold ${status === "reconciled" ? "text-emerald-600" : "text-amber-600"}`}>
+              <span className={`font-semibold ${status === "reconciled" ? "text-leaf-600" : "text-warning"}`}>
                 {status === "reconciled" ? "Terekomiliasi" : "Terbuka"}
               </span>
             </div>
@@ -272,13 +272,13 @@ function StatementReportTab({ statementId }: { readonly statementId: string }) {
               size="sm"
               onClick={() => reopenMutation.mutate()}
               disabled={reopenMutation.isPending}
-              className="border-amber-300 text-amber-700 hover:bg-amber-50"
+              className="border-warning-border text-warning hover:bg-warning-bg"
             >
               <svg className="h-3.5 w-3.5 mr-1.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
               {reopenMutation.isPending ? "Memproses..." : "Buka Ulang"}
             </Button>
             {reopenMutation.isSuccess && (
-              <p className="text-xs text-emerald-600 mt-2">Statement berhasil dibuka ulang.</p>
+              <p className="text-xs text-leaf-600 mt-2">Statement berhasil dibuka ulang.</p>
             )}
             {reopenMutation.isError && (
               <ErrorState message={(reopenMutation.error as Error)?.message ?? "Gagal membuka ulang"} />
