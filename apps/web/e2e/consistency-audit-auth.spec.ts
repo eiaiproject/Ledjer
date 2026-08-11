@@ -2,7 +2,9 @@
  * Full UI/UX Consistency, Proportion, Symmetry Audit — AUTHENTICATED PAGES.
  *
  * Complements consistency-audit.spec.ts (public pages). Measures the same
- * STRUCTURE metrics on the dashboard-area pages using the authTest fixture:
+ * STRUCTURE metrics on the dashboard-area pages using the authenticated
+ * `test` fixture from ./helpers/auth (canonical name so Sonar recognizes the
+ * file as a test file):
  *  - Design token usage (spacing/radius/typography) across pages
  *  - Heading hierarchy (h1, h2, h3 depth consistency)
  *  - Touch target sizes (44x44 minimum)
@@ -25,7 +27,7 @@
 import { expect } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test as authTest } from "./helpers/auth";
+import { test } from "./helpers/auth";
 import { gatherMetrics as gather, type PageMetrics } from "./helpers/consistency-metrics";
 
 const PAGES = [
@@ -58,9 +60,9 @@ const OUT_JSON = join(OUT_DIR, ".audit-results-auth.json");
 
 const allResults: PageMetrics[] = [];
 
-authTest.describe("Full UI/UX Consistency, Proportion, Symmetry Audit (authenticated)", () => {
+test.describe("Full UI/UX Consistency, Proportion, Symmetry Audit (authenticated)", () => {
   for (const path of PAGES) {
-    authTest(`audit ${path}`, async ({ authPage }) => {
+    test(`audit ${path}`, async ({ authPage }) => {
       const metrics = await gather(authPage, path);
       allResults.push(metrics);
 
@@ -82,7 +84,7 @@ authTest.describe("Full UI/UX Consistency, Proportion, Symmetry Audit (authentic
     });
   }
 
-  authTest.afterAll(() => {
+  test.afterAll(() => {
     mkdirSync(OUT_DIR, { recursive: true });
     writeFileSync(OUT_JSON, JSON.stringify(allResults, null, 2), "utf8");
     console.log(`\n  wrote ${OUT_JSON} (${allResults.length} authed pages)\n`);
