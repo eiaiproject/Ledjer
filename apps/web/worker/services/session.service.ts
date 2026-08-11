@@ -1,12 +1,22 @@
 import { execute, queryFirst } from "../db/client";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+// Absolute session lifetime: the session is invalidated 14 days after login
+// regardless of activity.
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 days
 
-// Rotate token only when token age > 50% of TTL (15 days).
+// Idle timeout: the session is invalidated after 1 hour without any request
+// (tracked via last_used_at). Combined with the absolute TTL, active users
+// stay logged in up to 14 days, but an unused session dies after 1h idle.
+// Exported for reuse in the maintenance cleanup (keep both in sync).
+export const IDLE_TIMEOUT_MS = 1000 * 60 * 60; // 1 hour
+
+// Rotate the token hash when it is older than 50% of TTL (7 days) since it
+// was issued (creation or last rotation). Active sessions get a fresh hash
+// every 7 days so a leaked token stops working before the absolute TTL.
 // This prevents race conditions when the SPA makes parallel API calls
 // during page load — all requests within the interval share the same token.
-const TOKEN_ROTATION_INTERVAL_MS = 15 * 24 * 60 * 60 * 1000; // 15 days
+const TOKEN_ROTATION_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export interface SessionUser {
   id: string;
@@ -72,9 +82,6 @@ export async function createSession(
   return { token, expiresAt };
 }
 
-  // This is handled above with the organizationId logic
-
-
 export async function getSessionByToken(
   db: D1Database,
   token: string,
@@ -82,7 +89,7 @@ export async function getSessionByToken(
   const tokenHash = await hashToken(token);
   const current = Date.now();
 
-  const row = await queryFirst<CurrentSessionRow & { last_used_at: number; last_rotated_at?: number }>(
+  const row = await queryFirst<CurrentSessionRow & { last_used_at: number; last_rotated_at?: number; created_at: number }>(
     db,
     `SELECT
        s.id AS session_id,
@@ -94,47 +101,48 @@ export async function getSessionByToken(
        u.email_verified_at,
        EXISTS(SELECT 1 FROM oauth_accounts oa WHERE oa.user_id = u.id) AS has_oauth,
        s.last_used_at,
-       s.last_rotated_at
+       s.last_rotated_at,
+       s.created_at
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ?
        AND s.revoked_at IS NULL
-       AND s.expires_at > ?`,
-    [tokenHash, current],
+       AND s.expires_at > ?
+       AND s.last_used_at >= ?`,
+    [tokenHash, current, current - IDLE_TIMEOUT_MS],
   );
 
   if (!row) return null;
 
-  // Only rotate token if enough time has passed (15 days since last use).
-  // This prevents race conditions when the SPA makes parallel API calls
-  // during page load — all requests within the interval share the same token.
-  const shouldRotate = current - row.last_used_at > TOKEN_ROTATION_INTERVAL_MS;
+  // Rotate the token when the current token hash is older than 50% of TTL
+  // (7 days) since it was issued (creation or last rotation). Active sessions
+  // get a fresh token hash every 7 days so a leaked token stops working even
+  // before the absolute TTL. Rotation is based on token age, NOT last_used_at:
+  // the idle timeout above already expires unused sessions after 1 hour.
+  const tokenIssuedAt = row.last_rotated_at ?? row.created_at;
+  const shouldRotate = current - tokenIssuedAt > TOKEN_ROTATION_INTERVAL_MS;
 
   if (shouldRotate) {
     const newToken = generateToken();
     const newTokenHash = await hashToken(newToken);
 
-    // Check last_rotated_at: only rotate if never rotated or rotated > 15 days ago
-    const shouldExecuteRotation = row.last_rotated_at === undefined
-      || row.last_rotated_at === null
-      || current - row.last_rotated_at > TOKEN_ROTATION_INTERVAL_MS;
+    // The UPDATE is guarded by token_hash = ?, so parallel requests can't
+    // rotate past each other: exactly one wins (meta.changes = 1), the rest
+    // fall through to the re-read below.
+    const result = await execute(
+      db,
+      `UPDATE sessions
+       SET token_hash = ?,
+           last_used_at = ?,
+           last_rotated_at = ?
+       WHERE id = ?
+         AND token_hash = ?
+         AND revoked_at IS NULL`,
+      [newTokenHash, current, current, row.session_id, tokenHash],
+    );
 
-    if (shouldExecuteRotation) {
-      const result = await execute(
-        db,
-        `UPDATE sessions
-         SET token_hash = ?,
-             last_used_at = ?,
-             last_rotated_at = ?
-         WHERE id = ?
-           AND token_hash = ?
-           AND revoked_at IS NULL`,
-        [newTokenHash, current, current, row.session_id, tokenHash],
-      );
-
-      if (result.meta.changes > 0) {
-        return { ...row, newToken };
-      }
+    if (result.meta.changes > 0) {
+      return { ...row, newToken };
     }
 
     // Another request already rotated the token — re-read the session
@@ -155,8 +163,9 @@ export async function getSessionByToken(
        WHERE s.id = ?
          AND s.user_id = ?
          AND s.revoked_at IS NULL
-         AND s.expires_at > ?`,
-      [row.session_id, row.user_id, current],
+         AND s.expires_at > ?
+         AND s.last_used_at >= ?`,
+      [row.session_id, row.user_id, current, current - IDLE_TIMEOUT_MS],
     );
 
     if (refreshedRow) {

@@ -38,6 +38,20 @@ describe("Session Service", () => {
       const s2 = await createSession(db, "user-1", request);
       expect(s1.token).not.toBe(s2.token);
     });
+
+    it("expires sessions 14 days after login (absolute TTL)", async () => {
+      const { createSession } = await import("./session.service");
+      const db = new FakeD1Database() as unknown as D1Database;
+      const request = new Request("http://localhost");
+
+      const before = Date.now();
+      const result = await createSession(db, "user-1", request);
+      const after = Date.now();
+
+      const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+      expect(result.expiresAt).toBeGreaterThanOrEqual(before + fourteenDays);
+      expect(result.expiresAt).toBeLessThanOrEqual(after + fourteenDays);
+    });
   });
 
   describe("getSessionByToken", () => {
@@ -77,6 +91,75 @@ describe("Session Service", () => {
       expect(session!.user_id).toBe("user-1");
       expect(session!.email).toBe("test@example.com");
       expect(session!.full_name).toBe("Test User");
+    });
+
+    it("enforces the 1-hour idle timeout in the session query", async () => {
+      const { getSessionByToken } = await import("./session.service");
+      let capturedSql = "";
+      let capturedValues: unknown[] = [];
+
+      const db = new FakeD1Database({
+        first: (sql, values) => {
+          capturedSql = sql as string;
+          capturedValues = values;
+          // Simulate the DB rejecting the row because last_used_at is stale.
+          return null;
+        },
+      }) as unknown as D1Database;
+
+      const before = Date.now();
+      await getSessionByToken(db, "some-token");
+      const after = Date.now();
+
+      // Query must filter on last_used_at within the 1h idle window.
+      expect(capturedSql).toContain("s.last_used_at >= ?");
+      // values = [tokenHash, current, current - IDLE_TIMEOUT_MS]
+      const idleBound = capturedValues[2] as number;
+      expect(idleBound).toBeGreaterThanOrEqual(before - 60 * 60 * 1000);
+      expect(idleBound).toBeLessThanOrEqual(after - 60 * 60 * 1000);
+    });
+
+    it("returns null when the session row is idle-expired", async () => {
+      const { getSessionByToken } = await import("./session.service");
+      // DB returns no row (idle bound not satisfied) → must be treated as logged out.
+      const db = new FakeD1Database({
+        first: () => null,
+      }) as unknown as D1Database;
+
+      const session = await getSessionByToken(db, "stale-token");
+      expect(session).toBeNull();
+    });
+
+    it("rotates the token when it was issued more than 7 days ago", async () => {
+      const { getSessionByToken } = await import("./session.service");
+      const now = Date.now();
+      const eightDaysAgo = now - 8 * 24 * 60 * 60 * 1000;
+
+      const db = new FakeD1Database({
+        first: (sql) => {
+          if ((sql as string).includes("FROM sessions s")) {
+            return {
+              session_id: "session-1",
+              user_id: "user-1",
+              expires_at: now + 86_400_000,
+              current_organization_id: null,
+              email: "test@example.com",
+              full_name: "Test User",
+              email_verified_at: now,
+              // Active within the idle window, but the token hash is 8 days old.
+              last_used_at: now,
+              last_rotated_at: eightDaysAgo,
+              created_at: eightDaysAgo,
+            };
+          }
+          return null;
+        },
+        run: () => ({ success: true, meta: { changes: 1 } } as D1Result),
+      }) as unknown as D1Database;
+
+      const session = await getSessionByToken(db, "some-token");
+      expect(session).not.toBeNull();
+      expect(session!.newToken).toBeTypeOf("string");
     });
   });
 
