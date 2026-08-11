@@ -6,7 +6,7 @@
 set -euo pipefail
 
 MODE="${1:-remote}"
-FLAG=""
+FLAG="--remote"
 if [[ "$MODE" == "--local" ]]; then
   FLAG="--local"
   echo "[backup] Using local D1 database"

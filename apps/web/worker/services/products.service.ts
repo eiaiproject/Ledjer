@@ -340,6 +340,14 @@ export async function deactivateProduct(
  *   stock decrease → Dr Beban Lain-lain / Cr Persediaan
  * The journal is skipped when the adjustment has no monetary value or the
  * required accounts are not configured (the movement is still recorded).
+ *
+ * The stock movement and its paired journal are written in a SINGLE atomic
+ * batch, so a failure can never leave a movement without its journal — the
+ * previous sequential write allowed ghost inventory in the balance sheet.
+ * The optimistic stock UPDATE is a separate conflict-safe write that happens
+ * before the batch; the only residual window is a failure between those two
+ * steps (stock changed without movement/journal), which the dashboard
+ * inventory-mismatch alert detects.
  */
 export async function recordStockAdjustment(
   db: D1Database,
@@ -361,27 +369,69 @@ export async function recordStockAdjustment(
   const movementDate = input.movementDate ?? new Date().toISOString().slice(0, 10);
   await assertPeriodOpen(db, organizationId, movementDate);
 
-  // NOTE: the movement and its journal are recorded sequentially, not in one
-  // batch. Period-lock and account guards run before the movement, so the only
-  // residual non-atomic window is a DB failure on the journal batch itself.
-  const movement = await recordStockMovement(db, organizationId, userId, {
-    productId: input.productId,
-    movementType: "adjustment",
-    movementDate,
-    quantity: input.quantity,
-    notes: `[ADJ] ${input.reason.trim()}`,
-  });
+  // M-04: Validate movement date is not in the future (same guard as recordStockMovement).
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  if (movementDate > today) {
+    throw badRequest('future_movement_date', 'Movement date cannot be in the future');
+  }
 
-  const journal = await postStockAdjustmentJournal(db, organizationId, userId, {
+  const quantityMilli = toSignedQuantityMilli(input.quantity);
+  if (quantityMilli === 0) {
+    throw badRequest("stock_quantity_required", "Stock movement quantity must be non-zero");
+  }
+
+  const reason = input.reason.trim();
+  const current = Date.now();
+  const movementId = generateId();
+
+  // Resolve the journal plan first — its amount and accounts depend only on
+  // the product's average cost, which stock adjustments never change.
+  // Note: this consumes the AJ counter before the writes below; on a failed
+  // write the number is skipped (harmless — entry numbers may have gaps).
+  const journal = await planStockAdjustmentJournal(db, organizationId, userId, {
     product,
     quantity: input.quantity,
-    reason: input.reason.trim(),
+    reason,
     movementDate,
+    current,
     requestId,
   });
 
+  // 1) Optimistic stock UPDATE (conflict-safe, retried on concurrent writes).
+  const { stockAfterMilli } = await updateProductStockWithRetry(
+    db, organizationId, input.productId,
+    quantityMilli, null, "adjustment", current,
+  );
+
+  // 2) Movement + journal in ONE atomic batch — no window where a movement
+  //    exists without its paired journal (or vice versa).
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO stock_movements (
+         id, organization_id, product_id, movement_date, movement_type,
+         quantity_milli, unit_cost_minor, transaction_id, stock_after_milli,
+         notes, created_by, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [movementId, organizationId, product.id, movementDate, "adjustment",
+       quantityMilli, null, null, stockAfterMilli, `[ADJ] ${reason}`, userId, current],
+    ),
+    ...journal.statements,
+  ];
+  await executeBatch(db, statements);
+
   return {
-    ...movement,
+    id: movementId,
+    product_id: product.id,
+    movement_date: movementDate,
+    movement_type: "adjustment",
+    quantity: fromQuantityMilli(quantityMilli),
+    unit_cost: null,
+    transaction_id: null,
+    stock_after: fromQuantityMilli(stockAfterMilli),
+    notes: `[ADJ] ${reason}`,
+    created_by: userId,
+    created_at: current,
     journal_posted: journal.posted,
     journal_skip_reason: journal.skipReason,
   };
@@ -784,39 +834,48 @@ interface StockAdjustmentJournalInput {
   quantity: number;
   reason: string;
   movementDate: string;
+  current: number;
   requestId?: string;
 }
 
+interface StockAdjustmentJournalPlan {
+  posted: boolean;
+  skipReason?: string;
+  statements: D1PreparedStatement[];
+}
+
 /**
- * Post a balanced journal entry for a manual stock adjustment.
- * Amount = |quantity| × weighted-average cost. Skips posting when the
- * adjustment has no monetary value or the needed accounts are missing.
+ * Build the balanced journal statements for a manual stock adjustment.
+ * Amount = |quantity| × weighted-average cost. Returns no statements when
+ * the adjustment has no monetary value or the needed accounts are missing
+ * (the caller still records the movement). The caller executes the returned
+ * statements in the same atomic batch as the stock movement.
  */
-async function postStockAdjustmentJournal(
+async function planStockAdjustmentJournal(
   db: D1Database,
   organizationId: string,
   userId: string,
   input: StockAdjustmentJournalInput,
-): Promise<{ posted: boolean; skipReason?: string }> {
+): Promise<StockAdjustmentJournalPlan> {
   const value = Math.round(Math.abs(input.quantity) * input.product.average_cost_minor);
   if (value <= 0) {
-    return { posted: false, skipReason: "no_value" };
+    return { posted: false, skipReason: "no_value", statements: [] };
   }
 
   const inventoryAccountId = input.product.inventory_account_id
     ?? await findActiveAccountId(db, organizationId, "1300");
   if (!inventoryAccountId) {
-    return { posted: false, skipReason: "inventory_account_missing" };
+    return { posted: false, skipReason: "inventory_account_missing", statements: [] };
   }
 
   const isDecrease = input.quantity < 0;
   const counterpartCode = isDecrease ? "8100" : "7100";
   const counterpartAccountId = await findActiveAccountId(db, organizationId, counterpartCode);
   if (!counterpartAccountId) {
-    return { posted: false, skipReason: "counterpart_account_missing" };
+    return { posted: false, skipReason: "counterpart_account_missing", statements: [] };
   }
 
-  const current = Date.now();
+  const current = input.current;
   const journalEntryId = generateId();
   const entryNumber = await nextSequentialNumber(db, organizationId, "stock_adjustment", "AJ");
   const description = `Penyesuaian stok ${input.product.name} — ${input.reason}`;
@@ -848,9 +907,6 @@ async function postStockAdjustmentJournal(
        ) VALUES (?, ?, ?, ?, ?, ?, ?, 2, ?)`,
       [generateId(), organizationId, journalEntryId, creditAccountId, 0, value, description, current],
     ),
-  ];
-
-  statements.push(
     writeAuditStatement(db, {
       organizationId,
       actorUserId: userId,
@@ -868,11 +924,9 @@ async function postStockAdjustmentJournal(
       requestId: input.requestId,
       current,
     }),
-  );
+  ];
 
-  await executeBatch(db, statements);
-
-  return { posted: true };
+  return { posted: true, statements };
 }
 
 interface OpeningStockJournalInput {

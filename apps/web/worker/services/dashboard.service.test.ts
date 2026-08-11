@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeD1Database } from "../test/fake-d1";
-import { currentMonthPeriod, getDashboardSummary } from "./dashboard.service";
+import { currentMonthPeriod, getDashboardAlerts, getDashboardSummary } from "./dashboard.service";
 
 describe("dashboard summary", () => {
   it("uses the current local month as the dashboard period", () => {
@@ -56,5 +56,44 @@ describe("dashboard summary", () => {
     expect(sql).toContain("posted_balances AS");
     expect(sql).toContain("period_balances AS");
     expect(sql).toContain("je.entry_type != 'opening_balance'");
+  });
+});
+
+describe("dashboard alerts", () => {
+  it("flags an inventory mismatch when the control account diverges from the stock subledger", async () => {
+    const fake = new FakeD1Database({
+      first: (sql) => {
+        if (sql.includes("inv_balance")) {
+          return { account_balance: 21693, stock_value: 0 };
+        }
+        return null;
+      },
+    });
+
+    const { alerts } = await getDashboardAlerts(fake as unknown as D1Database, "org-1");
+
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({
+      id: "inventory_mismatch",
+      type: "inventory_mismatch",
+      severity: "medium",
+      actionLabel: "Periksa Stok",
+      actionPath: "/products",
+    });
+    expect(alerts[0].description).toContain("21.693");
+  });
+
+  it("does not alert when the stock subledger matches the control account", async () => {
+    const fake = new FakeD1Database({
+      first: (sql) => {
+        if (sql.includes("inv_balance")) {
+          return { account_balance: 0, stock_value: 0 };
+        }
+        return null;
+      },
+    });
+
+    const { alerts } = await getDashboardAlerts(fake as unknown as D1Database, "org-1");
+    expect(alerts).toHaveLength(0);
   });
 });

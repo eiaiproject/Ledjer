@@ -164,6 +164,27 @@ function adjustmentDb(initialProduct: FakeProductRow, accountIds: Record<string,
     },
     batch: async (statements) => {
       state.journalStatements.push(...statements);
+      // Stock adjustments write the movement + journal in ONE atomic batch
+      // (the product UPDATE goes through `run` via updateProductStockWithRetry).
+      // Apply the movement side effect so the recorded state stays realistic.
+      for (const s of statements) {
+        if (s.sql.includes("INSERT INTO stock_movements")) {
+          state.movements.unshift({
+            id: s.values[0] as string,
+            organization_id: s.values[1] as string,
+            product_id: s.values[2] as string,
+            movement_date: s.values[3] as string,
+            movement_type: s.values[4] as string,
+            quantity_milli: s.values[5] as number,
+            unit_cost_minor: s.values[6] as number | null,
+            transaction_id: s.values[7] as string | null,
+            stock_after_milli: s.values[8] as number,
+            notes: s.values[9] as string | null,
+            created_by: s.values[10] as string | null,
+            created_at: s.values[11] as number,
+          });
+        }
+      }
       return statements.map(() => ({ success: true, meta: { changes: 1 } }) as D1Result);
     },
   });
@@ -460,5 +481,30 @@ describe("stock adjustment journal posting", () => {
 
     expect(fake.state.movements).toHaveLength(0);
     expect(journalInserts(fake.state)).toHaveLength(0);
+  });
+
+  it("writes the movement and its journal in a single atomic batch", async () => {
+    const fake = adjustmentDb(product({
+      average_cost_minor: 1000,
+      current_stock_milli: 3000,
+      inventory_account_id: "acct-1300",
+    }));
+
+    await recordStockAdjustment(fake.db, "org-1", "user-1", {
+      productId: "product-1",
+      quantity: -3,
+      reason: "Stok rusak",
+      movementDate: "2026-07-07",
+    });
+
+    // ONE batch carries the movement AND its journal — atomic, so a failure
+    // can never leave a movement without its paired journal.
+    const batchStatements = fake.state.journalStatements;
+    expect(batchStatements.some((s) => s.sql.includes("INSERT INTO stock_movements"))).toBe(true);
+    expect(batchStatements.some((s) => s.sql.includes("INSERT INTO journal_entries"))).toBe(true);
+    expect(journalInserts(fake.state)).toHaveLength(3); // 1 journal_entries + 2 journal_lines
+    expect(fake.state.product.current_stock_milli).toBe(0);
+    expect(fake.state.movements[0].stock_after_milli).toBe(0);
+    expect(fake.state.movements[0].movement_type).toBe("adjustment");
   });
 });

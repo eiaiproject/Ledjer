@@ -17,7 +17,7 @@ interface DashboardSummaryResponse {
 
 export interface DashboardAlert {
   id: string;
-  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period";
+  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period" | "inventory_mismatch";
   severity: "high" | "medium" | "low";
   title: string;
   description: string;
