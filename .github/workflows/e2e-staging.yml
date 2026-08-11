@@ -10,6 +10,14 @@ permissions:
   contents: read
   pull-requests: write
 
+# Serialize staging deploys + E2E runs. A batch of PRs (e.g. dependabot)
+# landing at once would otherwise deploy over each other and burst the
+# shared staging Worker with parallel logins, tripping login rate limits
+# (403 lockout / 429) and failing every run.
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
 jobs:
   deploy-and-test:
     runs-on: ubuntu-latest
@@ -35,32 +43,25 @@ jobs:
         working-directory: apps/web
 
       - name: Deploy to Cloudflare Workers (staging)
-        id: deploy
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           workingDirectory: apps/web
           command: deploy --env=staging --config=wrangler.jsonc
-        continue-on-error: true
-
-      - name: Determine test target URL
-        id: target
-        run: |
-          if [[ "${{ steps.deploy.outcome }}" == "success" ]]; then
-            echo "BASE_URL=https://ledjer-staging.eiai.workers.dev" >> "$GITHUB_OUTPUT"
-          else
-            echo "BASE_URL=https://ledjer.id" >> "$GITHUB_OUTPUT"
-          fi
+        # Fail fast on deploy failure. We must never fall back to running
+        # CRUD tests against production (they create real data).
 
       - name: Install Playwright browsers
         run: ./node_modules/.bin/playwright install chromium --with-deps
         working-directory: apps/web
 
       - name: Run E2E CRUD tests
-        run: pnpm exec playwright test e2e/full-crud.spec.ts e2e/masterdata-crud.spec.ts e2e/settings-crud.spec.ts e2e/documents-crud.spec.ts --project=chromium --reporter=github,html
+        run: pnpm exec playwright test e2e/full-crud.spec.ts e2e/masterdata-crud.spec.ts e2e/settings-crud.spec.ts e2e/documents-crud.spec.ts --project=chromium --reporter=github,html --workers=2 --retries=1
         working-directory: apps/web
         env:
-          E2E_BASE_URL: ${{ steps.target.outputs.BASE_URL }}
+          # Low parallelism + login retries in the auth fixture keep us under
+          # the staging Worker's login rate limits even on shared runners.
+          E2E_BASE_URL: https://ledjer-staging.eiai.workers.dev
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()

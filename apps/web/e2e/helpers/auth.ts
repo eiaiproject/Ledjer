@@ -46,22 +46,33 @@ export const test = base.extend<AuthFixtures>({
     // Navigate to the app first to establish the origin
     await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 15000 });
 
-    // Log in via fetch so cookies are handled natively by the browser
-    const loginResult = await page.evaluate(
-      async ({ email, password }: { email: string; password: string }) => {
-        try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          return { ok: res.ok, status: res.status };
-        } catch (err) {
-          return { ok: false, status: 0, error: String(err) };
-        }
-      },
-      { email, password },
-    );
+    // Log in via fetch so cookies are handled natively by the browser.
+    // Retry with backoff: the worker rate-limits bursts of parallel logins
+    // (403 rate_limited after 5 failed attempts / 15 min per email, 429 from
+    // edge throttling when CI runs land simultaneously). Each test in a
+    // parallel worker logs in, so a transient failure must not fail the run.
+    let loginResult: { ok: boolean; status: number; error?: string } = { ok: false, status: 0 };
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      loginResult = await page.evaluate(
+        async ({ email, password }: { email: string; password: string }) => {
+          try {
+            const res = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password }),
+            });
+            return { ok: res.ok, status: res.status };
+          } catch (err) {
+            return { ok: false, status: 0, error: String(err) };
+          }
+        },
+        { email, password },
+      );
+      if (loginResult.ok) break;
+      // Backoff: 5s, 10s, 20s, 40s — lets the 15-minute lockout window expire
+      // (when it does, the 403 clears and the retry succeeds).
+      await page.waitForTimeout(attempt * 5000);
+    }
 
     if (!loginResult.ok) {
       throw new Error(
