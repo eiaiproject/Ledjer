@@ -2,8 +2,9 @@ import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { refreshAllData } from "@/lib/query-client";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { cn, formatDecimalIDR, formatNumber, parseSignedDecimalInput } from "@/lib/utils";
+import { cn, formatDecimalIDR, formatQuantity, parseSignedDecimalInput } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -51,9 +52,9 @@ type ProductFormErrors = Partial<Record<keyof ProductFormData, string>>;
 type StockFilter = "all" | "in_stock" | "low" | "out";
 
 function getStockStatus(p: Product): StockFilter {
-  // The API serializes stock as a fixed-3 string (e.g. "9.000"). Coerce both
-  // sides to numbers — comparing the raw strings would be lexicographic and
-  // mislabel e.g. stock 9 vs min 10 as "Aman" ("9" > "1").
+  // The API serializes stock as a string (integer when whole, up to 3 decimals
+  // when fractional). Coerce both sides to numbers — comparing the raw strings
+  // would be lexicographic and mislabel e.g. stock 9 vs min 10 as "Aman" ("9" > "1").
   const stock = Number(p.current_stock ?? 0);
   const minStock = Number(p.min_stock ?? 0);
   if (stock <= 0) return "out";
@@ -249,7 +250,7 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
   };
 
   const handleQuantityBlur = () => {
-    setQuantityText(formatNumber(quantity, 3));
+    setQuantityText(formatQuantity(quantity));
   };
 
   const handleSubmit = async () => {
@@ -277,7 +278,7 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
       <ModalContent>
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            Stok saat ini: <strong className="text-text-primary">{product?.current_stock ?? 0}</strong> {product?.unit || "pcs"}
+            Stok saat ini: <strong className="text-text-primary">{formatQuantity(product?.current_stock)}</strong> {product?.unit || "pcs"}
           </p>
           <Input
             label="Jumlah Penyesuaian"
@@ -333,7 +334,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
   };
 
   const handlePhysicalStockBlur = () => {
-    setPhysicalStockText(formatNumber(physicalStock, 3));
+    setPhysicalStockText(formatQuantity(physicalStock));
   };
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ systemStock: string; physicalStock: string; difference: string } | null>(null);
@@ -378,7 +379,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
           {!result ? (
             <>
               <p className="text-sm text-text-secondary">
-                Stok sistem: <strong className="text-text-primary">{product?.current_stock ?? 0}</strong> {product?.unit || "pcs"}
+                Stok sistem: <strong className="text-text-primary">{formatQuantity(product?.current_stock)}</strong> {product?.unit || "pcs"}
               </p>
               <Input
                 label="Stok Fisik"
@@ -408,16 +409,16 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-xs text-text-tertiary">Sistem</p>
-                  <p className="num-mono text-lg font-bold text-wood-700">{result.systemStock}</p>
+                  <p className="num-mono text-lg font-bold text-wood-700">{formatQuantity(result.systemStock)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-tertiary">Fisik</p>
-                  <p className="num-mono text-lg font-bold text-leaf-700">{result.physicalStock}</p>
+                  <p className="num-mono text-lg font-bold text-leaf-700">{formatQuantity(result.physicalStock)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-tertiary">Selisih</p>
                   <p className={`num-mono text-lg font-bold ${differenceColor}`}>
-                    {result.difference}
+                    {formatQuantity(result.difference)}
                   </p>
                 </div>
               </div>
@@ -641,7 +642,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
             </div>
             <div className="mt-2 flex items-center justify-between">
               <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
-              <span className="num-mono text-xs text-text-tertiary">Stok: {formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
+              <span className="num-mono text-xs text-text-tertiary">Stok: {formatQuantity(product.current_stock)} {product.unit || "pcs"}</span>
             </div>              {canManageProducts && (
               <div className="mt-3 flex justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] text-sky-600 hover:bg-sky-50">
@@ -688,8 +689,8 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
                 <td className="px-4 py-3 text-center">
                   <div className="flex flex-col items-center gap-1">
                     <StockBadge product={product} />
-                    <span className="num-mono text-xs text-wood-500">{formatNumber(product.current_stock)} {product.unit || "pcs"}</span>
-                    {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-500">Min: {formatNumber(product.min_stock)}</span>}
+                    <span className="num-mono text-xs text-wood-500">{formatQuantity(product.current_stock)} {product.unit || "pcs"}</span>
+                    {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-500">Min: {formatQuantity(product.min_stock)}</span>}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatDecimalIDR(product.purchase_price)}</td>
@@ -876,7 +877,7 @@ export function ProductsPage() {
   const filterValues: StockFilter[] = ["all", "in_stock", "low", "out"];
 
   return (
-    <PullToRefresh onRefresh={refetch}>
+    <PullToRefresh onRefresh={refreshAllData}>
     <PageShell
       header={{
         title: "Produk",

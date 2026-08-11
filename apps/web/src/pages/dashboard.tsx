@@ -8,6 +8,7 @@ import {
   Clock, Package, FileText, Bank, Lock,
 } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { refreshAllData } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,7 +98,6 @@ export function DashboardPage() {
     data: summary,
     isLoading,
     error,
-    refetch: refetchSummary,
   } = useQuery({
     queryKey: queryKeys.dashboard(orgData?.organization?.id),
     queryFn: () => getDashboardSummary(),
@@ -107,18 +107,17 @@ export function DashboardPage() {
   });
 
   // Fetch dashboard alerts
-  const { data: alertsData, refetch: refetchAlerts } = useQuery({
+  const { data: alertsData } = useQuery({
     queryKey: [...queryKeys.dashboard(orgData?.organization?.id), "alerts"],
     queryFn: () => getDashboardAlerts(),
     enabled: !!orgData?.organization?.id && canViewReports,
     refetchInterval: 60_000,
   });
 
-  // Pull-to-refresh on mobile re-fetches summary + alerts together.
+  // Pull-to-refresh refreshes every page's data at once.
   const handleRefresh = useCallback(async () => {
-    if (!canViewReports) return; // queries are disabled without report access
-    await Promise.allSettled([refetchSummary(), refetchAlerts()]);
-  }, [canViewReports, refetchSummary, refetchAlerts]);
+    await refreshAllData();
+  }, []);
 
   // Empty-state heuristic: no revenue or expense activity this period
   const hasActivity = !!summary && (summary.revenue_current_period !== 0 || summary.expense_current_period !== 0);

@@ -20,7 +20,7 @@ import { Controller } from "react-hook-form";
 import type { TransactionForm } from "./_hooks";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
-import { cn, formatIDR, formatNumber, parseAmountInput, parseSignedDecimalInput } from "@/lib/utils";
+import { cn, formatIDR, formatQuantity, parseAmountInput, parseSignedDecimalInput } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -539,7 +539,7 @@ export const ProductDetailFields = memo(function ProductDetailFields({
         >
           {stockAfterSale < 0 && <AlertTriangle className="h-4 w-4 shrink-0" />}
           <span className="min-w-0 break-words">
-            Stok setelah transaksi: <strong>{formatNumber(stockAfterSale)}</strong> {product.unit}
+            Stok setelah transaksi: <strong>{formatQuantity(stockAfterSale)}</strong> {product.unit}
             {stockAfterSale < 0 && (
               <span className="block text-xs mt-0.5">
                 Stok akan menjadi negatif. Pastikan data sudah benar.
@@ -643,7 +643,7 @@ export const ReviewPanel = memo(function ReviewPanel({
                 <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
                   <span className="text-text-secondary">Stok berkurang</span>
                   <span className={cn("shrink-0 text-right num-mono font-medium", stockWarning < 0 ? "text-error" : "text-text-primary")}>
-                    {productName || "Produk"}: {formatNumber(stockWarning)}
+                    {productName || "Produk"}: {formatQuantity(stockWarning)}
                   </span>
                 </div>
               )}
@@ -667,7 +667,7 @@ export const ReviewPanel = memo(function ReviewPanel({
                 <div className="flex min-w-0 items-start justify-between gap-3 text-sm">
                   <span className="text-text-secondary">Stok bertambah</span>
                   <span className="shrink-0 text-right num-mono font-medium text-text-primary">
-                    {productName || "Produk"}: +{formatNumber(stockWarning)}
+                    {productName || "Produk"}: +{formatQuantity(stockWarning)}
                   </span>
                 </div>
               )}
@@ -748,7 +748,7 @@ export const ReviewPanel = memo(function ReviewPanel({
         {stockWarning !== null && stockWarning < 0 && (
           <div className="flex min-w-0 items-start gap-2 rounded-md border border-error-border bg-error-bg px-3 py-2 text-xs text-error" role="alert">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 break-words">Stok produk akan menjadi negatif ({formatNumber(stockWarning)}).</span>
+            <span className="min-w-0 break-words">Stok produk akan menjadi negatif ({formatQuantity(stockWarning)}).</span>
           </div>
         )}
       </div>
@@ -1091,7 +1091,7 @@ export function ProductFieldsSection(props: ProductFieldsSectionProps) {
         options={(products || []).map((product) => ({
           value: product.id,
           label: `${product.code} - ${product.name}`,
-          secondaryLabel: `Stok: ${formatNumber(product.current_stock)} ${product.unit}`,
+          secondaryLabel: `Stok: ${formatQuantity(product.current_stock)} ${product.unit}`,
         }))}
         placeholder={isPurchaseType ? "Ketik nama barang (baru atau sudah ada)" : "Pilih produk atau ketik nama item"}
         loading={productsLoading}

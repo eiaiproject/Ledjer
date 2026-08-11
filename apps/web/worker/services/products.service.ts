@@ -712,8 +712,12 @@ function toSignedQuantityMilli(value: number): number {
   return Math.round(value * 1000);
 }
 
-function fromQuantityMilli(value: number): string {
-  return (value / 1000).toFixed(3);
+export function fromQuantityMilli(value: number): string {
+  // value is an integer count of milli-units, so value / 1000 always has at
+  // most 3 decimals. String() renders whole values as plain integers ("250",
+  // not "250.000") and already trims trailing zeros from true fractions
+  // ("250.5", not "250.500") — no regex needed.
+  return String(value / 1000);
 }
 
 function nextAverageCostMinor(

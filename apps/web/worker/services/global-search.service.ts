@@ -237,7 +237,7 @@ async function searchProducts(
     entityType: "product" as const,
     entityId: r.id,
     label: `${r.code} — ${r.name}`,
-    subtitle: `${r.unit} — Stok: ${(r.current_stock_milli / 1000).toFixed(0)}`,
+    subtitle: `${r.unit} — Stok: ${(r.current_stock_milli / 1000).toLocaleString("id-ID", { maximumFractionDigits: 3 })}`,
     url: `/products`,
     score: limit - i,
   }));

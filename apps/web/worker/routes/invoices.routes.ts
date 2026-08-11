@@ -13,6 +13,7 @@ import {
   getCreditNotesForInvoice,
 } from "../services/invoices.service";
 import { sendEmail } from "../services/email.service";
+import { fromQuantityMilli } from "../services/products.service";
 
 const app = new Hono<AppContext>();
 
@@ -191,7 +192,7 @@ app.get("/:id/print", requireAuth(), loadCurrentOrganization(), async (c) => {
       <tr>
         <td style="color:#888;">${i + 1}</td>
         <td>${l.description}</td>
-        <td class="text-right">${(l.quantityMilli / 1000).toFixed(2)}</td>
+        <td class="text-right">${fromQuantityMilli(l.quantityMilli)}</td>
         <td class="text-right">${formatRupiah(l.unitPriceMinor)}</td>
         <td class="text-right">${formatRupiah(l.amountMinor)}</td>
       </tr>`).join("")}
@@ -239,7 +240,7 @@ app.post("/:id/send-email", requireAuth(), loadCurrentOrganization(), requirePer
   const formatRupiah = (n: number) => `Rp ${(n / 100).toLocaleString("id-ID")}`;
 
   const linesHtml = invoice.lines.map((l, i) =>
-    `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${i + 1}</td><td style="padding:8px;border-bottom:1px solid #eee;">${l.description}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${(l.quantityMilli / 1000).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${formatRupiah(l.unitPriceMinor)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${formatRupiah(l.amountMinor)}</td></tr>`
+    `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${i + 1}</td><td style="padding:8px;border-bottom:1px solid #eee;">${l.description}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${fromQuantityMilli(l.quantityMilli)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${formatRupiah(l.unitPriceMinor)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${formatRupiah(l.amountMinor)}</td></tr>`
   ).join("");
 
   const emailHtml = `

@@ -30,3 +30,14 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * Refresh every cached query in one go: queries of the currently visible page
+ * are refetched immediately, and queries of every other page are invalidated
+ * (refetched now with `refetchType: "all"`) so the next visit shows fresh
+ * data. One action → all pages up to date. Used by the global refresh button
+ * in the dashboard layout and by pull-to-refresh gestures.
+ */
+export async function refreshAllData(): Promise<void> {
+  await queryClient.invalidateQueries({ refetchType: "all" });
+}
