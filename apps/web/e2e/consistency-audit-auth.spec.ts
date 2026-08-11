@@ -22,7 +22,7 @@
  *   E2E_FULL=1 ... --project=mobile-chrome --project=mobile-safari --workers=1
  */
 
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test as authTest } from "./helpers/auth";
