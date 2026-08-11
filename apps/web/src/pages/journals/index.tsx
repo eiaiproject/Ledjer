@@ -382,6 +382,7 @@ export function ManualJournalPage() {
                   value={line.description}
                   onChange={(e) => handleLineChange(line.id, "description", e.target.value)}
                   placeholder={`Baris ${index + 1}`}
+                  aria-label={`Deskripsi baris ${index + 1}`}
                   containerClassName="min-w-0"
                 />
 
