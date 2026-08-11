@@ -19,6 +19,9 @@ export function NotFoundPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <h1 className="text-xl font-bold text-text-primary">Halaman tidak ditemukan</h1>
+              <h2 className="mt-2 text-sm font-semibold text-text-secondary">
+                Coba halaman berikut:
+              </h2>
               <p className="mt-2 text-sm text-text-secondary">
                 Link ini tidak tersedia atau sudah berubah. Periksa kembali alamatnya.
               </p>

@@ -1,11 +1,12 @@
 import { lazy, Suspense, type ReactNode, useEffect } from "react";
-import { createBrowserRouter, RouterProvider, useLocation } from "react-router-dom";
+import { createBrowserRouter, Outlet, RouterProvider, useLocation } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ProtectedRoute, PublicRoute } from "@/routes/__root";
 import { DashboardLayout } from "@/layouts/dashboard";
+import { PublicLayout } from "@/layouts/public";
 import { ToastProvider } from "@/components/ui/toast";
 import { queryClient } from "@/lib/query-client";
 
@@ -111,18 +112,28 @@ function RouteFallback() {
 }
 
 const routerConfig = [
+  // Landing has its own bespoke hero/header — render outside PublicLayout.
   {
     path: "/",
-    element: <PublicRoute />,
+    element: (
+      <Seo title="Ledjer — Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
+        <LandingPage />
+      </Seo>
+    ),
+  },
+  // All other public pages share PublicLayout (header + main + footer).
+  // PublicRoute handles the auth-redirect-if-signed-in case; the layout
+  // wraps the Outlet so every page gets chrome in one place.
+  {
+    path: "/",
+    element: (
+      <PublicRoute>
+        <PublicLayout>
+          <Outlet />
+        </PublicLayout>
+      </PublicRoute>
+    ),
     children: [
-      {
-        index: true,
-        element: (
-          <Seo title="Ledjer — Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
-            <LandingPage />
-          </Seo>
-        ),
-      },
       {
         path: "login",
         element: (
@@ -139,11 +150,51 @@ const routerConfig = [
           </Seo>
         ),
       },
+      {
+        path: "forgot-password",
+        element: (
+          <Seo title="Lupa password - Ledjer" description="Minta tautan pemulihan password Ledjer." noindex>
+            <ForgotPasswordPage />
+          </Seo>
+        ),
+      },
+      {
+        path: "terms",
+        element: (
+          <Seo title="Syarat & Ketentuan - Ledjer" description="Syarat dan ketentuan penggunaan Ledjer.">
+            <TermsOfServicePage />
+          </Seo>
+        ),
+      },
+      {
+        path: "privacy",
+        element: (
+          <Seo title="Kebijakan Privasi - Ledjer" description="Kebijakan privasi dan pengelolaan data Ledjer.">
+            <PrivacyPolicyPage />
+          </Seo>
+        ),
+      },
+      {
+        path: "security",
+        element: (
+          <Seo title="Keamanan - Ledjer" description="Ringkasan keamanan data dan infrastruktur Ledjer.">
+            <SecurityPage />
+          </Seo>
+        ),
+      },
+      {
+        path: "contact",
+        element: (
+          <Seo title="Kontak - Ledjer" description="Hubungi tim Ledjer untuk dukungan, bug, atau keamanan.">
+            <ContactPage />
+          </Seo>
+        ),
+      },
     ],
   },
   // Auth callback must NOT sit under PublicRoute/ProtectedRoute: after
   // token verification sets a session, route guards would redirect before
-  // this page can choose the right destination.
+  // this page can choose the right destination. Render outside any layout.
   {
     path: "/auth/callback",
     element: (
@@ -153,7 +204,8 @@ const routerConfig = [
     ),
   },
   // Password recovery destination. Recovery email links land here with a
-  // temporary session so the user can set a new password.
+  // temporary session so the user can set a new password. Outside the
+  // shared public layout so it can decide its own chrome (full-bleed form).
   {
     path: "/reset-password",
     element: (
@@ -167,50 +219,6 @@ const routerConfig = [
     element: (
       <Seo title="Terima undangan - Ledjer" description="Terima undangan tim Ledjer." noindex>
         <AcceptInvitationPage />
-      </Seo>
-    ),
-  },
-  // Forgot-password landing page — user enters their email to receive a
-  // recovery link. Public route (sits under PublicRoute so signed-in users
-  // are not redirected away).
-  {
-    path: "/forgot-password",
-    element: (
-      <Seo title="Lupa password - Ledjer" description="Minta tautan pemulihan password Ledjer." noindex>
-        <ForgotPasswordPage />
-      </Seo>
-    ),
-  },
-  // Legal & policy pages (public — accessible to everyone)
-  {
-    path: "/terms",
-    element: (
-      <Seo title="Syarat & Ketentuan - Ledjer" description="Syarat dan ketentuan penggunaan Ledjer.">
-        <TermsOfServicePage />
-      </Seo>
-    ),
-  },
-  {
-    path: "/privacy",
-    element: (
-      <Seo title="Kebijakan Privasi - Ledjer" description="Kebijakan privasi dan pengelolaan data Ledjer.">
-        <PrivacyPolicyPage />
-      </Seo>
-    ),
-  },
-  {
-    path: "/security",
-    element: (
-      <Seo title="Keamanan - Ledjer" description="Ringkasan keamanan data dan infrastruktur Ledjer.">
-        <SecurityPage />
-      </Seo>
-    ),
-  },
-  {
-    path: "/contact",
-    element: (
-      <Seo title="Kontak - Ledjer" description="Hubungi tim Ledjer untuk dukungan, bug, atau keamanan.">
-        <ContactPage />
       </Seo>
     ),
   },
