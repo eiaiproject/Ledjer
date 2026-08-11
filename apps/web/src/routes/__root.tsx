@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import type { ReactNode } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { buildRedirectSearch, getSafeRedirectPath } from "@/lib/redirect";
 
@@ -22,7 +23,7 @@ export function ProtectedRoute() {
   return <Outlet />;
 }
 
-export function PublicRoute() {
+export function PublicRoute({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const location = useLocation();
 
@@ -42,5 +43,5 @@ export function PublicRoute() {
     );
   }
 
-  return <Outlet />;
+  return <>{children}</>;
 }

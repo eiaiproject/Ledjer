@@ -97,6 +97,9 @@ export function ResetPasswordPage() {
             <h1 className="text-center text-xl font-bold text-text-primary">
               Atur Ulang Password
             </h1>
+            <h2 className="mt-2 text-center text-sm font-semibold text-text-secondary">
+              Buat password baru
+            </h2>
             <p className="mt-2 text-center text-sm text-text-secondary">
               Masukkan password baru untuk akun Anda.
             </p>
