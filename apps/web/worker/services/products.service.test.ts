@@ -183,8 +183,8 @@ describe("product inventory service", () => {
       notes: "Pembelian",
     });
 
-    expect(movement.quantity).toBe("5.000");
-    expect(movement.stock_after).toBe("15.000");
+    expect(movement.quantity).toBe("5");
+    expect(movement.stock_after).toBe("15");
     expect(reconcileStock(15_000, [10_000, Number(movement.quantity) * 1000])).toBe(true);
   });
 
@@ -211,6 +211,37 @@ describe("product inventory service", () => {
 
     expect(fake.state.product.current_stock_milli).toBe(16_000);
     expect(fake.state.product.average_cost_minor).toBe(150);
+  });
+
+  it("renders whole quantities as integers and true fractions with decimals", async () => {
+    const fake = productDb(product());
+
+    const whole = await recordStockMovement(fake.db, "org-1", "user-1", {
+      productId: "product-1",
+      movementType: "purchase",
+      movementDate: "2026-07-07",
+      quantity: 5,
+    });
+    expect(whole.quantity).toBe("5");
+    expect(whole.stock_after).toBe("15");
+
+    const fractional = await recordStockMovement(fake.db, "org-1", "user-1", {
+      productId: "product-1",
+      movementType: "purchase",
+      movementDate: "2026-07-07",
+      quantity: 0.5,
+    });
+    expect(fractional.quantity).toBe("0.5");
+    expect(fractional.stock_after).toBe("15.5");
+
+    const negative = await recordStockMovement(fake.db, "org-1", "user-1", {
+      productId: "product-1",
+      movementType: "sale",
+      movementDate: "2026-07-07",
+      quantity: -3.25,
+    });
+    expect(negative.quantity).toBe("-3.25");
+    expect(negative.stock_after).toBe("12.25");
   });
 
   it("rejects movements that would make stock negative", async () => {
@@ -309,7 +340,7 @@ describe("opening stock journal posting", () => {
       minStock: 1,
     });
 
-    expect(created.current_stock).toBe("3.000");
+    expect(created.current_stock).toBe("3");
 
     const entries = fake.state.journalStatements.filter((s) => s.sql.includes("INSERT INTO journal_"));
     expect(entries).toHaveLength(3); // 1 journal_entries + 2 journal_lines
@@ -347,7 +378,7 @@ describe("stock adjustment journal posting", () => {
       movementDate: "2026-07-07",
     });
 
-    expect(movement.quantity).toBe("-3.000");
+    expect(movement.quantity).toBe("-3");
     expect(movement.journal_posted).toBe(true);
     expect(fake.state.product.current_stock_milli).toBe(0);
 
@@ -405,7 +436,7 @@ describe("stock adjustment journal posting", () => {
       movementDate: "2026-07-07",
     });
 
-    expect(movement.quantity).toBe("-3.000");
+    expect(movement.quantity).toBe("-3");
     expect(movement.journal_posted).toBe(false);
     expect(journalInserts(fake.state)).toHaveLength(0);
   });

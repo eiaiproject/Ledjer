@@ -39,6 +39,22 @@ export function formatNumber(value: number | null | undefined, decimals = 0): st
   }).format(value);
 }
 
+/**
+ * Format a stock/quantity value for display: whole values render as plain
+ * integers ("250", not "250.000") so they are never misread as thousands;
+ * true fractions keep up to 3 decimals with id-ID comma ("250,5").
+ * Accepts the API's string form (e.g. "250.5") as well as raw numbers.
+ */
+export function formatQuantity(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "0";
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "0";
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  }).format(amount);
+}
+
 function parseDateValue(date: string | Date): Date {
   if (date instanceof Date) return date;
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDecimalIDR, formatIDR, formatDate } from "@/lib/utils";
+import { formatDecimalIDR, formatIDR, formatDate, formatQuantity } from "@/lib/utils";
 import { getInvoice, updateInvoiceStatus, createCreditNote as createCreditNoteApi, getCreditNotes, sendInvoiceEmail, printInvoiceUrl } from "@/lib/api/invoices";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useState } from "react";
@@ -185,7 +185,7 @@ export default function InvoiceDetailPage() {
                   <tr key={line.lineNumber ?? i}>
                     <td className="px-4 py-2 text-wood-500">{line.lineNumber ?? i + 1}</td>
                     <td className="px-4 py-2 text-wood-800">{line.description}</td>
-                    <td className="px-4 py-2 text-right text-wood-700">{(line.quantityMilli / 1000).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right text-wood-700">{formatQuantity(line.quantityMilli / 1000)}</td>
                     <td className="px-4 py-2 text-right text-wood-700">{formatDecimalIDR(line.unitPriceMinor / 100)}</td>
                     <td className="px-4 py-2 text-right font-medium text-wood-800">{formatDecimalIDR(line.amountMinor / 100)}</td>
                   </tr>

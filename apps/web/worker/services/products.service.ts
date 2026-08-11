@@ -712,8 +712,14 @@ function toSignedQuantityMilli(value: number): number {
   return Math.round(value * 1000);
 }
 
-function fromQuantityMilli(value: number): string {
-  return (value / 1000).toFixed(3);
+export function fromQuantityMilli(value: number): string {
+  const amount = value / 1000;
+  // Whole quantities render as plain integers ("250", not "250.000") so they
+  // are never misread as thousands; true fractions keep up to 3 decimals
+  // (milli-unit precision) with trailing zeros trimmed ("250.5", not "250.500").
+  return Number.isInteger(amount)
+    ? String(amount)
+    : amount.toFixed(3).replace(/\.?0+$/, "");
 }
 
 function nextAverageCostMinor(

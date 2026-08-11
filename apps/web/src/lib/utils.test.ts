@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDecimalIDR, formatDecimalInput, formatNumber, parseSignedDecimalInput } from "./utils";
+import { formatDecimalIDR, formatDecimalInput, formatNumber, formatQuantity, parseSignedDecimalInput } from "./utils";
 
 describe("parseSignedDecimalInput", () => {
   it("parses plain integers", () => {
@@ -55,6 +55,32 @@ describe("formatNumber (blur display contract for signed-decimal inputs)", () =>
     expect(formatNumber(0, 3)).toBe("0");
     expect(formatNumber(0.5, 3)).toBe("0,5");
     expect(formatNumber(-0.5, 3)).toBe("-0,5");
+  });
+});
+
+describe("formatQuantity (stock/quantity display)", () => {
+  it("renders whole values as plain integers, never 3-decimal padding", () => {
+    expect(formatQuantity(0)).toBe("0");
+    expect(formatQuantity(250)).toBe("250");
+    expect(formatQuantity(-3)).toBe("-3");
+    expect(formatQuantity(15000)).toBe("15.000"); // id-ID thousands separator
+    expect(formatQuantity("0.000")).toBe("0");
+    expect(formatQuantity("250.000")).toBe("250");
+  });
+
+  it("keeps true fractions up to 3 decimals with id-ID comma", () => {
+    expect(formatQuantity(0.5)).toBe("0,5");
+    expect(formatQuantity(250.5)).toBe("250,5");
+    expect(formatQuantity(1.992)).toBe("1,992");
+    expect(formatQuantity(-0.5)).toBe("-0,5");
+    expect(formatQuantity("250.5")).toBe("250,5");
+  });
+
+  it("handles missing or invalid values", () => {
+    expect(formatQuantity(null)).toBe("0");
+    expect(formatQuantity(undefined)).toBe("0");
+    expect(formatQuantity("")).toBe("0");
+    expect(formatQuantity("abc")).toBe("0");
   });
 });
 

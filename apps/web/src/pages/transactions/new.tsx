@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { createClientToken, formatNumber } from "@/lib/utils";
+import { createClientToken, formatQuantity } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,7 +100,7 @@ function validateProductFields(
   if (data.productId && formState.isSaleType && stockAfterSale !== null && stockAfterSale < 0) {
     return {
       field: "quantity",
-      message: "Stok tidak mencukupi. Stok tersisa: " + formatNumber(selectedProduct?.current_stock ?? 0),
+      message: "Stok tidak mencukupi. Stok tersisa: " + formatQuantity(selectedProduct?.current_stock),
     };
   }
   return null;
