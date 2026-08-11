@@ -713,13 +713,11 @@ function toSignedQuantityMilli(value: number): number {
 }
 
 export function fromQuantityMilli(value: number): string {
-  const amount = value / 1000;
-  // Whole quantities render as plain integers ("250", not "250.000") so they
-  // are never misread as thousands; true fractions keep up to 3 decimals
-  // (milli-unit precision) with trailing zeros trimmed ("250.5", not "250.500").
-  return Number.isInteger(amount)
-    ? String(amount)
-    : amount.toFixed(3).replace(/\.?0+$/, "");
+  // value is an integer count of milli-units, so value / 1000 always has at
+  // most 3 decimals. String() renders whole values as plain integers ("250",
+  // not "250.000") and already trims trailing zeros from true fractions
+  // ("250.5", not "250.500") — no regex needed.
+  return String(value / 1000);
 }
 
 function nextAverageCostMinor(
