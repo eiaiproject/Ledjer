@@ -38,7 +38,9 @@ curl -sS -X POST "$BASE_URL/api/auth/register" \
 
 # ── 2. Build SQL: verify email + upsert org/membership + accounts ─
 # The E2E org id is hardcoded in apps/web/e2e/helpers/auth.ts.
-SQL_FILE="$(mktemp /tmp/ledjer-seed-staging.XXXXXX.sql)"
+# mktemp requires the XXXXXX to be the suffix, so the temp file has no .sql
+# extension. Pass it to wrangler directly — it doesn't care about extensions.
+SQL_FILE="$(mktemp /tmp/ledjer-seed-staging.XXXXXX)"
 node - "$EMAIL" "$ORG_ID" "$BOOKS_START_DATE" > "$SQL_FILE" <<'NODE'
 const [, , email, orgId, booksStartDate] = process.argv;
 const now = `unixepoch('subsec') * 1000`;
@@ -104,12 +106,17 @@ FROM users u
 WHERE u.email = '${email}';
 
 -- 4. Default chart of accounts (only when the org has none yet).
+-- D1's SQLite rejects the table constructor FROM (VALUES ...) AS v(cols)
+-- (syntax error near "("), but accepts the equivalent CTE form
+-- WITH v(cols) AS (VALUES ...).
+WITH v(code, name, account_type, normal_balance, is_locked, is_cash_account,
+  cash_account_type, report_group, account_subtype) AS (VALUES
+  ${values}
+)
 INSERT INTO accounts
   (id, organization_id, code, name, account_type, normal_balance, is_system, is_locked, is_active, is_cash_account, cash_account_type, report_group, account_subtype, created_at, updated_at)
 SELECT lower(hex(randomblob(16))), '${orgId}', v.code, v.name, v.account_type, v.normal_balance, 1, v.is_locked, 1, v.is_cash_account, v.cash_account_type, v.report_group, v.account_subtype, ${now}, ${now}
-FROM (VALUES
-  ${values}
-) AS v(code, name, account_type, normal_balance, is_locked, is_cash_account, cash_account_type, report_group, account_subtype)
+FROM v
 WHERE NOT EXISTS (SELECT 1 FROM accounts WHERE organization_id = '${orgId}');
 
 -- 5. Sanity counters.
