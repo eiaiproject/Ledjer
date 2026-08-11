@@ -8,8 +8,8 @@ BUCKET="${BUCKET:-ledjer-backups}"
 DATE=$(date +%Y%m%d-%H%M%S)
 BACKUP_FILE="/tmp/${DB}-${DATE}.sql"
 
-echo "[backup] Exporting ${DB}..."
-npx wrangler d1 export "${DB}" --output "${BACKUP_FILE}" --no-prompt 2>/dev/null
+echo "[backup] Exporting ${DB} (remote)..."
+npx wrangler d1 export "${DB}" --remote --output "${BACKUP_FILE}" --no-prompt 2>/dev/null
 
 echo "[backup] Uploading to r2://${BUCKET}/${DB}/"
 npx wrangler r2 object put "${BUCKET}/${DB}/${DATE}.sql" --file "${BACKUP_FILE}" --local 2>/dev/null || \

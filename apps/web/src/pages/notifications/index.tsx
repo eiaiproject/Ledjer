@@ -44,16 +44,16 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  overdue_receivable: "text-red-600 bg-red-50",
-  upcoming_payable: "text-amber-600 bg-amber-50",
-  low_stock: "text-yellow-600 bg-yellow-50",
-  unclosed_period: "text-purple-600 bg-purple-50",
-  team_invitation: "text-green-600 bg-green-50",
-  import_failed: "text-red-600 bg-red-50",
-  export_completed: "text-green-600 bg-green-50",
-  backup_failed: "text-red-600 bg-red-50",
-  role_changed: "text-indigo-600 bg-indigo-50",
-  new_device_login: "text-orange-600 bg-orange-50",
+  overdue_receivable: "text-error bg-error-bg",
+  upcoming_payable: "text-warning bg-warning-bg",
+  low_stock: "text-honey-600 bg-honey-50",
+  unclosed_period: "text-sky-700 bg-sky-100",
+  team_invitation: "text-leaf-700 bg-success-bg",
+  import_failed: "text-error bg-error-bg",
+  export_completed: "text-leaf-700 bg-success-bg",
+  backup_failed: "text-error bg-error-bg",
+  role_changed: "text-sky-700 bg-sky-100",
+  new_device_login: "text-clay-600 bg-clay-50",
   system: "text-wood-600 bg-wood-50",
 };
 
@@ -62,10 +62,10 @@ const SEVERITY_LABELS: Record<string, string> = {
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: "bg-red-100 text-red-700",
-  high: "bg-orange-100 text-orange-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-blue-100 text-blue-700",
+  critical: "bg-error-bg text-error",
+  high: "bg-clay-50 text-clay-700",
+  medium: "bg-honey-50 text-honey-700",
+  low: "bg-sky-100 text-sky-700",
   info: "bg-wood-100 text-wood-600",
 };
 
@@ -213,7 +213,7 @@ export function NotificationsPage() {
               )}
               <button type="button"
                 onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
-                className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-red-50 hover:text-red-500"
+                className="flex h-7 w-7 items-center justify-center rounded text-wood-500 hover:bg-error-bg hover:text-error"
                 title="Hapus"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -251,7 +251,7 @@ export function NotificationsPage() {
                 }
               }}
               disabled={dismissAllMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition-all hover:bg-red-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-error-border px-3 py-2 text-xs font-medium text-error transition-all hover:bg-error-bg"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Hapus Semua

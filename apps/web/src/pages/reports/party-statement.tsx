@@ -39,13 +39,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "text-wood-600",
-  issued: "text-blue-700",
-  sent: "text-blue-700",
-  partially_paid: "text-yellow-700",
-  paid: "text-emerald-700",
-  overdue: "text-red-700",
+  issued: "text-sky-700",
+  sent: "text-sky-700",
+  partially_paid: "text-honey-700",
+  paid: "text-leaf-700",
+  overdue: "text-error",
   voided: "text-wood-500",
-  credited: "text-violet-700",
+  credited: "text-clay-700",
 };
 
 export default function PartyStatementPage() {
@@ -122,7 +122,7 @@ export default function PartyStatementPage() {
                       <td className="px-3 py-2.5 text-wood-600">{formatDate(inv.date)}</td>
                       <td className="px-3 py-2.5 text-wood-600">{formatDate(inv.dueDate)}</td>
                       <td className="px-3 py-2.5 text-right text-wood-700">{formatIDR(inv.totalMinor / 100)}</td>
-                      <td className="px-3 py-2.5 text-right font-medium text-amber-600">{formatIDR(inv.outstandingMinor / 100)}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-warning">{formatIDR(inv.outstandingMinor / 100)}</td>
                       <td className={`px-3 py-2.5 font-medium ${STATUS_COLORS[inv.status] ?? ""}`}>
                         {STATUS_LABELS[inv.status] ?? inv.status}
                       </td>
@@ -184,11 +184,11 @@ export default function PartyStatementPage() {
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Total Outstanding</span>
-              <span className="font-semibold text-amber-600">{formatIDR(data.totalOutstanding / 100)}</span>
+              <span className="font-semibold text-warning">{formatIDR(data.totalOutstanding / 100)}</span>
             </div>
             <div>
               <span className="block text-wood-500 text-xs">Lunas</span>
-              <span className="font-semibold text-emerald-600">{paidInvoices.length}</span>
+              <span className="font-semibold text-leaf-600">{paidInvoices.length}</span>
             </div>
           </div>
         </CardContent>

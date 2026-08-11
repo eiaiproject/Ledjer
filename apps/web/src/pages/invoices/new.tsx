@@ -161,7 +161,7 @@ export default function NewInvoicePage() {
               </div>
               <div className="col-span-1 pt-5">
                 {lines.length > 1 && (
-                  <button type="button" onClick={() => removeLine(i)} className="text-red-500 hover:text-red-700 text-sm" aria-label="Hapus item">×</button>
+                  <button type="button" onClick={() => removeLine(i)} className="text-error hover:text-error/80 text-sm" aria-label="Hapus item">×</button>
                 )}
               </div>
             </div>
@@ -192,7 +192,7 @@ export default function NewInvoicePage() {
       {/* Totals */}
       <div className="text-right space-y-1 text-sm">
         <div className="text-wood-600">Subtotal: {formatDecimalIDR(subtotal)}</div>
-        {discount > 0 && <div className="text-red-600">Diskon: -{formatIDR(discount)}</div>}
+        {discount > 0 && <div className="text-error">Diskon: -{formatIDR(discount)}</div>}
         {tax > 0 && <div className="text-wood-600">Pajak: {formatIDR(tax)}</div>}
         <div className="text-lg font-semibold text-wood-800 border-t border-wood-200 pt-1">Total: {formatDecimalIDR(total)}</div>
       </div>

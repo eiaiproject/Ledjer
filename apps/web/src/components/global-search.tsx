@@ -23,12 +23,12 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  transaction: "bg-blue-50 text-blue-600",
-  invoice: "bg-purple-50 text-purple-600",
-  party: "bg-amber-50 text-amber-600",
-  product: "bg-green-50 text-green-600",
-  account: "bg-teal-50 text-teal-600",
-  member: "bg-pink-50 text-pink-600",
+  transaction: "bg-sky-100 text-sky-700",
+  invoice: "bg-clay-50 text-clay-700",
+  party: "bg-honey-50 text-honey-700",
+  product: "bg-success-bg text-leaf-700",
+  account: "bg-wood-100 text-wood-700",
+  member: "bg-sky-50 text-sky-700",
 };
 
 interface GlobalSearchModalProps {

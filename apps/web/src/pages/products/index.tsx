@@ -618,43 +618,54 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
 }) {
   return (
     <>
-      {/* Mobile: Card stack */}
-      <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated lg:hidden">
+      {/* Mobile/narrow: Card stack — shown when the CONTENT area (container) is
+          too narrow for the wide table, i.e. sidebar expanded on smaller
+          desktops. Uses @6xl: container queries (not viewport lg:) so
+          collapsed vs expanded sidebar both render cleanly. */}
+      <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated @6xl:hidden">
         {filteredProducts.map((product) => (
-          <div key={product.id} className="px-4 py-3">
+          <div key={product.id} className="px-4 py-4">
+            {/* Header: kode, nama, deskripsi + badge status */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-xs text-wood-500">{product.code}</p>
-                <h2 className="mt-0.5 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
-                {product.description && <p className="mt-0.5 line-clamp-1 text-xs text-text-tertiary">{product.description}</p>}
+                <h2 className="mt-1 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
+                {product.description && <p className="mt-1 line-clamp-1 text-xs text-text-tertiary">{product.description}</p>}
               </div>
               <StockBadge product={product} />
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+
+            {/* Harga beli / jual */}
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-text-tertiary">Beli</p>
-                <p className="num-mono font-medium text-text-secondary">{formatDecimalIDR(product.purchase_price)}</p>
+                <p className="mt-1 num-mono text-sm font-medium text-text-secondary">{formatDecimalIDR(product.purchase_price)}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-text-tertiary">Jual</p>
-                <p className="num-mono font-semibold text-text-primary">{formatDecimalIDR(product.selling_price)}</p>
+                <p className="mt-1 num-mono text-sm font-semibold text-text-primary">{formatDecimalIDR(product.selling_price)}</p>
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between">
+
+            {/* Markup + stok */}
+            <div className="mt-3 flex items-center justify-between">
               <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
               <span className="num-mono text-xs text-text-tertiary">Stok: {formatQuantity(product.current_stock)} {product.unit || "pcs"}</span>
-            </div>              {canManageProducts && (
-              <div className="mt-3 flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] text-sky-600 hover:bg-sky-50">
+            </div>
+
+            {/* Aksi */}
+            {canManageProducts && (
+              <div className="mt-4 flex justify-end gap-2 border-t border-wood-100 pt-3">
+                <Button type="button" variant="outline" size="sm" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-sky-600 hover:bg-sky-50">
                   <Package className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onAdjust(product)} aria-label={`Sesuaikan stok ${product.name}`} className="min-h-[44px] min-w-[44px] text-honey-600 hover:bg-honey-50">
+                <Button type="button" variant="outline" size="sm" onClick={() => onAdjust(product)} aria-label={`Sesuaikan stok ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-honey-600 hover:bg-honey-50">
                   <Edit2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px]">
+                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9">
                   <Edit2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onDelete(product)} aria-label={`Nonaktifkan produk ${product.name}`} className="min-h-[44px] min-w-[44px] text-error hover:bg-error-bg">
+                <Button type="button" variant="outline" size="sm" onClick={() => onDelete(product)} aria-label={`Nonaktifkan produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-error hover:bg-error-bg">
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
@@ -663,43 +674,45 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
         ))}
       </div>
 
-      {/* Desktop: Table */}
-      <div className="hidden lg:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Desktop: Table — ledger-scroll-x keeps the table identical when the
+          sidebar expands and narrows the content area (no clipping/squeezing) */}
+      <div className="hidden @6xl:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
+        <div className="ledger-scroll-x">
+        <table className="w-full min-w-[1024px] text-sm">
           <caption className="sr-only">Daftar produk</caption>
           <thead className="border-b border-wood-100 bg-cream-100/50">
             <tr>
-              <th scope="col" className="px-4 py-3 text-left font-medium text-wood-600">Kode</th>
-              <th scope="col" className="px-4 py-3 text-left font-medium text-wood-600">Nama</th>
-              <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Status Stok</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Beli</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Harga Jual</th>
-              <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Markup</th>                {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Stok</th>}
-                {canManageProducts && <th scope="col" className="px-4 py-3 text-center font-medium text-wood-600">Aksi</th>}
+              <th scope="col" className="px-3 py-3 text-left font-medium text-wood-600">Kode</th>
+              <th scope="col" className="px-3 py-3 text-left font-medium text-wood-600">Nama</th>
+              <th scope="col" className="px-3 py-3 text-center font-medium text-wood-600">Status Stok</th>
+              <th scope="col" className="px-3 py-3 text-right font-medium text-wood-600">Harga Beli</th>
+              <th scope="col" className="px-3 py-3 text-right font-medium text-wood-600">Harga Jual</th>
+              <th scope="col" className="px-3 py-3 text-right font-medium text-wood-600">Markup</th>                {canManageProducts && <th scope="col" className="px-3 py-3 text-center font-medium text-wood-600">Stok</th>}
+                {canManageProducts && <th scope="col" className="px-3 py-3 text-center font-medium text-wood-600">Aksi</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-wood-50">
             {filteredProducts.map((product) => (
               <tr key={product.id} className="transition-colors hover:bg-cream-50">
-                <td className="whitespace-nowrap px-4 py-3 font-mono text-wood-600">{product.code}</td>
-                <td className="min-w-[200px] max-w-[320px] px-4 py-3">
+                <td className="whitespace-nowrap px-3 py-3 font-mono text-wood-600">{product.code}</td>
+                <td className="min-w-[176px] max-w-[280px] px-3 py-3">
                   <div className="break-words font-medium text-wood-800">{product.name}</div>
                   {product.description && <div className="line-clamp-1 break-words text-xs text-wood-500">{product.description}</div>}
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-3 py-3 text-center">
                   <div className="flex flex-col items-center gap-1">
                     <StockBadge product={product} />
                     <span className="num-mono text-xs text-wood-500">{formatQuantity(product.current_stock)} {product.unit || "pcs"}</span>
                     {(product.min_stock ?? 0) > 0 && <span className="text-xs text-wood-500">Min: {formatQuantity(product.min_stock)}</span>}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right num-mono text-wood-600">{formatDecimalIDR(product.purchase_price)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right num-mono font-medium text-wood-800">{formatDecimalIDR(product.selling_price)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right">
+                <td className="whitespace-nowrap px-3 py-3 text-right num-mono text-wood-600">{formatDecimalIDR(product.purchase_price)}</td>
+                <td className="whitespace-nowrap px-3 py-3 text-right num-mono font-medium text-wood-800">{formatDecimalIDR(product.selling_price)}</td>
+                <td className="whitespace-nowrap px-3 py-3 text-right">
                   <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
                 </td>
                 {canManageProducts && (
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button type="button" variant="ghost" size="icon" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-sky-500 hover:text-sky-600 hover:bg-sky-50" title="Stok Opname">
                         <Package className="h-4 w-4" aria-hidden="true" />
@@ -711,7 +724,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
                   </td>
                 )}
                 {canManageProducts && (
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button type="button" variant="ghost" size="icon" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-wood-500 hover:text-wood-600">
                         <Edit2 className="h-4 w-4" aria-hidden="true" />
@@ -726,6 +739,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );

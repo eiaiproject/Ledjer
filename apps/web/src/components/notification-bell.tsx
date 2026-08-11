@@ -17,16 +17,16 @@ interface CategoryConfig {
 }
 
 const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
-  overdue_receivable: { icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
-  upcoming_payable: { icon: <Clock className="h-4 w-4" />, color: "text-amber-600 bg-amber-50" },
-  low_stock: { icon: <Package className="h-4 w-4" />, color: "text-yellow-600 bg-yellow-50" },
-  unclosed_period: { icon: <Lock className="h-4 w-4" />, color: "text-purple-600 bg-purple-50" },
-  team_invitation: { icon: <Upload className="h-4 w-4" />, color: "text-green-600 bg-green-50" },
-  import_failed: { icon: <Upload className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
-  export_completed: { icon: <Download className="h-4 w-4" />, color: "text-green-600 bg-green-50" },
-  backup_failed: { icon: <Ban className="h-4 w-4" />, color: "text-red-600 bg-red-50" },
-  role_changed: { icon: <Shield className="h-4 w-4" />, color: "text-indigo-600 bg-indigo-50" },
-  new_device_login: { icon: <Shield className="h-4 w-4" />, color: "text-orange-600 bg-orange-50" },
+  overdue_receivable: { icon: <AlertTriangle className="h-4 w-4" />, color: "text-error bg-error-bg" },
+  upcoming_payable: { icon: <Clock className="h-4 w-4" />, color: "text-warning bg-warning-bg" },
+  low_stock: { icon: <Package className="h-4 w-4" />, color: "text-honey-600 bg-honey-50" },
+  unclosed_period: { icon: <Lock className="h-4 w-4" />, color: "text-sky-700 bg-sky-100" },
+  team_invitation: { icon: <Upload className="h-4 w-4" />, color: "text-leaf-700 bg-success-bg" },
+  import_failed: { icon: <Upload className="h-4 w-4" />, color: "text-error bg-error-bg" },
+  export_completed: { icon: <Download className="h-4 w-4" />, color: "text-leaf-700 bg-success-bg" },
+  backup_failed: { icon: <Ban className="h-4 w-4" />, color: "text-error bg-error-bg" },
+  role_changed: { icon: <Shield className="h-4 w-4" />, color: "text-sky-700 bg-sky-100" },
+  new_device_login: { icon: <Shield className="h-4 w-4" />, color: "text-clay-600 bg-clay-50" },
   system: { icon: <Refresh className="h-4 w-4" />, color: "text-wood-600 bg-wood-50" },
 };
 
@@ -39,10 +39,10 @@ function getCategoryColor(category: string): string {
 }
 
 const SEVERITY_DOTS: Record<string, string> = {
-  critical: "bg-red-500",
-  high: "bg-orange-500",
-  medium: "bg-amber-500",
-  low: "bg-blue-500",
+  critical: "bg-error",
+  high: "bg-clay-500",
+  medium: "bg-honey-500",
+  low: "bg-sky-500",
   info: "bg-wood-400",
 };
 
@@ -187,7 +187,7 @@ export function NotificationBell() {
               )}
               <button type="button"
                 onClick={(e) => { e.stopPropagation(); dismissMutation.mutate(notif.id); }}
-                className="flex h-6 w-6 items-center justify-center rounded text-wood-500 hover:bg-red-50 hover:text-red-500"
+                className="flex h-6 w-6 items-center justify-center rounded text-wood-500 hover:bg-error-bg hover:text-error"
                 title="Hapus"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -208,7 +208,7 @@ export function NotificationBell() {
       >
         <Bell className="h-5 w-5" aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white leading-none">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-error px-1 text-[9px] font-bold text-white leading-none">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}

@@ -75,7 +75,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
                   href={getAttachmentDownloadUrl(att.id)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate flex-1"
+                  className="text-sm text-sky-700 hover:text-sky-800 hover:underline truncate flex-1"
                 >
                   {att.fileName}
                 </a>
@@ -85,7 +85,7 @@ export function AttachmentSection({ entityType, entityId }: Props) {
                     onClick={() => {
                       if (confirm("Hapus lampiran ini?")) deleteMutation.mutate(att.id);
                     }}
-                    className="text-xs text-red-500 hover:text-red-700"
+                    className="text-xs text-error hover:text-error/80"
                     aria-label={`Hapus ${att.fileName}`}
                   >
                     Hapus

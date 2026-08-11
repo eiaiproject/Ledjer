@@ -23,7 +23,7 @@ interface DashboardSummaryRow {
 
 export interface DashboardAlert {
   id: string;
-  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period";
+  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period" | "inventory_mismatch";
   severity: "high" | "medium" | "low";
   title: string;
   description: string;
@@ -54,6 +54,7 @@ export async function getDashboardAlerts(
     checkDraftTransactions,
     checkUnreconciledStatements,
     checkUnclosedPeriod,
+    checkInventoryMismatch,
   ];
 
   for (const check of checks) {
@@ -183,6 +184,62 @@ async function checkUnreconciledStatements(
       count: unreconciledRow.count, actionLabel: "Rekonsiliasi", actionPath: "/reconciliation",
     });
   }
+}
+
+/**
+ * Flag when the Persediaan control account balance diverges from the stock
+ * subledger value (e.g. a stock adjustment whose journal never posted, or a
+ * void/WAC rounding drift). Mirrors verifyInventoryMatch in backup.service.
+ */
+async function checkInventoryMismatch(
+  db: D1Database, orgId: string, alerts: DashboardAlert[],
+): Promise<void> {
+  const row = await queryFirst<{ account_balance: number | null; stock_value: number | null }>(
+    db,
+    `WITH posted_lines AS (
+       SELECT jl.account_id, jl.debit_minor, jl.credit_minor
+       FROM journal_lines jl
+       JOIN journal_entries je
+         ON je.id = jl.journal_entry_id
+        AND je.organization_id = jl.organization_id
+       WHERE jl.organization_id = ?
+         AND je.status = 'posted'
+     ),
+     inv_balance AS (
+       SELECT COALESCE(SUM(pl.debit_minor - pl.credit_minor), 0) AS balance
+       FROM accounts a
+       LEFT JOIN posted_lines pl ON pl.account_id = a.id
+       WHERE a.organization_id = ?
+         AND a.account_type = 'asset'
+         AND (a.code LIKE '13%' OR a.name LIKE '%Persediaan%' OR a.name LIKE '%Inventory%')
+     ),
+     stock_value AS (
+       SELECT COALESCE(SUM((current_stock_milli / 1000.0) * average_cost_minor), 0) AS value
+       FROM products
+       WHERE organization_id = ?
+     )
+     SELECT inv_balance.balance AS account_balance, stock_value.value AS stock_value
+     FROM inv_balance, stock_value`,
+    [orgId, orgId, orgId],
+  );
+  if (!row) return;
+
+  const accountBalance = Math.round(row.account_balance ?? 0);
+  const stockValue = Math.round(row.stock_value ?? 0);
+  // Tolerate small WAC rounding drift; flag real divergences (>= Rp 1.000).
+  if (Math.abs(accountBalance - stockValue) < 1000) return;
+
+  const diff = Math.abs(accountBalance - stockValue);
+  alerts.push({
+    id: "inventory_mismatch",
+    type: "inventory_mismatch",
+    severity: "medium",
+    title: "Stok Tidak Sesuai Pembukuan",
+    description: `Nilai persediaan di pembukuan (Rp ${accountBalance.toLocaleString("id-ID")}) tidak sama dengan nilai stok produk (Rp ${stockValue.toLocaleString("id-ID")}), selisih Rp ${diff.toLocaleString("id-ID")}. Periksa jurnal persediaan atau lakukan penyesuaian stok.`,
+    count: 1,
+    actionLabel: "Periksa Stok",
+    actionPath: "/products",
+  });
 }
 
 async function checkUnclosedPeriod(

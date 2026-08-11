@@ -379,6 +379,13 @@ const ALERT_META: Record<string, { icon: React.ComponentType<{ className?: strin
     iconBg: "bg-leaf-500",
     iconColor: "text-white",
   },
+  inventory_mismatch: {
+    icon: BookOpen,
+    border: "border-error-border",
+    bg: "bg-error-bg",
+    iconBg: "bg-error",
+    iconColor: "text-white",
+  },
 };
 
 function DashboardAlertCard({ alert }: { readonly alert: DashboardAlert }) {
