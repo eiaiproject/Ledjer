@@ -621,40 +621,48 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
       {/* Mobile: Card stack */}
       <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated lg:hidden">
         {filteredProducts.map((product) => (
-          <div key={product.id} className="px-4 py-3">
+          <div key={product.id} className="px-4 py-4">
+            {/* Header: kode, nama, deskripsi + badge status */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-xs text-wood-500">{product.code}</p>
-                <h2 className="mt-0.5 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
-                {product.description && <p className="mt-0.5 line-clamp-1 text-xs text-text-tertiary">{product.description}</p>}
+                <h2 className="mt-1 line-clamp-2 break-words text-sm font-semibold text-text-primary">{product.name}</h2>
+                {product.description && <p className="mt-1 line-clamp-1 text-xs text-text-tertiary">{product.description}</p>}
               </div>
               <StockBadge product={product} />
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+
+            {/* Harga beli / jual */}
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-text-tertiary">Beli</p>
-                <p className="num-mono font-medium text-text-secondary">{formatDecimalIDR(product.purchase_price)}</p>
+                <p className="mt-1 num-mono text-sm font-medium text-text-secondary">{formatDecimalIDR(product.purchase_price)}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-text-tertiary">Jual</p>
-                <p className="num-mono font-semibold text-text-primary">{formatDecimalIDR(product.selling_price)}</p>
+                <p className="mt-1 num-mono text-sm font-semibold text-text-primary">{formatDecimalIDR(product.selling_price)}</p>
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between">
+
+            {/* Markup + stok */}
+            <div className="mt-3 flex items-center justify-between">
               <MarkupIndicator purchase={product.purchase_price ?? 0} selling={product.selling_price ?? 0} />
               <span className="num-mono text-xs text-text-tertiary">Stok: {formatQuantity(product.current_stock)} {product.unit || "pcs"}</span>
-            </div>              {canManageProducts && (
-              <div className="mt-3 flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] text-sky-600 hover:bg-sky-50">
+            </div>
+
+            {/* Aksi */}
+            {canManageProducts && (
+              <div className="mt-4 flex justify-end gap-2 border-t border-wood-100 pt-3">
+                <Button type="button" variant="outline" size="sm" onClick={() => onStockCount(product)} aria-label={`Stok opname ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-sky-600 hover:bg-sky-50">
                   <Package className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onAdjust(product)} aria-label={`Sesuaikan stok ${product.name}`} className="min-h-[44px] min-w-[44px] text-honey-600 hover:bg-honey-50">
+                <Button type="button" variant="outline" size="sm" onClick={() => onAdjust(product)} aria-label={`Sesuaikan stok ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-honey-600 hover:bg-honey-50">
                   <Edit2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px]">
+                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(product)} aria-label={`Edit produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9">
                   <Edit2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onDelete(product)} aria-label={`Nonaktifkan produk ${product.name}`} className="min-h-[44px] min-w-[44px] text-error hover:bg-error-bg">
+                <Button type="button" variant="outline" size="sm" onClick={() => onDelete(product)} aria-label={`Nonaktifkan produk ${product.name}`} className="min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 text-error hover:bg-error-bg">
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
