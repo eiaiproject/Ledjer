@@ -23,7 +23,7 @@ export function ProtectedRoute() {
   return <Outlet />;
 }
 
-export function PublicRoute({ children }: { children: ReactNode }) {
+export function PublicRoute({ children }: { readonly children: ReactNode }) {
   const { session } = useAuth();
   const location = useLocation();
 

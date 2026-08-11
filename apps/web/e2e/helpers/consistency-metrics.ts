@@ -1,6 +1,10 @@
 /**
  * Shared page-metric gatherer used by both consistency-audit.spec.ts
  * (public pages) and consistency-audit-auth.spec.ts (authenticated pages).
+ *
+ * Cognitive complexity stays under the S3776 ceiling by splitting the
+ * per-page DOM collection into small, single-purpose page.evaluate calls
+ * instead of one nested object literal.
  */
 
 import type { Page } from "@playwright/test";
@@ -75,6 +79,157 @@ function contrastRatio(fg: string, bg: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function ratioResult(fg: string, bg: string): { ratio: number; passes: boolean } {
+  const r = contrastRatio(fg, bg);
+  return { ratio: Math.round(r * 100) / 100, passes: r >= 4.5 };
+}
+
+// ── In-page metric collectors ──────────────────────────────────
+// Each one is a small page.evaluate payload. Keeping each under ~15
+// cognitive-complexity per S3776.
+
+function collectTokens(): PageMetrics["tokens"] {
+  const q = <T extends Element>(sel: string) => Array.from(document.querySelectorAll(sel)) as T[];
+  const uniq = <T>(arr: T[]) => Array.from(new Set(arr));
+  const head = q<HTMLElement>("h1, h2, h3, p, button, small").slice(0, 50);
+  const radiiEls = q<HTMLElement>("button, input, .card, [class*='rounded']").slice(0, 80);
+  const containers = q<HTMLElement>("main, [class*='container'], [class*='max-w-']");
+  const widths = containers.map((el) => el.getBoundingClientRect().width);
+  const h1 = document.querySelector<HTMLElement>("h1");
+  return {
+    fontFamilies: uniq(head.map((el) => getComputedStyle(el).fontFamily)).slice(0, 8),
+    fontSizes: uniq(head.map((el) => getComputedStyle(el).fontSize)),
+    radii: uniq(radiiEls.map((el) => getComputedStyle(el).borderRadius)),
+    spacings: uniq(
+      q<HTMLElement>("h1, h2, section, button").slice(0, 80).map((el) => {
+        const cs = getComputedStyle(el);
+        return `${cs.paddingTop}/${cs.paddingBottom}/${cs.marginTop}/${cs.marginBottom}`;
+      }),
+    ).slice(0, 12),
+    containerMaxWidth: widths.length ? String(Math.max(...widths)) : null,
+    h1FontSize: h1 ? getComputedStyle(h1).fontSize : null,
+    bodyFontSize: getComputedStyle(document.body).fontSize,
+  };
+}
+
+function collectStructure(): PageMetrics["structure"] {
+  const h1 = Array.from(document.querySelectorAll<HTMLElement>("h1"));
+  const all = Array.from(document.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"));
+  return {
+    h1Count: h1.length,
+    h1Texts: h1.map((el) => (el.textContent ?? "").trim().slice(0, 80)),
+    headingOrder: all.map((el) => el.tagName.toLowerCase()),
+    landmarks: {
+      header: document.querySelectorAll("header").length,
+      main: document.querySelectorAll("main").length,
+      nav: document.querySelectorAll("nav").length,
+      footer: document.querySelectorAll("footer").length,
+    },
+  };
+}
+
+function collectChrome(): PageMetrics["chrome"] {
+  const h = document.querySelector<HTMLElement>("header");
+  const f = document.querySelector<HTMLElement>("footer");
+  const sticky = h
+    ? getComputedStyle(h).position === "sticky" || getComputedStyle(h).position === "fixed"
+    : false;
+  return {
+    hasHeader: !!h,
+    hasFooter: !!f,
+    headerWidth: h ? h.getBoundingClientRect().width : 0,
+    footerWidth: f ? f.getBoundingClientRect().width : 0,
+    stickyHeader: sticky,
+  };
+}
+
+function collectForms(): PageMetrics["forms"] {
+  const inputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>("input, textarea, select"),
+  );
+  let noLabel = 0;
+  let withAuto = 0;
+  for (const inp of inputs) {
+    const id = inp.id;
+    const hasLabel =
+      (id && document.querySelector(`label[for="${id}"]`)) ||
+      inp.closest("label") ||
+      inp.getAttribute("aria-label") ||
+      inp.getAttribute("aria-labelledby");
+    if (!hasLabel) noLabel += 1;
+    if (inp.getAttribute("autocomplete")) withAuto += 1;
+  }
+  return {
+    formCount: document.querySelectorAll("form").length,
+    inputsWithoutLabel: noLabel,
+    inputsWithAutocomplete: withAuto,
+    inputsTotal: inputs.length,
+  };
+}
+
+function collectTouchTargets(): PageMetrics["touchTargets"] {
+  const els = Array.from(document.querySelectorAll<HTMLElement>("a, button"));
+  let total = 0;
+  let below44 = 0;
+  let minW = Infinity;
+  let minH = Infinity;
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;
+    total += 1;
+    if (r.width < 44 || r.height < 44) below44 += 1;
+    if (r.width < minW) minW = r.width;
+    if (r.height < minH) minH = r.height;
+  }
+  return {
+    total,
+    below44,
+    smallestW: minW === Infinity ? 0 : Math.round(minW),
+    smallestH: minH === Infinity ? 0 : Math.round(minH),
+  };
+}
+
+function collectWhitespace(): PageMetrics["whitespace"] {
+  const cs = getComputedStyle(document.body);
+  return {
+    bodyPaddingTop: Number.parseFloat(cs.paddingTop) || 0,
+    bodyPaddingBottom: Number.parseFloat(cs.paddingBottom) || 0,
+    contentWidth: Math.min(window.innerWidth, document.documentElement.scrollWidth),
+    viewportWidth: window.innerWidth,
+  };
+}
+
+async function readColors(page: Page): Promise<{
+  bodyFg: string;
+  bodyBg: string;
+  ctaFg: string | null;
+  ctaBg: string | null;
+}> {
+  return page.evaluate(() => {
+    const cs = getComputedStyle(document.body);
+    const btn = document.querySelector<HTMLElement>(
+      "button[type='submit'], a[class*='bg-primary'], button[class*='primary'], a[class*='btn-primary'], button.bg-blue-600, button.bg-primary",
+    );
+    return {
+      bodyFg: cs.color,
+      bodyBg: cs.backgroundColor,
+      ctaFg: btn ? getComputedStyle(btn).color : null,
+      ctaBg: btn ? getComputedStyle(btn).backgroundColor : null,
+    };
+  });
+}
+
+function buildContrast(
+  colors: Awaited<ReturnType<typeof readColors>>,
+): PageMetrics["contrast"] {
+  const body = { fg: colors.bodyFg, bg: colors.bodyBg, ...ratioResult(colors.bodyFg, colors.bodyBg) };
+  let cta: PageMetrics["contrast"]["cta"] = null;
+  if (colors.ctaFg && colors.ctaBg && colors.ctaBg !== "rgba(0, 0, 0, 0)") {
+    cta = { fg: colors.ctaFg, bg: colors.ctaBg, ...ratioResult(colors.ctaFg, colors.ctaBg) };
+  }
+  return { body, cta };
+}
+
 export async function gatherMetrics(page: Page, url: string): Promise<PageMetrics> {
   const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
   try {
@@ -84,152 +239,26 @@ export async function gatherMetrics(page: Page, url: string): Promise<PageMetric
   }
   await page.waitForTimeout(400);
 
-  const m = await page.evaluate((u: string): PageMetrics => {
-    const q = <T extends Element>(sel: string) => Array.from(document.querySelectorAll(sel)) as T[];
-    const uniq = <T>(arr: T[]) => Array.from(new Set(arr));
+  const [tokens, structure, chrome, forms, touchTargets, whitespace] = await Promise.all([
+    page.evaluate(collectTokens),
+    page.evaluate(collectStructure),
+    page.evaluate(collectChrome),
+    page.evaluate(collectForms),
+    page.evaluate(collectTouchTargets),
+    page.evaluate(collectWhitespace),
+  ]);
+  const colors = await readColors(page);
 
-    const h1Els = q<HTMLElement>("h1");
-    const allHeadings = q<HTMLElement>("h1, h2, h3, h4, h5, h6");
-
-    const interactives = q<HTMLElement>("a, button");
-    let totalT = 0;
-    let below44 = 0;
-    let minW = Infinity;
-    let minH = Infinity;
-    for (const el of interactives) {
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) continue;
-      totalT++;
-      if (rect.width < 44 || rect.height < 44) below44++;
-      if (rect.width < minW) minW = rect.width;
-      if (rect.height < minH) minH = rect.height;
-    }
-
-    const inputs = q<HTMLInputElement>("input, textarea, select");
-    let noLabel = 0;
-    let withAutocomplete = 0;
-    for (const inp of inputs) {
-      const id = inp.id;
-      const hasLabel =
-        (id && document.querySelector(`label[for="${id}"]`)) ||
-        inp.closest("label") ||
-        inp.getAttribute("aria-label") ||
-        inp.getAttribute("aria-labelledby");
-      if (!hasLabel) noLabel++;
-      if (inp.getAttribute("autocomplete")) withAutocomplete++;
-    }
-
-    const header = document.querySelector("header");
-    const footer = document.querySelector("footer");
-    const headerSticky = header
-      ? getComputedStyle(header).position === "sticky" || getComputedStyle(header).position === "fixed"
-      : false;
-
-    const h1 = h1Els[0];
-    const body = document.body;
-
-    const viewportW = window.innerWidth;
-    const contentW = Math.min(viewportW, document.documentElement.scrollWidth);
-
-    return {
-      url: u,
-      status: 0,
-      title: document.title,
-      tokens: {
-        fontFamilies: uniq(
-          q<HTMLElement>("h1, h2, p, button, a").slice(0, 50).map(
-            (el) => getComputedStyle(el).fontFamily,
-          ),
-        ).slice(0, 8),
-        fontSizes: uniq(
-          q<HTMLElement>("h1, h2, h3, p, button, small").slice(0, 50).map(
-            (el) => getComputedStyle(el).fontSize,
-          ),
-        ),
-        radii: uniq(
-          q<HTMLElement>("button, input, .card, [class*='rounded']").slice(0, 80).map(
-            (el) => getComputedStyle(el).borderRadius,
-          ),
-        ),
-        spacings: uniq(
-          q<HTMLElement>("h1, h2, section, button").slice(0, 80).map((el) => {
-            const cs = getComputedStyle(el);
-            return `${cs.paddingTop}/${cs.paddingBottom}/${cs.marginTop}/${cs.marginBottom}`;
-          }),
-        ).slice(0, 12),
-        containerMaxWidth: (() => {
-          const candidates = q<HTMLElement>("main, [class*='container'], [class*='max-w-']");
-          const widths = candidates.map((el) => el.getBoundingClientRect().width);
-          return widths.length ? String(Math.max(...widths)) : null;
-        })(),
-        h1FontSize: h1 ? getComputedStyle(h1).fontSize : null,
-        bodyFontSize: getComputedStyle(body).fontSize,
-      },
-      structure: {
-        h1Count: h1Els.length,
-        h1Texts: h1Els.map((el) => (el.textContent ?? "").trim().slice(0, 80)),
-        headingOrder: allHeadings.map((el) => el.tagName.toLowerCase()),
-        landmarks: {
-          header: document.querySelectorAll("header").length,
-          main: document.querySelectorAll("main").length,
-          nav: document.querySelectorAll("nav").length,
-          footer: document.querySelectorAll("footer").length,
-        },
-      },
-      chrome: {
-        hasHeader: !!header,
-        hasFooter: !!footer,
-        headerWidth: header ? header.getBoundingClientRect().width : 0,
-        footerWidth: footer ? footer.getBoundingClientRect().width : 0,
-        stickyHeader: headerSticky,
-      },
-      forms: {
-        formCount: document.querySelectorAll("form").length,
-        inputsWithoutLabel: noLabel,
-        inputsWithAutocomplete: withAutocomplete,
-        inputsTotal: inputs.length,
-      },
-      touchTargets: {
-        total: totalT,
-        below44,
-        smallestW: minW === Infinity ? 0 : Math.round(minW),
-        smallestH: minH === Infinity ? 0 : Math.round(minH),
-      },
-      contrast: { body: null, cta: null },
-      whitespace: {
-        bodyPaddingTop: parseFloat(getComputedStyle(body).paddingTop) || 0,
-        bodyPaddingBottom: parseFloat(getComputedStyle(body).paddingBottom) || 0,
-        contentWidth: contentW,
-        viewportWidth: viewportW,
-      },
-    };
-  }, url);
-
-  m.status = resp?.status() ?? 0;
-
-  const contrast = await page.evaluate(() => {
-    const bg = getComputedStyle(document.body).backgroundColor;
-    const fg = getComputedStyle(document.body).color;
-    const btn = document.querySelector(
-      "button[type='submit'], a[class*='bg-primary'], button[class*='primary'], a[class*='btn-primary'], button.bg-blue-600, button.bg-primary",
-    ) as HTMLElement | null;
-    const ctaFg = btn ? getComputedStyle(btn).color : null;
-    const ctaBg = btn ? getComputedStyle(btn).backgroundColor : null;
-    return { bg, fg, ctaFg, ctaBg };
-  });
-  m.contrast.body = {
-    fg: contrast.fg,
-    bg: contrast.bg,
-    ratio: Math.round(contrastRatio(contrast.fg, contrast.bg) * 100) / 100,
-    passes: contrastRatio(contrast.fg, contrast.bg) >= 4.5,
+  return {
+    url,
+    status: resp?.status() ?? 0,
+    title: await page.title(),
+    tokens,
+    structure,
+    chrome,
+    forms,
+    touchTargets,
+    contrast: buildContrast(colors),
+    whitespace,
   };
-  if (contrast.ctaFg && contrast.ctaBg && contrast.ctaBg !== "rgba(0, 0, 0, 0)") {
-    m.contrast.cta = {
-      fg: contrast.ctaFg,
-      bg: contrast.ctaBg,
-      ratio: Math.round(contrastRatio(contrast.ctaFg, contrast.ctaBg) * 100) / 100,
-      passes: contrastRatio(contrast.ctaFg, contrast.ctaBg) >= 4.5,
-    };
-  }
-  return m;
 }

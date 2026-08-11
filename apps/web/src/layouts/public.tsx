@@ -16,7 +16,7 @@ import { Logo } from "@/components/ui/logo";
  * ponytail: minimum viable chrome. No mega-nav, no language switcher, no
  * marketing CTAs. Add those when public-page authed funnel needs them.
  */
-export function PublicLayout({ children }: { children: ReactNode }) {
+export function PublicLayout({ children }: { readonly children: ReactNode }) {
   return (
     <div className="ledger-page flex min-h-dvh flex-col bg-cream-100">
       <header className="ledger-safe-top sticky top-0 z-sticky border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm">
