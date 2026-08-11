@@ -538,7 +538,8 @@ function DesktopEntryRow({ entry }: { readonly entry: LedgerEntry }) {
 function SingleAccountTable({ entries, accountName }: { readonly entries: LedgerEntry[]; readonly accountName: string }) {
   return (
     <section className="overflow-hidden rounded-xl border border-wood-200">
-      <table className="ledger-table w-full">
+      <div className="ledger-scroll-x">
+      <table className="ledger-table w-full min-w-[800px]">
         <caption className="sr-only">Buku besar akun {accountName}</caption>
         <LedgerTableHeader />
         <tbody>
@@ -547,6 +548,7 @@ function SingleAccountTable({ entries, accountName }: { readonly entries: Ledger
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }
@@ -572,7 +574,8 @@ function AccountGroupTableSection({ group }: { readonly group: AccountGroup }) {
 
       {expanded && (
         <section id={panelId} aria-labelledby={triggerId}>
-          <table className="ledger-table w-full">
+          <div className="ledger-scroll-x">
+          <table className="ledger-table w-full min-w-[800px]">
             <caption className="sr-only">Buku besar akun {group.code} — {group.name}</caption>
             <LedgerTableHeader />
             <tbody>
@@ -593,6 +596,7 @@ function AccountGroupTableSection({ group }: { readonly group: AccountGroup }) {
               </tr>
             </tbody>
           </table>
+          </div>
         </section>
       )}
     </section>

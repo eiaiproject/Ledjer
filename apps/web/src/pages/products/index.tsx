@@ -671,9 +671,11 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
         ))}
       </div>
 
-      {/* Desktop: Table */}
+      {/* Desktop: Table — ledger-scroll-x keeps the table identical when the
+          sidebar expands and narrows the content area (no clipping/squeezing) */}
       <div className="hidden lg:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="ledger-scroll-x">
+        <table className="w-full min-w-[1024px] text-sm">
           <caption className="sr-only">Daftar produk</caption>
           <thead className="border-b border-wood-100 bg-cream-100/50">
             <tr>
@@ -734,6 +736,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );
