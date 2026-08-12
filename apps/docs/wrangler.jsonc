@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ledjer-docs",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-12",
+  // Custom domain — Cloudflare adds the DNS record automatically when the
+  // ledjer.id zone is in the same account. Falls back to the workers.dev URL.
+  "routes": [
+    { "pattern": "docs.ledjer.id", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "docs/.vitepress/dist",
+    "binding": "ASSETS",
+    // Static docs site: missing pages return the built 404.html (not SPA
+    // fallback) so broken links are surfaced instead of silently masked.
+    "not_found_handling": "404-page",
+    // cleanUrls-friendly: /panduan/transaksi serves transaksi/index.html.
+    "html_handling": "auto-trailing-slash"
+  }
+}

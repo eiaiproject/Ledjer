@@ -1,9 +1,14 @@
+import { expect } from "@playwright/test";
 import { test } from "./helpers/auth";
 
 /**
  * Invoices CRUD: /invoices/new
  *
  * These are full-page forms (not modal-based), with line-item tables.
+ *
+ * BUG-06: previously a crash ("Unexpected Application Error") or missing form
+ * fields silently converted the test into a skip, hiding regressions from CI.
+ * Now any of those conditions FAILS the test loudly.
  */
 
 const TEST_PREFIX = `[E2E] ${Date.now()}`;
@@ -13,24 +18,17 @@ const TEST_PREFIX = `[E2E] ${Date.now()}`;
 // ═══════════════════════════════════════════════════════════════════
 
 test.describe("Invoices CRUD", () => {
-  test("Create a new invoice", async ({ authPage }) => { // NOSONAR
+  test("Create a new invoice", async ({ authPage }) => {
     await authPage.goto("/invoices/new", { waitUntil: "networkidle", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    // Check if page crashed
+    // A crash here is a regression — fail loudly instead of skipping.
     const crashed = await authPage.locator('text=Unexpected Application Error').isVisible({ timeout: 2000 }).catch(() => false);
-    if (crashed) {
-      test.skip(true, '/invoices/new crash page'); // NOSONAR
-      return;
-    }
+    expect(crashed, "/invoices/new crashed with 'Unexpected Application Error'").toBe(false);
 
     // Invoice date — the Input has id="inv-date" (explicit id prop)
     const dateInput = authPage.locator('#inv-date');
-    const dateExists = await dateInput.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!dateExists) {
-      test.skip(true, 'Invoice form fields not found'); // NOSONAR
-      return;
-    }
+    await expect(dateInput, "Invoice form date field #inv-date is missing").toBeVisible({ timeout: 5000 });
     await dateInput.fill(new Date().toISOString().slice(0, 10));
 
     // Due date — id="inv-due"
@@ -77,19 +75,12 @@ test.describe("Invoices CRUD", () => {
       await notesInput.fill(`E2E Invoice ${TEST_PREFIX}`);
     }
 
-    // Submit
+    // Submit — must be visible and enabled; a disabled submit button means the
+    // form is broken and must not be silently skipped.
     const submitBtn = authPage.getByRole("button", { name: /simpan faktur|buat faktur/i });
-    const btnVisible = await submitBtn.isVisible().catch(() => false);
-    if (btnVisible) {
-      const btnEnabled = await submitBtn.isEnabled().catch(() => false);
-      if (!btnEnabled) {
-        test.skip(true, 'Invoice form not fully filled - submit button disabled'); // NOSONAR
-        return;
-      }
-      await submitBtn.click();
-      await authPage.waitForTimeout(3000);
-    }
+    await expect(submitBtn, "Invoice submit button not found").toBeVisible({ timeout: 5000 });
+    await expect(submitBtn, "Invoice submit button disabled — form not fully usable").toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
+    await authPage.waitForTimeout(3000);
   });
 });
-
-

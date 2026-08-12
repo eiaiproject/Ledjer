@@ -25,7 +25,7 @@ const contactMethods = [
     title: "Dokumentasi",
     description: "Panduan penggunaan dan FAQ.",
     action: "Baca dokumentasi",
-    href: "#",
+    href: "https://docs.ledjer.id",
   },
 ];
 

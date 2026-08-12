@@ -228,23 +228,41 @@ async function safeDeleteR2(bucket: R2Bucket, storageKey: string): Promise<void>
   }
 }
 
-/** Check whether the parent entity (transaction, party, or product) still exists. */
+/**
+ * Check whether the parent entity (transaction, party, or product) still exists
+ * in the SAME organization as the attachment. Scoping by organization_id keeps
+ * the check tenant-correct: a parent that only exists in another org must not
+ * keep this org's attachment alive (BUG-08).
+ */
 async function parentEntityExists(
   db: D1Database,
+  organizationId: string,
   entityType: string,
   entityId: string,
 ): Promise<boolean> {
   switch (entityType) {
     case "transaction": {
-      const row = await queryFirst<{ id: string }>(db, `SELECT id FROM transactions WHERE id = ?`, [entityId]);
+      const row = await queryFirst<{ id: string }>(
+        db,
+        `SELECT id FROM transactions WHERE id = ? AND organization_id = ?`,
+        [entityId, organizationId],
+      );
       return !!row;
     }
     case "party": {
-      const row = await queryFirst<{ id: string }>(db, `SELECT id FROM parties WHERE id = ?`, [entityId]);
+      const row = await queryFirst<{ id: string }>(
+        db,
+        `SELECT id FROM parties WHERE id = ? AND organization_id = ?`,
+        [entityId, organizationId],
+      );
       return !!row;
     }
     case "product": {
-      const row = await queryFirst<{ id: string }>(db, `SELECT id FROM products WHERE id = ?`, [entityId]);
+      const row = await queryFirst<{ id: string }>(
+        db,
+        `SELECT id FROM products WHERE id = ? AND organization_id = ?`,
+        [entityId, organizationId],
+      );
       return !!row;
     }
     default:
@@ -259,17 +277,17 @@ async function processSingleAttachment(
   att: AttachmentRow,
   cutoff: number,
 ): Promise<"orphaned" | "expired" | "kept"> {
-  const parentExists = await parentEntityExists(db, att.entity_type, att.entity_id);
+  const parentExists = await parentEntityExists(db, att.organization_id, att.entity_type, att.entity_id);
 
   if (!parentExists) {
     await safeDeleteR2(bucket, att.storage_key);
-    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]); /* no-org-scope */
+    await execute(db, `DELETE FROM attachments WHERE id = ? AND organization_id = ?`, [att.id, att.organization_id]);
     return "orphaned";
   }
 
   if (att.created_at < cutoff) {
     await safeDeleteR2(bucket, att.storage_key);
-    await execute(db, `DELETE FROM attachments WHERE id = ?`, [att.id]); /* no-org-scope */
+    await execute(db, `DELETE FROM attachments WHERE id = ? AND organization_id = ?`, [att.id, att.organization_id]);
     return "expired";
   }
 
