@@ -1,0 +1,12 @@
+[
+  {
+    "package": "vite",
+    "advisoryId": "1123525",
+    "severity": "high",
+    "justification": "VitePress 1.6.4 (latest release) declares a dependency on vite ^5.4.14; the only patched release (>=6.4.3) is outside the supported range, and no patched 5.x build exists. The advisory (server.fs.deny bypass via Windows alternate paths) only affects the local development server.",
+    "compensatingControl": "The Vite dev server binds to localhost only and is never exposed publicly. Production serves pre-built static assets from a Cloudflare Workers deployment with no Vite runtime. Team development is on macOS; the bypass is Windows-specific. Revisit on the next VitePress or Vite release.",
+    "owner": "@eiaiproject",
+    "createdAt": "2026-08-12",
+    "expiresAt": "2026-09-11"
+  }
+]
