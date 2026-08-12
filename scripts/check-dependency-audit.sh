@@ -20,7 +20,18 @@
 #   }
 # ]
 #
+# Compatible with bash 3.2 (macOS default) and pnpm 10 audit JSON format
+# (a single object: { "advisories": {...}, "metadata": { "vulnerabilities":
+# { "info", "low", "moderate", "high", "critical" } } }).
+#
 set -euo pipefail
+
+# Fail loudly when tooling is missing — a "green" audit that parsed nothing is
+# misleading. (Preinstalled on ubuntu-latest CI; required on macOS too.)
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required by check-dependency-audit.sh (brew install jq)" >&2
+  exit 1
+fi
 
 EXCEPTIONS_FILE="docs/compliance/dependency-exceptions.json"
 
@@ -33,15 +44,16 @@ if [[ -z "$AUDIT_OUTPUT" ]]; then
   exit 0
 fi
 
-# Parse vulnerabilities
-CRITICAL=$(echo "$AUDIT_OUTPUT" | jq 'select(.type == "auditSummary") | .data.vulnerabilities.critical // 0' 2>/dev/null || echo "0")
-HIGH=$(echo "$AUDIT_OUTPUT" | jq 'select(.type == "auditSummary") | .data.vulnerabilities.high // 0' 2>/dev/null || echo "0")
-MEDIUM=$(echo "$AUDIT_OUTPUT" | jq 'select(.type == "auditSummary") | .data.vulnerabilities.medium // 0' 2>/dev/null || echo "0")
+# Parse vulnerability counts from pnpm 10 audit JSON (npm-compatible object shape).
+CRITICAL=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.critical // 0' 2>/dev/null || echo "0")
+HIGH=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.high // 0' 2>/dev/null || echo "0")
+MEDIUM=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.moderate // 0' 2>/dev/null || echo "0")
 
 echo "[audit] Vulnerabilities: critical=$CRITICAL high=$HIGH medium=$MEDIUM"
 
-# Load exceptions
-declare -A EXCEPTION_MAP
+# Load exceptions into a newline-delimited list of "package:advisoryId" keys.
+# Plain list instead of `declare -A` for bash 3.2 (macOS default) compatibility.
+EXCEPTION_KEYS=""
 if [[ -f "$EXCEPTIONS_FILE" ]]; then
   EXCEPTION_COUNT=$(jq length "$EXCEPTIONS_FILE" 2>/dev/null || echo "0")
   echo "[audit] Found $EXCEPTION_COUNT dependency exception(s) in $EXCEPTIONS_FILE"
@@ -53,8 +65,8 @@ if [[ -f "$EXCEPTIONS_FILE" ]]; then
       TODAY=$(date +%Y%m%d)
       EXPIRY_DATE=$(echo "$EXPIRES" | tr -d '-' | head -c 8)
       if [[ "$EXPIRY_DATE" -ge "$TODAY" ]]; then
-        KEY="${PACKAGE}:${ADVISORY}"
-        EXCEPTION_MAP[$KEY]="active"
+        EXCEPTION_KEYS="${EXCEPTION_KEYS}${PACKAGE}:${ADVISORY}
+"
       else
         echo "[audit] ⚠️  Expired exception for $PACKAGE/$ADVISORY (expired $EXPIRES)"
         exit 1
@@ -64,6 +76,15 @@ if [[ -f "$EXCEPTIONS_FILE" ]]; then
 else
   echo "[audit] No exceptions file found at $EXCEPTIONS_FILE (all findings are blocking)"
 fi
+
+has_exception() {
+  local key="$1"
+  local candidate
+  while IFS= read -r candidate; do
+    [[ -n "$candidate" && "$candidate" == "$key" ]] && return 0
+  done <<< "$EXCEPTION_KEYS"
+  return 1
+}
 
 # Check critical findings
 if [[ "$CRITICAL" -gt 0 ]]; then
@@ -78,20 +99,22 @@ fi
 if [[ "$HIGH" -gt 0 ]]; then
   echo ""
   echo "=== Checking high-severity findings against exceptions ==="
-  # Extract high severity advisories
-  echo "$AUDIT_OUTPUT" | jq -c 'select(.type == "advisory") | select(.data.severity == "high") | {package: .data.module_name, id: .data.advisory.id}' 2>/dev/null | while read -r ADV; do
+  # Extract high severity advisories (key = advisory id, e.g. GHSA-xxxx).
+  # Process substitution (not a pipe) so HAS_UNEXCEPTED_HIGH survives the loop.
+  HAS_UNEXCEPTED_HIGH=0
+  while IFS= read -r ADV; do
     PACKAGE=$(echo "$ADV" | jq -r '.package')
     ADVISORY_ID=$(echo "$ADV" | jq -r '.id')
     KEY="${PACKAGE}:${ADVISORY_ID}"
-    if [[ -z "${EXCEPTION_MAP[$KEY]:-}" ]]; then
+    if has_exception "$KEY"; then
+      echo "   ✓ $PACKAGE ($ADVISORY_ID): Covered by active exception"
+    else
       echo "   ⚠️  $PACKAGE ($ADVISORY_ID): No active exception found"
       HAS_UNEXCEPTED_HIGH=1
-    else
-      echo "   ✓ $PACKAGE ($ADVISORY_ID): Covered by active exception"
     fi
-  done
+  done < <(echo "$AUDIT_OUTPUT" | jq -c '.advisories | to_entries[] | select(.value.severity == "high") | {package: .value.module_name, id: .key}')
 
-  if [[ "${HAS_UNEXCEPTED_HIGH:-0}" -eq 1 ]]; then
+  if [[ "$HAS_UNEXCEPTED_HIGH" -eq 1 ]]; then
     echo ""
     echo "❌ High-severity vulnerabilities found without active exceptions."
     echo "   Either fix them or add an exception to $EXCEPTIONS_FILE."
