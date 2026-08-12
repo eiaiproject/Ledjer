@@ -70,11 +70,13 @@ export async function subscribe(
   subscription: { endpoint: string; keys: { auth: string; p256dh: string } },
   userAgent?: string,
 ): Promise<PushSubscription> {
-  // Check for existing subscription with same endpoint
+  // Check for existing subscription with same endpoint owned by THIS user.
+  // Scoping by user_id prevents hijacking another user's subscription
+  // (previously any authenticated user could overwrite its keys).
   const existing = await queryFirst<{ id: string }>(
     db,
-    `SELECT id FROM push_subscriptions WHERE endpoint = ? LIMIT 1`,
-    [subscription.endpoint],
+    `SELECT id FROM push_subscriptions WHERE endpoint = ? AND user_id = ? LIMIT 1`,
+    [subscription.endpoint, userId],
   );
 
   const now = Date.now();
@@ -86,8 +88,8 @@ export async function subscribe(
       db,
       `UPDATE push_subscriptions SET
         auth_key = ?, p256dh_key = ?, user_agent = ?, is_active = 1, updated_at = ?
-       WHERE id = ?`,
-      [subscription.keys.auth, subscription.keys.p256dh, userAgent ?? "", now, id],
+       WHERE id = ? AND user_id = ?`,
+      [subscription.keys.auth, subscription.keys.p256dh, userAgent ?? "", now, id, userId],
     );
   } else {
     // Create new subscription
@@ -105,12 +107,15 @@ export async function subscribe(
 
 export async function unsubscribe(
   db: D1Database,
+  userId: string,
   endpoint: string,
 ): Promise<void> {
+  // BUG-03: scope by user_id so a caller can only deactivate their own
+  // subscription — another user's endpoint cannot be disabled.
   await execute(
     db,
-    `UPDATE push_subscriptions SET is_active = 0, updated_at = ? WHERE endpoint = ?`,
-    [Date.now(), endpoint],
+    `UPDATE push_subscriptions SET is_active = 0, updated_at = ? WHERE endpoint = ? AND user_id = ?`,
+    [Date.now(), endpoint, userId],
   );
 }
 

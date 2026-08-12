@@ -51,6 +51,12 @@ export const test = base.extend<AuthFixtures>({
     // (403 rate_limited after 5 failed attempts / 15 min per email, 429 from
     // edge throttling when CI runs land simultaneously). Each test in a
     // parallel worker logs in, so a transient failure must not fail the run.
+    //
+    // BUG-07: the backoff below (5s, 10s, 20s, 40s ≈ 75s total) is only meant
+    // to ride out short-lived edge throttling. It does NOT (and cannot) wait
+    // out the server's 15-minute sliding lockout window — a hard lockout still
+    // fails the fixture, and that is intentional: it surfaces real rate-limit
+    // problems instead of silently hiding them.
     let loginResult: { ok: boolean; status: number; error?: string } = { ok: false, status: 0 };
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       loginResult = await page.evaluate(
@@ -69,8 +75,6 @@ export const test = base.extend<AuthFixtures>({
         { email, password },
       );
       if (loginResult.ok) break;
-      // Backoff: 5s, 10s, 20s, 40s — lets the 15-minute lockout window expire
-      // (when it does, the 403 clears and the retry succeeds).
       await page.waitForTimeout(attempt * 5000);
     }
 

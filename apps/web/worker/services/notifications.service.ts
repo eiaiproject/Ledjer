@@ -4,6 +4,7 @@
 
 import { generateId } from "../auth/tokens";
 import { execute, executeBatch, queryAll, queryFirst, type D1Input } from "../db/client";
+import { notFound } from "../http/errors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,13 +154,31 @@ export async function getUnreadCount(
 
 export async function markAsRead(
   db: D1Database,
+  organizationId: string,
+  userId: string,
   notificationId: string,
 ): Promise<NotificationOutput> {
+  // IDOR guard: verify ownership first, then update. Checking existence via
+  // SELECT (instead of relying on UPDATE changes) keeps the call idempotent —
+  // re-marking an already-read notification must not 404.
+  const owned = await queryFirst<{ id: string }>(
+    db,
+    `SELECT id FROM notifications
+     WHERE id = ? AND organization_id = ? AND recipient_user_id = ?`,
+    [notificationId, organizationId, userId],
+  );
+  if (!owned) {
+    // Never reveal that a notification owned by another user/org exists.
+    throw notFound("notification_not_found", "Notification not found");
+  }
+
   const now = Date.now();
   await execute(
     db,
-    "UPDATE notifications SET is_read = 1, read_at = ? WHERE id = ?",
-    [now, notificationId],
+    `UPDATE notifications
+     SET is_read = 1, read_at = ?
+     WHERE id = ? AND organization_id = ? AND recipient_user_id = ?`,
+    [now, notificationId, organizationId, userId],
   );
   return getNotification(db, notificationId);
 }
@@ -182,13 +201,19 @@ export async function markAllAsRead(
 
 export async function dismissNotification(
   db: D1Database,
+  organizationId: string,
+  userId: string,
   notificationId: string,
 ): Promise<void> {
-  await execute(
+  const result = await execute(
     db,
-    "DELETE FROM notifications WHERE id = ?",
-    [notificationId],
+    "DELETE FROM notifications WHERE id = ? AND organization_id = ? AND recipient_user_id = ?",
+    [notificationId, organizationId, userId],
   );
+  if ((result.meta.changes ?? 0) === 0) {
+    // IDOR guard: never delete notifications owned by another user/org.
+    throw notFound("notification_not_found", "Notification not found");
+  }
 }
 
 export async function dismissAll(

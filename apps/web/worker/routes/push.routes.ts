@@ -56,7 +56,8 @@ pushRoutes.post("/subscribe", async (c) => {
 
 pushRoutes.post("/unsubscribe", async (c) => {
   const body = await readJson(c, z.object({ endpoint: z.url() }));
-  await unsubscribe(c.env.DB, body.endpoint);
+  const user = c.get("user");
+  await unsubscribe(c.env.DB, user.id, body.endpoint);
   return c.json({ success: true });
 });
 
