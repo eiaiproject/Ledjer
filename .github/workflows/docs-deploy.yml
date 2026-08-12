@@ -48,9 +48,12 @@ jobs:
           wranglerVersion: 4.120.1
           command: deploy
 
+      # Use the workers.dev URL — bypasses the Cloudflare bot challenge that
+      # returns 403 on the public docs.ledjer.id domain when accessed from CI
+      # (same pattern as auto-deploy.yml).
       - name: Post-deploy smoke check
         env:
-          DOCS_URL: https://docs.ledjer.id
+          DOCS_URL: https://ledjer-docs.eiai.workers.dev
         run: |
           for i in 1 2 3 4 5; do
             HTTP_STATUS=$(curl -sS -o /tmp/docs_body -w "%{http_code}" -L --max-time 15 --proto "=https" "$DOCS_URL")
