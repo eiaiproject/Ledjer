@@ -53,7 +53,7 @@ jobs:
           DOCS_URL: https://docs.ledjer.id
         run: |
           for i in 1 2 3 4 5; do
-            HTTP_STATUS=$(curl -sS -o /tmp/docs_body -w "%{http_code}" -L --max-time 15 "$DOCS_URL")
+            HTTP_STATUS=$(curl -sS -o /tmp/docs_body -w "%{http_code}" -L --max-time 15 --proto "=https" "$DOCS_URL")
             if [ "$HTTP_STATUS" = "200" ]; then
               echo "✅ Docs site returned HTTP 200 (attempt $i)"
               break
