@@ -1,7 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ledjer-docs",
+  "main": "worker/index.js",
   "compatibility_date": "2026-08-12",
+  // Custom domain — Cloudflare adds the DNS record automatically when the
+  // ledjer.id zone is in the same account. Falls back to the workers.dev URL.
+  "routes": [
+    { "pattern": "docs.ledjer.id", "custom_domain": true }
+  ],
   "assets": {
     "directory": "docs/.vitepress/dist",
     "binding": "ASSETS",
