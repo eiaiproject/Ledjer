@@ -1,0 +1,82 @@
+/* Ledjer brand for VitePress — mirrors the app palette (apps/web/src/index.css). */
+
+:root {
+  /* Brand palette */
+  --ledjer-wood-50: #faf6f1;
+  --ledjer-wood-100: #f2e8dc;
+  --ledjer-wood-200: #e4d0ba;
+  --ledjer-wood-300: #c9a787;
+  --ledjer-wood-400: #a87b52;
+  --ledjer-wood-500: #8b5a3c;
+  --ledjer-wood-600: #6f4530;
+  --ledjer-wood-700: #533525;
+  --ledjer-wood-800: #3a2620;
+  --ledjer-wood-900: #2a1b17;
+
+  --ledjer-leaf-50: #f1f6ec;
+  --ledjer-leaf-100: #ddeacf;
+  --ledjer-leaf-200: #b8d29c;
+  --ledjer-leaf-300: #94ba6f;
+  --ledjer-leaf-500: #6b8e4e;
+  --ledjer-leaf-600: #54733d;
+  --ledjer-leaf-700: #3f5a2e;
+  --ledjer-leaf-800: #2d4020;
+
+  --ledjer-cream-50: #fdfbf6;
+  --ledjer-cream-100: #f9f4eb;
+
+  /* VitePress theme tokens */
+  --vp-c-brand-1: var(--ledjer-leaf-600);
+  --vp-c-brand-2: var(--ledjer-leaf-500);
+  --vp-c-brand-3: var(--ledjer-leaf-700);
+  --vp-c-brand-soft: var(--ledjer-leaf-50);
+
+  --vp-c-bg: var(--ledjer-cream-50);
+  --vp-c-bg-alt: var(--ledjer-cream-100);
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: var(--ledjer-cream-100);
+
+  --vp-c-text-1: var(--ledjer-wood-900);
+  --vp-c-text-2: var(--ledjer-wood-700);
+  --vp-c-text-3: var(--ledjer-wood-500);
+
+  --vp-c-border: var(--ledjer-wood-200);
+  --vp-c-divider: var(--ledjer-wood-100);
+  --vp-c-gutter: var(--ledjer-wood-100);
+
+  --vp-font-family-base: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --vp-font-family-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+.dark {
+  --vp-c-bg: var(--ledjer-wood-900);
+  --vp-c-bg-alt: #241714;
+  --vp-c-bg-elv: var(--ledjer-wood-800);
+  --vp-c-bg-soft: #33211b;
+
+  --vp-c-text-1: var(--ledjer-cream-50);
+  --vp-c-text-2: var(--ledjer-wood-100);
+  --vp-c-text-3: var(--ledjer-wood-300);
+
+  --vp-c-border: var(--ledjer-wood-700);
+  --vp-c-divider: var(--ledjer-wood-700);
+  --vp-c-gutter: var(--ledjer-wood-800);
+
+  --vp-c-brand-1: var(--ledjer-leaf-300);
+  --vp-c-brand-2: var(--ledjer-leaf-400);
+  --vp-c-brand-3: var(--ledjer-leaf-500);
+  --vp-c-brand-soft: rgba(148, 186, 111, 0.15);
+}
+
+.VPHomeHero .name,
+.VPHomeHero .text {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+.VPHomeHero .name {
+  color: var(--ledjer-wood-800);
+}
+
+.dark .VPHomeHero .name {
+  color: var(--ledjer-cream-50);
+}

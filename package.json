@@ -30,7 +30,11 @@
     "test:e2e:local:full": "E2E_MODE=local-full E2E_BASE_URL=http://localhost:4173 pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/auth.spec.ts e2e/security-public.spec.ts e2e/accessibility.spec.ts --project=chromium",
     "test:e2e:deploy": "E2E_MODE=deploy-smoke E2E_BASE_URL=https://ledjer.id pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts --project=chromium",
     "test:e2e:cross-browser-smoke": "E2E_CROSS_BROWSER=1 pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/accessibility.spec.ts --project=firefox --project=webkit",
-    "test:a11y": "E2E_MODE=local-smoke pnpm --filter web exec playwright test e2e/accessibility.spec.ts --project=chromium"
+    "test:a11y": "E2E_MODE=local-smoke pnpm --filter web exec playwright test e2e/accessibility.spec.ts --project=chromium",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs build",
+    "docs:preview": "pnpm --filter docs preview",
+    "docs:deploy": "pnpm --filter docs deploy"
   },
   "keywords": [],
   "author": "",

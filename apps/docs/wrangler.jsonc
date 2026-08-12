@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ledjer-docs",
+  "compatibility_date": "2026-08-12",
+  "assets": {
+    "directory": "docs/.vitepress/dist",
+    "binding": "ASSETS",
+    // Static docs site: missing pages return the built 404.html (not SPA
+    // fallback) so broken links are surfaced instead of silently masked.
+    "not_found_handling": "404-page",
+    // cleanUrls-friendly: /panduan/transaksi serves transaksi/index.html.
+    "html_handling": "auto-trailing-slash"
+  }
+}

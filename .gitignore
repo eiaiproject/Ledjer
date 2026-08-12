@@ -73,9 +73,10 @@ CONTRIBUTING.md
 LICENSE
 SECURITY.md
 
-# Screenshots (binary bloat, not essential for development)
-docs/
-docs/screenshots/
+# Screenshots (binary bloat, not essential for development).
+# Root-anchored so apps/docs (public docs site) is NOT ignored.
+/docs/
+/docs/screenshots/
 
 # Codex hooks (local paths, not portable)
 .codex/hooks.json
