@@ -198,6 +198,7 @@
 }
 @media (min-width: 640px) { .VPFeatures { padding: 56px 32px 80px; } }
 .VPFeature {
+  height: 100%; /* fill .item wrapper so cards in a row stay equal height */
   border: 1px solid var(--ledjer-wood-200);
   border-radius: 12px;
   background: var(--ledjer-surface-elv);
