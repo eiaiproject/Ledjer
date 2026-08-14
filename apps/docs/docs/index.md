@@ -11,23 +11,23 @@ hero:
     - theme: alt
       text: Buka Panduan
       link: /mulai
+featuresSection:
+  eyebrow: Fitur utama
+  title: Kelola usaha dalam satu tempat
+  description: Transaksi, stok, laporan, dan akses tim saling terhubung tanpa pencatatan berulang.
 features:
   - title: Catat transaksi
-    details: Penjualan, pembelian, dan beban tercatat dengan sistem berpasangan (debit & kredit) secara otomatis.
+    details: Penjualan, pembelian, dan beban tercatat dengan sistem berpasangan, yaitu debit dan kredit, secara otomatis.
     icon: Receipt
   - title: Kelola stok
     details: Pantau barang masuk dan keluar. Stok diperbarui otomatis dari setiap transaksi.
     icon: Package
-  - title: Laporan keuangan
+  - title: Pantau laporan
     details: Laba rugi, neraca, dan buku besar tersaji otomatis tanpa perlu rumus.
     icon: ChartBar
-  - title: Akses staf
-    details: Undang staf dan atur pembagian akses per fitur sesuai kebutuhan.
+  - title: Atur akses staf
+    details: Undang staf dan batasi akses setiap fitur sesuai kebutuhan.
     icon: Users
 ---
 
-## Keamanan & akses
-
-Data tiap bisnis dipisahkan dan akses dapat dibatasi. Setiap perubahan penting tercatat sehingga dapat ditelusuri.
-
-[Pelajari keamanan Ledjer →](/panduan/keamanan-akun)
+<SecuritySection />

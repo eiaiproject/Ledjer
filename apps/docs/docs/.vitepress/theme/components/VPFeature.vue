@@ -25,14 +25,14 @@ const iconName = typeof props.icon === "string" && props.icon ? props.icon : "";
     :target="link ? target : undefined"
   >
     <article class="box">
-      <div v-if="iconName" class="icon">
+      <div v-if="iconName" class="icon" aria-hidden="true">
         <Reicon :name="iconName" :size="28" />
       </div>
-      <h2 class="title">{{ title }}</h2>
+      <h3 class="title">{{ title }}</h3>
       <p v-if="details" class="details">{{ details }}</p>
       <div v-if="linkText" class="link-text">
         <p class="link-text-value">
-          {{ linkText }} <Reicon name="ArrowRight" :size="14" class="link-text-icon" />
+          {{ linkText }} <Reicon name="ArrowRight" :size="14" class="link-text-icon" aria-hidden="true" />
         </p>
       </div>
     </article>

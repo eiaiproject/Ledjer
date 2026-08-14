@@ -1,5 +1,5 @@
 /* Ledjer brand for VitePress — mirrors the app palette (apps/web/src/index.css).
-   Light-only: the landing has no dark mode, so dark-mode overrides are removed. */
+   Light + dark schemes; dark derives from the same wood/leaf/cream scales. */
 
 :root {
   /* === NATURAL EARTH — full scales (verbatim from apps/web/src/index.css) === */
@@ -99,11 +99,51 @@
   --vp-font-family-base: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --vp-font-family-mono: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
 
-  /* Disable dark scheme entirely (landing has no dark mode) */
-  color-scheme: light;
+  /* === LAYOUT SYSTEM === */
+  /* One container for header, hero, features, home content, and footer. */
+  --ledjer-container-max: 1152px;
+  --ledjer-container-pad: clamp(16px, 4vw, 32px);
+  /* Spacing scale — multiples of 4 (audited across hero/features/footer). */
+  --ledjer-space-1: 4px;
+  --ledjer-space-2: 8px;
+  --ledjer-space-3: 12px;
+  --ledjer-space-4: 16px;
+  --ledjer-space-5: 20px;
+  --ledjer-space-6: 24px;
+  --ledjer-space-8: 32px;
+  --ledjer-space-10: 40px;
+  --ledjer-space-12: 48px;
+  --ledjer-space-16: 64px;
+  --ledjer-space-20: 80px;
+  --ledjer-space-24: 96px;
+  /* Focus ring — flips in dark mode. */
+  --ledjer-focus-ring: var(--ledjer-wood-500);
+
+  color-scheme: light dark;
 }
 
-/* === HOME HERO === */
+/* === CONTAINER SYSTEM ===
+   Header, hero, features, home content, and footer share one grid line. */
+.VPNavBar .container,
+.VPHero .container,
+.VPFeatures .container,
+.home-content,
+.VPFooter .container {
+  max-width: var(--ledjer-container-max);
+  margin-inline: auto;
+  padding-left: var(--ledjer-container-pad);
+  padding-right: var(--ledjer-container-pad);
+  box-sizing: border-box;
+  width: 100%;
+}
+/* Prose column inside the shared container (e.g. long paragraphs in docs). */
+.vp-doc {
+  --ledjer-prose-max: 720px;
+}
+
+/* === HOME HERO ===
+   Text-only hero: left-aligned on the shared container grid, with max-widths
+   that produce natural line breaks on ultra-wide screens (no empty image slot). */
 .VPHomeHero .name,
 .VPHomeHero .text {
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
@@ -111,40 +151,43 @@
 
 .VPHomeHero .text {
   font-weight: 700;
-  font-size: clamp(2.125rem, 8vw, 4rem);
-  line-height: 1.02;
+  font-size: clamp(2.125rem, 6vw, 3.75rem);
+  line-height: 1.06;
   letter-spacing: -0.03em;
   color: var(--ledjer-wood-900);
-  max-width: none;
+  max-width: 640px; /* natural 2-line break, readable on ultra-wide */
   text-wrap: balance;
-}
-@media (min-width: 640px) {
-  .VPHomeHero .text { max-width: 16ch; }
 }
 .VPHomeHero .text em {
   font-style: normal;
   color: var(--ledjer-leaf-700);
 }
 .VPHomeHero .tagline {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.65;
   color: var(--ledjer-wood-700);
-  max-width: 36rem;
-  margin-top: 20px;
+  max-width: 560px; /* comfortable reading measure */
+  margin-top: var(--ledjer-space-4);
 }
 @media (min-width: 640px) {
-  .VPHomeHero .tagline { font-size: 18px; }
+  .VPHomeHero .tagline { font-size: 18px; margin-top: var(--ledjer-space-5); }
 }
 .VPHomeHero .actions {
-  margin-top: 28px;
+  margin-top: var(--ledjer-space-8);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ledjer-space-3);
 }
 .VPHomeHero .action.alt,
 .VPHomeHero .action.brand {
   border-radius: 12px;
-  font-weight: 500;
-  padding: 0 16px;
+  font-weight: 600;
+  padding: 0 20px;
   min-height: 48px;
   font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .VPHomeHero .action.brand {
   background: var(--ledjer-wood-500);
@@ -167,7 +210,7 @@
 }
 .VPHomeHero .action.alt:hover {
   background: var(--ledjer-cream-100);
-  border-color: var(--ledjer-wood-300);
+  border-color: var(--ledjer-wood-400);
 }
 .VPHomeHero .action.alt:active {
   background: var(--ledjer-cream-200);
@@ -192,23 +235,65 @@
   max-width: 1152px;
 }
 .VPFeatures {
-  padding: 40px 24px 64px;
+  padding: var(--ledjer-space-16) var(--ledjer-container-pad) var(--ledjer-space-24);
   background: var(--ledjer-cream-50);
   border-top: 1px solid var(--ledjer-wood-100);
 }
-@media (min-width: 640px) { .VPFeatures { padding: 56px 32px 80px; } }
-/* Feature grid: keep 2 columns on desktop (default grid-4 forces 4 cramped
-   ~276px columns once >=960px) and make every row equal height so all four
-   cards are perfectly symmetric. !important beats the scoped VPFeatures rules. */
+@media (min-width: 640px) {
+  .VPFeatures { padding-top: var(--ledjer-space-20); padding-bottom: var(--ledjer-space-24); }
+}
+
+/* Section header: eyebrow + h2 + description, aligned to the container grid. */
+.features-header {
+  max-width: 640px;
+  margin-bottom: var(--ledjer-space-12);
+}
+.features-eyebrow {
+  color: var(--ledjer-leaf-700);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--ledjer-space-2);
+}
+.features-title {
+  color: var(--ledjer-wood-900);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.features-description {
+  color: var(--ledjer-wood-700);
+  font-size: 16px;
+  line-height: 1.6;
+  margin-top: var(--ledjer-space-3);
+}
+
+/* Feature grid: 1 -> 2 -> 4 columns, breakpoints driven by card readability
+   (min ~240px per card), equal-height rows via 1fr. Overrides the scoped
+   VPFeatures .item width rules. */
+.VPFeatures .items {
+  display: grid !important;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: var(--ledjer-space-4);
+  margin: 0 !important;
+}
+.VPFeatures .item {
+  padding: 0 !important;
+  width: auto !important;
+}
 @media (min-width: 640px) {
   .VPFeatures .items {
-    display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ledjer-space-5);
     grid-auto-rows: 1fr;
   }
-  .VPFeatures .item,
-  .VPFeatures .item.grid-4 {
-    width: auto !important;
+}
+@media (min-width: 1120px) {
+  .VPFeatures .items {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ledjer-space-6);
   }
 }
 .VPFeature {
@@ -270,6 +355,70 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--ledjer-leaf-600);
+}
+
+/* === SECURITY SECTION (landing) === */
+.security-section {
+  padding: var(--ledjer-space-16) var(--ledjer-container-pad) var(--ledjer-space-20);
+  background: var(--ledjer-leaf-50);
+  border-top: 1px solid var(--ledjer-wood-100);
+}
+@media (min-width: 640px) {
+  .security-section { padding-top: var(--ledjer-space-20); padding-bottom: var(--ledjer-space-20); }
+}
+.security-card {
+  max-width: 720px; /* intentional prose/callout column on the container grid */
+  padding: var(--ledjer-space-6);
+  border: 1px solid var(--ledjer-wood-200);
+  border-radius: 16px;
+  background: var(--ledjer-surface-elv);
+}
+@media (min-width: 640px) {
+  .security-card { padding: var(--ledjer-space-8); }
+}
+.security-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--ledjer-leaf-100);
+  color: var(--ledjer-leaf-700);
+  margin-bottom: var(--ledjer-space-4);
+}
+.security-heading {
+  color: var(--ledjer-wood-900);
+  font-size: clamp(1.375rem, 3.5vw, 1.75rem);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.security-body {
+  color: var(--ledjer-wood-700);
+  font-size: 16px;
+  line-height: 1.65;
+  margin-top: var(--ledjer-space-3);
+  max-width: 60ch;
+}
+.security-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ledjer-space-2);
+  margin-top: var(--ledjer-space-5);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ledjer-leaf-700);
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.security-link:hover {
+  color: var(--ledjer-leaf-800);
+}
+.security-link-icon {
+  flex-shrink: 0;
 }
 
 /* === PAGE HEADER ICON === */
@@ -337,19 +486,60 @@
   color: var(--ledjer-wood-900);
 }
 
-/* === FOOTER === */
+/* === FOOTER (columned) === */
 .VPFooter {
   background: var(--ledjer-cream-50);
   border-top: 1px solid var(--ledjer-wood-200);
+  padding: var(--ledjer-space-12) 0 max(var(--ledjer-space-8), env(safe-area-inset-bottom));
 }
-.VPFooter .message,
-.VPFooter .copyright,
-.VPFooter .footer-links a {
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ledjer-space-8);
+}
+@media (min-width: 640px) {
+  .footer-grid { grid-template-columns: 2fr 1fr 1fr; gap: var(--ledjer-space-8); }
+}
+.footer-logo {
+  max-height: 32px;
+  width: auto;
+  margin-bottom: var(--ledjer-space-4);
+}
+.footer-tagline,
+.footer-copyright {
   color: var(--ledjer-wood-700);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
 }
-.VPFooter .message strong {
+.footer-tagline { margin-bottom: var(--ledjer-space-2); }
+.footer-tagline strong { color: var(--ledjer-wood-900); }
+.footer-col-title {
   color: var(--ledjer-wood-900);
+  font-weight: 700;
+  font-size: 14px;
+  margin: 0 0 var(--ledjer-space-3);
+}
+.footer-col-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ledjer-space-2);
+}
+.footer-col-list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  color: var(--ledjer-wood-700);
+  font-size: 14px;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.footer-col-list a:hover {
+  color: var(--ledjer-wood-900);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* === NAV BAR LOGO === */
@@ -364,10 +554,28 @@
   color: var(--ledjer-wood-800);
 }
 
-/* Hide dark/light switch entirely — landing has no theme toggle */
-.VPNavBarAppearance,
-.VPNavScreenAppearance {
-  display: none !important;
+/* === EXTERNAL LINK INDICATOR ===
+   Visible icon for external links in nav + footer (vp-doc already has one).
+   VPLink puts the vp-external-link-icon class ON the anchor itself; footer
+   links are plain anchors, so match them by protocol instead. */
+.VPNavBarMenuLink.vp-external-link-icon::after,
+.footer-col-list a[href^="http"]::after {
+  display: inline-block;
+  margin-left: 4px;
+  width: 11px;
+  height: 11px;
+  content: "";
+  flex-shrink: 0;
+  background: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 0h24v24H0V0z' fill='none'/%3E%3Cpath d='M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 0h24v24H0V0z' fill='none'/%3E%3Cpath d='M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z'/%3E%3C/svg%3E");
+}
+
+/* === MOBILE NAV: lock body scroll while the screen is open (modal) === */
+html.nav-screen-open,
+html.nav-screen-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Shiki syntax highlight — remap GitHub light tokens to brand palette.
@@ -412,9 +620,18 @@ body {
 img, svg, video { max-width: 100%; height: auto; }
 ::selection { background: var(--ledjer-leaf-200); color: var(--ledjer-leaf-900); }
 :focus-visible {
-  outline: 2px solid var(--ledjer-wood-500);
+  outline: 2px solid var(--ledjer-focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
+}
+/* Keyboard-only focus for nav links & buttons that VitePress styles with :focus */
+a:focus-visible,
+button:focus-visible,
+.VPNavBarMenuLink:focus-visible,
+.VPFooter a:focus-visible,
+.security-link:focus-visible {
+  outline: 2px solid var(--ledjer-focus-ring);
+  outline-offset: 2px;
 }
 
 /* Scrollbar — matches the app (apps/web/src/index.css) */
@@ -626,10 +843,16 @@ img, svg, video { max-width: 100%; height: auto; }
 @media (max-width: 640px) {
   .VPHomeHero .text { font-size: clamp(2.125rem, 8vw, 4rem); }
   .VPHomeHero .tagline { font-size: 16px; }
-  .VPHomeHero .actions { width: 100%; }
+  .VPHomeHero .actions { width: 100%; flex-direction: column; }
   .VPHomeHero .action { width: 100%; }
-  .VPFeature { padding: 16px 18px; }
+  .VPFeature { padding: var(--ledjer-space-5); }
+  .security-card { padding: var(--ledjer-space-5); }
   .vp-doc { font-size: 15px; }
+}
+
+/* Footer hidden on doc pages with a sidebar (matches default theme). */
+.VPFooter.has-sidebar {
+  display: none;
 }
 
 /* --- Android Chrome: hide nav jump on address-bar show --- */
@@ -639,25 +862,152 @@ img, svg, video { max-width: 100%; height: auto; }
   -webkit-backdrop-filter: saturate(180%) blur(8px);
 }
 
-/* --- FORCE LIGHT: neutralize VitePress .dark (light-only brand) --- */
-html.dark { color-scheme: light !important; }
-.dark {
-  --vp-c-bg: var(--ledjer-cream-100) !important;
-  --vp-c-bg-alt: var(--ledjer-cream-50) !important;
-  --vp-c-bg-elv: var(--ledjer-surface-elv) !important;
-  --vp-c-bg-soft: var(--ledjer-cream-100) !important;
-  --vp-c-bg-soft-up: var(--ledjer-cream-50) !important;
-  --vp-c-text-1: var(--ledjer-wood-900) !important;
-  --vp-c-text-2: var(--ledjer-wood-700) !important;
-  --vp-c-text-3: var(--ledjer-wood-500) !important;
-  --vp-c-text-4: var(--ledjer-wood-400) !important;
-  --vp-c-border: var(--ledjer-wood-200) !important;
-  --vp-c-divider: var(--ledjer-wood-100) !important;
-  --vp-c-gutter: var(--ledjer-wood-100) !important;
-  --vp-c-brand-1: var(--ledjer-leaf-600) !important;
-  --vp-c-brand-2: var(--ledjer-leaf-500) !important;
-  --vp-c-brand-3: var(--ledjer-leaf-400) !important;
-  --vp-c-brand-soft: var(--ledjer-leaf-100) !important;
-  --vp-c-default-soft: var(--ledjer-wood-100) !important;
-  --vp-c-mute: var(--ledjer-wood-400) !important;
+/* === DARK MODE ===
+   Derived from the same brand scales: deep-wood surfaces, cream text,
+   lighter leaf for brand accents. html.dark token overrides flip the
+   component rules that reference --ledjer-* directly. */
+html.dark {
+  color-scheme: dark;
+  --ledjer-surface-elv: #33211A;
+  --ledjer-focus-ring: var(--ledjer-leaf-300);
 }
+.dark {
+  --vp-c-bg: #241611;
+  --vp-c-bg-alt: var(--ledjer-wood-900);
+  --vp-c-bg-elv: #33211A;
+  --vp-c-bg-soft: var(--ledjer-wood-800);
+  --vp-c-bg-soft-up: var(--ledjer-wood-700);
+  --vp-c-text-1: var(--ledjer-cream-50);
+  --vp-c-text-2: var(--ledjer-cream-200);
+  --vp-c-text-3: var(--ledjer-wood-300);
+  --vp-c-text-4: var(--ledjer-wood-400);
+  --vp-c-border: var(--ledjer-wood-700);
+  --vp-c-divider: var(--ledjer-wood-800);
+  --vp-c-gutter: var(--ledjer-wood-800);
+  --vp-c-brand-1: var(--ledjer-leaf-400);
+  --vp-c-brand-2: var(--ledjer-leaf-300);
+  --vp-c-brand-3: var(--ledjer-leaf-500);
+  --vp-c-brand-soft: var(--ledjer-leaf-900);
+  --vp-c-default-soft: var(--ledjer-wood-800);
+  --vp-c-mute: var(--ledjer-wood-500);
+}
+
+/* Dark component overrides (sections referencing --ledjer-* directly). */
+html.dark .VPHome,
+html.dark .VPFeatures,
+html.dark .VPFooter,
+html.dark .VPSidebar {
+  background: var(--ledjer-wood-900);
+}
+html.dark .VPHero {
+  background: linear-gradient(115deg, #1F2D16 0%, #241611 58%, var(--ledjer-wood-900) 100%);
+  border-bottom-color: var(--ledjer-wood-800);
+}
+html.dark .VPFeatures,
+html.dark .security-section {
+  border-top-color: var(--ledjer-wood-800);
+}
+html.dark .VPNavBar,
+html.dark .VPLocalNav {
+  background: color-mix(in srgb, var(--ledjer-wood-900) 88%, transparent);
+  border-bottom-color: var(--ledjer-wood-800);
+}
+html.dark .VPNavBarTitle .title,
+html.dark .VPNavBarHamburger {
+  color: var(--ledjer-cream-50);
+}
+html.dark .VPFeature {
+  background: var(--ledjer-surface-elv);
+  border-color: var(--ledjer-wood-700);
+}
+html.dark .VPFeature:hover {
+  border-color: var(--ledjer-leaf-500);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+html.dark .VPFeature .icon {
+  background: var(--ledjer-wood-800);
+  color: var(--ledjer-cream-200);
+}
+html.dark .VPFeature:hover .icon {
+  background: var(--ledjer-leaf-900);
+  color: var(--ledjer-leaf-300);
+}
+html.dark .VPHomeHero .text { color: var(--ledjer-cream-50); }
+html.dark .VPHomeHero .text em { color: var(--ledjer-leaf-300); }
+html.dark .VPHomeHero .tagline { color: var(--ledjer-cream-200); }
+html.dark .VPHomeHero .action.alt {
+  color: var(--ledjer-cream-200);
+  border-color: var(--ledjer-wood-400);
+}
+html.dark .VPHomeHero .action.alt:hover {
+  background: var(--ledjer-wood-800);
+  border-color: var(--ledjer-wood-400);
+}
+html.dark .VPHomeHero .action.alt:active {
+  background: var(--ledjer-wood-700);
+}
+html.dark .security-section {
+  background: var(--ledjer-wood-900);
+}
+html.dark .security-card {
+  background: #33211A;
+  border-color: var(--ledjer-wood-700);
+}
+html.dark .security-icon {
+  background: var(--ledjer-leaf-900);
+  color: var(--ledjer-leaf-300);
+}
+html.dark .features-eyebrow,
+html.dark .security-link {
+  color: var(--ledjer-leaf-300);
+}
+html.dark .security-link:hover { color: var(--ledjer-leaf-200); }
+html.dark .footer-tagline,
+html.dark .footer-copyright,
+html.dark .footer-col-list a {
+  color: var(--ledjer-cream-200);
+}
+html.dark .footer-col-title,
+html.dark .footer-tagline strong {
+  color: var(--ledjer-cream-50);
+}
+html.dark .footer-col-list a:hover { color: var(--ledjer-cream-50); }
+/* Dark text on dark surfaces — component rules hardcode --ledjer-* light values. */
+html.dark .VPDoc h1,
+html.dark .VPDoc h2,
+html.dark .VPDoc h3,
+html.dark .vp-doc .custom-block-title,
+html.dark .features-title,
+html.dark .VPFeature .title,
+html.dark .security-heading {
+  color: var(--ledjer-cream-50);
+}
+html.dark .features-description,
+html.dark .VPFeature .details,
+html.dark .security-body {
+  color: var(--ledjer-cream-200);
+}
+html.dark .vp-doc th {
+  background: var(--ledjer-wood-800);
+  color: var(--ledjer-cream-50);
+}
+html.dark .vp-doc code {
+  background: var(--ledjer-wood-800);
+}
+html.dark .custom-block {
+  background: var(--ledjer-wood-800);
+}
+html.dark .custom-block.note,
+html.dark .custom-block.tip {
+  background: var(--ledjer-leaf-900);
+}
+html.dark .custom-block.warning { background: #3A2A1E; }
+html.dark .custom-block.danger { background: #3D1E18; }
+html.dark .custom-block.info { background: #1F3445; }
+html.dark ::selection {
+  background: var(--ledjer-leaf-700);
+  color: var(--ledjer-cream-50);
+}
+html.dark ::-webkit-scrollbar-track { background: var(--ledjer-wood-800); }
+html.dark ::-webkit-scrollbar-thumb { background: var(--ledjer-wood-600); }
+html.dark ::-webkit-scrollbar-thumb:hover { background: var(--ledjer-wood-500); }
