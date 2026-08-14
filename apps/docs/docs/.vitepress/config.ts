@@ -1,10 +1,25 @@
 import { defineConfig } from "vitepress";
+import { fileURLToPath, URL } from "node:url";
 
 const DOCS_URL = "https://docs.ledjer.id";
 
 export default defineConfig({
   lang: "id-ID",
-  title: "Ledjer Docs",
+  vite: {
+    resolve: {
+      alias: [
+        {
+          // Replace the default theme's VPFeature with our themed version that
+          // renders icons from reicon-react (reicon.dev) instead of emoji.
+          find: /.*\/VPFeature\.vue$/,
+          replacement: fileURLToPath(
+            new URL("./theme/components/VPFeature.vue", import.meta.url),
+          ),
+        },
+      ],
+    },
+  },
+  title: "Docs",
   description:
     "Panduan penggunaan Ledjer — aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan.",
   cleanUrls: true,
@@ -50,8 +65,13 @@ export default defineConfig({
     ],
   ],
   themeConfig: {
-    logo: "/favicon.svg",
-    siteTitle: "Ledjer Docs",
+    logo: {
+      src: "/logo-horizontal.svg",
+      alt: "Ledjer",
+      width: 132,
+      height: 34,
+    },
+    siteTitle: "Docs",
     nav: [
       { text: "Beranda", link: "/" },
       { text: "Memulai", link: "/mulai" },
@@ -69,6 +89,7 @@ export default defineConfig({
       },
       { text: "FAQ", link: "/faq" },
       { text: "API", link: "/api" },
+      { text: "Buka Aplikasi", link: "https://ledjer.id" },
     ],
     sidebar: [
       {
@@ -121,18 +142,26 @@ export default defineConfig({
       pattern: "https://github.com/eiaiproject/Ledjer/edit/main/apps/docs/docs/:path",
       text: "Edit halaman ini di GitHub",
     },
+    appearance: false,
+    hideDarkModeSwitch: true,
     footer: {
-      message: "Pembukuan double-entry untuk UMKM Indonesia.",
-      copyright: "© 2026 Ledjer. Hak cipta dilindungi.",
+      message: "<strong>Ledjer</strong> — pembukuan double-entry untuk UMKM Indonesia.",
+      copyright: `© ${new Date().getFullYear()} Ledjer. Hak cipta dilindungi.`,
     },
     socialLinks: [
       { icon: "github", link: "https://github.com/eiaiproject/Ledjer" },
     ],
+    footerLinks: [
+      { text: "Beranda", link: "/" },
+      { text: "Memulai", link: "/mulai" },
+      { text: "FAQ", link: "/faq" },
+      { text: "Referensi API", link: "/api" },
+    ],
+    footerBottomLinks: [
+      { text: "Buka Aplikasi", link: "https://ledjer.id" },
+    ],
     returnToTopLabel: "Kembali ke atas",
     sidebarMenuLabel: "Menu",
-    darkModeSwitchLabel: "Mode gelap",
-    lightModeSwitchTitle: "Mode terang",
-    darkModeSwitchTitle: "Mode gelap",
     skipToContentLabel: "Langsung ke konten",
     notFound: {
       title: "Halaman tidak ditemukan",

@@ -1,3 +1,5 @@
+<Reicon name="Package" size="28" class="page-header-icon" />
+
 # Produk & Inventori
 
 Kelola daftar barang dagangan dan pantau stok — terhubung langsung dengan transaksi dan laporan.

@@ -1,3 +1,5 @@
+<Reicon name="HelpCircle" size="28" class="page-header-icon" />
+
 # FAQ
 
 ### Apakah saya perlu paham akuntansi?
