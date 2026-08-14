@@ -197,12 +197,26 @@
   border-top: 1px solid var(--ledjer-wood-100);
 }
 @media (min-width: 640px) { .VPFeatures { padding: 56px 32px 80px; } }
+/* Feature grid: keep 2 columns on desktop (default grid-4 forces 4 cramped
+   ~276px columns once >=960px) and make every row equal height so all four
+   cards are perfectly symmetric. !important beats the scoped VPFeatures rules. */
+@media (min-width: 640px) {
+  .VPFeatures .items {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+  }
+  .VPFeatures .item,
+  .VPFeatures .item.grid-4 {
+    width: auto !important;
+  }
+}
 .VPFeature {
   height: 100%; /* fill .item wrapper so cards in a row stay equal height */
   border: 1px solid var(--ledjer-wood-200);
   border-radius: 12px;
   background: var(--ledjer-surface-elv);
-  padding: 20px 22px;
+  padding: 24px;
   transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
 .VPFeature:hover {
@@ -213,14 +227,16 @@
 .VPFeature .title {
   color: var(--ledjer-wood-900);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 24px;
   letter-spacing: -0.01em;
 }
 .VPFeature .details {
   color: var(--ledjer-wood-600);
   font-size: 14px;
-  line-height: 1.5;
-  margin-top: 4px;
+  line-height: 24px;
+  padding-top: 8px;
+  flex-grow: 1;
 }
 .VPFeature .box {
   display: flex;
@@ -231,7 +247,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -445,6 +461,20 @@ img, svg, video { max-width: 100%; height: auto; }
   min-width: 44px;
   min-height: 44px;
   margin-right: -8px;
+}
+/* Navbar: collapse to the hamburger menu below 960px. The default VitePress
+   breakpoint is 768px, but this nav has 6 items (Beranda..Buka Aplikasi) and
+   overflows by up to 166px at 768-919px. !important beats the scoped rules. */
+@media (min-width: 768px) and (max-width: 959px) {
+  .VPNavBarMenu {
+    display: none !important;
+  }
+  .VPNavBarHamburger {
+    display: flex !important;
+  }
+  .VPNavScreen {
+    display: block !important;
+  }
 }
 
 /* --- Search: mobile sheet, safe-area --- */
