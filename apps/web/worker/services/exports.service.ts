@@ -282,7 +282,9 @@ async function listTransactionsForExport(
 ): Promise<ExportTransactionRow[]> {
   const conditions = [
     "t.organization_id = ?",
-    "t.original_transaction_id IS NULL",
+    // Same rule as listTransactions: hide only technical reversal entries;
+    // corrected re-entries and settlements are real transactions.
+    "NOT EXISTS (SELECT 1 FROM journal_entries je WHERE je.transaction_id = t.id AND je.entry_type = 'reversal')",
   ];
   const values: D1Input[] = [organizationId];
 

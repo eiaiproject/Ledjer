@@ -334,7 +334,11 @@ export async function listTransactions(
 ): Promise<PublicTransaction[]> {
   const conditions = [
     "t.organization_id = ?",
-    "t.original_transaction_id IS NULL",
+    // Hide only technical reversal entries (created by the void flow).
+    // Corrected re-entries and settlement payments carry an
+    // original_transaction_id but are real transactions — they must
+    // stay visible in the list.
+    "NOT EXISTS (SELECT 1 FROM journal_entries je WHERE je.transaction_id = t.id AND je.entry_type = 'reversal')",
   ];
   const values: D1Input[] = [organizationId];
 
