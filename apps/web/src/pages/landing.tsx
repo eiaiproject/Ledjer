@@ -350,7 +350,7 @@ function SegmentedTabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="ledger-scroll-x no-scrollbar ledger-fade-x flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"
+      className="ledger-scroll-x no-scrollbar flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"
     >
       {items.map((item) => {
         const isActive = activeId === item.id;
