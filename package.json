@@ -1,7 +1,7 @@
 {
   "name": "Ledjer",
   "version": "1.0.0",
-  "description": "Ledjer — Double-entry bookkeeping",
+  "description": "Ledjer — Double-entry bookkeeping for Indonesian SMEs (UMKM), built on Cloudflare Workers + D1.",
   "engines": {
     "node": ">=24",
     "pnpm": ">=10"
@@ -36,9 +36,17 @@
     "docs:preview": "pnpm --filter docs preview",
     "docs:deploy": "pnpm --filter docs deploy"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["accounting", "bookkeeping", "umkm", "indonesia", "double-entry", "cloudflare", "d1"],
+  "author": "eiaiproject",
+  "homepage": "https://ledjer.id",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eiaiproject/Ledjer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eiaiproject/Ledjer/issues"
+  },
+  "license": "UNLICENSED",
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
     "onlyBuiltDependencies": [

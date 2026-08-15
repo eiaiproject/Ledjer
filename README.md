@@ -4,7 +4,10 @@
 
 Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan laporan keuangan tanpa perlu pengetahuan akuntansi formal. Berjalan di Cloudflare edge network — cepat, aman, dan tanpa manajemen server.
 
+Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
+
 [![CI](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml/badge.svg)](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-docs.ledjer.id-8B5A3C)](https://docs.ledjer.id)
 [![License](https://img.shields.io/badge/license-proprietary-red.svg)](#license)
 
 ---
@@ -16,6 +19,7 @@ Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan l
 - [Quick Start](#quick-start)
 - [Common Commands](#common-commands)
 - [Project Structure](#project-structure)
+- [Documentation](#documentation)
 - [Configuration](#configuration)
 - [Deployment](#deployment)
 - [Testing](#testing)
@@ -27,16 +31,50 @@ Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan l
 
 ## Features
 
-- **Double-entry bookkeeping** — posting, void, settle (AR/AP) with complete audit trail
-- **Chart of accounts** — asset, liability, equity, revenue, expense, COGS; fully configurable
-- **Inventory management** — weighted average cost (WAC), stock movements, auto-COGS
-- **Financial reports** — trial balance, profit & loss, balance sheet, general ledger
-- **Indonesian-first** — UI in Bahasa Indonesia, IDR currency, tax concepts familiar to UMKM
-- **UMKM-ready** — supports `simple_trading` and `service` business types; zero accounting knowledge required
-- **OAuth Google** — sign in with Google, auto-link existing accounts
-- **Team collaboration** — roles (owner/admin/member/viewer), invitations, granular permissions
-- **CSV exports** — transactions, accounts, products, all financial reports
-- **Cloudflare-native** — Workers + D1, zero server management, global edge deployment
+### Akuntansi
+- **Double-entry bookkeeping** — posting, void, settle (AR/AP) dengan audit trail lengkap
+- **Chart of accounts** — aset, kewajiban, ekuitas, pendapatan, beban, HPP; sepenuhnya dapat dikonfigurasi
+- **Jurnal manual** — pencatatan jurnal umum dengan validasi keseimbangan debit-kredit
+- **Saldo awal** — wizard saldo awal per akun, termasuk impor dari file
+
+### Penjualan & Piutang
+- **Faktur (invoices)** — siklus hidup faktur lengkap: draft → diterbitkan → dibayar → void
+- **Piutang & utang (receivables/payables)** — pelacakan AR/AP dengan umur piutang (aging)
+- **Pihak/relasi (parties)** — kelola pelanggan & pemasok
+- **Laporan per pihak (party statement)** — riwayat transaksi per pelanggan/pemasok
+
+### Inventory
+- **Manajemen stok** — weighted average cost (WAC), mutasi stok, HPP otomatis
+- **Produk** — katalog produk dengan harga pokok & harga jual
+
+### Operasional
+- **Rekonsiliasi bank** — cocokkan transaksi internal dengan mutasi bank
+- **Kunci periode (period locks)** — kunci periode akuntansi setelah tutup buku
+- **Impor data (CSV)** — chart of accounts, produk, pihak, saldo awal
+- **Ekspor (CSV)** — transaksi, akun, produk, dan semua laporan keuangan
+
+### Laporan Keuangan
+- **Neraca saldo (trial balance)**
+- **Laba rugi (profit & loss)**
+- **Neraca (balance sheet)**
+- **Buku besar (general ledger)**
+- **Arus kas (cash flow)**
+- **Umur piutang (AR aging)**
+
+### Platform
+- **OAuth Google** — masuk dengan Google, auto-link akun yang sudah ada
+- **Kolaborasi tim** — peran (owner/admin/member/viewer), undangan, izin granular
+- **Notifikasi & Web Push** — notifikasi in-app dan push browser
+- **Pencarian global** — cari transaksi, akun, produk, dan pihak dari satu tempat
+- **Audit log** — jejak lengkap aksi pengguna untuk kepatuhan
+- **Lampiran (R2)** — simpan dokumen pendukung transaksi
+- **Backup harian otomatis** — snapshot D1 terjadwal ke R2 (cron 03:00 UTC)
+- **Onboarding** — wizard set-up awal (jenis bisnis, saldo awal, undangan tim)
+- **Rate limiting** — proteksi endpoint autentikasi
+
+### Lokalisasi
+- **Indonesian-first** — UI dalam Bahasa Indonesia, mata uang IDR, konsep pajak yang familier bagi UMKM
+- **UMKM-ready** — mendukung jenis bisnis `simple_trading` (jual beli barang) dan `service` (jasa); tanpa perlu pengetahuan akuntansi
 
 ---
 
@@ -44,14 +82,18 @@ Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan l
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 19, Vite 8, Tailwind CSS 4, TypeScript |
+| **Frontend** | React 19, Vite 8, Tailwind CSS 4, TypeScript 6 |
+| **State & Forms** | TanStack React Query, React Hook Form, Zod |
 | **API** | Cloudflare Workers via Hono |
 | **Database** | Cloudflare D1 (SQLite-based) |
-| **Auth** | Worker-native cookie session + CSRF protection |
+| **Storage** | Cloudflare R2 (lampiran, backup) |
+| **Auth** | Worker-native cookie session + CSRF protection, Google OAuth |
+| **Realtime** | Web Push (subscriptions) |
 | **Monitoring** | Sentry (frontend + worker) |
+| **Docs** | VitePress (apps/docs) |
 | **Testing** | Vitest, React Testing Library, Playwright |
 | **Package Manager** | pnpm 10 workspaces |
-| **CI/CD** | GitHub Actions |
+| **CI/CD** | GitHub Actions (CI, auto-deploy, E2E, dependency scan) |
 
 ---
 
@@ -64,7 +106,7 @@ Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan l
   ```bash
   corepack enable && corepack prepare pnpm@10 --activate
   ```
-- **Cloudflare account** — with Workers + D1 enabled (for deployment)
+- **Cloudflare account** — dengan Workers + D1 aktif (untuk deployment)
 
 ### Install & Run
 
@@ -79,7 +121,7 @@ pnpm dev
 ```
 
 Frontend: [http://localhost:5173](http://localhost:5173)  
-Worker API: [http://localhost:8788](http://localhost:8788) (runs alongside via Vite proxy)
+Worker API: [http://localhost:8788](http://localhost:8788) (berjalan bersamaan via Vite proxy)
 
 ### Environment Setup
 
@@ -87,7 +129,7 @@ Worker API: [http://localhost:8788](http://localhost:8788) (runs alongside via V
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-`VITE_API_BASE_URL` can stay empty when the Worker API is same-origin (Vite proxies `/api/*` to the Worker by default).
+`VITE_API_BASE_URL` boleh dibiarkan kosong jika Worker API same-origin (Vite me-proxy `/api/*` ke Worker secara default).
 
 ---
 
@@ -101,15 +143,20 @@ pnpm build                  # Production build (frontend + worker)
 pnpm dev                    # Start development servers
 
 # Database
-pnpm --filter web db:migrations:apply:local    # Apply D1 migrations locally
-pnpm --filter web db:migrations:list           # List pending migrations
+pnpm db:migrations:apply:local    # Apply D1 migrations locally
+pnpm db:migrations:list           # List pending migrations
 
 # CI
 pnpm ci:local:fast          # Quick CI checks (typecheck + lint + test)
 pnpm ci:local:full          # Full CI checks (includes build + migration apply)
 
+# Docs (VitePress)
+pnpm docs:dev               # Start docs dev server
+pnpm docs:build             # Build docs
+pnpm docs:deploy            # Deploy docs to Cloudflare
+
 # Deploy
-pnpm deploy                 # Build + deploy to Cloudflare
+pnpm deploy                 # Build + deploy web to Cloudflare
 ```
 
 ---
@@ -117,25 +164,47 @@ pnpm deploy                 # Build + deploy to Cloudflare
 ## Project Structure
 
 ```
-apps/web/
-  src/                      React application (Vite)
-    components/             Shared UI components
-    layouts/                Page layouts (dashboard, auth)
-    pages/                  Route pages
-    hooks/                  Custom React hooks
-  worker/                   Cloudflare Worker API
-    db/migrations/          D1 migration files
-    routes/                 Hono route handlers
-    services/               Domain logic & business rules
-    middleware/              Auth, CSRF, validation
-  e2e/                      Playwright end-to-end tests
+apps/
+  web/
+    src/                      React application (Vite)
+      components/             Shared UI components
+      layouts/                Page layouts (dashboard, auth)
+      pages/                  Route pages
+      hooks/                  Custom React hooks
+      lib/                    API client, utilities
+    worker/                   Cloudflare Worker API
+      db/migrations/          D1 migration files
+      routes/                 Hono route handlers
+      services/               Domain logic & business rules
+      middleware/             Auth, CSRF, org-scoping, error handling
+    e2e/                      Playwright end-to-end tests
+  docs/                       VitePress documentation site (docs.ledjer.id)
+    docs/                     Markdown content & theme
+    worker/                   Docs worker (Cloudflare)
 docs/
-  accounting-rules.md        Accounting rules & conventions
-  testing.md                 Testing guide & conventions
-  production/                Runbooks for monitoring & incident response
+  api/                        API design docs (invoices, receivables, dll.)
+  architecture/               Architecture decisions & diagrams
+  production/                 Runbooks (monitoring, incident response)
+  compliance/                 Security & dependency policies
+  accounting-rules.md         Accounting rules & conventions
+  testing.md                  Testing guide & conventions
 scripts/
-  ci-local.sh                Local CI runner (simulates GitHub Actions)
+  ci-local.sh                 Local CI runner (simulates GitHub Actions)
 ```
+
+---
+
+## Documentation
+
+- **[docs.ledjer.id](https://docs.ledjer.id)** — dokumentasi pengguna (panduan memulai, fitur, FAQ)
+- [docs/api](docs/api) — desain API (OpenAPI, versi, import, invoices, reconciliation, dll.)
+- [docs/architecture](docs/architecture) — keputusan & diagram arsitektur
+- [docs/production](docs/production) — runbook operasional (monitoring, incident response)
+- [docs/accounting-rules.md](docs/accounting-rules.md) — aturan & konvensi akuntansi
+- [docs/testing.md](docs/testing.md) — panduan & konvensi pengujian
+- [CHANGELOG.md](CHANGELOG.md) — riwayat perubahan
+- [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) — prosedur pemulihan bencana
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — lisensi dependensi pihak ketiga
 
 ---
 
@@ -145,13 +214,13 @@ scripts/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_BASE_URL` | API base URL (empty if same-origin) | `""` |
-| `VITE_SENTRY_DSN` | Sentry DSN for error reporting | `""` (disabled) |
-| `VITE_APP_VERSION` | Version shown in footer | `""` |
+| `VITE_API_BASE_URL` | API base URL (kosong jika same-origin) | `""` |
+| `VITE_SENTRY_DSN` | Sentry DSN untuk error reporting | `""` (disabled) |
+| `VITE_APP_VERSION` | Versi yang ditampilkan di footer | `""` |
 
 ### Worker (Cloudflare Dashboard / `wrangler secret`)
 
-Worker secrets **must not** be placed in `VITE_*` variables (they are embedded in the browser bundle). Configure them via Cloudflare Dashboard or CLI:
+Worker secrets **tidak boleh** ditaruh di variabel `VITE_*` (ter-embed di bundle browser). Konfigurasikan via Cloudflare Dashboard atau CLI:
 
 ```bash
 cd apps/web
@@ -160,9 +229,9 @@ npx wrangler secret put SENTRY_DSN
 
 | Secret | Description |
 |--------|-------------|
-| `SENTRY_DSN` | Sentry DSN for worker error reporting |
+| `SENTRY_DSN` | Sentry DSN untuk worker error reporting |
 
-Additional configuration is managed via `wrangler.jsonc` (vars, D1 bindings, R2 buckets, cron triggers).
+Konfigurasi tambahan dikelola via `wrangler.jsonc` (vars, D1 bindings, R2 buckets, cron triggers).
 
 ---
 
@@ -181,23 +250,30 @@ pnpm --filter web deploy
 pnpm --filter web db:migrations:apply:remote
 ```
 
+### Docs Site
+
+```bash
+pnpm docs:build
+pnpm docs:deploy
+```
+
 ### Troubleshooting
 
 **Error: "The Cloudflare application detection logic has been run in the root of a workspace"**
 
-Wrangler v4+ detects workspace root and refuses to run. Always use the package-level script (not `wrangler deploy` directly):
+Wrangler v4+ mendeteksi root workspace dan menolak berjalan. Selalu gunakan script level-package (bukan `wrangler deploy` langsung):
 
 | ✅ Correct | ❌ Incorrect |
 |------------|-------------|
 | `pnpm --filter web deploy` | `pnpm --filter web exec wrangler deploy` |
 
-The `deploy` script in `apps/web/package.json` changes directory to `apps/web` before running Wrangler.
+Script `deploy` di `apps/web/package.json` berpindah direktori ke `apps/web` sebelum menjalankan Wrangler.
 
 ---
 
 ## Testing
 
-See full guide at [docs/testing.md](docs/testing.md).
+Panduan lengkap: [docs/testing.md](docs/testing.md).
 
 | Type | Tool | Command |
 |------|------|---------|
@@ -212,27 +288,25 @@ CI pipeline: typecheck → lint → unit tests → production build → D1 migra
 
 ## Contributing
 
-> **Note:** Contribution guidelines are still being drafted.
-
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feat/my-feature`)
-3. Commit your changes (`git commit -m 'feat: add my feature'`)
+3. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/) (`git commit -m 'feat: add my feature'`)
 4. Push to the branch (`git push origin feat/my-feature`)
 5. Open a Pull Request
 
-Please ensure all CI checks pass before requesting review.
+Please ensure all CI checks and the SonarCloud quality gate pass before requesting review.
 
 ---
 
 ## Security
 
-If you discover a security vulnerability, **do not** open a public issue.  
+Jika menemukan kerentanan keamanan, **jangan** buka issue publik.
 
-Options:
-- Open a **GitHub Security Advisory** — [github.com/eiaiproject/Ledjer/security/advisories](https://github.com/eiaiproject/Ledjer/security/advisories)
-- Email the maintainer directly (see commit history)
+Opsi:
+- Buka **GitHub Security Advisory** — [github.com/eiaiproject/Ledjer/security/advisories](https://github.com/eiaiproject/Ledjer/security/advisories)
+- Email maintainer langsung (lihat commit history)
 
-See [SECURITY.md](SECURITY.md) for the full policy.
+Lihat [SECURITY.md](SECURITY.md) untuk kebijakan lengkap.
 
 ---
 

@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "Ledjer web frontend and Cloudflare Worker API.",
+  "keywords": ["ledjer", "accounting", "bookkeeping", "umkm", "react", "cloudflare"],
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b --pretty false && vite build && bash scripts/postbuild-csp.sh",

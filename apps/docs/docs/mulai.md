@@ -1,3 +1,5 @@
+<Reicon name="Flag" size="28" class="page-header-icon" />
+
 # Memulai
 
 Panduan singkat untuk mulai menggunakan Ledjer dari nol.
@@ -14,7 +16,8 @@ Isi:
 
 Setelah mendaftar, kami kirim email konfirmasi ke alamat Anda. Klik tautan di dalam email untuk mengaktifkan akun (tautan berlaku 24 jam).
 
-> **Tips**: Jika email tidak masuk, periksa folder spam, atau gunakan tombol **Kirim ulang** di halaman masuk.
+> [!TIP]
+> Jika email tidak masuk, periksa folder spam, atau gunakan tombol **Kirim ulang** di halaman masuk.
 
 ## 2. Masuk
 

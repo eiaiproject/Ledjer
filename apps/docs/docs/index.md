@@ -1,38 +1,33 @@
 ---
 layout: home
-
 hero:
   name: Ledjer
-  text: Pembukuan double-entry untuk UMKM Indonesia
-  tagline: Catat transaksi, kelola stok, dan hasilkan laporan keuangan — tanpa perlu pengetahuan akuntansi formal.
+  text: Pembukuan usaha yang rapi, tanpa harus menjadi ahli akuntansi.
+  tagline: Catat penjualan, pembelian, stok, dan utang-piutang dalam satu tempat. Setiap transaksi otomatis menjadi jurnal dan laporan.
   actions:
     - theme: brand
-      text: Mulai Menggunakan
-      link: /mulai
+      text: Mulai Gratis
+      link: https://ledjer.id/register
     - theme: alt
-      text: Buka Aplikasi
-      link: https://ledjer.id
-  image:
-    src: /favicon.svg
-    alt: Ledjer
-
+      text: Buka Panduan
+      link: /mulai
+featuresSection:
+  eyebrow: Fitur utama
+  title: Kelola usaha dalam satu tempat
+  description: Transaksi, stok, laporan, dan akses tim saling terhubung tanpa pencatatan berulang.
 features:
-  - icon: 📒
-    title: Pembukuan yang selalu seimbang
-    details: Setiap transaksi otomatis menjadi jurnal double-entry yang seimbang. Debit selalu sama dengan kredit — Anda tidak perlu paham akuntansi untuk tetap benar.
-  - icon: 📦
-    title: Stok terhubung ke laporan
-    details: Penjualan dan pembelian barang otomatis memengaruhi stok dan HPP dengan metode biaya rata-rata (weighted average cost).
-  - icon: 📊
-    title: Laporan siap saji
-    details: Neraca saldo, laba rugi, neraca, arus kas, dan buku besar tersedia kapan saja — lengkap dengan ekspor CSV.
-  - icon: 🤝
-    title: Kolaborasi tim
-    details: Undang anggota tim dengan peran owner, admin, member, atau viewer. Setiap aksi tercatat dalam audit trail.
-  - icon: 🧾
-    title: Faktur & piutang
-    details: Terbitkan faktur, lacak piutang dan utang, buat nota kredit, dan terima pembayaran tanpa tabel terpisah.
-  - icon: 🇮🇩
-    title: Dirancang untuk UMKM Indonesia
-    details: Bahasa Indonesia, Rupiah, dan konsep yang familier bagi usaha kecil — dari toko sederhana hingga penyedia jasa.
+  - title: Catat transaksi
+    details: Penjualan, pembelian, dan beban tercatat dengan sistem berpasangan, yaitu debit dan kredit, secara otomatis.
+    icon: Receipt
+  - title: Kelola stok
+    details: Pantau barang masuk dan keluar. Stok diperbarui otomatis dari setiap transaksi.
+    icon: Package
+  - title: Pantau laporan
+    details: Laba rugi, neraca, dan buku besar tersaji otomatis tanpa perlu rumus.
+    icon: ChartBar
+  - title: Atur akses staf
+    details: Undang staf dan batasi akses setiap fitur sesuai kebutuhan.
+    icon: Users
 ---
+
+<SecuritySection />

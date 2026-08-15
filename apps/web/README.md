@@ -1,6 +1,6 @@
 # Ledjer Web App
 
-React + Vite frontend and Cloudflare Worker API for Ledjer.
+React + Vite frontend dan Cloudflare Worker API untuk Ledjer — sistem pembukuan double-entry untuk UMKM Indonesia.
 
 ## Quick Start
 
@@ -24,22 +24,33 @@ pnpm --filter web db:migrations:apply:remote  # Apply D1 migrations to productio
 pnpm --filter web cf:dev      # Vite dev (HMR + Worker simulator)
 ```
 
+## Features
+
+- Akuntansi double-entry: posting, void, settle, jurnal manual, saldo awal
+- Faktur & piutang: invoice lifecycle, AR/AP aging, party statements
+- Inventory: WAC, mutasi stok, HPP otomatis
+- Operasional: rekonsiliasi bank, kunci periode, impor/ekspor CSV
+- Laporan: neraca saldo, laba rugi, neraca, buku besar, arus kas, aging
+- Platform: Google OAuth, kolaborasi tim, notifikasi + Web Push, pencarian global, audit log, lampiran (R2), backup harian, onboarding
+
+Dokumentasi pengguna: [docs.ledjer.id](https://docs.ledjer.id)
+
 ## Deploy
 
-Deploy from the monorepo root:
+Deploy dari root monorepo:
 
 ```bash
 pnpm deploy
 ```
 
-Or step-by-step:
+Atau step-by-step:
 
 ```bash
 pnpm --filter web build
 pnpm --filter web deploy
 ```
 
-The `deploy` script runs `wrangler deploy` from the `apps/web` directory (not workspace root), which is required by Wrangler v4+.
+Script `deploy` menjalankan `wrangler deploy` dari direktori `apps/web` (bukan root workspace), yang diwajibkan oleh Wrangler v4+.
 
 ## Structure
 
@@ -57,12 +68,13 @@ worker/
   middleware/
   routes/
   services/
+e2e/
 ```
 
 ## Conventions
 
-- Frontend server state uses TanStack React Query.
-- Forms use React Hook Form + Zod.
-- API calls go through `src/lib/api/*`.
-- Worker route handlers stay thin; accounting logic lives in `worker/services/*`.
-- User-facing copy is Bahasa Indonesia.
+- Frontend server state menggunakan TanStack React Query.
+- Forms menggunakan React Hook Form + Zod.
+- API calls melalui `src/lib/api/*`.
+- Worker route handlers tetap tipis; logika akuntansi ada di `worker/services/*`.
+- User-facing copy dalam Bahasa Indonesia.

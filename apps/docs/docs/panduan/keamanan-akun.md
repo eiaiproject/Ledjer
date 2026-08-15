@@ -1,3 +1,5 @@
+<Reicon name="Shield" size="28" class="page-header-icon" />
+
 # Keamanan Akun
 
 Langkah-langkah menjaga akun dan data keuangan Anda tetap aman.

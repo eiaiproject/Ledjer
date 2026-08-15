@@ -1,3 +1,5 @@
+<Reicon name="Lock" size="28" class="page-header-icon" />
+
 # Periode & Penutupan
 
 Menjaga agar angka bulan lalu tidak berubah adalah kunci pembukuan yang bisa dipercaya. Ledjer menyediakan **kunci periode** dan **jurnal manual** untuk itu.

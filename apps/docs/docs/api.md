@@ -1,3 +1,5 @@
+<Reicon name="Server" size="28" class="page-header-icon" />
+
 # Referensi API
 
 Ledjer menyediakan API REST di balik aplikasi web — berguna jika Anda ingin mengintegrasikan data pembukuan dengan sistem lain.

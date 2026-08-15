@@ -1,3 +1,5 @@
+<Reicon name="FileText" size="28" class="page-header-icon" />
+
 # Faktur & Piutang
 
 Terbitkan faktur untuk penjualan kredit dan lacak piutang pelanggan — semuanya otomatis masuk pembukuan.

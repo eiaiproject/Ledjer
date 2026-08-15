@@ -1,3 +1,5 @@
+<Reicon name="ChartBar" size="28" class="page-header-icon" />
+
 # Laporan Keuangan
 
 Semua laporan dihasilkan otomatis dari transaksi yang Anda catat. Tidak ada pengisian manual — selama transaksi benar, laporan ikut benar.
@@ -32,7 +34,8 @@ Mutasi piutang/utang per pelanggan atau pemasok — mulai dari saldo awal, penju
 3. Atur **periode** (tanggal mulai–selesai) atau **tanggal akhir**.
 4. Gunakan **Ekspor CSV** untuk mengunduh data ke spreadsheet.
 
-> **Catatan**: piutang/utang dilacak per pihak (pelanggan/pemasok), bukan per faktur. Jika ada pembayaran melebihi saldo, sistem menampilkan peringatan — segera lunasi/diterima agar saldo tidak negatif.
+> [!NOTE] **Piutang & utang**
+> Piutang/utang dilacak per pihak (pelanggan/pemasok), bukan per faktur. Jika ada pembayaran melebihi saldo, sistem menampilkan peringatan — segera lunasi/diterima agar saldo tidak negatif.
 
 ## Tips
 

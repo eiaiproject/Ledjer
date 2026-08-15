@@ -1,3 +1,5 @@
+<Reicon name="Receipt" size="28" class="page-header-icon" />
+
 # Mencatat Transaksi
 
 Ledjer mengubah aktivitas usaha menjadi jurnal **double-entry** otomatis. Anda cukup memilih jenis transaksi dan mengisi datanya — sistem yang menentukan akun debit/kredit yang tepat.
@@ -27,7 +29,8 @@ Ledjer mengubah aktivitas usaha menjadi jurnal **double-entry** otomatis. Anda c
 4. Klik **Pratinjau** untuk melihat dampak jurnal sebelum disimpan — termasuk akun yang terpengaruh dan arah perubahan saldo.
 5. Klik **Simpan** untuk memosting transaksi.
 
-> **Jurnal selalu seimbang.** Ledjer menolak transaksi yang debitnya tidak sama dengan kreditnya, jadi buku Anda tidak akan pernah "tidak balance" karena kesalahan pencatatan.
+> [!NOTE] **Jurnal selalu seimbang.**
+> Ledjer menolak transaksi yang debitnya tidak sama dengan kreditnya, jadi buku Anda tidak akan pernah "tidak balance" karena kesalahan pencatatan.
 
 ## Aturan penting
 
