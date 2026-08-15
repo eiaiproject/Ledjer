@@ -9,7 +9,7 @@ import { test } from "./helpers/auth";
 async function gotoLedger(page: import("@playwright/test").Page, width = 375, height = 812) {
   await page.setViewportSize({ width, height });
   await page.goto("/reports/general-ledger");
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator("h1")).toBeVisible();
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -20,7 +20,7 @@ test.describe("General Ledger page basics", () => {
   test("page loads without crash", async ({ authPage }) => {
     await gotoLedger(authPage);
     await authPage.goto("/reports/general-ledger");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     expect(await authPage.title()).toMatch(/Ledjer/i);
   });
 
@@ -28,7 +28,7 @@ test.describe("General Ledger page basics", () => {
     await gotoLedger(authPage);
     await authPage.setViewportSize({ width: 320, height: 800 });
     await authPage.goto("/reports/general-ledger");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     expect(await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();
   });
 
@@ -131,7 +131,7 @@ test.describe("No duplicate animation (auth-independent)", () => {
   test("only one ledger-page element exists", async ({ authPage }) => {
     await gotoLedger(authPage);
     await authPage.goto("/reports/general-ledger");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const count = await authPage.locator(".ledger-page").count();
     expect(count).toBeLessThanOrEqual(1);
   });
@@ -216,7 +216,7 @@ for (const vp of viewports) {
     test("no horizontal overflow", async ({ authPage }) => {
     await gotoLedger(authPage);
       await authPage.goto("/reports/general-ledger");
-      await authPage.waitForLoadState("networkidle");
+      await expect(authPage.locator("h1")).toBeVisible();
       expect(await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth)).toBeFalsy();
     });
   });

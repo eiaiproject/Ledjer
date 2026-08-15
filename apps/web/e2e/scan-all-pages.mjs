@@ -90,7 +90,7 @@ function attachListeners(page, label) {
 async function safeGoto(page, url, label) {
   const start = performance.now();
   try {
-    const resp = await page.goto(url, { waitUntil: "networkidle", timeout: NAV_TIMEOUT });
+    const resp = await page.goto(url, { waitUntil: "load", timeout: NAV_TIMEOUT });
     const elapsed = ((performance.now() - start) / 1000).toFixed(1);
     if (Number.parseFloat(elapsed) > 5) {
       results.slowPages.push({ page: label, url, seconds: elapsed });

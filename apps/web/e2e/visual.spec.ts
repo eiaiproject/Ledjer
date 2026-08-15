@@ -22,6 +22,7 @@ import {
   navigateAndStabilize,
   NONDETERMINISTIC_SELECTORS,
 } from "./helpers/visual";
+import { waitForAppReady } from "./helpers/ready";
 
 // ── Desktop Viewport ─────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
     await navigateAndStabilize(page, "/login");
     // Submit empty form to trigger validation
     await page.getByRole("button", { name: /masuk/i }).first().click();
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await page.waitForTimeout(300); // NOSONAR typescript:S2925 — brief visual stabilization after actions
     await expect(page).toHaveScreenshot("login-validation.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -164,7 +165,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("dashboard — populated state (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/dashboard");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await page.waitForSelector('[class*="card"]', { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(1000); // NOSONAR typescript:S2925 — awaiting chart render
     await expect(page).toHaveScreenshot("dashboard-populated.png", {
@@ -175,7 +176,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("accounts page — list view (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/accounts");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("accounts-list.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -184,7 +185,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("transactions page — list view (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/transactions");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("transactions-list.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -193,7 +194,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("products page — list view (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/products");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("products-list.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -202,7 +203,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("reports — trial balance (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/reports/trial-balance");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("trial-balance.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -211,7 +212,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("reports — profit & loss (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/reports/profit-loss");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("profit-loss.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -220,7 +221,7 @@ test.describe("Visual regression — authenticated pages", () => {
 
   test("reports — balance sheet (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/reports/balance-sheet");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("balance-sheet.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -247,7 +248,7 @@ test.describe("Visual regression — modals & dialogs", () => {
 
   test("new transaction modal — empty form (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/transactions/new");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveScreenshot("transaction-new-empty.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,

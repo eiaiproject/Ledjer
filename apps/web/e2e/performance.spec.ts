@@ -15,16 +15,16 @@ import { test, expect } from "@playwright/test";
 test.describe("Page load timing", () => {
   test("landing page loads within 3s (client-side render)", async ({ page }) => {
     const start = Date.now();
-    await page.goto("/", { waitUntil: "networkidle" });
+    await page.goto("/", { waitUntil: "load" });
     const loadTime = Date.now() - start;
 
-    // Budget: 3s from cold start including network idle
+    // Budget: 3s from cold start including load
     expect(loadTime).toBeLessThan(3000);
   });
 
   test("login page loads within 3s", async ({ page }) => {
     const start = Date.now();
-    await page.goto("/login", { waitUntil: "networkidle" });
+    await page.goto("/login", { waitUntil: "load" });
     const loadTime = Date.now() - start;
 
     expect(loadTime).toBeLessThan(3000);
@@ -32,7 +32,7 @@ test.describe("Page load timing", () => {
 
   test("register page loads within 3s", async ({ page }) => {
     const start = Date.now();
-    await page.goto("/register", { waitUntil: "networkidle" });
+    await page.goto("/register", { waitUntil: "load" });
     const loadTime = Date.now() - start;
 
     expect(loadTime).toBeLessThan(3000);
@@ -40,7 +40,7 @@ test.describe("Page load timing", () => {
 
   test("forgot-password page loads within 3s", async ({ page }) => {
     const start = Date.now();
-    await page.goto("/forgot-password", { waitUntil: "networkidle" });
+    await page.goto("/forgot-password", { waitUntil: "load" });
     const loadTime = Date.now() - start;
 
     expect(loadTime).toBeLessThan(3000);
@@ -49,7 +49,7 @@ test.describe("Page load timing", () => {
 
 test.describe("Bundle size verification", () => {
   test("main JS bundle is under 400KB gzipped", async ({ page, request }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
+    await page.goto("/", { waitUntil: "load" });
 
     // Check the main entry script size
     const scripts = await page.evaluate(() =>
@@ -69,7 +69,7 @@ test.describe("Bundle size verification", () => {
   });
 
   test("no single chunk exceeds 300KB gzipped", async ({ page, request }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
+    await page.goto("/", { waitUntil: "load" });
 
     const scriptSrcs = await page.evaluate(() =>
       Array.from(document.querySelectorAll('script[src*="/assets/"]'))

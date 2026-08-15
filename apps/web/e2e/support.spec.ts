@@ -18,6 +18,7 @@
 
 import { test, expect } from "@playwright/test";
 import { test as authTest } from "./helpers/auth";
+import { waitForAppReady } from "./helpers/ready";
 
 const SUPPORT_URL = "https://trakteer.id/eiaiproject/tip";
 
@@ -26,19 +27,19 @@ const SUPPORT_URL = "https://trakteer.id/eiaiproject/tip";
 test.describe("Landing page — support & free access copy", () => {
   test('menampilkan "Saat ini gratis digunakan" pada hero', async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.locator("body")).toContainText("Saat ini gratis digunakan");
   });
 
   test('menampilkan "Tanpa kartu kredit"', async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.locator("body")).toContainText("Tanpa kartu kredit");
   });
 
   test('primary CTA "Mulai Gratis" menuju halaman register', async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     const mulaiGratis = page.getByRole("link", { name: /mulai gratis/i }).first();
     await expect(mulaiGratis).toBeVisible();
@@ -47,19 +48,19 @@ test.describe("Landing page — support & free access copy", () => {
 
   test('dukungan disebut "sepenuhnya sukarela"', async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.locator("body")).toContainText("sepenuhnya sukarela");
   });
 
   test('dukungan "tidak memengaruhi akses"', async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.locator("body")).toContainText("tidak memengaruhi akses");
   });
 
   test("Tidak ada billing form atau checkout di halaman publik", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     // Periksa tidak ada form/elemen yang terkait pembayaran
     // Gunakan selector spesifik untuk menghindari false positive pada FAQ copy
     const billingElements = page.locator(
@@ -81,7 +82,7 @@ test.describe("Landing page — support & free access copy", () => {
 
   test("Tidak ada paywall atau paket berbayar", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     // Halaman boleh mengandung "berlangganan" dalam konteks "tanpa berlangganan"
     // Hanya periksa elemen yang secara eksplisit menawarkan paket berbayar
     const paywallElements = page.locator(
@@ -100,7 +101,7 @@ test.describe("Landing page — support & free access copy", () => {
 test.describe("Landing page — Trakteer CTA", () => {
   test("CTA Trakteer pada section akses menggunakan URL resmi", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     const supportLink = page.locator(`a[href="${SUPPORT_URL}"]`).first();
     await expect(supportLink).toBeVisible();
@@ -108,7 +109,7 @@ test.describe("Landing page — Trakteer CTA", () => {
 
   test("CTA Trakteer membuka tab baru (target=_blank)", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     const supportLink = page.locator(`a[href="${SUPPORT_URL}"]`).first();
     await expect(supportLink).toHaveAttribute("target", "_blank");
@@ -116,7 +117,7 @@ test.describe("Landing page — Trakteer CTA", () => {
 
   test("CTA Trakteer memiliki rel=noopener noreferrer untuk keamanan", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     const supportLink = page.locator(`a[href="${SUPPORT_URL}"]`).first();
     await expect(supportLink).toHaveAttribute("rel", "noopener noreferrer");
@@ -126,7 +127,7 @@ test.describe("Landing page — Trakteer CTA", () => {
 test.describe("Footer — support link", () => {
   test("Footer memiliki link dukungan yang benar", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     const footerSupportLink = page
       .locator("footer")
@@ -140,19 +141,19 @@ test.describe("Footer — support link", () => {
 test.describe("Register page — free access copy", () => {
   test('menampilkan "Gratis digunakan saat ini"', async ({ page }) => {
     await page.goto("/register");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.locator("body")).toContainText("Gratis digunakan saat ini");
   });
 
   test('menampilkan "Tanpa kartu kredit"', async ({ page }) => {
     await page.goto("/register");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.locator("body")).toContainText("Tanpa kartu kredit");
   });
 
   test("CTA tombol 'Buat akun gratis' ada", async ({ page }) => {
     await page.goto("/register");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     const cta = page.getByRole("button", { name: /buat akun gratis/i });
     await expect(cta).toBeVisible();
   });
@@ -161,7 +162,7 @@ test.describe("Register page — free access copy", () => {
 test.describe("404 page", () => {
   test("404 tetap menampilkan halaman tidak ditemukan (bukan redirect)", async ({ page }) => {
     await page.goto("/nonexistent-page-12345");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(
       page.getByRole("heading", { name: /tidak ditemukan|not found/i }),
     ).toBeVisible();
@@ -180,7 +181,7 @@ authTest.describe("Support banner — authenticated pages", () => {
 
   authTest("SupportBanner muncul pada halaman dashboard", async ({ authPage }) => {
     await authPage.goto("/dashboard");
-    await authPage.waitForLoadState("networkidle");
+    await waitForAppReady(authPage);
 
     const banner = authPage.locator('[role="status"]').filter({ hasText: "Ledjer membantu pekerjaan Anda?" });
     await expect(banner).toBeVisible({ timeout: 15_000 });
@@ -188,7 +189,7 @@ authTest.describe("Support banner — authenticated pages", () => {
 
   authTest("SupportBanner memiliki link dengan URL Trakteer", async ({ authPage }) => {
     await authPage.goto("/dashboard");
-    await authPage.waitForLoadState("networkidle");
+    await waitForAppReady(authPage);
 
     const bannerLink = authPage.locator('[role="status"] a').filter({ hasText: /Dukung Ledjer/i });
     await expect(bannerLink).toHaveAttribute("href", SUPPORT_URL);
@@ -197,7 +198,7 @@ authTest.describe("Support banner — authenticated pages", () => {
 
   authTest("SupportBanner dapat ditutup dengan tombol dismiss", async ({ authPage }) => {
     await authPage.goto("/dashboard");
-    await authPage.waitForLoadState("networkidle");
+    await waitForAppReady(authPage);
 
     const banner = authPage.locator('[role="status"]').filter({ hasText: "Ledjer membantu pekerjaan Anda?" });
     await expect(banner).toBeVisible({ timeout: 15_000 });
@@ -211,7 +212,7 @@ authTest.describe("Support banner — authenticated pages", () => {
 
   authTest("SupportBanner tidak muncul pada halaman transaksi baru", async ({ authPage }) => {
     await authPage.goto("/transactions/new");
-    await authPage.waitForLoadState("networkidle");
+    await waitForAppReady(authPage);
 
     // Pastikan halaman termuat dengan benar (sanity check)
     await expect(authPage.locator("body")).toContainText(/transaksi|jurnal|catat/i, { timeout: 15_000 });
@@ -224,7 +225,7 @@ authTest.describe("Support banner — authenticated pages", () => {
 authTest.describe("Sidebar support link — app menu", () => {
   authTest("Sidebar memiliki link 'Traktir pengembang' dengan URL resmi", async ({ authPage }) => {
     await authPage.goto("/dashboard");
-    await authPage.waitForLoadState("networkidle");
+    await waitForAppReady(authPage);
 
     const sidebar = authPage.locator("aside");
     const supportLink = sidebar.locator(`a[href="${SUPPORT_URL}"]`);

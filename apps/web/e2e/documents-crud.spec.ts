@@ -19,7 +19,7 @@ const TEST_PREFIX = `[E2E] ${Date.now()}`;
 
 test.describe("Invoices CRUD", () => {
   test("Create a new invoice", async ({ authPage }) => {
-    await authPage.goto("/invoices/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/invoices/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     // A crash here is a regression — fail loudly instead of skipping.

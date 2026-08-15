@@ -113,7 +113,7 @@ async function fillProductFields(page: import("@playwright/test").Page, opts: { 
 
 test.describe("Transactions - Cash Sale", () => {
   test("Create a cash sale transaction", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     // Select "Penjualan Tunai"
@@ -155,7 +155,7 @@ test.describe("Transactions - Cash Sale", () => {
 
 test.describe("Transactions - Cash Purchase", () => {
   test("Create a cash purchase transaction", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     await selectTransactionType(authPage, "cash_purchase");
@@ -205,7 +205,7 @@ test.describe("Transactions - Cash Purchase", () => {
 
 test.describe("Transactions - Expense Payment", () => {
   test("Create an expense payment transaction", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     await selectTransactionType(authPage, "expense_payment");
@@ -242,7 +242,7 @@ test.describe("Transactions - Expense Payment", () => {
 
 test.describe("Transactions - Credit Sale", () => {
   test("Create a credit sale with customer", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     // Expand to see all types
@@ -297,7 +297,7 @@ test.describe("Transactions - Credit Sale", () => {
 
 test.describe("Transactions - Cash Transfer", () => {
   test("Create a cash transfer between accounts", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     const expandBtn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
@@ -348,7 +348,7 @@ test.describe("Transactions - Cash Transfer", () => {
 
 test.describe("Transactions - Credit Purchase", () => {
   test("Create a credit purchase (utang) with supplier", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     const expandBtn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
@@ -405,7 +405,7 @@ test.describe("Transactions - Credit Purchase", () => {
 
 test.describe("Verify created transactions", () => {
   test("Dashboard shows financial data", async ({ authPage }) => {
-    await authPage.goto("/dashboard", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/dashboard", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(3000);
 
     await expect(authPage.locator("body")).toContainText("Rp", { timeout: 10000 });
@@ -414,7 +414,7 @@ test.describe("Verify created transactions", () => {
   });
 
   test("Transaction list shows entries", async ({ authPage }) => {
-    await authPage.goto("/transactions", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(3000);
 
     // May show TRX- numbers or empty state — either is OK as long as no crash

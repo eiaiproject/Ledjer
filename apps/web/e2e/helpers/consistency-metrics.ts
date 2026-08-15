@@ -8,6 +8,7 @@
  */
 
 import type { Page } from "@playwright/test";
+import { waitForAppReady } from "./ready";
 
 export type PageMetrics = {
   url: string;
@@ -232,11 +233,7 @@ function buildContrast(
 
 export async function gatherMetrics(page: Page, url: string): Promise<PageMetrics> {
   const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  try {
-    await page.waitForLoadState("networkidle", { timeout: 15_000 });
-  } catch {
-    await page.waitForLoadState("load").catch(() => {});
-  }
+  await waitForAppReady(page);
   await page.waitForTimeout(400);
 
   const [tokens, structure, chrome, forms, touchTargets, whitespace] = await Promise.all([
