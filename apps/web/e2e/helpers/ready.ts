@@ -67,7 +67,7 @@ export async function waitForPageStable(page: Page, stableMs = 400, timeout = 15
           w.__ledjerStableSince = undefined;
           return false;
         }
-        if (w.__ledjerStableSince === undefined) w.__ledjerStableSince = now;
+        w.__ledjerStableSince ??= now;
         return now - w.__ledjerStableSince >= stableMs;
       },
       { stableMs },
