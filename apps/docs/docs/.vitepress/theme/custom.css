@@ -437,6 +437,41 @@
   color: var(--ledjer-wood-900);
 }
 
+/* === HEADING ANCHOR: link lives on the heading text itself (no '#' glyph) ===
+   VitePress injects a hidden .header-anchor next to each heading; instead of a
+   floating '#' that appears on hover, stretch the anchor over the whole heading
+   so the entire heading text is the clickable link. Hover underlines the heading;
+   keyboard focus gets a visible outline (glyph is emptied). */
+.vp-doc .header-anchor {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin-left: 0;
+  opacity: 0;
+}
+.vp-doc h2 .header-anchor {
+  top: 0; /* VitePress offsets h2 anchors by 24px; cover the padding strip too */
+}
+.vp-doc .header-anchor:before {
+  content: "";
+}
+.vp-doc h1:hover,
+.vp-doc h2:hover,
+.vp-doc h3:hover,
+.vp-doc h4:hover,
+.vp-doc h5:hover,
+.vp-doc h6:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.vp-doc .header-anchor:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--ledjer-focus-ring);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .vp-doc div[class*="language-"] {
   border: 1px solid var(--ledjer-wood-200);
   border-radius: 10px;
