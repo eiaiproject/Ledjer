@@ -42,6 +42,8 @@ const toneStyles: Record<Tone, string> = {
    NAVIGATION DATA
    =========================================================== */
 
+const DOCS_URL = "https://docs.ledjer.id";
+
 const navLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Cara Kerja", href: "#cara-kerja" },
@@ -54,6 +56,7 @@ const footerLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Laporan", href: "#laporan" },
   { label: "Keamanan", href: "#keamanan" },
+  { label: "Dokumentasi", href: DOCS_URL },
   { label: "Masuk", to: "/login" as const },
   { label: "Mulai Gratis", to: "/register" as const },
 ] as const;
@@ -484,6 +487,17 @@ export function LandingPage() {
                 {link.label}
               </Button>
             ))}
+            <Button
+              as="a"
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="ghost"
+              size="sm"
+              aria-label="Dokumentasi (navigasi utama)"
+            >
+              Dokumentasi
+            </Button>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -534,6 +548,15 @@ export function LandingPage() {
                 </a>
               );
             })}
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Dokumentasi (sub-navigasi)"
+              className="shrink-0 snap-start rounded-full px-3 py-2 min-h-[44px] flex items-center text-xs font-medium transition-colors text-wood-700 hover:bg-cream-100"
+            >
+              Dokumentasi
+            </a>
           </nav>
         </div>
       </header>
@@ -1231,6 +1254,8 @@ export function LandingPage() {
                     <li key={link.label}>
                       <a
                         href={link.href}
+                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
                         aria-label={`${link.label} (tautan footer)`}
                         className="text-wood-700 underline-offset-4 transition-colors hover:text-wood-900 hover:underline min-h-[44px] inline-flex items-center py-1"
                       >
