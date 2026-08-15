@@ -73,19 +73,16 @@ test.describe("HTML semantics", () => {
     test(`${p.name} page has a semantic h1 heading`, async ({ page }) => {
       await page.goto(p.url);
       await waitForAppReady(page);
-      // Verify there is at least one <h1> element (semantic heading)
-      const h1 = page.locator("h1");
-      const h1Count = await h1.count();
-      expect(h1Count).toBeGreaterThanOrEqual(1);
+      // Verify there is at least one <h1> element (semantic heading).
+      // toBeVisible auto-waits for the SPA to mount the heading.
+      await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
     });
   }
 
   test("404 page has a semantic h1 heading", async ({ page }) => {
     await page.goto("/nonexistent-page");
     await waitForAppReady(page);
-    const h1 = page.locator("h1");
-    const h1Count = await h1.count();
-    expect(h1Count).toBeGreaterThanOrEqual(1);
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
   });
 });
 
