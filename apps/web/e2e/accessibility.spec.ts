@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { test as authTest } from "./helpers/auth";
-import { waitForAppReady } from "./helpers/ready";
+import { waitForAppReady, waitForPageStable } from "./helpers/ready";
 import AxeBuilder from "@axe-core/playwright";
 
 /**
@@ -26,7 +26,11 @@ test.describe("axe-core automated audits (public pages)", () => {
   for (const p of publicPages) {
     test(`${p.name} has no critical or serious axe violations`, async ({ page }) => {
       await page.goto(p.url);
-      await waitForAppReady(page);
+      // Wait for loading indicators to clear AND entrance animations to finish
+      // (they fade content in from opacity 0, which would make color-contrast
+      // measure blended colors), sustained for a short window so a lazy-route
+      // RouteFallback reappearing does not race the audit.
+      await waitForPageStable(page);
 
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "best-practice"])
@@ -179,7 +183,7 @@ authTest.describe("axe-core automated audits (authenticated pages)", () => {
   for (const p of authedPages) {
     authTest(`${p.name} has no critical or serious axe violations`, async ({ authPage }) => {
       await authPage.goto(p.url);
-      await waitForAppReady(authPage);
+      await waitForPageStable(authPage);
 
       const results = await new AxeBuilder({ page: authPage })
         .withTags(["wcag2a", "wcag2aa", "best-practice"])
