@@ -389,9 +389,27 @@ function SegmentedTabs<T extends string>({
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState("");
   const subNavRef = useRef<HTMLElement>(null);
+  const [subNavOverflows, setSubNavOverflows] = useState(false);
   const [activeBiz, setActiveBiz] = useState<BizId>("toko");
   const [activeReport, setActiveReport] = useState<ReportId>("laba-rugi");
   const [demoExpanded, setDemoExpanded] = useState(false);
+
+  // Show the edge-fade hint on the mobile sub-nav only when its pills
+  // actually overflow the viewport — no fade when everything fits.
+  useEffect(() => {
+    const container = subNavRef.current;
+    if (!container) return;
+    const check = () =>
+      setSubNavOverflows(container.scrollWidth > container.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(container);
+    window.addEventListener("resize", check);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", check);
+    };
+  }, []);
 
   // Keyboard arrow nav between segmented tabs (unused for now; kept
   // for future enhancement when we add roving tabindex on the list).
@@ -528,7 +546,10 @@ export function LandingPage() {
           <nav
             ref={subNavRef}
             aria-label="Navigasi bagian"
-            className="ledger-scroll-x no-scrollbar ledger-fade-x mx-auto flex max-w-6xl snap-x snap-mandatory gap-1 px-4 py-2 text-xs"
+            className={cn(
+              "ledger-scroll-x no-scrollbar mx-auto flex max-w-6xl snap-x snap-mandatory gap-1 px-4 py-2 text-xs",
+              subNavOverflows && "ledger-fade-x"
+            )}
           >
             {navLinks.map((link) => {
               const isActive = activeSection === link.href;
