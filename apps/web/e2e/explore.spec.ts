@@ -1,5 +1,6 @@
 import { test } from "./helpers/auth";
 import { expect } from "@playwright/test";
+import { waitForAppReady } from "./helpers/ready";
 
 const PAGES = [
   { path: "/", name: "Landing" },
@@ -52,9 +53,10 @@ test.describe("Full App Exploration", () => {
   for (const page of PAGES) {
     test(`${page.name} (${page.path})`, async ({ authPage }) => {
       const response = await authPage.goto(page.path, {
-        waitUntil: "networkidle",
+        waitUntil: "load",
         timeout: 15000,
       });
+      await waitForAppReady(authPage);
 
       // Check HTTP status
       const status = response?.status() || 0;

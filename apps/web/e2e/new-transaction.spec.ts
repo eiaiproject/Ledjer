@@ -10,7 +10,7 @@ import { expect } from "@playwright/test";
 async function gotoNewTransaction(authPage: import("@playwright/test").Page, width = 375, height = 812) {
   await authPage.setViewportSize({ width, height });
   await authPage.goto("/transactions/new");
-  await authPage.waitForLoadState("networkidle");
+  await expect(authPage.locator("h1")).toBeVisible();
 }
 
 // ── Viewports ──────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ test.describe("New Transaction page basics", () => {
   test("page loads without crash", async ({ authPage }) => {
     await gotoNewTransaction(authPage);
     await authPage.goto("/transactions/new");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const title = await authPage.title();
     expect(title).toMatch(/Ledjer/i);
   });
@@ -44,7 +44,7 @@ test.describe("New Transaction page basics", () => {
     await gotoNewTransaction(authPage);
     await authPage.setViewportSize({ width: 320, height: 800 });
     await authPage.goto("/transactions/new");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const hasOverflow = await authPage.evaluate(() => {
       return document.body.scrollWidth > window.innerWidth;
     });
@@ -164,7 +164,7 @@ test.describe("Page copy (auth required)", () => {
   test("exactly one h1 exists", async ({ authPage }) => {
     await gotoNewTransaction(authPage);
     await authPage.goto("/transactions/new");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const h1Count = await authPage.locator("h1").count();
     expect(h1Count).toBe(1);
   });
@@ -172,7 +172,7 @@ test.describe("Page copy (auth required)", () => {
   test("description does not contain 'Isi dari atas ke bawah'", async ({ authPage }) => {
     await gotoNewTransaction(authPage);
     await authPage.goto("/transactions/new");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const body = authPage.locator("body");
     await expect(body).not.toContainText("Isi dari atas ke bawah");
   });
@@ -216,7 +216,7 @@ test.describe("No duplicate transaction types (auth required)", () => {
   test("no aria-pressed buttons exist in type selector", async ({ authPage }) => {
     await gotoNewTransaction(authPage);
     await authPage.goto("/transactions/new");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const pressedButtons = authPage.locator('[role="radiogroup"] button[aria-pressed]');
     const count = await pressedButtons.count();
     expect(count).toBe(0);
@@ -251,7 +251,7 @@ for (const vp of viewports) {
     test("no horizontal overflow", async ({ authPage }) => {
     await gotoNewTransaction(authPage);
       await authPage.goto("/transactions/new");
-      await authPage.waitForLoadState("networkidle");
+      await expect(authPage.locator("h1")).toBeVisible();
       const hasOverflow = await authPage.evaluate(() => {
         return document.body.scrollWidth > window.innerWidth;
       });
@@ -271,7 +271,7 @@ for (const vp of viewports) {
     test("logo is centered in mobile header", async ({ authPage }) => {
     await gotoNewTransaction(authPage);
       await authPage.goto("/transactions/new");
-      await authPage.waitForLoadState("networkidle");
+      await expect(authPage.locator("h1")).toBeVisible();
 
       const logo = authPage.locator('a[href="/dashboard"]').first();
       if (await logo.isVisible().catch(() => false)) {

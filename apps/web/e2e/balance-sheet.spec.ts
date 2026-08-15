@@ -13,7 +13,7 @@ async function gotoBalanceSheet(
 ) {
   await page.setViewportSize({ width, height });
   await page.goto("/reports/balance-sheet");
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator("h1")).toBeVisible();
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -24,7 +24,7 @@ test.describe("Balance Sheet page basics", () => {
   test("page loads without crash", async ({ authPage }) => {
     await gotoBalanceSheet(authPage);
     await authPage.goto("/reports/balance-sheet");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     expect(await authPage.title()).toMatch(/Ledjer/i);
   });
 
@@ -32,7 +32,7 @@ test.describe("Balance Sheet page basics", () => {
     await gotoBalanceSheet(authPage);
     await authPage.setViewportSize({ width: 320, height: 800 });
     await authPage.goto("/reports/balance-sheet");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     expect(
       await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
     ).toBeFalsy();
@@ -57,7 +57,7 @@ test.describe("Balance Sheet page basics", () => {
   test("no duplicate ledger-page animation", async ({ authPage }) => {
     await gotoBalanceSheet(authPage);
     await authPage.goto("/reports/balance-sheet");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const count = await authPage.locator(".ledger-page").count();
     expect(count).toBeLessThanOrEqual(1);
   });
@@ -243,7 +243,7 @@ for (const vp of viewports) {
     test("no horizontal overflow", async ({ authPage }) => {
     await gotoBalanceSheet(authPage);
       await authPage.goto("/reports/balance-sheet");
-      await authPage.waitForLoadState("networkidle");
+      await expect(authPage.locator("h1")).toBeVisible();
       expect(
         await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
       ).toBeFalsy();

@@ -25,7 +25,7 @@ const PUBLIC_ROUTES = [
 test.describe("Public static routes", () => {
   for (const route of PUBLIC_ROUTES) {
     test(`${route.path} loads with expected content`, async ({ page }) => {
-      const resp = await page.goto(route.path, { waitUntil: "networkidle", timeout: 15000 });
+      const resp = await page.goto(route.path, { waitUntil: "load", timeout: 15000 });
       expect(resp?.status()).toBe(200);
 
       const title = await page.title();
@@ -67,7 +67,7 @@ test.describe("Canonical auth routes", () => {
   for (const oldPath of OLD_AUTH_PATHS) {
     test(`old ${oldPath} path shows not-found (canonical route is ${oldPath.replace("/auth", "")})`, async ({ page }) => {
       await page.goto(oldPath);
-      await page.waitForLoadState("networkidle");
+      await expect(page.locator("h1")).toBeVisible();
       // Must not show any auth page — confirm not-found is displayed
       await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
       // Safety check: canonical route h1 must not contain "masuk" or "daftar"
@@ -80,7 +80,7 @@ test.describe("Canonical auth routes", () => {
 test.describe("404 handling", () => {
   test("unknown route shows not-found page", async ({ page }) => {
     await page.goto("/nonexistent-page-12345");
-    await page.waitForLoadState("networkidle");
+    await expect(page.locator("h1")).toBeVisible();
     await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
   });
 });

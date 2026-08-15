@@ -13,7 +13,7 @@ const TEST_PREFIX = `[E2E] ${Date.now()}`;
 
 test.describe("Period Locks CRUD", () => {
   test("Create a period lock", async ({ authPage }) => {
-    await authPage.goto("/settings/period-locks", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/settings/period-locks", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     // Inline form — look for date input and submit button
@@ -49,7 +49,7 @@ test.describe("Period Locks CRUD", () => {
 
 test.describe("Team Settings CRUD", () => {
   test("Create an invitation link", async ({ authPage }) => {
-    await authPage.goto("/settings/team", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/settings/team", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     // Email field — Input uses label "Email anggota" → id="email-anggota"

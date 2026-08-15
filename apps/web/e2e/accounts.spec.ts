@@ -9,7 +9,7 @@ import { test } from "./helpers/auth";
 async function gotoAccounts(page: import("@playwright/test").Page, width = 375, height = 812) {
   await page.setViewportSize({ width, height });
   await page.goto("/accounts");
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator("h1")).toBeVisible();
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -27,7 +27,7 @@ test.describe("Accounts page basics", () => {
     await gotoAccounts(authPage);
     await authPage.setViewportSize({ width: 320, height: 800 });
     await authPage.goto("/accounts");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     const hasOverflow = await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth);
     expect(hasOverflow).toBeFalsy();
   });
@@ -252,7 +252,7 @@ for (const vp of viewports) {
 
     test("no horizontal overflow", async ({ authPage }) => {
       await gotoAccounts(authPage);
-      await authPage.waitForLoadState("networkidle");
+      await expect(authPage.locator("h1")).toBeVisible();
       const hasOverflow = await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth);
       expect(hasOverflow).toBeFalsy();
     });
@@ -302,7 +302,7 @@ test.describe("Loading state", () => {
   test("page header visible during load", async ({ authPage }) => {
     await gotoAccounts(authPage);
     await authPage.goto("/accounts");
-    // Check immediately before networkidle
+    // Check the header renders
     const h1 = authPage.locator("h1");
     await expect(h1).toBeVisible({ timeout: 5000 });
   });
@@ -381,7 +381,7 @@ test.describe("No duplicate animation (auth-independent)", () => {
   test("only one ledger-page element exists", async ({ authPage }) => {
     await gotoAccounts(authPage);
     await authPage.goto("/accounts");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
 
     const ledgerPages = authPage.locator(".ledger-page");
     const count = await ledgerPages.count();

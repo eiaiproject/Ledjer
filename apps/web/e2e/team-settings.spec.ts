@@ -13,7 +13,7 @@ async function gotoTeam(
 ) {
   await page.setViewportSize({ width, height });
   await page.goto("/settings/team");
-  await page.waitForLoadState("networkidle");
+  await expect(page.locator("h1")).toBeVisible();
 }
 
 // ── Page basics (auth-independent) ─────────────────────────────────
@@ -22,7 +22,7 @@ test.describe("Team page basics", () => {
   test("page loads without crash", async ({ authPage }) => {
     await gotoTeam(authPage);
     await authPage.goto("/settings/team");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     expect(await authPage.title()).toMatch(/Ledjer/i);
   });
 
@@ -30,7 +30,7 @@ test.describe("Team page basics", () => {
     await gotoTeam(authPage);
     await authPage.setViewportSize({ width: 320, height: 800 });
     await authPage.goto("/settings/team");
-    await authPage.waitForLoadState("networkidle");
+    await expect(authPage.locator("h1")).toBeVisible();
     expect(
       await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
     ).toBeFalsy();
@@ -245,7 +245,7 @@ for (const vp of viewports) {
     test("no horizontal overflow", async ({ authPage }) => {
     await gotoTeam(authPage);
       await authPage.goto("/settings/team");
-      await authPage.waitForLoadState("networkidle");
+      await expect(authPage.locator("h1")).toBeVisible();
       expect(
         await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
       ).toBeFalsy();

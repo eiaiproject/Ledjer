@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { waitForAppReady } from "./helpers/ready";
 
 /**
  * Smoke tests — verify app shell loads, routes work, no fatal errors.
@@ -29,7 +30,7 @@ test.describe("Landing page", () => {
       }
     });
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     expect(errors).toEqual([]);
   });
 
@@ -43,7 +44,7 @@ test.describe("Landing page", () => {
       failed.push(url);
     });
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     expect(failed).toEqual([]);
   });
 });
@@ -51,7 +52,7 @@ test.describe("Landing page", () => {
 test.describe("Auth pages", () => {
   test("login page loads with form elements", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page).toHaveTitle(/Ledjer/);
     // Email and password inputs
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
@@ -64,7 +65,7 @@ test.describe("Auth pages", () => {
 
   test("register page loads with form elements", async ({ page }) => {
     await page.goto("/register");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     // Register has two password fields — just verify at least one is visible
     const pwFields = page.locator('input[type="password"]');
@@ -76,14 +77,14 @@ test.describe("Auth pages", () => {
 
   test("forgot password page loads", async ({ page }) => {
     await page.goto("/forgot-password");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /kirim/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test("reset-password without token shows safe state", async ({ page }) => {
     await page.goto("/reset-password");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     const body = page.locator("body");
     await expect(body).toBeVisible();
   });
@@ -113,7 +114,7 @@ test.describe("Route guards", () => {
 test.describe("Unknown route", () => {
   test("unknown route shows not found page", async ({ page }) => {
     await page.goto("/nonexistent-page-12345");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.getByRole("heading", { name: /halaman tidak ditemukan/i })).toBeVisible();
   });
 });

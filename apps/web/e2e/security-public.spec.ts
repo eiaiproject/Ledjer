@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { waitForAppReady } from "./helpers/ready";
 
 /**
  * Public security tests — safe for production deploy smoke.
@@ -96,7 +97,7 @@ test.describe("XSS prevention", () => {
 
     for (const payload of xssPayloads) {
       await page.goto(`/?q=${encodeURIComponent(payload)}`);
-      await page.waitForLoadState("networkidle");
+      await waitForAppReady(page);
       await detectors.checkDomInjection();
 
       expect(detectors.alertTriggered).toBeFalsy();
@@ -111,7 +112,7 @@ test.describe("XSS prevention", () => {
     const detectors = setupXssDetectors(page);
 
     await page.goto("/reset-password?token=<script>alert(1)</script>");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await detectors.checkDomInjection();
 
     expect(detectors.alertTriggered).toBeFalsy();
@@ -123,7 +124,7 @@ test.describe("XSS prevention", () => {
 test.describe("Secrets exposure", () => {
   test("service role key is not in frontend bundle", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     const scripts = await page.evaluate(() => {
       return Array.from(document.querySelectorAll("script[src]")).map(
@@ -164,7 +165,7 @@ test.describe("Admin surface", () => {
     page,
   }) => {
     await page.goto("/admin");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(
       page.getByRole("heading", { name: /halaman tidak ditemukan/i }),
     ).toBeVisible();
@@ -177,7 +178,7 @@ test.describe("Security headers", () => {
     page,
   }) => {
     const resp = await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     const headers = resp!.headers();
 
     // Each security header must be asserted independently
@@ -269,7 +270,7 @@ test.describe("API-level authorization", () => {
 test.describe("Error message safety", () => {
   test("login error does not leak internal details", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(
       page.getByRole("textbox", { name: /email/i }),
     ).toBeVisible({ timeout: 15_000 });

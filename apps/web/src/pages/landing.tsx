@@ -42,6 +42,8 @@ const toneStyles: Record<Tone, string> = {
    NAVIGATION DATA
    =========================================================== */
 
+const DOCS_URL = "https://docs.ledjer.id";
+
 const navLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Cara Kerja", href: "#cara-kerja" },
@@ -54,6 +56,7 @@ const footerLinks = [
   { label: "Fitur", href: "#fitur" },
   { label: "Laporan", href: "#laporan" },
   { label: "Keamanan", href: "#keamanan" },
+  { label: "Dokumentasi", href: DOCS_URL },
   { label: "Masuk", to: "/login" as const },
   { label: "Mulai Gratis", to: "/register" as const },
 ] as const;
@@ -347,7 +350,7 @@ function SegmentedTabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="ledger-scroll-x no-scrollbar ledger-fade-x flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"
+      className="ledger-scroll-x no-scrollbar flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"
     >
       {items.map((item) => {
         const isActive = activeId === item.id;
@@ -386,9 +389,27 @@ function SegmentedTabs<T extends string>({
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState("");
   const subNavRef = useRef<HTMLElement>(null);
+  const [subNavOverflows, setSubNavOverflows] = useState(false);
   const [activeBiz, setActiveBiz] = useState<BizId>("toko");
   const [activeReport, setActiveReport] = useState<ReportId>("laba-rugi");
   const [demoExpanded, setDemoExpanded] = useState(false);
+
+  // Show the edge-fade hint on the mobile sub-nav only when its pills
+  // actually overflow the viewport — no fade when everything fits.
+  useEffect(() => {
+    const container = subNavRef.current;
+    if (!container) return;
+    const check = () =>
+      setSubNavOverflows(container.scrollWidth > container.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(container);
+    window.addEventListener("resize", check);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", check);
+    };
+  }, []);
 
   // Keyboard arrow nav between segmented tabs (unused for now; kept
   // for future enhancement when we add roving tabindex on the list).
@@ -484,6 +505,17 @@ export function LandingPage() {
                 {link.label}
               </Button>
             ))}
+            <Button
+              as="a"
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="ghost"
+              size="sm"
+              aria-label="Dokumentasi (navigasi utama)"
+            >
+              Dokumentasi
+            </Button>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -514,7 +546,10 @@ export function LandingPage() {
           <nav
             ref={subNavRef}
             aria-label="Navigasi bagian"
-            className="ledger-scroll-x no-scrollbar ledger-fade-x mx-auto flex max-w-6xl snap-x snap-mandatory gap-1 px-4 py-2 text-xs"
+            className={cn(
+              "ledger-scroll-x no-scrollbar mx-auto flex max-w-6xl snap-x snap-mandatory gap-1 px-4 py-2 text-xs",
+              subNavOverflows && "ledger-fade-x"
+            )}
           >
             {navLinks.map((link) => {
               const isActive = activeSection === link.href;
@@ -534,6 +569,15 @@ export function LandingPage() {
                 </a>
               );
             })}
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Dokumentasi (sub-navigasi)"
+              className="shrink-0 snap-start rounded-full px-3 py-2 min-h-[44px] flex items-center text-xs font-medium transition-colors text-wood-700 hover:bg-cream-100"
+            >
+              Dokumentasi
+            </a>
           </nav>
         </div>
       </header>
@@ -1231,6 +1275,8 @@ export function LandingPage() {
                     <li key={link.label}>
                       <a
                         href={link.href}
+                        target={link.href.startsWith("http") ? "_blank" : undefined}
+                        rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
                         aria-label={`${link.label} (tautan footer)`}
                         className="text-wood-700 underline-offset-4 transition-colors hover:text-wood-900 hover:underline min-h-[44px] inline-flex items-center py-1"
                       >

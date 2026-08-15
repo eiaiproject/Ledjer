@@ -26,7 +26,7 @@ async function clickDialogSubmit(page: import("@playwright/test").Page, dialogNa
 
 test.describe("Accounts CRUD", () => {
   test("Create a new kas account", async ({ authPage }) => {
-    await authPage.goto("/accounts", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     await expect(authPage.getByRole("button", { name: /tambah kas\/bank/i })).toBeVisible({ timeout: 5000 });
@@ -48,7 +48,7 @@ test.describe("Accounts CRUD", () => {
   });
 
   test("Edit an existing account name", async ({ authPage }) => {
-    await authPage.goto("/accounts", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(3000);
 
     const editBtn = authPage.getByRole("button", { name: /edit nama akun/i }).first();
@@ -76,7 +76,7 @@ test.describe("Accounts CRUD", () => {
 
 test.describe("Products CRUD", () => {
   test("Create a new product", async ({ authPage }) => {
-    await authPage.goto("/products", { waitUntil: "networkidle", timeout: 15000 });
+    await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
     const addBtn = authPage.getByRole("button", { name: /tambah produk/i }).first();

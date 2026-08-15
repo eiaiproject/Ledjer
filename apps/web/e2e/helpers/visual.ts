@@ -10,6 +10,7 @@
  */
 
 import type { Page } from "@playwright/test";
+import { waitForAppReady } from "./ready";
 
 /** Fixed date for all visual tests — ensures deterministic output */
 export const FIXED_DATE = "2026-06-15T10:00:00.000Z";
@@ -75,16 +76,16 @@ export async function navigateAndStabilize(
   url: string,
   options: {
     waitForNetworkIdle?: boolean;
-    waitForLoadState?: "load" | "domcontentloaded" | "networkidle";
+    waitForLoadState?: "load" | "domcontentloaded";
     extraWait?: number;
   } = {},
 ): Promise<void> {
   await page.goto(url, {
-    waitUntil: options.waitForLoadState ?? "networkidle",
+    waitUntil: options.waitForLoadState ?? "load",
   });
 
   if (options.waitForNetworkIdle !== false) {
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
   }
 
   // Small extra wait for fonts and layout to settle

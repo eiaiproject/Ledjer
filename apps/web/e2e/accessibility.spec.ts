@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { test as authTest } from "./helpers/auth";
+import { waitForAppReady, waitForPageStable } from "./helpers/ready";
 import AxeBuilder from "@axe-core/playwright";
 
 /**
@@ -25,7 +26,11 @@ test.describe("axe-core automated audits (public pages)", () => {
   for (const p of publicPages) {
     test(`${p.name} has no critical or serious axe violations`, async ({ page }) => {
       await page.goto(p.url);
-      await page.waitForLoadState("networkidle");
+      // Wait for loading indicators to clear AND entrance animations to finish
+      // (they fade content in from opacity 0, which would make color-contrast
+      // measure blended colors), sustained for a short window so a lazy-route
+      // RouteFallback reappearing does not race the audit.
+      await waitForPageStable(page);
 
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "best-practice"])
@@ -71,27 +76,24 @@ test.describe("HTML semantics", () => {
 
     test(`${p.name} page has a semantic h1 heading`, async ({ page }) => {
       await page.goto(p.url);
-      await page.waitForLoadState("networkidle");
-      // Verify there is at least one <h1> element (semantic heading)
-      const h1 = page.locator("h1");
-      const h1Count = await h1.count();
-      expect(h1Count).toBeGreaterThanOrEqual(1);
+      await waitForAppReady(page);
+      // Verify there is at least one <h1> element (semantic heading).
+      // toBeVisible auto-waits for the SPA to mount the heading.
+      await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
     });
   }
 
   test("404 page has a semantic h1 heading", async ({ page }) => {
     await page.goto("/nonexistent-page");
-    await page.waitForLoadState("networkidle");
-    const h1 = page.locator("h1");
-    const h1Count = await h1.count();
-    expect(h1Count).toBeGreaterThanOrEqual(1);
+    await waitForAppReady(page);
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 15_000 });
   });
 });
 
 test.describe("Form accessibility", () => {
   test("login form inputs have accessible labels", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     const emailInput = page.getByRole("textbox", { name: /email/i });
     await expect(emailInput).toBeVisible({ timeout: 15_000 });
     const passwordInput = page.locator('input[type="password"]');
@@ -100,7 +102,7 @@ test.describe("Form accessibility", () => {
 
   test("register form inputs have accessible labels", async ({ page }) => {
     await page.goto("/register");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     const passwordInputs = page.locator('input[type="password"]');
@@ -109,7 +111,7 @@ test.describe("Form accessibility", () => {
 
   test("forgot password form has accessible labels", async ({ page }) => {
     await page.goto("/forgot-password");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -117,7 +119,7 @@ test.describe("Form accessibility", () => {
 test.describe("Keyboard navigation", () => {
   test("tab navigates through login form", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
 
     await page.keyboard.press("Tab");
     const focused = await page.evaluate(() => {
@@ -129,7 +131,7 @@ test.describe("Keyboard navigation", () => {
 
   test("buttons are keyboard accessible", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     const submitBtn = page.getByRole("button", { name: /^Masuk$/ });
     await expect(submitBtn).toBeVisible({ timeout: 15_000 });
     await submitBtn.focus();
@@ -143,7 +145,7 @@ test.describe("Keyboard navigation", () => {
 test.describe("Error announcements", () => {
   test("login error has role='alert'", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await waitForAppReady(page);
     await page.getByRole("textbox", { name: /email/i }).fill("test@test.com");
     await page.locator('input[type="password"]').fill("Wrong1!");
     await page.getByRole("button", { name: /^Masuk$/ }).click();
@@ -181,7 +183,7 @@ authTest.describe("axe-core automated audits (authenticated pages)", () => {
   for (const p of authedPages) {
     authTest(`${p.name} has no critical or serious axe violations`, async ({ authPage }) => {
       await authPage.goto(p.url);
-      await authPage.waitForLoadState("networkidle");
+      await waitForPageStable(authPage);
 
       const results = await new AxeBuilder({ page: authPage })
         .withTags(["wcag2a", "wcag2aa", "best-practice"])
