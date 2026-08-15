@@ -5,10 +5,8 @@ import Reicon from "./Reicon.vue";
 <template>
   <section class="security-section" aria-labelledby="security-heading">
     <div class="container">
-      <div class="security-card">
-        <div class="security-icon" aria-hidden="true">
-          <Reicon name="Lock" :size="28" />
-        </div>
+      <div class="security-content">
+        <p class="security-eyebrow">Keamanan data</p>
         <h2 id="security-heading" class="security-heading">Keamanan &amp; akses</h2>
         <p class="security-body">
           Data setiap bisnis dipisahkan dan akses dapat dibatasi. Setiap perubahan
