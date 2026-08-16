@@ -141,7 +141,7 @@ function insertJournalEntry(
     .then(() => undefined);
 }
 
-describe("listTransactions reversal filtering", () => {
+describe("listTransactions shows the complete audit trail", () => {
   let sqlite: DatabaseSync;
   let db: SqliteD1;
 
@@ -162,7 +162,7 @@ describe("listTransactions reversal filtering", () => {
         description: "Penjualan Telur x30", status: "voided",
         posted_at: NOW, posted_by: USER, created_by: USER, created_at: NOW, updated_at: NOW,
       }),
-      // Reversal created by the void flow — must be hidden.
+      // Reversal created by the void flow — also visible (complete audit trail).
       insertTransaction(db, {
         id: "txn-reversal", organization_id: ORG, transaction_number: "TRX-202608-000002",
         transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
@@ -204,13 +204,13 @@ describe("listTransactions reversal filtering", () => {
     );
   });
 
-  it("lists originals, corrected re-entries and settlements but hides reversals", async () => {
+  it("lists every transaction in order — original, reversal, correction and settlement", async () => {
     const rows = await listTransactions(db as unknown as D1Database, ORG, {});
     const numbers = rows.map((r) => r.transaction_number);
 
     expect(numbers).toContain("TRX-202608-000001"); // original (voided but listed)
+    expect(numbers).toContain("TRX-202608-000002"); // reversal (void flow)
     expect(numbers).toContain("TRX-202608-000003"); // corrected re-entry
     expect(numbers).toContain("TRX-202608-000004"); // settlement payment
-    expect(numbers).not.toContain("TRX-202608-000002"); // reversal stays hidden
   });
 });

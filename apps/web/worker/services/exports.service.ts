@@ -280,11 +280,10 @@ async function listTransactionsForExport(
   organizationId: string,
   filters: TransactionExportFilters,
 ): Promise<ExportTransactionRow[]> {
+  // Same rule as listTransactions: show every transaction, including void
+  // reversals, so the export is a complete sequential audit trail.
   const conditions = [
     "t.organization_id = ?",
-    // Same rule as listTransactions: hide only technical reversal entries;
-    // corrected re-entries and settlements are real transactions.
-    "NOT EXISTS (SELECT 1 FROM journal_entries je WHERE je.transaction_id = t.id AND je.entry_type = 'reversal')",
   ];
   const values: D1Input[] = [organizationId];
 
