@@ -104,10 +104,6 @@ async function searchTransactions(
      FROM transactions
      WHERE organization_id = ?
        AND status = 'posted'
-       AND NOT EXISTS (
-         SELECT 1 FROM journal_entries je
-         WHERE je.transaction_id = transactions.id AND je.entry_type = 'reversal'
-       )
        AND (LOWER(transaction_number) LIKE ?
             OR LOWER(description) LIKE ?
             OR CAST(amount_minor AS TEXT) LIKE ?)

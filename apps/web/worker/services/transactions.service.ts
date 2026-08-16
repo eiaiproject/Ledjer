@@ -332,13 +332,11 @@ export async function listTransactions(
   organizationId: string,
   filters: TransactionFilters = {},
 ): Promise<PublicTransaction[]> {
+  // Show every transaction — including void reversals (created by the
+  // void flow) — so the list is a complete, sequential audit trail and
+  // the stock movement implied by the list reconciles with the subledger.
   const conditions = [
     "t.organization_id = ?",
-    // Hide only technical reversal entries (created by the void flow).
-    // Corrected re-entries and settlement payments carry an
-    // original_transaction_id but are real transactions — they must
-    // stay visible in the list.
-    "NOT EXISTS (SELECT 1 FROM journal_entries je WHERE je.transaction_id = t.id AND je.entry_type = 'reversal')",
   ];
   const values: D1Input[] = [organizationId];
 
