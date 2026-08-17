@@ -82,6 +82,7 @@ function formatDateTimeLong(date: Date): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jakarta",
   }).format(date);
 }
 
@@ -307,15 +308,16 @@ class PdfBuilder {
 
   /** Small muted note drawn below the current cursor; consumes its own space. */
   note(text: string, opts?: { size?: number; color?: Color }): void {
-    this.ensureSpace(20);
+    const gap = 12;
+    this.ensureSpace(gap + 14);
     this.drawText(text, {
       size: opts?.size ?? 8.5,
       color: opts?.color ?? MUTED,
       x: MARGIN,
-      y: this.y,
+      y: this.y - gap,
       maxWidth: CONTENT_WIDTH,
     });
-    this.y -= 14;
+    this.y -= gap + 14;
   }
 
   async save(): Promise<Uint8Array> {
@@ -354,9 +356,9 @@ const GENERAL_LEDGER_COLUMNS: readonly Column[] = [
   { label: "Tanggal", width: 58 },
   { label: "No. Ref", width: 90 },
   { label: "Keterangan", width: CONTENT_WIDTH - 58 - 90 - 78 - 78 - 86 },
-  AMOUNT_COLUMN("Debit"),
-  AMOUNT_COLUMN("Kredit"),
-  { label: "Saldo", width: 86, align: "right" },
+  { label: "Debit", width: 78, align: "right" as const },
+  { label: "Kredit", width: 78, align: "right" as const },
+  { label: "Saldo", width: 86, align: "right" as const },
 ];
 
 // ── Report exporters ────────────────────────────────────────────────
