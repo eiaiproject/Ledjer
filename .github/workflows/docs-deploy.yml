@@ -45,7 +45,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           workingDirectory: apps/docs
-          wranglerVersion: 4.120.1
+          wranglerVersion: 4.123.0
           command: deploy
 
       # Use the workers.dev URL — bypasses the Cloudflare bot challenge that

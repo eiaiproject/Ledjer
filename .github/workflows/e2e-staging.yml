@@ -52,7 +52,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           workingDirectory: apps/web
-          wranglerVersion: 4.120.1
+          wranglerVersion: 4.123.0
           command: deploy --env=staging --config=wrangler.jsonc
         # Fail fast on deploy failure. We must never fall back to running
         # CRUD tests against production (they create real data).
