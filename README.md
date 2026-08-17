@@ -51,7 +51,7 @@ Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
 - **Rekonsiliasi bank** — cocokkan transaksi internal dengan mutasi bank
 - **Kunci periode (period locks)** — kunci periode akuntansi setelah tutup buku
 - **Impor data (CSV)** — chart of accounts, produk, pihak, saldo awal
-- **Ekspor (CSV)** — transaksi, akun, produk, dan semua laporan keuangan
+- **Ekspor (CSV & PDF)** — transaksi, akun, produk, dan semua laporan keuangan; PDF server-generated agar konsisten di semua perangkat
 
 ### Laporan Keuangan
 - **Neraca saldo (trial balance)**

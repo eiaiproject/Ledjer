@@ -10,11 +10,13 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportBalanceSheetCsv } from "@/lib/csv-export";
-import { Refresh, Download } from "reicon-react";
+import { exportBalanceSheetPdf } from "@/lib/pdf-export";
+import { Refresh } from "reicon-react";
 import { getBalanceSheet, type BalanceSheetItem } from "@/lib/api/reports";
 import {
   useReportDate,
   ReportPermissionGate,
+  ReportExportButtons,
   handleReportExport,
   ReportSectionMobile,
   ReportSectionRows,
@@ -102,6 +104,7 @@ export function BalanceSheetPage() {
   } = useReportDate();
   const [showZero, setShowZero] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.reports.balanceSheet(
@@ -171,6 +174,15 @@ export function BalanceSheetPage() {
     });
   };
 
+  const handleExportPdf = async () => {
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: dateInvalid || exportingPdf,
+      exportFn: () => exportBalanceSheetPdf(appliedDate),
+      onFinally: () => setExportingPdf(false),
+    });
+  };
+
   return (
     <ReportShell
       title="Neraca"
@@ -235,20 +247,16 @@ export function BalanceSheetPage() {
               <span>Tampilkan akun saldo nol</span>
             </label>
             {canCreateExports && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Ekspor neraca ke CSV"
-                onClick={handleExport}
-                disabled={exporting || isLoading || isEmpty || dateInvalid}
-                loading={exporting}
+              <ReportExportButtons
                 className="sm:ml-auto"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Ekspor CSV</span>
-                <span className="sm:hidden">Ekspor</span>
-              </Button>
+                disabled={isLoading || isEmpty || dateInvalid}
+                isExportingCsv={exporting}
+                isExportingPdf={exportingPdf}
+                onExportCsv={handleExport}
+                onExportPdf={handleExportPdf}
+                csvAriaLabel="Ekspor neraca ke CSV"
+                pdfAriaLabel="Ekspor neraca ke PDF"
+              />
             )}
           </div>
         </CardContent>

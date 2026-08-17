@@ -10,11 +10,13 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateRange, formatIDR } from "@/lib/utils";
 import { exportProfitLossCsv } from "@/lib/csv-export";
-import { Download, Refresh } from "reicon-react";
+import { exportProfitLossPdf } from "@/lib/pdf-export";
+import { Refresh } from "reicon-react";
 import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
 import {
   useReportDateRange,
   handleReportExport,
+  ReportExportButtons,
   ReportSectionMobile,
   ReportSectionRows,
 } from "./_components";
@@ -158,6 +160,7 @@ export function ProfitLossPage() {
   } = useReportDateRange();
   const [showInactive, setShowInactive] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.reports.profitLoss(
@@ -235,6 +238,15 @@ export function ProfitLossPage() {
     });
   };
 
+  const handleExportPdf = async () => {
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: dateRangeInvalid || exportingPdf,
+      exportFn: () => exportProfitLossPdf(appliedFrom, appliedTo),
+      onFinally: () => setExportingPdf(false),
+    });
+  };
+
   return (
     <ReportShell
       title="Laba Rugi"
@@ -307,20 +319,16 @@ export function ProfitLossPage() {
               <span>Tampilkan akun tanpa aktivitas</span>
             </label>
             {canCreateExports && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Ekspor laporan laba rugi ke CSV"
-                onClick={handleExport}
-                disabled={exporting || isLoading || isEmpty || dateRangeInvalid}
-                loading={exporting}
+              <ReportExportButtons
                 className="sm:ml-auto"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Ekspor CSV</span>
-                <span className="sm:hidden">Ekspor</span>
-              </Button>
+                disabled={isLoading || isEmpty || dateRangeInvalid}
+                isExportingCsv={exporting}
+                isExportingPdf={exportingPdf}
+                onExportCsv={handleExport}
+                onExportPdf={handleExportPdf}
+                csvAriaLabel="Ekspor laporan laba rugi ke CSV"
+                pdfAriaLabel="Ekspor laporan laba rugi ke PDF"
+              />
             )}
           </div>
         </CardContent>

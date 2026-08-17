@@ -9,8 +9,8 @@ import { useState, useCallback } from "react";
 import { useOrgPermissions } from "@/hooks/useOrganization";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download } from "reicon-react";
-import { formatDateInputValue, formatIDR } from "@/lib/utils";
+import { Download, FileText } from "reicon-react";
+import { cn, formatDateInputValue, formatIDR } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 
 // ── Shared section rendering (Neraca / Laba Rugi) ───────────────────
@@ -220,32 +220,55 @@ export function ReportPermissionGate({ children }: { readonly children: React.Re
   return <>{children}</>;
 }
 
-// ── Export button ───────────────────────────────────────────────────
+// ── Export buttons (CSV + PDF) ──────────────────────────────────────
 
-export function ReportExportButton({
+export function ReportExportButtons({
   disabled,
-  isExporting,
-  onExport,
-  label = "Ekspor CSV",
+  isExportingCsv,
+  isExportingPdf,
+  onExportCsv,
+  onExportPdf,
+  csvAriaLabel = "Ekspor laporan ke CSV",
+  pdfAriaLabel = "Ekspor laporan ke PDF",
+  className,
 }: {
   readonly disabled: boolean;
-  readonly isExporting: boolean;
-  readonly onExport: () => void;
-  readonly label?: string;
+  readonly isExportingCsv: boolean;
+  readonly isExportingPdf: boolean;
+  readonly onExportCsv: () => void;
+  readonly onExportPdf: () => void;
+  readonly csvAriaLabel?: string;
+  readonly pdfAriaLabel?: string;
+  readonly className?: string;
 }) {
+  const anyExporting = isExportingCsv || isExportingPdf;
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onExport}
-      disabled={disabled || isExporting}
-      className="hidden sm:inline-flex"
-      aria-busy={isExporting || undefined}
-    >
-      <Download className="h-4 w-4" aria-hidden="true" />
-      {isExporting ? "Mengekspor..." : label}
-    </Button>
+    <div className={cn("flex items-center gap-1", className)}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        aria-label={csvAriaLabel}
+        onClick={onExportCsv}
+        disabled={disabled || anyExporting}
+        loading={isExportingCsv}
+      >
+        <Download className="h-4 w-4" aria-hidden="true" />
+        <span className="hidden sm:inline">CSV</span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        aria-label={pdfAriaLabel}
+        onClick={onExportPdf}
+        disabled={disabled || anyExporting}
+        loading={isExportingPdf}
+      >
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        <span className="hidden sm:inline">PDF</span>
+      </Button>
+    </div>
   );
 }
 
@@ -267,7 +290,7 @@ export async function handleReportExport({
   if (!orgId || disabled) return;
   try {
     await exportFn();
-    toast.success("Ekspor CSV dimulai.");
+    toast.success("Ekspor dimulai.");
     onSuccess?.();
   } catch {
     toast.error("Gagal mengekspor. Coba lagi.");
