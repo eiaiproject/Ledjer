@@ -126,8 +126,8 @@ export default function InvoiceDetailPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-wood-800">{invoice.invoiceNumber}</h1>
-          <p className="text-sm text-wood-500">Faktur {STATUS_LABELS[invoice.status]}</p>
+          <h1 className="text-2xl font-bold text-text-primary break-words">{invoice.invoiceNumber}</h1>
+          <p className="mt-1 text-sm text-text-secondary">Faktur {STATUS_LABELS[invoice.status]}</p>
         </div>
         <Button variant="ghost" onClick={() => navigate("/invoices")}>Kembali</Button>
       </div>
@@ -271,10 +271,9 @@ export default function InvoiceDetailPage() {
             </div>
             {invoice.status === "voided" && (
               <div>
-                <label htmlFor="void-reason" className="mb-1 block text-xs text-wood-500">Alasan Pembatalan</label>
-                <input
+                <Input
                   id="void-reason"
-                  className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm"
+                  label="Alasan Pembatalan"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Opsional"

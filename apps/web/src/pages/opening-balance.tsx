@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/api/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatIDR } from "@/lib/utils";
@@ -126,8 +127,8 @@ export default function OpeningBalancePage() {
       <div className="p-4">
         <Card>
           <CardContent className="p-6 text-center space-y-3">
-            <h1 className="text-lg font-semibold text-wood-800">Saldo Awal Sudah Diposting</h1>
-            <p className="text-sm text-wood-500">Saldo awal sudah dicatat. Tidak bisa diposting ulang.</p>
+            <h1 className="text-lg font-semibold text-text-primary">Saldo Awal Sudah Diposting</h1>
+            <p className="text-sm text-text-secondary">Saldo awal sudah dicatat. Tidak bisa diposting ulang.</p>
             <Button variant="ghost" onClick={() => navigate("/dashboard")}>Kembali</Button>
           </CardContent>
         </Card>
@@ -194,17 +195,16 @@ export default function OpeningBalancePage() {
                 <div key={line.accountId} className="grid grid-cols-12 gap-2 items-end border-b border-wood-100 pb-2">
                   <div className="col-span-7">
                     <label htmlFor={`obal-line-${i}-account`} className="block text-xs text-wood-500 mb-0.5">Akun</label>
-                    <select
+                    <Select
                       id={`obal-line-${i}-account`}
-                      className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm"
                       value={line.accountId}
                       onChange={(e) => updateLine(i, "accountId", e.target.value)}
+                      placeholder="Pilih akun..."
                     >
-                      <option value="">Pilih akun...</option>
                       {(accounts ?? []).map((a: { id: string; code: number; name: string }) => (
                         <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div className="col-span-4">
                     <label htmlFor={`obal-line-${i}-amount`} className="block text-xs text-wood-500 mb-0.5">

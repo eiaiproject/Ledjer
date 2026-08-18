@@ -11,10 +11,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatIDR, formatShortDate } from "@/lib/utils";
 import { exportGeneralLedgerCsv } from "@/lib/csv-export";
-import { Download, ChevronDown, ChevronRight, BookOpen } from "reicon-react";
+import { exportGeneralLedgerPdf } from "@/lib/pdf-export";
+import { ChevronDown, ChevronRight, BookOpen } from "reicon-react";
 import { listAccounts } from "@/lib/api/accounts";
 import { getGeneralLedger, type LedgerEntry } from "@/lib/api/reports";
-import { useReportDateRange, ReportPermissionGate, handleReportExport } from "./_components";
+import { useReportDateRange, ReportPermissionGate, ReportExportButtons, handleReportExport } from "./_components";
 import { ReportShell } from "@/components/ui/report-shell";
 
 /* ------------------------------------------------------------------ */
@@ -162,28 +163,6 @@ function LedgerSkeleton() {
 /*  Sub-components (reduce cognitive complexity)                       */
 /* ------------------------------------------------------------------ */
 
-function ExportButtons({ disabled, isExporting, onExport }: {
-  readonly disabled: boolean;
-  readonly isExporting: boolean;
-  readonly onExport: () => void;
-}) {
-  return (
-    <>
-      <Button type="button" variant="outline" size="sm" onClick={onExport}
-        disabled={disabled} className="hidden sm:inline-flex" aria-busy={isExporting || undefined}>
-        <Download className="h-4 w-4" aria-hidden="true" />
-        {isExporting ? "Mengekspor..." : "Ekspor CSV"}
-      </Button>
-      <Button type="button" variant="outline" size="icon" onClick={onExport}
-        disabled={disabled} className="sm:hidden min-h-[44px] min-w-[44px]"
-        aria-label={isExporting ? "Mengekspor buku besar ke CSV" : "Ekspor buku besar ke CSV"}
-        aria-busy={isExporting || undefined}>
-        <Download className="h-4 w-4" aria-hidden="true" />
-      </Button>
-    </>
-  );
-}
-
 function SummaryBar({ ledger, totals, isGlobalScope, isBalanced }: {
   readonly ledger: LedgerEntry[] | undefined;
   readonly totals: { debit: number; credit: number };
@@ -233,7 +212,8 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
   } = useReportDateRange();
   const [accountId, setAccountId] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const { data: accounts, isLoading: accountsLoading, error: accountsError, refetch: refetchAccounts } = useQuery({
     queryKey: queryKeys.accounts.ledgerOptions(orgData?.organization?.id ?? ""),
@@ -271,14 +251,23 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
   const isGlobalScope = showAllAccounts && (ledger?.length ?? 0) > 0;
   const isBalanced = totals.debit === totals.credit;
 
-  const handleExport = useCallback(async () => {
+  const handleExportCsv = useCallback(async () => {
     await handleReportExport({
       orgId: orgData?.organization?.id,
-      disabled: dateRangeInvalid || isExporting,
+      disabled: dateRangeInvalid || isExportingCsv,
       exportFn: () => exportGeneralLedgerCsv(accountId, appliedFrom, appliedTo),
-      onFinally: () => setIsExporting(false),
+      onFinally: () => setIsExportingCsv(false),
     });
-  }, [orgData?.organization?.id, dateRangeInvalid, isExporting, accountId, appliedFrom, appliedTo]);
+  }, [orgData?.organization?.id, dateRangeInvalid, isExportingCsv, accountId, appliedFrom, appliedTo]);
+
+  const handleExportPdf = useCallback(async () => {
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: dateRangeInvalid || isExportingPdf,
+      exportFn: () => exportGeneralLedgerPdf(accountId, appliedFrom, appliedTo),
+      onFinally: () => setIsExportingPdf(false),
+    });
+  }, [orgData?.organization?.id, dateRangeInvalid, isExportingPdf, accountId, appliedFrom, appliedTo]);
 
   const toggleFilters = useCallback(() => setShowFilters((s) => !s), []);
 
@@ -302,16 +291,20 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
       helpTopic="general_ledger"
       guide="reports/general-ledger"
       actions={canCreateExports ? (
-        <ExportButtons
-          disabled={!ledger?.length || dateRangeInvalid || isExporting}
-          isExporting={isExporting}
-          onExport={handleExport}
+        <ReportExportButtons
+          disabled={!ledger?.length || dateRangeInvalid}
+          isExportingCsv={isExportingCsv}
+          isExportingPdf={isExportingPdf}
+          onExportCsv={handleExportCsv}
+          onExportPdf={handleExportPdf}
+          csvAriaLabel="Ekspor buku besar ke CSV"
+          pdfAriaLabel="Ekspor buku besar ke PDF"
         />
       ) : undefined}
     >
 
       {/* Filter summary + toggle */}
-      <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
+      <Card elevated className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-text-tertiary">Periode</p>
@@ -355,7 +348,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
               aria-invalid={dateRangeInvalid || undefined} />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Invalid date range */}
       {dateRangeInvalid && (

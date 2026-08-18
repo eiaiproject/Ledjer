@@ -15,7 +15,9 @@ import {
 } from "@/lib/api/team";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -689,34 +691,20 @@ function InvitationForm({
           />
 
           <div>
-            <label htmlFor="invite-role" className="block text-sm font-medium text-wood-700">
-              <span className="block">Role</span>
-            </label>
-            <select
+            <Select
               id="invite-role"
+              label="Role"
               value={role}
               onChange={(event) => onRoleChange(event.target.value as TeamInvitationRole)}
               disabled={isPending}
-              aria-invalid={!!roleError || undefined}
-              aria-describedby={roleError ? "invite-role-error" : undefined}
-              className={cn(
-                "mt-1 min-h-[44px] w-full rounded-md border bg-cream-50 px-3 py-2 text-sm text-wood-700",
-                "focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200",
-                "disabled:opacity-50 sm:min-h-0",
-                roleError ? "border-error" : "border-wood-200",
-              )}
+              error={roleError || undefined}
             >
               {MANAGEABLE_ROLES.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_CONFIG[r].label}
                 </option>
               ))}
-            </select>
-            {roleError && (
-              <p id="invite-role-error" className="mt-1 text-xs text-error" role="alert">
-                {roleError}
-              </p>
-            )}
+            </Select>
           </div>
 
           <Button
@@ -732,10 +720,9 @@ function InvitationForm({
 
         {/* Admin warning */}
         {isAdminWarning && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-honey-200 bg-honey-50 px-3 py-2 text-xs text-honey-800">
-            <InfoCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>Admin memiliki akses pengelolaan yang luas, termasuk mengelola anggota dan membatalkan transaksi.</span>
-          </div>
+          <Callout variant="info" className="mt-3">
+            Admin memiliki akses pengelolaan yang luas, termasuk mengelola anggota dan membatalkan transaksi.
+          </Callout>
         )}
 
         {/* Role description */}
@@ -1108,22 +1095,19 @@ function RoleChangeDialog({
           </div>
 
           <div>
-            <label htmlFor="role-dialog-select" className="block text-sm font-medium text-wood-700">
-              Role baru
-            </label>
-            <select
+            <Select
               id="role-dialog-select"
+              label="Role baru"
               value={newRole}
               onChange={(event) => onRoleChange(event.target.value as TeamInvitationRole)}
               disabled={isPending}
-              className="mt-1 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 disabled:opacity-50 sm:min-h-0"
             >
               {assignableRoles.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_CONFIG[r].label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {roleConfig && (
@@ -1150,10 +1134,9 @@ function RoleChangeDialog({
           )}
 
           {isAdminPromotion && (
-            <div className="flex items-start gap-2 rounded-md border border-honey-200 bg-honey-50 px-3 py-2 text-xs text-honey-800">
-              <InfoCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>Admin memiliki akses pengelolaan yang luas, termasuk mengelola anggota dan membatalkan transaksi.</span>
-            </div>
+            <Callout variant="info">
+              Admin memiliki akses pengelolaan yang luas, termasuk mengelola anggota dan membatalkan transaksi.
+            </Callout>
           )}
         </div>
       </ModalContent>

@@ -133,7 +133,7 @@ test.describe("Create form (auth required)", () => {
 
   test("date input has help text", async ({ authPage }) => {
     await gotoPeriodLocks(authPage);
-    const helpText = authPage.locator("#lock-date-help");
+    const helpText = authPage.locator("#lock-date-feedback");
     await expect(helpText).toBeAttached();
     await expect(helpText).toContainText("Semua transaksi");
   });

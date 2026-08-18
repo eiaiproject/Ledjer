@@ -233,7 +233,7 @@ export function SearchTrigger({ onClick }: SearchTriggerProps) {
   return (
     <button type="button"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm text-wood-500 transition-all hover:border-wood-300 hover:text-wood-600 focus:outline-none focus:ring-2 focus:ring-ink/20 sm:w-56"
+      className="flex items-center gap-2 rounded-lg border border-wood-200 bg-surface px-3 py-2 text-sm text-wood-500 transition-all hover:border-wood-300 hover:text-wood-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:w-56"
       aria-label="Buka pencarian"
     >
       <Search className="h-4 w-4 shrink-0" aria-hidden="true" />

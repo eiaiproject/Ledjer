@@ -5,6 +5,7 @@ import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
@@ -133,19 +134,19 @@ export function LoginPage() {
               </p>
 
               {error && (
-                <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+                <Callout variant="error" className="mt-4">
                   {error}
-                </div>
+                </Callout>
               )}
 
               {unverifiedEmail && (
-                <div className="mt-4 space-y-3 rounded-lg border border-warning-border bg-warning-bg p-3 text-sm text-warning" role="alert">
+                <Callout variant="warning" className="mt-4 space-y-3">
                   <p>
                     Email <span className="font-medium break-all">{unverifiedEmail}</span>{" "}
                     belum dikonfirmasi.
                   </p>
                   {resendMessage && (
-                    <p className="text-warning">{resendMessage}</p>
+                    <p>{resendMessage}</p>
                   )}
                   <Button
                     type="button"
@@ -160,7 +161,7 @@ export function LoginPage() {
                       ? `Kirim ulang (${resendCooldown.remaining}s)`
                       : "Kirim ulang email konfirmasi"}
                   </Button>
-                </div>
+                </Callout>
               )}
 
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">

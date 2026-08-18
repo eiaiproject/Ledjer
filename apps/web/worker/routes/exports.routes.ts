@@ -17,6 +17,14 @@ import {
   exportTrialBalanceCsv,
   type ExportResponse,
 } from "../services/exports.service";
+import {
+  exportBalanceSheetPdf,
+  exportGeneralLedgerPdf,
+  exportProfitLossPdf,
+  exportTrialBalancePdf,
+  pdfHeaders,
+  type PdfExportResponse,
+} from "../services/pdf-export.service";
 
 export const exportsRoutes = new Hono<AppContext>();
 
@@ -87,9 +95,62 @@ exportsRoutes.get("/reports/general-ledger.csv", async (c) => {
   }));
 });
 
+// ── PDF exports (server-generated, identical on every device) ────────
+
+exportsRoutes.get("/reports/trial-balance.pdf", async (c) => {
+  const context = c.get("organizationContext");
+  const params = new URL(c.req.url).searchParams;
+  return pdfResponse(await exportTrialBalancePdf(
+    c.env.DB,
+    context.organization,
+    requiredParam(params, "asOfDate"),
+  ));
+});
+
+exportsRoutes.get("/reports/profit-loss.pdf", async (c) => {
+  const context = c.get("organizationContext");
+  const params = new URL(c.req.url).searchParams;
+  return pdfResponse(await exportProfitLossPdf(
+    c.env.DB,
+    context.organization,
+    requiredParam(params, "fromDate"),
+    requiredParam(params, "toDate"),
+  ));
+});
+
+exportsRoutes.get("/reports/balance-sheet.pdf", async (c) => {
+  const context = c.get("organizationContext");
+  const params = new URL(c.req.url).searchParams;
+  return pdfResponse(await exportBalanceSheetPdf(
+    c.env.DB,
+    context.organization,
+    requiredParam(params, "asOfDate"),
+  ));
+});
+
+exportsRoutes.get("/reports/general-ledger.pdf", async (c) => {
+  const context = c.get("organizationContext");
+  const params = new URL(c.req.url).searchParams;
+  return pdfResponse(await exportGeneralLedgerPdf(
+    c.env.DB,
+    context.organization,
+    {
+      accountId: params.get("accountId") || undefined,
+      fromDate: requiredParam(params, "fromDate"),
+      toDate: requiredParam(params, "toDate"),
+    },
+  ));
+});
+
 function csvResponse(exportResponse: ExportResponse): Response {
   return new Response(exportResponse.csv, {
     headers: csvHeaders(exportResponse.filename),
+  });
+}
+
+function pdfResponse(exportResponse: PdfExportResponse): Response {
+  return new Response(exportResponse.pdf, {
+    headers: pdfHeaders(exportResponse.filename),
   });
 }
 

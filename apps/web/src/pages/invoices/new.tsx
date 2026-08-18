@@ -98,8 +98,8 @@ export default function NewInvoicePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4">
       <div>
-        <h1 className="text-xl font-semibold text-wood-800">Faktur Baru</h1>
-        <p className="text-sm text-wood-500">Buat faktur untuk pelanggan</p>
+        <h1 className="text-2xl font-bold text-text-primary">Faktur Baru</h1>
+        <p className="mt-1 text-sm text-text-secondary">Buat faktur untuk pelanggan</p>
         <FieldHelp topic="invoice_journal" label="Faktur yang diterbitkan otomatis membuat jurnal akuntansi" />
       </div>
 

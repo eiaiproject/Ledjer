@@ -12,6 +12,7 @@ import {
   type ExtraOpeningBalance,
 } from "@/lib/api/organizations";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
@@ -248,7 +249,7 @@ export function OnboardingPage() {
 
         {/* Error */}
         {error && (
-          <div className="rounded-md bg-error/10 p-3 text-sm text-error" role="alert">{error}</div>
+          <Callout variant="error">{error}</Callout>
         )}
 
         {/* Step 1: Business Profile */}

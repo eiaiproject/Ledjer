@@ -10,9 +10,10 @@ import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateLong, formatIDR } from "@/lib/utils";
 import { exportTrialBalanceCsv } from "@/lib/csv-export";
-import { Download, Refresh } from "reicon-react";
+import { exportTrialBalancePdf } from "@/lib/pdf-export";
+import { Refresh } from "reicon-react";
 import { getTrialBalance } from "@/lib/api/reports";
-import { useReportDate, ReportPermissionGate, handleReportExport } from "./_components";
+import { useReportDate, ReportPermissionGate, ReportExportButtons, handleReportExport } from "./_components";
 import { ReportShell } from "@/components/ui/report-shell";
 
 export function TrialBalancePage() {
@@ -26,6 +27,7 @@ export function TrialBalancePage() {
   } = useReportDate();
   const [showZeroBalances, setShowZeroBalances] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.reports.trialBalance(orgData?.organization?.id, appliedDate),
@@ -86,6 +88,15 @@ export function TrialBalancePage() {
       disabled: exporting,
       exportFn: () => exportTrialBalanceCsv(appliedDate),
       onFinally: () => setExporting(false),
+    });
+  };
+
+  const handleExportPdf = async () => {
+    await handleReportExport({
+      orgId: orgData?.organization?.id,
+      disabled: exportingPdf,
+      exportFn: () => exportTrialBalancePdf(appliedDate),
+      onFinally: () => setExportingPdf(false),
     });
   };
 
@@ -150,20 +161,16 @@ export function TrialBalancePage() {
               <span>Tampilkan akun saldo nol</span>
             </label>
             {canCreateExports && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Ekspor neraca saldo ke CSV"
-                onClick={handleExport}
-                disabled={exporting || isLoading || isEmpty}
-                loading={exporting}
+              <ReportExportButtons
                 className="sm:ml-auto"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Ekspor CSV</span>
-                <span className="sm:hidden">Ekspor</span>
-              </Button>
+                disabled={isLoading || isEmpty}
+                isExportingCsv={exporting}
+                isExportingPdf={exportingPdf}
+                onExportCsv={handleExport}
+                onExportPdf={handleExportPdf}
+                csvAriaLabel="Ekspor neraca saldo ke CSV"
+                pdfAriaLabel="Ekspor neraca saldo ke PDF"
+              />
             )}
           </div>
         </CardContent>

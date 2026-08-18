@@ -9,7 +9,10 @@ import {
 } from "@/lib/api/period-locks";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -21,9 +24,7 @@ import {
   Lock,
   Unlock,
   Calendar,
-  AlertTriangle,
   InfoCircle,
-  ShieldCheck,
 } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
 import { PageGuide } from "@/components/ui/page-guide";
@@ -223,11 +224,9 @@ function ConfirmReopenDialog({
             </div>
           </div>
           <div className="mt-4 text-left">
-            <label htmlFor="reopen-reason" className="block text-sm font-medium text-wood-700">
-              Alasan pembukaan kembali
-            </label>
-            <textarea
+            <Textarea
               id="reopen-reason"
+              label="Alasan pembukaan kembali"
               value={reason}
               onChange={(event) => {
                 setReason(event.target.value);
@@ -237,20 +236,8 @@ function ConfirmReopenDialog({
               maxLength={500}
               placeholder="Contoh: Koreksi data transaksi periode lalu"
               disabled={loading}
-              aria-invalid={reasonError || undefined}
-              aria-describedby={reasonError ? "reopen-reason-error" : undefined}
-              className={cn(
-                "mt-1 min-h-[80px] w-full rounded-md border bg-cream-50 px-3 py-2 text-sm text-wood-700",
-                "focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200",
-                "disabled:opacity-50",
-                reasonError ? "border-error" : "border-wood-200",
-              )}
+              error={reasonError ? "Alasan pembukaan kembali wajib diisi." : undefined}
             />
-            {reasonError && (
-              <p id="reopen-reason-error" className="mt-1 text-xs text-error" role="alert">
-                Alasan pembukaan kembali wajib diisi.
-              </p>
-            )}
           </div>
         </div>
       </ModalContent>
@@ -570,27 +557,18 @@ function CreateLockForm({
           </CardHeader>
           <CardContent>
             {/* Impact explanation */}
-            <div className="mb-4 rounded-lg border border-clay-200 bg-clay-50 p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-clay-600" />
-                <div className="text-xs text-clay-800">
-                  <p className="font-medium">Apa yang terjadi setelah dikunci?</p>
-                  <ul className="mt-1 space-y-0.5 text-clay-700 pl-4 list-disc">
-                    <li>Semua transaksi pada atau sebelum tanggal tersebut tidak dapat diposting, diedit, atau dibatalkan</li>
-                    <li>Hanya pemilik dan admin yang dapat membuka kembali periode</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <Callout variant="warning" title="Apa yang terjadi setelah dikunci?" className="mb-4">
+              <ul className="mt-1 space-y-0.5 pl-4 list-disc">
+                <li>Semua transaksi pada atau sebelum tanggal tersebut tidak dapat diposting, diedit, atau dibatalkan</li>
+                <li>Hanya pemilik dan admin yang dapat membuka kembali periode</li>
+              </ul>
+            </Callout>
 
             {/* Permission notice */}
             {disabled && disabledReason && (
-              <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-3">
-                <div className="flex items-start gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-                  <p className="text-xs text-sky-800">{disabledReason}</p>
-                </div>
-              </div>
+              <Callout variant="info" className="mb-4">
+                {disabledReason}
+              </Callout>
             )}
 
             {/* Date preview */}
@@ -627,53 +605,30 @@ function CreateLockForm({
             <form onSubmit={handleOpenConfirm} noValidate>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
                 <div>
-                  <label htmlFor="lock-date" className="block text-sm font-medium text-wood-700">
-                    Tanggal tutup
-                  </label>
-                  <input
+                  <Input
                     id="lock-date"
+                    label="Tanggal tutup"
                     type="date"
                     value={selectedDate}
                     onChange={handleDateChange}
                     max={tomorrowISO()}
                     disabled={disabled || createMutation.isPending}
-                    aria-invalid={!!dateError || undefined}
-                    aria-describedby={dateError ? "lock-date-error" : "lock-date-help"}
-                    className={cn(
-                      "mt-1 min-h-[44px] w-full rounded-md border bg-cream-50 px-3 py-2 text-sm text-wood-700",
-                      "focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200",
-                      "disabled:opacity-50",
-                      dateError ? "border-error" : "border-wood-200",
-                    )}
+                    error={dateError || undefined}
+                    helperText={dateError ? undefined : "Semua transaksi pada atau sebelum tanggal ini akan dikunci."}
                   />
-                  {dateError ? (
-                    <p id="lock-date-error" className="mt-1 text-xs text-error" role="alert">
-                      {dateError}
-                    </p>
-                  ) : (
-                    <p id="lock-date-help" className="mt-1 text-xs text-wood-500">
-                      Semua transaksi pada atau sebelum tanggal ini akan dikunci.
-                    </p>
-                  )}
                 </div>
                 <div>
-                  <label htmlFor="alasan-kunci" className="block text-sm font-medium text-wood-700">
-                    Alasan (opsional)
-                  </label>
-                  <textarea
+                  <Textarea
                     id="alasan-kunci"
+                    label="Alasan (opsional)"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     rows={3}
                     maxLength={500}
                     placeholder="Contoh: Tutup buku bulan Juni 2026"
                     disabled={disabled || createMutation.isPending}
-                    aria-describedby="alasan-kunci-help"
-                    className="mt-1 min-h-[80px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 placeholder:text-wood-500 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 disabled:opacity-50"
+                    helperText="Maksimal 500 karakter"
                   />
-                  <p id="alasan-kunci-help" className="mt-1 text-xs text-wood-500">
-                    Maksimal 500 karakter
-                  </p>
                 </div>
                 <Button
                   type="submit"

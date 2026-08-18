@@ -15,6 +15,7 @@ Licenses are reproduced below for compliance.
 | clsx | MIT | Conditional class name utility |
 | hono | MIT | Web framework for Cloudflare Workers |
 | lucide-react | ISC | Icon library |
+| pdf-lib | MIT | PDF generation for report exports |
 | react | MIT | UI library |
 | react-dom | MIT | React DOM renderer |
 | react-hook-form | MIT | Form library |

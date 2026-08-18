@@ -11,6 +11,7 @@ import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { refreshAllData } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatShortDate, cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
@@ -301,13 +302,10 @@ export function DashboardPage() {
                   </p>
                 </div>
                 {canCreateTransaction && (
-                  <Link
-                    to="/transactions/new"
-                    className="ledger-interactive inline-flex shrink-0 items-center gap-2 rounded-lg bg-wood-500 px-5 py-2.5 min-h-[44px] text-sm font-medium text-text-on-primary hover:bg-wood-600 active:scale-[0.98] transition"
-                  >
+                  <Button as={Link} to="/transactions/new" variant="primary">
                     <Plus className="h-4 w-4" />
                     Catat transaksi pertama
-                  </Link>
+                  </Button>
                 )}
               </CardContent>
             </Card>
