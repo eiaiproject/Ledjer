@@ -1,35 +1,5 @@
-import { apiDownload } from "@/lib/api/client";
+import { downloadExport, exportPath } from "@/lib/download";
 import type { TransactionStatus } from "@/lib/api/transactions";
-
-// ponytail: was 7 functions each accepting unused _organizationId. Params removed.
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function todayFilename(prefix: string): string {
-  const date = new Date();
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${prefix}_${yyyy}${mm}${dd}.csv`;
-}
-
-async function downloadCsv(path: string, fallbackFilename: string): Promise<void> {
-  const { blob, filename } = await apiDownload(path);
-  downloadBlob(blob, filename || fallbackFilename);
-}
-
-function withQuery(path: string, query: string): string {
-  return query ? `${path}?${query}` : path;
-}
 
 export async function exportTransactionsCsv(
   filters: {
@@ -46,38 +16,34 @@ export async function exportTransactionsCsv(
   if (filters.status) params.set("status", filters.status);
   if (filters.toDate) params.set("toDate", filters.toDate);
   if (filters.transactionType) params.set("transactionType", filters.transactionType);
-  const query = params.toString();
-  await downloadCsv(withQuery("/api/exports/transactions.csv", query), todayFilename("transaksi"));
+  await downloadExport(exportPath("/api/exports/transactions.csv", params), "transaksi", "csv");
 }
 
 export async function exportAccountsCsv(): Promise<void> {
-  await downloadCsv("/api/exports/accounts.csv", todayFilename("akun"));
+  await downloadExport("/api/exports/accounts.csv", "akun", "csv");
 }
 
 export async function exportProductsCsv(): Promise<void> {
-  await downloadCsv("/api/exports/products.csv", todayFilename("produk"));
+  await downloadExport("/api/exports/products.csv", "produk", "csv");
 }
 
 export async function exportTrialBalanceCsv(asOfDate?: string): Promise<void> {
   const params = new URLSearchParams();
   if (asOfDate) params.set("asOfDate", asOfDate);
-  const query = params.toString();
-  await downloadCsv(withQuery("/api/exports/reports/trial-balance.csv", query), todayFilename("neraca_saldo"));
+  await downloadExport(exportPath("/api/exports/reports/trial-balance.csv", params), "neraca_saldo", "csv");
 }
 
 export async function exportProfitLossCsv(fromDate?: string, toDate?: string): Promise<void> {
   const params = new URLSearchParams();
   if (fromDate) params.set("fromDate", fromDate);
   if (toDate) params.set("toDate", toDate);
-  const query = params.toString();
-  await downloadCsv(withQuery("/api/exports/reports/profit-loss.csv", query), todayFilename("laba_rugi"));
+  await downloadExport(exportPath("/api/exports/reports/profit-loss.csv", params), "laba_rugi", "csv");
 }
 
 export async function exportBalanceSheetCsv(asOfDate?: string): Promise<void> {
   const params = new URLSearchParams();
   if (asOfDate) params.set("asOfDate", asOfDate);
-  const query = params.toString();
-  await downloadCsv(withQuery("/api/exports/reports/balance-sheet.csv", query), todayFilename("neraca"));
+  await downloadExport(exportPath("/api/exports/reports/balance-sheet.csv", params), "neraca", "csv");
 }
 
 export async function exportGeneralLedgerCsv(
@@ -89,6 +55,5 @@ export async function exportGeneralLedgerCsv(
   if (accountId && accountId !== "all") params.set("accountId", accountId);
   if (fromDate) params.set("fromDate", fromDate);
   if (toDate) params.set("toDate", toDate);
-  const query = params.toString();
-  await downloadCsv(withQuery("/api/exports/reports/general-ledger.csv", query), todayFilename("buku_besar"));
+  await downloadExport(exportPath("/api/exports/reports/general-ledger.csv", params), "buku_besar", "csv");
 }
