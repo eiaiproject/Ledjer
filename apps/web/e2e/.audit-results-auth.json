@@ -115,7 +115,8 @@
         "8px/8px/0px/0px",
         "10px/10px/0px/0px",
         "0px/0px/0px/0px",
-        "0px/0px/0px/16px"
+        "0px/0px/0px/16px",
+        "12px/12px/0px/0px"
       ],
       "containerMaxWidth": "1280",
       "h1FontSize": "24px",
@@ -392,7 +393,8 @@
         "10px/10px/0px/0px",
         "0px/0px/0px/0px",
         "0px/0px/0px/16px",
-        "0px/0px/2px/0px"
+        "12px/12px/0px/0px",
+        "0px/0px/4px/0px"
       ],
       "containerMaxWidth": "1280",
       "h1FontSize": "24px",
@@ -405,6 +407,29 @@
       ],
       "headingOrder": [
         "h1",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
+        "h2",
         "h2",
         "h2",
         "h2",
@@ -474,8 +499,8 @@
       "inputsTotal": 1
     },
     "touchTargets": {
-      "total": 209,
-      "below44": 201,
+      "total": 301,
+      "below44": 293,
       "smallestW": 1,
       "smallestH": 1
     },
@@ -602,7 +627,7 @@
         "16px",
         "14px",
         "12px",
-        "20px",
+        "24px",
         "10px"
       ],
       "radii": [
@@ -621,7 +646,7 @@
         "0px/0px/0px/24px"
       ],
       "containerMaxWidth": "1280",
-      "h1FontSize": "20px",
+      "h1FontSize": "24px",
       "bodyFontSize": "16px"
     },
     "structure": {
@@ -831,7 +856,7 @@
       "inputsTotal": 3
     },
     "touchTargets": {
-      "total": 32,
+      "total": 33,
       "below44": 18,
       "smallestW": 1,
       "smallestH": 1
@@ -918,7 +943,7 @@
       "inputsTotal": 2
     },
     "touchTargets": {
-      "total": 23,
+      "total": 24,
       "below44": 19,
       "smallestW": 1,
       "smallestH": 1
@@ -1004,7 +1029,7 @@
       "inputsTotal": 3
     },
     "touchTargets": {
-      "total": 23,
+      "total": 24,
       "below44": 19,
       "smallestW": 0,
       "smallestH": 1
@@ -1090,7 +1115,7 @@
       "inputsTotal": 2
     },
     "touchTargets": {
-      "total": 24,
+      "total": 25,
       "below44": 20,
       "smallestW": 1,
       "smallestH": 1
