@@ -26,6 +26,8 @@ export const CORE_TABLES = [
   "invoices",
   "invoice_lines",
   "payment_allocations",
+  "admin_users",
+  "admin_sessions",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [

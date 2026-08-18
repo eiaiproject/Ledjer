@@ -6,6 +6,7 @@ Production operations documentation.
 |----------|---------|
 | [Monitoring](monitoring.md) | Error tracking, uptime monitoring, alerting setup |
 | [Incident Response](incident-response.md) | How to handle production incidents |
+| [Admin Dashboard](admin.md) | Internal ops dashboard (admin.ledjer.id) — deploy, provisioning, capabilities |
 
 ## Related Documents
 

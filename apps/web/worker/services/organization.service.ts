@@ -30,6 +30,7 @@ export interface PublicOrganization {
   base_currency: string;
   books_start_date: string;
   onboarding_status: string;
+  status: "active" | "disabled";
   created_by: string;
 }
 
@@ -84,6 +85,7 @@ interface OrganizationMemberRow {
   base_currency: string;
   books_start_date: string;
   onboarding_status: string;
+  organization_status: "active" | "disabled";
   created_by: string;
   member_id: string;
   user_id: string;
@@ -256,7 +258,7 @@ export function requirePermission(member: PublicOrganizationMember, permission: 
 }
 
 function organizationMemberSelect(): string {
-  return `SELECT o.id AS organization_id, o.name AS organization_name, o.business_type, o.base_currency, o.books_start_date, o.onboarding_status, o.created_by, m.id AS member_id, m.user_id, m.role, m.status FROM organization_members m JOIN organizations o ON o.id = m.organization_id`;
+  return `SELECT o.id AS organization_id, o.name AS organization_name, o.business_type, o.base_currency, o.books_start_date, o.onboarding_status, o.status AS organization_status, o.created_by, m.id AS member_id, m.user_id, m.role, m.status FROM organization_members m JOIN organizations o ON o.id = m.organization_id`;
 }
 
 function toContext(row: OrganizationMemberRow): OrganizationContext {
@@ -264,7 +266,7 @@ function toContext(row: OrganizationMemberRow): OrganizationContext {
     organization: {
       id: row.organization_id, name: row.organization_name, business_type: row.business_type,
       base_currency: row.base_currency, books_start_date: row.books_start_date,
-      onboarding_status: row.onboarding_status, created_by: row.created_by,
+      onboarding_status: row.onboarding_status, status: row.organization_status, created_by: row.created_by,
     },
     member: {
       id: row.member_id, organization_id: row.organization_id, user_id: row.user_id,

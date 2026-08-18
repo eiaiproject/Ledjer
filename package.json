@@ -34,7 +34,12 @@
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
     "docs:preview": "pnpm --filter docs preview",
-    "docs:deploy": "pnpm --filter docs deploy"
+    "docs:deploy": "pnpm --filter docs deploy",
+    "admin:dev": "pnpm --filter admin dev",
+    "admin:build": "pnpm --filter admin build",
+    "admin:deploy": "pnpm --filter admin deploy",
+    "admin:typecheck": "pnpm --filter admin typecheck",
+    "admin:lint": "pnpm --filter admin lint"
   },
   "keywords": ["accounting", "bookkeeping", "umkm", "indonesia", "double-entry", "cloudflare", "d1"],
   "author": "eiaiproject",

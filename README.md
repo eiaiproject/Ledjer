@@ -72,6 +72,14 @@ Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
 - **Onboarding** — wizard set-up awal (jenis bisnis, saldo awal, undangan tim)
 - **Rate limiting** — proteksi endpoint autentikasi
 
+### Admin Platform (Internal)
+- **Dashboard admin** — panel operasional internal di [admin.ledjer.id](https://admin.ledjer.id) dengan kredensial terpisah
+- **Kelola pengguna** — lihat semua akun, aktif/nonaktifkan, kirim reset password, hapus akun
+- **Kelola organisasi** — detail anggota & statistik, aktif/nonaktifkan organisasi (akses anggota diblokir saat nonaktif)
+- **Audit log global** — seluruh aktivitas lintas tenant termasuk aksi admin
+- **Monitoring** — jumlah pengguna/org/transaksi, registrasi per hari, health check aplikasi utama
+- **Kelola backup** — riwayat snapshot R2, verifikasi manifest, restore drill, backup manual
+
 ### Lokalisasi
 - **Indonesian-first** — UI dalam Bahasa Indonesia, mata uang IDR, konsep pajak yang familier bagi UMKM
 - **UMKM-ready** — mendukung jenis bisnis `simple_trading` (jual beli barang) dan `service` (jasa); tanpa perlu pengetahuan akuntansi
@@ -157,6 +165,15 @@ pnpm docs:deploy            # Deploy docs to Cloudflare
 
 # Deploy
 pnpm deploy                 # Build + deploy web to Cloudflare
+pnpm admin:build            # Build admin dashboard (admin.ledjer.id)
+pnpm admin:deploy           # Deploy admin dashboard to Cloudflare
+```
+
+### Provision admin akun
+
+```bash
+node scripts/create-admin.mjs <email> "<Nama Lengkap>" '<password>'   # production
+node scripts/create-admin.mjs <email> "<Nama Lengkap>" '<password>' --staging
 ```
 
 ---
@@ -178,6 +195,9 @@ apps/
       services/               Domain logic & business rules
       middleware/             Auth, CSRF, org-scoping, error handling
     e2e/                      Playwright end-to-end tests
+  admin/                      Admin dashboard (admin.ledjer.id) — internal ops
+    src/                      React application (Vite)
+    worker/                   Admin Worker API (same D1, platform-wide)
   docs/                       VitePress documentation site (docs.ledjer.id)
     docs/                     Markdown content & theme
     worker/                   Docs worker (Cloudflare)

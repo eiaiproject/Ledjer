@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  /* Wood — primary brand */
+  --color-wood-50:  #FAF6F1;
+  --color-wood-100: #F2E8DC;
+  --color-wood-200: #E4D0BA;
+  --color-wood-300: #C9A787;
+  --color-wood-400: #A87B52;
+  --color-wood-500: #8B5A3C;
+  --color-wood-600: #6F4530;
+  --color-wood-700: #533525;
+  --color-wood-800: #3A2620;
+  --color-wood-900: #2A1B17;
+
+  /* Leaf — success */
+  --color-leaf-50:  #F1F6EC;
+  --color-leaf-100: #DDEACF;
+  --color-leaf-200: #B8D29C;
+  --color-leaf-500: #6B8E4E;
+  --color-leaf-600: #54733D;
+  --color-leaf-700: #3F5A2E;
+
+  /* Cream — surfaces */
+  --color-cream-50:  #FDFBF6;
+  --color-cream-100: #F9F4EB;
+  --color-cream-200: #F0E8D8;
+  --color-cream-300: #E5D9C2;
+
+  /* Clay — warnings */
+  --color-clay-50:  #FBF0E8;
+  --color-clay-100: #F5DCC9;
+  --color-clay-200: #E9BCA1;
+  --color-clay-500: #B05A3A;
+  --color-clay-600: #8E4528;
+  --color-clay-700: #6E341E;
+
+  /* Sky — info */
+  --color-sky-50:  #EDF2F7;
+  --color-sky-100: #D6E2EE;
+  --color-sky-200: #B0C6DD;
+  --color-sky-500: #4F7A9A;
+  --color-sky-600: #3D5F7A;
+  --color-sky-700: #2E4A60;
+
+  /* Semantic aliases */
+  --color-success: var(--color-leaf-600);
+  --color-success-bg: var(--color-leaf-50);
+  --color-warning: var(--color-clay-600);
+  --color-warning-bg: var(--color-clay-50);
+  --color-error: #A12D1E;
+  --color-error-bg: #FAEBE5;
+  --color-info: var(--color-sky-600);
+  --color-info-bg: var(--color-sky-50);
+
+  --color-background: var(--color-cream-100);
+  --color-surface: var(--color-cream-50);
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-inverse: var(--color-wood-700);
+
+  --color-border: var(--color-wood-200);
+  --color-border-strong: var(--color-wood-300);
+  --color-border-subtle: var(--color-wood-100);
+
+  --color-text-primary: var(--color-wood-900);
+  --color-text-secondary: var(--color-wood-700);
+  --color-text-tertiary: var(--color-wood-500);
+  --color-text-on-primary: var(--color-cream-50);
+  --color-text-on-dark: var(--color-cream-50);
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-wood-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-cream-200);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-wood-300);
+  border-radius: var(--radius-full);
+}
