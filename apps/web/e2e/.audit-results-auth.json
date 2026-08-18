@@ -42,7 +42,6 @@
       "headingOrder": [
         "h1",
         "h2",
-        "h2",
         "h2"
       ],
       "landmarks": {
@@ -66,7 +65,7 @@
       "inputsTotal": 0
     },
     "touchTargets": {
-      "total": 32,
+      "total": 29,
       "below44": 17,
       "smallestW": 1,
       "smallestH": 1
@@ -93,14 +92,14 @@
     "title": "Aplikasi Ledjer",
     "tokens": {
       "fontFamilies": [
-        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif",
-        "\"JetBrains Mono\", \"Fira Code\", ui-monospace, monospace"
+        "\"Plus Jakarta Sans\", system-ui, -apple-system, sans-serif"
       ],
       "fontSizes": [
         "16px",
         "14px",
         "12px",
-        "24px"
+        "24px",
+        "10px"
       ],
       "radii": [
         "0px",
@@ -134,7 +133,7 @@
       "landmarks": {
         "header": 0,
         "main": 1,
-        "nav": 4,
+        "nav": 3,
         "footer": 0
       }
     },
@@ -152,8 +151,8 @@
       "inputsTotal": 5
     },
     "touchTargets": {
-      "total": 43,
-      "below44": 37,
+      "total": 15,
+      "below44": 13,
       "smallestW": 1,
       "smallestH": 1
     },
@@ -276,7 +275,8 @@
         "16px",
         "14px",
         "12px",
-        "24px"
+        "24px",
+        "10px"
       ],
       "radii": [
         "0px",
@@ -290,8 +290,7 @@
       "spacings": [
         "8px/8px/0px/0px",
         "10px/10px/0px/0px",
-        "0px/0px/0px/0px",
-        "0px/0px/0px/16px"
+        "0px/0px/0px/0px"
       ],
       "containerMaxWidth": "1280",
       "h1FontSize": "24px",
@@ -303,19 +302,7 @@
         "Akun"
       ],
       "headingOrder": [
-        "h1",
-        "h2",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3",
-        "h3"
+        "h1"
       ],
       "landmarks": {
         "header": 0,
@@ -335,11 +322,11 @@
       "formCount": 0,
       "inputsWithoutLabel": 0,
       "inputsWithAutocomplete": 0,
-      "inputsTotal": 1
+      "inputsTotal": 0
     },
     "touchTargets": {
-      "total": 34,
-      "below44": 28,
+      "total": 17,
+      "below44": 15,
       "smallestW": 1,
       "smallestH": 1
     },
@@ -350,12 +337,7 @@
         "ratio": 15.12,
         "passes": true
       },
-      "cta": {
-        "fg": "rgb(253, 251, 246)",
-        "bg": "rgb(139, 90, 60)",
-        "ratio": 5.6,
-        "passes": true
-      }
+      "cta": null
     },
     "whitespace": {
       "bodyPaddingTop": 0,
@@ -476,6 +458,7 @@
         "h2",
         "h2",
         "h2",
+        "h2",
         "h2"
       ],
       "landmarks": {
@@ -499,8 +482,8 @@
       "inputsTotal": 1
     },
     "touchTargets": {
-      "total": 301,
-      "below44": 293,
+      "total": 305,
+      "below44": 297,
       "smallestW": 1,
       "smallestH": 1
     },
@@ -589,7 +572,7 @@
       "inputsTotal": 0
     },
     "touchTargets": {
-      "total": 22,
+      "total": 20,
       "below44": 17,
       "smallestW": 1,
       "smallestH": 1
@@ -771,8 +754,8 @@
       "inputsTotal": 0
     },
     "touchTargets": {
-      "total": 26,
-      "below44": 24,
+      "total": 22,
+      "below44": 20,
       "smallestW": 1,
       "smallestH": 1
     },
