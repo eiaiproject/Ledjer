@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Search, Filter, ChevronDown, ChevronUp, XCircle } from "reicon-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
@@ -29,6 +29,10 @@ export interface PageToolbarProps {
   readonly onSearchChange: (value: string) => void;
   readonly searchPlaceholder?: string;
   readonly searchLabel?: string;
+  /** Custom id for the search input (default "toolbar-search") — lets pages keep stable ids for tests/a11y. */
+  readonly searchInputId?: string;
+  /** Extra aria-describedby ids for the search input (e.g. a results-count live region). */
+  readonly searchAriaDescribedBy?: string;
   readonly filters?: readonly ToolbarFilter[];
   readonly onResetFilters?: () => void;
   readonly onResetSearch?: () => void;
@@ -50,6 +54,8 @@ export function PageToolbar({
   onSearchChange,
   searchPlaceholder = "Cari...",
   searchLabel = "Cari",
+  searchInputId,
+  searchAriaDescribedBy,
   filters,
   onResetFilters,
   onResetSearch,
@@ -58,6 +64,7 @@ export function PageToolbar({
   className,
 }: PageToolbarProps) {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const activeFilters = filters?.filter((f) => f.active) ?? [];
   const hasSearch = searchValue.trim().length > 0;
   const hasActiveFilters = activeFilters.length > 0;
@@ -68,20 +75,25 @@ export function PageToolbar({
       {/* Search row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <label className="sr-only" htmlFor="toolbar-search">{searchLabel}</label>
+          <label className="sr-only" htmlFor={searchInputId ?? "toolbar-search"}>{searchLabel}</label>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
           <input
-            id="toolbar-search"
+            ref={searchRef}
+            id={searchInputId ?? "toolbar-search"}
             type="search"
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
+            aria-describedby={searchAriaDescribedBy}
             className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-10 text-sm text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:h-10 sm:min-h-0"
           />
           {hasSearch && (
             <button
               type="button"
-              onClick={onResetSearch}
+              onClick={() => {
+                onResetSearch?.();
+                searchRef.current?.focus();
+              }}
               className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px]"
               aria-label="Hapus pencarian"
             >
@@ -119,8 +131,8 @@ export function PageToolbar({
           <div
             id="toolbar-filters-panel"
             className={cn(
-              "overflow-hidden transition-all duration-200 sm:block",
-              filtersExpanded ? "block" : "hidden"
+              "overflow-hidden transition-all duration-200",
+              filtersExpanded ? "block" : "hidden sm:block"
             )}
           >
             <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-t border-wood-100 p-4 sm:border-0 sm:p-0 md:grid-cols-2 xl:grid-cols-12 xl:items-start">

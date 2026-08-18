@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/notifications";
 import { Bell, Trash2, Eye, AlertTriangle, Clock, Package, Lock, Ban, Refresh, Upload, Download, Shield, Check } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { Button } from "@/components/ui/button";
 import { PageGuide } from "@/components/ui/page-guide";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 
@@ -234,28 +235,27 @@ export function NotificationsPage() {
           : "Semua notifikasi sudah dibaca",
         actions: unreadCount > 0 ? [
           { key: "mark-read", children: (
-            <button type="button"
+            <Button type="button" variant="outline" size="sm"
               onClick={() => markAllReadMutation.mutate()}
               disabled={markAllReadMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-wood-200 px-3 py-2 text-xs font-medium text-wood-700 transition-all hover:bg-wood-50"
             >
               <Check className="h-3.5 w-3.5" />
               Baca Semua
-            </button>
+            </Button>
           ) },
           { key: "dismiss", children: (
-            <button type="button"
+            <Button type="button" variant="outline" size="sm"
+              className="border-error-border text-error hover:bg-error-bg"
               onClick={() => {
                 if (window.confirm(`Hapus semua ${unreadCount} notifikasi?`)) {
                   dismissAllMutation.mutate();
                 }
               }}
               disabled={dismissAllMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-error-border px-3 py-2 text-xs font-medium text-error transition-all hover:bg-error-bg"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Hapus Semua
-            </button>
+            </Button>
           ) },
         ] : undefined,
       }}

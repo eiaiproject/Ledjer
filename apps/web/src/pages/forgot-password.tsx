@@ -5,6 +5,7 @@ import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Envelope, CheckCircle } from "reicon-react";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
@@ -158,12 +159,9 @@ export function ForgotPasswordPage() {
 
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
                 {error && (
-                  <div
-                    className="rounded-lg bg-error/10 p-3 text-sm text-error"
-                    role="alert"
-                  >
+                  <Callout variant="error">
                     {error}
-                  </div>
+                  </Callout>
                 )}
 
                 <Input

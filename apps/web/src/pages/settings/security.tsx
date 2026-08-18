@@ -5,6 +5,7 @@ import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { deleteAccount } from "@/lib/api/auth";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,6 @@ import {
   History,
   ShieldCheck,
   InfoCircle,
-  XCircle,
   AlertTriangle,
 } from "reicon-react";
 
@@ -204,12 +204,9 @@ export function SecuritySettingsPage() {
     }
     if (auditError) {
       return (
-        <div className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-4">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
-          <p className="text-sm text-error">
-            Gagal memuat aktivitas. Coba lagi nanti.
-          </p>
-        </div>
+        <Callout variant="error">
+          Gagal memuat aktivitas. Coba lagi nanti.
+        </Callout>
       );
     }
     if (auditLogs.length === 0) {
@@ -328,10 +325,9 @@ export function SecuritySettingsPage() {
               />
 
               {passwordError && (
-                <div className="flex items-start gap-2 rounded-md border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
-                  <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>{passwordError}</span>
-                </div>
+                <Callout variant="error">
+                  {passwordError}
+                </Callout>
               )}
 
               <div className="flex justify-end">
@@ -420,10 +416,9 @@ export function SecuritySettingsPage() {
             />
           </div>
           {deleteError && (
-            <div className="mt-2 flex items-start gap-2 rounded-md border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
-              <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>{deleteError}</span>
-            </div>
+            <Callout variant="error" className="mt-2">
+              {deleteError}
+            </Callout>
           )}
         </ModalContent>
         <ModalFooter>

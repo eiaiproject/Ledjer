@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgPermissions } from "@/hooks/useOrganization";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -322,7 +323,7 @@ export function ManualJournalPage() {
                 id="journalEntryType"
                 value={entryType}
                 onChange={(e) => { setEntryType(e.target.value); invalidatePreview(); }}
-                className="mt-1 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
+                className="mt-1 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
               >
                 <option value="manual_journal">Jurnal Manual</option>
                 <option value="adjustment">Jurnal Penyesuaian</option>
@@ -366,7 +367,7 @@ export function ManualJournalPage() {
                 <select
                   value={line.accountId}
                   onChange={(e) => handleLineChange(line.id, "accountId", e.target.value)}
-                  className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
+                  className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-xs text-wood-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
                   aria-label={`Akun baris ${index + 1}`}
                 >
                   <option value="">Pilih akun...</option>
@@ -398,7 +399,7 @@ export function ManualJournalPage() {
                   inputMode="numeric"
                   value={line.debitMinor ? formatAmountInput(line.debitMinor, true) : ""}
                   onChange={(e) => handleLineChange(line.id, "debitMinor", parseAmountInput(e.target.value, 0) ?? 0)}
-                  className="num-mono min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
+                  className="num-mono min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Debit baris ${index + 1}`}
                 />
@@ -409,7 +410,7 @@ export function ManualJournalPage() {
                   inputMode="numeric"
                   value={line.creditMinor ? formatAmountInput(line.creditMinor, true) : ""}
                   onChange={(e) => handleLineChange(line.id, "creditMinor", parseAmountInput(e.target.value, 0) ?? 0)}
-                  className="num-mono min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus:border-wood-500 focus:outline-none focus:ring-2 focus:ring-wood-200 sm:min-h-0"
+                  className="num-mono min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-right text-xs text-wood-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
                   placeholder="0"
                   aria-label={`Kredit baris ${index + 1}`}
                 />
@@ -446,9 +447,8 @@ export function ManualJournalPage() {
 
           {/* Preview section */}
           {preview && (
-            <div className="rounded-md border border-leaf-200 bg-leaf-50 p-3">
-              <p className="mb-2 text-sm font-medium text-leaf-800">Preview Jurnal</p>
-              <div className="space-y-1 text-xs text-leaf-800">
+            <Callout variant="success" title="Preview Jurnal" className="p-3">
+              <div className="space-y-1 text-xs">
                 {preview.lines.map((line, i) => (
                   <div key={line.accountCode + "-" + i} className="flex justify-between">
                     <span>
@@ -472,7 +472,7 @@ export function ManualJournalPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </Callout>
           )}
 
           {/* Status panduan inline — selalu terlihat */}

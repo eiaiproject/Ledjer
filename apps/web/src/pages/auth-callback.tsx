@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { translateError } from "@/lib/errors";
@@ -140,12 +141,9 @@ export function AuthCallbackPage() {
             {status === "error" && (
               <div className="mt-6 space-y-4">
                 {errorMessage && (
-                  <div
-                    className="rounded-lg bg-error/10 p-3 text-sm text-error"
-                    role="alert"
-                  >
+                  <Callout variant="error">
                     {errorMessage}
-                  </div>
+                  </Callout>
                 )}
 
                 <Link

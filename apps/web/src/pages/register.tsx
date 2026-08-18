@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { passwordSchema } from "@/lib/validations/auth";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
@@ -133,14 +134,14 @@ export function RegisterPage() {
         </div>
 
         {resendMessage && (
-          <output className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success">
+          <Callout variant="success" className="mt-4">
             {resendMessage}
-          </output>
+          </Callout>
         )}
         {resendError && (
-          <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+          <Callout variant="error" className="mt-4">
             {resendError}
-          </div>
+          </Callout>
         )}
 
         <div className="mt-6 space-y-2">
@@ -187,9 +188,9 @@ export function RegisterPage() {
         </p>
 
         {error && (
-          <div className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error" role="alert">
+          <Callout variant="error" className="mt-4">
             {error}
-          </div>
+          </Callout>
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">

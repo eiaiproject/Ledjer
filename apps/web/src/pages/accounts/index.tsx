@@ -9,7 +9,6 @@ import {
   Wallet,
   Bank,
   CreditCard,
-  AlertCircle,
   Qr,
   Plus,
   Download,
@@ -28,7 +27,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { PageGuide } from "@/components/ui/page-guide";
+import { PageToolbar } from "@/components/ui/page-toolbar";
 import { FieldHelp } from "@/components/ui/help-tooltip";
 import { exportAccountsCsv } from "@/lib/csv-export";
 import {
@@ -285,32 +287,18 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
           </div>
 
           <div>
-            <label htmlFor="account-name" className="mb-1.5 block text-sm font-medium text-text-secondary">
-              Nama akun
-            </label>
-            <input
+            <Input
               ref={inputRef}
               id="account-name"
-              type="text"
+              label="Nama akun"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(""); }}
               onKeyDown={handleKeyDown}
               placeholder={selectedMeta?.placeholder}
               maxLength={60}
               disabled={createMutation.isPending}
-              className={cn(
-                "h-11 min-h-[44px] w-full rounded-md border bg-surface px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0",
-                error ? "border-error" : "border-wood-200"
-              )}
-              aria-invalid={!!error || undefined}
-              aria-describedby={error ? "account-name-error" : undefined}
+              error={error || undefined}
             />
-            {error && (
-              <p id="account-name-error" className="mt-1.5 flex items-center gap-1 text-xs text-error" role="alert">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                {error}
-              </p>
-            )}
           </div>
 
           <div>
@@ -420,31 +408,17 @@ function EditAccountModal({ open, account, onClose, onSuccess }: EditAccountModa
       <ModalContent>
         <div className="space-y-4">
           <div>
-            <label htmlFor="edit-name" className="mb-1.5 block text-sm font-medium text-text-secondary">
-              Nama akun
-            </label>
-            <input
+            <Input
               ref={inputRef}
               id="edit-name"
-              type="text"
+              label="Nama akun"
               value={name}
               onChange={(e) => { setName(e.target.value); setError(""); }}
               onKeyDown={handleKeyDown}
               maxLength={60}
               disabled={updateMutation.isPending}
-              className={cn(
-                "h-11 min-h-[44px] w-full rounded-md border bg-surface px-3 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0",
-                error ? "border-error" : "border-wood-200"
-              )}
-              aria-invalid={!!error || undefined}
-              aria-describedby={error ? "edit-name-error" : undefined}
+              error={error || undefined}
             />
-            {error && (
-              <p id="edit-name-error" className="mt-1.5 flex items-center gap-1 text-xs text-error" role="alert">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                {error}
-              </p>
-            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -505,7 +479,7 @@ function CashBankCard({ account, onEdit, canEdit }: CashBankCardProps) {
   const Icon = meta.icon;
 
   return (
-    <div className="rounded-xl border border-wood-200 bg-surface-elevated p-4">
+    <Card elevated className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", meta.bgClass, meta.iconClass)}>
@@ -535,7 +509,7 @@ function CashBankCard({ account, onEdit, canEdit }: CashBankCardProps) {
       <div className="mt-3 flex items-center gap-2">
         <AccountStatusBadge account={account} />
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -569,9 +543,10 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
         const isExpanded = expandedTypes.includes(group.type);
 
         return (
-          <section
+          <Card
             key={group.type}
-            className="overflow-hidden rounded-xl border border-wood-200 bg-surface-elevated"
+            elevated
+            className="overflow-hidden"
           >
             <button               type="button"
               onClick={() => toggleType(group.type)}
@@ -664,7 +639,7 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
                 </div>
               </div>
             )}
-          </section>
+          </Card>
         );
       })}
     </div>
@@ -685,8 +660,6 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchLabelId = useId();
   const tablistLabelId = useId();
 
   const { data: accounts, isLoading, error, refetch } = useQuery({
@@ -727,7 +700,6 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
 
   const handleClearSearch = useCallback(() => {
     setSearch("");
-    searchInputRef.current?.focus();
   }, []);
 
   const handleExport = useCallback(async () => {
@@ -862,32 +834,15 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
       <PageGuide guideKey="accounts" />
 
       {/* Search */}
-      <div className="relative">
-        <label htmlFor="account-search" className="sr-only" id={searchLabelId}>
-          Cari akun
-        </label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-        <input
-          ref={searchInputRef}
-          id="account-search"
-          type="text"
-          placeholder="Cari nama atau kode akun..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-labelledby={searchLabelId}
-          aria-describedby={hasSearch ? "search-results-count" : undefined}
-          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
-        />
-        {hasSearch && (
-          <button             type="button"
-            onClick={handleClearSearch}
-            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Hapus pencarian"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <PageToolbar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Cari nama atau kode akun..."
+        searchLabel="Cari akun"
+        searchInputId="account-search"
+        searchAriaDescribedBy={hasSearch ? "search-results-count" : undefined}
+        onResetSearch={handleClearSearch}
+      />
 
       {/* Tabs — proper tablist semantics */}
       <div

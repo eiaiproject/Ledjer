@@ -8,6 +8,7 @@ import { buildRedirectSearch } from "@/lib/redirect";
 import { translateError } from "@/lib/errors";
 import { acceptTeamInvitation } from "@/lib/api/team";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
@@ -157,9 +158,9 @@ export function AcceptInvitationPage() {
                   </p>
 
                   {status === "error" && error && (
-                    <div className="mt-5 w-full rounded-lg bg-error/10 p-3 text-left text-sm text-error" role="alert">
+                    <Callout variant="error" className="mt-5 w-full text-left">
                       {error}
-                    </div>
+                    </Callout>
                   )}
 
                   <Button

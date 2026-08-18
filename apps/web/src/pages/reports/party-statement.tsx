@@ -82,8 +82,8 @@ export default function PartyStatementPage() {
     <div className="mx-auto max-w-4xl space-y-6 p-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-wood-800">{data.partyName}</h1>
-          <p className="text-sm text-wood-500">
+          <h1 className="text-2xl font-bold text-text-primary break-words">{data.partyName}</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             {data.invoices.length} faktur — Total outstanding: {formatIDR(data.totalOutstanding / 100)}
           </p>
           <FieldHelp topic="party_statement" label="Riwayat lengkap transaksi dengan pihak ini" />

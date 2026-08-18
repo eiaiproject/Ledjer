@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { ErrorState } from "@/components/ui/error-state";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
@@ -112,12 +114,10 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
             </div>
           </div>
           <div>
-            <label htmlFor="recRawLines" className="mb-1 block text-xs font-medium text-wood-600">
-              Data Statement (CSV: tanggal,deskripsi,amount)
-            </label>
-            <textarea
+            <Textarea
               id="recRawLines"
-              className="w-full rounded-md border border-wood-200 bg-white px-3 py-2 text-sm font-mono min-h-[120px]"
+              label="Data Statement (CSV: tanggal,deskripsi,amount)"
+              className="font-mono min-h-[120px]"
               value={rawLines}
               onChange={(e) => setRawLines(e.target.value)}
               placeholder={"2026-02-01,Setoran Tunai,500000\n2026-02-05,Pembayaran Listrik,-150000"}
@@ -129,27 +129,19 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
 
           {/* Duplicate warnings */}
           {importResult?.warnings && importResult.warnings.length > 0 && (
-            <div className="rounded-md bg-warning-bg border border-warning-border p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-warning mb-1">
-                <AlertTriangle className="h-4 w-4" />
-                Peringatan
-              </div>
-              <ul className="list-disc list-inside text-xs text-warning space-y-0.5">
+            <Callout variant="warning" title="Peringatan">
+              <ul className="list-disc list-inside text-xs space-y-0.5">
                 {importResult.warnings.map((w, i) => <li key={w + "-" + i}>{w}</li>)}
               </ul>
-            </div>
+            </Callout>
           )}
 
           {importResult?.duplicatedLines && importResult.duplicatedLines.length > 0 && (
-            <div className="rounded-md bg-warning-bg border border-warning-border p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-warning mb-1">
-                <AlertTriangle className="h-4 w-4" />
-                Kemungkinan Duplikat Baris
-              </div>
-              <ul className="list-disc list-inside text-xs text-warning space-y-0.5">
+            <Callout variant="warning" title="Kemungkinan Duplikat Baris">
+              <ul className="list-disc list-inside text-xs space-y-0.5">
                 {importResult.duplicatedLines.map((d, i) => <li key={d.line + "-" + i}>{d.reason}</li>)}
               </ul>
-            </div>
+            </Callout>
           )}
 
           {error && <ErrorState message={error} />}

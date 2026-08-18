@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { PageGuide } from "@/components/ui/page-guide";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface ReportShellProps {
   /** Judul laporan (h1) */
@@ -142,13 +143,9 @@ export function ReportErrorState({
           <div className="flex flex-col items-center gap-3 text-center">
             <p className="text-sm text-clay-600">{message}</p>
             {onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                className="rounded-lg bg-wood-500 px-4 py-2 text-sm font-medium text-white hover:bg-wood-600 transition-colors"
-              >
+              <Button type="button" variant="primary" onClick={onRetry}>
                 Coba lagi
-              </button>
+              </Button>
             )}
           </div>
         </CardContent>

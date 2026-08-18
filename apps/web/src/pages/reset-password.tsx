@@ -7,6 +7,7 @@ import { Lock } from "reicon-react";
 import { useAuth } from "@/contexts/auth-context";
 import { passwordSchema } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
@@ -105,21 +106,16 @@ export function ResetPasswordPage() {
             </p>
 
             {success && (
-              <output
-                className="mt-6 rounded-lg bg-success/10 p-3 text-sm text-success"
-              >
+              <Callout variant="success" className="mt-6">
                 Password berhasil diperbarui. Mengarahkan ke halaman masuk…
-              </output>
+              </Callout>
             )}
             {!success && !session && (
               <div className="mt-6 space-y-4">
-                <div
-                  className="rounded-lg bg-warning/10 p-3 text-sm text-warning"
-                  role="alert"
-                >
+                <Callout variant="warning">
                   Tautan pemulihan tidak valid atau sudah kedaluwarsa. Minta
                   tautan baru dari halaman masuk.
-                </div>
+                </Callout>
                 <Button
                   type="button"
                   fullWidth
@@ -132,12 +128,9 @@ export function ResetPasswordPage() {
             {!success && session && (
               <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
                 {error && (
-                  <div
-                    className="rounded-lg bg-error/10 p-3 text-sm text-error"
-                    role="alert"
-                  >
+                  <Callout variant="error">
                     {error}
-                  </div>
+                  </Callout>
                 )}
 
                 <div>

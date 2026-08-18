@@ -304,7 +304,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
     >
 
       {/* Filter summary + toggle */}
-      <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
+      <Card elevated className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-text-tertiary">Periode</p>
@@ -348,7 +348,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
               aria-invalid={dateRangeInvalid || undefined} />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Invalid date range */}
       {dateRangeInvalid && (

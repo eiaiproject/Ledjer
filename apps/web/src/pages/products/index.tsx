@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Package, Edit2, Trash2, Search, Download, AlertTriangle, Check, X } from "reicon-react";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
@@ -6,6 +6,8 @@ import { refreshAllData } from "@/lib/query-client";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { cn, formatDecimalIDR, formatQuantity, parseSignedDecimalInput } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,7 @@ import { translateError } from "@/lib/errors";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
 import { PageGuide } from "@/components/ui/page-guide";
+import { PageToolbar } from "@/components/ui/page-toolbar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { exportProductsCsv } from "@/lib/csv-export";
 import {
@@ -301,7 +304,7 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
             helperText="Alasan wajib diisi untuk audit trail"
           />
           {error && (
-            <div className="rounded-md bg-error/10 p-3 text-sm text-error" role="alert">{error}</div>
+            <Callout variant="error">{error}</Callout>
           )}
         </div>
       </ModalContent>
@@ -400,7 +403,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
                 disabled={loading}
               />
               {error && (
-                <div className="rounded-md bg-error/10 p-3 text-sm text-error" role="alert">{error}</div>
+                <Callout variant="error">{error}</Callout>
               )}
             </>
           ) : (
@@ -447,12 +450,11 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
   );
 }
 
-function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchInputRef, hasSearch, hasFilter, stockCounts, filterGroupId, onClearSearch, onResetAll, allProducts, filterLabels, filterValues }: {
+function ProductFilter({ search, setSearch, stockFilter, setStockFilter, hasSearch, hasFilter, stockCounts, filterGroupId, onClearSearch, onResetAll, allProducts, filterLabels, filterValues }: {
   readonly search: string;
   readonly setSearch: (v: string) => void;
   readonly stockFilter: StockFilter;
   readonly setStockFilter: (v: StockFilter) => void;
-  readonly searchInputRef: React.RefObject<HTMLInputElement | null>;
   readonly hasSearch: boolean;
   readonly hasFilter: boolean;
   readonly stockCounts: Record<StockFilter, number>;
@@ -464,42 +466,40 @@ function ProductFilter({ search, setSearch, stockFilter, setStockFilter, searchI
   readonly filterValues: StockFilter[];
 }) {
   return (
-    <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
-      <div className="relative">
-        <label htmlFor="product-search" className="sr-only">Cari produk</label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-        <input ref={searchInputRef} id="product-search" type="search" placeholder="Cari kode atau nama produk..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0" />
-        {hasSearch && (
-          <button type="button" onClick={onClearSearch}
-            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Hapus pencarian">
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      <fieldset id={filterGroupId} className="mt-3 border-0 p-0 m-0">
-        <legend className="sr-only">Filter status stok</legend>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-          {filterValues.map((f) => (
-            <Button key={f} type="button"
-              variant={stockFilter === f ? "primary" : "outline"} size="sm"
-              onClick={() => setStockFilter(f)}
-              aria-pressed={stockFilter === f}>
-              {filterLabels[f]}{allProducts.length > 0 && f !== "all" ? ` (${stockCounts[f]})` : ""}
-            </Button>
-          ))}
-        </div>
-      </fieldset>
-      {(hasSearch || hasFilter) && (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-wood-100 pt-3">
-          {hasSearch && <Button type="button" variant="outline" size="sm" onClick={onClearSearch}>Hapus pencarian</Button>}
-          {hasFilter && <Button type="button" variant="outline" size="sm" onClick={() => setStockFilter("all")}>Tampilkan semua stok</Button>}
-          {hasSearch && hasFilter && <Button type="button" variant="outline" size="sm" onClick={onResetAll}>Reset pencarian dan filter</Button>}
-        </div>
-      )}
-    </div>
+    <PageToolbar
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Cari kode atau nama produk..."
+      searchLabel="Cari produk"
+      searchInputId="product-search"
+      onResetSearch={onClearSearch}
+      onResetFilters={hasFilter ? () => setStockFilter("all") : undefined}
+      onResetAll={hasSearch && hasFilter ? onResetAll : undefined}
+      filters={[
+        {
+          key: "stock",
+          label: "Status stok",
+          active: hasFilter,
+          span: 4,
+          onClear: () => setStockFilter("all"),
+          children: (
+            <fieldset id={filterGroupId} className="mt-3 border-0 p-0 m-0">
+              <legend className="sr-only">Filter status stok</legend>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+                {filterValues.map((f) => (
+                  <Button key={f} type="button"
+                    variant={stockFilter === f ? "primary" : "outline"} size="sm"
+                    onClick={() => setStockFilter(f)}
+                    aria-pressed={stockFilter === f}>
+                    {filterLabels[f]}{allProducts.length > 0 && f !== "all" ? ` (${stockCounts[f]})` : ""}
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -622,7 +622,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
           too narrow for the wide table, i.e. sidebar expanded on smaller
           desktops. Uses @6xl: container queries (not viewport lg:) so
           collapsed vs expanded sidebar both render cleanly. */}
-      <div className="divide-y divide-wood-100 rounded-xl border border-wood-200 bg-surface-elevated @6xl:hidden">
+      <Card elevated className="divide-y divide-wood-100 @6xl:hidden">
         {filteredProducts.map((product) => (
           <div key={product.id} className="px-4 py-4">
             {/* Header: kode, nama, deskripsi + badge status */}
@@ -672,11 +672,11 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
             )}
           </div>
         ))}
-      </div>
+      </Card>
 
       {/* Desktop: Table — ledger-scroll-x keeps the table identical when the
           sidebar expands and narrows the content area (no clipping/squeezing) */}
-      <div className="hidden @6xl:block rounded-xl border border-wood-200 bg-surface-elevated overflow-hidden">
+      <Card elevated className="hidden @6xl:block overflow-hidden">
         <div className="ledger-scroll-x">
         <table className="w-full min-w-[1024px] text-sm">
           <caption className="sr-only">Daftar produk</caption>
@@ -740,7 +740,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
           </tbody>
         </table>
         </div>
-      </div>
+      </Card>
     </>
   );
 }
@@ -816,7 +816,6 @@ export function ProductsPage() {
   const [stockCountModalOpen, setStockCountModalOpen] = useState(false);
   const [stockCountProduct, setStockCountProduct] = useState<Product | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const filterGroupId = useId();
 
   const { loading, setLoading, saveMutation, deleteMutation } = useProductMutations({
@@ -930,7 +929,7 @@ export function ProductsPage() {
       <ProductFilter
         search={search} setSearch={setSearch}
         stockFilter={stockFilter} setStockFilter={setStockFilter}
-        searchInputRef={searchInputRef} hasSearch={hasSearch} hasFilter={hasFilter}
+        hasSearch={hasSearch} hasFilter={hasFilter}
         stockCounts={stockCounts} filterGroupId={filterGroupId}
         onClearSearch={handleClearSearch} onResetAll={handleResetAll}
         allProducts={allProducts} filterLabels={filterLabels} filterValues={filterValues}

@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/ui/error-state";
 import { AttachmentSection } from "@/components/attachment-section";
 import { PageGuide } from "@/components/ui/page-guide";
+import { Callout } from "@/components/ui/callout";
+import { Select } from "@/components/ui/select";
 import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
@@ -136,9 +138,8 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
           Batalkan Transaksi
         </Button>
       ) : !voidSuccessId ? ( // NOSONAR typescript:S3358 — nested ternary for void form states
-        <div className="rounded-lg border border-error/30 bg-error/10 p-4">
-          <h3 className="text-sm font-medium text-error">Pembatalan Transaksi</h3>
-          <p className="mt-1 text-xs text-error">
+        <Callout variant="error" title="Pembatalan Transaksi" className="p-4">
+          <p className="text-xs">
             Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
           </p>
           <Textarea
@@ -168,16 +169,10 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
               Batalkan
             </Button>
           </div>
-        </div>
+        </Callout>
       ) : (
-        <div className="rounded-lg border border-leaf-200 bg-leaf-50 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-leaf-700">
-            <svg className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-            </svg>
-            Transaksi berhasil dibatalkan
-          </div>
-          <p className="mt-1 text-xs text-leaf-600">
+        <Callout variant="success" title="Transaksi berhasil dibatalkan" className="p-4">
+          <p className="text-xs">
             Jurnal reversal dan stok telah dikembalikan seperti sebelum transaksi.
           </p>
           <div className="mt-3 flex gap-2">
@@ -196,7 +191,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
               Tutup
             </Button>
           </div>
-        </div>
+        </Callout>
       )}
     </div>
   ) : null;
@@ -320,25 +315,23 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
               Lunasi Sisa Tagihan
             </Button>
           ) : (
-            <div className="rounded-lg border border-leaf-200 bg-leaf-50 p-4">
-              <h3 className="text-sm font-medium text-leaf-700">Lunasi Sisa Tagihan</h3>
-              <p className="mt-1 text-xs text-leaf-600">
+            <Callout variant="success" title="Lunasi Sisa Tagihan" className="p-4">
+              <p className="text-xs">
                 Catat pelunasan sisa tagihan transaksi ini. Setelah dilunasi, transaksi dapat dibatalkan jika diperlukan.
               </p>
               <div className="mt-3">
-                <select
+                <Select
                   value={settleCashAccountId}
                   onChange={(e) => setSettleCashAccountId(e.target.value)}
-                  className="h-11 min-h-[44px] w-full rounded-md border border-wood-200 bg-surface px-3 text-sm text-text-primary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
                   aria-label="Pilih akun kas/bank"
+                  placeholder="Pilih akun kas/bank..."
                 >
-                  <option value="">Pilih akun kas/bank...</option>
                   {cashAccounts?.map((acct) => (
                     <option key={acct.id} value={acct.id}>
                       {acct.code} — {acct.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="mt-3 flex gap-2">
                 <Button
@@ -358,7 +351,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
                   Lunasi
                 </Button>
               </div>
-            </div>
+            </Callout>
           )}
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
@@ -46,9 +46,9 @@ function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty,
         title="Belum ada transaksi"
         description="Catat transaksi pertama untuk mulai membentuk jurnal."
         action={canCreateTransaction ? (
-          <Link to="/transactions/new" className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600">
+          <Button as={Link} to="/transactions/new" variant="primary">
             Catat transaksi pertama
-          </Link>
+          </Button>
         ) : undefined} />
     );
   }
@@ -67,8 +67,10 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
-import { Receipt, Search, Download, Check, X, ArrowRight, Filter, Calendar, XCircle } from "reicon-react";
+import { Receipt, Search, Download, Check, X, ArrowRight, Filter, Calendar } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
+import { PageToolbar } from "@/components/ui/page-toolbar";
+import { Card } from "@/components/ui/card";
 import { PageGuide } from "@/components/ui/page-guide";
 import {
   listTransactions,
@@ -122,7 +124,9 @@ interface TransactionFilterBarProps {
   readonly onResetSearch: () => void;
   readonly onResetFilters: () => void;
   readonly onResetAll: () => void;
-  readonly searchInputRef: React.RefObject<HTMLInputElement | null>;
+  readonly onClearDates: () => void;
+  readonly onClearType: () => void;
+  readonly onClearStatus: () => void;
 }
 
 function TransactionFilterBar({
@@ -143,93 +147,85 @@ function TransactionFilterBar({
   onResetSearch,
   onResetFilters,
   onResetAll,
-  searchInputRef,
+  onClearDates,
+  onClearType,
+  onClearStatus,
 }: TransactionFilterBarProps) {
   const hasActiveFilters = hasDateFilter || hasTypeFilter || hasStatusFilter;
-  const hasAnyFilter = hasSearchQuery || hasActiveFilters;
 
   return (
-    <div className="rounded-xl border border-wood-200 bg-surface-elevated px-4 py-3">
-      <div className="relative">
-        <label htmlFor="transaction-search" className="sr-only">Cari transaksi</label>
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-        <input
-          ref={searchInputRef}
-          id="transaction-search"
-          type="search"
-          placeholder="Cari transaksi..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-11 min-h-[44px] w-full rounded-lg border border-wood-200 bg-surface pl-10 pr-14 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-2 focus:outline-offset-2 focus:outline-wood-500 sm:h-10 sm:min-h-0"
-        />
-        {hasSearchQuery && (
-          <button
-            type="button"
-            onClick={onResetSearch}
-            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-wood-500 hover:bg-cream-200 hover:text-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Hapus pencarian"
-          >
-            <XCircle className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      <fieldset className="mt-3 border-0 p-0 m-0">
-        <legend className="sr-only">Filter transaksi</legend>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-          <div className="relative sm:min-w-[140px] flex-1">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-            <Input
-              label="Dari"
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="pl-10"
+    <PageToolbar
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Cari transaksi..."
+      searchLabel="Cari transaksi"
+      searchInputId="transaction-search"
+      onResetSearch={onResetSearch}
+      onResetFilters={hasActiveFilters ? onResetFilters : undefined}
+      onResetAll={hasSearchQuery && hasActiveFilters ? onResetAll : undefined}
+      filters={[
+        {
+          key: "date",
+          label: "Periode",
+          active: hasDateFilter,
+          span: 4,
+          onClear: onClearDates,
+          children: (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
+                <Input label="Dari" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="pl-10" />
+              </div>
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
+                <Input label="Sampai" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="pl-10" />
+              </div>
+            </div>
+          ),
+        },
+        {
+          key: "type",
+          label: "Jenis",
+          active: hasTypeFilter,
+          span: 2,
+          onClear: onClearType,
+          children: (
+            <Select
+              label="Jenis"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              placeholder="Semua Jenis"
+              options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
             />
-          </div>
-          <div className="relative sm:min-w-[140px] flex-1">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-            <Input
-              label="Sampai"
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="pl-10"
+          ),
+        },
+        {
+          key: "status",
+          label: "Status",
+          active: hasStatusFilter,
+          span: 2,
+          onClear: onClearStatus,
+          children: (
+            <Select
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
+              placeholder="Semua Status"
+              options={[
+                { value: "posted", label: "Posted" },
+                { value: "voided", label: "Dibatalkan" },
+              ]}
             />
-          </div>
-          <Select
-            label="Jenis"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            placeholder="Semua Jenis"
-            options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
-          />
-          <Select
-            label="Status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
-            placeholder="Semua Status"
-            options={[
-              { value: "posted", label: "Posted" },
-              { value: "voided", label: "Dibatalkan" },
-            ]}
-          />
-        </div>
-      </fieldset>
-      {hasAnyFilter && (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-wood-100 pt-3">
-          {hasSearchQuery && <Button type="button" variant="outline" size="sm" onClick={onResetSearch}>Hapus pencarian</Button>}
-          {hasActiveFilters && <Button type="button" variant="outline" size="sm" onClick={onResetFilters}>Reset filter</Button>}
-          {hasSearchQuery && hasActiveFilters && <Button type="button" variant="outline" size="sm" onClick={onResetAll}>Reset semua</Button>}
-        </div>
-      )}
-    </div>
+          ),
+        },
+      ]}
+    />
   );
 }
 
 export function TransactionListPage() { // NOSONAR typescript:S3776 — complexity 16/15; page-level conditions are inherently complex
   const { data: orgData } = useOrganization();
   const { canCreateTransaction, canCreateExports } = useOrgPermissions();
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
@@ -371,12 +367,9 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
             </>
           ) }] : []),
           ...(canCreateTransaction ? [{ key: "create", children: (
-            <Link
-              to="/transactions/new"
-              className="ledger-pressable inline-flex min-h-[44px] items-center justify-center rounded-md bg-wood-500 px-4 py-2 text-sm font-medium text-cream-50 transition-[background-color,transform] duration-150 ease-out hover:bg-wood-600"
-            >
+            <Button as={Link} to="/transactions/new" variant="primary">
               Transaksi Baru
-            </Link>
+            </Button>
           ) }] : []),
         ],
       }}
@@ -404,7 +397,9 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
         onResetSearch={resetSearch}
         onResetFilters={resetFilters}
         onResetAll={resetAll}
-        searchInputRef={searchInputRef}
+        onClearDates={() => { setFromDate(DEFAULT_FROM); setToDate(DEFAULT_TO); setPage(0); }}
+        onClearType={() => { setTypeFilter(""); setPage(0); }}
+        onClearStatus={() => { setStatusFilter(""); setPage(0); }}
       />
 
       {dateRangeInvalid && (
@@ -422,7 +417,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
       )}
 
       {/* Transaction list */}
-      <section className="rounded-xl border border-wood-200 bg-surface-elevated" aria-label="Daftar transaksi">
+      <Card elevated aria-label="Daftar transaksi" role="region">
         {isPageError && (
           <div className="p-8">
             <ErrorState
@@ -531,7 +526,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
             </div>
           </>
         )}
-      </section>
+      </Card>
 
       {/* Pagination */}
       {!isPageError && !isInitialLoading && transactions && (page > 0 || transactions.length === limit) && (
