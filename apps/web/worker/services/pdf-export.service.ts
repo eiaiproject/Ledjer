@@ -506,18 +506,7 @@ export async function exportGeneralLedgerPdf(
     if (rendered >= MAX_PDF_ROWS) break;
     builder.sectionTitle(`${group.code} — ${group.name}`);
     builder.tableHeader(GENERAL_LEDGER_COLUMNS);
-    for (const entry of group.entries) {
-      if (rendered >= MAX_PDF_ROWS) break;
-      builder.row([
-        { text: entry.entry_date, width: 58 },
-        { text: entry.transaction_number ?? entry.entry_number, width: 90, size: 8 },
-        { text: entry.description, width: GENERAL_LEDGER_COLUMNS[2].width },
-        { text: entry.debit > 0 ? formatIDR(entry.debit) : "", width: 78, align: "right" },
-        { text: entry.credit > 0 ? formatIDR(entry.credit) : "", width: 78, align: "right" },
-        { text: formatIDR(entry.running_balance), width: 86, align: "right" },
-      ]);
-      rendered += 1;
-    }
+    rendered += renderLedgerEntries(builder, group.entries, MAX_PDF_ROWS - rendered);
     builder.boldRow([
       { text: `Subtotal ${group.code}`, width: 58 + 90 + GENERAL_LEDGER_COLUMNS[2].width },
       { text: formatIDR(group.totalDebit), width: 78, align: "right" },
@@ -660,6 +649,29 @@ function groupLedgerEntries(rows: GeneralLedgerRow[]): LedgerGroup[] {
     group.runningBalance = entry.running_balance;
   }
   return [...groups.values()].sort((a, b) => a.code - b.code);
+}
+
+/** Render journal lines for one ledger account, bounded by the PDF row cap.
+ *  Returns the number of lines actually rendered. */
+function renderLedgerEntries(
+  builder: PdfBuilder,
+  entries: GeneralLedgerRow[],
+  maxRows: number,
+): number {
+  let rendered = 0;
+  for (const entry of entries) {
+    if (rendered >= maxRows) return rendered;
+    builder.row([
+      { text: entry.entry_date, width: 58 },
+      { text: entry.transaction_number ?? entry.entry_number, width: 90, size: 8 },
+      { text: entry.description, width: GENERAL_LEDGER_COLUMNS[2].width },
+      { text: entry.debit > 0 ? formatIDR(entry.debit) : "", width: 78, align: "right" },
+      { text: entry.credit > 0 ? formatIDR(entry.credit) : "", width: 78, align: "right" },
+      { text: formatIDR(entry.running_balance), width: 86, align: "right" },
+    ]);
+    rendered += 1;
+  }
+  return rendered;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
