@@ -67,7 +67,7 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { exportTransactionsCsv } from "@/lib/csv-export";
-import { Receipt, Search, Download, Check, X, ArrowRight, Filter, Calendar } from "reicon-react";
+import { Receipt, Search, Download, Check, X, ArrowRight, Filter } from "reicon-react";
 import { PageShell } from "@/components/ui/page-shell";
 import { PageToolbar } from "@/components/ui/page-toolbar";
 import { Card } from "@/components/ui/card";
@@ -168,18 +168,12 @@ function TransactionFilterBar({
           key: "date",
           label: "Periode",
           active: hasDateFilter,
-          span: 4,
+          span: 6,
           onClear: onClearDates,
           children: (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-                <Input label="Dari" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="pl-10" />
-              </div>
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wood-500" aria-hidden="true" />
-                <Input label="Sampai" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="pl-10" />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Dari" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              <Input label="Sampai" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
             </div>
           ),
         },

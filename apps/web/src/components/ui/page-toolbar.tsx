@@ -135,7 +135,7 @@ export function PageToolbar({
               filtersExpanded ? "block" : "hidden sm:block"
             )}
           >
-            <div className="grid grid-cols-1 gap-x-8 gap-y-6 border-t border-wood-100 p-4 sm:border-0 sm:p-0 md:grid-cols-2 xl:grid-cols-12 xl:items-start">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 border-t border-wood-100 p-4 sm:border-0 md:grid-cols-2 xl:grid-cols-12 xl:items-start">
               {filters.map((filter) => (
                 <div key={filter.key} className={FILTER_SPAN_CLASS[filter.span ?? 2]}>
                   {filter.children}

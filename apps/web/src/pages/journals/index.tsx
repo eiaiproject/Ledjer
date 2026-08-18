@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -318,17 +319,16 @@ export function ManualJournalPage() {
               onChange={(e) => { setEntryDate(e.target.value); invalidatePreview(); }}
             />
             <div>
-              <label htmlFor="journalEntryType" className="block text-sm font-medium text-wood-700">Jenis Jurnal</label>
-              <select
+              <Select
                 id="journalEntryType"
+                label="Jenis Jurnal"
                 value={entryType}
                 onChange={(e) => { setEntryType(e.target.value); invalidatePreview(); }}
-                className="mt-1 min-h-[44px] w-full rounded-md border border-wood-200 bg-cream-50 px-3 py-2 text-sm text-wood-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
               >
                 <option value="manual_journal">Jurnal Manual</option>
                 <option value="adjustment">Jurnal Penyesuaian</option>
                 <option value="closing">Jurnal Penutup</option>
-              </select>
+              </Select>
               <FieldHelp topic="journal_types" label="Kapan memakai masing-masing jenis" />
             </div>
             <Input
@@ -364,10 +364,10 @@ export function ManualJournalPage() {
             {lines.map((line, index) => (
               <div key={line.id} className="grid grid-cols-1 gap-2 rounded-md border border-wood-100 bg-cream-50 p-3 sm:grid-cols-[1fr_1fr_1fr_80px_80px_40px] sm:items-center">
                 {/* Account selector */}
-                <select
+                <Select
+                  size="sm"
                   value={line.accountId}
                   onChange={(e) => handleLineChange(line.id, "accountId", e.target.value)}
-                  className="min-h-[44px] w-full rounded-md border border-wood-200 bg-white px-2 py-1.5 text-xs text-wood-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 sm:min-h-0"
                   aria-label={`Akun baris ${index + 1}`}
                 >
                   <option value="">Pilih akun...</option>
@@ -376,7 +376,7 @@ export function ManualJournalPage() {
                       {String(a.code)} - {a.name}
                     </option>
                   ))}
-                </select>
+                </Select>
 
                 {/* Description */}
                 <Input

@@ -480,7 +480,7 @@ function ProductFilter({ search, setSearch, stockFilter, setStockFilter, hasSear
           key: "stock",
           label: "Status stok",
           active: hasFilter,
-          span: 4,
+          span: 6,
           onClear: () => setStockFilter("all"),
           children: (
             <fieldset id={filterGroupId} className="mt-3 border-0 p-0 m-0">
