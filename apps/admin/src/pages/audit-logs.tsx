@@ -119,25 +119,25 @@ export function AuditLogsPage() {
                 <tbody>
                   {data.entries.map((entry) => (
                     <tr key={entry.id}>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-text-secondary">
+                      <td data-label="Waktu" className="whitespace-nowrap px-4 py-3 text-xs text-text-secondary">
                         {formatDateTime(entry.created_at)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td data-label="Aktor" className="px-4 py-3">
                         {entry.actor_email ?? (entry.entity_type === "admin" ? "Admin" : "Sistem")}
                       </td>
-                      <td className="px-4 py-3 text-xs text-text-secondary">
+                      <td data-label="Organisasi" className="px-4 py-3 text-xs text-text-secondary">
                         {entry.organization_name ?? (entry.organization_id ? entry.organization_id.slice(0, 8) : "—")}
                       </td>
-                      <td className="px-4 py-3">
+                      <td data-label="Aksi" className="px-4 py-3">
                         <Badge tone={entry.action.includes("delete") || entry.action.includes("disabled") ? "danger" : "info"}>
                           {entry.action}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-xs text-text-secondary">
+                      <td data-label="Entitas" className="px-4 py-3 text-xs text-text-secondary">
                         {entry.entity_type}
                         <span className="ml-1 text-text-tertiary">({entry.entity_id.slice(0, 8)})</span>
                       </td>
-                      <td className="max-w-[16rem] px-4 py-3">
+                      <td data-label="Detail" className="max-w-[16rem] px-4 py-3">
                         {entry.reason ?? parseAfter(entry.after_json)}
                       </td>
                     </tr>

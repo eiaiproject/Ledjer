@@ -167,19 +167,19 @@ export function SettingsPage() {
               <tbody>
                 {admins.map((admin) => (
                   <tr key={admin.id}>
-                    <td className="px-4 py-3">
+                    <td data-label="Admin" className="px-4 py-3">
                       <p className="font-medium">{admin.full_name || "—"}</p>
                       <p className="text-xs text-text-secondary">{admin.email}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Status" className="px-4 py-3">
                       <Badge tone={admin.status === "active" ? "success" : "neutral"}>
                         {admin.status === "active" ? "Aktif" : "Nonaktif"}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">
+                    <td data-label="Login terakhir" className="px-4 py-3 text-xs text-text-secondary">
                       {admin.last_login_at ? new Date(admin.last_login_at).toLocaleString("id-ID") : "Belum pernah"}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td data-label="Aksi" className="px-4 py-3 text-right">
                       {admin.status === "active" ? (
                         <Button variant="secondary" onClick={() => void setAdminStatus(admin, "disabled")}>Nonaktifkan</Button>
                       ) : (

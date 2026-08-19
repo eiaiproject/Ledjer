@@ -50,6 +50,7 @@
   --color-warning-bg: var(--color-clay-50);
   --color-error: #A12D1E;
   --color-error-bg: #FAEBE5;
+  --color-error-border: #E8B5A8;
   --color-info: var(--color-sky-600);
   --color-info-bg: var(--color-sky-50);
 
@@ -118,4 +119,68 @@ h1, h2, h3, h4 {
 ::-webkit-scrollbar-thumb {
   background: var(--color-wood-300);
   border-radius: var(--radius-full);
+}
+
+/* Tables */
+.ledger-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.ledger-table thead th {
+  background: var(--color-cream-100);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.ledger-table tbody tr {
+  transition: background-color 120ms ease-out;
+}
+.ledger-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ledger-table tbody tr:hover {
+  background: var(--color-cream-100);
+}
+
+@media (max-width: 767px) {
+  .ledger-table thead {
+    display: none;
+  }
+  .ledger-table,
+  .ledger-table tbody,
+  .ledger-table tr,
+  .ledger-table td {
+    display: block;
+    width: 100%;
+  }
+  .ledger-table tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    padding: 8px 0;
+    background: var(--color-surface);
+  }
+  .ledger-table td {
+    padding: 6px 12px;
+    border: none !important;
+  }
+  .ledger-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  .ledger-table td[data-label="Aksi"]::before,
+  .ledger-table td[data-label="Detail"]::before {
+    display: none;
+  }
 }

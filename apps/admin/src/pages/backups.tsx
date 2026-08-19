@@ -146,15 +146,15 @@ export function BackupsPage() {
                 <tbody>
                   {backups.map((b) => (
                     <tr key={b.date} className="cursor-pointer" onClick={() => void openDetail(b.date)}>
-                      <td className="px-4 py-3 font-medium">{b.date}</td>
-                      <td className="px-4 py-3">
+                      <td data-label="Tanggal" className="px-4 py-3 font-medium">{b.date}</td>
+                      <td data-label="Status" className="px-4 py-3">
                         <Badge tone={b.completed ? "success" : "danger"}>
                           {b.completed ? "Lengkap" : "Tidak selesai"}
                         </Badge>
                       </td>
-                      <td className="num-mono px-4 py-3 text-right tabular-nums">{b.totalRows.toLocaleString("id-ID")}</td>
-                      <td className="num-mono px-4 py-3 text-right tabular-nums">{b.tableCount}</td>
-                      <td className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(b.completedAt)}</td>
+                      <td data-label="Baris" className="num-mono px-4 py-3 text-right tabular-nums">{b.totalRows.toLocaleString("id-ID")}</td>
+                      <td data-label="Tabel" className="num-mono px-4 py-3 text-right tabular-nums">{b.tableCount}</td>
+                      <td data-label="Selesai" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(b.completedAt)}</td>
                     </tr>
                   ))}
                 </tbody>

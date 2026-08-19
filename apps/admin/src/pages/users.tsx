@@ -149,20 +149,20 @@ export function UsersPage() {
               <tbody>
                 {data.users.map((user) => (
                   <tr key={user.id}>
-                    <td className="px-4 py-3">
+                    <td data-label="Pengguna" className="px-4 py-3">
                       <p className="font-medium">{user.full_name || "—"}</p>
                       <p className="text-xs text-text-secondary">{user.email}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Status" className="px-4 py-3">
                       <Badge tone={user.status === "active" ? "success" : "neutral"}>
                         {user.status === "active" ? "Aktif" : "Nonaktif"}
                       </Badge>
                       {user.has_oauth ? <span className="ml-2 text-xs text-text-tertiary">Google</span> : null}
                     </td>
-                    <td className="num-mono px-4 py-3 text-right tabular-nums">{user.organization_count}</td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(user.created_at)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                    <td data-label="Org" className="num-mono px-4 py-3 text-right tabular-nums">{user.organization_count}</td>
+                    <td data-label="Terdaftar" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(user.created_at)}</td>
+                    <td data-label="Aksi" className="px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         {user.status === "active" ? (
                           <Button variant="secondary" disabled={busy} onClick={() => void setUserStatus(user, "disabled")}>
                             Nonaktifkan

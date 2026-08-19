@@ -153,20 +153,19 @@ export function OrganizationsPage() {
                 <tbody>
                   {data.organizations.map((org) => (
                     <tr key={org.id} className="cursor-pointer" onClick={() => void openDetail(org)}>
-                      <td className="px-4 py-3">
+                      <td data-label="Organisasi" className="px-4 py-3">
                         <p className="font-medium">{org.name}</p>
-                        <p className="text-xs text-text-secondary">{org.id.slice(0, 8)}…</p>
                       </td>
-                      <td className="px-4 py-3 text-xs text-text-secondary">
+                      <td data-label="Tipe" className="px-4 py-3 text-xs text-text-secondary">
                         {org.business_type === "service" ? "Jasa" : "Jual beli"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td data-label="Status" className="px-4 py-3">
                         <Badge tone={org.status === "active" ? "success" : "neutral"}>
                           {org.status === "active" ? "Aktif" : "Nonaktif"}
                         </Badge>
                       </td>
-                      <td className="num-mono px-4 py-3 text-right tabular-nums">{org.member_count}</td>
-                      <td className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(org.created_at)}</td>
+                      <td data-label="Anggota" className="num-mono px-4 py-3 text-right tabular-nums">{org.member_count}</td>
+                      <td data-label="Dibuat" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(org.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>

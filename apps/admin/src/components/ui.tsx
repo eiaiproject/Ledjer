@@ -110,7 +110,7 @@ type BadgeTone = "success" | "warning" | "danger" | "info" | "neutral";
 const badgeTones: Record<BadgeTone, string> = {
   success: "bg-leaf-50 text-leaf-700 border-leaf-200",
   warning: "bg-clay-50 text-clay-700 border-clay-200",
-  danger: "bg-[#FAEBE5] text-[#A12D1E] border-[#E8B5A8]",
+  danger: "bg-error-bg text-error border-error-border",
   info: "bg-sky-50 text-sky-700 border-sky-200",
   neutral: "bg-cream-100 text-wood-700 border-border",
 };

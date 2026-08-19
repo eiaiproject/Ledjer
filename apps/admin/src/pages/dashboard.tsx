@@ -21,9 +21,9 @@ interface PlatformSummary {
 function StatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
     <Card className="p-5">
-      <p className="text-sm text-text-secondary">{label}</p>
-      <p className="num-mono mt-2 text-2xl font-semibold tabular-nums">{value.toLocaleString("id-ID")}</p>
-      {sub ? <p className="mt-1 text-xs text-text-tertiary">{sub}</p> : null}
+      <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{label}</p>
+      <p className="num-mono mt-2 text-3xl font-semibold tabular-nums text-text-primary">{value.toLocaleString("id-ID")}</p>
+      {sub ? <p className="mt-1 text-xs text-text-secondary">{sub}</p> : null}
     </Card>
   );
 }
