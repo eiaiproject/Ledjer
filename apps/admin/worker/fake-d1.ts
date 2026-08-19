@@ -66,39 +66,31 @@ class FakeStatement {
   }
 
   private matchesWhere(row: Row): boolean {
-    const whereMatch = /WHERE\s+([\s\S]*)$/i.exec(this.sql);
-    if (!whereMatch) return true;
-    const where = whereMatch[1];
+    const whereIdx = this.sql.toUpperCase().lastIndexOf(" WHERE ");
+    if (whereIdx === -1) return true;
+    const where = this.sql.slice(whereIdx + 7);
     let idx = 0;
-    const valueFor = (v: unknown): unknown => (typeof v === "boolean" ? (v ? 1 : 0) : v);
-
-    // Parse simple `col = ?` AND `col = ?` clauses in order.
-    const clauseRe = /([a-z_.]+)\s*(=|>=|<=|>|<|IS NOT NULL)\s*(\?|NULL)/gi;
-    let m: RegExpExecArray | null;
-    let ok = true;
-    while ((m = clauseRe.exec(where)) && ok) {
-      const [, colExpr, op, rhs] = m;
-      // Strip table alias prefixes (e.g. `s.token_hash` -> `token_hash`);
-      // fake rows store unprefixed keys.
-      const col = colExpr.replace(/^\w+\./, "");
-      if (op === "IS NOT NULL") {
-        if (row[col] === null || row[col] === undefined) ok = false;
-        continue;
-      }
-      if (rhs === "NULL") {
-        if (row[col] !== null) ok = false;
-        continue;
-      }
-      const expected = valueFor(this.bound[idx]);
-      idx += 1;
-      const actual = valueFor(row[col]);
-      if (op === "=" && actual !== expected) ok = false;
-      if (op === ">=" && !(Number(actual) >= Number(expected))) ok = false;
-      if (op === "<=" && !(Number(actual) <= Number(expected))) ok = false;
-      if (op === ">" && !(Number(actual) > Number(expected))) ok = false;
-      if (op === "<" && !(Number(actual) < Number(expected))) ok = false;
+    for (const clauseRaw of where.split(/\s+AND\s+/i)) {
+      const m = /^([a-z_.]+)\s*(=|>=|<=|>|<|IS NOT NULL)\s*(\?|NULL)$/i.exec(clauseRaw.trim());
+      if (!m) continue;
+      const col = m[1].replace(/^\w+\./, "");
+      if (!this.matchesClause(row, col, m[2], m[3], idx)) return false;
+      if (m[3] === "?") idx += 1;
     }
-    return ok;
+    return true;
+  }
+
+  private matchesClause(row: Row, col: string, op: string, rhs: string, idx: number): boolean {
+    const normalize = (v: unknown): unknown => (typeof v === "boolean" ? (v ? 1 : 0) : v);
+    const actual = normalize(row[col]);
+    if (op === "IS NOT NULL") return actual !== null && actual !== undefined;
+    if (rhs === "NULL") return actual === null;
+    const expected = normalize(this.bound[idx]);
+    if (op === "=") return actual === expected;
+    if (op === ">=") return Number(actual) >= Number(expected);
+    if (op === "<=") return Number(actual) <= Number(expected);
+    if (op === ">") return Number(actual) > Number(expected);
+    return Number(actual) < Number(expected);
   }
 
   private executeQuery(): Row[] {
@@ -144,24 +136,32 @@ class FakeStatement {
     if (sql.toUpperCase().startsWith("INSERT INTO")) {
       this.allRows(table).push(this.rowFromInsert());
     } else if (sql.toUpperCase().startsWith("UPDATE")) {
+      const setIdx = sql.toUpperCase().indexOf(" SET ");
+      const whereIdx = sql.toUpperCase().lastIndexOf(" WHERE");
+      const sets = sql.slice(setIdx + 5, whereIdx === -1 ? sql.length : whereIdx);
       for (const row of this.allRows(table)) {
-        if (this.matchesWhere(row)) {
-          const sets = /SET\s+([\s\S]*?)(?:WHERE|$)/i.exec(sql)?.[1] ?? "";
-          let idx = 0;
-          for (const [, col] of sets.matchAll(/([a-z_]+)\s*=\s*\?/gi)) {
-            row[col] = this.bound[idx];
-            idx += 1;
-          }
+        if (!this.matchesWhere(row)) continue;
+        let idx = 0;
+        for (const part of sets.split(",")) {
+          const trimmed = part.trim();
+          const eqIdx = trimmed.indexOf("=");
+          if (eqIdx === -1 || !trimmed.endsWith("?")) continue;
+          const col = trimmed.slice(0, eqIdx).trim();
+          if (!col) continue;
+          row[col] = this.bound[idx];
+          idx += 1;
         }
       }
     }
   }
 
   private rowFromInsert(): Row {
-    const cols = /\(([^)]+)\)\s*VALUES/.exec(this.sql)?.[1]
+    const openIdx = this.sql.indexOf("(");
+    const closeIdx = this.sql.indexOf(")");
+    const cols = (openIdx === -1 || closeIdx === -1 ? "" : this.sql.slice(openIdx + 1, closeIdx))
       .split(",")
       .map((c) => c.trim())
-      .filter(Boolean) ?? [];
+      .filter(Boolean);
     const row: Row = {};
     cols.forEach((col, i) => {
       row[col] = this.bound[i];

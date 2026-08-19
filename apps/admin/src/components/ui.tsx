@@ -6,17 +6,16 @@ export function cn(...inputs: Parameters<typeof clsx>) {
   return twMerge(clsx(inputs));
 }
 
-export function Spinner({ className }: { className?: string }) {
+export function Spinner({ className }: { readonly className?: string }) {
   return (
-    <div
-      className={cn("h-6 w-6 animate-spin rounded-full border-2 border-wood-500 border-t-transparent", className)}
-      role="status"
+    <output
+      className={cn("inline-block h-6 w-6 animate-spin rounded-full border-2 border-wood-500 border-t-transparent", className)}
       aria-label="Memuat"
     />
   );
 }
 
-export function PageLoader({ label = "Memuat..." }: { label?: string }) {
+export function PageLoader({ label = "Memuat..." }: { readonly label?: string }) {
   return (
     <div className="flex min-h-[40vh] items-center justify-center gap-3">
       <Spinner />
@@ -25,7 +24,7 @@ export function PageLoader({ label = "Memuat..." }: { label?: string }) {
   );
 }
 
-export function Card({ children, className }: { children: ReactNode; className?: string }) {
+export function Card({ children, className }: { readonly children: ReactNode; readonly className?: string }) {
   return (
     <div className={cn("rounded-lg border border-border bg-surface shadow-xs", className)}>
       {children}
@@ -33,7 +32,7 @@ export function Card({ children, className }: { children: ReactNode; className?:
   );
 }
 
-export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+export function CardHeader({ title, description, action }: { readonly title: string; readonly description?: string; readonly action?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-5 py-4">
       <div>
@@ -61,6 +60,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   return (
     <button
+      type="button"
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         buttonStyles[variant],
@@ -95,7 +95,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
   );
 }
 
-export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+export function Field({ label, children, hint }: { readonly label: string; readonly children: ReactNode; readonly hint?: string }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium text-text-secondary">{label}</span>
@@ -115,7 +115,7 @@ const badgeTones: Record<BadgeTone, string> = {
   neutral: "bg-cream-100 text-wood-700 border-border",
 };
 
-export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; children: ReactNode }) {
+export function Badge({ tone = "neutral", children }: { readonly tone?: BadgeTone; readonly children: ReactNode }) {
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", badgeTones[tone])}>
       {children}
@@ -123,7 +123,7 @@ export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; childr
   );
 }
 
-export function PageHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+export function PageHeader({ title, description, action }: { readonly title: string; readonly description?: string; readonly action?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -135,7 +135,7 @@ export function PageHeader({ title, description, action }: { title: string; desc
   );
 }
 
-export function EmptyState({ title, description }: { title: string; description?: string }) {
+export function EmptyState({ title, description }: { readonly title: string; readonly description?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
       <p className="text-sm font-medium text-text-secondary">{title}</p>
@@ -144,7 +144,7 @@ export function EmptyState({ title, description }: { title: string; description?
   );
 }
 
-export function Toast({ message, tone = "error" }: { message: string; tone?: "error" | "success" }) {
+export function Toast({ message, tone = "error" }: { readonly message: string; readonly tone?: "error" | "success" }) {
   return (
     <div
       className={cn(

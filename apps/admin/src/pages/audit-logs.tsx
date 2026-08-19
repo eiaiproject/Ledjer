@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { apiRequest } from "@/lib/api/client";
 import { Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Select, Toast, formatDateTime } from "@/components/ui";
 
@@ -71,6 +71,72 @@ export function AuditLogsPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / limit)) : 1;
   const page = Math.floor(offset / limit) + 1;
 
+  let tableBody: ReactNode;
+  if (!data) {
+    tableBody = <PageLoader />;
+  } else if (data.entries.length === 0) {
+    tableBody = <EmptyState title="Tidak ada entri" description="Ubah filter pencarian." />;
+  } else {
+    const rows = data.entries.map((entry) => (
+      <tr key={entry.id}>
+        <td data-label="Waktu" className="whitespace-nowrap px-4 py-3 text-xs text-text-secondary">
+          {formatDateTime(entry.created_at)}
+        </td>
+        <td data-label="Aktor" className="px-4 py-3">
+          {entry.actor_email ?? (entry.entity_type === "admin" ? "Admin" : "Sistem")}
+        </td>
+        <td data-label="Organisasi" className="px-4 py-3 text-xs text-text-secondary">
+          {entry.organization_name ?? (entry.organization_id ? entry.organization_id.slice(0, 8) : "—")}
+        </td>
+        <td data-label="Aksi" className="px-4 py-3">
+          <Badge tone={entry.action.includes("delete") || entry.action.includes("disabled") ? "danger" : "info"}>
+            {entry.action}
+          </Badge>
+        </td>
+        <td data-label="Entitas" className="px-4 py-3 text-xs text-text-secondary">
+          {entry.entity_type}
+          <span className="ml-1 text-text-tertiary">({entry.entity_id.slice(0, 8)})</span>
+        </td>
+        <td data-label="Detail" className="max-w-[16rem] px-4 py-3">
+          {entry.reason ?? parseAfter(entry.after_json)}
+        </td>
+      </tr>
+    ));
+    tableBody = (
+      <>
+        <div className="max-h-[70vh] overflow-auto md:overflow-x-auto">
+          <table className="ledger-table w-full text-sm">
+            <thead>
+              <tr>
+                <th className="px-4 py-3">Waktu</th>
+                <th className="px-4 py-3">Aktor</th>
+                <th className="px-4 py-3">Organisasi</th>
+                <th className="px-4 py-3">Aksi</th>
+                <th className="px-4 py-3">Entitas</th>
+                <th className="px-4 py-3">Detail</th>
+              </tr>
+            </thead>
+            <tbody>{rows}</tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border-subtle px-4 py-3 text-sm">
+          <span className="text-text-secondary">
+            {data.total.toLocaleString("id-ID")} entri — halaman {page} dari {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button variant="secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
+              Sebelumnya
+            </Button>
+            <Button variant="secondary" disabled={offset + limit >= data.total} onClick={() => setOffset(offset + limit)}>
+              Berikutnya
+            </Button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <div>
       <PageHeader title="Audit Log Global" description="Seluruh aktivitas di semua organisasi, termasuk aksi admin." />
@@ -98,69 +164,7 @@ export function AuditLogsPage() {
 
         {error ? <div className="px-4 pt-4"><Toast message={error} /></div> : null}
 
-        {!data ? (
-          <PageLoader />
-        ) : data.entries.length === 0 ? (
-          <EmptyState title="Tidak ada entri" description="Ubah filter pencarian." />
-        ) : (
-          <>
-            <div className="max-h-[70vh] overflow-auto md:overflow-x-auto">
-              <table className="ledger-table w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3">Waktu</th>
-                    <th className="px-4 py-3">Aktor</th>
-                    <th className="px-4 py-3">Organisasi</th>
-                    <th className="px-4 py-3">Aksi</th>
-                    <th className="px-4 py-3">Entitas</th>
-                    <th className="px-4 py-3">Detail</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.entries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td data-label="Waktu" className="whitespace-nowrap px-4 py-3 text-xs text-text-secondary">
-                        {formatDateTime(entry.created_at)}
-                      </td>
-                      <td data-label="Aktor" className="px-4 py-3">
-                        {entry.actor_email ?? (entry.entity_type === "admin" ? "Admin" : "Sistem")}
-                      </td>
-                      <td data-label="Organisasi" className="px-4 py-3 text-xs text-text-secondary">
-                        {entry.organization_name ?? (entry.organization_id ? entry.organization_id.slice(0, 8) : "—")}
-                      </td>
-                      <td data-label="Aksi" className="px-4 py-3">
-                        <Badge tone={entry.action.includes("delete") || entry.action.includes("disabled") ? "danger" : "info"}>
-                          {entry.action}
-                        </Badge>
-                      </td>
-                      <td data-label="Entitas" className="px-4 py-3 text-xs text-text-secondary">
-                        {entry.entity_type}
-                        <span className="ml-1 text-text-tertiary">({entry.entity_id.slice(0, 8)})</span>
-                      </td>
-                      <td data-label="Detail" className="max-w-[16rem] px-4 py-3">
-                        {entry.reason ?? parseAfter(entry.after_json)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-border-subtle px-4 py-3 text-sm">
-              <span className="text-text-secondary">
-                {data.total.toLocaleString("id-ID")} entri — halaman {page} dari {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button variant="secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
-                  Sebelumnya
-                </Button>
-                <Button variant="secondary" disabled={offset + limit >= data.total} onClick={() => setOffset(offset + limit)}>
-                  Berikutnya
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+        {tableBody}
       </Card>
     </div>
   );
@@ -171,8 +175,8 @@ function parseAfter(afterJson: string | null): string {
   try {
     const parsed = JSON.parse(afterJson) as Record<string, unknown>;
     const actor = parsed.actor as Record<string, unknown> | undefined;
-    if (actor) {
-      return String(actor.email ?? "");
+    if (actor && typeof actor.email === "string") {
+      return actor.email;
     }
     return "";
   } catch {

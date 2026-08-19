@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { apiRequest } from "@/lib/api/client";
 import { Badge, Button, Card, CardHeader, EmptyState, PageHeader, PageLoader, Toast, formatDateTime } from "@/components/ui";
 
@@ -106,6 +106,43 @@ export function BackupsPage() {
     }
   }
 
+  let listBody: ReactNode;
+  if (!backups) {
+    listBody = <PageLoader />;
+  } else if (backups.length === 0) {
+    listBody = <EmptyState title="Belum ada backup" description="Backup harian otomatis akan muncul di sini." />;
+  } else {
+    const rows = backups.map((b) => (
+      <tr key={b.date} className="cursor-pointer" onClick={() => void openDetail(b.date)}>
+        <td data-label="Tanggal" className="px-4 py-3 font-medium">{b.date}</td>
+        <td data-label="Status" className="px-4 py-3">
+          <Badge tone={b.completed ? "success" : "danger"}>
+            {b.completed ? "Lengkap" : "Tidak selesai"}
+          </Badge>
+        </td>
+        <td data-label="Baris" className="num-mono px-4 py-3 text-right tabular-nums">{b.totalRows.toLocaleString("id-ID")}</td>
+        <td data-label="Tabel" className="num-mono px-4 py-3 text-right tabular-nums">{b.tableCount}</td>
+        <td data-label="Selesai" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(b.completedAt)}</td>
+      </tr>
+    ));
+    listBody = (
+      <div className="overflow-x-auto">
+        <table className="ledger-table w-full text-sm">
+          <thead>
+            <tr>
+              <th className="px-4 py-3">Tanggal</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Baris</th>
+              <th className="px-4 py-3 text-right">Tabel</th>
+              <th className="px-4 py-3">Selesai</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -127,40 +164,7 @@ export function BackupsPage() {
             description="Backup per tanggal dari R2 (disimpan 30 hari)."
             action={<Button variant="secondary" onClick={() => void runDrill()} disabled={busy}>Jalankan drill</Button>}
           />
-          {!backups ? (
-            <PageLoader />
-          ) : backups.length === 0 ? (
-            <EmptyState title="Belum ada backup" description="Backup harian otomatis akan muncul di sini." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="ledger-table w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3">Tanggal</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Baris</th>
-                    <th className="px-4 py-3 text-right">Tabel</th>
-                    <th className="px-4 py-3">Selesai</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {backups.map((b) => (
-                    <tr key={b.date} className="cursor-pointer" onClick={() => void openDetail(b.date)}>
-                      <td data-label="Tanggal" className="px-4 py-3 font-medium">{b.date}</td>
-                      <td data-label="Status" className="px-4 py-3">
-                        <Badge tone={b.completed ? "success" : "danger"}>
-                          {b.completed ? "Lengkap" : "Tidak selesai"}
-                        </Badge>
-                      </td>
-                      <td data-label="Baris" className="num-mono px-4 py-3 text-right tabular-nums">{b.totalRows.toLocaleString("id-ID")}</td>
-                      <td data-label="Tabel" className="num-mono px-4 py-3 text-right tabular-nums">{b.tableCount}</td>
-                      <td data-label="Selesai" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(b.completedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {listBody}
 
           {drill ? (
             <div className="border-t border-border-subtle px-5 py-4">

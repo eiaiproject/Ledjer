@@ -9,10 +9,9 @@
  * By default targets the production D1 database (ledjer-production).
  * Pass --staging to target the staging database instead.
  */
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import { writeFileSync, unlinkSync } from "node:fs";
-import { randomUUID } from "node:crypto";
 
 const encoder = new TextEncoder();
 
@@ -93,7 +92,7 @@ console.log(`✅ Hash generated (${hash.length} chars)`);
 // Guard against duplicates (admin_users.email is unique).
 const sql = `
 INSERT INTO admin_users (id, email, password_hash, full_name, status, created_at, updated_at)
-VALUES ('${adminId}', '${normalizedEmail}', '${hash}', '${fullName.replace(/'/g, "''")}', 'active', ${now}, ${now})
+VALUES ('${adminId}', '${normalizedEmail}', '${hash}', '${fullName.replaceAll("'", "''")}', 'active', ${now}, ${now})
 ON CONFLICT(email) DO UPDATE SET
   password_hash = excluded.password_hash,
   full_name = excluded.full_name,

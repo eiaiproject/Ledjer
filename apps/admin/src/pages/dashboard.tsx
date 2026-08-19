@@ -18,7 +18,7 @@ interface PlatformSummary {
   mainAppHealth: "up" | "down" | "unknown";
 }
 
-function StatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
+function StatCard({ label, value, sub }: { readonly label: string; readonly value: number | string; readonly sub?: string }) {
   return (
     <Card className="p-5">
       <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{label}</p>
@@ -26,6 +26,18 @@ function StatCard({ label, value, sub }: { label: string; value: number | string
       {sub ? <p className="mt-1 text-xs text-text-secondary">{sub}</p> : null}
     </Card>
   );
+}
+
+function healthLabel(health: PlatformSummary["mainAppHealth"], unknown = "Tidak diketahui"): string {
+  if (health === "up") return "Sehat";
+  if (health === "down") return "Turun";
+  return unknown;
+}
+
+function healthTone(health: PlatformSummary["mainAppHealth"]): "success" | "danger" | "neutral" {
+  if (health === "up") return "success";
+  if (health === "down") return "danger";
+  return "neutral";
 }
 
 export function DashboardPage() {
@@ -49,8 +61,8 @@ export function DashboardPage() {
         title="Ringkasan Platform"
         description="Statistik agregat seluruh tenant di sistem."
         action={
-          <Badge tone={summary.mainAppHealth === "up" ? "success" : "danger"}>
-            Aplikasi utama: {summary.mainAppHealth === "up" ? "Sehat" : summary.mainAppHealth === "down" ? "Turun" : "Tidak diketahui"}
+          <Badge tone={healthTone(summary.mainAppHealth)}>
+            Aplikasi utama: {healthLabel(summary.mainAppHealth)}
           </Badge>
         }
       />
@@ -95,8 +107,8 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center justify-between px-5 py-3.5">
               <span className="text-sm text-text-secondary">Aplikasi utama (ledjer.id)</span>
-              <Badge tone={summary.mainAppHealth === "up" ? "success" : summary.mainAppHealth === "down" ? "danger" : "neutral"}>
-                {summary.mainAppHealth === "up" ? "Sehat" : summary.mainAppHealth === "down" ? "Turun" : "Tidak dicek"}
+              <Badge tone={healthTone(summary.mainAppHealth)}>
+                {healthLabel(summary.mainAppHealth, "Tidak dicek")}
               </Badge>
             </div>
             <div className="flex items-center justify-between px-5 py-3.5">

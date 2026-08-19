@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { apiRequest } from "@/lib/api/client";
 import { Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Select, Toast, formatDateTime } from "@/components/ui";
 
@@ -37,6 +37,12 @@ interface OrganizationDetail {
     status: string;
     joined_at: number | null;
   }[];
+}
+
+function roleTone(role: string): "info" | "warning" | "neutral" {
+  if (role === "owner") return "info";
+  if (role === "admin") return "warning";
+  return "neutral";
 }
 
 export function OrganizationsPage() {
@@ -98,7 +104,7 @@ export function OrganizationsPage() {
         body: JSON.stringify({ status: next }),
       });
       await load();
-      if (detail && detail.id === orgId) {
+      if (detail?.id === orgId) {
         const result = await apiRequest<{ organization: OrganizationDetail }>(`/api/admin/organizations/${orgId}`);
         setDetail(result.organization);
       }
@@ -107,6 +113,47 @@ export function OrganizationsPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  let listBody: ReactNode;
+  if (!data) {
+    listBody = <PageLoader />;
+  } else if (data.organizations.length === 0) {
+    listBody = <EmptyState title="Tidak ada organisasi" description="Ubah filter pencarian." />;
+  } else {
+    const rows = data.organizations.map((org) => (
+      <tr key={org.id} className="cursor-pointer" onClick={() => void openDetail(org)}>
+        <td data-label="Organisasi" className="px-4 py-3">
+          <p className="font-medium">{org.name}</p>
+        </td>
+        <td data-label="Tipe" className="px-4 py-3 text-xs text-text-secondary">
+          {org.business_type === "service" ? "Jasa" : "Jual beli"}
+        </td>
+        <td data-label="Status" className="px-4 py-3">
+          <Badge tone={org.status === "active" ? "success" : "neutral"}>
+            {org.status === "active" ? "Aktif" : "Nonaktif"}
+          </Badge>
+        </td>
+        <td data-label="Anggota" className="num-mono px-4 py-3 text-right tabular-nums">{org.member_count}</td>
+        <td data-label="Dibuat" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(org.created_at)}</td>
+      </tr>
+    ));
+    listBody = (
+      <div className="overflow-x-auto">
+        <table className="ledger-table w-full text-sm">
+          <thead>
+            <tr>
+              <th className="px-4 py-3">Organisasi</th>
+              <th className="px-4 py-3">Tipe</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Anggota</th>
+              <th className="px-4 py-3">Dibuat</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+      </div>
+    );
   }
 
   const roleLabel: Record<string, string> = { owner: "Pemilik", admin: "Admin", member: "Anggota", viewer: "Penonton" };
@@ -134,44 +181,8 @@ export function OrganizationsPage() {
 
           {error ? <div className="px-4 pt-4"><Toast message={error} /></div> : null}
 
-          {!data ? (
-            <PageLoader />
-          ) : data.organizations.length === 0 ? (
-            <EmptyState title="Tidak ada organisasi" description="Ubah filter pencarian." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="ledger-table w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3">Organisasi</th>
-                    <th className="px-4 py-3">Tipe</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Anggota</th>
-                    <th className="px-4 py-3">Dibuat</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.organizations.map((org) => (
-                    <tr key={org.id} className="cursor-pointer" onClick={() => void openDetail(org)}>
-                      <td data-label="Organisasi" className="px-4 py-3">
-                        <p className="font-medium">{org.name}</p>
-                      </td>
-                      <td data-label="Tipe" className="px-4 py-3 text-xs text-text-secondary">
-                        {org.business_type === "service" ? "Jasa" : "Jual beli"}
-                      </td>
-                      <td data-label="Status" className="px-4 py-3">
-                        <Badge tone={org.status === "active" ? "success" : "neutral"}>
-                          {org.status === "active" ? "Aktif" : "Nonaktif"}
-                        </Badge>
-                      </td>
-                      <td data-label="Anggota" className="num-mono px-4 py-3 text-right tabular-nums">{org.member_count}</td>
-                      <td data-label="Dibuat" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(org.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+              {listBody}
+
         </Card>
 
         <Card>
@@ -206,7 +217,7 @@ export function OrganizationsPage() {
                         <p className="truncate font-medium">{m.full_name || m.email || "—"}</p>
                         {m.email && m.full_name ? <p className="truncate text-xs text-text-secondary">{m.email}</p> : null}
                       </div>
-                      <Badge tone={m.role === "owner" ? "info" : m.role === "admin" ? "warning" : "neutral"}>
+                      <Badge tone={roleTone(m.role)}>
                         {roleLabel[m.role] ?? m.role}
                       </Badge>
                     </li>

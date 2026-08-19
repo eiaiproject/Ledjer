@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { apiRequest } from "@/lib/api/client";
 import { Badge, Button, Card, EmptyState, Input, PageHeader, PageLoader, Select, Toast, formatDateTime } from "@/components/ui";
 
@@ -101,6 +101,61 @@ export function UsersPage() {
     }
   }
 
+  let tableBody: ReactNode;
+  if (!data) {
+    tableBody = <PageLoader />;
+  } else if (data.users.length === 0) {
+    tableBody = <EmptyState title="Tidak ada pengguna" description="Ubah filter pencarian." />;
+  } else {
+    const rows = data.users.map((user) => (
+      <tr key={user.id}>
+        <td data-label="Pengguna" className="px-4 py-3">
+          <p className="font-medium">{user.full_name || "—"}</p>
+          <p className="text-xs text-text-secondary">{user.email}</p>
+        </td>
+        <td data-label="Status" className="px-4 py-3">
+          <Badge tone={user.status === "active" ? "success" : "neutral"}>
+            {user.status === "active" ? "Aktif" : "Nonaktif"}
+          </Badge>
+          {user.has_oauth ? <span className="ml-2 text-xs text-text-tertiary">Google</span> : null}
+        </td>
+        <td data-label="Org" className="num-mono px-4 py-3 text-right tabular-nums">{user.organization_count}</td>
+        <td data-label="Terdaftar" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(user.created_at)}</td>
+        <td data-label="Aksi" className="px-4 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {user.status === "active" ? (
+              <Button variant="secondary" disabled={busy} onClick={() => void setUserStatus(user, "disabled")}>
+                Nonaktifkan
+              </Button>
+            ) : (
+              <Button variant="secondary" disabled={busy} onClick={() => void setUserStatus(user, "active")}>
+                Aktifkan
+              </Button>
+            )}
+            <Button variant="ghost" disabled={busy} onClick={() => void sendReset(user)}>Reset password</Button>
+            <Button variant="danger" disabled={busy} onClick={() => void deleteUser(user)}>Hapus</Button>
+          </div>
+        </td>
+      </tr>
+    ));
+    tableBody = (
+      <div className="overflow-x-auto">
+        <table className="ledger-table w-full text-sm">
+          <thead>
+            <tr>
+              <th className="px-4 py-3">Pengguna</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Org</th>
+              <th className="px-4 py-3">Terdaftar</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader title="Pengguna" description={`${data?.total ?? 0} akun terdaftar di platform.`} />
@@ -130,58 +185,7 @@ export function UsersPage() {
 
         {error ? <div className="px-4 pt-4"><Toast message={error} /></div> : null}
 
-        {!data ? (
-          <PageLoader />
-        ) : data.users.length === 0 ? (
-          <EmptyState title="Tidak ada pengguna" description="Ubah filter pencarian." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="ledger-table w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3">Pengguna</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Org</th>
-                  <th className="px-4 py-3">Terdaftar</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.users.map((user) => (
-                  <tr key={user.id}>
-                    <td data-label="Pengguna" className="px-4 py-3">
-                      <p className="font-medium">{user.full_name || "—"}</p>
-                      <p className="text-xs text-text-secondary">{user.email}</p>
-                    </td>
-                    <td data-label="Status" className="px-4 py-3">
-                      <Badge tone={user.status === "active" ? "success" : "neutral"}>
-                        {user.status === "active" ? "Aktif" : "Nonaktif"}
-                      </Badge>
-                      {user.has_oauth ? <span className="ml-2 text-xs text-text-tertiary">Google</span> : null}
-                    </td>
-                    <td data-label="Org" className="num-mono px-4 py-3 text-right tabular-nums">{user.organization_count}</td>
-                    <td data-label="Terdaftar" className="px-4 py-3 text-xs text-text-secondary">{formatDateTime(user.created_at)}</td>
-                    <td data-label="Aksi" className="px-4 py-3">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {user.status === "active" ? (
-                          <Button variant="secondary" disabled={busy} onClick={() => void setUserStatus(user, "disabled")}>
-                            Nonaktifkan
-                          </Button>
-                        ) : (
-                          <Button variant="secondary" disabled={busy} onClick={() => void setUserStatus(user, "active")}>
-                            Aktifkan
-                          </Button>
-                        )}
-                        <Button variant="ghost" disabled={busy} onClick={() => void sendReset(user)}>Reset password</Button>
-                        <Button variant="danger" disabled={busy} onClick={() => void deleteUser(user)}>Hapus</Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {tableBody}
       </Card>
     </div>
   );

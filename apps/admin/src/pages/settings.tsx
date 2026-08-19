@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { apiRequest, ApiError } from "@/lib/api/client";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, PageHeader, PageLoader, Toast, formatDateTime } from "@/components/ui";
 
@@ -109,6 +109,52 @@ export function SettingsPage() {
     }
   }
 
+  let tableBody: ReactNode;
+  if (!admins) {
+    tableBody = <PageLoader />;
+  } else if (admins.length === 0) {
+    tableBody = <EmptyState title="Belum ada admin" />;
+  } else {
+    const rows = admins.map((admin) => (
+      <tr key={admin.id}>
+        <td data-label="Admin" className="px-4 py-3">
+          <p className="font-medium">{admin.full_name || "—"}</p>
+          <p className="text-xs text-text-secondary">{admin.email}</p>
+        </td>
+        <td data-label="Status" className="px-4 py-3">
+          <Badge tone={admin.status === "active" ? "success" : "neutral"}>
+            {admin.status === "active" ? "Aktif" : "Nonaktif"}
+          </Badge>
+        </td>
+        <td data-label="Login terakhir" className="px-4 py-3 text-xs text-text-secondary">
+          {admin.last_login_at ? formatDateTime(admin.last_login_at) : "Belum pernah"}
+        </td>
+        <td data-label="Aksi" className="px-4 py-3 text-right">
+          {admin.status === "active" ? (
+            <Button variant="secondary" onClick={() => void setAdminStatus(admin, "disabled")}>Nonaktifkan</Button>
+          ) : (
+            <Button variant="secondary" onClick={() => void setAdminStatus(admin, "active")}>Aktifkan</Button>
+          )}
+        </td>
+      </tr>
+    ));
+    tableBody = (
+      <div className="overflow-x-auto">
+        <table className="ledger-table w-full text-sm">
+          <thead>
+            <tr>
+              <th className="px-4 py-3">Admin</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Login terakhir</th>
+              <th className="px-4 py-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader title="Pengaturan" description="Kelola kredensial admin internal." />
@@ -149,49 +195,7 @@ export function SettingsPage() {
 
       <Card className="mt-4">
         <CardHeader title="Daftar Admin" description="Semua akun dengan akses ke panel ini." />
-        {!admins ? (
-          <PageLoader />
-        ) : admins.length === 0 ? (
-          <EmptyState title="Belum ada admin" />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="ledger-table w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3">Admin</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Login terakhir</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {admins.map((admin) => (
-                  <tr key={admin.id}>
-                    <td data-label="Admin" className="px-4 py-3">
-                      <p className="font-medium">{admin.full_name || "—"}</p>
-                      <p className="text-xs text-text-secondary">{admin.email}</p>
-                    </td>
-                    <td data-label="Status" className="px-4 py-3">
-                      <Badge tone={admin.status === "active" ? "success" : "neutral"}>
-                        {admin.status === "active" ? "Aktif" : "Nonaktif"}
-                      </Badge>
-                    </td>
-                    <td data-label="Login terakhir" className="px-4 py-3 text-xs text-text-secondary">
-                      {admin.last_login_at ? formatDateTime(admin.last_login_at) : "Belum pernah"}
-                    </td>
-                    <td data-label="Aksi" className="px-4 py-3 text-right">
-                      {admin.status === "active" ? (
-                        <Button variant="secondary" onClick={() => void setAdminStatus(admin, "disabled")}>Nonaktifkan</Button>
-                      ) : (
-                        <Button variant="secondary" onClick={() => void setAdminStatus(admin, "active")}>Aktifkan</Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {tableBody}
       </Card>
     </div>
   );
