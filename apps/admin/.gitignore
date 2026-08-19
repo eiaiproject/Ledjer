@@ -5,3 +5,5 @@ dist
 *.local
 .env.local
 .env.*.local
+screenshots/
+screenshots.mjs
