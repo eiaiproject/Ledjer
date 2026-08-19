@@ -1,5 +1,6 @@
-import { execute, queryAll, queryFirst, type D1Input } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import { notFound } from "../http/errors";
+import { prepareList, countRows } from "./list-utils";
 import { logAdminEvent } from "./admin-audit.service";
 
 interface OrganizationRow {
@@ -36,28 +37,13 @@ export async function listOrganizations(
   db: D1Database,
   filters: { search?: string; status?: string; limit?: number; offset?: number },
 ): Promise<{ organizations: Array<OrganizationRow & { member_count: number }>; total: number }> {
-  const conditions: string[] = [];
-  const values: D1Input[] = [];
-
-  if (filters.search) {
-    const search = `%${filters.search.toLowerCase()}%`;
-    conditions.push("(lower(o.name) LIKE ? OR o.id LIKE ?)");
-    values.push(search, search);
-  }
-  if (filters.status) {
-    conditions.push("o.status = ?");
-    values.push(filters.status);
-  }
-
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
-  const offset = Math.max(filters.offset ?? 0, 0);
-
-  const totalRow = await queryFirst<{ c: number }>(
-    db,
-    `SELECT COUNT(*) AS c FROM organizations o ${where}`,
-    values,
+  const { where, limit, offset, values } = prepareList(
+    filters,
+    "(lower(o.name) LIKE ? OR o.id LIKE ?)",
+    "o.status",
   );
+
+  const total = await countRows(db, "organizations o", where, values);
   const rows = await queryAll<OrganizationRow & { member_count: number }>(
     db,
     `SELECT o.id, o.name, o.business_type, o.base_currency, o.books_start_date,
@@ -69,7 +55,7 @@ export async function listOrganizations(
     [...values, limit, offset],
   );
 
-  return { organizations: rows, total: totalRow?.c ?? 0 };
+  return { organizations: rows, total };
 }
 
 export async function getOrganizationDetail(

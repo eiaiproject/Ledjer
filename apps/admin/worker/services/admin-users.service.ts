@@ -1,6 +1,7 @@
-import { execute, queryAll, queryFirst, type D1Input } from "../db/client";
+import { execute, queryAll, queryFirst } from "../db/client";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 import { notFound, badRequest } from "../http/errors";
+import { prepareList, countRows } from "./list-utils";
 import { logAdminEvent } from "./admin-audit.service";
 import { sendEmail } from "./email.service";
 
@@ -26,28 +27,13 @@ export async function listUsers(
   db: D1Database,
   filters: { search?: string; status?: string; limit?: number; offset?: number },
 ): Promise<{ users: AdminUserDetail[]; total: number }> {
-  const conditions: string[] = [];
-  const values: D1Input[] = [];
-
-  if (filters.search) {
-    const search = `%${filters.search.toLowerCase()}%`;
-    conditions.push("(lower(u.email) LIKE ? OR lower(u.full_name) LIKE ?)");
-    values.push(search, search);
-  }
-  if (filters.status) {
-    conditions.push("u.status = ?");
-    values.push(filters.status);
-  }
-
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
-  const offset = Math.max(filters.offset ?? 0, 0);
-
-  const totalRow = await queryFirst<{ c: number }>(
-    db,
-    `SELECT COUNT(*) AS c FROM users u ${where}`,
-    values,
+  const { where, limit, offset, values } = prepareList(
+    filters,
+    "(lower(u.email) LIKE ? OR lower(u.full_name) LIKE ?)",
+    "u.status",
   );
+
+  const total = await countRows(db, "users u", where, values);
   const rows = await queryAll<UserRow>(
     db,
     `SELECT u.id, u.email, u.full_name, u.status, u.email_verified_at, u.created_at, u.updated_at
@@ -62,7 +48,7 @@ export async function listUsers(
     users.push(await toDetail(db, row));
   }
 
-  return { users, total: totalRow?.c ?? 0 };
+  return { users, total };
 }
 
 export async function getUserDetail(
