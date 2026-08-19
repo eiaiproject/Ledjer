@@ -69,8 +69,19 @@ class FakeStatement {
     const whereIdx = this.sql.toUpperCase().lastIndexOf(" WHERE ");
     if (whereIdx === -1) return true;
     const where = this.sql.slice(whereIdx + 7);
+    const clauses: string[] = [];
+    let rest = where;
+    for (;;) {
+      const andIdx = rest.toUpperCase().indexOf(" AND ");
+      if (andIdx === -1) {
+        clauses.push(rest);
+        break;
+      }
+      clauses.push(rest.slice(0, andIdx));
+      rest = rest.slice(andIdx + 5);
+    }
     let idx = 0;
-    for (const clauseRaw of where.split(/\s+AND\s+/i)) {
+    for (const clauseRaw of clauses) {
       const m = /^([a-z_.]+)\s*(=|>=|<=|>|<|IS NOT NULL)\s*(\?|NULL)$/i.exec(clauseRaw.trim());
       if (!m) continue;
       const col = m[1].replace(/^\w+\./, "");
@@ -81,7 +92,7 @@ class FakeStatement {
   }
 
   private matchesClause(row: Row, col: string, op: string, rhs: string, idx: number): boolean {
-    const normalize = (v: unknown): unknown => (typeof v === "boolean" ? (v ? 1 : 0) : v);
+    const normalize = (v: unknown): unknown => (typeof v === "boolean" ? Number(v) : v);
     const actual = normalize(row[col]);
     if (op === "IS NOT NULL") return actual !== null && actual !== undefined;
     if (rhs === "NULL") return actual === null;
@@ -141,17 +152,21 @@ class FakeStatement {
       const sets = sql.slice(setIdx + 5, whereIdx === -1 ? sql.length : whereIdx);
       for (const row of this.allRows(table)) {
         if (!this.matchesWhere(row)) continue;
-        let idx = 0;
-        for (const part of sets.split(",")) {
-          const trimmed = part.trim();
-          const eqIdx = trimmed.indexOf("=");
-          if (eqIdx === -1 || !trimmed.endsWith("?")) continue;
-          const col = trimmed.slice(0, eqIdx).trim();
-          if (!col) continue;
-          row[col] = this.bound[idx];
-          idx += 1;
-        }
+        this.applySets(row, sets);
       }
+    }
+  }
+
+  private applySets(row: Row, sets: string): void {
+    let idx = 0;
+    for (const part of sets.split(",")) {
+      const trimmed = part.trim();
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1 || !trimmed.endsWith("?")) continue;
+      const col = trimmed.slice(0, eqIdx).trim();
+      if (!col) continue;
+      row[col] = this.bound[idx];
+      idx += 1;
     }
   }
 
