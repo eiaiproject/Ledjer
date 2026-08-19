@@ -38,6 +38,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-wood-900 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
+          <img src="/logo-icon.svg" alt="Ledjer" className="mx-auto mb-4 h-12 w-12" />
           <h1 className="text-2xl font-semibold text-cream-50">Ledjer Admin</h1>
           <p className="mt-2 text-sm text-wood-200">Panel operasional internal — akses terbatas.</p>
         </div>

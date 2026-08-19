@@ -18,9 +18,16 @@ export function AdminLayout() {
     <div className="ledger-min-dvh flex min-h-screen">
       {/* Sidebar */}
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-wood-800 text-cream-50">
-        <div className="border-b border-wood-700 px-5 py-5">
-          <p className="text-lg font-semibold tracking-tight">Ledjer Admin</p>
-          <p className="mt-0.5 text-xs text-wood-200">Panel Operasional Platform</p>
+        <div className="flex items-center gap-3 border-b border-wood-700 px-5 py-5">
+          <img
+            src="/logo-icon.svg"
+            alt=""
+            className="h-8 w-8 shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="text-lg font-semibold leading-tight tracking-tight">Ledjer Admin</p>
+            <p className="mt-0.5 text-xs text-wood-200">Panel Operasional Platform</p>
+          </div>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Navigasi admin">
           {NAV_ITEMS.map((item) => (
