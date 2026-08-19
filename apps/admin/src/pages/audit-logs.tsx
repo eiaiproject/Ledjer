@@ -104,7 +104,7 @@ export function AuditLogsPage() {
           <EmptyState title="Tidak ada entri" description="Ubah filter pencarian." />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="max-h-[70vh] overflow-auto md:overflow-x-auto">
               <table className="ledger-table w-full text-sm">
                 <thead>
                   <tr>

@@ -165,8 +165,3 @@ export function formatDateTime(ms: number | null | undefined): string {
     timeStyle: "short",
   }).format(new Date(ms));
 }
-
-export function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(new Date(dateStr));
-}

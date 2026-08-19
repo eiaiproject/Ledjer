@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { apiRequest, ApiError } from "@/lib/api/client";
-import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, PageHeader, PageLoader, Toast } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, PageHeader, PageLoader, Toast, formatDateTime } from "@/components/ui";
 
 interface AdminAccount {
   id: string;
@@ -177,7 +177,7 @@ export function SettingsPage() {
                       </Badge>
                     </td>
                     <td data-label="Login terakhir" className="px-4 py-3 text-xs text-text-secondary">
-                      {admin.last_login_at ? new Date(admin.last_login_at).toLocaleString("id-ID") : "Belum pernah"}
+                      {admin.last_login_at ? formatDateTime(admin.last_login_at) : "Belum pernah"}
                     </td>
                     <td data-label="Aksi" className="px-4 py-3 text-right">
                       {admin.status === "active" ? (
