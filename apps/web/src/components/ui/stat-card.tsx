@@ -114,7 +114,7 @@ export function StatCard({
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className={cn("min-w-0 break-words text-sm", hero ? "opacity-85" : "text-text-secondary")}>{label}</p>
+        <p className={cn("min-w-0 break-words text-sm", hero ? "" : "text-text-secondary")}>{label}</p>
         <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", hero ? "bg-white/15" : colors.bg)}>
           <Icon className={cn("h-5 w-5", hero ? "" : colors.icon)} />
         </div>
