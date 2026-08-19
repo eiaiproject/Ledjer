@@ -53,7 +53,7 @@ jobs:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           workingDirectory: apps/admin
           wranglerVersion: 4.123.0
-          command: deploy
+          command: deploy --config wrangler.jsonc
 
       # Use the workers.dev URL — bypasses the Cloudflare bot challenge that
       # returns 403 on the public admin.ledjer.id domain when accessed from CI

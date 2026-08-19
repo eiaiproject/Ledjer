@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b --pretty false && vite build && bash scripts/postbuild-csp.sh",
-    "cf:deploy": "wrangler deploy",
-    "deploy": "wrangler deploy",
+    "cf:deploy": "wrangler deploy --config wrangler.jsonc",
+    "deploy": "wrangler deploy --config wrangler.jsonc",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
