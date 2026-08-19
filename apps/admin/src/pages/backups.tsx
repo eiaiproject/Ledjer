@@ -178,7 +178,7 @@ function backupTable(
   openDetail: (date: string) => void,
 ) {
   const rows = backups.map((b) => (
-    <tr key={b.date} className="cursor-pointer" onClick={() => void openDetail(b.date)}>
+    <tr key={b.date} className="cursor-pointer" onClick={() => openDetail(b.date)}>
       <td data-label="Tanggal" className="px-4 py-3 font-medium">{b.date}</td>
       <td data-label="Status" className="px-4 py-3">
         <Badge tone={b.completed ? "success" : "danger"}>
