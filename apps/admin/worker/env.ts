@@ -13,8 +13,13 @@ export interface Env {
   EMAIL_API_KEY?: string;
   EMAIL_FROM?: string;
   SENTRY_DSN?: string;
-  /** Origin of the main user app (https://ledjer.id) — for reset links and health checks. */
+  /** Origin of the main user app (https://ledjer.id) — used for password-reset links. */
   USER_APP_ORIGIN?: string;
+  /** Service binding to the main worker (ledjer). Used by the health check.
+   *  Worker-to-Worker calls via public *.workers.dev hostname fail with
+   *  CF error 1042 ("could not resolve host") from the internal resolver,
+   *  so this binding is required for cross-worker health probes. */
+  MAIN_APP?: Fetcher;
 }
 
 export interface AppContext {

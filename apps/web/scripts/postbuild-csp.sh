@@ -19,3 +19,15 @@ if [[ -n "$ENV_LEAKS" ]]; then
     rm -f "$leaked_file"
   done
 fi
+
+# Rewrite the deploy-config redirector emitted by @cloudflare/vite-plugin so
+# wrangler deploy resolves the source wrangler.jsonc (which has the env.staging
+# block) instead of dist/<name>/wrangler.json (which only has top-level vars).
+# Without this, `wrangler deploy --env staging` silently deploys with default
+# bindings (preview DB, dev vars).
+DEPLOY_CONFIG=".wrangler/deploy/config.json"
+if [[ -f "$DEPLOY_CONFIG" ]]; then
+  ABS_CONFIG="$(cd "$(dirname "$0")/.." && pwd)/wrangler.jsonc"
+  printf '{"configPath":"%s","auxiliaryWorkers":[]}\n' "$ABS_CONFIG" > "$DEPLOY_CONFIG"
+  echo "[wrangler] rewrote $DEPLOY_CONFIG → $ABS_CONFIG"
+fi

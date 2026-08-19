@@ -19,6 +19,7 @@ export interface PlatformSummary {
 export async function getPlatformSummary(
   db: D1Database,
   mainAppUrl?: string,
+  mainApp?: Fetcher,
 ): Promise<PlatformSummary> {
   const counts = {
     users: await count(db, "users"),
@@ -48,7 +49,7 @@ export async function getPlatformSummary(
   return {
     counts,
     registrationsLast7Days: registrations.map((r) => ({ date: r.day, count: r.count })),
-    mainAppHealth: await checkMainAppHealth(mainAppUrl),
+    mainAppHealth: await checkMainAppHealth(mainAppUrl, mainApp),
   };
 }
 
@@ -62,7 +63,25 @@ async function countWhere(db: D1Database, table: string, where: string): Promise
   return row?.c ?? 0;
 }
 
-async function checkMainAppHealth(mainAppUrl?: string): Promise<"up" | "down" | "unknown"> {
+async function checkMainAppHealth(
+  mainAppUrl?: string,
+  mainApp?: Fetcher,
+): Promise<"up" | "down" | "unknown"> {
+  // Prefer the service binding — it dispatches the call directly inside the
+  // Workers runtime, which is the only reliable way to call the main app
+  // (Worker→Worker via public *.workers.dev hostname fails with CF 1042).
+  if (mainApp) {
+    try {
+      const res = await mainApp.fetch("https://main-app/api/health", { signal: AbortSignal.timeout(5_000) });
+      if (!res.ok) return "down";
+      const body = (await res.json()) as { status?: string };
+      return body.status === "healthy" ? "up" : "down";
+    } catch {
+      return "down";
+    }
+  }
+  // Fallback to public-URL fetch (used only if the service binding is missing,
+  // which would only happen in local dev or misconfiguration).
   if (!mainAppUrl) return "unknown";
   try {
     const res = await fetch(`${mainAppUrl}/api/health`, {

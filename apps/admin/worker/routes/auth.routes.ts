@@ -95,7 +95,18 @@ authRoutes.get("/me", async (c) => {
 
 authRoutes.post("/change-password", async (c) => {
   const body = await readJson(c, changePasswordSchema);
-  const session = c.get("adminSession");
+  // This route lives under /api/admin/auth/* which is mounted BEFORE
+  // requireAdminAuth(), so adminSession is not set by middleware. Load the
+  // session from the cookie directly (same pattern as /me).
+  const token = getCookie(c, "__Host-ledjer-admin_session") ?? getCookie(c, "ledjer_admin_session");
+  if (!token) {
+    return c.json({ error: { code: "unauthorized", message: "Authentication required", requestId: c.get("requestId") } }, 401);
+  }
+  const session = await getAdminSessionByToken(c.env.DB, token);
+  if (!session) {
+    deleteCookie(c, cookieName(c), cookieOptions(c));
+    return c.json({ error: { code: "unauthorized", message: "Authentication required", requestId: c.get("requestId") } }, 401);
+  }
   await changeAdminPassword(
     c.env.DB,
     session.admin_user_id,

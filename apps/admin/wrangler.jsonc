@@ -33,6 +33,16 @@
   // production pattern in apps/web and apps/docs. Declaring `routes` here
   // makes CI call the /zones/{zone}/workers/routes API, which the deploy
   // token (CF_API_TOKEN) lacks permission for.
+  // Service binding to the main worker. Worker→Worker via public *.workers.dev
+  // hostname fails with CF error 1042 ("could not resolve host") from the
+  // internal resolver; a service binding dispatches the call directly and is
+  // the supported way for the admin dashboard to health-check the main app.
+  "services": [
+    {
+      "binding": "MAIN_APP",
+      "service": "ledjer"
+    }
+  ],
   "vars": {
     "APP_ENV": "production",
     "APP_ORIGIN": "https://admin.ledjer.id"
@@ -56,6 +66,12 @@
         {
           "binding": "BACKUP_BUCKET",
           "bucket_name": "ledjer-backups-staging"
+        }
+      ],
+      "services": [
+        {
+          "binding": "MAIN_APP",
+          "service": "ledjer-staging"
         }
       ]
     }
