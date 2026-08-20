@@ -23,40 +23,42 @@ app.use("*", async (c, next) => {
 app.use("*", requestLogger());
 app.use("*", secureHeaders({}));
 
-// Custom CSRF check with origin validation against APP_ORIGIN (same pattern
-// as the main worker). The admin dashboard is a separate origin
-// (https://admin.ledjer.id), so it needs its own allowlist.
+function csrfError(status: number, code: string, message: string): Response {
+  return Response.json({ error: { code, message } }, { status });
+}
+
+function originAllowed(origin: string, allowed: string | undefined): boolean {
+  if (!allowed) return false;
+  return allowed.split(",").map((o) => o.trim()).filter(Boolean)
+    .some((a) => origin === a || origin.startsWith(a + "/"));
+}
+
 app.use("/api/*", async (c, next) => {
   const method = c.req.method;
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
 
   if (c.env.APP_ENV === "development") return next();
 
-  const origin = c.req.header("Origin") || c.req.header("Referer");
+  const origin = c.req.header("Origin") ?? c.req.header("Referer");
   const allowed = c.env.APP_ORIGIN;
 
+  // Origin-less calls carrying an admin session cookie are still rejected
+  // (login CSRF); public API calls (health, pre-auth) pass without Origin.
   if (!origin) {
-    const cookie = c.req.header("Cookie");
-    if (cookie && (cookie.includes("ledjer_admin_session=") || cookie.includes("__Host-ledjer-admin_session="))) {
-      if (allowed) {
-        return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
-      }
-      return c.json({ error: { code: "csrf_missing_origin", message: "Missing Origin header with session cookie" } }, 403);
-    }
-    return next();
+    const cookie = c.req.header("Cookie") ?? "";
+    const hasSession = cookie.includes("ledjer_admin_session=") || cookie.includes("__Host-ledjer-admin_session=");
+    if (!hasSession) return next();
+    return allowed
+      ? csrfError(403, "csrf_invalid", "Origin not allowed")
+      : csrfError(403, "csrf_missing_origin", "Missing Origin header with session cookie");
   }
 
-  if (!allowed) {
-    if (c.env.APP_ENV === "production") {
-      return c.json({ error: { code: "csrf_misconfigured", message: "Server misconfigured" } }, 500);
-    }
-    return next();
+  if (!allowed && c.env.APP_ENV === "production") {
+    return csrfError(500, "csrf_misconfigured", "Server misconfigured");
   }
+  if (!allowed) return next();
 
-  const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
-  const ok = allowedList.some((a) => origin === a || origin.startsWith(a + "/"));
-  if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
-  return next();
+  return originAllowed(origin, allowed) ? next() : csrfError(403, "csrf_invalid", "Origin not allowed");
 });
 
 // Auth (login/logout/me) are public — session cookie is checked per-route.
