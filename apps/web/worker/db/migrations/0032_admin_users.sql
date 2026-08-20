@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
   email TEXT NOT NULL COLLATE NOCASE,
   password_hash TEXT NOT NULL,
   full_name TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')), -- NOSONAR plsql:S1192 (SQLite has no constants; literal is the column DEFAULT + CHECK member)
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')), -- NOSONAR plsql:S1192 (SQLite has no constants)
   last_login_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

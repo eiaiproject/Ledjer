@@ -86,7 +86,7 @@ export async function getEntityIds(db: D1Database, entity: string, limit = 50): 
     [limit],
   );
   return rows.map((row) => ({
-    id: String(row.id ?? ""),
+    id: typeof row.id === "string" ? row.id : "",
     label: query.label(row),
   }));
 }
