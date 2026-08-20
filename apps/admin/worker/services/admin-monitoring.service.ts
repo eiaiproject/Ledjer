@@ -1,4 +1,5 @@
 import { queryAll, queryFirst } from "../db/client";
+import { badRequest } from "../http/errors";
 
 export interface PlatformSummary {
   counts: {
@@ -51,6 +52,43 @@ export async function getPlatformSummary(
     registrationsLast7Days: registrations.map((r) => ({ date: r.day, count: r.count })),
     mainAppHealth: await checkMainAppHealth(mainAppUrl, mainApp),
   };
+}
+
+const ID_ENTITY_QUERIES: Record<
+  string,
+  { table: string; select: string; label: (row: Record<string, unknown>) => string | null }
+> = {
+  users: { table: "users", select: "id, email", label: (r) => (typeof r.email === "string" ? r.email : null) },
+  organizations: { table: "organizations", select: "id, name", label: (r) => (typeof r.name === "string" ? r.name : null) },
+  transactions: { table: "transactions", select: "id, transaction_number", label: (r) => (typeof r.transaction_number === "string" ? r.transaction_number : null) },
+  journal_entries: { table: "journal_entries", select: "id, entry_number", label: (r) => (typeof r.entry_number === "string" ? r.entry_number : null) },
+  products: { table: "products", select: "id, code, name", label: (r) => (typeof r.code === "string" && typeof r.name === "string" ? `${r.code} · ${r.name}` : null) },
+  admin_users: { table: "admin_users", select: "id, email", label: (r) => (typeof r.email === "string" ? r.email : null) },
+};
+
+export interface EntityIdRow {
+  id: string;
+  label: string | null;
+}
+
+/** Recent entity IDs + display label, newest first (for dashboard drill-down). */
+export async function getEntityIds(db: D1Database, entity: string, limit = 50): Promise<EntityIdRow[]> {
+  const query = ID_ENTITY_QUERIES[entity];
+  if (!query) {
+    throw badRequest(
+      "invalid_entity",
+      `Unknown entity \`${entity}\`; expected one of: ${Object.keys(ID_ENTITY_QUERIES).join(", ")}`,
+    );
+  }
+  const rows = await queryAll<Record<string, unknown>>(
+    db,
+    `SELECT ${query.select} FROM ${query.table} ORDER BY created_at DESC LIMIT ?`,
+    [limit],
+  );
+  return rows.map((row) => ({
+    id: String(row.id ?? ""),
+    label: query.label(row),
+  }));
 }
 
 async function count(db: D1Database, table: string): Promise<number> {

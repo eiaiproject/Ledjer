@@ -112,3 +112,48 @@ describe("Admin auth guard", () => {
     await expect(response.json()).resolves.toMatchObject({ total: 1 });
   });
 });
+
+describe("Monitoring entity IDs", () => {
+  it("lists recent user IDs + labels for a valid entity", async () => {
+    const db = new FakeAdminD1();
+    await seedAdmin(db);
+    const token = await adminSessionToken(db);
+    db.users.push({
+      id: "user-abc123",
+      email: "owner@orga.test",
+      full_name: "Owner A",
+      status: "active",
+      email_verified_at: Date.now(),
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
+
+    const response = await app.fetch(
+      new Request("http://localhost/api/admin/monitoring/ids?entity=users", {
+        headers: { Cookie: `ledjer_admin_session=${token}` },
+      }),
+      env(db) as unknown as AdminEnv & { ASSETS: Fetcher; BACKUP_BUCKET?: R2Bucket },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      entity: "users",
+      items: [{ id: "user-abc123", label: "owner@orga.test" }],
+    });
+  });
+
+  it("rejects unknown entities with 400", async () => {
+    const db = new FakeAdminD1();
+    await seedAdmin(db);
+    const token = await adminSessionToken(db);
+
+    const response = await app.fetch(
+      new Request("http://localhost/api/admin/monitoring/ids?entity=hacked_table", {
+        headers: { Cookie: `ledjer_admin_session=${token}` },
+      }),
+      env(db) as unknown as AdminEnv & { ASSETS: Fetcher; BACKUP_BUCKET?: R2Bucket },
+    );
+
+    expect(response.status).toBe(400);
+  });
+});
