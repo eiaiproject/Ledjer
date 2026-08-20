@@ -19,3 +19,10 @@ if [[ -n "$ENV_LEAKS" ]]; then
     rm -f "$leaked_file"
   done
 fi
+
+# NOTE: do NOT rewrite .wrangler/deploy/config.json here — the vite plugin
+# emits it pointing at dist/<name>/wrangler.json (main: index.js, the bundled
+# worker) and vite preview needs that resolved config to boot workerd. The
+# source wrangler.jsonc's main (worker/index.ts) is unbundled raw TS that
+# workerd cannot load. To deploy with the source config (env.staging block),
+# pass it explicitly: wrangler deploy --config wrangler.jsonc --env staging
