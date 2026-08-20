@@ -30,6 +30,10 @@ if (!email || !fullName || !password) {
 
 validatePasswordOrExit(password);
 
+const normalizedEmail = email.trim().toLowerCase();
+const now = Date.now();
+const adminId = randomUUID();
+
 console.log(`🔐 Generating PBKDF2 hash for: ${normalizedEmail}`);
 const hash = await hashPassword(password);
 console.log(`✅ Hash generated (${hash.length} chars)`);
