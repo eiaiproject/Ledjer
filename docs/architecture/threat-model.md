@@ -38,9 +38,11 @@
 | Cross-tenant data access | **Critical** | `TenantScopedRepository` + org middleware |
 | SQL injection | **High** | All queries use prepared statements |
 | Session hijacking | **High** | HttpOnly/Secure/SameSite cookies, hashed tokens |
-| CSRF | **High** | Origin validation on all state changes |
+| CSRF | **High** | Origin/Referer validation via URL.origin on all state changes (exact match, comma-separated) |
 | Privilege escalation | **High** | Permission check on every protected route |
-| Rate limit bypass | Medium | In-memory + D1 rate limiting |
+| Rate limit bypass | Medium | Atomic D1 conditional INSERT `COUNT(*) < max` per bucket_key (was SELECT+INSERT TOCTOU) |
+| Admin brute-force | Medium | 5/email + 20/IP per 15m + `admin_login_failed` audit + HttpOnly `__Host-ledjer-admin_session` |
+| WAC lost update / tie nondeterminism | Medium | Optimistic lock on `current_stock_milli` (3 retries) + `ORDER BY rowid` determinism |
 
 ### D1 Database
 

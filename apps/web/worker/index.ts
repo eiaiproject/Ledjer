@@ -85,9 +85,12 @@ app.use("/api/*", async (c, next) => {
     }
     return next(); // dev mode: allow all
   }
-  // ponytail: accept comma-separated origins (e.g. "http://localhost:5173,http://localhost:4173").
+  // Origin is origin-only; Referer (fallback) includes path — compare by URL origin.
   const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
-  const ok = allowedList.some((a) => origin === a || origin.startsWith(a + "/"));
+  const ok = allowedList.some((a) => {
+    if (origin === a) return true;
+    try { return new URL(origin).origin === a; } catch { return false; }
+  });
   if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
   return next();
 });

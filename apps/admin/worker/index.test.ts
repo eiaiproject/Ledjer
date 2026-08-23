@@ -48,6 +48,24 @@ describe("Admin auth", () => {
     expect(response.status).toBe(401);
   });
 
+  it("audits failed login attempts", async () => {
+    const db = new FakeAdminD1();
+    await seedAdmin(db);
+
+    const response = await app.fetch(
+      new Request("http://localhost/api/admin/auth/login", {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ email: "admin@ledjer.id", password: "WrongPass1" }),
+      }),
+      env(db) as unknown as AdminEnv & { ASSETS: Fetcher; BACKUP_BUCKET?: R2Bucket },
+    );
+
+    expect(response.status).toBe(401);
+    expect(db.auditLogs).toHaveLength(1);
+    expect(db.auditLogs[0].action).toBe("admin_login_failed");
+  });
+
   it("returns admin:null for /me when logged out", async () => {
     const db = new FakeAdminD1();
     const response = await app.fetch(

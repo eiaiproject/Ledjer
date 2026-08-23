@@ -3,7 +3,7 @@
 | Data Entity | Retention | Deletion Trigger | Deletion Method | Notes |
 |-------------|-----------|-----------------|-----------------|-------|
 | User accounts | Active + 90 days | Account deletion request | Soft delete (status=disabled), hard delete after 90 days | Legal hold override available |
-| Sessions | Until revoked or expired | Logout, password change, 30-day expiry | Automatic (revoked_at set) | |
+| Sessions | Until revoked or expired | Logout, password change, 14-day expiry (absolute TTL) + 1h idle timeout | Automatic (revoked_at set) | See `session.service.ts` `SESSION_TTL_MS = 14 days` |
 | Email verifications | 24 hours | After use or expiry | Automatic (expires_at check) | |
 | Password reset tokens | 1 hour | After use or expiry | Automatic (expires_at check) | |
 | Login attempts | 90 days | After 90 days | Deletion via maintenance cron | Audit purposes |

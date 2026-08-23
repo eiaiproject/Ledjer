@@ -26,7 +26,8 @@ Set via Cloudflare Dashboard or `wrangler secret put`:
 | `EMAIL_FROM` | From email address |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `PASSWORD_PEPPER` | Pepper for password hashing |
+| `PASSWORD_PEPPER` | Pepper for password hashing (web users) |
+| `ADMIN_PASSWORD_PEPPER` | Pepper for admin password hashing (admin.ledjer.id, separate) |
 | `SENTRY_DSN` | Sentry DSN |
 | `GIT_SHA` | Current commit SHA (set during CI) |
 
@@ -74,6 +75,7 @@ npx wrangler secret put APP_ORIGIN --env staging
 npx wrangler secret put GOOGLE_CLIENT_ID --env staging
 npx wrangler secret put GOOGLE_CLIENT_SECRET --env staging
 npx wrangler secret put PASSWORD_PEPPER --env staging
+npx wrangler secret put ADMIN_PASSWORD_PEPPER --env staging
 npx wrangler secret put SENTRY_DSN --env staging
 
 # 5. Deploy to staging

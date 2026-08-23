@@ -172,8 +172,9 @@ pnpm admin:deploy           # Deploy admin dashboard to Cloudflare
 ### Provision admin akun
 
 ```bash
-node scripts/create-admin.mjs <email> "<Nama Lengkap>" '<password>'   # production
-node scripts/create-admin.mjs <email> "<Nama Lengkap>" '<password>' --staging
+# Jika ADMIN_PASSWORD_PEPPER dipasang di Worker, set env yang sama saat create:
+ADMIN_PASSWORD_PEPPER=xxx node scripts/create-admin.mjs <email> "<Nama Lengkap>" '<password>'   # production
+ADMIN_PASSWORD_PEPPER=xxx node scripts/create-admin.mjs <email> "<Nama Lengkap>" '<password>' --staging
 ```
 
 ---

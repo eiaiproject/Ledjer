@@ -177,9 +177,24 @@ class FakeStatement {
       .split(",")
       .map((c) => c.trim())
       .filter(Boolean);
+    // Parse VALUES placeholders to handle NULL literals (e.g. audit_logs inserts NULL for organization_id)
+    const valuesIdx = this.sql.toUpperCase().indexOf("VALUES");
+    const vOpen = valuesIdx === -1 ? -1 : this.sql.indexOf("(", valuesIdx);
+    const vClose = vOpen === -1 ? -1 : this.sql.indexOf(")", vOpen);
+    const placeholders = vOpen === -1 || vClose === -1 ? [] : this.sql.slice(vOpen + 1, vClose).split(",").map((s) => s.trim());
     const row: Row = {};
+    let boundIdx = 0;
     cols.forEach((col, i) => {
-      row[col] = this.bound[i];
+      const ph = placeholders[i] ?? "?";
+      if (ph === "?") {
+        row[col] = this.bound[boundIdx++];
+      } else if (ph.toUpperCase() === "NULL") {
+        row[col] = null;
+      } else {
+        // literal like 'active' — strip quotes
+        const m = /^'(.*)'$/.exec(ph);
+        row[col] = m ? m[1] : ph;
+      }
     });
     return row;
   }

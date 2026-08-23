@@ -11,6 +11,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { hashPassword, validatePasswordOrExit } from "./lib/password.mjs";
+import { buildAdminUpsertSql } from "./lib/admin-sql.mjs";
 import { execSync } from "node:child_process";
 import { writeFileSync, unlinkSync } from "node:fs";
 
@@ -35,19 +36,13 @@ const now = Date.now();
 const adminId = randomUUID();
 
 console.log(`🔐 Generating PBKDF2 hash for: ${normalizedEmail}`);
-const hash = await hashPassword(password);
+const pepper = process.env.ADMIN_PASSWORD_PEPPER ?? "";
+const hash = await hashPassword(password, pepper);
+if (pepper) console.log("Using ADMIN_PASSWORD_PEPPER from env.");
 console.log(`✅ Hash generated (${hash.length} chars)`);
 
 // Guard against duplicates (admin_users.email is unique).
-const sql = `
-INSERT INTO admin_users (id, email, password_hash, full_name, status, created_at, updated_at)
-VALUES ('${adminId}', '${normalizedEmail}', '${hash}', '${fullName.replaceAll("'", "''")}', 'active', ${now}, ${now})
-ON CONFLICT(email) DO UPDATE SET
-  password_hash = excluded.password_hash,
-  full_name = excluded.full_name,
-  status = 'active',
-  updated_at = excluded.updated_at;
-`;
+const sql = buildAdminUpsertSql({ id: adminId, email: normalizedEmail, fullName, hash, now });
 
 const tmpFile = `/tmp/ledjer-admin-${Date.now()}.sql`;
 writeFileSync(tmpFile, sql);
@@ -60,8 +55,7 @@ try {
   );
   console.log(`\n✅ Admin ${normalizedEmail} created/updated in ${dbName}.`);
   console.log(`   Log in at ${staging ? "https://ledjer-admin-staging.eiai.workers.dev" : "https://admin.ledjer.id"} (after deployment).`);
-  console.log(`   NOTE: if ADMIN_PASSWORD_PEPPER is configured on the worker, this password will NOT verify.`);
-  console.log(`         Either leave the pepper unset, or provision via a one-time script using the same pepper.`);
+  if (!pepper) console.log(`   NOTE: ADMIN_PASSWORD_PEPPER was empty — set it in env to match Worker if Worker has a pepper.`);
 } catch (err) {
   console.error("\n❌ Failed to update database:", err.message);
   process.exit(1);

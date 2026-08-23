@@ -16,4 +16,4 @@
 
 - [openapi.yaml](openapi.yaml) — OpenAPI 3.0 spec (legacy)
 - [versioning.md](versioning.md) — API versioning policy
-- [P0.5-preview.md](P0.5-preview.md) — Transaction preview endpoint *(planned)*
+- Transaction preview endpoint *(planned — no spec yet, see versioning.md)*

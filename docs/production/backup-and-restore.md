@@ -2,7 +2,7 @@
 
 ## Implementation
 
-- **Schedule**: Daily at 03:00 WIB (Worker cron trigger).
+- **Schedule**: Daily at 03:00 UTC (10:00 WIB) — `wrangler.jsonc` crons `0 3 * * *` (UTC).
 - **Destination**: R2 bucket (`BACKUP_BUCKET` binding), prefix `backups/`.
 - **Format**: JSON export per major table (organizations, users, accounts, journal entries, products, etc.) with manifest.
 - **Checksum**: SHA-256 per backup payload, recorded in manifest.

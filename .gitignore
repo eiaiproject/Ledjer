@@ -67,15 +67,9 @@ AUDIT-AND-REMEDIATION.md
 # Personal worklog
 worklog.md
 
-# Project meta docs (not source code)
-CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-SECURITY.md
-
 # Screenshots (binary bloat, not essential for development).
 # Root-anchored so apps/docs (public docs site) is NOT ignored.
-/docs/
+# NOTE: /docs/ intentionally NOT ignored — docs are tracked.
 /docs/screenshots/
 
 # Codex hooks (local paths, not portable)
@@ -87,7 +81,6 @@ temporary.md
 .env.local.md
 supabase-credentials.*
 graphify-out/
-DISASTER_RECOVERY.md
 
 # SonarScanner local analysis artifacts
 .scannerwork/
