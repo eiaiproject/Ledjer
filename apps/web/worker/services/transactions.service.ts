@@ -2062,6 +2062,26 @@ interface StockMovementForWac {
   unit_cost_minor: number | null;
 }
 
+function computeWacState(movements: StockMovementForWac[]): { stock: number; avg: number } {
+  let stock = 0;
+  let avg = 0;
+  for (const m of movements) {
+    const isPurchaseLike = m.movement_type === "opening" || m.movement_type === "purchase" || m.movement_type === "sale_return";
+    const isSaleLike = m.movement_type === "sale" || m.movement_type === "void" || m.movement_type === "adjustment" || m.movement_type === "stock_count" || m.movement_type === "purchase_return";
+    if (isPurchaseLike) {
+      const qty = m.quantity_milli;
+      const cost = m.unit_cost_minor ?? 0;
+      const newStock = stock + qty;
+      if (newStock > 0) avg = Math.round((stock * avg + qty * cost) / newStock);
+      stock = newStock;
+    } else if (isSaleLike) {
+      stock += m.quantity_milli;
+      if (stock < 0) stock = 0;
+    }
+  }
+  return { stock, avg };
+}
+
 export async function recalculateProductAverageCost(
   db: D1Database,
   organizationId: string,
@@ -2085,36 +2105,7 @@ export async function recalculateProductAverageCost(
       [organizationId, productId],
     );
 
-    let stock = 0;
-    let avg = 0;
-
-    for (const m of movements) {
-      // C-02: Handle all movement types including sale_return, purchase_return, void
-      const isPurchaseLike = m.movement_type === "opening"
-        || m.movement_type === "purchase"
-        || m.movement_type === "sale_return";
-      const isSaleLike = m.movement_type === "sale"
-        || m.movement_type === "void"
-        || m.movement_type === "adjustment"
-        || m.movement_type === "stock_count"
-        || m.movement_type === "purchase_return";
-
-      if (isPurchaseLike) {
-        // sale_return adds stock back (like a purchase), recalculates avg cost
-        const qty = m.quantity_milli;
-        const cost = m.unit_cost_minor ?? 0;
-        const newStock = stock + qty;
-        if (newStock > 0) {
-          avg = Math.round((stock * avg + qty * cost) / newStock);
-        }
-        stock = newStock;
-      } else if (isSaleLike) {
-        // purchase_return removes stock (like a sale), avg unchanged
-        // void, adjustment: avg unchanged
-        stock += m.quantity_milli;
-        if (stock < 0) stock = 0; // safety clamp, should not happen
-      }
-    }
+    const { stock, avg } = computeWacState(movements);
 
     const result = await execute(
       db,

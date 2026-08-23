@@ -62,7 +62,7 @@ describe("Admin auth", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(db.auditLogs.length).toBe(1);
+    expect(db.auditLogs).toHaveLength(1);
     expect(db.auditLogs[0].action).toBe("admin_login_failed");
   });
 
