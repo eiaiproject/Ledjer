@@ -5,7 +5,7 @@
 - **Error tracking**: Sentry (Cloudflare + React) — captures unhandled exceptions.
 - **Logging**: Structured JSON via `console.log` — captured by Cloudflare Workers logs.
 - **Health check**: `GET /api/health` — returns 200 when Worker is operational.
-- **Scheduled cron**: Daily maintenance at 03:00 WIB (cleanup expired rows).
+- **Scheduled cron**: Daily maintenance at 03:00 UTC (10:00 WIB) — see `wrangler.jsonc` crons `0 3 * * *` (UTC).
 
 ## Structured Logging
 
@@ -28,7 +28,7 @@ All API requests log structured JSON entries:
 
 ## Backup Age Alert
 
-The daily D1 backup cron runs at 03:00 WIB. Configure an alert on:
+The daily D1 backup cron runs at 03:00 UTC (10:00 WIB). Configure an alert on:
 
 - **Metric**: `backup_age_hours` — hours since last successful backup.
 - **Warning**: > 26 hours (missed one cycle).
