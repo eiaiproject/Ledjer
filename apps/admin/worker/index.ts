@@ -29,8 +29,12 @@ function csrfError(status: number, code: string, message: string): Response {
 
 function originAllowed(origin: string, allowed: string | undefined): boolean {
   if (!allowed) return false;
+  // Origin is origin-only; Referer (fallback) includes path — compare by URL origin.
   return allowed.split(",").map((o) => o.trim()).filter(Boolean)
-    .some((a) => origin === a || origin.startsWith(a + "/"));
+    .some((a) => {
+      if (origin === a) return true;
+      try { return new URL(origin).origin === a; } catch { return false; }
+    });
 }
 
 app.use("/api/*", async (c, next) => {
