@@ -1,8 +1,4 @@
-import { execute, queryAll } from "../db/client";
-
-// L-07: Recommended index (add via migration):
-// CREATE INDEX IF NOT EXISTS idx_rate_limits_bucket_created
-//   ON rate_limits(bucket_key, created_at);
+import { execute } from "../db/client";
 
 
 export interface RateLimitConfig {
@@ -24,23 +20,20 @@ export async function checkRateLimit(
 ): Promise<boolean> {
   const since = Date.now() - config.windowMs;
   const bucketKey = `${endpoint}:${key}`;
+  const now = Date.now();
+  const id = crypto.randomUUID();
 
-  const rows = await queryAll<{ id: string }>(
-    db,
-    `SELECT id FROM rate_limits
-     WHERE bucket_key = ? AND created_at >= ?
-     LIMIT ?`,
-    [bucketKey, since, config.max],
-  );
-
-  if (rows.length >= config.max) return true; // rate-limited
-
-  await execute(
+  // Atomic check+insert: only inserts if count in window < max.
+  // Single statement avoids TOCTOU; D1 serializes writes so this is safe.
+  // Returns true (limited) when no row was inserted.
+  const result = await execute(
     db,
     `INSERT INTO rate_limits (id, bucket_key, endpoint, created_at)
-     VALUES (?, ?, ?, ?)`,
-    [crypto.randomUUID(), bucketKey, endpoint, Date.now()],
+     SELECT ?, ?, ?, ?
+     WHERE (SELECT COUNT(*) FROM rate_limits WHERE bucket_key = ? AND created_at >= ?) < ?`,
+    [id, bucketKey, endpoint, now, bucketKey, since, config.max],
   );
 
-  return false;
+  const changes = (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 0;
+  return changes === 0;
 }
