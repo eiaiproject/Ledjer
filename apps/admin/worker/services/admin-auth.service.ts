@@ -49,10 +49,43 @@ export async function loginAdmin(
     [email],
   );
 
-  if (!admin || !(await verifyPassword(input.password, admin.password_hash, pepper))) {
+  if (!admin) {
+    try {
+      await logAdminEvent(db, {
+        actorAdminId: "unknown",
+        actorEmail: email,
+        entityType: "admin",
+        entityId: email,
+        action: "admin_login_failed",
+        after: { reason: "unknown_email" },
+      });
+    } catch { /* ignore audit write failure */ }
+    throw unauthorized("Invalid email or password");
+  }
+  if (!(await verifyPassword(input.password, admin.password_hash, pepper))) {
+    try {
+      await logAdminEvent(db, {
+        actorAdminId: admin.id,
+        actorEmail: email,
+        entityType: "admin",
+        entityId: email,
+        action: "admin_login_failed",
+        after: { reason: "bad_password" },
+      });
+    } catch { /* ignore audit write failure */ }
     throw unauthorized("Invalid email or password");
   }
   if (admin.status !== "active") {
+    try {
+      await logAdminEvent(db, {
+        actorAdminId: admin.id,
+        actorEmail: email,
+        entityType: "admin",
+        entityId: email,
+        action: "admin_login_failed",
+        after: { reason: "disabled" },
+      });
+    } catch { /* ignore audit write failure */ }
     throw forbidden("admin_disabled", "Admin account is disabled");
   }
 
