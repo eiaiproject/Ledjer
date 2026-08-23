@@ -2067,54 +2067,73 @@ export async function recalculateProductAverageCost(
   organizationId: string,
   productId: string,
 ): Promise<{ average_cost_minor: number; current_stock_milli: number }> {
-  const movements = await queryAll<StockMovementForWac>(
-    db,
-    `SELECT movement_type, quantity_milli, unit_cost_minor
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const productRow = await queryFirst<{ current_stock_milli: number }>(
+      db,
+      `SELECT current_stock_milli FROM products WHERE id = ? AND organization_id = ?`,
+      [productId, organizationId],
+    );
+    const expectedStock = productRow?.current_stock_milli ?? 0;
+
+    const movements = await queryAll<StockMovementForWac>(
+      db,
+      `SELECT movement_type, quantity_milli, unit_cost_minor
      FROM stock_movements
      WHERE organization_id = ? AND product_id = ?
-     ORDER BY movement_date ASC, created_at ASC`,
-    [organizationId, productId],
-  );
+     ORDER BY movement_date ASC, created_at ASC, rowid ASC`,
+      [organizationId, productId],
+    );
 
-  let stock = 0;
-  let avg = 0;
+    let stock = 0;
+    let avg = 0;
 
-  for (const m of movements) {
-    // C-02: Handle all movement types including sale_return, purchase_return, void
-    const isPurchaseLike = m.movement_type === "opening"
-      || m.movement_type === "purchase"
-      || m.movement_type === "sale_return";
-    const isSaleLike = m.movement_type === "sale"
-      || m.movement_type === "void"
-      || m.movement_type === "adjustment"
-      || m.movement_type === "stock_count"
-      || m.movement_type === "purchase_return";
+    for (const m of movements) {
+      // C-02: Handle all movement types including sale_return, purchase_return, void
+      const isPurchaseLike = m.movement_type === "opening"
+        || m.movement_type === "purchase"
+        || m.movement_type === "sale_return";
+      const isSaleLike = m.movement_type === "sale"
+        || m.movement_type === "void"
+        || m.movement_type === "adjustment"
+        || m.movement_type === "stock_count"
+        || m.movement_type === "purchase_return";
 
-    if (isPurchaseLike) {
-      // sale_return adds stock back (like a purchase), recalculates avg cost
-      const qty = m.quantity_milli;
-      const cost = m.unit_cost_minor ?? 0;
-      const newStock = stock + qty;
-      if (newStock > 0) {
-        avg = Math.round((stock * avg + qty * cost) / newStock);
+      if (isPurchaseLike) {
+        // sale_return adds stock back (like a purchase), recalculates avg cost
+        const qty = m.quantity_milli;
+        const cost = m.unit_cost_minor ?? 0;
+        const newStock = stock + qty;
+        if (newStock > 0) {
+          avg = Math.round((stock * avg + qty * cost) / newStock);
+        }
+        stock = newStock;
+      } else if (isSaleLike) {
+        // purchase_return removes stock (like a sale), avg unchanged
+        // void, adjustment: avg unchanged
+        stock += m.quantity_milli;
+        if (stock < 0) stock = 0; // safety clamp, should not happen
       }
-      stock = newStock;
-    } else if (isSaleLike) {
-      // purchase_return removes stock (like a sale), avg unchanged
-      // void, adjustment: avg unchanged
-      stock += m.quantity_milli;
-      if (stock < 0) stock = 0; // safety clamp, should not happen
     }
+
+    const result = await execute(
+      db,
+      `UPDATE products SET average_cost_minor = ?, current_stock_milli = ?, updated_at = ?
+     WHERE id = ? AND organization_id = ? AND current_stock_milli = ?`,
+      [avg, stock, Date.now(), productId, organizationId, expectedStock],
+    );
+
+    const changed = (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 1;
+    if (changed === 1) return { average_cost_minor: avg, current_stock_milli: stock };
+    // concurrent write — retry (re-read movements + stock)
   }
-
-  await execute(
+  // Fallback: return whatever is currently in DB (eventually consistent on next write)
+  const fallback = await queryFirst<{ average_cost_minor: number; current_stock_milli: number }>(
     db,
-    `UPDATE products SET average_cost_minor = ?, current_stock_milli = ?, updated_at = ?
-     WHERE id = ? AND organization_id = ?`,
-    [avg, stock, Date.now(), productId, organizationId],
+    `SELECT average_cost_minor, current_stock_milli FROM products WHERE id = ? AND organization_id = ?`,
+    [productId, organizationId],
   );
-
-  return { average_cost_minor: avg, current_stock_milli: stock };
+  return fallback ?? { average_cost_minor: 0, current_stock_milli: 0 };
 }
 
 async function stockMovementForTransaction(
