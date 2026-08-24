@@ -652,6 +652,17 @@ export function useTransactionMutation(params: {
       }
       setSuccessTransactionId(result.transaction_id);
       setClientToken(createClientToken());
+      // Optimistic stock update - immediate feedback before server refetch
+      if (variables.productId && variables.quantity) {
+        const isSale = variables.transactionType === "cash_sale" || variables.transactionType === "credit_sale";
+        const delta = isSale ? -variables.quantity : variables.quantity;
+        queryClient.setQueriesData({ queryKey: queryKeys.products.all(orgId ?? "") }, (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return (old as Array<{ id: string; current_stock?: number | string }>).map((p) =>
+            p.id === variables.productId ? { ...p, current_stock: Number(p.current_stock ?? 0) + delta } : p
+          );
+        });
+      }
       // Immediate invalidate for optimistic UX, plus delayed retry for D1 replica lag.
       invalidateTransactionFinancialCaches(queryClient, orgId);
       setTimeout(() => {
