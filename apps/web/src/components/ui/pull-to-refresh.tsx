@@ -22,7 +22,7 @@ interface PullToRefreshProps {
  * re-implements the gesture: pull down while the window is scrolled to the
  * top, release past the threshold to trigger `onRefresh`.
  *
- * Touch-only — desktop keeps the browser refresh / auto-refresh intervals.
+ * Touch-only - desktop keeps the browser refresh / auto-refresh intervals.
  * Listeners are attached to `document` so the gesture works no matter which
  * element the touch starts on.
  */
@@ -65,7 +65,7 @@ export function PullToRefresh({ onRefresh, children, className, label = "Memperb
       // Only intercept the gesture at the top of the page; otherwise let the
       // browser scroll normally. Known edge case: a downward drag from the very
       // top also prevents scroll inside an inner scrollable region (e.g. a
-      // horizontally-scrolling table) — the document must be re-scrolled first.
+      // horizontally-scrolling table) - the document must be re-scrolled first.
       if (delta > 0 && window.scrollY <= 0) {
         e.preventDefault();
         setDistance(Math.min(delta * RESISTANCE, MAX_PULL_PX));
@@ -111,7 +111,7 @@ export function PullToRefresh({ onRefresh, children, className, label = "Memperb
 
   const showIndicator = pullDistance > 0 || refreshing;
 
-  // Indicator text depends on the pull state — kept in an if/else chain so
+  // Indicator text depends on the pull state - kept in an if/else chain so
   // the three-way status never becomes a nested ternary.
   let statusText = "Tarik ke bawah untuk memperbarui";
   if (refreshing) {

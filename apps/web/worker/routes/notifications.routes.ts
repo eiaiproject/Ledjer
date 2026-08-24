@@ -18,12 +18,12 @@ import {
 
 const app = new Hono<AppContext>();
 
-// GET /api/notifications — list notifications
+// GET /api/notifications - list notifications
 app.get("/", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
   const unreadOnly = c.req.query("unread") === "true";
-  // BUG-05: clamp pagination — SQLite treats LIMIT -1 as "no limit", and NaN
+  // BUG-05: clamp pagination - SQLite treats LIMIT -1 as "no limit", and NaN
   // from parseInt would break the bound value. Defaults: 50 / 0, max 100.
   const rawLimit = Number.parseInt(c.req.query("limit") || "50", 10);
   const rawOffset = Number.parseInt(c.req.query("offset") || "0", 10);
@@ -36,7 +36,7 @@ app.get("/", requireAuth(), loadCurrentOrganization(), async (c) => {
   return c.json(notifications);
 });
 
-// GET /api/notifications/unread-count — get unread count
+// GET /api/notifications/unread-count - get unread count
 app.get("/unread-count", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
@@ -44,7 +44,7 @@ app.get("/unread-count", requireAuth(), loadCurrentOrganization(), async (c) => 
   return c.json(count);
 });
 
-// PATCH /api/notifications/:id/read — mark as read (scoped to caller's org + user)
+// PATCH /api/notifications/:id/read - mark as read (scoped to caller's org + user)
 app.patch("/:id/read", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
@@ -52,7 +52,7 @@ app.patch("/:id/read", requireAuth(), loadCurrentOrganization(), async (c) => {
   return c.json(result);
 });
 
-// POST /api/notifications/read-all — mark all as read
+// POST /api/notifications/read-all - mark all as read
 app.post("/read-all", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
@@ -60,7 +60,7 @@ app.post("/read-all", requireAuth(), loadCurrentOrganization(), async (c) => {
   return c.json({ markedRead: count });
 });
 
-// DELETE /api/notifications/:id — dismiss a notification (scoped to caller's org + user)
+// DELETE /api/notifications/:id - dismiss a notification (scoped to caller's org + user)
 app.delete("/:id", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
@@ -68,7 +68,7 @@ app.delete("/:id", requireAuth(), loadCurrentOrganization(), async (c) => {
   return c.json({ success: true });
 });
 
-// POST /api/notifications/dismiss-all — dismiss all (optionally by category)
+// POST /api/notifications/dismiss-all - dismiss all (optionally by category)
 app.post("/dismiss-all", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");
@@ -77,8 +77,8 @@ app.post("/dismiss-all", requireAuth(), loadCurrentOrganization(), async (c) => 
   return c.json({ dismissed: count });
 });
 
-// POST /api/notifications/generate — manually trigger notification generation.
-// BUG-04: owner/admin only — this aggregates org-wide financial data and
+// POST /api/notifications/generate - manually trigger notification generation.
+// BUG-04: owner/admin only - this aggregates org-wide financial data and
 // creates notifications for admin users; members/viewers must not trigger it.
 app.post("/generate", requireAuth(), loadCurrentOrganization(), requirePermission("organization:update"), async (c) => {
   const { organization } = c.get("organizationContext");

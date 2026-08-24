@@ -28,7 +28,7 @@ interface SupportClickEvent {
 /**
  * Mencatat klik pada link dukungan Trakteer.
  *
- * Aman digunakan dari mana saja — tidak menangkap data sensitif.
+ * Aman digunakan dari mana saja - tidak menangkap data sensitif.
  * Tidak menghalangi navigasi (fire-and-forget).
  */
 export function trackSupportClick(placement: SupportPlacement): void {
@@ -51,14 +51,14 @@ export function trackSupportClick(placement: SupportPlacement): void {
         authenticated: String(event.authenticated),
       },
       extra: {
-        // Hanya metadata yang aman — lihat larangan di atas
+        // Hanya metadata yang aman - lihat larangan di atas
         placement: event.placement,
         route: event.route,
         authenticated: event.authenticated,
       },
     });
   } catch {
-    // Analytics tidak boleh merusak UX — gagal diam
+    // Analytics tidak boleh merusak UX - gagal diam
   }
 }
 

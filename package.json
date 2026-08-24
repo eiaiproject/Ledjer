@@ -1,7 +1,7 @@
 {
   "name": "Ledjer",
   "version": "1.0.0",
-  "description": "Ledjer — Double-entry bookkeeping for Indonesian SMEs (UMKM), built on Cloudflare Workers + D1.",
+  "description": "Ledjer - Double-entry bookkeeping for Indonesian SMEs (UMKM), built on Cloudflare Workers + D1.",
   "engines": {
     "node": ">=24",
     "pnpm": ">=10"

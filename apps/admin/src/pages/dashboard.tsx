@@ -107,7 +107,7 @@ function IdListModal({ entity, count, onClose }: { readonly entity: IdEntity; re
   }
 
   return (
-    <dialog open aria-label={`${ENTITY_TITLES[entity]} — ${count} item`} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent">
+    <dialog open aria-label={`${ENTITY_TITLES[entity]} - ${count} item`} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent">
       <button type="button" aria-label="Tutup" onClick={onClose} className="absolute inset-0 cursor-default bg-wood-900/60" />
       <div className="relative flex max-h-[75vh] w-full max-w-lg flex-col rounded-lg border border-border bg-surface shadow-lg">
         <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">

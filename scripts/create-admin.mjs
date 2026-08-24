@@ -55,7 +55,7 @@ try {
   );
   console.log(`\n✅ Admin ${normalizedEmail} created/updated in ${dbName}.`);
   console.log(`   Log in at ${staging ? "https://ledjer-admin-staging.eiai.workers.dev" : "https://admin.ledjer.id"} (after deployment).`);
-  if (!pepper) console.log(`   NOTE: ADMIN_PASSWORD_PEPPER was empty — set it in env to match Worker if Worker has a pepper.`);
+  if (!pepper) console.log(`   NOTE: ADMIN_PASSWORD_PEPPER was empty - set it in env to match Worker if Worker has a pepper.`);
 } catch (err) {
   console.error("\n❌ Failed to update database:", err.message);
   process.exit(1);

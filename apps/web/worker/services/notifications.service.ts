@@ -118,7 +118,7 @@ export async function listNotifications(
 
     return rows.map(rowToOutput);
   } catch {
-    // Table may not exist yet in this environment — return empty list
+    // Table may not exist yet in this environment - return empty list
     return [];
   }
 }
@@ -147,7 +147,7 @@ export async function getUnreadCount(
 
     return { total, byCategory };
   } catch {
-    // Table may not exist yet in this environment — return zero count
+    // Table may not exist yet in this environment - return zero count
     return { total: 0, byCategory: {} };
   }
 }
@@ -159,7 +159,7 @@ export async function markAsRead(
   notificationId: string,
 ): Promise<NotificationOutput> {
   // IDOR guard: verify ownership first, then update. Checking existence via
-  // SELECT (instead of relying on UPDATE changes) keeps the call idempotent —
+  // SELECT (instead of relying on UPDATE changes) keeps the call idempotent -
   // re-marking an already-read notification must not 404.
   const owned = await queryFirst<{ id: string }>(
     db,

@@ -131,7 +131,7 @@ async function searchTransactions(
     entityType: "transaction" as const,
     entityId: r.id,
     label: r.transaction_number,
-    subtitle: `${typeLabels[r.transaction_type] ?? r.transaction_type} — Rp ${(r.amount_minor / 100).toLocaleString("id-ID")} — ${r.description}`,
+    subtitle: `${typeLabels[r.transaction_type] ?? r.transaction_type} - Rp ${(r.amount_minor / 100).toLocaleString("id-ID")} - ${r.description}`,
     url: `/transactions/${r.id}`,
     score: limit - i,
   }));
@@ -165,7 +165,7 @@ async function searchInvoices(
     entityType: "invoice" as const,
     entityId: r.id,
     label: r.invoice_number,
-    subtitle: `${r.status} — Rp ${(r.total_minor / 100).toLocaleString("id-ID")}`,
+    subtitle: `${r.status} - Rp ${(r.total_minor / 100).toLocaleString("id-ID")}`,
     url: `/invoices/${r.id}`,
     score: limit - i,
   }));
@@ -203,7 +203,7 @@ async function searchParties(
     entityType: "party" as const,
     entityId: r.id,
     label: r.name,
-    subtitle: (r.party_type === "customer" ? "Pelanggan" : r.party_type === "supplier" ? "Pemasok" : r.party_type) + (r.email ? " — " + r.email : ""), // NOSONAR typescript:S3358
+    subtitle: (r.party_type === "customer" ? "Pelanggan" : r.party_type === "supplier" ? "Pemasok" : r.party_type) + (r.email ? " - " + r.email : ""), // NOSONAR typescript:S3358
     url: `/transactions?partyId=${r.id}`,
     score: limit - i,
   }));
@@ -235,8 +235,8 @@ async function searchProducts(
   return rows.map((r, i) => ({
     entityType: "product" as const,
     entityId: r.id,
-    label: `${r.code} — ${r.name}`,
-    subtitle: `${r.unit} — Stok: ${(r.current_stock_milli / 1000).toLocaleString("id-ID", { maximumFractionDigits: 3 })}`,
+    label: `${r.code} - ${r.name}`,
+    subtitle: `${r.unit} - Stok: ${(r.current_stock_milli / 1000).toLocaleString("id-ID", { maximumFractionDigits: 3 })}`,
     url: `/products`,
     score: limit - i,
   }));
@@ -272,7 +272,7 @@ async function searchAccounts(
   return rows.map((r, i) => ({
     entityType: "account" as const,
     entityId: r.id,
-    label: `${r.code} — ${r.name}`,
+    label: `${r.code} - ${r.name}`,
     subtitle: typeLabels[r.account_type] ?? r.account_type,
     url: `/accounts`,
     score: limit - i,
@@ -305,7 +305,7 @@ async function searchMembers(
     entityType: "member" as const,
     entityId: r.user_id,
     label: r.full_name,
-    subtitle: `${r.email} — ${r.role}`,
+    subtitle: `${r.email} - ${r.role}`,
     url: `/settings/team`,
     score: limit - i,
   }));

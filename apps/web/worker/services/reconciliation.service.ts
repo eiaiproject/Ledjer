@@ -85,7 +85,7 @@ export async function importStatement(
     if (lineNums.length > 1) {
       duplicatedLines.push({
         line: lineNums[0],
-        reason: `Baris ${lineNums.join(", ")} memiliki tanggal, jumlah, dan deskripsi yang sama — kemungkinan duplikat.`,
+        reason: `Baris ${lineNums.join(", ")} memiliki tanggal, jumlah, dan deskripsi yang sama - kemungkinan duplikat.`,
       });
     }
   }
@@ -194,7 +194,7 @@ export async function getSuggestions(
         score: dateMatch ? 95 : 70,
       });
     } else {
-      // No match found — bank-only item
+      // No match found - bank-only item
       suggestions.push({
         statementLineId: line.id,
         transactionId: null,

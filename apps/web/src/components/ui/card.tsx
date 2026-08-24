@@ -6,7 +6,7 @@ interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   className?: string;
   /** Optional card heading. */
   title?: string;
-  /** Elevated surface: white bg + larger radius — for lists, tables, and toolbars. */
+  /** Elevated surface: white bg + larger radius - for lists, tables, and toolbars. */
   elevated?: boolean;
 }
 

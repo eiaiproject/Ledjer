@@ -1,4 +1,4 @@
-# P1.6 — Transaction Attachments API
+# P1.6 - Transaction Attachments API
 
 ## POST /api/attachments/upload
 Upload attachment.

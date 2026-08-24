@@ -73,7 +73,7 @@ const PERMISSION_LABELS: Record<StaffPermissionKey, string> = {
 const ALL_PERMISSION_KEYS = Object.keys(PERMISSION_LABELS) as StaffPermissionKey[];
 const INVITABLE_ROLES: TeamInvitationRole[] = ["member", "viewer", "admin"];
 
-/** Canonical role metadata — matches backend ROLE_PERMISSIONS */
+/** Canonical role metadata - matches backend ROLE_PERMISSIONS */
 const ROLE_CONFIG: Record<
   TeamRole,
   {

@@ -132,7 +132,7 @@ export function NotificationsPage() {
 
   const unreadCount = unreadData?.total ?? 0;
 
-  // S3358 — flatten nested ternary into if/else + S2681 extract shared handler
+  // S3358 - flatten nested ternary into if/else + S2681 extract shared handler
   const handleNotificationEvent = (notif: typeof filtered[number]) => {
     if (!notif.isRead) markReadMutation.mutate(notif.id);
     if (notif.actionUrl) navigate(notif.actionUrl);
@@ -161,7 +161,7 @@ export function NotificationsPage() {
     notificationListContent = (
       <div className="space-y-2">
         {filtered.map((notif) => (
-          <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
+          <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 - can't nest <button> inside <button>
             key={notif.id}
             className={`group relative flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer ${
               !notif.isRead

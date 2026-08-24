@@ -28,7 +28,7 @@ export interface ReportSection<T extends ReportLine = ReportLine> {
   items: T[];
 }
 
-/** Mobile card for one report section — shared by Neraca & Laba Rugi. */
+/** Mobile card for one report section - shared by Neraca & Laba Rugi. */
 export function ReportSectionMobile<T extends ReportLine>({
   section,
   showTotal,
@@ -78,7 +78,7 @@ export function ReportSectionMobile<T extends ReportLine>({
   );
 }
 
-/** Desktop table rows for one report section — shared by Neraca & Laba Rugi. */
+/** Desktop table rows for one report section - shared by Neraca & Laba Rugi. */
 export function ReportSectionRows<T extends ReportLine>({
   section,
   showTotal,

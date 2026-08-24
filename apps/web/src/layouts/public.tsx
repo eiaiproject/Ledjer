@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Logo } from "@/components/ui/logo";
 
 /**
- * PublicLayout — minimal chrome for marketing / auth / legal pages.
+ * PublicLayout - minimal chrome for marketing / auth / legal pages.
  *
  * Provides:
  *  - Sticky top header with logo + conditional back link

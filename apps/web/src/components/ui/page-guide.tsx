@@ -19,7 +19,7 @@ function persistGuideSeen(guideKey: string): void {
   try {
     localStorage.setItem(GUIDE_SEEN_PREFIX + guideKey, "1");
   } catch {
-    // Storage penuh atau tidak tersedia — abaikan
+    // Storage penuh atau tidak tersedia - abaikan
   }
 }
 
@@ -36,7 +36,7 @@ interface PageGuideProps {
  * Panduan langkah-demi-langkah per halaman.
  *
  * - Tampil otomatis saat halaman dibuka pertama kali (ingatan per-halaman di localStorage).
- * - Bisa ditutup (X / Escape) — penutupan diingat, tidak muncul lagi otomatis.
+ * - Bisa ditutup (X / Escape) - penutupan diingat, tidak muncul lagi otomatis.
  * - Bisa dibuka kembali lewat tombol "Panduan halaman".
  * - Kolapsibel: header selalu terlihat, isi bisa dibuka/tutup.
  * - Non-intrusif: panel biasa, bukan modal.
@@ -53,7 +53,7 @@ export function PageGuide({ guideKey, className }: PageGuideProps) {
     setDismissed(true);
   }, [guideKey]);
 
-  // Escape menutup panduan (dan menandai sudah dilihat) — hanya jika fokus
+  // Escape menutup panduan (dan menandai sudah dilihat) - hanya jika fokus
   // berada di dalam panduan, agar tidak bentrok dengan Escape milik modal
   // atau komponen lain di halaman.
   useEffect(() => {

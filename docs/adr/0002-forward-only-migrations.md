@@ -25,5 +25,5 @@ Key constraints:
 
 - Positive: Simple, auditable, no rollback complexity.
 - Positive: CI validates migration sequence.
-- Negative: Cannot remove a bad migration — must write a compensating one.
+- Negative: Cannot remove a bad migration - must write a compensating one.
 - Negative: Schema drift requires careful planning.

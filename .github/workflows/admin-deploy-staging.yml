@@ -1,7 +1,7 @@
 name: Admin Deploy (Staging)
 
 # Deploy the admin dashboard to the staging Worker (ledjer-admin-staging),
-# which reads the ledjer-staging D1 database — a safe preview environment
+# which reads the ledjer-staging D1 database - a safe preview environment
 # before touching production data.
 #
 # Triggered manually (workflow_dispatch) or on push to the `staging` branch

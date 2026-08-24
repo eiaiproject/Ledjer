@@ -48,7 +48,7 @@ function endOfPreviousMonthISO(): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 }
 
-/** Tomorrow in YYYY-MM-DD — minimum allowed lock date (must be >= first transaction date). */
+/** Tomorrow in YYYY-MM-DD - minimum allowed lock date (must be >= first transaction date). */
 function tomorrowISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -450,7 +450,7 @@ function LockHistoryList({
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-sm text-wood-500 max-w-[200px] truncate">
-                        {lock.reason || "—"}
+                        {lock.reason || "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-wood-500">
                         {formatShort(lock.createdAt)}

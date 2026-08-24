@@ -1,4 +1,4 @@
-# UI/UX Audit v3 — Web + Mobile (Android & iOS)
+# UI/UX Audit v3 - Web + Mobile (Android & iOS)
 
 **Tanggal:** 2026-08-11 · **Target:** `https://ledjer-staging.eiai.workers.dev` (deploy `610cb84e`)
 **Konteks:** Audit menyeluruh setelah deploy perubahan penyesuaian stok atomik + alert `inventory_mismatch`.
@@ -13,7 +13,7 @@ Empat suite otomatis dijalankan terhadap staging (kode terbaru):
 |-------|-----------|---------|-----------------|
 | `consistency-audit.spec.ts` | Desktop Chrome, Pixel 5, iPhone 13 | 10 publik | token spacing/radius/type, heading, touch target, kontras, chrome, simetri form |
 | `consistency-audit-auth.spec.ts` *(baru)* | Desktop Chrome, Pixel 5, iPhone 13 | **22 authed** | metrik struktur yang sama untuk seluruh area dashboard |
-| `accessibility.spec.ts` (axe-core) | Desktop Chrome | 11 publik + 18 authed | WCAG 2a/2aa/best-practice — fail hanya jika ada violation critical/serious |
+| `accessibility.spec.ts` (axe-core) | Desktop Chrome | 11 publik + 18 authed | WCAG 2a/2aa/best-practice - fail hanya jika ada violation critical/serious |
 | `scan-all-pages.mjs` | Mobile 375×812 | 49 halaman + detail | navigasi tiap halaman + interaksi elemen; error console/JS/HTTP |
 
 **Hasil ringkas:**
@@ -26,13 +26,13 @@ Empat suite otomatis dijalankan terhadap staging (kode terbaru):
 | Konsistensi authed (iOS iPhone 13) | ✅ 22/22 |
 | Konsistensi publik (mobile) | ✅ 20/20 |
 | Axe accessibility | ✅ **56/56** |
-| scan-all-pages (mobile) | ✅ **49/49** — 0 error JS, 0 HTTP error, 80 interaksi |
+| scan-all-pages (mobile) | ✅ **49/49** - 0 error JS, 0 HTTP error, 80 interaksi |
 
 ---
 
 ## 2. Temuan yang Diperbaiki
 
-### 2.1 Halaman Jurnal — input tanpa label (a11y, WCAG 1.3.1)
+### 2.1 Halaman Jurnal - input tanpa label (a11y, WCAG 1.3.1)
 `/journals`: input "Deskripsi" per baris jurnal tidak punya `label`/`aria-label`
 (tidak terdeteksi sebagai input ber-label → audit "unlabeled inputs = 2").
 **Fix:** tambah `aria-label={`Deskripsi baris ${index + 1}`}` pada setiap baris.
@@ -40,8 +40,8 @@ Empat suite otomatis dijalankan terhadap staging (kode terbaru):
 
 ### 2.2 Kontras warna gagal WCAG AA di Cash Flow
 `/reports/cash-flow`: `text-emerald-600` (3.33:1) dan `text-red-600` (4.35:1)
-di atas latar krem — di bawah ambang 4.5:1 (violation serious axe).
-**Fix:** `text-leaf-600` (sukses) / `text-error` (negatif) — token brand yang sudah
+di atas latar krem - di bawah ambang 4.5:1 (violation serious axe).
+**Fix:** `text-leaf-600` (sukses) / `text-error` (negatif) - token brand yang sudah
 diverifikasi AA di `index.css`. *Commit `4438334`.*
 
 ### 2.3 Inkonsistensi palet warna (design token)
@@ -49,7 +49,7 @@ diverifikasi AA di `index.css`. *Commit `4438334`.*
 `emerald`, `red`, `amber`, `yellow`, `green`, `blue`, `violet`, `purple`, `orange`,
 `indigo`, `teal`, `pink`. Selain tidak konsisten dengan brand (wood/leaf/cream/clay/
 honey/sky), sebagian gagal kontras AA pada latar krem.
-**Fix:** semua diselaraskan ke token brand — pemetaan:
+**Fix:** semua diselaraskan ke token brand - pemetaan:
 
 | Palet default | Token brand | Konteks |
 |---------------|-------------|---------|

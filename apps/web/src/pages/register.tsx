@@ -280,7 +280,7 @@ export function RegisterPage() {
           ? [
               { label: "Konfirmasi email", amount: "1/1", tone: "leaf" as const },
               { label: "Setup bisnis", amount: "2/3", tone: "wood" as const },
-              { label: "Catat transaksi", amount: "—", tone: "clay" as const },
+              { label: "Catat transaksi", amount: "-", tone: "clay" as const },
             ]
           : [
               { label: "Kas toko", amount: "12,0 jt", tone: "wood" as const },

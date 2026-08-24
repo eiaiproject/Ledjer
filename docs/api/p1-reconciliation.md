@@ -1,4 +1,4 @@
-# P1.5 — Bank Reconciliation API
+# P1.5 - Bank Reconciliation API
 
 ## POST /api/reconciliation/import-statement
 Import bank statement CSV.

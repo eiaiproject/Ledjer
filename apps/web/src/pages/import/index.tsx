@@ -41,7 +41,7 @@ const shown = preview.rows.slice(0, 20);
   return (
     <div className="space-y-2">
       <p className="text-xs text-wood-500">
-        {preview.totalRows} baris — {preview.validRows} valid, {preview.errorRows} error
+        {preview.totalRows} baris - {preview.validRows} valid, {preview.errorRows} error
         {preview.totalRows > shown.length ? ` (menampilkan ${shown.length} pertama)` : ""}
       </p>
       <div className="overflow-x-auto rounded-lg border border-wood-100">
@@ -412,7 +412,7 @@ export default function ImportPage() {
                   value={mapping[field] ?? ""}
                   onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
                   options={[
-                    { value: "", label: "— Pilih kolom —" },
+                    { value: "", label: "- Pilih kolom -" },
                     ...headers.map((h) => ({ value: h, label: h })),
                   ]}
                 />
@@ -489,7 +489,7 @@ export default function ImportPage() {
               </Button>
             </div>
 
-            {/* Undo button — shown when import succeeded */}
+            {/* Undo button - shown when import succeeded */}
             {(result.rowsSucceeded ?? result.insertedRows ?? 0) > 0 && !undoResult && !undoLoading && (
               <div className="border-t border-wood-200 pt-3 mt-2">
                 <Button

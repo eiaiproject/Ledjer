@@ -56,7 +56,7 @@ type StockFilter = "all" | "in_stock" | "low" | "out";
 
 function getStockStatus(p: Product): StockFilter {
   // The API serializes stock as a string (integer when whole, up to 3 decimals
-  // when fractional). Coerce both sides to numbers — comparing the raw strings
+  // when fractional). Coerce both sides to numbers - comparing the raw strings
   // would be lexicographic and mislabel e.g. stock 9 vs min 10 as "Aman" ("9" > "1").
   const stock = Number(p.current_stock ?? 0);
   const minStock = Number(p.min_stock ?? 0);
@@ -67,7 +67,7 @@ function getStockStatus(p: Product): StockFilter {
 
 
 
-/** Stock status badge — text + icon, never color-only */
+/** Stock status badge - text + icon, never color-only */
 function StockBadge({ product }: { readonly product: Product }) {
   const status = getStockStatus(product);
 
@@ -277,7 +277,7 @@ function StockAdjustmentModal({ open, onClose, product, onSuccess }: {
 
   return (
     <Modal open={open} onClose={loading ? () => {} : onClose}
-      title={`Penyesuaian Stok — ${product?.name ?? ""}`} size="sm">
+      title={`Penyesuaian Stok - ${product?.name ?? ""}`} size="sm">
       <ModalContent>
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
@@ -324,7 +324,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
   readonly product: Product | null;
   readonly onSuccess: () => void;
 }) {
-  // Same signed-decimal input pattern as the adjustment modal — physical
+  // Same signed-decimal input pattern as the adjustment modal - physical
   // stock can be fractional (0.5 kg) even though it can't be negative.
   const [physicalStockText, setPhysicalStockText] = useState("");
   const [physicalStock, setPhysicalStock] = useState(0);
@@ -343,7 +343,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
   const [result, setResult] = useState<{ systemStock: string; physicalStock: string; difference: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // S3358 — extract nested ternary into independent statement
+  // S3358 - extract nested ternary into independent statement
   let differenceColor = "text-error";
   if (result && Number(result.difference) > 0) {
     differenceColor = "text-leaf-600";
@@ -376,7 +376,7 @@ function StockCountModal({ open, onClose, product, onSuccess }: {
 
   return (
     <Modal open={open} onClose={loading ? () => {} : onClose}
-      title={`Stok Opname — ${product?.name ?? ""}`} size="sm">
+      title={`Stok Opname - ${product?.name ?? ""}`} size="sm">
       <ModalContent>
         <div className="space-y-4">
           {!result ? (
@@ -618,7 +618,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
 }) {
   return (
     <>
-      {/* Mobile/narrow: Card stack — shown when the CONTENT area (container) is
+      {/* Mobile/narrow: Card stack - shown when the CONTENT area (container) is
           too narrow for the wide table, i.e. sidebar expanded on smaller
           desktops. Uses @6xl: container queries (not viewport lg:) so
           collapsed vs expanded sidebar both render cleanly. */}
@@ -674,7 +674,7 @@ function ProductListView({ filteredProducts, canManageProducts, onEdit, onDelete
         ))}
       </Card>
 
-      {/* Desktop: Table — ledger-scroll-x keeps the table identical when the
+      {/* Desktop: Table - ledger-scroll-x keeps the table identical when the
           sidebar expands and narrows the content area (no clipping/squeezing) */}
       <Card elevated className="hidden @6xl:block overflow-hidden">
         <div className="ledger-scroll-x">
@@ -867,7 +867,7 @@ export function ProductsPage() {
   const openStockCountModal = useCallback((product: Product) => { setStockCountProduct(product); setStockCountModalOpen(true); }, []);
 
   const handleInventoryChange = useCallback(() => {
-    // Penyesuaian stok kini memposting jurnal — segarkan dashboard, laporan,
+    // Penyesuaian stok kini memposting jurnal - segarkan dashboard, laporan,
     // dan cache produk agar tidak menampilkan data basi.
     invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id ?? "");
     toast.success("Stok berhasil diperbarui.");

@@ -1,6 +1,6 @@
 # Ledjer Web App
 
-React + Vite frontend dan Cloudflare Worker API untuk Ledjer — sistem pembukuan double-entry untuk UMKM Indonesia.
+React + Vite frontend dan Cloudflare Worker API untuk Ledjer - sistem pembukuan double-entry untuk UMKM Indonesia.
 
 ## Quick Start
 

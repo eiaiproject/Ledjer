@@ -12,9 +12,9 @@ import { test, expect } from "@playwright/test";
  *
  * Cross-tenant verification pattern:
  *   1. Auth as User in OrgA using PLAYWRIGHT_SESSION_TOKEN_A
- *   2. Attempt to read OrgB resources — expect 403
+ *   2. Attempt to read OrgB resources - expect 403
  *   3. Auth as User in OrgB using PLAYWRIGHT_SESSION_TOKEN_B
- *   4. Attempt to read OrgA resources — expect 403
+ *   4. Attempt to read OrgA resources - expect 403
  */
 
 const API_BASE = process.env.E2E_BASE_URL || "http://localhost:4173";

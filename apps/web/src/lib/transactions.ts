@@ -1,6 +1,6 @@
 import { getStatus } from "./status-registry";
 
-// Transaction labels — single flat map, includes historical/opening types.
+// Transaction labels - single flat map, includes historical/opening types.
 // Opening types not in UI selector but kept for display of stored records.
 export const TRANSACTION_LABELS: Record<string, string> = {
   cash_sale: "Penjualan Tunai",
@@ -25,7 +25,7 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   partial: "Sebagian dibayar",
 };
 
-// Feature flags per transaction type — replaces 6 separate constant arrays + 6 accessor functions
+// Feature flags per transaction type - replaces 6 separate constant arrays + 6 accessor functions
 const TX_FEATURES: Record<string, { cash?: true; dest?: true; party?: true; category?: true; payment?: true }> = {
   cash_sale:         { cash: true },
   credit_sale:       { party: true, payment: true },
@@ -65,6 +65,6 @@ export function partyTypeForTransaction(type?: string) {
 }
 
 export function labelForTransactionType(type?: string | null): string {
-  if (!type) return "—";
+  if (!type) return "-";
   return TRANSACTION_LABELS[type] ?? type;
 }

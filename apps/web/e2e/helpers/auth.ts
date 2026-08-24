@@ -54,7 +54,7 @@ export const test = base.extend<AuthFixtures>({
     //
     // BUG-07: the backoff below (5s, 10s, 20s, 40s ≈ 75s total) is only meant
     // to ride out short-lived edge throttling. It does NOT (and cannot) wait
-    // out the server's 15-minute sliding lockout window — a hard lockout still
+    // out the server's 15-minute sliding lockout window - a hard lockout still
     // fails the fixture, and that is intentional: it surfaces real rate-limit
     // problems instead of silently hiding them.
     let loginResult: { ok: boolean; status: number; error?: string } = { ok: false, status: 0 };

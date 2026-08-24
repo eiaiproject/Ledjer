@@ -1,4 +1,4 @@
-# P1.7 — Cash-Flow Statement API
+# P1.7 - Cash-Flow Statement API
 
 ## GET /api/reports/cash-flow
 Cash-flow statement (direct method).
@@ -34,7 +34,7 @@ Cash-flow statement (direct method).
 }
 ```
 
-**Method:** Direct — categorizes cash account movements by transaction type.
+**Method:** Direct - categorizes cash account movements by transaction type.
 
 **Sections:**
 - **Operating:** cash_sale, cash_purchase, expense_payment, receive_receivable, pay_payable

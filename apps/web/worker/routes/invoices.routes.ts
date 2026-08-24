@@ -104,14 +104,14 @@ app.post("/:id/credit-note", requireAuth(), loadCurrentOrganization(), requirePe
   return c.json(result, 201);
 });
 
-// GET /api/invoices/:id/credit-notes — list credit notes referencing this invoice
+// GET /api/invoices/:id/credit-notes - list credit notes referencing this invoice
 app.get("/:id/credit-notes", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const creditNotes = await getCreditNotesForInvoice(c.env.DB, organization.id, c.req.param("id"));
   return c.json(creditNotes);
 });
 
-// GET /api/invoices/:id/print — printable HTML view (for PDF print)
+// GET /api/invoices/:id/print - printable HTML view (for PDF print)
 app.get("/:id/print", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const invoice = await getInvoice(c.env.DB, organization.id, c.req.param("id"));
@@ -266,7 +266,7 @@ app.post("/:id/send-email", requireAuth(), loadCurrentOrganization(), requirePer
   </div>
   ${invoice.notes ? `<div style="margin-top:20px;padding:12px;background:#f9f9f9;border-radius:6px;font-size:13px;"><strong style="display:block;margin-bottom:4px;color:#888;">Catatan</strong>${invoice.notes}</div>` : ""}
   <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#aaa;text-align:center;">
-    Dikirim oleh Ledjer — Pencatatan Keuangan Bisnis
+    Dikirim oleh Ledjer - Pencatatan Keuangan Bisnis
   </div>
 </div>`;
 

@@ -425,7 +425,7 @@ export function useTransactionDerived(params: {
   const categoryLabel = CATEGORY_LABELS[selectedType] || "Kategori";
   const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
   // Unit prices may be fractional (e.g. Rp 500.000 ÷ 251 butir = 1.992,03), so
-  // round the auto amount to a whole rupiah — the backend rejects non-integer
+  // round the auto amount to a whole rupiah - the backend rejects non-integer
   // amounts (it tolerates ±1 rounding drift in validateProductIntent).
   const productSubtotal = (selectedProductId || selectedProductName) && selectedQuantity && selectedUnitPrice
     ? Math.round(selectedQuantity * selectedUnitPrice)

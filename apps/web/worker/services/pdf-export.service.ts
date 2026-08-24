@@ -504,7 +504,7 @@ export async function exportGeneralLedgerPdf(
   let rendered = 0;
   for (const group of groups) {
     if (rendered >= MAX_PDF_ROWS) break;
-    builder.sectionTitle(`${group.code} — ${group.name}`);
+    builder.sectionTitle(`${group.code} - ${group.name}`);
     builder.tableHeader(GENERAL_LEDGER_COLUMNS);
     rendered += renderLedgerEntries(builder, group.entries, MAX_PDF_ROWS - rendered);
     builder.boldRow([

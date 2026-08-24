@@ -12,7 +12,7 @@ organization_id WHERE clause, leaking data across tenants.
 
 ## Decision
 
-Introduce `TenantScopedRepository` — a wrapper around D1 that validates
+Introduce `TenantScopedRepository` - a wrapper around D1 that validates
 `organization_id` is present in the values array for tenant-scoped tables.
 
 Key design choices:
@@ -20,7 +20,7 @@ Key design choices:
   is cultural + architectural tests (future).
 - **Runtime assertion**: Throws at query time if org_id is missing, not at
   compile time. Catches bugs in tests and staging.
-- **Minimal surface**: Three methods — queryAll, queryFirst, execute. No
+- **Minimal surface**: Three methods - queryAll, queryFirst, execute. No
   query builder, no ORM.
 
 ## Consequences

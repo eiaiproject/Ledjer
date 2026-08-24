@@ -23,7 +23,7 @@ test.describe("Injection Protection", () => {
       const response = await request.get(
         `${API_BASE}/api/auth/login?search=${encodeURIComponent(payload)}`,
       );
-      // Should not crash (500) — prepared statements handle this
+      // Should not crash (500) - prepared statements handle this
       expect([200, 400, 401, 404]).toContain(response.status());
     }
   });

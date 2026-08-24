@@ -12,7 +12,7 @@ interface ReportShellProps {
   readonly description?: string;
   /** Key untuk HelpTooltip (opsional) */
   readonly helpTopic?: string;
-  /** Key untuk PageGuide (opsional) — panduan langkah per halaman */
+  /** Key untuk PageGuide (opsional) - panduan langkah per halaman */
   readonly guide?: string;
   /** Filter bar content */
   readonly filters?: ReactNode;
@@ -111,7 +111,7 @@ export function ReportShell({
 }
 
 /**
- * Error state khusus untuk laporan — menampilkan judul + error.
+ * Error state khusus untuk laporan - menampilkan judul + error.
  * Cocok untuk render path error pada halaman laporan.
  */
 export function ReportErrorState({

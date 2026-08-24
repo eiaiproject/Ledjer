@@ -1,5 +1,5 @@
 /**
- * Full UI/UX Consistency, Proportion, Symmetry Audit — PUBLIC PAGES.
+ * Full UI/UX Consistency, Proportion, Symmetry Audit - PUBLIC PAGES.
  *
  * Not pixel diff (visual.spec.ts owns that). This measures STRUCTURE:
  *  - Design token usage (spacing/radius/typography) across pages

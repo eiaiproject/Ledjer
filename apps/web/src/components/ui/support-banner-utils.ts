@@ -21,7 +21,7 @@ function persistDismissal(): void {
   try {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
   } catch {
-    // Storage penuh atau tidak tersedia — abaikan
+    // Storage penuh atau tidak tersedia - abaikan
   }
 }
 

@@ -159,7 +159,7 @@ export function Toast({ message, tone = "error" }: { readonly message: string; r
 }
 
 export function formatDateTime(ms: number | null | undefined): string {
-  if (!ms) return "—";
+  if (!ms) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",

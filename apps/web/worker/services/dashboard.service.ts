@@ -61,7 +61,7 @@ export async function getDashboardAlerts(
     try {
       await check(db, organizationId, alerts);
     } catch {
-      // Table may not exist yet — skip this alert category gracefully
+      // Table may not exist yet - skip this alert category gracefully
     }
   }
 

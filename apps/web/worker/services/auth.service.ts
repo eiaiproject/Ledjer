@@ -54,7 +54,7 @@ export async function registerUser(
   const current = Date.now();
   const existing = await findUserByEmail(db, email);
   if (existing) {
-    // ponytail: Prevent email enumeration — silently log and create verification email.
+    // ponytail: Prevent email enumeration - silently log and create verification email.
     await createEmailVerification(db, existing.id, email, emailApiKey, originUrl, emailFrom);
     await logDuplicateRegistration(db, email, current);
     return {
@@ -203,7 +203,7 @@ export async function createPasswordReset(
     try {
       await sendEmail(emailApiKey, {
         to: email,
-        subject: "Atur ulang password — Ledjer",
+        subject: "Atur ulang password - Ledjer",
         html: `<p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
       }, emailFrom);
     } catch (err) {
@@ -337,7 +337,7 @@ export async function deleteAccount(
   }
 
   const current = Date.now();
-  // Audit trail first — actor NULL survives the user delete (actor_user_id has no cascade).
+  // Audit trail first - actor NULL survives the user delete (actor_user_id has no cascade).
   await execute(
     db,
     `INSERT INTO audit_logs (
@@ -346,7 +346,7 @@ export async function deleteAccount(
     [generateId(), user.email, current],
   );
 
-  // Batch is atomic in D1 — all deletes succeed or roll back together.
+  // Batch is atomic in D1 - all deletes succeed or roll back together.
   await executeBatch(db, [
     statement(db, "DELETE FROM audit_logs WHERE actor_user_id = ?", [userId]),
     ...deletedOrganizations.map((orgId) =>
@@ -400,7 +400,7 @@ async function createEmailVerification(
     try {
       await sendEmail(emailApiKey, {
         to: email,
-        subject: "Konfirmasi email Anda — Ledjer",
+        subject: "Konfirmasi email Anda - Ledjer",
         html: `<p>Klik tautan berikut untuk mengkonfirmasi email Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 24 jam.</p>`,
       }, emailFrom);
     } catch (err) {

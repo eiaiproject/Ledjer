@@ -43,7 +43,7 @@ export function SupportBanner({
     onDismiss?.();
   }, [onDismiss]);
 
-  // Escape key global listener — dipasang sebelum early return agar hook compliance
+  // Escape key global listener - dipasang sebelum early return agar hook compliance
   useEffect(() => {
     if (dismissed) return;
     const handler = (e: KeyboardEvent) => {

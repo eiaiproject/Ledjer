@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Ledjer platform admin dashboard (admin.ledjer.id) — internal operations for the Ledjer team.",
+  "description": "Ledjer platform admin dashboard (admin.ledjer.id) - internal operations for the Ledjer team.",
   "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",

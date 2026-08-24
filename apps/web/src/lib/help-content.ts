@@ -13,7 +13,7 @@ export const HELP: Record<string, HelpContent> = {
   debit_credit: {
     title: "Debit dan Kredit",
     explanation:
-      "Dalam pembukuan double-entry, setiap transaksi memengaruhi minimal dua akun. Debit (kiri) dan Kredit (kanan) adalah posisi dalam jurnal, bukan 'plus' atau 'minus'. Aturan dasarnya: Aset dan Beban bertambah di Debit, sedangkan Kewajiban, Ekuitas, dan Pendapatan bertambah di Kredit. Total Debit harus selalu sama dengan total Kredit — jika tidak, jurnal tidak balance.",
+      "Dalam pembukuan double-entry, setiap transaksi memengaruhi minimal dua akun. Debit (kiri) dan Kredit (kanan) adalah posisi dalam jurnal, bukan 'plus' atau 'minus'. Aturan dasarnya: Aset dan Beban bertambah di Debit, sedangkan Kewajiban, Ekuitas, dan Pendapatan bertambah di Kredit. Total Debit harus selalu sama dengan total Kredit - jika tidak, jurnal tidak balance.",
     example:
       "Saat Anda mencatat penjualan tunai Rp 100.000: Debit pada akun Kas (aset bertambah), Kredit pada akun Pendapatan (pendapatan bertambah).",
     related: ["jurnal", "posting"],
@@ -45,7 +45,7 @@ export const HELP: Record<string, HelpContent> = {
   trial_balance: {
     title: "Neraca Saldo (Trial Balance)",
     explanation:
-      "Neraca Saldo adalah daftar semua akun beserta saldo debit dan kredit pada tanggal tertentu. Tujuannya untuk memastikan total debit sama dengan total kredit — bukti bahwa jurnal sudah balance. Jika tidak balance, pasti ada kesalahan pencatatan. Neraca Saldo adalah langkah awal sebelum menyusun laporan keuangan.",
+      "Neraca Saldo adalah daftar semua akun beserta saldo debit dan kredit pada tanggal tertentu. Tujuannya untuk memastikan total debit sama dengan total kredit - bukti bahwa jurnal sudah balance. Jika tidak balance, pasti ada kesalahan pencatatan. Neraca Saldo adalah langkah awal sebelum menyusun laporan keuangan.",
     example:
       "Total Debit: Rp 50.000.000 (Kas + Piutang + Persediaan + Beban). Total Kredit: Rp 50.000.000 (Utang + Modal + Pendapatan). Balance!",
     related: ["balance_sheet", "profit_loss"],
@@ -69,7 +69,7 @@ export const HELP: Record<string, HelpContent> = {
   void_reversal: {
     title: "Pembatalan dan Reversal",
     explanation:
-      "Pembatalan (void) adalah cara yang benar untuk membatalkan transaksi yang sudah diposting. Sistem TIDAK menghapus transaksi asli — sebaliknya, sistem membuat transaksi reversal otomatis yang membalikkan semua jurnal. Dengan cara ini, jejak audit tetap lengkap dan saldo akun kembali seperti sebelum transaksi. Selalu berikan alasan pembatalan yang jelas.",
+      "Pembatalan (void) adalah cara yang benar untuk membatalkan transaksi yang sudah diposting. Sistem TIDAK menghapus transaksi asli - sebaliknya, sistem membuat transaksi reversal otomatis yang membalikkan semua jurnal. Dengan cara ini, jejak audit tetap lengkap dan saldo akun kembali seperti sebelum transaksi. Selalu berikan alasan pembatalan yang jelas.",
     example:
       "Transaksi penjualan Rp 100.000 dibatalkan. Sistem membuat jurnal reversal: Debit Pendapatan Rp 100.000, Kredit Kas Rp 100.000. Transaksi asli tetap ada dengan status 'voided'.",
     related: ["audit", "correction"],
@@ -149,7 +149,7 @@ export const HELP: Record<string, HelpContent> = {
   invoice_journal: {
     title: "Faktur dan Jurnal Otomatis",
     explanation:
-      "Setiap faktur yang diterbitkan otomatis membuat jurnal akuntansi: Debit Piutang Usaha (atau Kas jika tunai) dan Kredit Pendapatan. Saat faktur dibayar atau dibuatkan nota kredit, sistem memperbarui jurnal terkait. Anda tidak perlu mencatat jurnal terpisah untuk faktur — laporan keuangan sudah terisi otomatis.",
+      "Setiap faktur yang diterbitkan otomatis membuat jurnal akuntansi: Debit Piutang Usaha (atau Kas jika tunai) dan Kredit Pendapatan. Saat faktur dibayar atau dibuatkan nota kredit, sistem memperbarui jurnal terkait. Anda tidak perlu mencatat jurnal terpisah untuk faktur - laporan keuangan sudah terisi otomatis.",
     example:
       "Faktur Rp 500.000 ke pelanggan → Debit Piutang 500.000, Kredit Pendapatan 500.000.",
     related: ["debit_credit", "receivables"],
@@ -157,7 +157,7 @@ export const HELP: Record<string, HelpContent> = {
   notification_triggers: {
     title: "Pemicu Notifikasi",
     explanation:
-      "Ledjer mengirim notifikasi untuk kejadian yang butuh tindakan: faktur jatuh tempo, stok menipis, transaksi draft belum diposting, statement bank belum direkonsiliasi, dan periode yang belum dikunci. Notifikasi bersifat informasi — tidak ada alur persetujuan antar anggota tim.",
+      "Ledjer mengirim notifikasi untuk kejadian yang butuh tindakan: faktur jatuh tempo, stok menipis, transaksi draft belum diposting, statement bank belum direkonsiliasi, dan periode yang belum dikunci. Notifikasi bersifat informasi - tidak ada alur persetujuan antar anggota tim.",
     example:
       "Faktur mendekati jatuh tempo → notifikasi 'Faktur segera jatuh tempo' muncul di pusat notifikasi.",
     related: ["aging", "period_closing"],
@@ -165,7 +165,7 @@ export const HELP: Record<string, HelpContent> = {
   period_lock: {
     title: "Kunci Periode",
     explanation:
-      "Mengunci periode membekukan semua transaksi sampai tanggal tertentu — transaksi baru atau perubahan di periode terkunci akan ditolak. Ini melindungi laporan yang sudah final dari revisi tidak sengaja. Periode yang belum terkunci bisa diubah; periode yang sudah terkunci hanya bisa dibuka ulang dengan alasan, dan semua perubahan tercatat.",
+      "Mengunci periode membekukan semua transaksi sampai tanggal tertentu - transaksi baru atau perubahan di periode terkunci akan ditolak. Ini melindungi laporan yang sudah final dari revisi tidak sengaja. Periode yang belum terkunci bisa diubah; periode yang sudah terkunci hanya bisa dibuka ulang dengan alasan, dan semua perubahan tercatat.",
     example:
       "Kunci hingga 31 Januari → transaksi Februari tetap bisa dicatat, tetapi transaksi Januari ditolak.",
     related: ["period_closing", "audit"],
@@ -173,7 +173,7 @@ export const HELP: Record<string, HelpContent> = {
   opening_balance_guide: {
     title: "Saldo Awal per Akun",
     explanation:
-      "Saldo awal diisi dengan aturan: Aset (kas, bank, piutang, persediaan) memakai Debit (positif). Kewajiban (utang) dan Ekuitas (modal) memakai Kredit (negatif). Pendapatan dan Beban biasanya saldonya nol di awal. Total Debit harus sama dengan total Kredit — ini memastikan persamaan akuntansi seimbang sejak hari pertama.",
+      "Saldo awal diisi dengan aturan: Aset (kas, bank, piutang, persediaan) memakai Debit (positif). Kewajiban (utang) dan Ekuitas (modal) memakai Kredit (negatif). Pendapatan dan Beban biasanya saldonya nol di awal. Total Debit harus sama dengan total Kredit - ini memastikan persamaan akuntansi seimbang sejak hari pertama.",
     example:
       "Kas Rp 10jt (Debit) + Piutang Rp 2jt (Debit) = Utang Rp 3jt (Kredit) + Modal Rp 9jt (Kredit). Total debit 12jt = total kredit 12jt.",
     related: ["debit_credit", "balance_sheet"],
@@ -181,7 +181,7 @@ export const HELP: Record<string, HelpContent> = {
   initial_stock: {
     title: "Stok Awal Produk",
     explanation:
-      "Stok awal hanya bisa diisi saat produk dibuat sebelum onboarding selesai. Setelah onboarding selesai, stok masuk melalui alur pembelian atau penyesuaian stok — sehingga setiap perubahan stok selalu punya jejak audit. Harga beli pertama menjadi biaya rata-rata awal.",
+      "Stok awal hanya bisa diisi saat produk dibuat sebelum onboarding selesai. Setelah onboarding selesai, stok masuk melalui alur pembelian atau penyesuaian stok - sehingga setiap perubahan stok selalu punya jejak audit. Harga beli pertama menjadi biaya rata-rata awal.",
     example:
       "Produk pertama dengan stok awal 10 unit @ Rp 5.000 → biaya rata-rata Rp 5.000. Pembelian berikutnya menggeser rata-ratanya.",
     related: ["inventory_valuation", "cogs"],
@@ -189,7 +189,7 @@ export const HELP: Record<string, HelpContent> = {
   general_ledger: {
     title: "Buku Besar",
     explanation:
-      "Buku Besar (General Ledger) menampilkan semua pergerakan setiap akun dalam rentang tanggal: saldo awal, setiap jurnal yang masuk (debit/kredit), dan saldo berjalan. Ini adalah jejak audit lengkap — dari sini Anda bisa menelusuri setiap angka laporan ke jurnal asalnya.",
+      "Buku Besar (General Ledger) menampilkan semua pergerakan setiap akun dalam rentang tanggal: saldo awal, setiap jurnal yang masuk (debit/kredit), dan saldo berjalan. Ini adalah jejak audit lengkap - dari sini Anda bisa menelusuri setiap angka laporan ke jurnal asalnya.",
     example:
       "Akun Kas: saldo awal 10jt, +5jt (penjualan), -2jt (pembelian) → saldo akhir 13jt.",
     related: ["trial_balance", "debit_credit"],
@@ -205,7 +205,7 @@ export const HELP: Record<string, HelpContent> = {
   cash_flow: {
     title: "Arus Kas",
     explanation:
-      "Laporan Arus Kas menunjukkan pergerakan uang masuk dan keluar dalam periode tertentu. Dibagi tiga aktivitas: Operasi (dari kegiatan utama bisnis), Investasi (dari pembelian/penjualan aset tetap), dan Pendanaan (dari pinjaman/modal). Laporan ini penting karena laba di laporan Laba Rugi belum tentu berarti kas tersedia — bisnis bisa untung di kertas tapi bangkrut karena kekurangan kas.",
+      "Laporan Arus Kas menunjukkan pergerakan uang masuk dan keluar dalam periode tertentu. Dibagi tiga aktivitas: Operasi (dari kegiatan utama bisnis), Investasi (dari pembelian/penjualan aset tetap), dan Pendanaan (dari pinjaman/modal). Laporan ini penting karena laba di laporan Laba Rugi belum tentu berarti kas tersedia - bisnis bisa untung di kertas tapi bangkrut karena kekurangan kas.",
     example:
       "Laba bersih Rp 10jt, tetapi piutang naik Rp 8jt → kas dari operasi hanya Rp 2jt. Beli mesin Rp 5jt (investasi) → arus kas negatif Rp 3jt.",
     related: ["profit_loss", "balance_sheet"],
@@ -215,7 +215,7 @@ export const HELP: Record<string, HelpContent> = {
 /* ────────────────────────────────────────────────────────────────────────
  * Panduan Halaman (Page Guide)
  *
- * Konten langkah-demi-langkah untuk komponen PageGuide — tampil otomatis
+ * Konten langkah-demi-langkah untuk komponen PageGuide - tampil otomatis
  * saat halaman dibuka pertama kali, bisa ditutup, dan dibuka kembali lewat
  * tombol panduan. Key mengikuti rute halaman.
  * ──────────────────────────────────────────────────────────────────────── */
@@ -234,7 +234,7 @@ export interface PageGuideContent {
 /**
  * Builder untuk entri panduan halaman.
  *
- * Urutan argumen: (title, summary, steps, tip?). Tip bersifat opsional —
+ * Urutan argumen: (title, summary, steps, tip?). Tip bersifat opsional -
  * kosongkan untuk entri tanpa tips.
  *
  * Memakai pemanggilan fungsi yang ringkas (bukan objek literal berulang)
@@ -255,11 +255,11 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     "Ringkasan kondisi keuangan dan stok dalam satu layar.",
     [
       "Lihat saldo kas, penjualan, dan laba rugi periode ini di kartu ringkasan.",
-      "Periksa daftar stok menipis — segera tambah stok sebelum kehabisan.",
+      "Periksa daftar stok menipis - segera tambah stok sebelum kehabisan.",
       "Pilih periode (bulan ini / bulan lalu) untuk melihat perubahan kinerja.",
       "Klik tautan cepat untuk langsung mencatat transaksi atau membuka laporan.",
     ],
-    "Angka di Beranda otomatis terisi dari transaksi yang Anda catat — tidak perlu mengisi apa pun di sini.",
+    "Angka di Beranda otomatis terisi dari transaksi yang Anda catat - tidak perlu mengisi apa pun di sini.",
   ),
   transactions: guide(
     "Daftar Transaksi",
@@ -267,7 +267,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     [
       "Ketuk 'Transaksi Baru' untuk mencatat penjualan, pembelian, atau beban.",
       "Gunakan kolom cari dan filter untuk menemukan transaksi tertentu.",
-      "Transaksi berstatus Draft belum memengaruhi laporan — posting agar masuk pembukuan.",
+      "Transaksi berstatus Draft belum memengaruhi laporan - posting agar masuk pembukuan.",
       "Buka transaksi untuk melihat detail, mengubah draft, atau membatalkan (void).",
     ],
     "Mencatat transaksi secara rutin (harian/mingguan) membuat laporan keuangan selalu akurat.",
@@ -276,12 +276,12 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     "Mencatat Transaksi Baru",
     "Form untuk memasukkan pemasukan dan pengeluaran.",
     [
-      "Pilih jenis transaksi — sistem otomatis menentukan akun debit/kredit.",
+      "Pilih jenis transaksi - sistem otomatis menentukan akun debit/kredit.",
       "Isi tanggal, pihak (jika ada), dan jumlah dalam Rupiah.",
-      "Untuk penjualan produk, pilih produk dan jumlah unit — stok & HPP terisi otomatis.",
+      "Untuk penjualan produk, pilih produk dan jumlah unit - stok & HPP terisi otomatis.",
       "Periksa pratinjau jurnal, lalu simpan. Transaksi langsung masuk laporan keuangan.",
     ],
-    "Jika ragu memilih jenis, pilih yang paling mendekati — akun bisa disesuaikan saat dibutuhkan.",
+    "Jika ragu memilih jenis, pilih yang paling mendekati - akun bisa disesuaikan saat dibutuhkan.",
   ),
   "transactions/:id": guide(
     "Detail Transaksi",
@@ -289,7 +289,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     [
       "Periksa informasi transaksi dan jurnal debit/kredit yang dihasilkan.",
       "Draft bisa diedit; transaksi terposting hanya bisa dibatalkan (void).",
-      "Pembatalan membuat jurnal pembalik otomatis — saldo kembali seperti semula.",
+      "Pembatalan membuat jurnal pembalik otomatis - saldo kembali seperti semula.",
     ],
     "Selalu beri alasan saat membatalkan agar jejak audit tetap jelas.",
   ),
@@ -310,7 +310,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     [
       "Tab Kas & Bank menampilkan rekening kas/bank bisnis Anda.",
       "Ketuk 'Tambah Akun' untuk membuat akun baru (misal rekening bank kedua).",
-      "Akun sistem terkunci agar laporan tetap konsisten — tidak perlu diubah.",
+      "Akun sistem terkunci agar laporan tetap konsisten - tidak perlu diubah.",
       "Anda tidak perlu memilih akun saat bertransaksi: sistem memilihnya otomatis.",
     ],
     "Akun kas/bank yang Anda buat bisa diedit namanya; akun sistem tidak.",
@@ -324,7 +324,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
       "Faktur yang diterbitkan otomatis membuat jurnal piutang.",
       "Saat pelanggan membayar, catat pembayarannya untuk melunasi faktur.",
     ],
-    "Penjualan tunai cukup dicatat langsung di Transaksi — faktur khusus untuk penjualan kredit/tagihan.",
+    "Penjualan tunai cukup dicatat langsung di Transaksi - faktur khusus untuk penjualan kredit/tagihan.",
   ),
   "invoices/new": guide(
     "Membuat Faktur",
@@ -332,7 +332,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     [
       "Pilih pelanggan (atau buat baru) dan tanggal faktur.",
       "Tambahkan item produk atau jasa beserta jumlah dan harga.",
-      "Atur jatuh tempo — sistem akan mengingatkan saat faktur mendekati jatuh tempo.",
+      "Atur jatuh tempo - sistem akan mengingatkan saat faktur mendekati jatuh tempo.",
       "Simpan sebagai draft, atau terbitkan langsung agar membuat jurnal.",
     ],
   ),
@@ -347,15 +347,15 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
   ),
   journals: guide(
     "Jurnal Manual",
-    "Mencatat jurnal debit/kredit langsung — untuk pengguna yang paham akuntansi.",
+    "Mencatat jurnal debit/kredit langsung - untuk pengguna yang paham akuntansi.",
     [
       "Isi Tanggal, Jenis Jurnal, dan Deskripsi (wajib).",
       "Pilih akun di semua baris, lalu isi Debit di satu baris dan Kredit di baris lain dengan jumlah sama.",
-      "Klik 'Preview' — badge berubah jadi 'Balance' (hijau) jika debit = kredit.",
+      "Klik 'Preview' - badge berubah jadi 'Balance' (hijau) jika debit = kredit.",
       "Jika badge merah 'Selisih', samakan total debit dan kredit dulu.",
       "Baru klik 'Posting Jurnal' untuk menyimpan.",
     ],
-    "Tombol Preview aktif walau jurnal belum lengkap — pesan peringatan akan muncul menjelaskan apa yang kurang. Jurnal Penyesuaian/ Penutup dipakai saat akhir periode.",
+    "Tombol Preview aktif walau jurnal belum lengkap - pesan peringatan akan muncul menjelaskan apa yang kurang. Jurnal Penyesuaian/ Penutup dipakai saat akhir periode.",
   ),
   "opening-balance": guide(
     "Saldo Awal",
@@ -364,7 +364,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
       "Isi saldo awal per akun sesuai catatan bisnis Anda.",
       "Aturan: Aset = Debit (positif), Utang & Modal = Kredit (negatif).",
       "Total Debit harus sama dengan total Kredit agar balance.",
-      "Simpan setelah semua saldo terisi — laporan dihitung dari sini.",
+      "Simpan setelah semua saldo terisi - laporan dihitung dari sini.",
     ],
     "Pendapatan dan Beban biasanya saldonya nol di awal.",
   ),
@@ -375,7 +375,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
       "Siapkan file CSV (akun, produk, pihak, atau saldo awal) dari spreadsheet Anda.",
       "Pilih jenis data yang diimpor dan unggah file.",
       "Petakan kolom CSV ke kolom Ledjer, lalu periksa pratinjau.",
-      "Konfirmasi untuk menyelesaikan import — data langsung masuk.",
+      "Konfirmasi untuk menyelesaikan import - data langsung masuk.",
     ],
     "Gunakan template CSV yang disediakan untuk memastikan format benar.",
   ),
@@ -386,7 +386,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
       "Unduh laporan bank (statement) dan unggah sebagai CSV.",
       "Cocokkan setiap baris statement dengan transaksi di Ledjer.",
       "Tandai item yang tidak cocok dan catat biaya/bunga bank jika ada.",
-      "Saat saldo seimbang, rekonsiliasi selesai — saldo bank terbukti akurat.",
+      "Saat saldo seimbang, rekonsiliasi selesai - saldo bank terbukti akurat.",
     ],
     "Lakukan rekonsiliasi rutin (bulanan) untuk mendeteksi kesalahan lebih awal.",
   ),
@@ -396,7 +396,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     [
       "Baca notifikasi untuk tahu tindakan yang perlu dilakukan.",
       "Ketuk notifikasi untuk langsung membuka halaman terkait.",
-      "Notifikasi bersifat informasi — tidak ada alur persetujuan.",
+      "Notifikasi bersifat informasi - tidak ada alur persetujuan.",
     ],
   ),
   "reports/profit-loss": guide(
@@ -424,10 +424,10 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     "Uang masuk dan keluar dari operasi, investasi, dan pendanaan.",
     [
       "Pilih periode laporan.",
-      "Lihat arus kas dari Operasi — ini yang paling penting untuk usaha kecil.",
+      "Lihat arus kas dari Operasi - ini yang paling penting untuk usaha kecil.",
       "Arus kas negatif = perlu perhatian, walau laba terlihat positif.",
     ],
-    "Bisnis bisa untung di kertas tapi bangkrut karena kehabisan kas — pantau laporan ini rutin.",
+    "Bisnis bisa untung di kertas tapi bangkrut karena kehabisan kas - pantau laporan ini rutin.",
   ),
   "reports/aging": guide(
     "Piutang & Utang (Aging)",
@@ -449,7 +449,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
   ),
   "reports/trial-balance": guide(
     "Neraca Saldo",
-    "Daftar saldo semua akun — memastikan debit = kredit.",
+    "Daftar saldo semua akun - memastikan debit = kredit.",
     [
       "Pilih tanggal neraca saldo.",
       "Periksa total Debit dan Kredit harus sama.",
@@ -497,7 +497,7 @@ export const PAGE_GUIDES: Record<string, PageGuideContent> = {
     "Kunci Periode",
     "Mengunci periode agar transaksi lama tidak bisa diubah.",
     [
-      "Pilih tanggal batas — transaksi sebelum tanggal itu terkunci.",
+      "Pilih tanggal batas - transaksi sebelum tanggal itu terkunci.",
       "Kunci periode setelah laporan final (misal akhir bulan).",
       "Buka kunci hanya bila perlu, dengan alasan yang tercatat.",
     ],

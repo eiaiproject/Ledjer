@@ -15,7 +15,7 @@ interface StatCardProps {
   href?: string;
   /** Filled, high-emphasis treatment for primary metrics (Saldo, Laba/Rugi). */
   hero?: boolean;
-  /** Explicit zero label — shown when value is 0. */
+  /** Explicit zero label - shown when value is 0. */
   zeroLabel?: string;
   /** Accessible description appended to the accessible name. */
   ariaDescription?: string;
@@ -96,7 +96,7 @@ export function StatCard({
     const currencySize = currencySizeClass(hero, len);
     // formatIDR joins "Rp" and the digits with a non-breaking space; a regular
     // space lets the prefix wrap onto its own line when tight, so digits never
-    // break mid-number (currency only — text values keep their spacing intact).
+    // break mid-number (currency only - text values keep their spacing intact).
     const displayText = isCurrency ? displayValue?.replaceAll("\u00A0", " ") : displayValue;
     return (
       <span

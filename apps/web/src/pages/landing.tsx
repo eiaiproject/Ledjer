@@ -219,13 +219,13 @@ const teamItems = [
 ] as const;
 
 /* ===========================================================
-   SECTION: FAQ data — 6 items
+   SECTION: FAQ data - 6 items
    =========================================================== */
 
 const faqItems = [
   {
     q: "Apakah saya harus memahami akuntansi?",
-    a: "Tidak. Catat transaksi seperti biasa — penjualan, pembelian, atau beban. Jurnal, debit, dan kredit diisi otomatis.",
+    a: "Tidak. Catat transaksi seperti biasa - penjualan, pembelian, atau beban. Jurnal, debit, dan kredit diisi otomatis.",
   },
   {
     q: "Apakah Ledjer bisa digunakan dari ponsel?",
@@ -395,7 +395,7 @@ export function LandingPage() {
   const [demoExpanded, setDemoExpanded] = useState(false);
 
   // Show the edge-fade hint on the mobile sub-nav only when its pills
-  // actually overflow the viewport — no fade when everything fits.
+  // actually overflow the viewport - no fade when everything fits.
   useEffect(() => {
     const container = subNavRef.current;
     if (!container) return;
@@ -415,7 +415,7 @@ export function LandingPage() {
   // for future enhancement when we add roving tabindex on the list).
 
   // Keep the active pill centered in the horizontal strip.
-  // Scroll ONLY the sub-nav container horizontally — never the page itself.
+  // Scroll ONLY the sub-nav container horizontally - never the page itself.
   useEffect(() => {
     if (!activeSection) return;
     const container = subNavRef.current;
@@ -541,7 +541,7 @@ export function LandingPage() {
           </div>
         </nav>
 
-        {/* Mobile sub-nav (section links) — single scrollable row, no wrap */}
+        {/* Mobile sub-nav (section links) - single scrollable row, no wrap */}
         <div className="md:hidden border-t border-wood-100 bg-cream-50/95">
           <nav
             ref={subNavRef}
@@ -734,7 +734,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           FOUR USER-OUTCOME BENEFITS — 2x2 grid
+           FOUR USER-OUTCOME BENEFITS - 2x2 grid
            ---------------------------------------------------------- */}
         <section
           id="fitur"
@@ -776,7 +776,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           CARA KERJA — timeline (steps)
+           CARA KERJA - timeline (steps)
            ---------------------------------------------------------- */}
         <section
           id="cara-kerja"
@@ -844,7 +844,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           ONE-TRANSACTION DEMO — single panel with expand
+           ONE-TRANSACTION DEMO - single panel with expand
            ---------------------------------------------------------- */}
         <section
           aria-labelledby="demo-heading"
@@ -947,7 +947,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           BUSINESS TYPES — chips + 1 active panel
+           BUSINESS TYPES - chips + 1 active panel
            ---------------------------------------------------------- */}
         <section
           aria-labelledby="business-heading"
@@ -992,7 +992,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           REPORTS — tabs + 1 active panel
+           REPORTS - tabs + 1 active panel
            ---------------------------------------------------------- */}
         <section
           id="laporan"
@@ -1033,7 +1033,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           TIM & IZIN — checklist (single container)
+           TIM & IZIN - checklist (single container)
            ---------------------------------------------------------- */}
         <section
           aria-labelledby="team-heading"
@@ -1065,7 +1065,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           SECURITY — checklist
+           SECURITY - checklist
            ---------------------------------------------------------- */}
         <section
           id="keamanan"
@@ -1104,7 +1104,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           AKSES & DUKUNGAN — single panel
+           AKSES & DUKUNGAN - single panel
            ---------------------------------------------------------- */}
         <section
           id="akses"
@@ -1150,7 +1150,7 @@ export function LandingPage() {
         </section>
 
         {/* ----------------------------------------------------------
-           FAQ — 6 items
+           FAQ - 6 items
            ---------------------------------------------------------- */}
         <section
           aria-labelledby="faq-heading"

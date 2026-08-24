@@ -3,7 +3,7 @@ import { generateId } from "../auth/tokens";
 
 /**
  * Write an admin-scoped audit entry. Admin users live in admin_users (not
- * users), so actor_user_id must stay NULL — audit_logs.actor_user_id has a
+ * users), so actor_user_id must stay NULL - audit_logs.actor_user_id has a
  * FK to users(id) with no ON DELETE action, and admin ids don't exist there.
  * The acting admin is recorded in after_json (email + id).
  */

@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     try {
       await apiRequest("/api/admin/auth/logout", { method: "POST" });
     } catch {
-      // Ignore — cookie is cleared client-side regardless.
+      // Ignore - cookie is cleared client-side regardless.
     }
     setAdmin(null);
     window.location.href = "/login";

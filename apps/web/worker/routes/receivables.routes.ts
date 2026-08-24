@@ -11,7 +11,7 @@ import {
 
 const app = new Hono<AppContext>();
 
-// POST /api/receivables/pay — record payment against invoice
+// POST /api/receivables/pay - record payment against invoice
 app.post("/pay", requireAuth(), loadCurrentOrganization(), requirePermission("transactions:create"), async (c) => {
   const { user } = c.var;
   const { organization } = c.get("organizationContext");

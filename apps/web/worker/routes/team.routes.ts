@@ -95,12 +95,12 @@ teamRoutes.post("/invitations", requirePermission("team:manage"), async (c) => {
     try {
       await sendEmail(c.env.EMAIL_API_KEY, {
         to: body.email,
-        subject: "Undangan bergabung — Ledjer",
+        subject: "Undangan bergabung - Ledjer",
         html: `<p>Anda diundang untuk bergabung sebagai <strong>${invitation.role}</strong> di tim Ledjer.</p><p>Klik tautan berikut untuk menerima undangan:</p><p><a href="${acceptUrl}">${acceptUrl}</a></p><p>Tautan berlaku selama 7 hari.</p>`,
       }, c.env.EMAIL_FROM);
     } catch (err) {
       console.error("Failed to send invitation email", err);
-      // Don't throw — invitation was created successfully, email failure is non-blocking
+      // Don't throw - invitation was created successfully, email failure is non-blocking
     }
   }
 

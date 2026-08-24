@@ -1,12 +1,12 @@
 // ponytail: Minimal transactional email sender using generic HTTP API.
 // Supports any provider that accepts Bearer-token auth + JSON body
 // (Resend, Mailgun v3 API, Postmark, etc.). Defaults to Resend format.
-// Upgrade: templating, batch send, delivery tracking — when needed.
+// Upgrade: templating, batch send, delivery tracking - when needed.
 
 const API_URL = "https://api.resend.com/emails";
 const FROM = "Ledjer <noreply@ledjer.id>";
 
-/** Strip HTML tags — negated class avoids backtracking (no ReDoS). */
+/** Strip HTML tags - negated class avoids backtracking (no ReDoS). */
 function stripHtmlTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }
@@ -24,7 +24,7 @@ export async function sendEmail(
   from?: string,
 ): Promise<void> {
   if (!apiKey) {
-    console.warn("EMAIL_API_KEY not set — skipping email send", { to: input.to, subject: input.subject });
+    console.warn("EMAIL_API_KEY not set - skipping email send", { to: input.to, subject: input.subject });
     return;
   }
 

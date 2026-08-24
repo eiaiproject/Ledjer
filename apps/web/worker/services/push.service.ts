@@ -49,7 +49,7 @@ export interface SendNotificationInput {
   data?: Record<string, unknown>;
 }
 
-// VAPID keys — in production these should be in environment variables.
+// VAPID keys - in production these should be in environment variables.
 // Generate with: npx web-push generate-vapid-keys
 function getVapidKeys(env: { VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; APP_ORIGIN?: string }) {
   return {
@@ -111,7 +111,7 @@ export async function unsubscribe(
   endpoint: string,
 ): Promise<void> {
   // BUG-03: scope by user_id so a caller can only deactivate their own
-  // subscription — another user's endpoint cannot be disabled.
+  // subscription - another user's endpoint cannot be disabled.
   await execute(
     db,
     `UPDATE push_subscriptions SET is_active = 0, updated_at = ? WHERE endpoint = ? AND user_id = ?`,
@@ -293,7 +293,7 @@ async function processPendingNotification(
  * Send a push notification via the Web Push API.
  * Uses the no-payload approach: sends an empty push (no body) with VAPID auth.
  * The service worker, on receiving a push event, fetches pending notification
- * content from the API — this avoids the complex payload encryption requirement
+ * content from the API - this avoids the complex payload encryption requirement
  * (RFC 8291 AES128GCM).
  */
 async function sendPushNotification(
@@ -318,14 +318,14 @@ async function sendPushNotification(
       'Content-Length': '0',
       'Authorization': vapidHeader,
     },
-    // No body — push with empty payload to avoid encryption requirement.
+    // No body - push with empty payload to avoid encryption requirement.
     // Service worker fetches content from API on push event.
     body: null,
   });
 
   if (!response.ok) {
     if (response.status === 410 || response.status === 404) {
-      // Endpoint is dead — mark subscription as inactive
+      // Endpoint is dead - mark subscription as inactive
       throw new Error(`410 Gone: push endpoint invalid`);
     }
     throw new Error(`Push send failed: ${response.status} ${response.statusText}`);

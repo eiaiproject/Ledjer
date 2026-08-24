@@ -1,4 +1,4 @@
-# P1.1 — Import Framework API
+# P1.1 - Import Framework API
 
 ## POST /api/import/coa/preview
 Preview Chart of Accounts import.

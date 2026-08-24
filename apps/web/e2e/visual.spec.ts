@@ -26,7 +26,7 @@ import { waitForAppReady } from "./helpers/ready";
 
 // ── Desktop Viewport ─────────────────────────────────────────────
 
-test.describe("Visual regression — desktop (1280x800)", () => {
+test.describe("Visual regression - desktop (1280x800)", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async ({ page }) => {
@@ -36,7 +36,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
 
   // ── Landing Page ───────────────────────────────────────────────
 
-  test("landing page — hero section", async ({ page }) => {
+  test("landing page - hero section", async ({ page }) => {
     await navigateAndStabilize(page, "/");
     await expect(page).toHaveScreenshot("landing-hero.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -46,7 +46,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
 
   // ── Login Page ─────────────────────────────────────────────────
 
-  test("login page — empty form", async ({ page }) => {
+  test("login page - empty form", async ({ page }) => {
     await navigateAndStabilize(page, "/login");
     await expect(page).toHaveScreenshot("login-empty.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -54,12 +54,12 @@ test.describe("Visual regression — desktop (1280x800)", () => {
     });
   });
 
-  test("login page — validation errors", async ({ page }) => {
+  test("login page - validation errors", async ({ page }) => {
     await navigateAndStabilize(page, "/login");
     // Submit empty form to trigger validation
     await page.getByRole("button", { name: /masuk/i }).first().click();
     await waitForAppReady(page);
-    await page.waitForTimeout(300); // NOSONAR typescript:S2925 — brief visual stabilization after actions
+    await page.waitForTimeout(300); // NOSONAR typescript:S2925 - brief visual stabilization after actions
     await expect(page).toHaveScreenshot("login-validation.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
@@ -68,7 +68,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
 
   // ── Register Page ──────────────────────────────────────────────
 
-  test("register page — empty form", async ({ page }) => {
+  test("register page - empty form", async ({ page }) => {
     await navigateAndStabilize(page, "/register");
     await expect(page).toHaveScreenshot("register-empty.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -78,7 +78,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
 
   // ── Forgot Password Page ───────────────────────────────────────
 
-  test("forgot password page — empty form", async ({ page }) => {
+  test("forgot password page - empty form", async ({ page }) => {
     await navigateAndStabilize(page, "/forgot-password");
     await expect(page).toHaveScreenshot("forgot-password-empty.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -88,7 +88,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
 
   // ── 404 Page ───────────────────────────────────────────────────
 
-  test("not found page — 404", async ({ page }) => {
+  test("not found page - 404", async ({ page }) => {
     await navigateAndStabilize(page, "/nonexistent-page");
     await expect(page).toHaveScreenshot("not-found.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -99,7 +99,7 @@ test.describe("Visual regression — desktop (1280x800)", () => {
 
 // ── Mobile Viewport ──────────────────────────────────────────────
 
-test.describe("Visual regression — mobile (375x667)", () => {
+test.describe("Visual regression - mobile (375x667)", () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test.beforeEach(async ({ page }) => {
@@ -107,7 +107,7 @@ test.describe("Visual regression — mobile (375x667)", () => {
     await disableAnimation(page);
   });
 
-  test("landing page — mobile hero", async ({ page }) => {
+  test("landing page - mobile hero", async ({ page }) => {
     await navigateAndStabilize(page, "/");
     await expect(page).toHaveScreenshot("landing-hero-mobile.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -115,7 +115,7 @@ test.describe("Visual regression — mobile (375x667)", () => {
     });
   });
 
-  test("login page — mobile form", async ({ page }) => {
+  test("login page - mobile form", async ({ page }) => {
     await navigateAndStabilize(page, "/login");
     await expect(page).toHaveScreenshot("login-mobile.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -123,7 +123,7 @@ test.describe("Visual regression — mobile (375x667)", () => {
     });
   });
 
-  test("register page — mobile form", async ({ page }) => {
+  test("register page - mobile form", async ({ page }) => {
     await navigateAndStabilize(page, "/register");
     await expect(page).toHaveScreenshot("register-mobile.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
@@ -134,10 +134,10 @@ test.describe("Visual regression — mobile (375x667)", () => {
 
 // ── Authenticated Pages (requires seeded session) ────────────────
 
-test.describe("Visual regression — authenticated pages", () => {
+test.describe("Visual regression - authenticated pages", () => {
   const hasStorage = !!process.env.E2E_STORAGE_STATE;
-  // NOSONAR typescript:S1607 — conditional skip is intended behavior
-  test.skip(!hasStorage, "E2E_STORAGE_STATE not set — skipping authenticated visual tests");
+  // NOSONAR typescript:S1607 - conditional skip is intended behavior
+  test.skip(!hasStorage, "E2E_STORAGE_STATE not set - skipping authenticated visual tests");
 
   test.use({
     viewport: { width: 1280, height: 800 },
@@ -152,29 +152,29 @@ test.describe("Visual regression — authenticated pages", () => {
   // Note: These tests require a valid authenticated session.
   // Run with: E2E_STORAGE_STATE=auth.json E2E_VISUAL=1 npx playwright test ...
 
-  test("dashboard — loading state (authenticated)", async ({ page }) => {
+  test("dashboard - loading state (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/dashboard", { waitForNetworkIdle: false });
     // Capture initial loading state before data loads
     await page.waitForSelector('[class*="animate-pulse"]', { timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(200); // NOSONAR typescript:S2925 — brief stabilization for loading screenshot
+    await page.waitForTimeout(200); // NOSONAR typescript:S2925 - brief stabilization for loading screenshot
     await expect(page).toHaveScreenshot("dashboard-loading.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
     });
   });
 
-  test("dashboard — populated state (authenticated)", async ({ page }) => {
+  test("dashboard - populated state (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/dashboard");
     await waitForAppReady(page);
     await page.waitForSelector('[class*="card"]', { timeout: 5000 }).catch(() => {});
-    await page.waitForTimeout(1000); // NOSONAR typescript:S2925 — awaiting chart render
+    await page.waitForTimeout(1000); // NOSONAR typescript:S2925 - awaiting chart render
     await expect(page).toHaveScreenshot("dashboard-populated.png", {
       mask: NONDETERMINISTIC_SELECTORS.map((s) => page.locator(s)),
       fullPage: true,
     });
   });
 
-  test("accounts page — list view (authenticated)", async ({ page }) => {
+  test("accounts page - list view (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/accounts");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("accounts-list.png", {
@@ -183,7 +183,7 @@ test.describe("Visual regression — authenticated pages", () => {
     });
   });
 
-  test("transactions page — list view (authenticated)", async ({ page }) => {
+  test("transactions page - list view (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/transactions");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("transactions-list.png", {
@@ -192,7 +192,7 @@ test.describe("Visual regression — authenticated pages", () => {
     });
   });
 
-  test("products page — list view (authenticated)", async ({ page }) => {
+  test("products page - list view (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/products");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("products-list.png", {
@@ -201,7 +201,7 @@ test.describe("Visual regression — authenticated pages", () => {
     });
   });
 
-  test("reports — trial balance (authenticated)", async ({ page }) => {
+  test("reports - trial balance (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/reports/trial-balance");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("trial-balance.png", {
@@ -210,7 +210,7 @@ test.describe("Visual regression — authenticated pages", () => {
     });
   });
 
-  test("reports — profit & loss (authenticated)", async ({ page }) => {
+  test("reports - profit & loss (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/reports/profit-loss");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("profit-loss.png", {
@@ -219,7 +219,7 @@ test.describe("Visual regression — authenticated pages", () => {
     });
   });
 
-  test("reports — balance sheet (authenticated)", async ({ page }) => {
+  test("reports - balance sheet (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/reports/balance-sheet");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("balance-sheet.png", {
@@ -231,10 +231,10 @@ test.describe("Visual regression — authenticated pages", () => {
 
 // ── Modal States ─────────────────────────────────────────────────
 
-test.describe("Visual regression — modals & dialogs", () => {
+test.describe("Visual regression - modals & dialogs", () => {
   const hasStorage = !!process.env.E2E_STORAGE_STATE;
-  // NOSONAR typescript:S1607 — conditional skip is intended behavior
-  test.skip(!hasStorage, "E2E_STORAGE_STATE not set — skipping authenticated modal visual tests");
+  // NOSONAR typescript:S1607 - conditional skip is intended behavior
+  test.skip(!hasStorage, "E2E_STORAGE_STATE not set - skipping authenticated modal visual tests");
 
   test.use({
     viewport: { width: 1280, height: 800 },
@@ -246,7 +246,7 @@ test.describe("Visual regression — modals & dialogs", () => {
     await disableAnimation(page);
   });
 
-  test("new transaction modal — empty form (authenticated)", async ({ page }) => {
+  test("new transaction modal - empty form (authenticated)", async ({ page }) => {
     await navigateAndStabilize(page, "/transactions/new");
     await waitForAppReady(page);
     await expect(page).toHaveScreenshot("transaction-new-empty.png", {

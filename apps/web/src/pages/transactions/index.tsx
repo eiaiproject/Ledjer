@@ -217,7 +217,7 @@ function TransactionFilterBar({
   );
 }
 
-export function TransactionListPage() { // NOSONAR typescript:S3776 — complexity 16/15; page-level conditions are inherently complex
+export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity 16/15; page-level conditions are inherently complex
   const { data: orgData } = useOrganization();
   const { canCreateTransaction, canCreateExports } = useOrgPermissions();
   const [search, setSearch] = useState("");

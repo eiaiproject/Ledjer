@@ -18,7 +18,7 @@ Kunci periode membekukan tanggal tertentu ke belakang:
 
 - **Akhir setiap bulan** setelah semua transaksi bulan itu selesai.
 - Sebelum **menyusun laporan final** (laporan pajak, laporan bank, dll.).
-- Saat ada **audit** — buktikan bahwa angka tidak berubah setelah periode ditutup.
+- Saat ada **audit** - buktikan bahwa angka tidak berubah setelah periode ditutup.
 
 ## Jurnal manual
 
@@ -28,7 +28,7 @@ Untuk penyesuaian yang tidak punya jenis transaksi khusus (misal penyusutan aset
 2. Pilih akun **debit** dan **kredit** beserta nominalnya.
 3. Sistem memastikan jurnal seimbang sebelum disimpan.
 
-Jurnal manual tidak bisa memakai akun kas secara serampangan — gunakan transaksi biasa untuk kas. Semua jurnal manual juga tercatat di audit log.
+Jurnal manual tidak bisa memakai akun kas secara serampangan - gunakan transaksi biasa untuk kas. Semua jurnal manual juga tercatat di audit log.
 
 ## Jurnal penutup
 
@@ -36,7 +36,7 @@ Di akhir tahun, gunakan **Jurnal Penutup** untuk memindahkan saldo akun pendapat
 
 ## Template jurnal
 
-Jika Anda rutin membuat jurnal yang sama (misal penyusutan bulanan), simpan sebagai **template** dan pakai kembali — lebih cepat dan konsisten.
+Jika Anda rutin membuat jurnal yang sama (misal penyusutan bulanan), simpan sebagai **template** dan pakai kembali - lebih cepat dan konsisten.
 
 ## Rekonsiliasi bank
 

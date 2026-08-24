@@ -261,7 +261,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
         )}
       </div>
 
-      {/* Unified type grid — priority types always visible */}
+      {/* Unified type grid - priority types always visible */}
       <div id={listboxId} className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Jenis transaksi" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined}>
         {priorityTypes.map((type) => renderTypeCard(type))}
       </div>

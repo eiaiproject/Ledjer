@@ -70,7 +70,7 @@ export function AuthCallbackPage() {
 
       try {
         if (oauthSuccess === "true") {
-          // Google OAuth succeeded — session cookie is already set by backend
+          // Google OAuth succeeded - session cookie is already set by backend
           setStatus("success");
           setTimeout(() => {
             navigate(redirectPath, { replace: true });
@@ -82,7 +82,7 @@ export function AuthCallbackPage() {
           setCallbackType(type);
           await verifyEmail(token, type);
         } else {
-          // No code or token — check if a session already exists.
+          // No code or token - check if a session already exists.
           // A session may exist when the user authenticated on another tab
           // or the onAuthStateChange listener fired before this component
           // mounted. Without this check, authenticated users would see a

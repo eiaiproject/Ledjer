@@ -117,7 +117,7 @@ export const queryKeys = {
  * Invalidates every cache key touched by posting, editing, or voiding a
  * transaction (dashboard, accounts, products, parties, reports).
  * Use after any successful financial mutation so dependent screens do not show
- * stale balances. Does NOT touch transaction detail caches — callers should
+ * stale balances. Does NOT touch transaction detail caches - callers should
  * also invalidate `queryKeys.transactions.detail(id)` and
  * `queryKeys.journalEntries.detail(id)` for the specific record being mutated.
  */

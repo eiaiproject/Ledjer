@@ -48,7 +48,7 @@ async function getOutstandingAmount(
   return inv.total_minor - (paid?.paid ?? 0);
 }
 
-export async function recordPayment( // NOSONAR typescript:S107 — 8 params for payment recording; each is necessary with distinct responsibilities
+export async function recordPayment( // NOSONAR typescript:S107 - 8 params for payment recording; each is necessary with distinct responsibilities
   db: D1Database,
   organizationId: string,
   userId: string,

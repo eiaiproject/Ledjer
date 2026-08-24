@@ -22,22 +22,22 @@
 
 | Route Pattern | requireAuth | loadCurrentOrg | requirePermission | Notes |
 |---------------|-------------|----------------|-------------------|-------|
-| GET /api/health | — | — | — | Public |
-| POST /api/auth/register | — | — | — | Public, rate-limited |
-| POST /api/auth/login | — | — | — | Public, rate-limited |
-| POST /api/auth/logout | — | — | — | Reads session if present |
-| GET /api/auth/me | — | — | — | Returns null if no session |
-| POST /api/auth/verify-email | — | — | — | Token-based auth |
-| POST /api/auth/resend-verification | — | — | — | Rate-limited |
-| POST /api/auth/forgot-password | — | — | — | Rate-limited |
-| POST /api/auth/reset-password | ✓ | — | — | Via session |
-| POST /api/auth/change-password | ✓ | — | — | Via session |
-| GET /api/auth/google/* | — | — | — | OAuth flow |
-| GET /api/organizations | ✓ | — | — | Lists user's orgs |
-| POST /api/organizations | ✓ | — | — | Creates new org |
+| GET /api/health | - | - | - | Public |
+| POST /api/auth/register | - | - | - | Public, rate-limited |
+| POST /api/auth/login | - | - | - | Public, rate-limited |
+| POST /api/auth/logout | - | - | - | Reads session if present |
+| GET /api/auth/me | - | - | - | Returns null if no session |
+| POST /api/auth/verify-email | - | - | - | Token-based auth |
+| POST /api/auth/resend-verification | - | - | - | Rate-limited |
+| POST /api/auth/forgot-password | - | - | - | Rate-limited |
+| POST /api/auth/reset-password | ✓ | - | - | Via session |
+| POST /api/auth/change-password | ✓ | - | - | Via session |
+| GET /api/auth/google/* | - | - | - | OAuth flow |
+| GET /api/organizations | ✓ | - | - | Lists user's orgs |
+| POST /api/organizations | ✓ | - | - | Creates new org |
 | GET /api/organizations/current | ✓ | ✓ | organization:read | |
 | PUT /api/organizations/current | ✓ | ✓ | organization:update | |
-| POST /api/organizations/switch | ✓ | — | — | Changes current_org |
+| POST /api/organizations/switch | ✓ | - | - | Changes current_org |
 | GET /api/accounts | ✓ | ✓ | accounts:read | |
 | GET /api/accounts/:id | ✓ | ✓ | accounts:read | |
 | POST /api/accounts | ✓ | ✓ | accounts:write | |

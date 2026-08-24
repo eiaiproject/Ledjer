@@ -103,7 +103,7 @@ export function OrganizationSettingsPage() {
                 <span className="block text-sm font-medium text-wood-700">Jenis Bisnis</span>
                 <p className="mt-1 flex items-center gap-2 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
                   <Building className="h-4 w-4 text-wood-400" />
-                  {org?.business_type ? BUSINESS_TYPE_LABELS[org.business_type] || org.business_type : "—"}
+                  {org?.business_type ? BUSINESS_TYPE_LABELS[org.business_type] || org.business_type : "-"}
                 </p>
               </div>
               <div>
@@ -141,7 +141,7 @@ export function OrganizationSettingsPage() {
             <div>
               <span className="block text-sm font-medium text-wood-700">Tanggal Mulai Pembukuan</span>
               <p className="mt-1 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
-                {org?.books_start_date || "—"}
+                {org?.books_start_date || "-"}
               </p>
             </div>
             <div>

@@ -497,7 +497,7 @@ describe("stock adjustment journal posting", () => {
       movementDate: "2026-07-07",
     });
 
-    // ONE batch carries the movement AND its journal — atomic, so a failure
+    // ONE batch carries the movement AND its journal - atomic, so a failure
     // can never leave a movement without its paired journal.
     const batchStatements = fake.state.journalStatements;
     expect(batchStatements.some((s) => s.sql.includes("INSERT INTO stock_movements"))).toBe(true);

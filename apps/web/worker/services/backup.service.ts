@@ -45,12 +45,12 @@ export async function createBackup(
   };
 
   // M-14: Verify each CORE_TABLE exists before backup
-  // Non-blocking check — silently continues if table check fails (e.g., in test mocks)
+  // Non-blocking check - silently continues if table check fails (e.g., in test mocks)
   for (const table of CORE_TABLES) {
     try {
       await db.prepare(`SELECT 1 FROM "${table}" LIMIT 1`).first();
     } catch {
-      // Table might not exist yet — continue with backup
+      // Table might not exist yet - continue with backup
     }
   }
 
@@ -77,7 +77,7 @@ export async function createBackup(
   // C-04: Add consistency_warning field to document the non-transactional nature
   (manifest as unknown as Record<string, unknown>).consistency_warning = true;
 
-  // Write manifest last — its presence signals a complete backup
+  // Write manifest last - its presence signals a complete backup
   const manifestJson = JSON.stringify(manifest, null, 2);
   // ponytail: Simple SHA-256 via Web Crypto. Node crypto not available in Workers.
   const enc = new TextEncoder();
@@ -112,7 +112,7 @@ export async function createBackup(
   return manifest;
 }
 
-/** Remove backups older than 30 days. Silently ignores errors — backup integrity is more important than retention. */
+/** Remove backups older than 30 days. Silently ignores errors - backup integrity is more important than retention. */
 async function cleanupOldBackups(bucket: R2Bucket, current: number): Promise<void> {
   const thirtyDaysAgo = current - 30 * 86_400_000;
   const oldDate = new Date(thirtyDaysAgo).toISOString().slice(0, 10);
@@ -247,7 +247,7 @@ export async function restoreBackup(
       tables[table] = { restored: rows.length };
     }
 
-    // Execute ALL operations atomically — if any statement fails, all are rolled back
+    // Execute ALL operations atomically - if any statement fails, all are rolled back
     await executeBatch(db, allStatements);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

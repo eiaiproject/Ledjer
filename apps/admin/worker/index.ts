@@ -29,7 +29,7 @@ function csrfError(status: number, code: string, message: string): Response {
 
 function originAllowed(origin: string, allowed: string | undefined): boolean {
   if (!allowed) return false;
-  // Origin is origin-only; Referer (fallback) includes path — compare by URL origin.
+  // Origin is origin-only; Referer (fallback) includes path - compare by URL origin.
   return allowed.split(",").map((o) => o.trim()).filter(Boolean)
     .some((a) => {
       if (origin === a) return true;
@@ -65,7 +65,7 @@ app.use("/api/*", async (c, next) => {
   return originAllowed(origin, allowed) ? next() : csrfError(403, "csrf_invalid", "Origin not allowed");
 });
 
-// Auth (login/logout/me) are public — session cookie is checked per-route.
+// Auth (login/logout/me) are public - session cookie is checked per-route.
 app.route("/api/admin/auth", authRoutes);
 
 // Everything below requires an authenticated admin session.

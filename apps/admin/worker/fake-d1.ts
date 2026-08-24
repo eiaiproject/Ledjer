@@ -191,7 +191,7 @@ class FakeStatement {
       } else if (ph.toUpperCase() === "NULL") {
         row[col] = null;
       } else {
-        // literal like 'active' — strip quotes
+        // literal like 'active' - strip quotes
         const m = /^'(.*)'$/.exec(ph);
         row[col] = m ? m[1] : ph;
       }

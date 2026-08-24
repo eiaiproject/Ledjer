@@ -131,7 +131,7 @@ test.describe("Stock filter (auth required)", () => {
       test.skip(true, 'Stock filter buttons not found'); // NOSONAR
       return;
     }
-    // The stock filter lives in the collapsible filter panel — expand it on
+    // The stock filter lives in the collapsible filter panel - expand it on
     // mobile (where the panel is hidden behind the "Filter" toggle) so the
     // buttons are visible.
     const filterToggle = authPage.getByRole("button", { name: /filter/i }).first();

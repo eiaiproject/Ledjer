@@ -19,7 +19,7 @@ const ICONS: Record<CalloutVariant, ComponentType<{ className?: string }>> = {
 };
 
 interface CalloutProps {
-  /** Info/success/warning/error — maps to semantic token backgrounds. */
+  /** Info/success/warning/error - maps to semantic token backgrounds. */
   readonly variant?: CalloutVariant;
   /** Optional bold title shown above the body. */
   readonly title?: string;

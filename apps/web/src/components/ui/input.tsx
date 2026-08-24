@@ -13,7 +13,7 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix
   containerClassName?: string;
   isCurrency?: boolean;
   isNumeric?: boolean;
-  /** Allow fractional values (unit prices only) — displayed with id-ID comma
+  /** Allow fractional values (unit prices only) - displayed with id-ID comma
    *  decimals and a decimal keypad. Whole-money fields must NOT use this, so a
    *  stray decimal is never mistaken for a thousands separator. */
   allowDecimals?: boolean;
@@ -22,7 +22,7 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix
 
 // ─── Pure helpers (module level, no JSX) ─────────────────────────
 
-/** id ?? label-derived id ?? generated id — no chained logical operators in JSX. */
+/** id ?? label-derived id ?? generated id - no chained logical operators in JSX. */
 function resolveInputId(id: string | undefined, label: string | undefined, generatedId: string): string {
   if (id) return id;
   if (label) return label.toLowerCase().replace(/\s/g, "-");
@@ -165,7 +165,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const resolvedPrefix = resolvePrefix(Boolean(isCurrency), prefix, leftIcon);
     // Formatted numeric inputs (currency/qty-with-separators) strip non-digits
     // and show thousand separators. Plain type="number" inputs become text but
-    // keep a numeric keypad (inputMode) and reject stray characters — same
+    // keep a numeric keypad (inputMode) and reject stray characters - same
     // scroll-increment/spinner reasons as the formatted path.
     const isFormattedInput = Boolean(isCurrency || isNumeric);
     const isNumericInput = Boolean(isFormattedInput || type === "number");
@@ -211,7 +211,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       }
 
       // Normalize to digits + optional single leading minus. Separators are a
-      // display concern only — parents receive a clean value they can parse.
+      // display concern only - parents receive a clean value they can parse.
       const { normalized, negative, digits } = normalizeWholeAmount(e.target.value);
       if (e.target.value !== normalized) e.target.value = normalized;
       props.onChange?.(e);
