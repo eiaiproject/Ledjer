@@ -103,8 +103,8 @@ export function DashboardPage() {
     queryKey: queryKeys.dashboard(orgData?.organization?.id),
     queryFn: () => getDashboardSummary(),
     enabled: !!orgData?.organization?.id && canViewReports,
-    // Auto-refresh so numbers stay current while the page is open.
-    refetchInterval: 60_000,
+    // Auto-refresh so numbers stay current while the page is open - 15s for near-realtime.
+    refetchInterval: 15_000,
   });
 
   // Fetch dashboard alerts
@@ -112,7 +112,7 @@ export function DashboardPage() {
     queryKey: [...queryKeys.dashboard(orgData?.organization?.id), "alerts"],
     queryFn: () => getDashboardAlerts(),
     enabled: !!orgData?.organization?.id && canViewReports,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   // Pull-to-refresh refreshes every page's data at once.
