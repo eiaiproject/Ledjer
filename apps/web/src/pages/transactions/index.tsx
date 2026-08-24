@@ -230,6 +230,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
   const toDate = searchParams.get("to") ?? localDate();
   const page = Number(searchParams.get("page") ?? "0");
   const [exporting, setExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const limit = 20;
   const updateParams = (mutate: (next: URLSearchParams) => void) => {
     const next = new URLSearchParams(searchParams);
@@ -283,6 +284,20 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
   const isPageError = Boolean(error);
   const isRefreshing = isFetching && !isLoading;
   const canExport = canCreateExports && !isDatasetEmpty && !isPageError && !dateRangeInvalid;
+  const allPageIds = (transactions ?? []).map((t) => t.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every((id) => selectedIds.has(id));
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(allPageIds));
+  };
+  const clearSelection = () => setSelectedIds(new Set());
 
   const handleExport = async () => {
     if (!orgData?.organization?.id || dateRangeInvalid || exporting) return;
@@ -425,6 +440,17 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-wood-200 bg-wood-50 px-3 py-2 text-sm">
+          <span className="font-medium text-wood-700">{selectedIds.size} dipilih</span>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={clearSelection}>Batal</Button>
+            <Button type="button" variant="primary" size="sm" onClick={() => toast.success(`${selectedIds.size} void batch - implementasi menyusul`)}>Void Terpilih</Button>
+          </div>
+        </div>
+      )}
+
       {/* Transaction list */}
       <Card elevated aria-label="Daftar transaksi" role="region">
         {isPageError && (
@@ -460,12 +486,13 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
             {/* Mobile: Card list */}
             <div className="divide-y divide-wood-100 sm:hidden">
               {transactions?.map((txn) => (
-                <Link
-                  key={txn.id}
-                  to={`/transactions/${txn.id}`}
-                  className="flex items-start justify-between gap-3 px-4 py-3 outline-none hover:bg-cream-50 active:bg-cream-100 transition-colors min-h-[64px]"
-                  aria-label={`${labelForTransactionType(txn.transaction_type)}, ${formatIDR(Number(txn.amount))}, ${statusLabel(txn.status)}, ${formatShortDate(txn.transaction_date)}`}
-                >
+                <div key={txn.id} className="flex items-center gap-2 px-4 py-3 hover:bg-cream-50">
+                  <input type="checkbox" checked={selectedIds.has(txn.id)} onChange={() => toggleOne(txn.id)} className="h-4 w-4 rounded border-wood-300 text-wood-600 focus:ring-wood-500" aria-label={`Pilih ${txn.transaction_number}`} />
+                  <Link
+                    to={`/transactions/${txn.id}`}
+                    className="flex flex-1 items-start justify-between gap-3 min-w-0 outline-none active:bg-cream-100 transition-colors min-h-[44px]"
+                    aria-label={`${labelForTransactionType(txn.transaction_type)}, ${formatIDR(Number(txn.amount))}, ${statusLabel(txn.status)}, ${formatShortDate(txn.transaction_date)}`}
+                  >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-medium text-wood-600">
@@ -485,7 +512,8 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
                       {formatIDR(Number(txn.amount))}
                     </p>
                   </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </div>
 
@@ -494,6 +522,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-wood-100 bg-cream-100/50">
                   <tr>
+                    <th scope="col" className="px-4 py-3"><input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-wood-300 text-wood-600" aria-label="Pilih semua" /></th>
                     <th scope="col" className="px-4 py-3 font-medium text-wood-600">Tanggal</th>
                     <th scope="col" className="px-4 py-3 font-medium text-wood-600">No.</th>
                     <th scope="col" className="px-4 py-3 font-medium text-wood-600">Jenis</th>
@@ -505,6 +534,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
                 <tbody className="divide-y divide-wood-50">
                   {transactions?.map((txn) => (
                     <tr key={txn.id} className="transition-colors hover:bg-cream-50">
+                      <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.has(txn.id)} onChange={() => toggleOne(txn.id)} className="h-4 w-4 rounded border-wood-300 text-wood-600" aria-label={`Pilih ${txn.transaction_number}`} /></td>
                       <td className="whitespace-nowrap px-4 py-3 text-wood-600">
                         {formatShortDate(txn.transaction_date)}
                       </td>
