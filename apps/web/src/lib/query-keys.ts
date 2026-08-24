@@ -139,5 +139,5 @@ export function invalidateTransactionFinancialCaches(
     queryKeys.reports.allGeneralLedger(),
     queryKeys.reports.allCashFlow(),
   ];
-  keys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+  keys.forEach((k) => qc.invalidateQueries({ queryKey: k, refetchType: 'all' }));
 }

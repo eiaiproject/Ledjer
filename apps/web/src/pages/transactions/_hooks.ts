@@ -654,8 +654,8 @@ export function useTransactionMutation(params: {
       }
       setSuccessTransactionId(result.transaction_id);
       setClientToken(createClientToken());
-      // ponytail: Delay cache invalidation to avoid D1 read-after-write inconsistency.
-      // D1 replicas may not have synced yet; 500ms gives primary time to propagate.
+      // Immediate invalidate for optimistic UX, plus delayed retry for D1 replica lag.
+      invalidateTransactionFinancialCaches(queryClient, orgId);
       setTimeout(() => {
         invalidateTransactionFinancialCaches(queryClient, orgId);
       }, 500);

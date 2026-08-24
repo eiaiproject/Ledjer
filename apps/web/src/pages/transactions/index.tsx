@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { refreshAllData } from "@/lib/query-client";
 
 /* ------------------------------------------------------------------ */
 /*  Empty state helper (reduce cognitive complexity)                   */
@@ -314,6 +316,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
   });
 
   return (
+    <PullToRefresh onRefresh={refreshAllData}>
     <PageShell
       header={{
         title: "Transaksi",
@@ -547,5 +550,6 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
         </nav>
       )}
     </PageShell>
+    </PullToRefresh>
   );
 }
