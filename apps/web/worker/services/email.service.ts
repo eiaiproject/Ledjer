@@ -6,19 +6,9 @@
 const API_URL = "https://api.resend.com/emails";
 const FROM = "Ledjer <noreply@ledjer.id>";
 
-/**
- * Strip HTML tags without regex backtracking issues.
- * Iterates character-by-character to avoid ReDoS vulnerabilities.
- */
+/** Strip HTML tags — negated class avoids backtracking (no ReDoS). */
 function stripHtmlTags(html: string): string {
-  let result = "";
-  let inTag = false;
-  for (const ch of html) {
-    if (ch === "<") { inTag = true; continue; }
-    if (ch === ">") { inTag = false; continue; }
-    if (!inTag) result += ch;
-  }
-  return result;
+  return html.replace(/<[^>]*>/g, "");
 }
 
 interface SendEmailInput {
