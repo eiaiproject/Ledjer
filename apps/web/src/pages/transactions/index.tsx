@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { refreshAllData } from "@/lib/query-client";
@@ -222,14 +222,26 @@ function TransactionFilterBar({
 export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity 16/15; page-level conditions are inherently complex
   const { data: orgData } = useOrganization();
   const { canCreateTransaction, canCreateExports } = useOrgPermissions();
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
-  const [fromDate, setFromDate] = useState(() => localDate(-30));
-  const [toDate, setToDate] = useState(() => localDate());
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const typeFilter = searchParams.get("type") ?? "";
+  const statusFilter = (searchParams.get("status") ?? "") as TransactionStatus | "";
+  const fromDate = searchParams.get("from") ?? localDate(-30);
+  const toDate = searchParams.get("to") ?? localDate();
+  const page = Number(searchParams.get("page") ?? "0");
   const [exporting, setExporting] = useState(false);
   const limit = 20;
+  const updateParams = (mutate: (next: URLSearchParams) => void) => {
+    const next = new URLSearchParams(searchParams);
+    mutate(next);
+    setSearchParams(next, { replace: true });
+  };
+  const setSearch = (v: string) => updateParams((n) => { if (v) n.set("q", v); else n.delete("q"); n.set("page", "0"); });
+  const setTypeFilter = (v: string) => updateParams((n) => { if (v) n.set("type", v); else n.delete("type"); n.set("page", "0"); });
+  const setStatusFilter = (v: TransactionStatus | "") => updateParams((n) => { if (v) n.set("status", v); else n.delete("status"); n.set("page", "0"); });
+  const setFromDate = (v: string) => updateParams((n) => { n.set("from", v); n.set("page", "0"); });
+  const setToDate = (v: string) => updateParams((n) => { n.set("to", v); n.set("page", "0"); });
+  const setPage = (updater: number | ((p: number) => number)) => updateParams((n) => { const nextPage = typeof updater === "function" ? (updater as (p: number) => number)(page) : updater; n.set("page", String(Math.max(0, nextPage))); });
 
   const DEFAULT_FROM = localDate(-30);
   const DEFAULT_TO = localDate();
