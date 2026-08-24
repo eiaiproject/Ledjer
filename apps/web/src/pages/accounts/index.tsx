@@ -27,6 +27,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { refreshAllData } from "@/lib/query-client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageGuide } from "@/components/ui/page-guide";
@@ -783,6 +785,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 - complexity 19/15;
   const panelIds = { cashbank: "panel-cashbank", all: "panel-all" } as const;
 
   return (
+    <PullToRefresh onRefresh={refreshAllData}>
     <PageShell
       header={{
         title: "Akun",
@@ -1016,6 +1019,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 - complexity 19/15;
         onSuccess={() => {}}
       />
     </PageShell>
+    </PullToRefresh>
   );
 }
 
