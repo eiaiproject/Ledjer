@@ -90,7 +90,7 @@ export function DashboardLayout() {
   const navPermissions = useOrgPermissions();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(["Laporan", "Pengaturan"]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -254,7 +254,7 @@ export function DashboardLayout() {
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const children = item.children;
-              const isExpanded = expandedMenus.includes(item.label);
+              const isExpanded = expandedMenus.includes(item.label) || (children ? isParentActive(children) : false);
               const active = children ? isParentActive(children) : isActive(item.to!);
               const menuId = `desktop-nav-${item.label.toLowerCase()}`;
 
@@ -475,6 +475,7 @@ export function DashboardLayout() {
                 const active = children
                   ? isParentActive(children)
                   : isActive(item.to!);
+                const isExpanded = children ? expandedMenus.includes(item.label) || isParentActive(children) : false;
                 const menuId = `mobile-nav-${item.label.toLowerCase()}`;
 
                 if (children) {
@@ -482,7 +483,7 @@ export function DashboardLayout() {
                     <li key={item.label}>
                       <button                         type="button"
                         onClick={() => toggleMenu(item.label)}
-                        aria-expanded={expandedMenus.includes(item.label)}
+                        aria-expanded={isExpanded}
                         aria-controls={menuId}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px]",
@@ -496,11 +497,11 @@ export function DashboardLayout() {
                         <ChevronDown
                           className={cn(
                             "h-4 w-4 transition-transform",
-                            expandedMenus.includes(item.label) && "rotate-180"
+                            isExpanded && "rotate-180"
                           )}
                         />
                       </button>
-                      {expandedMenus.includes(item.label) && (
+                      {isExpanded && (
                         <ul id={menuId} className="mt-1 ml-8 space-y-1">
                           {children.map((child) => (
                             <li key={child.to}>
