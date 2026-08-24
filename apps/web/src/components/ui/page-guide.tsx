@@ -45,7 +45,7 @@ interface PageGuideProps {
 export function PageGuide({ guideKey, className }: PageGuideProps) {
   const guide = PAGE_GUIDES[guideKey];
   const [dismissed, setDismissed] = useState(() => isGuideSeen(guideKey));
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
   const handleDismiss = useCallback(() => {
