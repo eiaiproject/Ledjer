@@ -76,10 +76,9 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   },
 ];
 
-// Mobile bottom nav keeps only the most-used destinations as quick tabs.
-// Penjualan (invoices) & Kas & Bank (Chart of Accounts) are rarely used by
-// casual users - they stay reachable via the "Lainnya" mobile menu instead.
-const BOTTOM_NAV_ROUTES: ReadonlySet<string> = new Set(["/dashboard", "/transactions", "/products"]);
+// Mobile bottom nav: 4 quick tabs + Lainnya. Kas & Bank added to quick access
+// (daily use for UMKM), Penjualan stays in Lainnya for casual users.
+const BOTTOM_NAV_ROUTES: ReadonlySet<string> = new Set(["/dashboard", "/transactions", "/products", "/accounts"]);
 
 export function DashboardLayout() {
   const location = useLocation();
