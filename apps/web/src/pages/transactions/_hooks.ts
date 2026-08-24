@@ -592,12 +592,10 @@ export function useTransactionEffects(params: {
     setValue("description", autoDesc, { shouldDirty: true });
   }, [selectedType, selectedProduct, selectedProductName, selectedProductId, selectedQuantity, selectedAmount, isSaleType, isProductType, getValues, setValue]);
 
-  // Auto-navigate after success
-  useEffect(() => {
-    if (!successTransactionId) return;
-    const timer = window.setTimeout(() => navigate(`/transactions/${successTransactionId}`), 1400);
-    return () => window.clearTimeout(timer);
-  }, [navigate, successTransactionId]);
+  // Auto-navigate disabled for UX friction #2 - user chooses next action via SubmitBar
+  // Previous: auto-navigate to /transactions/:id after 1400ms. Now manual via buttons.
+  void navigate;
+  void successTransactionId;
 
   // Collapse type selector & scroll to active fields when selectedType changes
   useEffect(() => {

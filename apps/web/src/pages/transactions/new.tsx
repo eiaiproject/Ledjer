@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { createClientToken, formatQuantity } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+import { createClientToken, formatQuantity, localDate } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -275,6 +276,28 @@ export function NewTransactionPage() {
     submitInFlightRef,
   });
 
+  const navigate = useNavigate();
+  const handleCreateAnother = () => {
+    form.reset({
+      transactionDate: localDate(),
+      transactionType: "" as unknown as string,
+      amount: 0,
+      paymentStatus: "unpaid",
+      description: "",
+      partyName: "",
+      categoryName: "",
+      notes: "",
+    });
+    setSuccessTransactionId(null);
+    setClientToken(createClientToken());
+    submitInFlightRef.current = false;
+    setIsTypeSelectorExpanded(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const handleViewDetail = () => {
+    if (successTransactionId) navigate(`/transactions/${successTransactionId}`);
+  };
+
   /* -- Derived -- */
   const preview = buildPreview({
     transactionType: selectedType,
@@ -496,6 +519,8 @@ export function NewTransactionPage() {
                   loading: postMutation.isPending,
                   successId: successTransactionId,
                 })}
+                onCreateAnother={handleCreateAnother}
+                onViewDetail={handleViewDetail}
               />
             </div>
         </form>

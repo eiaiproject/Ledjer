@@ -849,9 +849,11 @@ type SubmitBarProps = Readonly<{
   disabled: boolean;
   successId: string | null;
   label?: string;
+  onCreateAnother?: () => void;
+  onViewDetail?: () => void;
 }>;
 
-export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProps) {
+export function SubmitBar({ loading, disabled, successId, label, onCreateAnother, onViewDetail }: SubmitBarProps) {
   let buttonLabel = label || "Catat Transaksi";
   if (loading) {
     buttonLabel = "Menyimpan...";
@@ -876,11 +878,21 @@ export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProp
         {buttonLabel}
       </Button>
 
-      {/* Success state */}
+      {/* Success state - UX friction #2: offer create another vs view detail */}
       {successId && (
-        <p className="text-center text-sm text-success">
-          Transaksi tersimpan. Membuka detail...
-        </p>
+        <div className="space-y-2">
+          <p className="text-center text-sm text-success">
+            Transaksi tersimpan.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" onClick={onCreateAnother} className="min-h-[44px]">
+              Buat Transaksi Baru Lagi
+            </Button>
+            <Button type="button" variant="primary" onClick={onViewDetail} className="min-h-[44px]">
+              Lihat Detail
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
