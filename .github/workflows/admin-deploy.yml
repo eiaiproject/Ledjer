@@ -48,12 +48,14 @@ jobs:
         run: pnpm --filter admin build
 
       - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          workingDirectory: apps/admin
-          wranglerVersion: 4.123.0
-          command: deploy --config wrangler.jsonc
+        # Deploy directly with wrangler. node_modules was installed with
+        # --ignore-scripts by the Install step above, so no lifecycle scripts
+        # (e.g. run-s postinstalls from globals) run. Mirrors auto-deploy.yml.
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        working-directory: apps/admin
+        run: npx wrangler deploy --config wrangler.jsonc
 
       # Use the workers.dev URL - bypasses the Cloudflare bot challenge that
       # returns 403 on the public admin.ledjer.id domain when accessed from CI

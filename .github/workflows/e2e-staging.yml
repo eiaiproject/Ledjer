@@ -43,17 +43,16 @@ jobs:
         working-directory: apps/web
 
       - name: Deploy to Cloudflare Workers (staging)
-        # v4.0.0 runs on Node 24. The old v3.15.0 pin (node20) is forced onto
-        # Node 24 by GitHub Actions - a known failure mode for this action's
-        # internal `npx wrangler` call ("The process npx failed with exit
-        # code 1") that made deploys flaky. Pin wranglerVersion to the
-        # lockfile's so every run deploys with the same CLI version.
-        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          workingDirectory: apps/web
-          wranglerVersion: 4.123.0
-          command: deploy --env=staging --config=wrangler.jsonc
+        # Deploy directly with wrangler. node_modules was installed with
+        # --ignore-scripts by the Install step above, so no lifecycle scripts
+        # (e.g. run-s postinstalls from @hookform/resolvers / globals) run.
+        # Mirrors auto-deploy.yml, which succeeds where wrangler-action's
+        # implicit `pnpm install` triggered run-s postinstall failures.
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        working-directory: apps/web
+        run: npx wrangler deploy --env=staging --config=wrangler.jsonc
         # Fail fast on deploy failure. We must never fall back to running
         # CRUD tests against production (they create real data).
 
