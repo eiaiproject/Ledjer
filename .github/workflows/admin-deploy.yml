@@ -55,7 +55,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         working-directory: apps/admin
-        run: npx wrangler deploy --config wrangler.jsonc
+        run: pnpm exec wrangler deploy --config wrangler.jsonc
 
       # Use the workers.dev URL - bypasses the Cloudflare bot challenge that
       # returns 403 on the public admin.ledjer.id domain when accessed from CI
