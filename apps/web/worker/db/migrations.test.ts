@@ -60,8 +60,8 @@ function parseMigration(sql: string): {
     drops.push(match[1]);
   }
 
-  // Match CREATE INDEX IF NOT EXISTS ... ON table
-  const indexRe = /CREATE INDEX IF NOT EXISTS (\w+)\s+ON\s+(\w+)/g;
+  // Match CREATE [UNIQUE] INDEX IF NOT EXISTS ... ON table
+  const indexRe = /CREATE (?:UNIQUE )?INDEX IF NOT EXISTS (\w+)\s+ON\s+(\w+)/g;
   while ((match = indexRe.exec(sql)) !== null) {
     indexes.push({ indexName: match[1], tableName: match[2] });
   }
@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0032", () => {
-    const expected = Array.from({ length: 32 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0033", () => {
+    const expected = Array.from({ length: 33 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);

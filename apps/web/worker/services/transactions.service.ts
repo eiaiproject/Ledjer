@@ -1424,7 +1424,7 @@ export async function voidTransaction(
            void_reason = ?,
            reversal_transaction_id = ?,
            updated_at = ?
-       WHERE id = ? AND organization_id = ?`,
+       WHERE id = ? AND organization_id = ? AND status = 'posted'`,
       [
         current,
         userId,
@@ -1434,13 +1434,6 @@ export async function voidTransaction(
         transactionId,
         organizationId,
       ],
-    ),
-    statement(
-      db,
-      `UPDATE journal_entries
-       SET status = 'voided', updated_at = ?
-       WHERE transaction_id = ? AND organization_id = ? AND status = 'posted'`,
-      [current, transactionId, organizationId],
     ),
     writeAuditStatement(db, {
       organizationId,
@@ -1466,6 +1459,18 @@ export async function voidTransaction(
     await assertPeriodOpen(db, organizationId, original.transaction_date);
     await executeBatch(db, statements);
   } catch (e) {
+    // Concurrent void with a different idempotency key loses the unique-index
+    // race (idx_transactions_one_reversal_per_original) - return the winner's
+    // reversal instead of surfacing an error.
+    const existingReversal = await getReversalByOriginalId(db, organizationId, transactionId);
+    if (existingReversal) {
+      return {
+        original_transaction_id: transactionId,
+        reversal_transaction_id: existingReversal.id,
+        reversal_journal_entry_ids: (await listJournalEntriesForTransaction(db, organizationId, existingReversal.id)).map((entry) => entry.id),
+        status: "voided" as const,
+      };
+    }
     const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
     if (retry?.original_transaction_id === transactionId) {
       return {
@@ -1561,6 +1566,22 @@ async function getTransactionByIdempotencyKey(
        AND t.idempotency_key = ?
      LIMIT 1`,
     [organizationId, idempotencyKey],
+  );
+}
+
+async function getReversalByOriginalId(
+  db: D1Database,
+  organizationId: string,
+  originalTransactionId: string,
+): Promise<TransactionRow | null> {
+  return queryFirst<TransactionRow>(
+    db,
+    `${transactionSelectSql()}
+     WHERE t.organization_id = ?
+       AND t.original_transaction_id = ?
+       AND t.status = 'posted'
+     LIMIT 1`,
+    [organizationId, originalTransactionId],
   );
 }
 
