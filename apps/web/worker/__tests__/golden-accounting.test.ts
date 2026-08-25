@@ -1361,6 +1361,90 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       expect(reversalPosted).toBeDefined();
     });
 
+    it("void allows deactivated products (prod bug: TRX-051 Telur is_active=0)", async () => {
+      const { voidTransaction } = await import("../services/transactions.service");
+      const { FIXTURE_IDS } = await import("../test/fixtures");
+      const { FakeD1Database } = await import("../test/fake-d1");
+
+      const firstSqls: string[] = [];
+      const db2 = new FakeD1Database({
+        first: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("FROM products")) {
+            firstSqls.push(s);
+            return {
+              id: FIXTURE_IDS.products.widget,
+              organization_id: FIXTURE_IDS.orgs.a,
+              code: "WGT-001", name: "Widget A",
+              purchase_price_minor: 50000, selling_price_minor: 100000,
+              average_cost_minor: 50000, current_stock_milli: 100_000,
+              inventory_account_id: null, cogs_account_id: null, revenue_account_id: null,
+              is_active: 0,
+            };
+          }
+          if (s.includes("FROM transaction_lines")) {
+            return { product_id: FIXTURE_IDS.products.widget, quantity_milli: 2000, unit_price_minor: 100000 };
+          }
+          if (s.includes("FROM transactions t") && s.includes("t.id =")) {
+            return {
+              id: "txn-void-inact", organization_id: FIXTURE_IDS.orgs.a,
+              transaction_number: "TRX-VOID-INACT", transaction_date: "2026-02-20",
+              transaction_type: "cash_sale", amount_minor: 200000,
+              party_id: null, party_name: null, category_name: null,
+              cash_account_id: null, destination_cash_account_id: null,
+              payment_status: "paid", due_date: null,
+              description: "Inactive product sale", notes: null,
+              status: "posted", idempotency_key: null,
+              posted_at: Date.now(), voided_at: null, void_reason: null,
+              original_transaction_id: null, reversal_transaction_id: null,
+              created_by: FIXTURE_IDS.users.ownerA, created_by_name: "Owner A",
+              created_at: Date.now(),
+            };
+          }
+          if (s.includes("MAX(transaction_number")) return { "MAX(transaction_number)": 0 };
+          if (s.includes("MAX(entry_number")) return { "MAX(entry_number)": 0 };
+          if (s.includes("current_value")) return { current_value: 1 };
+          if (s.includes("FROM period_locks")) return null;
+          if (s.includes("FROM organizations")) return { books_start_date: "2026-01-01" };
+          return null;
+        },
+        all: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("FROM journal_lines jl")) {
+            return [
+              { id: "jl-i1", journal_entry_id: "je-inact",
+                account_id: FIXTURE_IDS.accounts.cashA,
+                debit_minor: 200000, credit_minor: 0,
+                description: "x", line_order: 1 },
+              { id: "jl-i2", journal_entry_id: "je-inact",
+                account_id: FIXTURE_IDS.accounts.revenueA,
+                debit_minor: 0, credit_minor: 200000,
+                description: "x", line_order: 2 },
+            ];
+          }
+          if (s.includes("FROM transaction_lines")) {
+            return [{ product_id: FIXTURE_IDS.products.widget, quantity_milli: 2000, unit_price_minor: 100000 }];
+          }
+          if (s.includes("FROM stock_movements")) return [{ unit_cost_minor: 50000 }];
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+        batch: (stmts) => stmts.map(() => ({ success: true, meta: { changes: 1 } } as D1Result)),
+      });
+
+      const result = await voidTransaction(
+        db2 as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        "txn-void-inact",
+        { reason: "Duplikat", idempotencyKey: "void-inact-01" },
+      );
+      expect(result.status).toBe("voided");
+      // Product lookup during void must not exclude inactive products.
+      const prodSql = firstSqls.find((s) => s.includes("FROM products"));
+      expect(prodSql).toContain("(is_active = 1 OR ?)");
+    });
+
     it("concurrent void race returns existing reversal instead of duplicating it", async () => {
       const { voidTransaction } = await import("../services/transactions.service");
       const { FIXTURE_IDS } = await import("../test/fixtures");

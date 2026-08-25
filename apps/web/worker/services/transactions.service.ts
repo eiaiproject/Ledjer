@@ -2321,6 +2321,7 @@ async function getProductRow(
   db: D1Database,
   organizationId: string,
   productId: string,
+  includeInactive = false,
 ): Promise<ProductRow> {
   const row = await queryFirst<ProductRow>(
     db,
@@ -2331,8 +2332,8 @@ async function getProductRow(
      FROM products
      WHERE id = ?
        AND organization_id = ?
-       AND is_active = 1`,
-    [productId, organizationId],
+       AND (is_active = 1 OR ?)`,
+    [productId, organizationId, includeInactive],
   );
   if (!row) throw notFound("product_not_found", "Product not found");
   return row;
