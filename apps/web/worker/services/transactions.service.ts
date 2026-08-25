@@ -1373,12 +1373,7 @@ export async function voidTransaction(
   const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
   const existing = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
   if (existing?.original_transaction_id === transactionId) {
-    return {
-      original_transaction_id: transactionId,
-      reversal_transaction_id: existing.id,
-      reversal_journal_entry_ids: (await listJournalEntriesForTransaction(db, organizationId, existing.id)).map((entry) => entry.id),
-      status: "voided",
-    };
+    return voidedReversalResult(db, organizationId, transactionId, existing);
   }
   if (existing) {
     throw conflict("idempotency_key_conflict", "Idempotency key is already used");
@@ -1392,12 +1387,12 @@ export async function voidTransaction(
   }
 
   const productLine = await productLineForTransaction(db, organizationId, transactionId);
-  const product = productLine?.product_id
-    ? await getProductRow(db, organizationId, productLine.product_id)
-    : null;
-  const stockMovement = productLine?.product_id
-    ? await stockMovementForTransaction(db, organizationId, transactionId, productLine.product_id)
-    : null;
+  let product: ProductRow | null = null;
+  let stockMovement: StockMovementRow | null = null;
+  if (productLine?.product_id) {
+    product = await getProductRow(db, organizationId, productLine.product_id);
+    stockMovement = await stockMovementForTransaction(db, organizationId, transactionId, productLine.product_id);
+  }
 
   const current = Date.now();
   const reversalTransactionId = generateId();
@@ -1462,23 +1457,9 @@ export async function voidTransaction(
     // Concurrent void with a different idempotency key loses the unique-index
     // race (idx_transactions_one_reversal_per_original) - return the winner's
     // reversal instead of surfacing an error.
-    const existingReversal = await getReversalByOriginalId(db, organizationId, transactionId);
-    if (existingReversal) {
-      return {
-        original_transaction_id: transactionId,
-        reversal_transaction_id: existingReversal.id,
-        reversal_journal_entry_ids: (await listJournalEntriesForTransaction(db, organizationId, existingReversal.id)).map((entry) => entry.id),
-        status: "voided" as const,
-      };
-    }
-    const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
-    if (retry?.original_transaction_id === transactionId) {
-      return {
-        original_transaction_id: transactionId,
-        reversal_transaction_id: retry.id,
-        reversal_journal_entry_ids: (await listJournalEntriesForTransaction(db, organizationId, retry.id)).map((entry) => entry.id),
-        status: "voided" as const,
-      };
+    const recovered = await resolveVoidFailure(db, organizationId, transactionId, idempotencyKey);
+    if (recovered) {
+      return recovered;
     }
     throw e;
   }
@@ -1583,6 +1564,42 @@ async function getReversalByOriginalId(
      LIMIT 1`,
     [organizationId, originalTransactionId],
   );
+}
+
+async function voidedReversalResult(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  reversal: TransactionRow,
+): Promise<VoidTransactionResult> {
+  return {
+    original_transaction_id: transactionId,
+    reversal_transaction_id: reversal.id,
+    reversal_journal_entry_ids: (
+      await listJournalEntriesForTransaction(db, organizationId, reversal.id)
+    ).map((entry) => entry.id),
+    status: "voided",
+  };
+}
+
+// Recovers a void that failed mid-flight: either a concurrent void won the
+// unique-index race, or our own batch already committed under this
+// idempotency key before failing. Returns null when nothing to recover.
+async function resolveVoidFailure(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+  idempotencyKey: string,
+): Promise<VoidTransactionResult | null> {
+  const winner = await getReversalByOriginalId(db, organizationId, transactionId);
+  if (winner) {
+    return voidedReversalResult(db, organizationId, transactionId, winner);
+  }
+  const retry = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+  if (retry?.original_transaction_id === transactionId) {
+    return voidedReversalResult(db, organizationId, transactionId, retry);
+  }
+  return null;
 }
 
 async function buildPostResult(
