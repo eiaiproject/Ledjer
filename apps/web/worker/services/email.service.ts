@@ -10,8 +10,7 @@ const FROM = "Ledjer <noreply@ledjer.id>";
 function stripHtmlTags(html: string): string {
   let out = "";
   let inTag = false;
-  for (let i = 0; i < html.length; i++) {
-    const ch = html[i];
+  for (const ch of html) {
     if (ch === "<") inTag = true;
     else if (ch === ">") inTag = false;
     else if (!inTag) out += ch;
