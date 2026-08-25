@@ -4,11 +4,11 @@
 
 ### Apakah saya perlu paham akuntansi?
 
-Tidak. Ledjer mengubah transaksi sehari-hari (jual, beli, bayar beban) menjadi jurnal double-entry secara otomatis. Anda cukup tahu *apa yang terjadi di usaha Anda* — sistem yang menerjemahkannya ke pembukuan.
+Tidak. Ledjer mengubah transaksi sehari-hari (jual, beli, bayar beban) menjadi jurnal double-entry secara otomatis. Anda cukup tahu *apa yang terjadi di usaha Anda* - sistem yang menerjemahkannya ke pembukuan.
 
 ### Apakah gratis?
 
-Ledjer dirancang gratis untuk UMKM Indonesia. Fitur inti — transaksi, produk, laporan, faktur, tim — tersedia tanpa biaya.
+Ledjer dirancang gratis untuk UMKM Indonesia. Fitur inti - transaksi, produk, laporan, faktur, tim - tersedia tanpa biaya.
 
 ### Apakah data saya aman?
 
@@ -16,7 +16,7 @@ Data disimpan di Cloudflare (infrastruktur kelas enterprise) dan dilindungi oleh
 
 ### Bisakah saya mengoreksi transaksi yang salah?
 
-Ya. Transaksi yang salah bisa **dibatalkan (void)** dengan alasan — sistem membuat jurnal pembalik otomatis. Untuk pembayaran kredit yang sebagian, selesaikan dulu baru batalkan.
+Ya. Transaksi yang salah bisa **dibatalkan (void)** dengan alasan - sistem membuat jurnal pembalik otomatis. Untuk pembayaran kredit yang sebagian, selesaikan dulu baru batalkan.
 
 ### Kenapa penjualan saya ditolak "stok tidak cukup"?
 
@@ -36,7 +36,7 @@ Kemungkinan besar tanggal tersebut **sebelum tanggal mulai pembukuan** atau bera
 
 ### Bisakah saya keluar dari perangkat lain?
 
-Keluar (logout) mencabut sesi perangkat itu. Untuk mencabut *semua* sesi sekaligus, ubah password — semua perangkat lain otomatis keluar.
+Keluar (logout) mencabut sesi perangkat itu. Untuk mencabut *semua* sesi sekaligus, ubah password - semua perangkat lain otomatis keluar.
 
 ### Bisakah saya menghapus akun saya?
 

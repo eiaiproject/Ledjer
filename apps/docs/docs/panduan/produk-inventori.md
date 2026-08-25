@@ -2,7 +2,7 @@
 
 # Produk & Inventori
 
-Kelola daftar barang dagangan dan pantau stok — terhubung langsung dengan transaksi dan laporan.
+Kelola daftar barang dagangan dan pantau stok - terhubung langsung dengan transaksi dan laporan.
 
 ## Menambah produk
 
@@ -18,11 +18,11 @@ Ledjer memakai metode **biaya rata-rata tertimbang (weighted average cost / WAC)
 - Saat **penjualan**, HPP (harga pokok penjualan) dihitung dari biaya rata-rata tersebut dan stok berkurang otomatis.
 - **Retur penjualan** menambah stok kembali; **retur pembelian** menguranginya.
 
-Konsekuensi penting: **stok tidak boleh minus**. Jika stok tidak cukup untuk penjualan, sistem menolaknya — tambah stok dulu lewat pembelian atau penyesuaian.
+Konsekuensi penting: **stok tidak boleh minus**. Jika stok tidak cukup untuk penjualan, sistem menolaknya - tambah stok dulu lewat pembelian atau penyesuaian.
 
 ## Mutasi stok
 
-Buka **Inventori → Mutasi Stok** untuk melihat riwayat lengkap pergerakan: pembelian, penjualan, retur, penyesuaian, dan pembatalan — lengkap dengan kuantitas, biaya per unit, dan stok setelahnya.
+Buka **Inventori → Mutasi Stok** untuk melihat riwayat lengkap pergerakan: pembelian, penjualan, retur, penyesuaian, dan pembatalan - lengkap dengan kuantitas, biaya per unit, dan stok setelahnya.
 
 ## Penyesuaian stok
 
@@ -30,7 +30,7 @@ Untuk koreksi stok (misal barang hilang, rusak, atau stok fisik berbeda):
 
 1. Buka **Inventori → Sesuaikan Stok**.
 2. Pilih produk, jumlah selisih, dan alasan.
-3. Sistem mencatat mutasi **penyesuaian** — tidak membuat jurnal akuntansi (kecuali dibutuhkan, gunakan [Jurnal Manual](/panduan/periode-penutupan#jurnal-manual)).
+3. Sistem mencatat mutasi **penyesuaian** - tidak membuat jurnal akuntansi (kecuali dibutuhkan, gunakan [Jurnal Manual](/panduan/periode-penutupan#jurnal-manual)).
 
 ## Peringatan stok menipis
 

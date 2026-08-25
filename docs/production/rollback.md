@@ -16,7 +16,7 @@ npx wrangler rollback
 ### Automated rollback (CI/CD)
 
 The `auto-deploy.yml` workflow runs a smoke check after deploy.
-If smoke fails, the deploy is marked as failed — automated rollback
+If smoke fails, the deploy is marked as failed - automated rollback
 is NOT yet implemented (manual only).
 
 **To add automated rollback:**

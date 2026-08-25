@@ -94,7 +94,7 @@ function ImportStatementTab({ onImported }: { readonly onImported: (id: string) 
                 onChange={(e) => setAccountId(e.target.value)}
                 placeholder="Pilih akun..."
                 options={(accounts ?? []).map((a) => ({
-                  value: a.id, label: `${String(a.code)} — ${a.name}`,
+                  value: a.id, label: `${String(a.code)} - ${a.name}`,
                 }))}
               />
             </div>
@@ -194,7 +194,7 @@ function StatementReportTab({ statementId }: { readonly statementId: string }) {
             <div className="rounded-lg border border-wood-200 p-3">
               <span className="block text-wood-500 text-xs mb-0.5">Saldo Buku</span>
               <span className="font-semibold text-wood-800 text-base">
-                {r.bookBalance != null ? formatIDR(Number(r.bookBalance)) : "—"}
+                {r.bookBalance != null ? formatIDR(Number(r.bookBalance)) : "-"}
               </span>
             </div>
             <div className="rounded-lg border border-wood-200 p-3">
@@ -206,7 +206,7 @@ function StatementReportTab({ statementId }: { readonly statementId: string }) {
             <div className={`rounded-lg border p-3 ${balanced ? "border-success-border bg-success-bg" : "border-warning-border bg-warning-bg"}`}>
               <span className="block text-wood-500 text-xs mb-0.5">Selisih</span>
               <span className={`font-semibold text-base ${balanced ? "text-leaf-600" : "text-warning"}`}>
-                {r.difference != null ? formatIDR(Number(r.difference)) : "—"}
+                {r.difference != null ? formatIDR(Number(r.difference)) : "-"}
               </span>
               {balanced && (
                 <div className="flex items-center gap-1 text-xs text-leaf-600 mt-1">

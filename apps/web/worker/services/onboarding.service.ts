@@ -1,5 +1,5 @@
 // ponytail: Onboarding checklist computed from existing data.
-// No new table needed — each step is a query against existing tables.
+// No new table needed - each step is a query against existing tables.
 // Upgrade to a dedicated onboarding_steps table if per-step resets needed.
 
 import { generateId } from "../auth/tokens";
@@ -181,7 +181,7 @@ export async function generateSampleData(
   try {
     const statements: D1PreparedStatement[] = [];
 
-    // 1. Sample products — insert with the current products schema. (Older
+    // 1. Sample products - insert with the current products schema. (Older
     // columns price_minor/initial_stock_minor no longer exist; code is NOT NULL.)
     const sampleProducts = [
       { name: `${SAMPLE_PREFIX}Produk A`, unit: "pcs", price: 50000, cost: 35000 },

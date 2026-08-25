@@ -33,7 +33,7 @@ import {
 } from "@/lib/api/transactions";
 import { listCashBankAccounts } from "@/lib/api/accounts";
 
-export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page component with void/settle/journal UIs; readability over complexity
+export function TransactionDetailPage() { // NOSONAR typescript:S3776 - page component with void/settle/journal UIs; readability over complexity
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
@@ -137,7 +137,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
         >
           Batalkan Transaksi
         </Button>
-      ) : !voidSuccessId ? ( // NOSONAR typescript:S3358 — nested ternary for void form states
+      ) : !voidSuccessId ? ( // NOSONAR typescript:S3358 - nested ternary for void form states
         <Callout variant="error" title="Pembatalan Transaksi" className="p-4">
           <p className="text-xs">
             Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
@@ -285,7 +285,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
         </dl>
       </div>
 
-      {/* Catat Lagi — for posted transactions */}
+      {/* Catat Lagi - for posted transactions */}
       {transaction.status === "posted" && canCreateTransaction && (
         <div className="mt-4">
           <Button
@@ -302,7 +302,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
         </div>
       )}
 
-      {/* Settle Section — for partially paid credit transactions */}
+      {/* Settle Section - for partially paid credit transactions */}
       {transaction.status === "posted" && (transaction.transaction_type === "credit_sale" || transaction.transaction_type === "credit_purchase") && transaction.payment_status === "partial" && (
         <div className="mt-4">
           {!showSettleForm ? (
@@ -328,7 +328,7 @@ export function TransactionDetailPage() { // NOSONAR typescript:S3776 — page c
                 >
                   {cashAccounts?.map((acct) => (
                     <option key={acct.id} value={acct.id}>
-                      {acct.code} — {acct.name}
+                      {acct.code} - {acct.name}
                     </option>
                   ))}
                 </Select>

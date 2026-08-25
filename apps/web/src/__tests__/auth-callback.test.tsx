@@ -105,7 +105,7 @@ describe('AuthCallbackPage', () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
 
-    // Must land on /reset-password — the recovery flow should never
+    // Must land on /reset-password - the recovery flow should never
     // redirect to /settings/team (unrelated) or anywhere else.
     await waitFor(() => {
       expect(screen.getByTestId('reset-password')).toBeTruthy();

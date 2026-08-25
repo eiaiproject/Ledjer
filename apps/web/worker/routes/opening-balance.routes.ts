@@ -52,7 +52,7 @@ app.post("/post", requireAuth(), loadCurrentOrganization(), requirePermission("o
   return c.json(result);
 });
 
-// GET /api/opening-balance/snapshot — najnoviji snapshot
+// GET /api/opening-balance/snapshot - najnoviji snapshot
 app.get("/snapshot", requireAuth(), loadCurrentOrganization(), async (c) => {
   const { organization } = c.get("organizationContext");
   const snapshot = await getOpeningBalanceSnapshot(c.env.DB, organization.id);

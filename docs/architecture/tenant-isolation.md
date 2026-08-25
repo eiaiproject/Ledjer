@@ -4,10 +4,10 @@
 
 Ledjer uses a **shared-database, shared-schema** multi-tenancy model. All tenant data lives in the same D1 database and the same tables. Isolation is enforced at the application layer through:
 
-1. **Session-bound organization context** — every authenticated request has a `current_organization_id` stored in the session.
-2. **Middleware enforcement** — `loadCurrentOrganization()` loads the org context and `requirePermission()` checks role-based access before any handler runs.
-3. **SQL-level scoping** — every query against tenant-owned data must include `WHERE organization_id = ?`.
-4. **`TenantScopedRepository`** — a query wrapper that throws at runtime if a tenant-scoped table is queried without a valid `organization_id` binding.
+1. **Session-bound organization context** - every authenticated request has a `current_organization_id` stored in the session.
+2. **Middleware enforcement** - `loadCurrentOrganization()` loads the org context and `requirePermission()` checks role-based access before any handler runs.
+3. **SQL-level scoping** - every query against tenant-owned data must include `WHERE organization_id = ?`.
+4. **`TenantScopedRepository`** - a query wrapper that throws at runtime if a tenant-scoped table is queried without a valid `organization_id` binding.
 
 ## Tenant-Scoped Tables
 
@@ -30,7 +30,7 @@ These tables are global across all tenants:
 - `login_attempts`, `oauth_accounts`
 - `organizations` (the org entity itself)
 - `app_metadata`, `rate_limits`
-- `admin_users`, `admin_sessions` (platform admin credentials — the admin worker at `admin.ledjer.id` is intentionally platform-wide)
+- `admin_users`, `admin_sessions` (platform admin credentials - the admin worker at `admin.ledjer.id` is intentionally platform-wide)
 
 ## Enforcement Layers
 
@@ -48,9 +48,9 @@ All service functions accept `organizationId` as the first parameter and include
 
 ## Verification
 
-- **Unit tests**: `worker/__tests__/tenant-isolation.test.ts` — validates `TenantScopedRepository` enforcement.
-- **E2E tests**: `e2e/tenant-isolation.spec.ts` — validates cross-tenant access returns 403.
-- **Permission matrix**: `docs/architecture/permission-matrix.md` — documents every route's required middleware.
+- **Unit tests**: `worker/__tests__/tenant-isolation.test.ts` - validates `TenantScopedRepository` enforcement.
+- **E2E tests**: `e2e/tenant-isolation.spec.ts` - validates cross-tenant access returns 403.
+- **Permission matrix**: `docs/architecture/permission-matrix.md` - documents every route's required middleware.
 
 ## Incident Response
 

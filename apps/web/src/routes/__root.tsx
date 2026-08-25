@@ -27,7 +27,7 @@ export function PublicRoute({ children }: { readonly children: ReactNode }) {
   const { session } = useAuth();
   const location = useLocation();
 
-  // PublicRoute does NOT wait for loading — public pages (login, register,
+  // PublicRoute does NOT wait for loading - public pages (login, register,
   // forgot-password, landing, legal, etc.) render immediately to avoid
   // blocking on auth resolution. This keeps public smoke tests independent
   // from API availability.

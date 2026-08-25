@@ -71,8 +71,8 @@ export function ForgotPasswordPage() {
           description="Kami akan mengirim tautan untuk mengatur ulang password Anda. Cek kotak masuk dan folder spam."
           entries={[
             { label: "Email dikirim", amount: <CheckCircle className="h-4 w-4" />, tone: "leaf" },
-            { label: "Atur password baru", amount: "—", tone: "wood" },
-            { label: "Masuk kembali", amount: "—", tone: "clay" },
+            { label: "Atur password baru", amount: "-", tone: "wood" },
+            { label: "Masuk kembali", amount: "-", tone: "clay" },
           ]}
         />
 
@@ -137,8 +137,8 @@ export function ForgotPasswordPage() {
         description="Masukkan email akun Anda. Kami akan mengirim tautan untuk mengatur ulang password."
         entries={[
           { label: "Masukkan email", amount: "1/2", tone: "leaf" },
-          { label: "Cek inbox", amount: "—", tone: "wood" },
-          { label: "Atur password baru", amount: "—", tone: "clay" },
+          { label: "Cek inbox", amount: "-", tone: "wood" },
+          { label: "Atur password baru", amount: "-", tone: "clay" },
         ]}
       />
 

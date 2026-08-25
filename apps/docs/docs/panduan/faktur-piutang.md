@@ -2,7 +2,7 @@
 
 # Faktur & Piutang
 
-Terbitkan faktur untuk penjualan kredit dan lacak piutang pelanggan — semuanya otomatis masuk pembukuan.
+Terbitkan faktur untuk penjualan kredit dan lacak piutang pelanggan - semuanya otomatis masuk pembukuan.
 
 ## Membuat faktur
 
@@ -28,7 +28,7 @@ Saat faktur diterbitkan, Ledjer otomatis membuat jurnal: **Debit Piutang Usaha**
 
 1. Buka detail faktur → **Terima Pembayaran**.
 2. Pilih akun kas/bank tujuan dan jumlah.
-3. Jurnal otomatis: **Debit Kas**, **Kredit Piutang** — dan status faktur diperbarui.
+3. Jurnal otomatis: **Debit Kas**, **Kredit Piutang** - dan status faktur diperbarui.
 
 Pembayaran juga bisa dicatat lewat transaksi **Penerimaan Piutang** biasa.
 
@@ -38,11 +38,11 @@ Jika faktur perlu dikurangi (retur, diskon setelah faktur, atau kesalahan):
 
 1. Buka detail faktur → **Buat Nota Kredit**.
 2. Isi item yang dikurangi dan alasan.
-3. Sistem membuat **nota kredit** yang mengurangi piutang — bisa digunakan untuk pelunasan di kemudian hari (di-*credit* ke faktur lain).
+3. Sistem membuat **nota kredit** yang mengurangi piutang - bisa digunakan untuk pelunasan di kemudian hari (di-*credit* ke faktur lain).
 
 ## Email faktur
 
-Kirim faktur langsung ke email pelanggan dari halaman detail — pelanggan mendapat salinan untuk arsip.
+Kirim faktur langsung ke email pelanggan dari halaman detail - pelanggan mendapat salinan untuk arsip.
 
 ## Peringatan
 

@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { refreshAllData } from "@/lib/query-client";
 
 /* ------------------------------------------------------------------ */
 /*  Empty state helper (reduce cognitive complexity)                   */
@@ -55,6 +57,7 @@ function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty,
   return null;
 }
 import { queryKeys } from "@/lib/query-keys";
+import { voidTransaction } from "@/lib/api/transactions";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { formatIDR, formatShortDate, localDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
@@ -72,6 +75,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { PageToolbar } from "@/components/ui/page-toolbar";
 import { Card } from "@/components/ui/card";
 import { PageGuide } from "@/components/ui/page-guide";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   listTransactions,
   type TransactionStatus,
@@ -217,17 +221,30 @@ function TransactionFilterBar({
   );
 }
 
-export function TransactionListPage() { // NOSONAR typescript:S3776 — complexity 16/15; page-level conditions are inherently complex
+export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity 16/15; page-level conditions are inherently complex
   const { data: orgData } = useOrganization();
   const { canCreateTransaction, canCreateExports } = useOrgPermissions();
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("");
-  const [fromDate, setFromDate] = useState(() => localDate(-30));
-  const [toDate, setToDate] = useState(() => localDate());
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const typeFilter = searchParams.get("type") ?? "";
+  const statusFilter = (searchParams.get("status") ?? "") as TransactionStatus | "";
+  const fromDate = searchParams.get("from") ?? localDate(-30);
+  const toDate = searchParams.get("to") ?? localDate();
+  const page = Number(searchParams.get("page") ?? "0");
   const [exporting, setExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const limit = 20;
+  const updateParams = (mutate: (next: URLSearchParams) => void) => {
+    const next = new URLSearchParams(searchParams);
+    mutate(next);
+    setSearchParams(next, { replace: true });
+  };
+  const setSearch = (v: string) => updateParams((n) => { if (v) { n.set("q", v); } else { n.delete("q"); } n.set("page", "0"); });
+  const setTypeFilter = (v: string) => updateParams((n) => { if (v) { n.set("type", v); } else { n.delete("type"); } n.set("page", "0"); });
+  const setStatusFilter = (v: TransactionStatus | "") => updateParams((n) => { if (v) { n.set("status", v); } else { n.delete("status"); } n.set("page", "0"); });
+  const setFromDate = (v: string) => updateParams((n) => { n.set("from", v); n.set("page", "0"); });
+  const setToDate = (v: string) => updateParams((n) => { n.set("to", v); n.set("page", "0"); });
+  const setPage = (updater: number | ((p: number) => number)) => updateParams((n) => { const nextPage = typeof updater === "function" ? (updater as (p: number) => number)(page) : updater; n.set("page", String(Math.max(0, nextPage))); });
 
   const DEFAULT_FROM = localDate(-30);
   const DEFAULT_TO = localDate();
@@ -269,6 +286,44 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
   const isPageError = Boolean(error);
   const isRefreshing = isFetching && !isLoading;
   const canExport = canCreateExports && !isDatasetEmpty && !isPageError && !dateRangeInvalid;
+  const allPageIds = (transactions ?? []).map((t) => t.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every((id) => selectedIds.has(id));
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(allPageIds));
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+  const queryClient = useQueryClient();
+  const [bulkVoiding, setBulkVoiding] = useState(false);
+  const [confirmBulkVoid, setConfirmBulkVoid] = useState(false);
+  const handleBulkVoid = async () => {
+    if (bulkVoiding || selectedIds.size === 0) return;
+    setBulkVoiding(true);
+    const ids = [...selectedIds];
+    const results = await Promise.allSettled(
+      ids.map((id) => voidTransaction(id, "Void massal dari daftar transaksi", crypto.randomUUID())),
+    );
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.length - ok;
+    if (ok > 0) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
+      const voidSuffix = failed > 0 ? `, ${failed} gagal` : "";
+      toast.success(`${ok} transaksi dibatalkan${voidSuffix}`);
+    } else {
+      toast.error("Semua void gagal - coba lagi");
+    }
+    setSelectedIds(new Set());
+    setBulkVoiding(false);
+    setConfirmBulkVoid(false);
+  };
 
   const handleExport = async () => {
     if (!orgData?.organization?.id || dateRangeInvalid || exporting) return;
@@ -314,6 +369,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
   });
 
   return (
+    <PullToRefresh onRefresh={refreshAllData}>
     <PageShell
       header={{
         title: "Transaksi",
@@ -410,6 +466,30 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-wood-200 bg-wood-50 px-3 py-2 text-sm">
+          <span className="font-medium text-wood-700">{selectedIds.size} dipilih</span>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={clearSelection} disabled={bulkVoiding}>Batal</Button>
+            <Button type="button" variant="primary" size="sm" onClick={() => setConfirmBulkVoid(true)} disabled={bulkVoiding}>
+              {bulkVoiding ? "Membatalkan..." : `Void ${selectedIds.size} Terpilih`}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk void confirmation */}
+      <ConfirmDialog
+        open={confirmBulkVoid}
+        onClose={() => setConfirmBulkVoid(false)}
+        onConfirm={handleBulkVoid}
+        title="Void transaksi terpilih?"
+        message={`${selectedIds.size} transaksi akan dibatalkan dengan jurnal pembalik otomatis. Tindakan ini tercatat di audit log.`}
+        confirmLabel="Ya, Void"
+        loading={bulkVoiding}
+      />
+
       {/* Transaction list */}
       <Card elevated aria-label="Daftar transaksi" role="region">
         {isPageError && (
@@ -445,12 +525,13 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
             {/* Mobile: Card list */}
             <div className="divide-y divide-wood-100 sm:hidden">
               {transactions?.map((txn) => (
-                <Link
-                  key={txn.id}
-                  to={`/transactions/${txn.id}`}
-                  className="flex items-start justify-between gap-3 px-4 py-3 outline-none hover:bg-cream-50 active:bg-cream-100 transition-colors min-h-[64px]"
-                  aria-label={`${labelForTransactionType(txn.transaction_type)}, ${formatIDR(Number(txn.amount))}, ${statusLabel(txn.status)}, ${formatShortDate(txn.transaction_date)}`}
-                >
+                <div key={txn.id} className="flex items-center gap-2 px-4 py-3 hover:bg-cream-50">
+                  <input type="checkbox" checked={selectedIds.has(txn.id)} onChange={() => toggleOne(txn.id)} className="h-4 w-4 rounded border-wood-300 text-wood-600 focus:ring-wood-500" aria-label={`Pilih ${txn.transaction_number}`} />
+                  <Link
+                    to={`/transactions/${txn.id}`}
+                    className="flex flex-1 items-start justify-between gap-3 min-w-0 outline-none active:bg-cream-100 transition-colors min-h-[44px]"
+                    aria-label={`${labelForTransactionType(txn.transaction_type)}, ${formatIDR(Number(txn.amount))}, ${statusLabel(txn.status)}, ${formatShortDate(txn.transaction_date)}`}
+                  >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-medium text-wood-600">
@@ -470,7 +551,8 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
                       {formatIDR(Number(txn.amount))}
                     </p>
                   </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </div>
 
@@ -479,6 +561,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-wood-100 bg-cream-100/50">
                   <tr>
+                    <th scope="col" className="px-4 py-3"><input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-wood-300 text-wood-600" aria-label="Pilih semua" /></th>
                     <th scope="col" className="px-4 py-3 font-medium text-wood-600">Tanggal</th>
                     <th scope="col" className="px-4 py-3 font-medium text-wood-600">No.</th>
                     <th scope="col" className="px-4 py-3 font-medium text-wood-600">Jenis</th>
@@ -490,6 +573,7 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
                 <tbody className="divide-y divide-wood-50">
                   {transactions?.map((txn) => (
                     <tr key={txn.id} className="transition-colors hover:bg-cream-50">
+                      <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.has(txn.id)} onChange={() => toggleOne(txn.id)} className="h-4 w-4 rounded border-wood-300 text-wood-600" aria-label={`Pilih ${txn.transaction_number}`} /></td>
                       <td className="whitespace-nowrap px-4 py-3 text-wood-600">
                         {formatShortDate(txn.transaction_date)}
                       </td>
@@ -547,5 +631,6 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 — complexi
         </nav>
       )}
     </PageShell>
+    </PullToRefresh>
   );
 }

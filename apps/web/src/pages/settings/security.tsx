@@ -238,7 +238,7 @@ export function SecuritySettingsPage() {
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-wood-500">
-                {log.actor_email || "—"}
+                {log.actor_email || "-"}
               </p>
             </div>
           </div>
@@ -267,13 +267,13 @@ export function SecuritySettingsPage() {
             <div>
               <span className="block text-sm font-medium text-wood-700">Nama</span>
               <p className="mt-1 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
-                {user?.full_name || "—"}
+                {user?.full_name || "-"}
               </p>
             </div>
             <div>
               <span className="block text-sm font-medium text-wood-700">Email</span>
               <p className="mt-1 rounded-md border border-wood-100 bg-cream-50 px-3 py-2 text-sm text-wood-600">
-                {user?.email || "—"}
+                {user?.email || "-"}
               </p>
             </div>
           </div>
@@ -361,7 +361,7 @@ export function SecuritySettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Danger Zone — owner only */}
+      {/* Danger Zone - owner only */}
       {isOwner && (
         <Card>
           <CardHeader>

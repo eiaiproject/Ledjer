@@ -40,7 +40,7 @@ export function LoginPage() {
         <div className="mb-8 text-center">
           <img src="/logo-icon.svg" alt="Ledjer" className="mx-auto mb-4 h-12 w-12" />
           <h1 className="text-2xl font-semibold text-cream-50">Ledjer Admin</h1>
-          <p className="mt-2 text-sm text-wood-200">Panel operasional internal — akses terbatas.</p>
+          <p className="mt-2 text-sm text-wood-200">Panel operasional internal - akses terbatas.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-wood-700 bg-surface p-6 shadow-lg">

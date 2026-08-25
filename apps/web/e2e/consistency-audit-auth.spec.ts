@@ -1,5 +1,5 @@
 /**
- * Full UI/UX Consistency, Proportion, Symmetry Audit — AUTHENTICATED PAGES.
+ * Full UI/UX Consistency, Proportion, Symmetry Audit - AUTHENTICATED PAGES.
  *
  * Complements consistency-audit.spec.ts (public pages). Measures the same
  * STRUCTURE metrics on the dashboard-area pages using the authenticated

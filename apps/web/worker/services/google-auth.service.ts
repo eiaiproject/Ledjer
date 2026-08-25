@@ -168,7 +168,7 @@ async function linkOAuthAccount(
     [generateId(), userId, googleId, null, current, current],
   );
 
-  // Google verifies email — mark verified when linking existing account
+  // Google verifies email - mark verified when linking existing account
   await execute(
     db,
     `UPDATE users SET email_verified_at = ?, updated_at = ?
@@ -245,7 +245,7 @@ export async function completeGoogleAuth(
 
     if (user) {
       // Only auto-link if Google email is verified and local email is verified.
-      // Google's verified_email flag is trusted — email ownership is already
+      // Google's verified_email flag is trusted - email ownership is already
       // proven by Google's account creation process.
       if (!googleUser.verified_email) {
         throw conflict("oauth_email_conflict", "Google email is not verified. Sign in with your password first, then link Google account from settings.");

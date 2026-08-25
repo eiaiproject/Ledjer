@@ -18,7 +18,7 @@ export function AdminLayout() {
 
   return (
     <div className="ledger-min-dvh flex min-h-screen">
-      {/* Sidebar — desktop fixed, mobile drawer */}
+      {/* Sidebar - desktop fixed, mobile drawer */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-wood-800 text-cream-50 transition-transform duration-200 ease-out",
@@ -98,7 +98,7 @@ export function AdminLayout() {
           <Outlet />
         </main>
         <footer className="border-t border-border px-4 py-4 text-xs text-text-secondary md:px-6">
-          Ledjer Admin — akses terbatas untuk tim internal. Semua aksi tercatat di audit log.
+          Ledjer Admin - akses terbatas untuk tim internal. Semua aksi tercatat di audit log.
         </footer>
       </div>
     </div>

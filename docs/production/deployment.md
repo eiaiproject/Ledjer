@@ -88,7 +88,7 @@ npx wrangler deploy --env staging
 # Roll back Worker to last stable version
 npx wrangler rollback
 
-# D1 migrations are additive-only — no rollback needed.
+# D1 migrations are additive-only - no rollback needed.
 # For incompatible changes, write a new forward-only migration.
 ```
 

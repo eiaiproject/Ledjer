@@ -2,7 +2,7 @@
 
 > Sistem pembukuan *double-entry* untuk UMKM Indonesia. Modern, cloud-native, dan gratis.
 
-Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan laporan keuangan tanpa perlu pengetahuan akuntansi formal. Berjalan di Cloudflare edge network — cepat, aman, dan tanpa manajemen server.
+Ledjer membantu UMKM mencatat transaksi, mengelola inventory, dan menghasilkan laporan keuangan tanpa perlu pengetahuan akuntansi formal. Berjalan di Cloudflare edge network - cepat, aman, dan tanpa manajemen server.
 
 Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
 
@@ -32,26 +32,26 @@ Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
 ## Features
 
 ### Akuntansi
-- **Double-entry bookkeeping** — posting, void, settle (AR/AP) dengan audit trail lengkap
-- **Chart of accounts** — aset, kewajiban, ekuitas, pendapatan, beban, HPP; sepenuhnya dapat dikonfigurasi
-- **Jurnal manual** — pencatatan jurnal umum dengan validasi keseimbangan debit-kredit
-- **Saldo awal** — wizard saldo awal per akun, termasuk impor dari file
+- **Double-entry bookkeeping** - posting, void, settle (AR/AP) dengan audit trail lengkap
+- **Chart of accounts** - aset, kewajiban, ekuitas, pendapatan, beban, HPP; sepenuhnya dapat dikonfigurasi
+- **Jurnal manual** - pencatatan jurnal umum dengan validasi keseimbangan debit-kredit
+- **Saldo awal** - wizard saldo awal per akun, termasuk impor dari file
 
 ### Penjualan & Piutang
-- **Faktur (invoices)** — siklus hidup faktur lengkap: draft → diterbitkan → dibayar → void
-- **Piutang & utang (receivables/payables)** — pelacakan AR/AP dengan umur piutang (aging)
-- **Pihak/relasi (parties)** — kelola pelanggan & pemasok
-- **Laporan per pihak (party statement)** — riwayat transaksi per pelanggan/pemasok
+- **Faktur (invoices)** - siklus hidup faktur lengkap: draft → diterbitkan → dibayar → void
+- **Piutang & utang (receivables/payables)** - pelacakan AR/AP dengan umur piutang (aging)
+- **Pihak/relasi (parties)** - kelola pelanggan & pemasok
+- **Laporan per pihak (party statement)** - riwayat transaksi per pelanggan/pemasok
 
 ### Inventory
-- **Manajemen stok** — weighted average cost (WAC), mutasi stok, HPP otomatis
-- **Produk** — katalog produk dengan harga pokok & harga jual
+- **Manajemen stok** - weighted average cost (WAC), mutasi stok, HPP otomatis
+- **Produk** - katalog produk dengan harga pokok & harga jual
 
 ### Operasional
-- **Rekonsiliasi bank** — cocokkan transaksi internal dengan mutasi bank
-- **Kunci periode (period locks)** — kunci periode akuntansi setelah tutup buku
-- **Impor data (CSV)** — chart of accounts, produk, pihak, saldo awal
-- **Ekspor (CSV & PDF)** — transaksi, akun, produk, dan semua laporan keuangan; PDF server-generated agar konsisten di semua perangkat
+- **Rekonsiliasi bank** - cocokkan transaksi internal dengan mutasi bank
+- **Kunci periode (period locks)** - kunci periode akuntansi setelah tutup buku
+- **Impor data (CSV)** - chart of accounts, produk, pihak, saldo awal
+- **Ekspor (CSV & PDF)** - transaksi, akun, produk, dan semua laporan keuangan; PDF server-generated agar konsisten di semua perangkat
 
 ### Laporan Keuangan
 - **Neraca saldo (trial balance)**
@@ -62,27 +62,27 @@ Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
 - **Umur piutang (AR aging)**
 
 ### Platform
-- **OAuth Google** — masuk dengan Google, auto-link akun yang sudah ada
-- **Kolaborasi tim** — peran (owner/admin/member/viewer), undangan, izin granular
-- **Notifikasi & Web Push** — notifikasi in-app dan push browser
-- **Pencarian global** — cari transaksi, akun, produk, dan pihak dari satu tempat
-- **Audit log** — jejak lengkap aksi pengguna untuk kepatuhan
-- **Lampiran (R2)** — simpan dokumen pendukung transaksi
-- **Backup harian otomatis** — snapshot D1 terjadwal ke R2 (cron 03:00 UTC)
-- **Onboarding** — wizard set-up awal (jenis bisnis, saldo awal, undangan tim)
-- **Rate limiting** — proteksi endpoint autentikasi
+- **OAuth Google** - masuk dengan Google, auto-link akun yang sudah ada
+- **Kolaborasi tim** - peran (owner/admin/member/viewer), undangan, izin granular
+- **Notifikasi & Web Push** - notifikasi in-app dan push browser
+- **Pencarian global** - cari transaksi, akun, produk, dan pihak dari satu tempat
+- **Audit log** - jejak lengkap aksi pengguna untuk kepatuhan
+- **Lampiran (R2)** - simpan dokumen pendukung transaksi
+- **Backup harian otomatis** - snapshot D1 terjadwal ke R2 (cron 03:00 UTC)
+- **Onboarding** - wizard set-up awal (jenis bisnis, saldo awal, undangan tim)
+- **Rate limiting** - proteksi endpoint autentikasi
 
 ### Admin Platform (Internal)
-- **Dashboard admin** — panel operasional internal di [admin.ledjer.id](https://admin.ledjer.id) dengan kredensial terpisah
-- **Kelola pengguna** — lihat semua akun, aktif/nonaktifkan, kirim reset password, hapus akun
-- **Kelola organisasi** — detail anggota & statistik, aktif/nonaktifkan organisasi (akses anggota diblokir saat nonaktif)
-- **Audit log global** — seluruh aktivitas lintas tenant termasuk aksi admin
-- **Monitoring** — jumlah pengguna/org/transaksi, registrasi per hari, health check aplikasi utama
-- **Kelola backup** — riwayat snapshot R2, verifikasi manifest, restore drill, backup manual
+- **Dashboard admin** - panel operasional internal di [admin.ledjer.id](https://admin.ledjer.id) dengan kredensial terpisah
+- **Kelola pengguna** - lihat semua akun, aktif/nonaktifkan, kirim reset password, hapus akun
+- **Kelola organisasi** - detail anggota & statistik, aktif/nonaktifkan organisasi (akses anggota diblokir saat nonaktif)
+- **Audit log global** - seluruh aktivitas lintas tenant termasuk aksi admin
+- **Monitoring** - jumlah pengguna/org/transaksi, registrasi per hari, health check aplikasi utama
+- **Kelola backup** - riwayat snapshot R2, verifikasi manifest, restore drill, backup manual
 
 ### Lokalisasi
-- **Indonesian-first** — UI dalam Bahasa Indonesia, mata uang IDR, konsep pajak yang familier bagi UMKM
-- **UMKM-ready** — mendukung jenis bisnis `simple_trading` (jual beli barang) dan `service` (jasa); tanpa perlu pengetahuan akuntansi
+- **Indonesian-first** - UI dalam Bahasa Indonesia, mata uang IDR, konsep pajak yang familier bagi UMKM
+- **UMKM-ready** - mendukung jenis bisnis `simple_trading` (jual beli barang) dan `service` (jasa); tanpa perlu pengetahuan akuntansi
 
 ---
 
@@ -110,11 +110,11 @@ Dokumentasi lengkap: [docs.ledjer.id](https://docs.ledjer.id)
 ### Prerequisites
 
 - **Node.js** 24+
-- **pnpm** 10 — enable via Corepack:
+- **pnpm** 10 - enable via Corepack:
   ```bash
   corepack enable && corepack prepare pnpm@10 --activate
   ```
-- **Cloudflare account** — dengan Workers + D1 aktif (untuk deployment)
+- **Cloudflare account** - dengan Workers + D1 aktif (untuk deployment)
 
 ### Install & Run
 
@@ -196,7 +196,7 @@ apps/
       services/               Domain logic & business rules
       middleware/             Auth, CSRF, org-scoping, error handling
     e2e/                      Playwright end-to-end tests
-  admin/                      Admin dashboard (admin.ledjer.id) — internal ops
+  admin/                      Admin dashboard (admin.ledjer.id) - internal ops
     src/                      React application (Vite)
     worker/                   Admin Worker API (same D1, platform-wide)
   docs/                       VitePress documentation site (docs.ledjer.id)
@@ -217,15 +217,15 @@ scripts/
 
 ## Documentation
 
-- **[docs.ledjer.id](https://docs.ledjer.id)** — dokumentasi pengguna (panduan memulai, fitur, FAQ)
-- [docs/api](docs/api) — desain API (OpenAPI, versi, import, invoices, reconciliation, dll.)
-- [docs/architecture](docs/architecture) — keputusan & diagram arsitektur
-- [docs/production](docs/production) — runbook operasional (monitoring, incident response)
-- [docs/accounting-rules.md](docs/accounting-rules.md) — aturan & konvensi akuntansi
-- [docs/testing.md](docs/testing.md) — panduan & konvensi pengujian
-- [CHANGELOG.md](CHANGELOG.md) — riwayat perubahan
-- [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) — prosedur pemulihan bencana
-- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — lisensi dependensi pihak ketiga
+- **[docs.ledjer.id](https://docs.ledjer.id)** - dokumentasi pengguna (panduan memulai, fitur, FAQ)
+- [docs/api](docs/api) - desain API (OpenAPI, versi, import, invoices, reconciliation, dll.)
+- [docs/architecture](docs/architecture) - keputusan & diagram arsitektur
+- [docs/production](docs/production) - runbook operasional (monitoring, incident response)
+- [docs/accounting-rules.md](docs/accounting-rules.md) - aturan & konvensi akuntansi
+- [docs/testing.md](docs/testing.md) - panduan & konvensi pengujian
+- [CHANGELOG.md](CHANGELOG.md) - riwayat perubahan
+- [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md) - prosedur pemulihan bencana
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) - lisensi dependensi pihak ketiga
 
 ---
 
@@ -324,7 +324,7 @@ Please ensure all CI checks and the SonarCloud quality gate pass before requesti
 Jika menemukan kerentanan keamanan, **jangan** buka issue publik.
 
 Opsi:
-- Buka **GitHub Security Advisory** — [github.com/eiaiproject/Ledjer/security/advisories](https://github.com/eiaiproject/Ledjer/security/advisories)
+- Buka **GitHub Security Advisory** - [github.com/eiaiproject/Ledjer/security/advisories](https://github.com/eiaiproject/Ledjer/security/advisories)
 - Email maintainer langsung (lihat commit history)
 
 Lihat [SECURITY.md](SECURITY.md) untuk kebijakan lengkap.

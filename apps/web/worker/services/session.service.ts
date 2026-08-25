@@ -15,7 +15,7 @@ export const IDLE_TIMEOUT_MS = 1000 * 60 * 60; // 1 hour
 // was issued (creation or last rotation). Active sessions get a fresh hash
 // every 7 days so a leaked token stops working before the absolute TTL.
 // This prevents race conditions when the SPA makes parallel API calls
-// during page load — all requests within the interval share the same token.
+// during page load - all requests within the interval share the same token.
 const TOKEN_ROTATION_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export interface SessionUser {
@@ -145,7 +145,7 @@ export async function getSessionByToken(
       return { ...row, newToken };
     }
 
-    // Another request already rotated the token — re-read the session
+    // Another request already rotated the token - re-read the session
     // by session id + user_id to get the current (already rotated) session.
     const refreshedRow = await queryFirst<CurrentSessionRow & { last_used_at: number }>(
       db,
@@ -169,14 +169,14 @@ export async function getSessionByToken(
     );
 
     if (refreshedRow) {
-      return refreshedRow; // No newToken — caller should NOT set a new cookie
+      return refreshedRow; // No newToken - caller should NOT set a new cookie
     }
 
-    // Session was revoked or expired between checks — return null
+    // Session was revoked or expired between checks - return null
     return null;
   }
 
-  // Rotation skipped — just update last_used_at so the sliding window stays accurate
+  // Rotation skipped - just update last_used_at so the sliding window stays accurate
   await execute(
     db,
     `UPDATE sessions

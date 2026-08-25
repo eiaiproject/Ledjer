@@ -1,5 +1,5 @@
 /**
- * E2E Comprehensive Page Scan v2 — Ledjer
+ * E2E Comprehensive Page Scan v2 - Ledjer
  *
  * Visits EVERY page (public + protected + detail), interacts with ALL
  * interactive elements visible on the page, and reports everything:
@@ -13,9 +13,9 @@
  *   node apps/web/e2e-scan-all-pages.mjs
  *
  * Environment variables:
- *   E2E_EMAIL     — login email (default: ledjer@yopmail.com)
- *   E2E_PASSWORD  — login password (default: Ledjer26#)
- *   BASE_URL      — target URL   (default: https://ledjer.id)
+ *   E2E_EMAIL     - login email (default: ledjer@yopmail.com)
+ *   E2E_PASSWORD  - login password (default: Ledjer26#)
+ *   BASE_URL      - target URL   (default: https://ledjer.id)
  */
 
 import { chromium } from "playwright";
@@ -357,7 +357,7 @@ async function testPage(page, label, path, isProtected = false) {
   const url = page.url();
   if (url.includes("/login") && isProtected) {
     console.log("🔒");
-    record(label, "WARN", "Redirected to login — session expired");
+    record(label, "WARN", "Redirected to login - session expired");
     cleanup();
     return;
   }
@@ -367,7 +367,7 @@ async function testPage(page, label, path, isProtected = false) {
       interactWithPage(page, label),
       new Promise(r => setTimeout(r, 12000)),
     ]);
-  } catch { /* interaction timeout — still count as visited */ }
+  } catch { /* interaction timeout - still count as visited */ }
 
   await page.waitForTimeout(300);
 
@@ -478,7 +478,7 @@ function printFailedRequests() {
   if (results.failedRequests.length === 0) return;
   console.log("\n🌐 FAILED REQUESTS:");
   for (const fr of results.failedRequests.slice(0, 10)) {
-    console.log(`   [${fr.page}] HTTP ${fr.status} — ${fr.url.substring(0, 80)}`);
+    console.log(`   [${fr.page}] HTTP ${fr.status} - ${fr.url.substring(0, 80)}`);
   }
   if (results.failedRequests.length > 10) {
     const extra = results.failedRequests.length - 10;
@@ -618,7 +618,7 @@ async function scanSpecialPages(page) {
 
 async function displayHeader() {
   console.log(`\n╔══════════════════════════════════════════════════════════╗`);
-  console.log(`║   Ledjer — COMPREHENSIVE E2E Interactive Page Scan    ║`);
+  console.log(`║   Ledjer - COMPREHENSIVE E2E Interactive Page Scan    ║`);
   console.log(`║   Target : ${BASE_URL.padEnd(39)}║`);
   console.log(`║   Account: ${EMAIL.padEnd(39)}║`);
   console.log(`╚══════════════════════════════════════════════════════════╝\n`);

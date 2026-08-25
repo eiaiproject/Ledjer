@@ -16,11 +16,11 @@ test.describe("Period Locks CRUD", () => {
     await authPage.goto("/settings/period-locks", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    // Inline form — look for date input and submit button
+    // Inline form - look for date input and submit button
     const formHeading = authPage.getByRole("heading", { name: /tambah kunci periode/i });
     await expect(formHeading).toBeVisible({ timeout: 5000 });
 
-    // Date input — use the first date input on the page
+    // Date input - use the first date input on the page
     const dateInput = authPage.locator('input[type="date"]').first();
     if (await dateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
       await dateInput.fill(new Date().toISOString().slice(0, 10));
@@ -52,12 +52,12 @@ test.describe("Team Settings CRUD", () => {
     await authPage.goto("/settings/team", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(2000);
 
-    // Email field — Input uses label "Email anggota" → id="email-anggota"
+    // Email field - Input uses label "Email anggota" → id="email-anggota"
     const emailInput = authPage.locator('#email-anggota');
     await expect(emailInput).toBeVisible({ timeout: 5000 });
     await emailInput.fill(`e2e-${TEST_PREFIX}@yopmail.com`);
 
-    // Role select — id="invite-role"
+    // Role select - id="invite-role"
     const roleSelect = authPage.locator('#invite-role');
     await expect(roleSelect).toBeVisible({ timeout: 3000 });
     await roleSelect.selectOption('member');

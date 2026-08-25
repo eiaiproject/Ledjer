@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
  *
  * Budgets are set conservatively for CI cold-start environments.
  * Adjust budgets upward only when a genuine bottleneck is identified and
- * documented — not to make a failing test pass.
+ * documented - not to make a failing test pass.
  */
 
 test.describe("Page load timing", () => {
@@ -99,7 +99,7 @@ test.describe("API response timing", () => {
 
   test("detailed metrics endpoint has route stats structure", async ({ request }) => {
     const resp = await request.get("/api/metrics/detailed");
-    // This endpoint may not exist on Worker — accept 404
+    // This endpoint may not exist on Worker - accept 404
     if (resp.ok()) {
       const body = await resp.json();
       expect(body).toHaveProperty("requests");

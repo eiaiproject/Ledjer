@@ -1,5 +1,5 @@
 /**
- * Golden Accounting Scenarios — Worker/D1 Unit Tests
+ * Golden Accounting Scenarios - Worker/D1 Unit Tests
  *
  * Golden accounting scenarios retained from the legacy SQL regression suite.
  *

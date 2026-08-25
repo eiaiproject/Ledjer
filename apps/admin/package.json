@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Ledjer platform admin dashboard (admin.ledjer.id) — internal operations for the Ledjer team.",
+  "description": "Ledjer platform admin dashboard (admin.ledjer.id) - internal operations for the Ledjer team.",
   "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",
@@ -19,7 +19,7 @@
     "@sentry/cloudflare": "^10.70.0",
     "@tailwindcss/vite": "^4.3.3",
     "clsx": "^2.1.1",
-    "hono": "^4.13.2",
+    "hono": "^4.13.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
@@ -34,7 +34,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
@@ -42,7 +42,7 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.67.0",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "wrangler": "^4.125.0"
   }
 }

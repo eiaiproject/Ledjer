@@ -105,7 +105,7 @@ async function checkMainAppHealth(
   mainAppUrl?: string,
   mainApp?: Fetcher,
 ): Promise<"up" | "down" | "unknown"> {
-  // Prefer the service binding — it dispatches the call directly inside the
+  // Prefer the service binding - it dispatches the call directly inside the
   // Workers runtime, which is the only reliable way to call the main app
   // (Worker→Worker via public *.workers.dev hostname fails with CF 1042).
   if (mainApp) {

@@ -10,7 +10,7 @@ export const queryClient = new QueryClient({
       gcTime: 5 * 60_000,
       retry: (failureCount, error) => {
         // Retry on server errors (>=500) or network failures (TypeError/code=network_error)
-        // Do NOT retry on client errors (4xx) — they're the caller's fault
+        // Do NOT retry on client errors (4xx) - they're the caller's fault
         if (isApiError(error)) {
           if (error.status >= 500) return failureCount < 2;
           return false;

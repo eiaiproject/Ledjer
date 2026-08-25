@@ -13,7 +13,7 @@ All notable changes to Ledjer are documented here.
 - Auth security tests (14 tests: token generation, password hashing, session)
 - CSRF E2E tests (6 tests) + documentation
 - Permission matrix documentation
-- `TenantScopedRepository` — runtime org-scoping guard
+- `TenantScopedRepository` - runtime org-scoping guard
 - Tenant isolation tests (12 unit + E2E) + architecture doc
 - SQL injection + error redaction tests
 - Hardened CSP (object-src 'none', frame-ancestors 'none')

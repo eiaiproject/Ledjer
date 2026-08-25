@@ -112,11 +112,11 @@ function RouteFallback() {
 }
 
 const routerConfig = [
-  // Landing has its own bespoke hero/header — render outside PublicLayout.
+  // Landing has its own bespoke hero/header - render outside PublicLayout.
   {
     path: "/",
     element: (
-      <Seo title="Ledjer — Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
+      <Seo title="Ledjer - Pembukuan UMKM Indonesia" description={DEFAULT_DESCRIPTION} path="/">
         <LandingPage />
       </Seo>
     ),

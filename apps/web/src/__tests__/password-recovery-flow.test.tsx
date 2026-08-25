@@ -18,7 +18,7 @@ import { ResetPasswordPage } from '@/pages/reset-password';
  * Steps:
  *   1. User lands on /forgot-password, enters email, submits.
  *      Worker forgotPassword API is called.
- *   2. User clicks the recovery link in their email — lands on
+ *   2. User clicks the recovery link in their email - lands on
  *      /auth/callback?token=...&type=recovery.
  *      Worker verifyEmail(..., 'recovery') is called and a temporary session
  *      is established.
@@ -37,7 +37,7 @@ const mocks = vi.hoisted(() => ({
   verifyEmail: vi.fn(),
   resetPassword: vi.fn(),
   signOut: vi.fn(),
-  // Mutable session state — set by mocked verifyEmail, read by useAuth().
+  // Mutable session state - set by mocked verifyEmail, read by useAuth().
   sessionRef: { current: null as null | object },
 }));
 
@@ -87,7 +87,7 @@ describe('Password recovery flow (integration)', () => {
     mocks.resetPassword.mockReset();
     mocks.signOut.mockReset();
     mocks.sessionRef.current = null;
-    // AuthCallbackPage uses setTimeout before navigating — make them
+    // AuthCallbackPage uses setTimeout before navigating - make them
     // resolve instantly so we don't have to wait the 1.2s in tests.
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
@@ -150,7 +150,7 @@ describe('Password recovery flow (integration)', () => {
       expect(screen.getByText(/email terkonfirmasi/i)).toBeTruthy();
     });
 
-    // AuthCallbackPage redirects after a 1.2s setTimeout — advance time.
+    // AuthCallbackPage redirects after a 1.2s setTimeout - advance time.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
@@ -234,7 +234,7 @@ describe('Password recovery flow (integration)', () => {
       await vi.advanceTimersByTimeAsync(1500);
     });
 
-    // Recovery must land on /reset-password — never on /settings/team
+    // Recovery must land on /reset-password - never on /settings/team
     // or /onboarding (the original bug from the previous pass).
     await waitFor(() => {
       expect(screen.getByText(/atur ulang password/i)).toBeTruthy();

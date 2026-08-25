@@ -45,13 +45,13 @@ changed, ~6,500 lines added.
 
 ## 5. Migrations Added
 
-None. Phase 1 is additive (tests, configs, docs, guards) — no schema changes.
+None. Phase 1 is additive (tests, configs, docs, guards) - no schema changes.
 
 ## 6. Security Controls Added
 
 - OSV vulnerability scanner (weekly automated)
 - Dependabot (weekly dependency PRs)
-- `TenantScopedRepository` — runtime org-scoping guard
+- `TenantScopedRepository` - runtime org-scoping guard
 - Structured JSON logging (no PII logged)
 - Hardened CSP (`object-src 'none'`, `frame-ancestors 'none'`)
 - CSRF test suite
@@ -93,7 +93,7 @@ Configured in vitest.config.ts: lines ≥80%, branches ≥75%.
 
 ## 11. Load Test Results
 
-**BLOCKED** — k6 binary not installed. Scripts ready at `load-tests/k6/`.
+**BLOCKED** - k6 binary not installed. Scripts ready at `load-tests/k6/`.
 
 ## 12. Dependency and License Scan Results
 
@@ -104,7 +104,7 @@ Configured in vitest.config.ts: lines ≥80%, branches ≥75%.
 
 ## 13. Backup and Restore Verification
 
-**BLOCKED** — requires Cloudflare production access to create R2 bucket
+**BLOCKED** - requires Cloudflare production access to create R2 bucket
 and run `scripts/backup.sh`.
 
 ## 14. API Compatibility Impact
@@ -144,7 +144,7 @@ and run `scripts/backup.sh`.
 
 - All compliance docs (data retention, subprocessors, privacy, DSR) marked for
   review by qualified legal counsel.
-- Product instrumentation doc defines events and metric formulas — no SDK
+- Product instrumentation doc defines events and metric formulas - no SDK
   implemented, no pricing hardcoded.
 - No SOC 2, ISO 27001, GDPR, or UU PDP compliance claims made.
 

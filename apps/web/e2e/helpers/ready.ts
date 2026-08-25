@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 /**
- * Wait until the app's loading indicators are gone — a web-first readiness
+ * Wait until the app's loading indicators are gone - a web-first readiness
  * condition that replaces waitForLoadState("networkidle").
  *
  * Covers the app's actual loading UI:
@@ -31,7 +31,7 @@ export async function waitForAppReady(page: Page, timeout = 15_000): Promise<voi
       { timeout },
     )
     .catch(() => {
-      // Timeout is acceptable — fall back to whatever is rendered rather than
+      // Timeout is acceptable - fall back to whatever is rendered rather than
       // failing the test on a lingering indicator.
     });
 }
@@ -74,6 +74,6 @@ export async function waitForPageStable(page: Page, stableMs = 400, timeout = 15
       { timeout },
     )
     .catch(() => {
-      // Timeout is acceptable — fall back to whatever is rendered.
+      // Timeout is acceptable - fall back to whatever is rendered.
     });
 }

@@ -155,14 +155,14 @@ describe("listTransactions shows the complete audit trail", () => {
     db.exec(`INSERT INTO users (id, full_name) VALUES ('${USER}', 'Test User')`);
 
     return Promise.all([
-      // Original posted sale — must be visible.
+      // Original posted sale - must be visible.
       insertTransaction(db, {
         id: "txn-original", organization_id: ORG, transaction_number: "TRX-202608-000001",
         transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
         description: "Penjualan Telur x30", status: "voided",
         posted_at: NOW, posted_by: USER, created_by: USER, created_at: NOW, updated_at: NOW,
       }),
-      // Reversal created by the void flow — also visible (complete audit trail).
+      // Reversal created by the void flow - also visible (complete audit trail).
       insertTransaction(db, {
         id: "txn-reversal", organization_id: ORG, transaction_number: "TRX-202608-000002",
         transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
@@ -170,7 +170,7 @@ describe("listTransactions shows the complete audit trail", () => {
         posted_at: NOW, posted_by: USER, original_transaction_id: "txn-original",
         created_by: USER, created_at: NOW, updated_at: NOW,
       }),
-      // Corrected re-entry created after the void — must be visible.
+      // Corrected re-entry created after the void - must be visible.
       insertTransaction(db, {
         id: "txn-correction", organization_id: ORG, transaction_number: "TRX-202608-000003",
         transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
@@ -178,7 +178,7 @@ describe("listTransactions shows the complete audit trail", () => {
         posted_at: NOW, posted_by: USER, original_transaction_id: "txn-original",
         created_by: USER, created_at: NOW, updated_at: NOW,
       }),
-      // Settlement payment (receive_receivable) — real transaction, must be visible.
+      // Settlement payment (receive_receivable) - real transaction, must be visible.
       insertTransaction(db, {
         id: "txn-settle", organization_id: ORG, transaction_number: "TRX-202608-000004",
         transaction_date: "2026-08-15", transaction_type: "receive_receivable", amount_minor: 20000,
@@ -204,7 +204,7 @@ describe("listTransactions shows the complete audit trail", () => {
     );
   });
 
-  it("lists every transaction in order — original, reversal, correction and settlement", async () => {
+  it("lists every transaction in order - original, reversal, correction and settlement", async () => {
     const rows = await listTransactions(db as unknown as D1Database, ORG, {});
     const numbers = rows.map((r) => r.transaction_number);
 

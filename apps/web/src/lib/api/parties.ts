@@ -24,7 +24,7 @@ export function splitParties(parties: PublicParty[]): { customers: PublicParty[]
 /**
  * The worker returns a flat `{ parties: PublicParty[] }` list. Split it into
  * customers/suppliers so consumers can use `parties?.customers ?? parties?.suppliers`
- * (the invoice and transaction forms) — previously those were always undefined
+ * (the invoice and transaction forms) - previously those were always undefined
  * and existing parties never showed up in the selectors.
  */
 export function listParties(): Promise<ListPartiesResult> {

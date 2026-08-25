@@ -104,7 +104,7 @@ describe('ForgotPasswordPage', () => {
       screen.getByRole('button', { name: /kirim tautan pemulihan/i }),
     );
 
-    // The auth error must NOT appear in the DOM — it would leak account
+    // The auth error must NOT appear in the DOM - it would leak account
     // existence. Instead, the success view appears.
     await waitFor(() => {
       expect(screen.getByText(/cek email Anda$/i)).toBeTruthy();

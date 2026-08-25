@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle, InfoCircle, X, XCircle } from "reicon-react
 import { cn } from "@/lib/utils";
 import { setGlobalToast, type Toast, type ToastVariant } from "@/components/ui/toast-api";
 
-// Re-export for backward compatibility — existing imports from toast.tsx still work.
+// Re-export for backward compatibility - existing imports from toast.tsx still work.
 // eslint-disable-next-line react-refresh/only-export-components
 export { toast, type ToastActions } from "@/components/ui/toast-api";
 

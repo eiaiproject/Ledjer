@@ -261,7 +261,7 @@ export function TransactionTypeSelector({ value, onChange, error }: TransactionT
         )}
       </div>
 
-      {/* Unified type grid — priority types always visible */}
+      {/* Unified type grid - priority types always visible */}
       <div id={listboxId} className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Jenis transaksi" aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined}>
         {priorityTypes.map((type) => renderTypeCard(type))}
       </div>
@@ -849,9 +849,11 @@ type SubmitBarProps = Readonly<{
   disabled: boolean;
   successId: string | null;
   label?: string;
+  onCreateAnother?: () => void;
+  onViewDetail?: () => void;
 }>;
 
-export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProps) {
+export function SubmitBar({ loading, disabled, successId, label, onCreateAnother, onViewDetail }: SubmitBarProps) {
   let buttonLabel = label || "Catat Transaksi";
   if (loading) {
     buttonLabel = "Menyimpan...";
@@ -876,11 +878,21 @@ export function SubmitBar({ loading, disabled, successId, label }: SubmitBarProp
         {buttonLabel}
       </Button>
 
-      {/* Success state */}
+      {/* Success state - UX friction #2: offer create another vs view detail */}
       {successId && (
-        <p className="text-center text-sm text-success">
-          Transaksi tersimpan. Membuka detail...
-        </p>
+        <div className="space-y-2">
+          <p className="text-center text-sm text-success">
+            Transaksi tersimpan.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" onClick={onCreateAnother} className="min-h-[44px]">
+              Buat Transaksi Baru Lagi
+            </Button>
+            <Button type="button" variant="primary" onClick={onViewDetail} className="min-h-[44px]">
+              Lihat Detail
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

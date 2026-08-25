@@ -29,7 +29,7 @@ function dbWithRows(rows: unknown[]): D1Database {
  */
 const WIN_ANSI: Record<number, number> = {
   0x2013: 0x96, // – en dash
-  0x2014: 0x97, // — em dash
+  0x2014: 0x97, // - em dash
   0x2018: 0x91, // ' left single quote
   0x2019: 0x92, // ' right single quote
   0x201c: 0x93, // " left double quote
@@ -199,7 +199,7 @@ describe("exportGeneralLedgerPdf", () => {
     expect(result.filename).toMatch(/^buku_besar_\d{8}\.pdf$/);
     await expectPdfContains(result.pdf, [
       "Buku Besar",
-      "1110 — Kas",
+      "1110 - Kas",
       "TRX-202601-000001",
       "Penjualan tunai",
       "Subtotal 1110",

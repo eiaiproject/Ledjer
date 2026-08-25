@@ -1,4 +1,4 @@
-// Sentry must initialize before any other code — keep this import FIRST
+// Sentry must initialize before any other code - keep this import FIRST
 import './instrument.ts'
 import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -27,14 +27,14 @@ if ('serviceWorker' in navigator) {
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New version available — show update notification
+              // New version available - show update notification
               console.log('Update tersedia. Refresh untuk versi terbaru.');
             }
           });
         }
       });
     }).catch(() => {
-      // Service worker registration failed — app works without it
+      // Service worker registration failed - app works without it
       console.warn('Service worker registration failed');
     });
   });

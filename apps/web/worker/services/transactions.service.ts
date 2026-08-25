@@ -332,8 +332,8 @@ export async function listTransactions(
   organizationId: string,
   filters: TransactionFilters = {},
 ): Promise<PublicTransaction[]> {
-  // Show every transaction — including void reversals (created by the
-  // void flow) — so the list is a complete, sequential audit trail and
+  // Show every transaction - including void reversals (created by the
+  // void flow) - so the list is a complete, sequential audit trail and
   // the stock movement implied by the list reconciles with the subledger.
   const conditions = [
     "t.organization_id = ?",
@@ -505,7 +505,7 @@ function insertStockStatements(ctx: StockStatementCtx): void {
   const isPurchase = transactionType === "cash_purchase" || transactionType === "credit_purchase";
   const isSaleReturn = transactionType === "sale_return";
   // sale_return adds stock back (+), purchase_return removes stock (-)
-  // S3358 — extract nested ternary into if/else
+  // S3358 - extract nested ternary into if/else
   let quantityDelta: number;
   if (isPurchase) {
     quantityDelta = quantityMilli;
@@ -1068,7 +1068,7 @@ export async function calculateSettlementRemaining(
  * Settle a partial credit_sale or credit_purchase transaction by posting
  * a receive_receivable or pay_payable for the remaining amount.
  *
- * Despite the original name, this function does NOT void — it only settles.
+ * Despite the original name, this function does NOT void - it only settles.
  * Voiding partially paid transactions is blocked by validateVoidableTransaction.
  */
 export async function settlePartialTransaction(
@@ -2116,7 +2116,7 @@ export async function recalculateProductAverageCost(
 
     const changed = (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 1;
     if (changed === 1) return { average_cost_minor: avg, current_stock_milli: stock };
-    // concurrent write — retry (re-read movements + stock)
+    // concurrent write - retry (re-read movements + stock)
   }
   // Fallback: return whatever is currently in DB (eventually consistent on next write)
   const fallback = await queryFirst<{ average_cost_minor: number; current_stock_milli: number }>(
@@ -2451,7 +2451,7 @@ async function generateEntryNumber(
 }
 
 // ponytail: Counters run before executeBatch. If the batch fails, the counter
-// has already advanced — gap in numbering. This is acceptable: gaps are not
+// has already advanced - gap in numbering. This is acceptable: gaps are not
 // accounting errors. Move counter UPSERT into the batch when D1's RETURNING
 // from executeBatch is needed for upstream systems that require gapless sequences.
 async function nextCounter(

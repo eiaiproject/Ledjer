@@ -129,7 +129,7 @@ function drillPanel(drill: DrillReport) {
         {successBadge(drill.valid, "GAGAL")}
       </div>
       <p className="mt-1 text-xs text-text-secondary">
-        Backup {drill.date} — {drill.tableCount} tabel, {drill.totalRows.toLocaleString("id-ID")} baris, dicek {formatDateTime(drill.checkedAt)}
+        Backup {drill.date} - {drill.tableCount} tabel, {drill.totalRows.toLocaleString("id-ID")} baris, dicek {formatDateTime(drill.checkedAt)}
       </p>
       {drill.errors.length > 0 ? (
         <ul className="mt-2 list-inside list-disc space-y-0.5 text-xs text-error">

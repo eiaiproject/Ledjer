@@ -36,9 +36,9 @@ describe('Transaction Type Labels', () => {
     expect(labelForTransactionType('cash_sale')).toBe('Penjualan Tunai');
     expect(labelForTransactionType('opening_cash_balance')).toBe('Saldo Awal Kas');
     expect(labelForTransactionType('nonexistent')).toBe('nonexistent');
-    expect(labelForTransactionType('')).toBe('—');
-    expect(labelForTransactionType(null)).toBe('—');
-    expect(labelForTransactionType(undefined)).toBe('—');
+    expect(labelForTransactionType('')).toBe('-');
+    expect(labelForTransactionType(null)).toBe('-');
+    expect(labelForTransactionType(undefined)).toBe('-');
   });
 
   it('PAYMENT_STATUS_LABELS are defined', () => {

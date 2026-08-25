@@ -1,5 +1,5 @@
 // ponytail: Invoice MVP. Supports draft→issued→paid/voided lifecycle.
-// Does not post to journal automatically — invoices are billing documents,
+// Does not post to journal automatically - invoices are billing documents,
 // revenue is recognized on transaction posting. Upgrade: auto-create transaction
 // on issue, credit notes, PDF generation, email send.
 

@@ -28,7 +28,7 @@ describe("Auth Security", () => {
     it("randomBytes uses crypto.getRandomValues for secure randomness", () => {
       const bytes = randomBytes(32);
       expect(bytes).toHaveLength(32);
-      // Probability of all zeros is 2^-256 — effectively impossible
+      // Probability of all zeros is 2^-256 - effectively impossible
       const allZero = new Uint8Array(32);
       expect(bytes).not.toEqual(allZero);
     });

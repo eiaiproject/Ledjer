@@ -1,4 +1,4 @@
-# Ledjer — Accounting Rules Reference
+# Ledjer - Accounting Rules Reference
 
 This document describes every transaction type supported by Ledjer, including the journal entries created, accounts affected, and restrictions.
 
@@ -12,7 +12,7 @@ Receivables (`Piutang Usaha`, code 1200) and payables (`Utang Usaha`, code 2100)
 
 **Implication:** It is technically possible to receive more than the outstanding receivable (or pay more than the outstanding payable) for a given party, which produces a negative receivable/payable balance for that party. This is permitted in the MVP but flagged in the UI as a warning. Full invoice-level settlement is not in the MVP scope.
 
-If you need invoice-level tracking, file a feature request — adding it requires:
+If you need invoice-level tracking, file a feature request - adding it requires:
 - An `invoices` table with `(id, organization_id, party_id, transaction_id, amount, due_date)`.
 - An `invoice_allocations` table mapping each `receive_receivable` / `pay_payable` to one or more invoices.
 - New RPCs `apply_receivable_to_invoice(...)` / `apply_payable_to_invoice(...)` that update allocation rows.
@@ -103,7 +103,7 @@ If you need invoice-level tracking, file a feature request — adding it require
 - Increases revenue
 - Increases cash (if partial payment)
 
-**Can be voided:** Yes (except partial payments — must be settled first)
+**Can be voided:** Yes (except partial payments - must be settled first)
 
 **Permissions:** `can_create_transaction`
 
@@ -200,7 +200,7 @@ If you need invoice-level tracking, file a feature request — adding it require
 - Increases expense/inventory
 - Decreases cash (if partial payment)
 
-**Can be voided:** Yes (except partial payments — must be settled first)
+**Can be voided:** Yes (except partial payments - must be settled first)
 
 **Permissions:** `can_create_transaction`
 
@@ -410,13 +410,13 @@ on-hand quantity and a running on-hand value:
   `quantity × unit_cost` to the running value and recomputes
   `average = running_value / running_quantity`.
 - A sale (or a voided purchase that removes stock) reduces the running quantity
-  and rescales the running value to `running_quantity × average` — the average
+  and rescales the running value to `running_quantity × average` - the average
   itself is unchanged by a sale.
 - When on-hand quantity reaches 0 the running value resets to 0, but the last
   average is preserved as the cost basis for the next purchase.
 
 This is a genuine moving average, **not** a cumulative-lifetime average over all
-purchases. Worked example — buy 10@100, sell all 10, then rebuy 10@200:
+purchases. Worked example - buy 10@100, sell all 10, then rebuy 10@200:
 - After buy: avg = 100.
 - After sell-all: on-hand 0, running value 0, avg basis preserved at 100.
 - After rebuy: avg = 200 (a cumulative-lifetime model would wrongly yield

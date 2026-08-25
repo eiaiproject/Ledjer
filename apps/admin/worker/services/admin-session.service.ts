@@ -112,7 +112,7 @@ export async function getAdminSessionByToken(
       return { ...row, newToken };
     }
 
-    // Another request already rotated the token — re-read.
+    // Another request already rotated the token - re-read.
     const refreshedRow = await queryFirst<AdminSessionRow & { last_used_at: number }>(
       db,
       `SELECT
@@ -141,7 +141,7 @@ export async function getAdminSessionByToken(
     return null;
   }
 
-  // Rotation skipped — update last_used_at for the sliding window.
+  // Rotation skipped - update last_used_at for the sliding window.
   await execute(
     db,
     `UPDATE admin_sessions

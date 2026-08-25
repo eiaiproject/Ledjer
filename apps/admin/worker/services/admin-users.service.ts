@@ -133,7 +133,7 @@ export async function setUserStatus(
 
 /**
  * Create a password_reset_tokens row and email the user a recovery link
- * pointing at the main app (ledjer.id) — the admin dashboard never hosts
+ * pointing at the main app (ledjer.id) - the admin dashboard never hosts
  * user-facing flows.
  */
 export async function sendUserPasswordReset(
@@ -165,7 +165,7 @@ export async function sendUserPasswordReset(
     const link = `${opts.userAppOrigin}/auth/callback?token=${token}&type=recovery`;
     await sendEmail(opts.emailApiKey, {
       to: user.email,
-      subject: "Atur ulang password — Ledjer",
+      subject: "Atur ulang password - Ledjer",
       html: `<p>Admin Ledjer telah meminta reset password untuk akun Anda.</p><p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
     }, opts.emailFrom);
   }
@@ -200,7 +200,7 @@ export async function deleteUser(
   );
 
   const current = Date.now();
-  // Audit trail first — actor NULL survives the user delete.
+  // Audit trail first - actor NULL survives the user delete.
   await execute(
     db,
     `INSERT INTO audit_logs (id, organization_id, actor_user_id, entity_type, entity_id, action, created_at)

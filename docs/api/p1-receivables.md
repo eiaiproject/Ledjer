@@ -1,4 +1,4 @@
-# P1.4 — Receivables & Payables API
+# P1.4 - Receivables & Payables API
 
 ## POST /api/receivables/pay
 Record payment against an invoice.

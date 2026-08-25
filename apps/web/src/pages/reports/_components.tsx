@@ -6,6 +6,7 @@
  * Upgrade path: Could add more shared logic (query config, etc.)
  */
 import { useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useOrgPermissions } from "@/hooks/useOrganization";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ export interface ReportSection<T extends ReportLine = ReportLine> {
   items: T[];
 }
 
-/** Mobile card for one report section — shared by Neraca & Laba Rugi. */
+/** Mobile card for one report section - shared by Neraca & Laba Rugi. */
 export function ReportSectionMobile<T extends ReportLine>({
   section,
   showTotal,
@@ -78,7 +79,7 @@ export function ReportSectionMobile<T extends ReportLine>({
   );
 }
 
-/** Desktop table rows for one report section — shared by Neraca & Laba Rugi. */
+/** Desktop table rows for one report section - shared by Neraca & Laba Rugi. */
 export function ReportSectionRows<T extends ReportLine>({
   section,
   showTotal,
@@ -171,19 +172,24 @@ export function useReportDateRange() {
   );
   const todayStr = formatDateInputValue(today);
 
-  const [pendingFrom, setPendingFrom] = useState(firstDayOfMonth);
-  const [pendingTo, setPendingTo] = useState(todayStr);
-  const [appliedFrom, setAppliedFrom] = useState(firstDayOfMonth);
-  const [appliedTo, setAppliedTo] = useState(todayStr);
+  // UX: persist applied range in URL (?from=&to=) so back navigation keeps filters
+  const [searchParams, setSearchParams] = useSearchParams();
+  const appliedFrom = searchParams.get("from") ?? firstDayOfMonth;
+  const appliedTo = searchParams.get("to") ?? todayStr;
+
+  const [pendingFrom, setPendingFrom] = useState(appliedFrom);
+  const [pendingTo, setPendingTo] = useState(appliedTo);
 
   const dateRangeInvalid = pendingFrom > pendingTo;
   const isPending = pendingFrom !== appliedFrom || pendingTo !== appliedTo;
 
   const applyDate = useCallback(() => {
     if (dateRangeInvalid || !pendingFrom || !pendingTo) return;
-    setAppliedFrom(pendingFrom);
-    setAppliedTo(pendingTo);
-  }, [pendingFrom, pendingTo, dateRangeInvalid]);
+    const next = new URLSearchParams(searchParams);
+    next.set("from", pendingFrom);
+    next.set("to", pendingTo);
+    setSearchParams(next, { replace: true });
+  }, [pendingFrom, pendingTo, dateRangeInvalid, searchParams, setSearchParams]);
 
   const syncPending = useCallback(() => {
     setPendingFrom(appliedFrom);

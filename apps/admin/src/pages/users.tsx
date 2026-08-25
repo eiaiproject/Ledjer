@@ -110,7 +110,7 @@ export function UsersPage() {
     const rows = data.users.map((user) => (
       <tr key={user.id}>
         <td data-label="Pengguna" className="px-4 py-3">
-          <p className="font-medium">{user.full_name || "—"}</p>
+          <p className="font-medium">{user.full_name || "-"}</p>
           <p className="text-xs text-text-secondary">{user.email}</p>
         </td>
         <td data-label="Status" className="px-4 py-3">

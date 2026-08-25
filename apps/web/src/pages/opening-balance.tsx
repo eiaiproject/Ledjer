@@ -202,7 +202,7 @@ export default function OpeningBalancePage() {
                       placeholder="Pilih akun..."
                     >
                       {(accounts ?? []).map((a: { id: string; code: number; name: string }) => (
-                        <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                        <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
                       ))}
                     </Select>
                   </div>
@@ -236,7 +236,7 @@ export default function OpeningBalancePage() {
                       <span className="inline-flex items-center gap-1">
                         <X className="h-4 w-4" /> Tidak Seimbang
                       </span>
-                    )} —
+                    )} -
                     Debit: {formatIDR(totalDebit)}, Kredit: {formatIDR(totalCredit)}
                   </div>
                 </div>
@@ -302,7 +302,7 @@ export default function OpeningBalancePage() {
               {preview.valid ? (
                 <div className="flex items-center gap-2 text-sm text-leaf-700 bg-success-bg rounded-md px-3 py-2">
                   <CheckCircle className="h-4 w-4" />
-                  <span>Jurnal seimbang — siap diposting</span>
+                  <span>Jurnal seimbang - siap diposting</span>
                 </div>
               ) : (
                 <div className="text-sm text-error bg-error-bg rounded-md px-3 py-2">
@@ -338,7 +338,7 @@ export default function OpeningBalancePage() {
             <div>
               <h2 className="text-lg font-semibold text-wood-800">Saldo Awal Berhasil Diposting!</h2>
               <p className="text-sm text-wood-500">
-                Jurnal {postResult.snapshot.entryNumber} — {postResult.snapshot.accounts.length} akun
+                Jurnal {postResult.snapshot.entryNumber} - {postResult.snapshot.accounts.length} akun
               </p>
             </div>
 

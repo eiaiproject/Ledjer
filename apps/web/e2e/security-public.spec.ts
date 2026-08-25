@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { waitForAppReady } from "./helpers/ready";
 
 /**
- * Public security tests — safe for production deploy smoke.
+ * Public security tests - safe for production deploy smoke.
  * No seeded backend users required.
  *
  * These tests use only GET requests and never mutate production data.

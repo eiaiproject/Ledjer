@@ -119,7 +119,7 @@ test.describe("Transactions - Cash Sale", () => {
     // Select "Penjualan Tunai"
     await selectTransactionType(authPage, "cash_sale");
 
-    // Skip product selection — products in the test org may have
+    // Skip product selection - products in the test org may have
     // insufficient stock for sales.  We enter the amount manually.
 
     // Amount
@@ -185,7 +185,7 @@ test.describe("Transactions - Cash Purchase", () => {
     const cashOk = await selectFirstComboboxOption(authPage, "cashAccountId");
     expect(cashOk).toBeTruthy();
 
-    // Debit account may not appear if product auto-sets CoA — try anyway
+    // Debit account may not appear if product auto-sets CoA - try anyway
     await selectFirstComboboxOption(authPage, "debitAccountId");
 
     const notesInput = authPage.locator('textarea[name="notes"]');
@@ -221,7 +221,7 @@ test.describe("Transactions - Expense Payment", () => {
 
     await selectFirstComboboxOption(authPage, "cashAccountId");
 
-    // Debit account (CoA) — required for expense
+    // Debit account (CoA) - required for expense
     const debitOk = await selectFirstComboboxOption(authPage, "debitAccountId");
     expect(debitOk).toBeTruthy();
 
@@ -272,7 +272,7 @@ test.describe("Transactions - Credit Sale", () => {
       await descInput.fill(`Penjualan kredit E2E ${TEST_PREFIX}`);
     }
 
-    // Party (Pelanggan) — create new via allowCreate
+    // Party (Pelanggan) - create new via allowCreate
     await createNewComboboxOption(authPage, "partyName", `Pelanggan Test ${TEST_PREFIX}`);
 
     await selectFirstComboboxOption(authPage, "cashAccountId");
@@ -313,10 +313,10 @@ test.describe("Transactions - Cash Transfer", () => {
       await descInput.fill(`Transfer E2E ${TEST_PREFIX}`);
     }
 
-    // Source account — first option
+    // Source account - first option
     await selectFirstComboboxOption(authPage, "cashAccountId");
 
-    // Destination account — must be different, so we need the second option
+    // Destination account - must be different, so we need the second option
     const destInput = authPage.locator("#destinationCashAccountId");
     await destInput.click();
     await authPage.waitForTimeout(600);
@@ -378,7 +378,7 @@ test.describe("Transactions - Credit Purchase", () => {
       await descInput.fill(`Pembelian kredit E2E ${TEST_PREFIX}`);
     }
 
-    // Supplier — create new via allowCreate
+    // Supplier - create new via allowCreate
     await createNewComboboxOption(authPage, "partyName", `Supplier Test ${TEST_PREFIX}`);
 
     // Cash account (optional for credit purchase? Actually showCashAccount is true,
@@ -417,7 +417,7 @@ test.describe("Verify created transactions", () => {
     await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
     await authPage.waitForTimeout(3000);
 
-    // May show TRX- numbers or empty state — either is OK as long as no crash
+    // May show TRX- numbers or empty state - either is OK as long as no crash
     await expect(authPage.locator("body")).not.toContainText(
       "Error handled by React Router", { timeout: 5000 }
     );

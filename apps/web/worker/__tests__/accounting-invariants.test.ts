@@ -177,7 +177,7 @@ describe("Accounting Invariants", () => {
       const { getBalanceSheet, getTrialBalance } = await import("../services/reports.service");
       expect(getBalanceSheet).toBeDefined();
       expect(getTrialBalance).toBeDefined();
-      // Full balance-sheet assertion requires D1 — covered in golden scenarios
+      // Full balance-sheet assertion requires D1 - covered in golden scenarios
     });
 
     it("balance sheet equation can be computed from trial balance data", () => {
@@ -187,7 +187,7 @@ describe("Accounting Invariants", () => {
         { account_id: "a2", account_code: 2100, account_name: "Utang", account_type: "liability", normal_balance: "credit", debit_total: 0, credit_total: 2_000_000, ending_debit: 0, ending_credit: 2_000_000 },
         { account_id: "a3", account_code: 3100, account_name: "Modal", account_type: "equity", normal_balance: "credit", debit_total: 0, credit_total: 8_000_000, ending_debit: 0, ending_credit: 8_000_000 },
       ];
-      // Calculate from trial balance — verifies the reduce aggregation works
+      // Calculate from trial balance - verifies the reduce aggregation works
       const totalAssets = trialBalance.filter(a => a.normal_balance === "debit").reduce((s, r) => s + r.ending_debit - r.ending_credit, 0);
       const totalLiabilitiesEquity = trialBalance.filter(a => a.normal_balance === "credit").reduce((s, r) => s + r.ending_credit - r.ending_debit, 0);
       expect(totalAssets).toBe(totalLiabilitiesEquity); // A = L + E

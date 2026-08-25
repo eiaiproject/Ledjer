@@ -48,7 +48,7 @@ export function ResetPasswordPage() {
   useEffect(() => {
     if (loading) return;
     if (!session) {
-      // No session — recovery link missing or expired.
+      // No session - recovery link missing or expired.
       // Don't auto-redirect; explain so the user knows why.
     }
   }, [session, loading]);

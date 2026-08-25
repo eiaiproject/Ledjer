@@ -12,7 +12,7 @@
 import type { Page } from "@playwright/test";
 import { waitForAppReady } from "./ready";
 
-/** Fixed date for all visual tests — ensures deterministic output */
+/** Fixed date for all visual tests - ensures deterministic output */
 export const FIXED_DATE = "2026-06-15T10:00:00.000Z";
 export const FIXED_DATE_OBJ = new Date(FIXED_DATE);
 

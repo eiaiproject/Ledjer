@@ -1366,7 +1366,7 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       const { db } = createSeedFixtures();
       const { postTransaction } = await import("../services/transactions.service");
 
-      // AR account (1200) is NOT a cash account — transfer should fail
+      // AR account (1200) is NOT a cash account - transfer should fail
       await expect(postTransaction(
         db as unknown as D1Database,
         FIXTURE_IDS.orgs.a,
@@ -1574,7 +1574,7 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       const { postTransaction } = await import("../services/transactions.service");
 
       // Use seed fixtures with Widget A stock = 100 units (100,000 milli)
-      // Try selling 150 units — should fail with insufficient_stock
+      // Try selling 150 units - should fail with insufficient_stock
       const { db } = createSeedFixtures();
 
       await expect(postTransaction(
@@ -1596,7 +1596,7 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
     });
   });
 
-  describe("P0.5: Transaction correction — replacement links", () => {
+  describe("P0.5: Transaction correction - replacement links", () => {
     it("postTransaction with originalTransactionId does not throw", async () => {
       const { db } = createSeedFixtures();
       const { postTransaction, voidTransaction } = await import("../services/transactions.service");

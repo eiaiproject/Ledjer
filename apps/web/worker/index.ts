@@ -46,7 +46,7 @@ app.use("*", async (c, next) => {
 app.use("*", requestLogger());
 app.use("*", metricsMiddleware());
 // ponytail: CSP for static HTML SPA enforced via Cloudflare _headers file.
-// Worker does not set CSP headers — _headers is the single source of truth.
+// Worker does not set CSP headers - _headers is the single source of truth.
 // API JSON responses don't need CSP (no HTML execution context).
 app.use("*", secureHeaders({}));
 // ponytail: Custom CSRF check with origin validation against APP_ORIGIN.
@@ -64,7 +64,7 @@ app.use("/api/*", async (c, next) => {
   const allowed = c.env.APP_ORIGIN;
 
   // Local builds (vite preview, wrangler dev) run with APP_ENV=development
-  // via vite.config.ts customizer / .dev.vars — trust the local origin.
+  // via vite.config.ts customizer / .dev.vars - trust the local origin.
   if (c.env.APP_ENV === "development") return next();
 
   if (!origin) {
@@ -75,17 +75,17 @@ app.use("/api/*", async (c, next) => {
       }
       return c.json({ error: { code: "csrf_missing_origin", message: "Missing Origin header with session cookie" } }, 403);
     }
-    return next(); // No session cookie — public endpoint (health, login)
+    return next(); // No session cookie - public endpoint (health, login)
   }
 
   if (!allowed) {
-    // In production, APP_ORIGIN must be configured — deny all origins if missing
+    // In production, APP_ORIGIN must be configured - deny all origins if missing
     if (c.env.APP_ENV === "production") {
       return c.json({ error: { code: "csrf_misconfigured", message: "Server misconfigured" } }, 500);
     }
     return next(); // dev mode: allow all
   }
-  // Origin is origin-only; Referer (fallback) includes path — compare by URL origin.
+  // Origin is origin-only; Referer (fallback) includes path - compare by URL origin.
   const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
   const ok = allowedList.some((a) => {
     if (origin === a) return true;
