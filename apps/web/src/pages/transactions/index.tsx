@@ -57,6 +57,8 @@ function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty,
   return null;
 }
 import { queryKeys } from "@/lib/query-keys";
+import { voidTransaction } from "@/lib/api/transactions";
+import { useQueryClient } from "@tanstack/react-query";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { formatIDR, formatShortDate, localDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
@@ -74,6 +76,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { PageToolbar } from "@/components/ui/page-toolbar";
 import { Card } from "@/components/ui/card";
 import { PageGuide } from "@/components/ui/page-guide";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   listTransactions,
   type TransactionStatus,
@@ -298,6 +301,29 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
     else setSelectedIds(new Set(allPageIds));
   };
   const clearSelection = () => setSelectedIds(new Set());
+  const queryClient = useQueryClient();
+  const [bulkVoiding, setBulkVoiding] = useState(false);
+  const [confirmBulkVoid, setConfirmBulkVoid] = useState(false);
+  const handleBulkVoid = async () => {
+    if (bulkVoiding || selectedIds.size === 0) return;
+    setBulkVoiding(true);
+    const ids = [...selectedIds];
+    const results = await Promise.allSettled(
+      ids.map((id) => voidTransaction(id, "Void massal dari daftar transaksi", crypto.randomUUID())),
+    );
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.length - ok;
+    if (ok > 0) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
+      toast.success(`${ok} transaksi dibatalkan${failed > 0 ? `, ${failed} gagal` : ""}`);
+    } else {
+      toast.error("Semua void gagal - coba lagi");
+    }
+    setSelectedIds(new Set());
+    setBulkVoiding(false);
+    setConfirmBulkVoid(false);
+  };
 
   const handleExport = async () => {
     if (!orgData?.organization?.id || dateRangeInvalid || exporting) return;
@@ -445,11 +471,24 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
         <div className="flex items-center justify-between rounded-lg border border-wood-200 bg-wood-50 px-3 py-2 text-sm">
           <span className="font-medium text-wood-700">{selectedIds.size} dipilih</span>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={clearSelection}>Batal</Button>
-            <Button type="button" variant="primary" size="sm" onClick={() => toast.success(`${selectedIds.size} void batch - implementasi menyusul`)}>Void Terpilih</Button>
+            <Button type="button" variant="outline" size="sm" onClick={clearSelection} disabled={bulkVoiding}>Batal</Button>
+            <Button type="button" variant="primary" size="sm" onClick={() => setConfirmBulkVoid(true)} disabled={bulkVoiding}>
+              {bulkVoiding ? "Membatalkan..." : `Void ${selectedIds.size} Terpilih`}
+            </Button>
           </div>
         </div>
       )}
+
+      {/* Bulk void confirmation */}
+      <ConfirmDialog
+        open={confirmBulkVoid}
+        onClose={() => setConfirmBulkVoid(false)}
+        onConfirm={handleBulkVoid}
+        title="Void transaksi terpilih?"
+        message={`${selectedIds.size} transaksi akan dibatalkan dengan jurnal pembalik otomatis. Tindakan ini tercatat di audit log.`}
+        confirmLabel="Ya, Void"
+        loading={bulkVoiding}
+      />
 
       {/* Transaction list */}
       <Card elevated aria-label="Daftar transaksi" role="region">
