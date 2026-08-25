@@ -1279,6 +1279,170 @@ describe("Golden Accounting Scenarios (seeded fixtures)", () => {
       expect(result.reversal_transaction_id.length).toBeGreaterThan(0);
       expect(result.reversal_journal_entry_ids.length).toBeGreaterThanOrEqual(1);
     });
+
+    it("void keeps original journal POSTED (reversal nets to zero, no double-reversal)", async () => {
+      const { voidTransaction } = await import("../services/transactions.service");
+      const { FIXTURE_IDS } = await import("../test/fixtures");
+      const { FakeD1Database } = await import("../test/fake-d1");
+
+      const executedSql: string[] = [];
+      const db2 = new FakeD1Database({
+        first: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("FROM products WHERE")) {
+            return null; // non-product sale
+          }
+          if (s.includes("FROM transactions t") && s.includes("t.id =")) {
+            return {
+              id: "txn-void-np-001", organization_id: FIXTURE_IDS.orgs.a,
+              transaction_number: "TRX-VOID-NP", transaction_date: "2026-02-20",
+              transaction_type: "cash_sale", amount_minor: 29000,
+              party_id: null, party_name: null, category_name: null,
+              cash_account_id: null, destination_cash_account_id: null,
+              payment_status: "paid", due_date: null,
+              description: "Void test", notes: null,
+              status: "posted", idempotency_key: null,
+              posted_at: Date.now(), voided_at: null, void_reason: null,
+              original_transaction_id: null, reversal_transaction_id: null,
+              created_by: FIXTURE_IDS.users.ownerA, created_by_name: "Owner A",
+              created_at: Date.now(),
+            };
+          }
+          if (s.includes("MAX(transaction_number")) return { "MAX(transaction_number)": 0 };
+          if (s.includes("MAX(entry_number")) return { "MAX(entry_number)": 0 };
+          if (s.includes("current_value")) return { current_value: 1 };
+          if (s.includes("FROM period_locks")) return null;
+          if (s.includes("FROM organizations")) return { books_start_date: "2026-01-01" };
+          return null;
+        },
+        all: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("FROM journal_lines jl")) {
+            return [
+              { id: "jl-1", journal_entry_id: "je-orig-001",
+                account_id: FIXTURE_IDS.accounts.cashA,
+                debit_minor: 29000, credit_minor: 0,
+                description: "Penjualan", line_order: 1 },
+              { id: "jl-2", journal_entry_id: "je-orig-001",
+                account_id: FIXTURE_IDS.accounts.revenueA,
+                debit_minor: 0, credit_minor: 29000,
+                description: "Penjualan", line_order: 2 },
+            ];
+          }
+          if (s.includes("FROM journal_entries je")) return [];
+          if (s.includes("FROM transaction_lines")) return [];
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+        batch: (stmts: { sql: string; values: unknown[] }[]) => {
+          for (const s of stmts) {
+            executedSql.push(s.sql.replace(/\s+/g, " ").toLowerCase());
+            validateJournalLine(s.sql, s.values);
+          }
+          return stmts.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
+        },
+      });
+
+      await voidTransaction(
+        db2 as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        "txn-void-np-001",
+        { reason: "Salah input", idempotencyKey: "void-np-idem-01" },
+      );
+
+      // Original journal must STAY posted - the posted reversal nets it out.
+      // Voiding the journal too would double-shift balances (prod bug).
+      const voidedJournal = executedSql.find((s) =>
+        s.includes("update journal_entries") && s.includes("'voided'"));
+      expect(voidedJournal).toBeUndefined();
+      const reversalPosted = executedSql.find((s) =>
+        s.includes("insert into transactions") && s.includes("original_transaction_id"));
+      expect(reversalPosted).toBeDefined();
+    });
+
+    it("concurrent void race returns existing reversal instead of duplicating it", async () => {
+      const { voidTransaction } = await import("../services/transactions.service");
+      const { FIXTURE_IDS } = await import("../test/fixtures");
+      const { FakeD1Database } = await import("../test/fake-d1");
+
+      const db2 = new FakeD1Database({
+        first: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("t.original_transaction_id =") && s.includes("status = 'posted'")) {
+            // Winner of the race already created this reversal
+            return {
+              id: "txn-reversal-winner", organization_id: FIXTURE_IDS.orgs.a,
+              transaction_number: "TRX-REV-WIN", transaction_date: "2026-02-20",
+              transaction_type: "cash_sale", amount_minor: 29000,
+              party_id: null, party_name: null, category_name: null,
+              cash_account_id: null, destination_cash_account_id: null,
+              payment_status: "paid", due_date: null,
+              description: "Pembatalan: x", notes: null,
+              status: "posted", idempotency_key: "winner-key",
+              posted_at: Date.now(), voided_at: null, void_reason: null,
+              original_transaction_id: "txn-race-001", reversal_transaction_id: null,
+              created_by: FIXTURE_IDS.users.ownerA, created_by_name: "Owner A",
+              created_at: Date.now(),
+            };
+          }
+          if (s.includes("FROM transactions t") && s.includes("t.id =")) {
+            return {
+              id: "txn-race-001", organization_id: FIXTURE_IDS.orgs.a,
+              transaction_number: "TRX-RACE", transaction_date: "2026-02-20",
+              transaction_type: "cash_sale", amount_minor: 29000,
+              party_id: null, party_name: null, category_name: null,
+              cash_account_id: null, destination_cash_account_id: null,
+              payment_status: "paid", due_date: null,
+              description: "Race test", notes: null,
+              status: "posted", idempotency_key: null,
+              posted_at: Date.now(), voided_at: null, void_reason: null,
+              original_transaction_id: null, reversal_transaction_id: null,
+              created_by: FIXTURE_IDS.users.ownerA, created_by_name: "Owner A",
+              created_at: Date.now(),
+            };
+          }
+          if (s.includes("MAX(transaction_number")) return { "MAX(transaction_number)": 0 };
+          if (s.includes("MAX(entry_number")) return { "MAX(entry_number)": 0 };
+          if (s.includes("current_value")) return { current_value: 1 };
+          if (s.includes("FROM period_locks")) return null;
+          if (s.includes("FROM organizations")) return { books_start_date: "2026-01-01" };
+          return null;
+        },
+        all: async (sql: string) => {
+          const s = sql.replace(/\s+/g, " ");
+          if (s.includes("FROM journal_lines jl")) {
+            return [
+              { id: "jl-r1", journal_entry_id: "je-race-001",
+                account_id: FIXTURE_IDS.accounts.cashA,
+                debit_minor: 29000, credit_minor: 0,
+                description: "Penjualan", line_order: 1 },
+              { id: "jl-r2", journal_entry_id: "je-race-001",
+                account_id: FIXTURE_IDS.accounts.revenueA,
+                debit_minor: 0, credit_minor: 29000,
+                description: "Penjualan", line_order: 2 },
+            ];
+          }
+          return [];
+        },
+        run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+        batch: () => {
+          // Unique index idx_transactions_one_reversal_per_original rejects the loser
+          throw new Error("UNIQUE constraint failed: transactions.organization_id, transactions.original_transaction_id");
+        },
+      });
+
+      const result = await voidTransaction(
+        db2 as unknown as D1Database,
+        FIXTURE_IDS.orgs.a,
+        FIXTURE_IDS.users.ownerA,
+        "txn-race-001",
+        { reason: "Race loser", idempotencyKey: "loser-key" },
+      );
+
+      expect(result.status).toBe("voided");
+      expect(result.reversal_transaction_id).toBe("txn-reversal-winner");
+    });
   });
 
   describe("P0.4: Report drill-down (TB → GL → transactions)", () => {
