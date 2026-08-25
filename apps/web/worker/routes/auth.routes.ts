@@ -46,7 +46,7 @@ import {
 } from "../services/session.service";
 import { logAuthEvent } from "../services/auth-audit.service";
 
-// RFC 2606 reserved example domains — blocked to prevent email send errors
+// RFC 2606 reserved example domains - blocked to prevent email send errors
 const BLOCKED_EMAIL_DOMAINS = new Set(["example.com", "example.org", "example.net", "example.edu"]);
 
 const emailSchema = z.email()
@@ -322,7 +322,7 @@ authRoutes.get("/google/callback", async (c) => {
   }
 
   try {
-    // ponytail: use only the first origin — same as /google/start.
+    // ponytail: use only the first origin - same as /google/start.
     const origin = (c.env.APP_ORIGIN || new URL(c.req.url).origin).split(",")[0].trim();
     const redirectUri = `${origin}/api/auth/google/callback`;
 

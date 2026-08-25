@@ -24,7 +24,7 @@ const SUPPORT_URL = "https://trakteer.id/eiaiproject/tip";
 
 // ── Public Pages ────────────────────────────────────────────────
 
-test.describe("Landing page — support & free access copy", () => {
+test.describe("Landing page - support & free access copy", () => {
   test('menampilkan "Saat ini gratis digunakan" pada hero', async ({ page }) => {
     await page.goto("/");
     await waitForAppReady(page);
@@ -98,7 +98,7 @@ test.describe("Landing page — support & free access copy", () => {
   });
 });
 
-test.describe("Landing page — Trakteer CTA", () => {
+test.describe("Landing page - Trakteer CTA", () => {
   test("CTA Trakteer pada section akses menggunakan URL resmi", async ({ page }) => {
     await page.goto("/");
     await waitForAppReady(page);
@@ -124,7 +124,7 @@ test.describe("Landing page — Trakteer CTA", () => {
   });
 });
 
-test.describe("Footer — support link", () => {
+test.describe("Footer - support link", () => {
   test("Footer memiliki link dukungan yang benar", async ({ page }) => {
     await page.goto("/");
     await waitForAppReady(page);
@@ -138,7 +138,7 @@ test.describe("Footer — support link", () => {
   });
 });
 
-test.describe("Register page — free access copy", () => {
+test.describe("Register page - free access copy", () => {
   test('menampilkan "Gratis digunakan saat ini"', async ({ page }) => {
     await page.goto("/register");
     await waitForAppReady(page);
@@ -171,7 +171,7 @@ test.describe("404 page", () => {
 
 // ── Authenticated Pages (requires valid E2E credentials) ────────
 
-authTest.describe("Support banner — authenticated pages", () => {
+authTest.describe("Support banner - authenticated pages", () => {
   // Reset localStorage cooldown before each banner test agar banner selalu muncul
   authTest.beforeEach(async ({ authPage }) => {
     await authPage.evaluate(() => {
@@ -222,7 +222,7 @@ authTest.describe("Support banner — authenticated pages", () => {
   });
 });
 
-authTest.describe("Sidebar support link — app menu", () => {
+authTest.describe("Sidebar support link - app menu", () => {
   authTest("Sidebar memiliki link 'Traktir pengembang' dengan URL resmi", async ({ authPage }) => {
     await authPage.goto("/dashboard");
     await waitForAppReady(authPage);

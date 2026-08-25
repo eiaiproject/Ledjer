@@ -26,7 +26,7 @@ healthRoutes.get("/", async (c) => {
   });
 });
 
-/** Readiness check — verifies all upstream dependencies. */
+/** Readiness check - verifies all upstream dependencies. */
 healthRoutes.get("/ready", async (c) => {
   const checks: Record<string, string> = {};
   let allOk = true;

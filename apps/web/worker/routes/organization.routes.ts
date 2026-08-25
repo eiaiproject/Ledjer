@@ -16,7 +16,7 @@ import {
 
 const businessTypeSchema = z.enum(["service", "simple_trading"]);
 
-// ponytail: frontend sends { accountCode, openingBalance, description } —
+// ponytail: frontend sends { accountCode, openingBalance, description } -
 // accept both old and new formats until frontend is migrated.
 const extraOpeningBalanceSchema = z.object({
   accountCode: z.string().min(1).optional(),

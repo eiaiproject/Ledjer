@@ -34,7 +34,7 @@
 
 1. Verify identity.
 2. Validate the correction.
-3. Update user profile fields (not financial records — those are immutable).
+3. Update user profile fields (not financial records - those are immutable).
 4. Log the correction in audit trail.
 5. **Timeline**: Complete within 7 days.
 

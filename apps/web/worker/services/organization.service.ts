@@ -63,7 +63,7 @@ export interface OrganizationState {
 export interface ExtraOpeningBalanceInput {
   accountId?: string;
   amount?: number;
-  // frontend format — resolved to accountId by code
+  // frontend format - resolved to accountId by code
   accountCode?: string;
   openingBalance?: number;
   description?: string;
@@ -394,7 +394,7 @@ async function postOpeningBalances(
   current: number,
 ): Promise<void> {
   // ponytail: assertBooksOpen is deliberately skipped here because opening balances
-  // are posted at books_start_date — the boundary itself. assertPeriodOpen is also
+  // are posted at books_start_date - the boundary itself. assertPeriodOpen is also
   // skipped because no period lock can exist before an org's creation.
   const openingBalanceAccountId = await findAccountIdByCode(db, organizationId, "3200");
   if (!openingBalanceAccountId) {

@@ -1,4 +1,4 @@
-// Mirrors apps/web/worker/db/schema.ts — kept in sync manually. The admin
+// Mirrors apps/web/worker/db/schema.ts - kept in sync manually. The admin
 // worker backs up the same tables as the main worker so manifests match.
 export const CORE_TABLES = [
   "users",

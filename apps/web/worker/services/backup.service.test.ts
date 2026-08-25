@@ -493,7 +493,7 @@ describe("Backup Service", () => {
     manifest.sha256 = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
     await bucket.put(`backups/${dateStr}/manifest.json`, JSON.stringify(manifest, null, 2));
 
-    // Empty target DB — any table query returns { count: 0 }
+    // Empty target DB - any table query returns { count: 0 }
     const db = new FakeD1Database({
       first: async (sql: string) => {
         // Orphan check query: handle this before table matching

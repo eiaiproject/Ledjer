@@ -76,10 +76,9 @@ const NAV_ITEMS: NavItemWithPerm[] = [
   },
 ];
 
-// Mobile bottom nav keeps only the most-used destinations as quick tabs.
-// Penjualan (invoices) & Kas & Bank (Chart of Accounts) are rarely used by
-// casual users — they stay reachable via the "Lainnya" mobile menu instead.
-const BOTTOM_NAV_ROUTES: ReadonlySet<string> = new Set(["/dashboard", "/transactions", "/products"]);
+// Mobile bottom nav: 4 quick tabs + Lainnya. Kas & Bank added to quick access
+// (daily use for UMKM), Penjualan stays in Lainnya for casual users.
+const BOTTOM_NAV_ROUTES: ReadonlySet<string> = new Set(["/dashboard", "/transactions", "/products", "/accounts"]);
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -90,12 +89,12 @@ export function DashboardLayout() {
   const navPermissions = useOrgPermissions();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(["Laporan", "Pengaturan"]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // P1.4: Onboarding guard — redirect to onboarding if not completed
+  // P1.4: Onboarding guard - redirect to onboarding if not completed
   useEffect(() => {
     if (orgData?.needsOnboarding) {
       navigate("/onboarding", { replace: true });
@@ -124,7 +123,7 @@ export function DashboardLayout() {
     return (navPermissions as Record<string, boolean>)[item.requires] === true;
   });
 
-  // Bottom nav (mobile) tabs — subset of the top-level destinations.
+  // Bottom nav (mobile) tabs - subset of the top-level destinations.
   const bottomNavItems = visibleNavItems.filter(
     (item) => !item.children && BOTTOM_NAV_ROUTES.has(item.to ?? ""),
   );
@@ -170,7 +169,7 @@ export function DashboardLayout() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Sentry Feedback widget — only visible inside dashboard layout
+  // Sentry Feedback widget - only visible inside dashboard layout
   useEffect(() => {
     const feedback = Sentry.getFeedback() as { createWidget: (opts?: Record<string, unknown>) => { remove: () => void } } | undefined;
     if (!feedback) return;
@@ -209,7 +208,7 @@ export function DashboardLayout() {
 
   return (
     <div className="ledger-min-dvh bg-background">
-      {/* Skip to content link — WCAG 2.4.1 */}
+      {/* Skip to content link - WCAG 2.4.1 */}
       <a
         href="#main-content"
         onClick={(e) => { e.preventDefault(); handleSkipToContent(); }}
@@ -254,7 +253,7 @@ export function DashboardLayout() {
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const children = item.children;
-              const isExpanded = expandedMenus.includes(item.label);
+              const isExpanded = expandedMenus.includes(item.label) || (children ? isParentActive(children) : false);
               const active = children ? isParentActive(children) : isActive(item.to!);
               const menuId = `desktop-nav-${item.label.toLowerCase()}`;
 
@@ -400,7 +399,7 @@ export function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Mobile Header — ledger-safe-top keeps content below the status bar on
+      {/* Mobile Header - ledger-safe-top keeps content below the status bar on
           notched phones and Android 15 edge-to-edge devices */}
       <div className="ledger-safe-top fixed top-0 inset-x-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
@@ -475,6 +474,7 @@ export function DashboardLayout() {
                 const active = children
                   ? isParentActive(children)
                   : isActive(item.to!);
+                const isExpanded = children ? expandedMenus.includes(item.label) || isParentActive(children) : false;
                 const menuId = `mobile-nav-${item.label.toLowerCase()}`;
 
                 if (children) {
@@ -482,7 +482,7 @@ export function DashboardLayout() {
                     <li key={item.label}>
                       <button                         type="button"
                         onClick={() => toggleMenu(item.label)}
-                        aria-expanded={expandedMenus.includes(item.label)}
+                        aria-expanded={isExpanded}
                         aria-controls={menuId}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px]",
@@ -496,11 +496,11 @@ export function DashboardLayout() {
                         <ChevronDown
                           className={cn(
                             "h-4 w-4 transition-transform",
-                            expandedMenus.includes(item.label) && "rotate-180"
+                            isExpanded && "rotate-180"
                           )}
                         />
                       </button>
-                      {expandedMenus.includes(item.label) && (
+                      {isExpanded && (
                         <ul id={menuId} className="mt-1 ml-8 space-y-1">
                           {children.map((child) => (
                             <li key={child.to}>
@@ -615,7 +615,7 @@ export function DashboardLayout() {
         </div>
         <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
         <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
-          {/* Value-moment support banner — hidden on transaction input & error pages */}
+          {/* Value-moment support banner - hidden on transaction input & error pages */}
           {location.pathname !== "/transactions/new" && (
             <SupportBanner className="mb-4 md:mb-6" />
           )}
@@ -627,7 +627,7 @@ export function DashboardLayout() {
         className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
         aria-label="Navigasi mobile"
       >
-        {/* flex-1 items + label truncation keep every tab visible on phones —
+        {/* flex-1 items + label truncation keep every tab visible on phones -
             no horizontal scroll (was ~400px wide, wider than all phones) */}
         <div className="mx-auto flex w-full max-w-md items-stretch gap-0.5 px-1.5">
           {bottomNavItems.map((item) => {

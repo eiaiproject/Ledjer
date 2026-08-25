@@ -48,7 +48,7 @@ jobs:
           wranglerVersion: 4.123.0
           command: deploy
 
-      # Use the workers.dev URL — bypasses the Cloudflare bot challenge that
+      # Use the workers.dev URL - bypasses the Cloudflare bot challenge that
       # returns 403 on the public docs.ledjer.id domain when accessed from CI
       # (same pattern as auto-deploy.yml).
       - name: Post-deploy smoke check

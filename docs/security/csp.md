@@ -15,7 +15,7 @@ Content-Security-Policy:
 
 ## Rationale
 
-- **`script-src 'unsafe-inline'`**: Currently present in both dev and prod (`apps/web/public/_headers`, `apps/admin/public/_headers`). Required for Vite/HMR and some inline handlers. Not mitigated by hashing in current prod build — still `unsafe-inline`. Planned: nonce/hash-based CSP (backlog B5).
+- **`script-src 'unsafe-inline'`**: Currently present in both dev and prod (`apps/web/public/_headers`, `apps/admin/public/_headers`). Required for Vite/HMR and some inline handlers. Not mitigated by hashing in current prod build - still `unsafe-inline`. Planned: nonce/hash-based CSP (backlog B5).
 - **`style-src 'unsafe-inline'`**: Required for Tailwind CSS inline styles. Prod extracts to CSS files but header still includes `unsafe-inline` as safety net; remove when Worker serves nonce'd HTML.
 - **`object-src 'none'`**: Prevents plugin loading (Flash, Java, etc.).
 - **`frame-ancestors 'none'`**: Prevents clickjacking.

@@ -86,7 +86,7 @@ export function AuditLogsPage() {
           {entry.actor_email ?? (entry.entity_type === "admin" ? "Admin" : "Sistem")}
         </td>
         <td data-label="Organisasi" className="px-4 py-3 text-xs text-text-secondary">
-          {entry.organization_name ?? (entry.organization_id ? entry.organization_id.slice(0, 8) : "—")}
+          {entry.organization_name ?? (entry.organization_id ? entry.organization_id.slice(0, 8) : "-")}
         </td>
         <td data-label="Aksi" className="px-4 py-3">
           <Badge tone={entry.action.includes("delete") || entry.action.includes("disabled") ? "danger" : "info"}>
@@ -122,7 +122,7 @@ export function AuditLogsPage() {
 
         <div className="flex items-center justify-between border-t border-border-subtle px-4 py-3 text-sm">
           <span className="text-text-secondary">
-            {data.total.toLocaleString("id-ID")} entri — halaman {page} dari {totalPages}
+            {data.total.toLocaleString("id-ID")} entri - halaman {page} dari {totalPages}
           </span>
           <div className="flex gap-2">
             <Button variant="secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>

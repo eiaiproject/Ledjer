@@ -25,7 +25,7 @@ export default defineConfig({
   },
   title: "Docs",
   description:
-    "Panduan penggunaan Ledjer — aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan.",
+    "Panduan penggunaan Ledjer - aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan.",
   cleanUrls: true,
   head: [
     ["link", { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
@@ -56,7 +56,7 @@ export default defineConfig({
       "meta",
       {
         property: "og:title",
-        content: "Ledjer Docs — Panduan Pembukuan UMKM",
+        content: "Ledjer Docs - Panduan Pembukuan UMKM",
       },
     ],
     [
@@ -94,7 +94,7 @@ export default defineConfig({
       { text: "FAQ", link: "/faq" },
       { text: "API", link: "/api" },
       {
-        // Registration flow — stay in the same tab (docs should not hold the
+        // Registration flow - stay in the same tab (docs should not hold the
         // user hostage in a new tab). rel is still set for the external origin.
         text: "Buka Aplikasi",
         link: "https://ledjer.id",
@@ -161,13 +161,13 @@ export default defineConfig({
     darkModeSwitchLabel: "Tampilan",
     externalLinkIcon: true,
     footer: {
-      message: "<strong>Ledjer</strong> — pembukuan double-entry untuk UMKM Indonesia.",
+      message: "<strong>Ledjer</strong> - pembukuan double-entry untuk UMKM Indonesia.",
       copyright: `© ${new Date().getFullYear()} Ledjer. Hak cipta dilindungi.`,
     },
     socialLinks: [
       { icon: "github", link: "https://github.com/eiaiproject/Ledjer" },
     ],
-    // Kolom footer — dirender oleh komponen VPFooter kustom.
+    // Kolom footer - dirender oleh komponen VPFooter kustom.
     footerLinks: [
       { text: "Memulai", link: "/mulai" },
       { text: "Panduan", link: "/panduan/mencatat-transaksi" },

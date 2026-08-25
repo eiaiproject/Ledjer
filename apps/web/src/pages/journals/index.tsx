@@ -50,7 +50,7 @@ interface LineEntry {
 
 type JournalStatusTone = "neutral" | "warning" | "error" | "success";
 
-/** Tailwind classes per status tone — lookup map instead of a nested ternary. */
+/** Tailwind classes per status tone - lookup map instead of a nested ternary. */
 const TONE_CLASSES: Record<JournalStatusTone, string> = {
   success: "border-leaf-200 bg-leaf-50 text-leaf-800",
   error: "border-error-border bg-error-bg text-error",
@@ -102,7 +102,7 @@ export function ManualJournalPage() {
   const difference = Math.abs(totalDebit - totalCredit);
   const rupiah = (n: number) => n.toLocaleString("id-ID");
 
-  // Status panduan inline — menjelaskan apa yang kurang agar tombol bisa dipakai
+  // Status panduan inline - menjelaskan apa yang kurang agar tombol bisa dipakai
   const missingDescription = description.trim().length === 0;
   const missingAccount = lines.some((l) => !l.accountId);
   const status: { tone: JournalStatusTone; text: string } = (() => {
@@ -111,14 +111,14 @@ export function ManualJournalPage() {
     if (!balanced) {
       return {
         tone: "error",
-        text: `Jurnal belum balance — selisih Rp ${rupiah(difference)}. Samakan total Debit dan Kredit.`,
+        text: `Jurnal belum balance - selisih Rp ${rupiah(difference)}. Samakan total Debit dan Kredit.`,
       };
     }
     if (!preview) return { tone: "warning", text: "Jurnal sudah balance. Klik Preview untuk memeriksa, lalu Posting Jurnal." };
-    return { tone: "success", text: "Jurnal balance — siap diposting." };
+    return { tone: "success", text: "Jurnal balance - siap diposting." };
   })();
 
-  // Preview dianggap basi jika jurnal berubah setelah preview — cegah
+  // Preview dianggap basi jika jurnal berubah setelah preview - cegah
   // posting data lama yang tidak sesuai isian terakhir.
   const invalidatePreview = useCallback(() => setPreview(null), []);
 
@@ -358,7 +358,7 @@ export function ManualJournalPage() {
               <span></span>
             </div>
             <p className="text-xs text-text-tertiary">
-              Masukkan nominal dalam Rupiah — contoh: <strong>100000</strong> = Rp 100.000.
+              Masukkan nominal dalam Rupiah - contoh: <strong>100000</strong> = Rp 100.000.
             </p>
 
             {lines.map((line, index) => (
@@ -393,7 +393,7 @@ export function ManualJournalPage() {
                 )}
                 {!line.accountName && <div className="hidden sm:block" />}
 
-                {/* Debit — nominal dalam Rupiah (bukan sen); pemisah ribuan otomatis */}
+                {/* Debit - nominal dalam Rupiah (bukan sen); pemisah ribuan otomatis */}
                 <input
                   type="text"
                   inputMode="numeric"
@@ -404,7 +404,7 @@ export function ManualJournalPage() {
                   aria-label={`Debit baris ${index + 1}`}
                 />
 
-                {/* Credit — nominal dalam Rupiah (bukan sen); pemisah ribuan otomatis */}
+                {/* Credit - nominal dalam Rupiah (bukan sen); pemisah ribuan otomatis */}
                 <input
                   type="text"
                   inputMode="numeric"
@@ -475,7 +475,7 @@ export function ManualJournalPage() {
             </Callout>
           )}
 
-          {/* Status panduan inline — selalu terlihat */}
+          {/* Status panduan inline - selalu terlihat */}
           <div
             role="status"
             aria-live="polite"

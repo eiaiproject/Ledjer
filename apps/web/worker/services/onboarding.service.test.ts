@@ -77,7 +77,7 @@ describe("Onboarding Service", () => {
         if (s.includes("FROM organization_members")) return { count: 4 };
         // period locks (for first_period_close step)
         if (s.includes("FROM period_locks")) return { count: 1 };
-        // Org created_at (for view_first_report step — need timestamp > 1 hour ago)
+        // Org created_at (for view_first_report step - need timestamp > 1 hour ago)
         if (s.includes("created_at")) return { created_at: Date.now() - 3_600_000 * 2 };
         return { count: 0 };
       },

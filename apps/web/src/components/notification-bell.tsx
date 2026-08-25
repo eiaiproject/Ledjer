@@ -64,7 +64,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Unread count — poll every 60s
+  // Unread count - poll every 60s
   const { data: unreadData } = useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: getUnreadCount,
@@ -123,7 +123,7 @@ export function NotificationBell() {
     }
   }, [navigate, markReadMutation]);
 
-  // S3358 — flatten nested ternary into if/else
+  // S3358 - flatten nested ternary into if/else
   let notificationListContent: React.ReactNode;
   if (isLoading) {
     notificationListContent = (
@@ -142,7 +142,7 @@ export function NotificationBell() {
     notificationListContent = (
       <div className="divide-y divide-wood-100">
         {notifications.map((notif) => (
-          <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 — can't nest <button> inside <button>
+          <div // NOSONAR typescript:S6848,typescript:S6845,typescript:S6819 - can't nest <button> inside <button>
             key={notif.id}
             role="button"
             tabIndex={0}

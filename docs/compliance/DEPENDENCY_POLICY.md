@@ -4,8 +4,8 @@
 
 | Severity | CI Action | Exception Required |
 |----------|-----------|-------------------|
-| Critical | Fail | Yes — owner approval, 7-day expiry, documented compensating control |
-| High | Fail | Yes — owner approval, 30-day expiry, documented compensating control |
+| Critical | Fail | Yes - owner approval, 7-day expiry, documented compensating control |
+| High | Fail | Yes - owner approval, 30-day expiry, documented compensating control |
 | Medium | Warn | No |
 | Low | Warn | No |
 

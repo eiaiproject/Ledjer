@@ -106,7 +106,7 @@ describe("SupportBanner", () => {
     });
 
     it("does not show again after dismissal within cooldown period", () => {
-      // First render — dismiss
+      // First render - dismiss
       const { unmount } = render(<SupportBanner />);
       const dismissBtn = screen.getByRole("button", {
         name: /Tutup pemberitahuan dukungan/i,
@@ -114,7 +114,7 @@ describe("SupportBanner", () => {
       fireEvent.click(dismissBtn);
       unmount();
 
-      // Second render — should be hidden (within 7-day cooldown)
+      // Second render - should be hidden (within 7-day cooldown)
       render(<SupportBanner />);
       expect(screen.queryByRole("status")).toBeNull();
     });
@@ -122,7 +122,7 @@ describe("SupportBanner", () => {
 
   describe("forceShow", () => {
     it("shows banner even when previously dismissed", () => {
-      // First — dismiss
+      // First - dismiss
       const { unmount } = render(<SupportBanner />);
       const dismissBtn = screen.getByRole("button", {
         name: /Tutup pemberitahuan dukungan/i,
@@ -130,7 +130,7 @@ describe("SupportBanner", () => {
       fireEvent.click(dismissBtn);
       unmount();
 
-      // Second — force show overrides dismissal
+      // Second - force show overrides dismissal
       render(<SupportBanner forceShow />);
       expect(screen.getByRole("status")).toBeTruthy();
     });

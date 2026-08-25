@@ -18,7 +18,7 @@ Gunakan password yang berbeda dari email/media sosial Anda. Jangan berikan ke si
 
 1. Buka **Pengaturan → Keamanan**.
 2. Masukkan password saat ini, lalu password baru.
-3. Semua sesi login di perangkat lain **otomatis keluar** — aman jika password bocor.
+3. Semua sesi login di perangkat lain **otomatis keluar** - aman jika password bocor.
 
 ## Mengelola sesi
 
@@ -26,22 +26,22 @@ Ledjer menggunakan sesi login yang:
 
 - **Berakhir otomatis** setelah 14 hari sejak masuk, atau setelah 1 jam tidak aktif
 - **Diperbarui (rotasi)** setiap 7 hari agar token yang bocor tidak bisa dipakai lama
-- **Satu sesi per perangkat** — keluar (logout) mencabut sesi perangkat itu
+- **Satu sesi per perangkat** - keluar (logout) mencabut sesi perangkat itu
 
-Jika ponsel/laptop hilang, segera **ubah password** dari perangkat lain — ini mencabut semua sesi.
+Jika ponsel/laptop hilang, segera **ubah password** dari perangkat lain - ini mencabut semua sesi.
 
 ## Masuk dengan Google
 
-Anda bisa masuk dengan akun Google. Perangkat Anda tetap aman selama akun Google Anda aman — aktifkan verifikasi dua langkah Google untuk lapisan ekstra.
+Anda bisa masuk dengan akun Google. Perangkat Anda tetap aman selama akun Google Anda aman - aktifkan verifikasi dua langkah Google untuk lapisan ekstra.
 
 ## Proteksi dari serangan
 
 Ledjer menerapkan lapisan keamanan otomatis:
 
-- **Pembatasan percobaan login** — setelah 5 gagal dalam 15 menit, login diblokir sementara
-- **Anti enumerasi email** — sistem tidak mengungkap apakah suatu email terdaftar
-- **Lampiran aman** — hanya file gambar/PDF yang valid yang bisa diunggah (10 MB maks)
-- **Isolasi data** — setiap organisasi hanya bisa melihat datanya sendiri, di semua lapisan
+- **Pembatasan percobaan login** - setelah 5 gagal dalam 15 menit, login diblokir sementara
+- **Anti enumerasi email** - sistem tidak mengungkap apakah suatu email terdaftar
+- **Lampiran aman** - hanya file gambar/PDF yang valid yang bisa diunggah (10 MB maks)
+- **Isolasi data** - setiap organisasi hanya bisa melihat datanya sendiri, di semua lapisan
 
 ## Menghapus akun
 

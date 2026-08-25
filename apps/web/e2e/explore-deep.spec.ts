@@ -96,7 +96,7 @@ test.describe("Deep Page Validation", () => {
 
   test("Invoice page returns proper error", async ({ authPage }) => {
     const resp = await authPage.goto("/transactions/invoice/FAKE", { waitUntil: "domcontentloaded" });
-    // Should handle gracefully — either 404 or redirect
+    // Should handle gracefully - either 404 or redirect
     expect(resp?.status() || 0).toBeLessThan(500);
   });
 });

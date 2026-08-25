@@ -25,7 +25,7 @@ export function isApiError(error: unknown): error is ApiError {
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
 /**
- * Fetch wrapper for admin endpoints. On 401 the session is gone —
+ * Fetch wrapper for admin endpoints. On 401 the session is gone -
  * bounce back to the login screen (admin has no public pages).
  */
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {

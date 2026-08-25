@@ -1,9 +1,9 @@
-# Ledjer — UI/UX Consistency, Proportion & Symmetry Audit (Round 2)
+# Ledjer - UI/UX Consistency, Proportion & Symmetry Audit (Round 2)
 
 **Date:** 2026-08-11
 **Method:** `apps/web/e2e/consistency-audit.spec.ts` (Playwright + Chromium)
 **Target:** `http://localhost:5173/` (local dev with full Worker backend + D1 + migrations applied)
-**Pages audited:** 10 public pages (authed pages deferred — see §6)
+**Pages audited:** 10 public pages (authed pages deferred - see §6)
 **Source data:** `apps/web/e2e/.audit-results.json`
 
 ---
@@ -43,21 +43,21 @@
 | Body text contrast | 15.12 across all | **15.12 across all** ✅ |
 | CTA contrast | 5.6 across all | **5.6 across all** ✅ |
 
-The two pages without chrome are intentional: `/reset-password` and `/refund` keep bespoke full-bleed layouts for the focused recovery flow and 404 — they're comment-marked in `App.tsx`.
+The two pages without chrome are intentional: `/reset-password` and `/refund` keep bespoke full-bleed layouts for the focused recovery flow and 404 - they're comment-marked in `App.tsx`.
 
 ---
 
 ## 1. Konsistensi (Consistency)
 
-### 1.1 Font family — PASS
+### 1.1 Font family - PASS
 
 Same single typeface: `"Plus Jakarta Sans", system-ui, -apple-system, sans-serif`. No drift. ✅
 
-### 1.2 Token usage — PASS
+### 1.2 Token usage - PASS
 
-All pages now route through `<PublicLayout>` (or landing's bespoke chrome). The audit's `tokens.fontSizes`, `tokens.radii`, `tokens.spacings` show only design-system values. Per-page CSS uses `bg-cream-100`, `text-text-primary`, `border-wood-200` — all token references, no hard-coded hex.
+All pages now route through `<PublicLayout>` (or landing's bespoke chrome). The audit's `tokens.fontSizes`, `tokens.radii`, `tokens.spacings` show only design-system values. Per-page CSS uses `bg-cream-100`, `text-text-primary`, `border-wood-200` - all token references, no hard-coded hex.
 
-### 1.3 Page chrome (header / main / footer) — PASS (8/10)
+### 1.3 Page chrome (header / main / footer) - PASS (8/10)
 
 | Page | header | main | nav | footer |
 |---|---|---|---|---|
@@ -65,20 +65,20 @@ All pages now route through `<PublicLayout>` (or landing's bespoke chrome). The 
 | `/login` | 1 | 1 | 2 | 1 |
 | `/register` | 1 | 1 | 2 | 1 |
 | `/forgot-password` | 1 | 1 | 2 | 1 |
-| `/reset-password` | 0 | 0 | 0 | 0 — *bespoke (recovery flow)* |
+| `/reset-password` | 0 | 0 | 0 | 0 - *bespoke (recovery flow)* |
 | `/privacy` | 1 | 1 | 2 | 1 |
 | `/terms` | 1 | 1 | 2 | 1 |
 | `/contact` | 1 | 1 | 2 | 1 |
 | `/security` | 1 | 1 | 2 | 1 |
-| `/refund` (404) | 0 | 0 | 0 | 0 — *bespoke (404)* |
+| `/refund` (404) | 0 | 0 | 0 | 0 - *bespoke (404)* |
 
 Both outliers are deliberate and explained in the `App.tsx` comments. ✅
 
-### 1.4 Form consistency — PASS
+### 1.4 Form consistency - PASS
 
 Login (2 inputs), register (4 inputs), forgot-password (1 input). All inputs labeled. All have `autocomplete`. CTA color/size consistent. ✅
 
-### 1.5 Heading hierarchy — PASS
+### 1.5 Heading hierarchy - PASS
 
 All 10 pages now have exactly `h1=1` and at least `h2=1`. `/refund` and `/reset-password` no longer skip h2. ✅
 
@@ -86,7 +86,7 @@ All 10 pages now have exactly `h1=1` and at least `h2=1`. `/refund` and `/reset-
 
 ## 2. Proporsi (Proportion)
 
-### 2.1 Container widths — PARTIAL (intentional)
+### 2.1 Container widths - PARTIAL (intentional)
 
 | Width | Used on |
 |---|---|
@@ -95,7 +95,7 @@ All 10 pages now have exactly `h1=1` and at least `h2=1`. `/refund` and `/reset-
 
 The 1280-vs-384 split is intentional: marketing/legal pages use the wide container; focused task pages (recovery, 404) use the narrow card. The two outliers are marked as bespoke. ✅
 
-### 2.2 H1 sizes — PASS
+### 2.2 H1 sizes - PASS
 
 | Size | Used on | Role |
 |---|---|---|
@@ -105,11 +105,11 @@ The 1280-vs-384 split is intentional: marketing/legal pages use the wide contain
 
 Three buckets, each used consistently. Still ad-hoc per-page; not yet tokenized via `<PageHeading>` component (ponytail: extract when a 4th h1 role appears). ✅
 
-### 2.3 Whitespace — PASS
+### 2.3 Whitespace - PASS
 
 Padding/margin samples cluster around the design-system scale (`8/16/24/32/64/80px`). No values outside the token set.
 
-### 2.4 Touch targets — PARTIAL
+### 2.4 Touch targets - PARTIAL
 
 16 violations total across 10 pages (was 31). Breakdown:
 
@@ -132,19 +132,19 @@ Padding/margin samples cluster around the design-system scale (`8/16/24/32/64/80
 
 ## 3. Simetri (Symmetry)
 
-### 3.1 Page chrome symmetry — PASS
+### 3.1 Page chrome symmetry - PASS
 
 8 of 10 public pages now share `<PublicLayout>` (header + `<main>` + footer with identical legal nav). The 2 outliers have documented bespoke layouts.
 
-### 3.2 CTA symmetry — PASS
+### 3.2 CTA symmetry - PASS
 
 CTA: same color (`bg-wood-500`), same size (44px tall after fix), same contrast ratio (5.6:1) across all auth/legal pages. ✅
 
-### 3.3 Vertical rhythm — PASS
+### 3.3 Vertical rhythm - PASS
 
 Long-form pages (`/privacy`, `/terms`, `/contact`, `/security`) sit in 1280px containers with consistent 64–80px section padding. Auth pages use 384px card with 24–32px internal padding.
 
-### 3.4 Footer symmetry — PASS
+### 3.4 Footer symmetry - PASS
 
 All 8 chrome-bearing pages now share an identical footer: 4 legal nav links centered, copyright line. ✅
 
@@ -152,16 +152,16 @@ All 8 chrome-bearing pages now share an identical footer: 4 legal nav links cent
 
 ## 4. Remaining gaps
 
-1. **Auth pages (18)** — not yet audited. `e2e/consistency-audit-auth.spec.ts` exists and is wired to the `authTest` fixture. Requires:
+1. **Auth pages (18)** - not yet audited. `e2e/consistency-audit-auth.spec.ts` exists and is wired to the `authTest` fixture. Requires:
    - Worker backend reachable
    - Test user in D1 (`ledjer@yopmail.com`)
    - Run: `E2E_BASE_URL=http://localhost:5173 ./node_modules/.bin/playwright test e2e/consistency-audit-auth.spec.ts --project=chromium --workers=1`
 
-2. **H1 size tokenization** — currently three ad-hoc classes (`text-6xl`/`text-2xl`/`text-xl`). Not yet a `<PageHeading>` component or `text-h1-hero`/`text-h1-content`/`text-h1-form` utility. Worth doing if a fourth h1 role appears; not worth a refactor yet.
+2. **H1 size tokenization** - currently three ad-hoc classes (`text-6xl`/`text-2xl`/`text-xl`). Not yet a `<PageHeading>` component or `text-h1-hero`/`text-h1-content`/`text-h1-form` utility. Worth doing if a fourth h1 role appears; not worth a refactor yet.
 
-3. **`/` hero icon targets (5 below-44)** — likely small social/CTA icons. Not addressed; would need a manual audit of `landing.tsx` lines 471–540 to identify and pad.
+3. **`/` hero icon targets (5 below-44)** - likely small social/CTA icons. Not addressed; would need a manual audit of `landing.tsx` lines 471–540 to identify and pad.
 
-4. **Container width audit drift** — the audit reports `containerMaxWidth: 1280` for `/login` etc., but visually the form sits in a 384px card. The metric captures the outer container (max-w-6xl), not the inner card. The form card width is correct.
+4. **Container width audit drift** - the audit reports `containerMaxWidth: 1280` for `/login` etc., but visually the form sits in a 384px card. The metric captures the outer container (max-w-6xl), not the inner card. The form card width is correct.
 
 ---
 

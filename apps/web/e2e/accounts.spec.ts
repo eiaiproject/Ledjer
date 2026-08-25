@@ -204,7 +204,7 @@ test.describe("Export (auth required)", () => {
   test("desktop export button shows Indonesian text", async ({ authPage }) => {
     await gotoAccounts(authPage);
     const exportBtn = authPage.getByRole("button", { name: /ekspor/i }).first();
-    // Desktop export may be hidden on mobile viewport — just verify it exists
+    // Desktop export may be hidden on mobile viewport - just verify it exists
     await expect(exportBtn).toBeAttached();
   });
 

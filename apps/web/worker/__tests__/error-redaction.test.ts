@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { HttpError, badRequest, unauthorized, forbidden, notFound, conflict } from "../http/errors";
 
 describe("Error Redaction", () => {
-  it("HttpError contains only code, message, status — no stack traces", () => {
+  it("HttpError contains only code, message, status - no stack traces", () => {
     const error = new HttpError(400, "test_error", "Test error message");
     expect(error.code).toBe("test_error");
     expect(error.message).toBe("Test error message");

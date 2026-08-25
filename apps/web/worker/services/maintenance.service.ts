@@ -34,7 +34,7 @@ export async function cleanupExpiredRows(
     "DELETE FROM password_reset_tokens WHERE expires_at <= ? OR used_at IS NOT NULL",
     [current],
   );
-  // ponytail: export_jobs table dropped in migration 0007 — not needed for sync exports
+  // ponytail: export_jobs table dropped in migration 0007 - not needed for sync exports
   const loginAttempts = await execute(
     db,
     "DELETE FROM login_attempts WHERE created_at <= ?",

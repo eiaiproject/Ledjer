@@ -31,7 +31,7 @@ describe("Worker auth crypto", () => {
     // verify the function doesn't reject it based on iteration count alone.
     // The actual verify will fail because of wrong hash, not format.
     const result = await verifyPassword("wrong-password", hash);
-    // Should not throw — gracefully fails on hash mismatch
+    // Should not throw - gracefully fails on hash mismatch
     expect(result).toBe(false);
   });
 

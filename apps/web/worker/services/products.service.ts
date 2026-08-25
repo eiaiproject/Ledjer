@@ -342,7 +342,7 @@ export async function deactivateProduct(
  * required accounts are not configured (the movement is still recorded).
  *
  * The stock movement and its paired journal are written in a SINGLE atomic
- * batch, so a failure can never leave a movement without its journal — the
+ * batch, so a failure can never leave a movement without its journal - the
  * previous sequential write allowed ghost inventory in the balance sheet.
  * The optimistic stock UPDATE is a separate conflict-safe write that happens
  * before the batch; the only residual window is a failure between those two
@@ -384,10 +384,10 @@ export async function recordStockAdjustment(
   const current = Date.now();
   const movementId = generateId();
 
-  // Resolve the journal plan first — its amount and accounts depend only on
+  // Resolve the journal plan first - its amount and accounts depend only on
   // the product's average cost, which stock adjustments never change.
   // Note: this consumes the AJ counter before the writes below; on a failed
-  // write the number is skipped (harmless — entry numbers may have gaps).
+  // write the number is skipped (harmless - entry numbers may have gaps).
   const journal = await planStockAdjustmentJournal(db, organizationId, userId, {
     product,
     quantity: input.quantity,
@@ -403,7 +403,7 @@ export async function recordStockAdjustment(
     quantityMilli, null, "adjustment", current,
   );
 
-  // 2) Movement + journal in ONE atomic batch — no window where a movement
+  // 2) Movement + journal in ONE atomic batch - no window where a movement
   //    exists without its paired journal (or vice versa).
   const statements: D1PreparedStatement[] = [
     statement(
@@ -440,7 +440,7 @@ export async function recordStockAdjustment(
 /**
  * Record a physical stock count for a product.
  * Compares physical stock with system stock and returns the difference.
- * Does NOT automatically adjust — the user must confirm via a separate
+ * Does NOT automatically adjust - the user must confirm via a separate
  * stock adjustment call.
  */
 export async function recordStockCount(
@@ -473,8 +473,8 @@ export async function recordStockCount(
     productId: input.productId,
     movementType: "stock_count",
     movementDate: new Date().toISOString().slice(0, 10),
-    quantity: 0, // Zero quantity — just logs the count
-    notes: input.notes ? `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)} — ${input.notes}` : `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)}`,
+    quantity: 0, // Zero quantity - just logs the count
+    notes: input.notes ? `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)} - ${input.notes}` : `[COUNT] Fisik: ${fromQuantityMilli(physicalStockMilli)}, Sistem: ${fromQuantityMilli(systemStockMilli)}, Selisih: ${fromQuantityMilli(diffMilli)}`,
   });
 
   const productName = product.name;
@@ -766,7 +766,7 @@ export function fromQuantityMilli(value: number): string {
   // value is an integer count of milli-units, so value / 1000 always has at
   // most 3 decimals. String() renders whole values as plain integers ("250",
   // not "250.000") and already trims trailing zeros from true fractions
-  // ("250.5", not "250.500") — no regex needed.
+  // ("250.5", not "250.500") - no regex needed.
   return String(value / 1000);
 }
 
@@ -878,7 +878,7 @@ async function planStockAdjustmentJournal(
   const current = input.current;
   const journalEntryId = generateId();
   const entryNumber = await nextSequentialNumber(db, organizationId, "stock_adjustment", "AJ");
-  const description = `Penyesuaian stok ${input.product.name} — ${input.reason}`;
+  const description = `Penyesuaian stok ${input.product.name} - ${input.reason}`;
   const debitAccountId = isDecrease ? counterpartAccountId : inventoryAccountId;
   const creditAccountId = isDecrease ? inventoryAccountId : counterpartAccountId;
 

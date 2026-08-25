@@ -2,7 +2,7 @@
 
 # Mencatat Transaksi
 
-Ledjer mengubah aktivitas usaha menjadi jurnal **double-entry** otomatis. Anda cukup memilih jenis transaksi dan mengisi datanya — sistem yang menentukan akun debit/kredit yang tepat.
+Ledjer mengubah aktivitas usaha menjadi jurnal **double-entry** otomatis. Anda cukup memilih jenis transaksi dan mengisi datanya - sistem yang menentukan akun debit/kredit yang tepat.
 
 ## Jenis transaksi
 
@@ -24,9 +24,9 @@ Ledjer mengubah aktivitas usaha menjadi jurnal **double-entry** otomatis. Anda c
 ## Alur pencatatan
 
 1. Buka **Transaksi → Catat Transaksi**.
-2. Pilih **jenis transaksi** — form menyesuaikan otomatis.
+2. Pilih **jenis transaksi** - form menyesuaikan otomatis.
 3. Isi tanggal, jumlah, deskripsi, dan data pendukung (pelanggan/pemasok, akun kas, produk).
-4. Klik **Pratinjau** untuk melihat dampak jurnal sebelum disimpan — termasuk akun yang terpengaruh dan arah perubahan saldo.
+4. Klik **Pratinjau** untuk melihat dampak jurnal sebelum disimpan - termasuk akun yang terpengaruh dan arah perubahan saldo.
 5. Klik **Simpan** untuk memosting transaksi.
 
 > [!NOTE] **Jurnal selalu seimbang.**
@@ -35,8 +35,8 @@ Ledjer mengubah aktivitas usaha menjadi jurnal **double-entry** otomatis. Anda c
 ## Aturan penting
 
 - **Tanggal tidak boleh di masa depan**, dan tidak boleh **sebelum tanggal mulai pembukuan** organisasi Anda.
-- Tanggal di dalam **periode terkunci** tidak bisa diubah/ditambah — lihat [Periode & Penutupan](/panduan/periode-penutupan).
-- **Penjualan produk** memerlukan produk yang sudah ada dan memiliki biaya. **Pembelian** boleh memakai nama produk baru — sistem membuatkannya otomatis.
+- Tanggal di dalam **periode terkunci** tidak bisa diubah/ditambah - lihat [Periode & Penutupan](/panduan/periode-penutupan).
+- **Penjualan produk** memerlukan produk yang sudah ada dan memiliki biaya. **Pembelian** boleh memakai nama produk baru - sistem membuatkannya otomatis.
 - Stok tidak boleh minus: penjualan akan ditolak jika stok tidak cukup.
 
 ## Pembayaran kredit sebagian
@@ -52,10 +52,10 @@ Penjualan/pembelian kredit bisa dibayar bertahap:
 Transaksi yang salah bisa dibatalkan dengan alasan yang jelas:
 
 1. Buka detail transaksi → **Batalkan Transaksi**.
-2. Isi alasan pembatalan — wajib dan tercatat permanen.
+2. Isi alasan pembatalan - wajib dan tercatat permanen.
 3. Sistem membuat **jurnal pembalik** (debit/kredit dibalik) dan mengembalikan stok jika transaksinya melibatkan barang.
 
-Transaksi yang dibatalkan tetap terlihat di daftar (berlabel **Dibatalkan**) demi jejak audit. Transaksi pembalik tidak bisa dibatalkan lagi. Transaksi kredit yang sudah dibayar sebagian tidak bisa dibatalkan langsung — selesaikan dulu, baru batalkan.
+Transaksi yang dibatalkan tetap terlihat di daftar (berlabel **Dibatalkan**) demi jejak audit. Transaksi pembalik tidak bisa dibatalkan lagi. Transaksi kredit yang sudah dibayar sebagian tidak bisa dibatalkan langsung - selesaikan dulu, baru batalkan.
 
 ## Saldo awal
 

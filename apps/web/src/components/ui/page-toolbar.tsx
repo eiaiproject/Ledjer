@@ -29,7 +29,7 @@ export interface PageToolbarProps {
   readonly onSearchChange: (value: string) => void;
   readonly searchPlaceholder?: string;
   readonly searchLabel?: string;
-  /** Custom id for the search input (default "toolbar-search") — lets pages keep stable ids for tests/a11y. */
+  /** Custom id for the search input (default "toolbar-search") - lets pages keep stable ids for tests/a11y. */
   readonly searchInputId?: string;
   /** Extra aria-describedby ids for the search input (e.g. a results-count live region). */
   readonly searchAriaDescribedBy?: string;

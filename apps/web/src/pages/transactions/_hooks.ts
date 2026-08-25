@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
-import { useBlocker, useNavigate } from "react-router-dom";
+import { useBlocker } from "react-router-dom";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -425,7 +425,7 @@ export function useTransactionDerived(params: {
   const categoryLabel = CATEGORY_LABELS[selectedType] || "Kategori";
   const descriptionPlaceholder = DESCRIPTION_PLACEHOLDERS[selectedType] || "Contoh: Keterangan transaksi";
   // Unit prices may be fractional (e.g. Rp 500.000 ÷ 251 butir = 1.992,03), so
-  // round the auto amount to a whole rupiah — the backend rejects non-integer
+  // round the auto amount to a whole rupiah - the backend rejects non-integer
   // amounts (it tolerates ±1 rounding drift in validateProductIntent).
   const productSubtotal = (selectedProductId || selectedProductName) && selectedQuantity && selectedUnitPrice
     ? Math.round(selectedQuantity * selectedUnitPrice)
@@ -516,7 +516,6 @@ export function useTransactionEffects(params: {
   } = params;
 
   const { getValues, setValue } = form;
-  const navigate = useNavigate();
 
   // Before unload protection
   useEffect(() => {
@@ -592,12 +591,8 @@ export function useTransactionEffects(params: {
     setValue("description", autoDesc, { shouldDirty: true });
   }, [selectedType, selectedProduct, selectedProductName, selectedProductId, selectedQuantity, selectedAmount, isSaleType, isProductType, getValues, setValue]);
 
-  // Auto-navigate after success
-  useEffect(() => {
-    if (!successTransactionId) return;
-    const timer = window.setTimeout(() => navigate(`/transactions/${successTransactionId}`), 1400);
-    return () => window.clearTimeout(timer);
-  }, [navigate, successTransactionId]);
+  // Auto-navigate disabled for UX friction #2 - user chooses next action via SubmitBar
+  // Previous: auto-navigate to /transactions/:id after 1400ms. Now manual via buttons.
 
   // Collapse type selector & scroll to active fields when selectedType changes
   useEffect(() => {
@@ -654,8 +649,19 @@ export function useTransactionMutation(params: {
       }
       setSuccessTransactionId(result.transaction_id);
       setClientToken(createClientToken());
-      // ponytail: Delay cache invalidation to avoid D1 read-after-write inconsistency.
-      // D1 replicas may not have synced yet; 500ms gives primary time to propagate.
+      // Optimistic stock update - immediate feedback before server refetch
+      if (variables.productId && variables.quantity) {
+        const isSale = variables.transactionType === "cash_sale" || variables.transactionType === "credit_sale";
+        const delta = isSale ? -variables.quantity : variables.quantity;
+        queryClient.setQueriesData({ queryKey: queryKeys.products.all(orgId ?? "") }, (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return (old as Array<{ id: string; current_stock?: number | string }>).map((p) =>
+            p.id === variables.productId ? { ...p, current_stock: Number(p.current_stock ?? 0) + delta } : p
+          );
+        });
+      }
+      // Immediate invalidate for optimistic UX, plus delayed retry for D1 replica lag.
+      invalidateTransactionFinancialCaches(queryClient, orgId);
       setTimeout(() => {
         invalidateTransactionFinancialCaches(queryClient, orgId);
       }, 500);

@@ -1,6 +1,6 @@
 // ponytail: Direct-method cash flow statement. Analyzes cash account movements
 // grouped by transaction type. Does not handle investing activities (asset
-// purchases) or financing activities beyond owner capital/draw — the current
+// purchases) or financing activities beyond owner capital/draw - the current
 // transaction taxonomy doesn't distinguish them. Upgrade: add transaction_type
 // values for investing/financing or map specific account codes.
 

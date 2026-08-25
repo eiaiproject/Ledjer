@@ -66,7 +66,7 @@ describe('AuthProvider', () => {
       </QueryClientProvider>
     );
 
-    // Children should still render — error is exposed via context, not blocking
+    // Children should still render - error is exposed via context, not blocking
     await waitFor(() => {
       expect(screen.getByText('Error: Network failure')).toBeTruthy();
     });

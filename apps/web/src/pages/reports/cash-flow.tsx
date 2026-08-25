@@ -28,7 +28,7 @@ const SECTION_COLORS: Record<string, string> = {
 };
 
 function formatChange(current: number, previous: number): string {
-  if (previous === 0) return current > 0 ? "+100%" : "—";
+  if (previous === 0) return current > 0 ? "+100%" : "-";
   const pct = ((current - previous) / Math.abs(previous)) * 100;
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
@@ -85,20 +85,20 @@ function CashFlowTable({ report, onDrillDown }: { readonly report: CashFlowRepor
                           )}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-right text-wood-700">{row.inflow > 0 ? formatIDR(row.inflow) : "—"}</td>
-                      <td className="px-4 py-2 text-right text-wood-700">{row.outflow > 0 ? formatIDR(row.outflow) : "—"}</td>
+                      <td className="px-4 py-2 text-right text-wood-700">{row.inflow > 0 ? formatIDR(row.inflow) : "-"}</td>
+                      <td className="px-4 py-2 text-right text-wood-700">{row.outflow > 0 ? formatIDR(row.outflow) : "-"}</td>
                       <td className={cn("px-4 py-2 text-right font-medium", row.net >= 0 ? "text-leaf-600" : "text-error")}>
                         {formatIDR(row.net)}
                       </td>
                       {showComparison && (
                         <>
                           <td className={cn("px-4 py-2 text-right", row.prevNet !== undefined ? (row.prevNet >= 0 ? "text-leaf-600" : "text-error") : "text-wood-500")}>{/* NOSONAR typescript:S3358 */}
-                            {row.prevNet !== undefined ? formatIDR(row.prevNet) : "—"}
+                            {row.prevNet !== undefined ? formatIDR(row.prevNet) : "-"}
                           </td>
                           <td className="px-4 py-2 text-right text-xs text-wood-500">
                             {row.prevNet !== undefined && row.net !== undefined
                               ? formatChange(row.net, row.prevNet)
-                              : "—"}
+                              : "-"}
                           </td>
                         </>
                       )}
@@ -254,9 +254,9 @@ export default function CashFlowPage() {
         <>
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs text-wood-500">
-              Periode: {formatShortDate(appliedFrom)} — {formatShortDate(appliedTo)}
+              Periode: {formatShortDate(appliedFrom)} - {formatShortDate(appliedTo)}
               {comparePeriod && report.prevPeriod && (
-                <> | Sebelumnya: {formatShortDate(report.prevPeriod.fromDate)} — {formatShortDate(report.prevPeriod.toDate)}</>
+                <> | Sebelumnya: {formatShortDate(report.prevPeriod.fromDate)} - {formatShortDate(report.prevPeriod.toDate)}</>
               )}
             </p>
             <Button

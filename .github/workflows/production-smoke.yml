@@ -1,7 +1,7 @@
 name: Production Smoke Test
 
 # Manual/scheduled smoke test for the Cloudflare Pages production deployment.
-# Does NOT deploy anything — only validates the current production URL.
+# Does NOT deploy anything - only validates the current production URL.
 # Production URL: https://ledjer.id
 
 on:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   smoke:
-    name: "Production Smoke (ledjer.id) — READ-ONLY"
+    name: "Production Smoke (ledjer.id) - READ-ONLY"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -41,7 +41,7 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps # NOSONAR - browser binary, not package install
 
-      - name: Preflight — production URL is reachable (HTTP 200)
+      - name: Preflight - production URL is reachable (HTTP 200)
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}

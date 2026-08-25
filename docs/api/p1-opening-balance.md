@@ -1,4 +1,4 @@
-# P1.2 — Opening Balance Wizard API
+# P1.2 - Opening Balance Wizard API
 
 ## GET /api/opening-balance/status
 Check if opening balances have been posted.

@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import { createClientToken, formatQuantity } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { createClientToken, formatQuantity, localDate } from "@/lib/utils";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -275,6 +276,28 @@ export function NewTransactionPage() {
     submitInFlightRef,
   });
 
+  const navigate = useNavigate();
+  const handleCreateAnother = () => {
+    form.reset({
+      transactionDate: localDate(),
+      transactionType: "" as unknown as string,
+      amount: 0,
+      paymentStatus: "unpaid",
+      description: "",
+      partyName: "",
+      categoryName: "",
+      notes: "",
+    });
+    setSuccessTransactionId(null);
+    setClientToken(createClientToken());
+    submitInFlightRef.current = false;
+    setIsTypeSelectorExpanded(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const handleViewDetail = () => {
+    if (successTransactionId) navigate(`/transactions/${successTransactionId}`);
+  };
+
   /* -- Derived -- */
   const preview = buildPreview({
     transactionType: selectedType,
@@ -310,6 +333,44 @@ export function NewTransactionPage() {
       errorSummaryRef.current?.focus();
     });
   };
+
+  // UX #11: Ctrl+Enter to submit + auto-save draft to localStorage
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !successTransactionId) {
+        e.preventDefault();
+        form.handleSubmit(onSubmit)();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [form, successTransactionId, onSubmit]);
+  useEffect(() => {
+    if (!orgData?.organization?.id || successTransactionId) return;
+    const draftKey = `ledjer:draft:transaction:${orgData.organization.id}`;
+    // Restore draft on mount if form is empty
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<TransactionForm>;
+        if (parsed && !form.getValues("transactionType") && parsed.transactionType) {
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== "") form.setValue(k as keyof TransactionForm, v as never, { shouldDirty: false });
+          });
+        }
+      }
+    } catch { /* ignore */ }
+    const sub = form.watch((value) => {
+      try { localStorage.setItem(draftKey, JSON.stringify(value)); } catch { /* ignore */ }
+    });
+    return () => sub.unsubscribe();
+  }, [form, orgData?.organization?.id, successTransactionId]);
+  // Clear draft on success
+  useEffect(() => {
+    if (successTransactionId && orgData?.organization?.id) {
+      try { localStorage.removeItem(`ledjer:draft:transaction:${orgData.organization.id}`); } catch { /* ignore */ }
+    }
+  }, [successTransactionId, orgData?.organization?.id]);
 
   /* -- No access guard -- */
   if (orgData?.member && !canCreateTransaction) {
@@ -496,6 +557,8 @@ export function NewTransactionPage() {
                   loading: postMutation.isPending,
                   successId: successTransactionId,
                 })}
+                onCreateAnother={handleCreateAnother}
+                onViewDetail={handleViewDetail}
               />
             </div>
         </form>

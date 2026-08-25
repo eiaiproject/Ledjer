@@ -160,7 +160,7 @@ async function networkFirstWithFallback(request) {
 
     return response;
   } catch {
-    // Network failed — try cache
+    // Network failed - try cache
     const cached = await caches.match(request);
     if (cached) return cached;
 
@@ -173,7 +173,7 @@ async function networkFirstWithFallback(request) {
 // ── Push Notifications ───────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
-  // Empty push (no data) — fetch pending notifications from API
+  // Empty push (no data) - fetch pending notifications from API
   if (!event.data) {
     event.waitUntil(
       fetch('/api/push/notifications/pending')
@@ -193,7 +193,7 @@ self.addEventListener('push', (event) => {
           }
         })
         .catch(() => {
-          // Silent fail — notification-less push
+          // Silent fail - notification-less push
         })
     );
     return;

@@ -239,7 +239,7 @@ export async function gatherMetrics(page: Page, url: string): Promise<PageMetric
   // page's real content (the shell's <main> may already be present). Each
   // audit test opens a fresh browser context, so route chunks are
   // re-downloaded and the race shows up as spurious h1=0 on cold staging
-  // workers. Wait for the page's h1 — the actual content — before measuring
+  // workers. Wait for the page's h1 - the actual content - before measuring
   // structure metrics.
   await page.waitForSelector("h1", { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(200);

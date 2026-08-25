@@ -12,7 +12,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     release: import.meta.env.VITE_APP_VERSION,
 
     integrations: [
-      // Performance tracing — page load, navigation, HTTP requests, Web Vitals
+      // Performance tracing - page load, navigation, HTTP requests, Web Vitals
       Sentry.browserTracingIntegration({
         traceFetch: true,
         traceXHR: true,
@@ -23,13 +23,13 @@ if (import.meta.env.VITE_SENTRY_DSN) {
         enableLongAnimationFrame: true,
         enableInp: true,
       }),
-      // Session Replay — fully masked by default
+      // Session Replay - fully masked by default
       Sentry.replayIntegration({
         maskAllText: true,
         blockAllMedia: true,
         maskAllInputs: true,
       }),
-      // User Feedback — floating button for bug reports
+      // User Feedback - floating button for bug reports
       Sentry.feedbackIntegration({
         autoInject: false,
         showBranding: false,
@@ -59,7 +59,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     // Enable structured log API
     enableLogs: true,
 
-    // Privacy — fine-grained control over data collection (SDK ≥10.57.0)
+    // Privacy - fine-grained control over data collection (SDK ≥10.57.0)
     dataCollection: {
       userInfo: false,
       cookies: false,

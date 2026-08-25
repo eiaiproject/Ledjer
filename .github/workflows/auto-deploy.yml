@@ -2,7 +2,7 @@ name: Auto Deploy
 
 # Automatically deploy both frontend (SPA) and backend (Worker API) to
 # Cloudflare Workers on every push to main.  The single `wrangler deploy`
-# bundles the Vite build output as static assets AND the Hono Worker —
+# bundles the Vite build output as static assets AND the Hono Worker -
 # no separate Pages deployment needed.
 #
 # Can also be triggered manually via workflow_dispatch.
@@ -143,7 +143,7 @@ jobs:
         run: bash scripts/deploy.sh --deploy-only
 
       # ── Post-deploy smoke verification ─────────────────────
-      # Use workers.dev URL — bypasses Cloudflare bot challenge that
+      # Use workers.dev URL - bypasses Cloudflare bot challenge that
       # affects the public ledjer.id domain when accessed from CI.
       - name: Post-deploy smoke check
         id: post-deploy-smoke
@@ -151,7 +151,7 @@ jobs:
           PRODUCTION_URL: https://ledjer.eiai.workers.dev
         run: |
           echo "Verifying production deployment (workers.dev)..."
-          # Tunggu propagasi edge — Worker butuh waktu setelah deploy
+          # Tunggu propagasi edge - Worker butuh waktu setelah deploy
           for i in 1 2 3 4 5 6 7 8 9 10; do
             HTTP_STATUS=$(curl -sS -o /tmp/smoke_body -w "%{http_code}" -L --max-time 15 --proto "=https" "$PRODUCTION_URL")
             if [ "$HTTP_STATUS" = "200" ]; then
@@ -202,7 +202,7 @@ jobs:
           echo '# 1. Roll back the Worker to the last stable version' >> $GITHUB_STEP_SUMMARY
           echo 'npx wrangler rollback' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
-          echo '# 2. D1 migrations are additive-only — no rollback needed.' >> $GITHUB_STEP_SUMMARY
+          echo '# 2. D1 migrations are additive-only - no rollback needed.' >> $GITHUB_STEP_SUMMARY
           echo '#    New migrations are NOT destructive, but if you need to' >> $GITHUB_STEP_SUMMARY
           echo '#    undo, run a new migration to revert.' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

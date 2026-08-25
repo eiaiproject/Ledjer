@@ -7,13 +7,13 @@ export interface Env {
   APP_ORIGIN?: string;
   APP_ENV?: string;
   GIT_SHA?: string;
-  /** Pepper for admin password hashing — separate from the main app's PASSWORD_PEPPER. */
+  /** Pepper for admin password hashing - separate from the main app's PASSWORD_PEPPER. */
   ADMIN_PASSWORD_PEPPER?: string;
   /** Used to send password-reset emails from the admin panel (same API key as the main app). */
   EMAIL_API_KEY?: string;
   EMAIL_FROM?: string;
   SENTRY_DSN?: string;
-  /** Origin of the main user app (https://ledjer.id) — used for password-reset links. */
+  /** Origin of the main user app (https://ledjer.id) - used for password-reset links. */
   USER_APP_ORIGIN?: string;
   /** Service binding to the main worker (ledjer). Used by the health check.
    *  Worker-to-Worker calls via public *.workers.dev hostname fail with

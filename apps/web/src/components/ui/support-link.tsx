@@ -10,7 +10,7 @@ interface SupportLinkProps
   readonly variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
   /** Placement identifier for analytics */
   readonly placement?: SupportPlacement;
-  /** Label teks — default berbeda per placement */
+  /** Label teks - default berbeda per placement */
   readonly label?: string;
   /** Sembunyikan ikon external-link */
   readonly hideIcon?: boolean;
@@ -57,13 +57,13 @@ export function SupportLink({
   ...props
 }: SupportLinkProps) {
   const displayLabel = label ?? DEFAULT_LABELS[placement];
-  const accessibleLabel = `${displayLabel} — terbuka di tab baru`;
+  const accessibleLabel = `${displayLabel} - terbuka di tab baru`;
 
   const { onClick: externalOnClick } = props;
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>) => {
-      // Fire-and-forget analytics — tidak menghalangi navigasi
+      // Fire-and-forget analytics - tidak menghalangi navigasi
       trackSupportClick(placement);
       // Props onClick jika ada dari parent
       externalOnClick?.(e);

@@ -35,7 +35,7 @@ interface AccountGroup {
 function formatDateRange(from: string, to: string): string {
   const fromParts = from.split("-");
   const toParts = to.split("-");
-  if (fromParts.length < 3 || toParts.length < 3) return `${from} — ${to}`;
+  if (fromParts.length < 3 || toParts.length < 3) return `${from} - ${to}`;
   const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   const fromMonth = months[Number.parseInt(fromParts[1], 10) - 1];
   const toMonth = months[Number.parseInt(toParts[1], 10) - 1];
@@ -47,9 +47,9 @@ function formatDateRange(from: string, to: string): string {
     return `${fromDay}–${toDay} ${fromMonth} ${fromYear}`;
   }
   if (fromYear === toYear) {
-    return `${fromDay} ${fromMonth} — ${toDay} ${toMonth} ${toYear}`;
+    return `${fromDay} ${fromMonth} - ${toDay} ${toMonth} ${toYear}`;
   }
-  return `${fromDay} ${fromMonth} ${fromYear} — ${toDay} ${toMonth} ${toYear}`;
+  return `${fromDay} ${fromMonth} ${fromYear} - ${toDay} ${toMonth} ${toYear}`;
 }
 
 function buildAccountGroups(ledger: LedgerEntry[] | undefined, showAllAccounts: boolean): AccountGroup[] | null {
@@ -86,16 +86,16 @@ function LedgerMobileCard({ entry }: { readonly entry: LedgerEntry }) {
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-text-secondary">{formatShortDate(entry.entry_date)}</span>
         <span className="font-mono text-xs text-text-tertiary">
-          {entry.transaction_number || "—"}
+          {entry.transaction_number || "-"}
         </span>
       </div>
       <p className="mt-1 break-words text-sm font-medium text-text-primary line-clamp-2">{entry.description}</p>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         <span className="text-xs text-text-tertiary">
-          Debit: <span className="font-mono font-medium text-text-primary">{entry.debit > 0 ? formatIDR(entry.debit) : "—"}</span>
+          Debit: <span className="font-mono font-medium text-text-primary">{entry.debit > 0 ? formatIDR(entry.debit) : "-"}</span>
         </span>
         <span className="text-xs text-text-tertiary">
-          Kredit: <span className="font-mono font-medium text-text-primary">{entry.credit > 0 ? formatIDR(entry.credit) : "—"}</span>
+          Kredit: <span className="font-mono font-medium text-text-primary">{entry.credit > 0 ? formatIDR(entry.credit) : "-"}</span>
         </span>
         <span className="text-xs text-text-tertiary">
           Saldo: <span className={cn("font-mono font-medium", entry.running_balance >= 0 ? "text-text-primary" : "text-clay-600")}>
@@ -200,7 +200,7 @@ function SummaryBar({ ledger, totals, isGlobalScope, isBalanced }: {
 
 const FILTER_PANEL_ID = "general-ledger-filters";
 
-export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity 16/15; sub-components already extracted
+export function GeneralLedgerPage() { // NOSONAR typescript:S3776 - complexity 16/15; sub-components already extracted
   const { data: orgData } = useOrganization();
   const { canViewReports, canCreateExports } = useOrgPermissions();
 
@@ -312,7 +312,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
               {dateRangeInvalid ? "Rentang tidak valid" : formatDateRange(appliedFrom, appliedTo)}
             </p>
             {!showAllAccounts && selectedAccount ? (
-              <p className="mt-0.5 font-mono text-xs text-text-tertiary">{selectedAccount.code} — {selectedAccount.name}</p>
+              <p className="mt-0.5 font-mono text-xs text-text-tertiary">{selectedAccount.code} - {selectedAccount.name}</p>
             ) : (
               <p className="mt-0.5 text-xs text-text-tertiary">Semua akun</p>
             )}
@@ -336,7 +336,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
               placeholder={accountsLoading ? "Memuat akun..." : undefined} disabled={accountsLoading}
               options={[
                 { value: "all", label: "Semua akun" },
-                ...(accounts || []).map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+                ...(accounts || []).map((a) => ({ value: a.id, label: `${a.code} - ${a.name}` })),
               ]} />
             <Input label="Dari tanggal" type="date" value={pendingFrom}
               onChange={(e) => setPendingFrom(e.target.value)}
@@ -396,7 +396,7 @@ export function GeneralLedgerPage() { // NOSONAR typescript:S3776 — complexity
                   <AccountGroupTableSection key={group.code} group={group} />
                 ))}
                 {!showAllAccounts && selectedAccount && (
-                  <SingleAccountTable entries={entriesWithBalance} accountName={`${selectedAccount.code} — ${selectedAccount.name}`} />
+                  <SingleAccountTable entries={entriesWithBalance} accountName={`${selectedAccount.code} - ${selectedAccount.name}`} />
                 )}
               </div>
             </Card>
@@ -434,7 +434,7 @@ function AccountGroupTrigger({
         expanded ? "rounded-t-xl" : "rounded-xl",
       )}>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-text-primary">{group.code} — {group.name}</p>
+        <p className="text-sm font-semibold text-text-primary">{group.code} - {group.name}</p>
         <p className="mt-0.5 text-xs text-text-tertiary">
           {group.entries.length} entri · Saldo:{" "}
           <span className={cn("font-mono font-medium", isPositive ? "text-text-primary" : "text-clay-600")}>
@@ -506,7 +506,7 @@ function DesktopEntryRow({ entry }: { readonly entry: LedgerEntry }) {
   return (
     <tr className="border-b border-wood-50 hover:bg-cream-50/50">
       <td className="px-4 py-2 text-xs text-text-secondary whitespace-nowrap">{formatShortDate(entry.entry_date)}</td>
-      <td className="px-4 py-2 font-mono text-xs text-text-tertiary whitespace-nowrap">{entry.transaction_number || "—"}</td>
+      <td className="px-4 py-2 font-mono text-xs text-text-tertiary whitespace-nowrap">{entry.transaction_number || "-"}</td>
       <td className="max-w-[280px] px-4 py-2 text-xs text-text-primary">
         <span className="line-clamp-2 break-words">{entry.description}</span>
       </td>
@@ -569,7 +569,7 @@ function AccountGroupTableSection({ group }: { readonly group: AccountGroup }) {
         <section id={panelId} aria-labelledby={triggerId}>
           <div className="ledger-scroll-x">
           <table className="ledger-table w-full min-w-[800px]">
-            <caption className="sr-only">Buku besar akun {group.code} — {group.name}</caption>
+            <caption className="sr-only">Buku besar akun {group.code} - {group.name}</caption>
             <LedgerTableHeader />
             <tbody>
               {group.entries.map((entry) => (

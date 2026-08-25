@@ -91,7 +91,7 @@ describe("SupportLink", () => {
       // Accessible label should include the custom label
       expect(screen.getByRole("link")).toHaveAttribute(
         "aria-label",
-        "Dukung kami — terbuka di tab baru",
+        "Dukung kami - terbuka di tab baru",
       );
     });
   });

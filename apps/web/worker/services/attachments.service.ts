@@ -48,7 +48,7 @@ export interface AttachmentInfo {
   createdAt: number;
 }
 
-export async function uploadAttachment( // NOSONAR typescript:S107 — 9 params including R2 bucket for file upload; each is necessary
+export async function uploadAttachment( // NOSONAR typescript:S107 - 9 params including R2 bucket for file upload; each is necessary
   db: D1Database,
   bucket: R2Bucket,
   organizationId: string,
@@ -158,7 +158,7 @@ export async function deleteAttachment(
   // Delete from R2
   await bucket.delete(row.storage_key);
 
-  // Delete DB record — already verified org_id via SELECT above
+  // Delete DB record - already verified org_id via SELECT above
   await execute(db, `DELETE FROM attachments WHERE id = ? AND organization_id = ?`, [attachmentId, organizationId]);
 
   // Audit log
@@ -266,7 +266,7 @@ async function parentEntityExists(
       return !!row;
     }
     default:
-      return false; // Unknown entity type — treat as orphan
+      return false; // Unknown entity type - treat as orphan
   }
 }
 

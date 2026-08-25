@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -27,6 +28,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { PageShell } from "@/components/ui/page-shell";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { refreshAllData } from "@/lib/query-client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageGuide } from "@/components/ui/page-guide";
@@ -306,7 +309,7 @@ function AddCashBankModal({ open, onClose, onSuccess, accounts }: AddCashBankMod
             <input
               id="account-code"
               type="text"
-              value={isRangeExhausted ? "Penuh — tidak ada kode tersedia" : `${nextCode} - ${selectedMeta?.label || selectedKind}`}
+              value={isRangeExhausted ? "Penuh - tidak ada kode tersedia" : `${nextCode} - ${selectedMeta?.label || selectedKind}`}
               readOnly
               className={cn(
                 "h-11 min-h-[44px] w-full rounded-md border bg-cream-100 px-3 text-sm sm:h-10 sm:min-h-0",
@@ -650,12 +653,21 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
-export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/15; refactoring would break layout clarity
+export function AccountsPage() { // NOSONAR typescript:S3776 - complexity 19/15; refactoring would break layout clarity
   const { data: orgData } = useOrganization();
   const { canManageAccounts, canCreateExports } = useOrgPermissions();
-  const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("cashbank");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const activeTab = (searchParams.get("tab") ?? "cashbank") as Tab;
+  const typeFilter = searchParams.get("kind") ?? "all";
+  const updateParams = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value); else next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
+  const setSearch = (v: string) => updateParams("q", v);
+  const setActiveTab = (v: Tab) => updateParams("tab", v === "cashbank" ? "" : v);
+  const setTypeFilter = (v: string) => updateParams("kind", v === "all" ? "" : v);
   const [editAccount, setEditAccount] = useState<Account | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -671,7 +683,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
     enabled: !!orgData?.organization?.id,
   });
 
-  // Counts — derived from the full unfiltered dataset
+  // Counts - derived from the full unfiltered dataset
   const allAccounts = useMemo(() => accounts || [], [accounts]);
   const cashBankCount = useMemo(
     () => allAccounts.filter((a) => a.is_cash_account || [1110, 1120, 1130, 1121, 1122, 1123].includes(a.code)).length,
@@ -783,6 +795,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
   const panelIds = { cashbank: "panel-cashbank", all: "panel-all" } as const;
 
   return (
+    <PullToRefresh onRefresh={refreshAllData}>
     <PageShell
       header={{
         title: "Akun",
@@ -844,7 +857,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
         onResetSearch={handleClearSearch}
       />
 
-      {/* Tabs — proper tablist semantics */}
+      {/* Tabs - proper tablist semantics */}
       <div
         role="tablist"
         aria-labelledby={tablistLabelId}
@@ -885,7 +898,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
         </button>
       </div>
 
-      {/* Type filter — only for "Semua akun" tab */}
+      {/* Type filter - only for "Semua akun" tab */}
       {activeTab === "all" && (
         <div className="space-y-1">
           <FieldHelp topic="account_locked" label="Akun sistem terkunci agar laporan konsisten" />
@@ -1016,6 +1029,7 @@ export function AccountsPage() { // NOSONAR typescript:S3776 — complexity 19/1
         onSuccess={() => {}}
       />
     </PageShell>
+    </PullToRefresh>
   );
 }
 

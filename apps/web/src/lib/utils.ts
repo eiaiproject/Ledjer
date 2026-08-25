@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge";
 
 /**
  * Terpusat URL dukungan sukarela.
- * Bersifat publik — bukan secret.
+ * Bersifat publik - bukan secret.
  */
 export const SUPPORT_URL = "https://trakteer.id/eiaiproject/tip" as const;
 
@@ -12,10 +12,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /** Format number as Indonesian Rupiah.
- *  Returns "—" (em dash) for null/undefined to signal missing data.
+ *  Returns "-" (em dash) for null/undefined to signal missing data.
  *  Returns "Rp 0" for zero amounts. */
 export function formatIDR(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined || Number.isNaN(amount)) return "—";
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return "-";
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
@@ -24,7 +24,7 @@ export function formatIDR(amount: number | null | undefined): string {
   }).format(amount);
 }
 
-/** Like formatIDR but shows "Rp 0" instead of "—" when value is null/undefined. */
+/** Like formatIDR but shows "Rp 0" instead of "-" when value is null/undefined. */
 export function formatIDROrZero(amount: number | null | undefined): string {
   if (amount === null || amount === undefined || Number.isNaN(amount)) return "Rp 0";
   return formatIDR(amount);
@@ -163,7 +163,7 @@ export function parseAmountInput(
  * Parse a signed decimal input (e.g. "-12,5", "-12.5", "1.234,56") into a
  * number. Accepts an optional leading "-", Indonesian or international
  * separators, and caps precision to 3 decimals (matches milli stock units).
- * Blank or a lone "-" returns emptyValue — so typing a minus sign first
+ * Blank or a lone "-" returns emptyValue - so typing a minus sign first
  * keeps working instead of being swallowed by Number("").
  */
 export function parseSignedDecimalInput(
@@ -181,10 +181,10 @@ export function parseSignedDecimalInput(
   let normalized = trimmed.replace(/[^\d.,]/g, "");
   const dotCount = (normalized.match(/\./g) ?? []).length;
   if (normalized.includes(".") && normalized.includes(",")) {
-    // Indonesian convention: "." thousands, "," decimal — "1.234,5"
+    // Indonesian convention: "." thousands, "," decimal - "1.234,5"
     normalized = normalized.replaceAll(".", "").replace(",", ".");
   } else if (dotCount > 1) {
-    // Several dots with no comma — treat them as thousands separators
+    // Several dots with no comma - treat them as thousands separators
     normalized = normalized.replaceAll(".", "");
   } else if (normalized.includes(",")) {
     normalized = normalized.replace(",", ".");
@@ -235,12 +235,12 @@ export function formatDecimalInput(value: unknown, blankWhenZero = false) {
 }
 
 /**
- * Like formatIDR but preserves up to 3 fractional digits — for displaying
+ * Like formatIDR but preserves up to 3 fractional digits - for displaying
  * unit prices / average costs that legitimately end in decimals
  * (e.g. Rp 1.992,03). Whole values render exactly like formatIDR.
  */
 export function formatDecimalIDR(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined || Number.isNaN(amount)) return "—";
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return "-";
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",

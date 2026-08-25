@@ -2,13 +2,13 @@
 
 # Referensi API
 
-Ledjer menyediakan API REST di balik aplikasi web — berguna jika Anda ingin mengintegrasikan data pembukuan dengan sistem lain.
+Ledjer menyediakan API REST di balik aplikasi web - berguna jika Anda ingin mengintegrasikan data pembukuan dengan sistem lain.
 
 ## Dasar
 
 - **Base URL produksi**: `https://ledjer.id/api`
 - **Format**: JSON (`Content-Type: application/json`)
-- **Autentikasi**: session cookie (`__Host-ledjer_session`) — sama dengan login aplikasi
+- **Autentikasi**: session cookie (`__Host-ledjer_session`) - sama dengan login aplikasi
 - **CSRF**: permintaan yang mengubah data (POST/PATCH/DELETE) harus berasal dari origin yang diizinkan
 
 ## Spesifikasi lengkap

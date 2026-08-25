@@ -106,12 +106,12 @@ export default function AgingReportPage() {
                       </td>
                       {party.buckets.map((bucket) => (
                         <td key={bucket.label} className="px-4 py-3 text-right text-wood-700">
-                          {bucket.totalMinor > 0 ? formatIDR(bucket.totalMinor / 100) : "—"}
+                          {bucket.totalMinor > 0 ? formatIDR(bucket.totalMinor / 100) : "-"}
                         </td>
                       ))}
                       {/* Fill remaining buckets if fewer than 5 */}
                       {Array.from({ length: Math.max(0, 5 - party.buckets.length) }, (_, idx) => (
-                        <td key={`empty-${idx}`} className="px-4 py-3 text-right text-wood-500">—</td>
+                        <td key={`empty-${idx}`} className="px-4 py-3 text-right text-wood-500">-</td>
                       ))}
                       <td className="px-4 py-3 text-right font-semibold text-wood-800">{formatIDR(party.totalOutstanding / 100)}</td>
                     </tr>

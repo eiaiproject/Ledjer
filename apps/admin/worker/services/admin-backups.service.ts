@@ -127,7 +127,7 @@ export interface DrillReport {
   checkedAt: number;
 }
 
-/** Validate the latest (or a specific) backup offline — never touches a live DB. */
+/** Validate the latest (or a specific) backup offline - never touches a live DB. */
 export async function runRestoreDrill(bucket: R2Bucket, date?: string): Promise<DrillReport> {
   const checkedAt = Date.now();
   const targetDate = date ?? (await findLatestBackupDate(bucket));

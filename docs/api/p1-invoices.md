@@ -1,4 +1,4 @@
-# P1.3 — Invoice & Billing API
+# P1.3 - Invoice & Billing API
 
 ## POST /api/invoices
 Create invoice (draft).

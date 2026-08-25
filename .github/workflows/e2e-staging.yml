@@ -44,7 +44,7 @@ jobs:
 
       - name: Deploy to Cloudflare Workers (staging)
         # v4.0.0 runs on Node 24. The old v3.15.0 pin (node20) is forced onto
-        # Node 24 by GitHub Actions — a known failure mode for this action's
+        # Node 24 by GitHub Actions - a known failure mode for this action's
         # internal `npx wrangler` call ("The process npx failed with exit
         # code 1") that made deploys flaky. Pin wranglerVersion to the
         # lockfile's so every run deploys with the same CLI version.

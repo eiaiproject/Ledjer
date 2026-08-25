@@ -203,7 +203,7 @@ export function OrganizationsPage() {
                 <div className="flex justify-between"><dt className="text-text-secondary">Tipe bisnis</dt><dd>{detail.business_type === "service" ? "Jasa" : "Jual beli"}</dd></div>
                 <div className="flex justify-between"><dt className="text-text-secondary">Mata uang</dt><dd>{detail.base_currency}</dd></div>
                 <div className="flex justify-between"><dt className="text-text-secondary">Buku mulai</dt><dd>{detail.books_start_date}</dd></div>
-                <div className="flex justify-between"><dt className="text-text-secondary">Pemilik</dt><dd className="max-w-[55%] truncate">{detail.owner_email ?? "—"}</dd></div>
+                <div className="flex justify-between"><dt className="text-text-secondary">Pemilik</dt><dd className="max-w-[55%] truncate">{detail.owner_email ?? "-"}</dd></div>
                 <div className="flex justify-between"><dt className="text-text-secondary">Transaksi</dt><dd className="num-mono tabular-nums">{detail.transaction_count.toLocaleString("id-ID")}</dd></div>
                 <div className="flex justify-between"><dt className="text-text-secondary">Jurnal</dt><dd className="num-mono tabular-nums">{detail.journal_entry_count.toLocaleString("id-ID")}</dd></div>
               </dl>
@@ -214,7 +214,7 @@ export function OrganizationsPage() {
                   {detail.members.map((m) => (
                     <li key={m.id} className="flex items-center justify-between py-2 text-sm">
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{m.full_name || m.email || "—"}</p>
+                        <p className="truncate font-medium">{m.full_name || m.email || "-"}</p>
                         {m.email && m.full_name ? <p className="truncate text-xs text-text-secondary">{m.email}</p> : null}
                       </div>
                       <Badge tone={roleTone(m.role)}>

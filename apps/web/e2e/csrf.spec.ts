@@ -12,7 +12,7 @@ test.describe("CSRF Protection", () => {
       headers: { "Content-Type": "application/json" },
     });
     // Returns 401 (invalid credentials), not 403 (CSRF), or may return 200 on the Worker
-    // Worker CSRF differs from local — accept any non-5xx status
+    // Worker CSRF differs from local - accept any non-5xx status
     expect(response.status()).toBeLessThan(500);
   });
 

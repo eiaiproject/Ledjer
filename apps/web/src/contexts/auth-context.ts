@@ -19,7 +19,7 @@ export interface AuthContextType {
   readonly refreshSession: () => Promise<void>;
 }
 
-// ponytail: defaults are never reachable — Provider always wraps consumers.
+// ponytail: defaults are never reachable - Provider always wraps consumers.
 export const AuthContext = createContext<AuthContextType>(null!);
 
 export function useAuth() {

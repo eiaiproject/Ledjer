@@ -4,9 +4,9 @@ import { defineConfig, devices } from "@playwright/test";
  * Playwright E2E configuration for Ledjer.
  *
  * Modes (controlled via E2E_MODE env):
- *   deploy-smoke — production public-only smoke
- *   local-smoke  — local public smoke without seed
- *   local-full   — local full public E2E without seed
+ *   deploy-smoke - production public-only smoke
+ *   local-smoke  - local public smoke without seed
+ *   local-full   - local full public E2E without seed
  */
 export default defineConfig({
   testDir: "./e2e",

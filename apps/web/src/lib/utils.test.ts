@@ -107,7 +107,7 @@ describe("formatDecimalInput (unit-price input display)", () => {
 });
 
 describe("formatDecimalIDR (unit-price display)", () => {
-  // Intl currency output uses a non-breaking space (U+00A0) after "Rp" —
+  // Intl currency output uses a non-breaking space (U+00A0) after "Rp" -
   // same convention as formatIDR. Normalize it here for readable assertions.
   const nbsp = "\u00A0";
   const render = (v: number | null | undefined) => formatDecimalIDR(v).replaceAll(nbsp, " ");
@@ -124,7 +124,7 @@ describe("formatDecimalIDR (unit-price display)", () => {
   });
 
   it("returns em dash for missing values", () => {
-    expect(formatDecimalIDR(null)).toBe("—");
-    expect(formatDecimalIDR(undefined)).toBe("—");
+    expect(formatDecimalIDR(null)).toBe("-");
+    expect(formatDecimalIDR(undefined)).toBe("-");
   });
 });

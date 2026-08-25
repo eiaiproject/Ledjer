@@ -20,7 +20,7 @@ Izin dijabarkan lebih detail (contoh: *dapat membuat transaksi*, *dapat melihat 
 1. Buka **Pengaturan → Tim**.
 2. Klik **Undang Anggota**.
 3. Masukkan email dan pilih peran.
-4. Kirim — sistem membuat **tautan undangan** yang bisa dibagikan.
+4. Kirim - sistem membuat **tautan undangan** yang bisa dibagikan.
 
 Anggota yang diundang menerima akses setelah menerima undangan dan membuat/memasang akun.
 
@@ -33,7 +33,7 @@ Anggota yang diundang menerima akses setelah menerima undangan dan membuat/memas
 ## Prinsip
 
 - **Owner selalu ada**: organisasi tidak bisa ditinggalkan tanpa owner. Pindahkan kepemilikan ke anggota lain sebelum owner keluar.
-- **Audit log** mencatat siapa melakukan apa — gunakan sebagai dasar pengendalian internal.
+- **Audit log** mencatat siapa melakukan apa - gunakan sebagai dasar pengendalian internal.
 
 ## Audit log
 

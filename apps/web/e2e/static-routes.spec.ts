@@ -68,7 +68,7 @@ test.describe("Canonical auth routes", () => {
     test(`old ${oldPath} path shows not-found (canonical route is ${oldPath.replace("/auth", "")})`, async ({ page }) => {
       await page.goto(oldPath);
       await expect(page.locator("h1")).toBeVisible();
-      // Must not show any auth page — confirm not-found is displayed
+      // Must not show any auth page - confirm not-found is displayed
       await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
       // Safety check: canonical route h1 must not contain "masuk" or "daftar"
       const h1Text = await page.locator("h1").textContent();

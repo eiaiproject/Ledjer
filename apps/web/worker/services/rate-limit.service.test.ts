@@ -53,7 +53,7 @@ describe("Rate Limit Service", () => {
 
     await testRateLimit(db, "password_reset", "test@example.com", 3, 60_000);
 
-    // Atomic INSERT ... SELECT ... WHERE COUNT < max — bucket_key appears twice (insert + WHERE)
+    // Atomic INSERT ... SELECT ... WHERE COUNT < max - bucket_key appears twice (insert + WHERE)
     const insertCall = captured.find((q) => q.sql.includes("INSERT INTO rate_limits"));
     expect(insertCall).toBeDefined();
     expect(insertCall!.sql).toContain("COUNT(*)");

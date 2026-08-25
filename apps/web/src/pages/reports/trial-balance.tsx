@@ -206,13 +206,13 @@ export function TrialBalancePage() {
                   <div className="flex gap-4 text-sm">
                     <span className="text-wood-500 shrink-0">Debit</span>
                     <span className="font-mono text-wood-800 tabular-nums ml-auto">
-                      {hasDebit ? formatIDR(item.ending_debit) : "—"}
+                      {hasDebit ? formatIDR(item.ending_debit) : "-"}
                     </span>
                   </div>
                   <div className="flex gap-4 text-sm">
                     <span className="text-wood-500 shrink-0">Kredit</span>
                     <span className="font-mono text-wood-800 tabular-nums ml-auto">
-                      {hasCredit ? formatIDR(item.ending_credit) : "—"}
+                      {hasCredit ? formatIDR(item.ending_credit) : "-"}
                     </span>
                   </div>
                 </li>

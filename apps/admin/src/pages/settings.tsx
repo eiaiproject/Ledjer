@@ -118,7 +118,7 @@ export function SettingsPage() {
     const rows = admins.map((admin) => (
       <tr key={admin.id}>
         <td data-label="Admin" className="px-4 py-3">
-          <p className="font-medium">{admin.full_name || "—"}</p>
+          <p className="font-medium">{admin.full_name || "-"}</p>
           <p className="text-xs text-text-secondary">{admin.email}</p>
         </td>
         <td data-label="Status" className="px-4 py-3">
