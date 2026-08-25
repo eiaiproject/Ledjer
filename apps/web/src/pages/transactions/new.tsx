@@ -359,16 +359,16 @@ export function NewTransactionPage() {
           });
         }
       }
-    } catch (_e) { void _e; }
+    } catch { /* ignore */ }
     const sub = form.watch((value) => {
-      try { localStorage.setItem(draftKey, JSON.stringify(value)); } catch (_e) { void _e; }
+      try { localStorage.setItem(draftKey, JSON.stringify(value)); } catch { /* ignore */ }
     });
     return () => sub.unsubscribe();
   }, [form, orgData?.organization?.id, successTransactionId]);
   // Clear draft on success
   useEffect(() => {
     if (successTransactionId && orgData?.organization?.id) {
-      try { localStorage.removeItem(`ledjer:draft:transaction:${orgData.organization.id}`); } catch (_e) { void _e; }
+      try { localStorage.removeItem(`ledjer:draft:transaction:${orgData.organization.id}`); } catch { /* ignore */ }
     }
   }, [successTransactionId, orgData?.organization?.id]);
 

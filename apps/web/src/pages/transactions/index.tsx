@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { refreshAllData } from "@/lib/query-client";
 
@@ -58,7 +58,6 @@ function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty,
 }
 import { queryKeys } from "@/lib/query-keys";
 import { voidTransaction } from "@/lib/api/transactions";
-import { useQueryClient } from "@tanstack/react-query";
 import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
 import { formatIDR, formatShortDate, localDate } from "@/lib/utils";
 import { TransactionListSkeleton } from "@/components/ui/skeleton";
@@ -240,9 +239,9 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
     mutate(next);
     setSearchParams(next, { replace: true });
   };
-  const setSearch = (v: string) => updateParams((n) => { if (v) n.set("q", v); else n.delete("q"); n.set("page", "0"); });
-  const setTypeFilter = (v: string) => updateParams((n) => { if (v) n.set("type", v); else n.delete("type"); n.set("page", "0"); });
-  const setStatusFilter = (v: TransactionStatus | "") => updateParams((n) => { if (v) n.set("status", v); else n.delete("status"); n.set("page", "0"); });
+  const setSearch = (v: string) => updateParams((n) => { if (v) { n.set("q", v); } else { n.delete("q"); } n.set("page", "0"); });
+  const setTypeFilter = (v: string) => updateParams((n) => { if (v) { n.set("type", v); } else { n.delete("type"); } n.set("page", "0"); });
+  const setStatusFilter = (v: TransactionStatus | "") => updateParams((n) => { if (v) { n.set("status", v); } else { n.delete("status"); } n.set("page", "0"); });
   const setFromDate = (v: string) => updateParams((n) => { n.set("from", v); n.set("page", "0"); });
   const setToDate = (v: string) => updateParams((n) => { n.set("to", v); n.set("page", "0"); });
   const setPage = (updater: number | ((p: number) => number)) => updateParams((n) => { const nextPage = typeof updater === "function" ? (updater as (p: number) => number)(page) : updater; n.set("page", String(Math.max(0, nextPage))); });
@@ -316,7 +315,8 @@ export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity
     if (ok > 0) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-      toast.success(`${ok} transaksi dibatalkan${failed > 0 ? `, ${failed} gagal` : ""}`);
+      const voidSuffix = failed > 0 ? `, ${failed} gagal` : "";
+      toast.success(`${ok} transaksi dibatalkan${voidSuffix}`);
     } else {
       toast.error("Semua void gagal - coba lagi");
     }

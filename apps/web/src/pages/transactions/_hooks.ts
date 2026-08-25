@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
-import { useBlocker, useNavigate } from "react-router-dom";
+import { useBlocker } from "react-router-dom";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -516,7 +516,6 @@ export function useTransactionEffects(params: {
   } = params;
 
   const { getValues, setValue } = form;
-  const navigate = useNavigate();
 
   // Before unload protection
   useEffect(() => {
@@ -594,8 +593,6 @@ export function useTransactionEffects(params: {
 
   // Auto-navigate disabled for UX friction #2 - user chooses next action via SubmitBar
   // Previous: auto-navigate to /transactions/:id after 1400ms. Now manual via buttons.
-  void navigate;
-  void successTransactionId;
 
   // Collapse type selector & scroll to active fields when selectedType changes
   useEffect(() => {
