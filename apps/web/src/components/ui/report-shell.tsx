@@ -2,6 +2,8 @@ import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { PageGuide } from "@/components/ui/page-guide";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { refreshAllData } from "@/lib/query-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -55,6 +57,7 @@ export function ReportShell({
   className,
 }: ReportShellProps) {
   return (
+    <PullToRefresh onRefresh={refreshAllData}>
     <div className={cn("space-y-4", className)}>
       {/* Panduan halaman */}
       {guide && <PageGuide guideKey={guide} />}
@@ -107,6 +110,7 @@ export function ReportShell({
 
       {children}
     </div>
+    </PullToRefresh>
   );
 }
 
