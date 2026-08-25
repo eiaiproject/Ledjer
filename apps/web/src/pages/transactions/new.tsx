@@ -344,7 +344,7 @@ export function NewTransactionPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [form, successTransactionId]);
+  }, [form, successTransactionId, onSubmit]);
   useEffect(() => {
     if (!orgData?.organization?.id || successTransactionId) return;
     const draftKey = `ledjer:draft:transaction:${orgData.organization.id}`;
@@ -359,16 +359,16 @@ export function NewTransactionPage() {
           });
         }
       }
-    } catch {}
+    } catch (_e) { void _e; }
     const sub = form.watch((value) => {
-      try { localStorage.setItem(draftKey, JSON.stringify(value)); } catch {}
+      try { localStorage.setItem(draftKey, JSON.stringify(value)); } catch (_e) { void _e; }
     });
     return () => sub.unsubscribe();
   }, [form, orgData?.organization?.id, successTransactionId]);
   // Clear draft on success
   useEffect(() => {
     if (successTransactionId && orgData?.organization?.id) {
-      try { localStorage.removeItem(`ledjer:draft:transaction:${orgData.organization.id}`); } catch {}
+      try { localStorage.removeItem(`ledjer:draft:transaction:${orgData.organization.id}`); } catch (_e) { void _e; }
     }
   }, [successTransactionId, orgData?.organization?.id]);
 
