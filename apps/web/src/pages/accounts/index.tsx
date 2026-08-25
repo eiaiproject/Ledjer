@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -655,9 +656,18 @@ function AccountsTable({ accounts, onEdit, canEdit }: AccountsTableProps) {
 export function AccountsPage() { // NOSONAR typescript:S3776 - complexity 19/15; refactoring would break layout clarity
   const { data: orgData } = useOrganization();
   const { canManageAccounts, canCreateExports } = useOrgPermissions();
-  const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("cashbank");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const activeTab = (searchParams.get("tab") ?? "cashbank") as Tab;
+  const typeFilter = searchParams.get("kind") ?? "all";
+  const updateParams = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value); else next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
+  const setSearch = (v: string) => updateParams("q", v);
+  const setActiveTab = (v: Tab) => updateParams("tab", v === "cashbank" ? "" : v);
+  const setTypeFilter = (v: string) => updateParams("kind", v === "all" ? "" : v);
   const [editAccount, setEditAccount] = useState<Account | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
