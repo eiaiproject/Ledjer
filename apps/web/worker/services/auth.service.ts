@@ -13,7 +13,7 @@ import {
 const EMAIL_VERIFICATION_TTL_MS = 1000 * 60 * 60 * 24;
 const PASSWORD_RESET_TTL_MS = 1000 * 60 * 60;
 const LOGIN_LOCKOUT_MS = 1000 * 60 * 15;
-const LOGIN_MAX_FAILURES = 5;
+const LOGIN_MAX_FAILURES = 20;
 
 interface UserRow {
   id: string;
