@@ -36,6 +36,22 @@ Untuk koreksi stok (misal barang hilang, rusak, atau stok fisik berbeda):
 
 Produk yang stoknya **≤ stok minimum** muncul sebagai peringatan di beranda dan daftar produk. Juga dikirim sebagai notifikasi dalam aplikasi.
 
+## Peringatan "Stok Tidak Sesuai Pembukuan"
+
+Berbeda dengan peringatan stok menipis, alert ini muncul ketika **nilai persediaan di pembukuan (akun Persediaan / 1300)** tidak sama dengan **nilai stok produk** (Σ stok × biaya rata-rata). Contoh: pembukuan mencatat Rp 75.150 tetapi nilai stok fisik hanya Rp 18.900, selisih Rp 56.250.
+
+Penyebab umum:
+- Pembatalan (void) transaksi yang tidak mencatat jurnal balik secara bersih.
+- Penyesuaian stok yang jurnalnya tidak terposting.
+- Drift pembulatan WAC (biasanya < Rp 1.000 — **tidak** memicu alert).
+
+Cara menanganinya:
+1. Buka **Produk** untuk memeriksa mutasi dan stok tiap produk.
+2. Jika selisih wajar (pembulatan), abaikan — sistem menoleransi drift kecil.
+3. Jika selisih nyata, buat **Jurnal Manual** penyesuaian: debet akun selisih (mis. Laba/Rugi atau Beban) dan kredit akun Persediaan sebesar selisih, agar buku kembali sama dengan nilai stok.
+
+Setelah koreksi, alert akan hilang saat beranda di-refresh. Untuk memeriksa ulang secara langsung tanpa menunggu cache, developer dapat memanggil endpoint `GET /api/dashboard/inventory-reconciliation` (mengembalikan `account_balance`, `stock_value`, `diff`, dan `matched`).
+
 ## Impor produk massal
 
 Punya banyak produk? Gunakan menu **Impor → Produk**:

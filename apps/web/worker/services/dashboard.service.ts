@@ -187,13 +187,33 @@ async function checkUnreconciledStatements(
 }
 
 /**
- * Flag when the Persediaan control account balance diverges from the stock
- * subledger value (e.g. a stock adjustment whose journal never posted, or a
- * void/WAC rounding drift). Mirrors verifyInventoryMatch in backup.service.
+ * Compute the inventory control-account balance vs the stock subledger value.
+ *
+ * Returns the raw (rounded) figures plus a `matched` flag. The `matched` flag
+ * tolerates small WAC rounding drift (>= Rp 1.000 divergence is a real mismatch).
+ * Extracted as a pure function so it can be unit-tested with realistic fixtures
+ * (see dashboard.service.test.ts) and exposed on-demand via the
+ * `/api/dashboard/inventory-reconciliation` endpoint.
+ *
+ * Mirrors verifyInventoryMatch in backup.service (kept in sync: same tolerance).
  */
-async function checkInventoryMismatch(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
+export interface InventoryReconciliation {
+  /** Persediaan control-account balance in minor units (book value). */
+  accountBalance: number;
+  /** Σ(stock × average cost) across all products in minor units. */
+  stockValue: number;
+  /** Absolute divergence: |accountBalance − stockValue|. */
+  diff: number;
+  /** True when divergence is within tolerance (no alert needed). */
+  matched: boolean;
+}
+
+const INVENTORY_MISMATCH_TOLERANCE = 1000; // Rp 1.000 — ignore WAC rounding drift
+
+export async function computeInventoryMismatch(
+  db: D1Database,
+  orgId: string,
+): Promise<InventoryReconciliation> {
   const row = await queryFirst<{ account_balance: number | null; stock_value: number | null }>(
     db,
     `WITH posted_lines AS (
@@ -222,14 +242,26 @@ async function checkInventoryMismatch(
      FROM inv_balance, stock_value`,
     [orgId, orgId, orgId],
   );
-  if (!row) return;
 
-  const accountBalance = Math.round(row.account_balance ?? 0);
-  const stockValue = Math.round(row.stock_value ?? 0);
-  // Tolerate small WAC rounding drift; flag real divergences (>= Rp 1.000).
-  if (Math.abs(accountBalance - stockValue) < 1000) return;
-
+  const accountBalance = Math.round(row?.account_balance ?? 0);
+  const stockValue = Math.round(row?.stock_value ?? 0);
   const diff = Math.abs(accountBalance - stockValue);
+  // Tolerate small WAC rounding drift; flag real divergences (>= Rp 1.000).
+  const matched = diff < INVENTORY_MISMATCH_TOLERANCE;
+  return { accountBalance, stockValue, diff, matched };
+}
+
+/**
+ * Flag when the Persediaan control account balance diverges from the stock
+ * subledger value (e.g. a stock adjustment whose journal never posted, or a
+ * void/WAC rounding drift). Delegates the computation to computeInventoryMismatch.
+ */
+async function checkInventoryMismatch(
+  db: D1Database, orgId: string, alerts: DashboardAlert[],
+): Promise<void> {
+  const { accountBalance, stockValue, diff, matched } = await computeInventoryMismatch(db, orgId);
+  if (matched) return;
+
   alerts.push({
     id: "inventory_mismatch",
     type: "inventory_mismatch",

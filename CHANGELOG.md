@@ -9,6 +9,11 @@ All notable changes to Ledjer are documented here.
 - `X-XSS-Protection: 1; mode=block` → `0` (obsolete header per OWASP secure headers guidance)
 
 ### Added
+- Inventory mismatch guard + Fase 3 golden tests
+  - `computeInventoryMismatch()` pure function in `dashboard.service` (returns `{accountBalance, stockValue, diff, matched}`) — unit-testable with realistic fixtures
+  - `verifyInventoryMatch` (backup.service) tolerance aligned to Rp 1.000 to match the dashboard detector; now returns a structured `InventoryMatchResult`
+  - `GET /api/dashboard/inventory-reconciliation` (no-store) for on-demand mismatch check after a correction
+  - 7 golden tests reproducing the org b28dc5e4 corruption arc (Persediaan overstated Rp 56.250 via void double-reversal race): exact divergence, clears after correction, tolerates <Rp 1.000 WAC drift, agrees with backup verification
 - `/.well-known/security.txt` (RFC 9116) for vulnerability disclosure contact
 - Security headers (CSP, XFO, nosniff, HSTS) on docs.ledjer.id via assets worker wrapper
 - E2E assertions: script-src must not contain `'unsafe-inline'`, X-XSS-Protection must be `0`
