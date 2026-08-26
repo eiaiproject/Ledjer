@@ -584,6 +584,37 @@ paths:
         '200':
           description: Dashboard data
 
+  /api/dashboard/alerts:
+    get:
+      summary: Dashboard alerts
+      description: >
+        Actionable alerts for the current organization, including inventory
+        mismatch (control-account balance diverging from the stock subledger),
+        overdue receivables, low stock, draft transactions, etc.
+      tags: [Dashboard]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Alert list
+
+  /api/dashboard/inventory-reconciliation:
+    get:
+      summary: Inventory reconciliation (on-demand)
+      description: >
+        Recompute the Persediaan control-account balance versus the stock
+        subledger value without caching, so a mismatch alert can be verified
+        immediately after a correction. Divergences below Rp 1.000 are treated
+        as WAC rounding drift and reported as matched.
+      tags: [Dashboard]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: >
+            Reconciliation result with account_balance, stock_value, diff, and
+            matched (boolean).
+
   /api/period-locks:
     get:
       summary: List period locks
