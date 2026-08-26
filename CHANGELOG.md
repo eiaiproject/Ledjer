@@ -4,6 +4,18 @@ All notable changes to Ledjer are documented here.
 
 ## [Unreleased]
 
+### Changed
+- CSP: removed `'unsafe-inline'` from `script-src` in production `_headers` (web + admin); no inline executable scripts exist in production HTML
+- `X-XSS-Protection: 1; mode=block` → `0` (obsolete header per OWASP secure headers guidance)
+
+### Added
+- `/.well-known/security.txt` (RFC 9116) for vulnerability disclosure contact
+- Security headers (CSP, XFO, nosniff, HSTS) on docs.ledjer.id via assets worker wrapper
+- E2E assertions: script-src must not contain `'unsafe-inline'`, X-XSS-Protection must be `0`
+
+### Fixed
+- Production HTML no longer ships build-pipeline HTML comments (SENTRY placeholder, `_headers`, dev flag details) - stripped in postbuild step
+
 ### Added
 - OSV vulnerability scanner (CI weekly workflow)
 - pnpm audit in CI quality gate

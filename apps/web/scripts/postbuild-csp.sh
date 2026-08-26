@@ -20,6 +20,18 @@ if [[ -n "$ENV_LEAKS" ]]; then
   done
 fi
 
+# Strip HTML comments from the built index.html. The source file documents the
+# build pipeline (SENTRY placeholder, _headers, LEDJER_CSP_LOCAL) for devs, but
+# those comments ship to production and leak build details (security review F-04).
+INDEX="dist/client/index.html"
+if [[ -f "$INDEX" ]]; then
+  BEFORE=$(wc -c < "$INDEX" | tr -d ' ')
+  # perl slurps the file so multi-line comments are removed in one pass.
+  perl -0pi -e 's/<!--.*?-->//gs; s/\n{3,}/\n\n/g' "$INDEX"
+  AFTER=$(wc -c < "$INDEX" | tr -d ' ')
+  echo "[clean] stripped HTML comments from $INDEX ($BEFORE -> $AFTER bytes)"
+fi
+
 # NOTE: do NOT rewrite .wrangler/deploy/config.json here — the vite plugin
 # emits it pointing at dist/<name>/wrangler.json (main: index.js, the bundled
 # worker) and vite preview needs that resolved config to boot workerd. The
