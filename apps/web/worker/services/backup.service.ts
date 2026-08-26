@@ -430,26 +430,54 @@ async function verifyTrialBalance(db: D1Database, jlCount: number, errors: strin
   }
 }
 
-/** Verify inventory subledger matches the inventory control account balance. */
-async function verifyInventoryMatch(db: D1Database, errors: string[]): Promise<void> {
+/**
+ * Verify inventory subledger matches the inventory control account balance.
+ * Returns a structured result so callers (and tests) can assert on the exact
+ * divergence. Tolerance matches dashboard.service.computeInventoryMismatch
+ * (Rp 1.000) so the alert and the restore-drill agree on what is "real".
+ */
+export interface InventoryMatchResult {
+  /** 0 when no products, 1 when checked. */
+  checked: number;
+  accountBalance: number;
+  stockValue: number;
+  diff: number;
+  matched: boolean;
+}
+
+const INVENTORY_MISMATCH_TOLERANCE = 1000; // Rp 1.000 — ignore WAC rounding drift
+
+export async function verifyInventoryMatch(
+  db: D1Database,
+  errors?: string[],
+): Promise<InventoryMatchResult> {
   const prodRow = await db.prepare(
     `SELECT COUNT(*) as cnt FROM products`
   ).first<{ count: number }>();
-  if (!prodRow || prodRow.count === 0) return;
+  if (!prodRow || prodRow.count === 0) {
+    return { checked: 0, accountBalance: 0, stockValue: 0, diff: 0, matched: true };
+  }
 
   const invValue = await db.prepare(
     `SELECT COALESCE(SUM((current_stock_milli / 1000.0) * average_cost_minor), 0) as stock_value FROM products`
   ).first<{ stock_value: number }>();
-  if (!invValue || invValue.stock_value <= 0) return;
+  if (!invValue || invValue.stock_value <= 0) {
+    return { checked: 1, accountBalance: 0, stockValue: 0, diff: 0, matched: true };
+  }
 
   const invBalance = await db.prepare(
     `SELECT COALESCE(SUM(debit_minor) - SUM(credit_minor), 0) as balance
      FROM journal_lines
      WHERE account_id IN (SELECT id FROM accounts WHERE account_type = 'asset' AND (code LIKE '13%' OR name LIKE '%Persediaan%' OR name LIKE '%Inventory%'))`
   ).first<{ balance: number }>();
-  if (invBalance && Math.abs(invBalance.balance - invValue.stock_value) > 10) {
-    errors.push(`inventory subledger mismatch: stock value ${Math.round(invValue.stock_value)} ≠ account balance ${invBalance.balance}`);
+  const balance = invBalance?.balance ?? 0;
+  const stock = Math.round(invValue.stock_value);
+  const diff = Math.abs(balance - stock);
+  const matched = diff < INVENTORY_MISMATCH_TOLERANCE;
+  if (!matched && errors) {
+    errors.push(`inventory subledger mismatch: stock value ${stock} ≠ account balance ${balance}`);
   }
+  return { checked: 1, accountBalance: balance, stockValue: stock, diff, matched };
 }
 
 // ---------------------------------------------------------------------------

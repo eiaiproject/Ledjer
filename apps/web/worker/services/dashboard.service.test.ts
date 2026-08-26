@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeD1Database } from "../test/fake-d1";
-import { currentMonthPeriod, getDashboardAlerts, getDashboardSummary } from "./dashboard.service";
+import { computeInventoryMismatch, currentMonthPeriod, getDashboardAlerts, getDashboardSummary } from "./dashboard.service";
 
 describe("dashboard summary", () => {
   it("uses the current local month as the dashboard period", () => {
@@ -95,5 +95,111 @@ describe("dashboard alerts", () => {
 
     const { alerts } = await getDashboardAlerts(fake as unknown as D1Database, "org-1");
     expect(alerts).toHaveLength(0);
+  });
+});
+
+/**
+ * Fase 3 golden tests: reproduce the real production corruption from org
+ * b28dc5e4-… (Persediaan Sederhana overstated by Rp 56.250 due to a void
+ * double-reversal race) and verify the mismatch detector + on-demand
+ * reconciliation behave correctly across the corruption → correction arc.
+ *
+ * The FakeD1 handler below emulates a single product (Telur, 10 pcs @ 1.890 =
+ * 18.900) and a Persediaan control account whose posted balance is 75.150
+ * (overstated by 56.250) when corrupted, then 18.900 after the correction
+ * journal is applied.
+ */
+describe("inventory mismatch — Fase 3 golden (org b28dc5e4 corruption arc)", () => {
+  // Mirror of the real prod figures (minor units).
+  const STOCK_VALUE = 18_900; // 10 pcs Telur @ 1.890
+  const CORRUPTED_BOOK = 75_150; // overstated by 56.250 (the alert amount)
+  const CORRECTED_BOOK = 18_900; // after adjustment journal: Cr 1300 56.250
+
+  // Emulates computeInventoryMismatch's single CTE query. All OTHER dashboard
+  // alert checkers get `null`, so getDashboardAlerts only ever emits the
+  // inventory_mismatch alert (no low_stock / draft / etc. noise).
+  function makeFake(bookBalance: number) {
+    return new FakeD1Database({
+      first: (sql) => {
+        const s = sql.replace(/\s+/g, " ");
+        if (s.includes("inv_balance")) {
+          return { account_balance: bookBalance, stock_value: STOCK_VALUE };
+        }
+        return null;
+      },
+    });
+  }
+
+  // Emulates verifyInventoryMatch's three separate queries (backup.service).
+  function makeBackupFake(bookBalance: number) {
+    return new FakeD1Database({
+      first: (sql) => {
+        const s = sql.replace(/\s+/g, " ");
+        if (s.includes("FROM products") && s.includes("COUNT")) {
+          return { count: 1 };
+        }
+        if (s.includes("stock_value")) {
+          return { stock_value: STOCK_VALUE };
+        }
+        if (s.includes("FROM journal_lines") && s.includes("account_id IN")) {
+          return { balance: bookBalance };
+        }
+        return null;
+      },
+    });
+  }
+
+  it("reconciliation reports the exact production divergence (75.150 vs 18.900 → 56.250)", async () => {
+    const recon = await computeInventoryMismatch(makeFake(CORRUPTED_BOOK) as unknown as D1Database, "org-b28");
+    expect(recon.accountBalance).toBe(CORRUPTED_BOOK);
+    expect(recon.stockValue).toBe(STOCK_VALUE);
+    expect(recon.diff).toBe(56_250);
+    expect(recon.matched).toBe(false);
+  });
+
+  it("dashboard alert fires with the real selisih when corrupted", async () => {
+    const { alerts } = await getDashboardAlerts(makeFake(CORRUPTED_BOOK) as unknown as D1Database, "org-b28");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].id).toBe("inventory_mismatch");
+    expect(alerts[0].description).toContain("75.150");
+    expect(alerts[0].description).toContain("18.900");
+    expect(alerts[0].description).toContain("56.250");
+  });
+
+  it("reconciliation matches after the correction journal is applied", async () => {
+    const recon = await computeInventoryMismatch(makeFake(CORRECTED_BOOK) as unknown as D1Database, "org-b28");
+    expect(recon.accountBalance).toBe(CORRECTED_BOOK);
+    expect(recon.stockValue).toBe(STOCK_VALUE);
+    expect(recon.diff).toBe(0);
+    expect(recon.matched).toBe(true);
+  });
+
+  it("dashboard alert is cleared after correction", async () => {
+    const { alerts } = await getDashboardAlerts(makeFake(CORRECTED_BOOK) as unknown as D1Database, "org-b28");
+    expect(alerts).toHaveLength(0);
+  });
+
+  it("tolerates small WAC rounding drift (< Rp 1.000) and does not alert", async () => {
+    // Book off by Rp 999 — within tolerance, must not alert.
+    const { alerts } = await getDashboardAlerts(makeFake(STOCK_VALUE + 999) as unknown as D1Database, "org-b28");
+    expect(alerts).toHaveLength(0);
+  });
+
+  it("flags a Rp 1.000 drift as a real mismatch (boundary)", async () => {
+    const recon = await computeInventoryMismatch(makeFake(STOCK_VALUE + 1000) as unknown as D1Database, "org-b28");
+    expect(recon.diff).toBe(1000);
+    expect(recon.matched).toBe(false);
+    const { alerts } = await getDashboardAlerts(makeFake(STOCK_VALUE + 1000) as unknown as D1Database, "org-b28");
+    expect(alerts).toHaveLength(1);
+  });
+
+  it("backup verifyInventoryMatch agrees with the dashboard detector", async () => {
+    const { verifyInventoryMatch } = await import("./backup.service");
+    const corrupted = await verifyInventoryMatch(makeBackupFake(CORRUPTED_BOOK) as unknown as D1Database);
+    expect(corrupted.matched).toBe(false);
+    expect(corrupted.diff).toBe(56_250);
+    const corrected = await verifyInventoryMatch(makeBackupFake(CORRECTED_BOOK) as unknown as D1Database);
+    expect(corrected.matched).toBe(true);
+    expect(corrected.diff).toBe(0);
   });
 });
