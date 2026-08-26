@@ -1,0 +1,5 @@
+Contact: mailto:security@ledjer.id
+Expires: 2027-08-26T00:00:00.000Z
+Preferred-Languages: id, en
+Canonical: https://ledjer.id/.well-known/security.txt
+Policy: https://github.com/eiaiproject/Ledjer/blob/main/SECURITY.md
