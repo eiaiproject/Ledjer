@@ -1,5 +1,8 @@
 import { queryAll } from "../db/client";
 import { badRequest } from "../http/errors";
+import type { BalanceSheetReport, ProfitLossReport, ReportAccountLine } from "./report-types";
+
+export type { BalanceSheetReport, ProfitLossReport, ReportAccountLine } from "./report-types";
 
 interface AccountTotalRow {
   id: string;
@@ -8,31 +11,6 @@ interface AccountTotalRow {
   account_class: string;
   debit: number;
   credit: number;
-}
-
-export interface ReportAccountLine {
-  code: string;
-  name: string;
-  amount: number;
-}
-
-export interface ProfitLossReport {
-  fromDate: string;
-  toDate: string;
-  income: { total: number; accounts: ReportAccountLine[] };
-  expense: { total: number; accounts: ReportAccountLine[] };
-  netIncome: number;
-}
-
-export interface BalanceSheetReport {
-  asOfDate: string;
-  assets: ReportAccountLine[];
-  totalAssets: number;
-  liabilities: ReportAccountLine[];
-  totalLiabilities: number;
-  equity: ReportAccountLine[];
-  totalEquity: number;
-  balanced: boolean;
 }
 
 function assertDateRange(fromDate: string, toDate: string): void {

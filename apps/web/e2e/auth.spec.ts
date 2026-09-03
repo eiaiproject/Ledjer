@@ -44,6 +44,20 @@ test.describe("Login", () => {
   });
 });
 
+/** Fill the register form (common fields) and submit. */
+async function submitRegisterForm(
+  page: import("@playwright/test").Page,
+  opts: { email: string; password: string; confirm: string },
+) {
+  await page.goto("/register");
+  await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
+  await page.getByRole("textbox", { name: /nama usaha/i }).fill("Toko Test");
+  await page.getByRole("textbox", { name: /email/i }).fill(opts.email);
+  await page.locator('input[type="password"]').first().fill(opts.password);
+  await page.getByLabel(/konfirmasi password/i).fill(opts.confirm);
+  await page.getByRole("button", { name: /buat akun gratis/i }).click();
+}
+
 test.describe("Register", () => {
   test("register form has all fields", async ({ page }) => {
     await page.goto("/register");
@@ -55,37 +69,19 @@ test.describe("Register", () => {
   });
 
   test("register with invalid email shows validation error", async ({ page }) => {
-    await page.goto("/register");
-    await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
-    await page.getByRole("textbox", { name: /nama usaha/i }).fill("Toko Test");
+    await submitRegisterForm(page, { email: "not-an-email", password: "Password1!", confirm: "Password1!" });
     const emailInput = page.getByRole("textbox", { name: /email/i });
-    await emailInput.fill("not-an-email");
-    await page.locator('input[type="password"]').first().fill("Password1!");
-    await page.getByLabel(/konfirmasi password/i).fill("Password1!");
-    await page.getByRole("button", { name: /buat akun gratis/i }).click();
     await expect.poll(async () => emailInput.evaluate((input) => (input as HTMLInputElement).validity.typeMismatch)).toBe(true);
     await expect(page).toHaveURL(/\/register/);
   });
 
   test("register with weak password shows validation error", async ({ page }) => {
-    await page.goto("/register");
-    await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
-    await page.getByRole("textbox", { name: /email/i }).fill("register-validation@test.com");
-    await page.getByRole("textbox", { name: /nama usaha/i }).fill("Toko Test");
-    await page.locator('input[type="password"]').first().fill("weak");
-    await page.getByLabel(/konfirmasi password/i).fill("weak");
-    await page.getByRole("button", { name: /buat akun gratis/i }).click();
+    await submitRegisterForm(page, { email: "register-validation@test.com", password: "weak", confirm: "weak" });
     await expect(page.locator("text=/8 karakter/i")).toBeVisible({ timeout: 5_000 });
   });
 
   test("register with mismatched passwords shows error", async ({ page }) => {
-    await page.goto("/register");
-    await page.getByRole("textbox", { name: /nama lengkap/i }).fill("Test User");
-    await page.getByRole("textbox", { name: /email/i }).fill("register-validation@test.com");
-    await page.getByRole("textbox", { name: /nama usaha/i }).fill("Toko Test");
-    await page.locator('input[type="password"]').first().fill("Password1!");
-    await page.getByLabel(/konfirmasi password/i).fill("Different1!");
-    await page.getByRole("button", { name: /buat akun gratis/i }).click();
+    await submitRegisterForm(page, { email: "register-validation@test.com", password: "Password1!", confirm: "Different1!" });
     await expect(page.locator("text=/tidak cocok/i")).toBeVisible({ timeout: 5_000 });
   });
 });

@@ -37,7 +37,7 @@ const expiresAt = now + 7 * 86_400_000; // 7 days
 // legacy hardcoded id so existing local prod runs behave unchanged.
 const insertValuesSql = E2E_EMAIL
   ? `SELECT '${sessionId}', id, '${tokenHash}', '127.0.0.1', ${expiresAt}, ${now}, ${now}
-     FROM users WHERE email = '${E2E_EMAIL.replace(/'/g, "''")}'`
+     FROM users WHERE email = '${E2E_EMAIL.replaceAll("'", "''")}'`
   : `VALUES ('${sessionId}', '${DEFAULT_USER_ID}', '${tokenHash}', '127.0.0.1', ${expiresAt}, ${now}, ${now})`;
 
 const sql = [

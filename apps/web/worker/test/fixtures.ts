@@ -377,6 +377,48 @@ function norm(sql: string): string {
   return sql.replace(/\s+/g, " ");
 }
 
+/**
+ * Apply the org-scoped transaction filters (date range, type, status, search)
+ * that listTransactions/countTransactions build, in builder order. `prefix` is
+ * "t." for aliased selects and "" for plain COUNT(*) queries; filter values
+ * start at index 1 (index 0 is the organization id).
+ */
+function applyTransactionFilters(
+  source: SeedTransaction[],
+  s: string,
+  values: unknown[],
+  prefix: string,
+): SeedTransaction[] {
+  let result = source;
+  let vi = 1;
+  if (s.includes(`${prefix}transaction_date >= ?`)) {
+    const from = values[vi++] as string;
+    result = result.filter((t) => t.transaction_date >= from);
+  }
+  if (s.includes(`${prefix}transaction_date <= ?`)) {
+    const to = values[vi++] as string;
+    result = result.filter((t) => t.transaction_date <= to);
+  }
+  if (s.includes(`${prefix}transaction_type = ?`)) {
+    const type = values[vi++] as SeedTransaction["transaction_type"];
+    result = result.filter((t) => t.transaction_type === type);
+  }
+  if (s.includes(`${prefix}status = ?`)) {
+    const status = values[vi++] as "posted" | "voided";
+    result = result.filter((t) => t.status === status);
+  }
+  if (s.includes(`lower(${prefix}description) LIKE ?`)) {
+    // description LIKE + number LIKE share the same value
+    const search = (values[vi] as string).replaceAll("%", "").toLowerCase();
+    result = result.filter(
+      (t) =>
+        t.description.toLowerCase().includes(search) ||
+        t.transaction_number.toLowerCase().includes(search),
+    );
+  }
+  return result;
+}
+
 // ── In-memory query handlers ───────────────────────────────────
 
 function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
@@ -533,25 +575,7 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
   }
   if (s.includes("COUNT(*)") && s.includes("FROM transactions")) {
     const orgId = values[0] as string;
-    let result = orgTransactions(orgId);
-    let vi = 1;
-    if (s.includes("transaction_date >= ?")) {
-      const from = values[vi++] as string;
-      result = result.filter((t) => t.transaction_date >= from);
-    }
-    if (s.includes("transaction_date <= ?")) {
-      const to = values[vi++] as string;
-      result = result.filter((t) => t.transaction_date <= to);
-    }
-    if (s.includes("transaction_type = ?")) {
-      const type = values[vi++] as SeedTransaction["transaction_type"];
-      result = result.filter((t) => t.transaction_type === type);
-    }
-    if (s.includes("status = ?")) {
-      // eslint-disable-next-line no-useless-assignment -- final index read
-      const status = values[vi++] as "posted" | "voided";
-      result = result.filter((t) => t.status === status);
-    }
+    const result = applyTransactionFilters(orgTransactions(orgId), s, values, "");
     return { c: result.length };
   }
 
@@ -614,33 +638,7 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
   // Transactions list / export (LEFT JOIN readbacks)
   if (s.includes("FROM transactions t") && s.includes("LEFT JOIN accounts")) {
     const orgId = values[0] as string;
-    let result = orgTransactions(orgId);
-    let vi = 1;
-    if (s.includes("t.transaction_date >= ?")) {
-      const from = values[vi++] as string;
-      result = result.filter((t) => t.transaction_date >= from);
-    }
-    if (s.includes("t.transaction_date <= ?")) {
-      const to = values[vi++] as string;
-      result = result.filter((t) => t.transaction_date <= to);
-    }
-    if (s.includes("t.transaction_type = ?")) {
-      const type = values[vi++] as SeedTransaction["transaction_type"];
-      result = result.filter((t) => t.transaction_type === type);
-    }
-    if (s.includes("t.status = ?")) {
-      const status = values[vi++] as "posted" | "voided";
-      result = result.filter((t) => t.status === status);
-    }
-    if (s.includes("lower(t.description) LIKE ?")) {
-      // description LIKE + number LIKE share the same value
-      const search = (values[vi] as string).replaceAll("%", "").toLowerCase();
-      result = result.filter(
-        (t) =>
-          t.description.toLowerCase().includes(search) ||
-          t.transaction_number.toLowerCase().includes(search),
-      );
-    }
+    const result = applyTransactionFilters(orgTransactions(orgId), s, values, "t.");
     return result.map((t) => toTransactionReadback(t, orgId));
   }
 
@@ -708,7 +706,8 @@ function journalTotalsByAccount(
   for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
     const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
     const txn = entry ? transactions.find((t) => t.id === entry.transaction_id) : null;
-    if (!txn || txn.status !== "posted") continue;
+    if (!txn) continue;
+    if (txn.status !== "posted") continue;
     if (opts.toDate && txn.transaction_date > opts.toDate) continue;
     if (opts.fromDate && txn.transaction_date < opts.fromDate) continue;
     const bucket = totals.get(line.account_id) ?? { debit: 0, credit: 0 };

@@ -1,29 +1,14 @@
 import { apiRequest } from "./client";
+import type {
+  BalanceSheetReport,
+  ProfitLossReport,
+} from "../../../worker/services/report-types";
 
-export interface ReportAccountLine {
-  code: string;
-  name: string;
-  amount: number;
-}
-
-export interface ProfitLossReport {
-  fromDate: string;
-  toDate: string;
-  income: { total: number; accounts: ReportAccountLine[] };
-  expense: { total: number; accounts: ReportAccountLine[] };
-  netIncome: number;
-}
-
-export interface BalanceSheetReport {
-  asOfDate: string;
-  assets: ReportAccountLine[];
-  totalAssets: number;
-  liabilities: ReportAccountLine[];
-  totalLiabilities: number;
-  equity: ReportAccountLine[];
-  totalEquity: number;
-  balanced: boolean;
-}
+export type {
+  BalanceSheetReport,
+  ProfitLossReport,
+  ReportAccountLine,
+} from "../../../worker/services/report-types";
 
 interface ProfitLossResponse {
   report: ProfitLossReport;

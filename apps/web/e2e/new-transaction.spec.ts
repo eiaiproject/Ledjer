@@ -9,7 +9,6 @@ import { expect, type Page } from "@playwright/test";
  */
 
 const TS = Date.now();
-const DESCRIPTION = `[E2E] Uang Masuk ${TS}`;
 
 const DETAIL_URL = /\/transactions\/[0-9a-f-]{36}$/;
 
@@ -44,84 +43,98 @@ async function submitTransaction(page: Page, opts: SubmitTransactionOptions) {
   await expect(page).toHaveURL(DETAIL_URL, { timeout: 15000 });
 }
 
+interface CreationCase {
+  name: string;
+  descPrefix: string;
+  type: string;
+  cashAccountLabel: string;
+  counterLabel: string;
+  counterAccount: string;
+  amount: string;
+  /** Header line rendered on the detail page as "<type> · 1 Agustus 2026". */
+  header: string;
+  /** Extra detail-page texts to assert (account names, status badges). */
+  extraLabels: string[];
+}
+
+const CREATION_CASES: CreationCase[] = [
+  {
+    name: "creates a cash_in (uang masuk) transaction",
+    descPrefix: "Uang Masuk",
+    type: "cash_in",
+    cashAccountLabel: "Akun Kas/Bank Tujuan",
+    counterLabel: "Kategori Pendapatan",
+    counterAccount: "4110 · Pendapatan Usaha",
+    amount: "500000",
+    header: "Uang Masuk · 1 Agustus 2026",
+    extraLabels: ["Posted", "Pendapatan Usaha"],
+  },
+  {
+    name: "creates a cash_out (uang keluar) transaction",
+    descPrefix: "Uang Keluar",
+    type: "cash_out",
+    cashAccountLabel: "Akun Kas/Bank Sumber",
+    counterLabel: "Kategori Beban",
+    counterAccount: "6180 · Beban Lain-lain",
+    amount: "75000",
+    header: "Uang Keluar · 1 Agustus 2026",
+    extraLabels: ["Beban Lain-lain"],
+  },
+  {
+    name: "creates a transfer between kas and bank",
+    descPrefix: "Transfer",
+    type: "transfer",
+    cashAccountLabel: "Akun Sumber",
+    counterLabel: "Akun Tujuan",
+    counterAccount: "1120 · Bank",
+    amount: "200000",
+    header: "Transfer · 1 Agustus 2026",
+    extraLabels: [],
+  },
+  {
+    name: "creates an owner_deposit (modal masuk)",
+    descPrefix: "Modal Masuk",
+    type: "owner_deposit",
+    cashAccountLabel: "Akun Kas/Bank Tujuan",
+    counterLabel: "Modal Pemilik",
+    counterAccount: "3110 · Modal Pemilik",
+    amount: "1000000",
+    header: "Modal Masuk · 1 Agustus 2026",
+    extraLabels: [],
+  },
+  {
+    name: "creates an owner_withdrawal (pengambilan pemilik)",
+    descPrefix: "Pengambilan",
+    type: "owner_withdrawal",
+    cashAccountLabel: "Akun Kas/Bank Sumber",
+    counterLabel: "Pengambilan Pemilik",
+    counterAccount: "3120 · Pengambilan Pemilik",
+    amount: "250000",
+    header: "Pengambilan Pemilik · 1 Agustus 2026",
+    extraLabels: [],
+  },
+];
+
 test.describe("New Transaction", () => {
-  test("creates a cash_in (uang masuk) transaction", async ({ authPage }) => {
-    await submitTransaction(authPage, {
-      type: "cash_in",
-      cashAccountLabel: "Akun Kas/Bank Tujuan",
-      counterLabel: "Kategori Pendapatan",
-      counterAccount: "4110 · Pendapatan Usaha",
-      amount: "500000",
-      description: DESCRIPTION,
+  for (const c of CREATION_CASES) {
+    test(c.name, async ({ authPage }) => {
+      const desc = `[E2E] ${c.descPrefix} ${TS}`;
+      await submitTransaction(authPage, {
+        type: c.type,
+        cashAccountLabel: c.cashAccountLabel,
+        counterLabel: c.counterLabel,
+        counterAccount: c.counterAccount,
+        amount: c.amount,
+        description: desc,
+      });
+
+      await expect(authPage.getByText(desc)).toBeVisible();
+      await expect(authPage.getByText(c.header)).toBeVisible();
+      for (const label of c.extraLabels) {
+        await expect(authPage.getByText(label)).toBeVisible();
+      }
     });
-
-    await expect(authPage.getByText(DESCRIPTION)).toBeVisible();
-    // The type is rendered in the page header as "<type> · <date>".
-    await expect(authPage.getByText("Uang Masuk · 1 Agustus 2026")).toBeVisible();
-    await expect(authPage.getByText("Posted")).toBeVisible();
-    await expect(authPage.getByText("Pendapatan Usaha")).toBeVisible();
-  });
-
-  test("creates a cash_out (uang keluar) transaction", async ({ authPage }) => {
-    const desc = `[E2E] Uang Keluar ${TS}`;
-    await submitTransaction(authPage, {
-      type: "cash_out",
-      cashAccountLabel: "Akun Kas/Bank Sumber",
-      counterLabel: "Kategori Beban",
-      counterAccount: "6180 · Beban Lain-lain",
-      amount: "75000",
-      description: desc,
-    });
-
-    await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Uang Keluar · 1 Agustus 2026")).toBeVisible();
-    await expect(authPage.getByText("Beban Lain-lain")).toBeVisible();
-  });
-
-  test("creates a transfer between kas and bank", async ({ authPage }) => {
-    const desc = `[E2E] Transfer ${TS}`;
-    await submitTransaction(authPage, {
-      type: "transfer",
-      cashAccountLabel: "Akun Sumber",
-      counterLabel: "Akun Tujuan",
-      counterAccount: "1120 · Bank",
-      amount: "200000",
-      description: desc,
-    });
-
-    await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Transfer · 1 Agustus 2026")).toBeVisible();
-  });
-
-  test("creates an owner_deposit (modal masuk)", async ({ authPage }) => {
-    const desc = `[E2E] Modal Masuk ${TS}`;
-    await submitTransaction(authPage, {
-      type: "owner_deposit",
-      cashAccountLabel: "Akun Kas/Bank Tujuan",
-      counterLabel: "Modal Pemilik",
-      counterAccount: "3110 · Modal Pemilik",
-      amount: "1000000",
-      description: desc,
-    });
-
-    await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Modal Masuk · 1 Agustus 2026")).toBeVisible();
-  });
-
-  test("creates an owner_withdrawal (pengambilan pemilik)", async ({ authPage }) => {
-    const desc = `[E2E] Pengambilan ${TS}`;
-    await submitTransaction(authPage, {
-      type: "owner_withdrawal",
-      cashAccountLabel: "Akun Kas/Bank Sumber",
-      counterLabel: "Pengambilan Pemilik",
-      counterAccount: "3120 · Pengambilan Pemilik",
-      amount: "250000",
-      description: desc,
-    });
-
-    await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Pengambilan Pemilik · 1 Agustus 2026")).toBeVisible();
-  });
+  }
 
   test("voids a posted transaction", async ({ authPage }) => {
     const desc = `[E2E] Void ${TS}`;
