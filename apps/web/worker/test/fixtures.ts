@@ -379,7 +379,7 @@ function norm(sql: string): string {
 
 // ── In-memory query handlers ───────────────────────────────────
 
-function handleFirst(sql: string, values: unknown[]): unknown {
+function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
   const s = norm(sql);
 
   // Users (login/register lookups)
@@ -601,7 +601,7 @@ function handleFirst(sql: string, values: unknown[]): unknown {
   return null;
 }
 
-function handleAll(sql: string, values: unknown[]): unknown[] {
+function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
   const s = norm(sql);
 
   // Plain memberships lookup (e.g. counting orgs per user)
@@ -633,9 +633,8 @@ function handleAll(sql: string, values: unknown[]): unknown[] {
       result = result.filter((t) => t.status === status);
     }
     if (s.includes("lower(t.description) LIKE ?")) {
-      const search = (values[vi] as string).replaceAll("%", "").toLowerCase();
-      vi += 2; // eslint-disable-line no-useless-assignment -- final index advance
       // description LIKE + number LIKE share the same value
+      const search = (values[vi] as string).replaceAll("%", "").toLowerCase();
       result = result.filter(
         (t) =>
           t.description.toLowerCase().includes(search) ||
@@ -670,16 +669,7 @@ function handleAll(sql: string, values: unknown[]): unknown[] {
   // Balances per account (dashboard + accounts list): grouped debit/credit
   if (s.includes("FROM journal_lines jl") && s.includes("GROUP BY jl.account_id")) {
     const orgId = values[0] as string;
-    const totals = new Map<string, { debit: number; credit: number }>();
-    for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
-      const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
-      const txn = entry && transactions.find((t) => t.id === entry.transaction_id);
-      if (!txn || txn.status !== "posted") continue;
-      const bucket = totals.get(line.account_id) ?? { debit: 0, credit: 0 };
-      bucket.debit += line.debit_idr;
-      bucket.credit += line.credit_idr;
-      totals.set(line.account_id, bucket);
-    }
+    const totals = journalTotalsByAccount(orgId, {});
     return [...totals.entries()].map(([account_id, { debit, credit }]) => ({
       account_id,
       debit,
@@ -692,18 +682,7 @@ function handleAll(sql: string, values: unknown[]): unknown[] {
     const orgId = values[0] as string;
     const toDate = values[1] as string;
     const fromDate = s.includes("t.transaction_date >= ?") ? (values[2] as string) : null;
-    const totals = new Map<string, { debit: number; credit: number }>();
-    for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
-      const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
-      const txn = entry && transactions.find((t) => t.id === entry.transaction_id);
-      if (!txn || txn.status !== "posted") continue;
-      if (txn.transaction_date > toDate) continue;
-      if (fromDate && txn.transaction_date < fromDate) continue;
-      const bucket = totals.get(line.account_id) ?? { debit: 0, credit: 0 };
-      bucket.debit += line.debit_idr;
-      bucket.credit += line.credit_idr;
-      totals.set(line.account_id, bucket);
-    }
+    const totals = journalTotalsByAccount(orgId, { toDate, fromDate });
     return [...totals.entries()].map(([account_id, { debit, credit }]) => {
       const account = allAccounts(orgId).find((a) => a.id === account_id);
       return {
@@ -720,7 +699,27 @@ function handleAll(sql: string, values: unknown[]): unknown[] {
   return [];
 }
 
-function handleRun(sql: string, values: unknown[]): D1Result {
+/** Sum debits/credits of posted journal lines per account (date-filterable). */
+function journalTotalsByAccount(
+  orgId: string,
+  opts: { toDate?: string; fromDate?: string | null },
+): Map<string, { debit: number; credit: number }> {
+  const totals = new Map<string, { debit: number; credit: number }>();
+  for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
+    const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
+    const txn = entry ? transactions.find((t) => t.id === entry.transaction_id) : null;
+    if (!txn || txn.status !== "posted") continue;
+    if (opts.toDate && txn.transaction_date > opts.toDate) continue;
+    if (opts.fromDate && txn.transaction_date < opts.fromDate) continue;
+    const bucket = totals.get(line.account_id) ?? { debit: 0, credit: 0 };
+    bucket.debit += line.debit_idr;
+    bucket.credit += line.credit_idr;
+    totals.set(line.account_id, bucket);
+  }
+  return totals;
+}
+
+function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
   const s = norm(sql);
 
   if (s.includes("INSERT INTO users")) {
@@ -836,15 +835,15 @@ function handleRun(sql: string, values: unknown[]): D1Result {
   if (s.includes("UPDATE accounts SET")) {
     const account = accounts.find(
       (a) =>
-        a.id === values[values.length - 2] &&
-        a.organization_id === values[values.length - 1],
+        a.id === values.at(-2) &&
+        a.organization_id === values.at(-1),
     );
     if (account) {
       let vi = 0;
       if (s.includes("name = ?")) account.name = values[vi++] as string;
       // eslint-disable-next-line no-useless-assignment -- final index read
       if (s.includes("is_active = ?")) account.is_active = Number(values[vi++]);
-      account.updated_at = Number(values[values.length - 3]);
+      account.updated_at = Number(values.at(-3));
     }
   }
 
@@ -894,7 +893,7 @@ function handleRun(sql: string, values: unknown[]): D1Result {
 
   if (s.includes("UPDATE transactions SET status")) {
     const txn = transactions.find((t) => t.id === values[3]);
-    if (txn && txn.status === "posted") {
+    if (txn?.status === "posted") {
       txn.status = "voided";
       txn.voided_at = Number(values[0]);
       txn.void_reason = (values[1] as string | null) ?? null;

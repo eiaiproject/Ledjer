@@ -191,6 +191,38 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       ? resolveNumericDisplay(props.value, isFormattedInput, hasDecimals)
       : internalDisplay;
 
+    const handleDecimalChange = (e: ChangeEvent<HTMLInputElement>) => {
+      const { normalized, intPart, fracPart } = normalizeDecimalInput(e.target.value);
+      if (e.target.value !== normalized) e.target.value = normalized;
+      if (!isControlledValue) {
+        setInternalDisplay(formatDecimalInput(Number(`${intPart || 0}.${fracPart || 0}`), true));
+      }
+      props.onChange?.(e);
+      const el = internalRef.current;
+      if (el) {
+        const caretLen = formatDecimalInput(Number(`${intPart || 0}.${fracPart || 0}`), true).length;
+        el.setSelectionRange(caretLen, caretLen);
+      }
+    };
+
+    const handleWholeAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
+      // Normalize to digits + optional single leading minus. Separators are a
+      // display concern only - parents receive a clean value they can parse.
+      const { normalized, negative, digits } = normalizeWholeAmount(e.target.value);
+      if (e.target.value !== normalized) e.target.value = normalized;
+      if (!isControlledValue) {
+        setInternalDisplay(formatAmountInput(Number(digits || 0), true));
+      }
+      props.onChange?.(e);
+      // Keep the caret at the right end (cash-register feel: new digits are
+      // appended at the right, aligned with the formatted display).
+      const el = internalRef.current;
+      if (el) {
+        const caretLen = (negative ? 1 : 0) + formatAmountInput(Number(digits || 0), true).length;
+        el.setSelectionRange(caretLen, caretLen);
+      }
+    };
+
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
       if (!isNumericInput) {
         props.onChange?.(e);
@@ -207,35 +239,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       }
 
       if (hasDecimals) {
-        const { normalized, intPart, fracPart } = normalizeDecimalInput(e.target.value);
-        if (e.target.value !== normalized) e.target.value = normalized;
-        if (!isControlledValue) {
-          setInternalDisplay(formatDecimalInput(Number(`${intPart || 0}.${fracPart || 0}`), true));
-        }
-        props.onChange?.(e);
-        const el = internalRef.current;
-        if (el) {
-          const caretLen = formatDecimalInput(Number(`${intPart || 0}.${fracPart || 0}`), true).length;
-          el.setSelectionRange(caretLen, caretLen);
-        }
+        handleDecimalChange(e);
         return;
       }
-
-      // Normalize to digits + optional single leading minus. Separators are a
-      // display concern only - parents receive a clean value they can parse.
-      const { normalized, negative, digits } = normalizeWholeAmount(e.target.value);
-      if (e.target.value !== normalized) e.target.value = normalized;
-      if (!isControlledValue) {
-        setInternalDisplay(formatAmountInput(Number(digits || 0), true));
-      }
-      props.onChange?.(e);
-      // Keep the caret at the right end (cash-register feel: new digits are
-      // appended at the right, aligned with the formatted display).
-      const el = internalRef.current;
-      if (el) {
-        const caretLen = (negative ? 1 : 0) + formatAmountInput(Number(digits || 0), true).length;
-        el.setSelectionRange(caretLen, caretLen);
-      }
+      handleWholeAmountChange(e);
     };
 
     const handleFocus = (e: FocusEvent<HTMLInputElement>) => {

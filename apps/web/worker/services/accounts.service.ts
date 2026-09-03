@@ -77,22 +77,39 @@ export function isCashBankAccount(account: AccountRow | null | undefined): boole
   return !!account && account.account_subtype !== null && account.is_active === 1;
 }
 
+/**
+ * Shared account-name validation: trimmed, non-empty, length-bounded, and
+ * unique within the organization (optionally excluding the account being
+ * renamed). Returns the trimmed name.
+ */
+async function assertValidAccountName(
+  db: D1Database,
+  organizationId: string,
+  rawName: string,
+  excludeAccountId?: string,
+): Promise<string> {
+  const name = rawName.trim();
+  if (!name) throw badRequest("account_name_required", "Nama akun harus diisi.");
+  if (name.length > 80) throw badRequest("account_name_too_long", "Nama akun maksimal 80 karakter.");
+
+  const existing = await queryFirst<{ id: string }>(
+    db,
+    excludeAccountId
+      ? "SELECT id FROM accounts WHERE organization_id = ? AND name = ? AND id != ?"
+      : "SELECT id FROM accounts WHERE organization_id = ? AND name = ?",
+    excludeAccountId ? [organizationId, name, excludeAccountId] : [organizationId, name],
+  );
+  if (existing) throw badRequest("account_name_taken", "Nama akun sudah dipakai dalam organisasi ini.");
+  return name;
+}
+
 export async function createCashBankAccount(
   db: D1Database,
   organizationId: string,
   userId: string,
   input: { subtype: "cash" | "bank"; name: string },
 ): Promise<AccountRow> {
-  const name = input.name.trim();
-  if (!name) throw badRequest("account_name_required", "Nama akun harus diisi.");
-  if (name.length > 80) throw badRequest("account_name_too_long", "Nama akun maksimal 80 karakter.");
-
-  const existing = await queryFirst<{ id: string }>(
-    db,
-    "SELECT id FROM accounts WHERE organization_id = ? AND name = ?",
-    [organizationId, name],
-  );
-  if (existing) throw badRequest("account_name_taken", "Nama akun sudah dipakai dalam organisasi ini.");
+  const name = await assertValidAccountName(db, organizationId, input.name);
 
   const code = await nextCashBankCode(db, organizationId);
   const current = Date.now();
@@ -133,14 +150,7 @@ export async function patchAccount(
   const values: (string | number)[] = [];
 
   if (input.name !== undefined) {
-    const name = input.name.trim();
-    if (!name) throw badRequest("account_name_required", "Nama akun harus diisi.");
-    const taken = await queryFirst<{ id: string }>(
-      db,
-      "SELECT id FROM accounts WHERE organization_id = ? AND name = ? AND id != ?",
-      [organizationId, name, accountId],
-    );
-    if (taken) throw badRequest("account_name_taken", "Nama akun sudah dipakai dalam organisasi ini.");
+    const name = await assertValidAccountName(db, organizationId, input.name, accountId);
     updates.push("name = ?");
     values.push(name);
   }

@@ -154,14 +154,9 @@ export async function getBalanceSheet(
   const balanced = totalAssets === totalLiabilities + totalEquity;
   if (!balanced) {
     // PRD REP-02: log ke error monitoring bila laporan tidak seimbang.
-    console.error(JSON.stringify({
-      type: "balance_sheet_imbalance",
-      organization_id: organizationId,
-      as_of: asOfDate,
-      totalAssets,
-      totalLiabilities,
-      totalEquity,
-    }));
+    // Log only computed magnitudes - request-derived identifiers are
+    // intentionally omitted (no user-controlled data in logs, tssecurity:S5145).
+    console.error("balance_sheet_imbalance", JSON.stringify({ totalAssets, totalLiabilities, totalEquity }));
   }
 
   return {

@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL COLLATE NOCASE,
   password_hash TEXT NOT NULL,
   full_name TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')), -- NOSONAR:S1192 SQLite DDL can't use variables
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useOrganization } from "@/hooks/useOrganization";
-import { getProfitLoss, type ReportAccountLine } from "@/lib/api/reports";
+import { getProfitLoss } from "@/lib/api/reports";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatIDR, formatDateLong, monthRange } from "@/lib/utils";
+import { ReportSection } from "./report-section";
 
 export function ProfitLossPage() {
   const { data: orgData } = useOrganization();
@@ -30,6 +31,50 @@ export function ProfitLossPage() {
   });
 
   const report = query.data;
+
+  let reportContent: ReactNode = null;
+  if (query.isLoading) {
+    reportContent = <div className="h-48 animate-pulse rounded-xl bg-wood-100" />;
+  } else if (query.isError) {
+    reportContent = (
+      <ErrorState title="Gagal memuat laporan" message="Terjadi kesalahan saat menghitung laba rugi." onRetry={() => query.refetch()} />
+    );
+  } else if (report) {
+    reportContent = (
+      <>
+        <p className="text-sm text-text-secondary">
+          Periode {formatDateLong(report.fromDate)} – {formatDateLong(report.toDate)}
+        </p>
+
+        <Card elevated>
+          <CardContent className="p-0">
+            <ReportSection
+              title="Pendapatan"
+              total={report.income.total}
+              lines={report.income.accounts}
+              emptyText="Belum ada transaksi pada periode ini."
+            />
+            <ReportSection
+              title="Beban"
+              total={report.expense.total}
+              lines={report.expense.accounts}
+              emptyText="Belum ada transaksi pada periode ini."
+            />
+            <div className="flex items-center justify-between gap-4 border-t-2 border-wood-300 bg-cream-100 px-5 py-4">
+              <p className="text-sm font-semibold text-text-primary">Laba Bersih</p>
+              <p
+                className={`num-mono text-base font-bold ${
+                  report.netIncome >= 0 ? "text-leaf-700" : "text-clay-700"
+                }`}
+              >
+                {formatIDR(report.netIncome)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -54,67 +99,7 @@ export function ProfitLossPage() {
         </CardContent>
       </Card>
 
-      {query.isLoading ? (
-        <div className="h-48 animate-pulse rounded-xl bg-wood-100" />
-      ) : query.isError ? (
-        <ErrorState title="Gagal memuat laporan" message="Terjadi kesalahan saat menghitung laba rugi." onRetry={() => query.refetch()} />
-      ) : report ? (
-        <>
-          <p className="text-sm text-text-secondary">
-            Periode {formatDateLong(report.fromDate)} – {formatDateLong(report.toDate)}
-          </p>
-
-          <Card elevated>
-            <CardContent className="p-0">
-              <SectionHeader title="Pendapatan" total={report.income.total} />
-              <AccountLines lines={report.income.accounts} />
-              <SectionHeader title="Beban" total={report.expense.total} />
-              <AccountLines lines={report.expense.accounts} />
-              <div className="flex items-center justify-between gap-4 border-t-2 border-wood-300 bg-cream-100 px-5 py-4">
-                <p className="text-sm font-semibold text-text-primary">Laba Bersih</p>
-                <p
-                  className={`num-mono text-base font-bold ${
-                    report.netIncome >= 0 ? "text-leaf-700" : "text-clay-700"
-                  }`}
-                >
-                  {formatIDR(report.netIncome)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      ) : null}
+      {reportContent}
     </div>
-  );
-}
-
-function SectionHeader({ title, total }: { readonly title: string; readonly total: number }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-wood-100 bg-cream-50 px-5 py-3">
-      <p className="text-sm font-semibold text-text-primary">{title}</p>
-      <p className="num-mono text-sm font-semibold text-text-primary">{formatIDR(total)}</p>
-    </div>
-  );
-}
-
-function AccountLines({ lines }: { readonly lines: ReportAccountLine[] }) {
-  if (lines.length === 0) {
-    return (
-      <p className="border-b border-wood-100 px-5 py-4 text-sm text-text-tertiary">
-        Belum ada transaksi pada periode ini.
-      </p>
-    );
-  }
-  return (
-    <ul className="divide-y divide-wood-100 border-b border-wood-100">
-      {lines.map((line) => (
-        <li key={line.code} className="flex items-center justify-between gap-4 px-5 py-3">
-          <p className="min-w-0 break-words text-sm text-text-secondary">
-            <span className="num-mono text-text-tertiary">{line.code}</span> · {line.name}
-          </p>
-          <p className="num-mono shrink-0 text-sm text-text-primary">{formatIDR(line.amount)}</p>
-        </li>
-      ))}
-    </ul>
   );
 }

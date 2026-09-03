@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
@@ -70,6 +70,45 @@ export function TransactionListPage() {
 
   const totalPages = Math.max(1, Math.ceil((query.data?.total ?? 0) / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+
+  let rowsContent: ReactNode;
+  if (query.isLoading) {
+    rowsContent = (
+      <div className="space-y-3 p-5">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
+        ))}
+      </div>
+    );
+  } else if (query.isError) {
+    rowsContent = (
+      <ErrorState
+        title="Gagal memuat transaksi"
+        message="Terjadi kesalahan saat mengambil daftar transaksi."
+        onRetry={() => query.refetch()}
+      />
+    );
+  } else if (query.data && query.data.transactions.length > 0) {
+    rowsContent = (
+      <ul className="divide-y divide-wood-100">
+        {query.data.transactions.map((transaction) => (
+          <TransactionRow key={transaction.id} transaction={transaction} />
+        ))}
+      </ul>
+    );
+  } else {
+    rowsContent = (
+      <EmptyState
+        title="Tidak ada transaksi"
+        description="Belum ada transaksi yang cocok dengan filter ini."
+        action={
+          <Link to="/transactions/new">
+            <Button>Catat Transaksi</Button>
+          </Link>
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -146,37 +185,7 @@ export function TransactionListPage() {
       </Card>
 
       <Card elevated>
-        <CardContent className="p-0">
-          {query.isLoading ? (
-            <div className="space-y-3 p-5">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
-              ))}
-            </div>
-          ) : query.isError ? (
-            <ErrorState
-              title="Gagal memuat transaksi"
-              message="Terjadi kesalahan saat mengambil daftar transaksi."
-              onRetry={() => query.refetch()}
-            />
-          ) : query.data && query.data.transactions.length > 0 ? (
-            <ul className="divide-y divide-wood-100">
-              {query.data.transactions.map((transaction) => (
-                <TransactionRow key={transaction.id} transaction={transaction} />
-              ))}
-            </ul>
-          ) : (
-            <EmptyState
-              title="Tidak ada transaksi"
-              description="Belum ada transaksi yang cocok dengan filter ini."
-              action={
-                <Link to="/transactions/new">
-                  <Button>Catat Transaksi</Button>
-                </Link>
-              }
-            />
-          )}
-        </CardContent>
+        <CardContent className="p-0">{rowsContent}</CardContent>
       </Card>
 
       {query.data && query.data.total > PAGE_SIZE && (

@@ -33,16 +33,19 @@ interface BalanceSheetResponse {
   report: BalanceSheetReport;
 }
 
+/** Fetch a report endpoint and unwrap its `report` payload. */
+function getReport<TResponse extends { report: unknown }>(
+  path: string,
+): Promise<TResponse["report"]> {
+  return apiRequest<TResponse>(path).then((data) => data.report);
+}
+
 export function getProfitLoss(fromDate: string, toDate: string): Promise<ProfitLossReport> {
   const params = new URLSearchParams({ fromDate, toDate });
-  return apiRequest<ProfitLossResponse>(`/api/reports/profit-loss?${params}`).then(
-    (data) => data.report,
-  );
+  return getReport<ProfitLossResponse>(`/api/reports/profit-loss?${params}`);
 }
 
 export function getBalanceSheet(asOfDate: string): Promise<BalanceSheetReport> {
   const params = new URLSearchParams({ asOfDate });
-  return apiRequest<BalanceSheetResponse>(`/api/reports/balance-sheet?${params}`).then(
-    (data) => data.report,
-  );
+  return getReport<BalanceSheetResponse>(`/api/reports/balance-sheet?${params}`);
 }

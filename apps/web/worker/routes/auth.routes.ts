@@ -182,10 +182,8 @@ authRoutes.get("/google/callback", async (c) => {
     });
     return c.redirect("/dashboard");
   } catch (err) {
-    const errorCode =
-      err instanceof Error && "code" in err
-        ? String((err as { code?: unknown }).code ?? "oauth_failed")
-        : "oauth_failed";
+    const rawCode = err instanceof Error ? (err as { code?: unknown }).code : undefined;
+    const errorCode = typeof rawCode === "string" ? rawCode : "oauth_failed";
     return c.redirect(`/login?error=${encodeURIComponent(errorCode)}`);
   }
 });

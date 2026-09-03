@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Undo } from "reicon-react";
@@ -54,6 +54,66 @@ export function TransactionDetailPage() {
 
   const status = transaction ? getStatus("transactions", transaction.status) : null;
 
+  let detailContent: ReactNode = null;
+  if (query.isLoading) {
+    detailContent = <div className="h-40 animate-pulse rounded-xl bg-wood-100" />;
+  } else if (query.isError) {
+    detailContent = (
+      <ErrorState
+        title="Gagal memuat transaksi"
+        message="Transaksi tidak ditemukan atau terjadi kesalahan."
+        onRetry={() => query.refetch()}
+      />
+    );
+  } else if (transaction && status) {
+    detailContent = (
+      <>
+        <PageHeader
+          title={transaction.transaction_number}
+          description={`${labelForTransactionType(transaction.transaction_type)} · ${formatDateLong(transaction.transaction_date)}`}
+          actions={[
+            {
+              key: "void",
+              children: transaction.status === "posted" ? (
+                <Button variant="danger" onClick={() => setVoidOpen(true)}>
+                  <Undo className="h-4 w-4" />
+                  Batalkan Transaksi
+                </Button>
+              ) : (
+                <Badge variant={status.variant} size="md">
+                  {status.label}
+                </Badge>
+              ),
+            },
+          ]}
+        />
+
+        {transaction.void_reason && (
+          <Card className="border-clay-200">
+            <CardContent className="p-4">
+              <p className="text-sm text-clay-700">
+                Alasan pembatalan: {transaction.void_reason}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card elevated>
+          <dl className="divide-y divide-wood-100">
+            <DetailRow label="Keterangan" value={transaction.description} />
+            <DetailRow label="Nominal" value={formatIDR(transaction.amount_idr)} mono />
+            <DetailRow label="Kas/Bank" value={transaction.cash_bank_account ?? "-"} />
+            <DetailRow label="Akun Lawan" value={transaction.counter_account ?? "-"} />
+            <DetailRow label="Status" value={status.label} />
+            {transaction.voided_at ? (
+              <DetailRow label="Dibatalkan pada" value={formatDateLong(new Date(transaction.voided_at))} />
+            ) : null}
+          </dl>
+        </Card>
+      </>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Link
@@ -64,60 +124,7 @@ export function TransactionDetailPage() {
         Kembali ke Transaksi
       </Link>
 
-      {query.isLoading ? (
-        <div className="h-40 animate-pulse rounded-xl bg-wood-100" />
-      ) : query.isError ? (
-        <ErrorState
-          title="Gagal memuat transaksi"
-          message="Transaksi tidak ditemukan atau terjadi kesalahan."
-          onRetry={() => query.refetch()}
-        />
-      ) : transaction && status ? (
-        <>
-          <PageHeader
-            title={transaction.transaction_number}
-            description={`${labelForTransactionType(transaction.transaction_type)} · ${formatDateLong(transaction.transaction_date)}`}
-            actions={[
-              {
-                key: "void",
-                children: transaction.status === "posted" ? (
-                  <Button variant="danger" onClick={() => setVoidOpen(true)}>
-                    <Undo className="h-4 w-4" />
-                    Batalkan Transaksi
-                  </Button>
-                ) : (
-                  <Badge variant={status.variant} size="md">
-                    {status.label}
-                  </Badge>
-                ),
-              },
-            ]}
-          />
-
-          {transaction.void_reason && (
-            <Card className="border-clay-200">
-              <CardContent className="p-4">
-                <p className="text-sm text-clay-700">
-                  Alasan pembatalan: {transaction.void_reason}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card elevated>
-            <dl className="divide-y divide-wood-100">
-              <DetailRow label="Keterangan" value={transaction.description} />
-              <DetailRow label="Nominal" value={formatIDR(transaction.amount_idr)} mono />
-              <DetailRow label="Kas/Bank" value={transaction.cash_bank_account ?? "-"} />
-              <DetailRow label="Akun Lawan" value={transaction.counter_account ?? "-"} />
-              <DetailRow label="Status" value={status.label} />
-              {transaction.voided_at ? (
-                <DetailRow label="Dibatalkan pada" value={formatDateLong(new Date(transaction.voided_at))} />
-              ) : null}
-            </dl>
-          </Card>
-        </>
-      ) : null}
+      {detailContent}
 
       <ConfirmDialog
         open={voidOpen}

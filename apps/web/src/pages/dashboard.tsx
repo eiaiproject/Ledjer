@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Scale, Wallet } from "reicon-react";
@@ -37,6 +38,45 @@ export function DashboardPage() {
 
   const summary = summaryQuery.data;
   const alerts = alertsQuery.data;
+
+  let recentTransactions: ReactNode;
+  if (summaryQuery.isLoading) {
+    recentTransactions = (
+      <div className="space-y-3 p-5">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
+        ))}
+      </div>
+    );
+  } else if (summaryQuery.isError) {
+    recentTransactions = (
+      <ErrorState
+        title="Gagal memuat transaksi"
+        message="Terjadi kesalahan saat mengambil data transaksi terbaru."
+        onRetry={() => summaryQuery.refetch()}
+      />
+    );
+  } else if (summary && summary.recentTransactions.length > 0) {
+    recentTransactions = (
+      <ul className="divide-y divide-wood-100">
+        {summary.recentTransactions.map((transaction) => (
+          <RecentTransactionRow key={transaction.id} transaction={transaction} />
+        ))}
+      </ul>
+    );
+  } else {
+    recentTransactions = (
+      <EmptyState
+        title="Belum ada transaksi"
+        description="Catat transaksi pertama Anda untuk melihat ringkasannya di sini."
+        action={
+          <Link to="/transactions/new">
+            <Button>Catat Transaksi</Button>
+          </Link>
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -118,37 +158,7 @@ export function DashboardPage() {
       )}
 
       <Card elevated title="Transaksi Terbaru">
-        <CardContent className="p-0">
-          {summaryQuery.isLoading ? (
-            <div className="space-y-3 p-5">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
-              ))}
-            </div>
-          ) : summaryQuery.isError ? (
-            <ErrorState
-              title="Gagal memuat transaksi"
-              message="Terjadi kesalahan saat mengambil data transaksi terbaru."
-              onRetry={() => summaryQuery.refetch()}
-            />
-          ) : summary && summary.recentTransactions.length > 0 ? (
-            <ul className="divide-y divide-wood-100">
-              {summary.recentTransactions.map((transaction) => (
-                <RecentTransactionRow key={transaction.id} transaction={transaction} />
-              ))}
-            </ul>
-          ) : (
-            <EmptyState
-              title="Belum ada transaksi"
-              description="Catat transaksi pertama Anda untuk melihat ringkasannya di sini."
-              action={
-                <Link to="/transactions/new">
-                  <Button>Catat Transaksi</Button>
-                </Link>
-              }
-            />
-          )}
-        </CardContent>
+        <CardContent className="p-0">{recentTransactions}</CardContent>
       </Card>
     </div>
   );

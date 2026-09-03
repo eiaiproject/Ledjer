@@ -238,35 +238,46 @@ export async function postTransaction(
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
 }
 
+/** Shared WHERE-clause builder for transaction queries (list + count). */
+function buildTransactionFilter(
+  organizationId: string,
+  filters: Omit<TransactionFilters, "limit" | "offset">,
+  prefix: string,
+): { conditions: string[]; values: D1Input[] } {
+  const conditions = [`${prefix}organization_id = ?`];
+  const values: D1Input[] = [organizationId];
+
+  if (filters.fromDate) {
+    conditions.push(`${prefix}transaction_date >= ?`);
+    values.push(filters.fromDate);
+  }
+  if (filters.toDate) {
+    conditions.push(`${prefix}transaction_date <= ?`);
+    values.push(filters.toDate);
+  }
+  if (filters.transactionType) {
+    conditions.push(`${prefix}transaction_type = ?`);
+    values.push(filters.transactionType);
+  }
+  if (filters.status) {
+    conditions.push(`${prefix}status = ?`);
+    values.push(filters.status);
+  }
+  if (filters.search) {
+    const search = `%${filters.search.toLowerCase()}%`;
+    conditions.push(`(lower(${prefix}description) LIKE ? OR lower(${prefix}transaction_number) LIKE ?)`);
+    values.push(search, search);
+  }
+
+  return { conditions, values };
+}
+
 export async function listTransactions(
   db: D1Database,
   organizationId: string,
   filters: TransactionFilters = {},
 ): Promise<PublicTransaction[]> {
-  const conditions = ["t.organization_id = ?"];
-  const values: D1Input[] = [organizationId];
-
-  if (filters.fromDate) {
-    conditions.push("t.transaction_date >= ?");
-    values.push(filters.fromDate);
-  }
-  if (filters.toDate) {
-    conditions.push("t.transaction_date <= ?");
-    values.push(filters.toDate);
-  }
-  if (filters.transactionType) {
-    conditions.push("t.transaction_type = ?");
-    values.push(filters.transactionType);
-  }
-  if (filters.status) {
-    conditions.push("t.status = ?");
-    values.push(filters.status);
-  }
-  if (filters.search) {
-    const search = `%${filters.search.toLowerCase()}%`;
-    conditions.push("(lower(t.description) LIKE ? OR lower(t.transaction_number) LIKE ?)");
-    values.push(search, search);
-  }
+  const { conditions, values } = buildTransactionFilter(organizationId, filters, "t.");
 
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const offset = Math.max(filters.offset ?? 0, 0);
@@ -289,30 +300,7 @@ export async function countTransactions(
   organizationId: string,
   filters: Omit<TransactionFilters, "limit" | "offset"> = {},
 ): Promise<number> {
-  const conditions = ["organization_id = ?"];
-  const values: D1Input[] = [organizationId];
-
-  if (filters.fromDate) {
-    conditions.push("transaction_date >= ?");
-    values.push(filters.fromDate);
-  }
-  if (filters.toDate) {
-    conditions.push("transaction_date <= ?");
-    values.push(filters.toDate);
-  }
-  if (filters.transactionType) {
-    conditions.push("transaction_type = ?");
-    values.push(filters.transactionType);
-  }
-  if (filters.status) {
-    conditions.push("status = ?");
-    values.push(filters.status);
-  }
-  if (filters.search) {
-    const search = `%${filters.search.toLowerCase()}%`;
-    conditions.push("(lower(description) LIKE ? OR lower(transaction_number) LIKE ?)");
-    values.push(search, search);
-  }
+  const { conditions, values } = buildTransactionFilter(organizationId, filters, "");
 
   const row = await queryFirst<{ c: number }>(
     db,
@@ -387,7 +375,7 @@ async function validateTransaction(
   if (!isCashBankAccount(cashAccount)) {
     throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
   }
-  if (!counterAccount || counterAccount.is_active !== 1) {
+  if (counterAccount?.is_active !== 1) {
     throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
   }
 
@@ -461,7 +449,7 @@ function normalizeRequiredText(value: string, maxLength: number, code: string): 
 
 /** TRX-YYYYMMDD-XXXX — unique human-readable, not strictly sequential (PRD TRX-08). */
 export async function generateTransactionNumber(db: D1Database, date: string): Promise<string> {
-  const base = `TRX-${date.replace(/-/g, "")}-`;
+  const base = `TRX-${date.replaceAll("-", "")}-`;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const suffix = randomSuffix(4);
     const number = `${base}${suffix}`;
