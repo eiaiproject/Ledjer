@@ -230,10 +230,11 @@ test.describe("API-level authorization", () => {
   test("API mutation endpoints reject unauthenticated POST with 401", async ({
     request,
   }) => {
+    // Note: /api/auth/logout is intentionally absent - it is idempotent and
+    // returns 200 even without a session (revokes only when a token exists).
     const mutationEndpoints = [
       { url: "/api/transactions", body: {} },
       { url: "/api/accounts", body: {} },
-      { url: "/api/auth/logout", body: {} },
     ];
 
     for (const ep of mutationEndpoints) {
