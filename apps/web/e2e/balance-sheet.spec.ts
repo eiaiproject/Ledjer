@@ -8,7 +8,9 @@ import { expect } from "@playwright/test";
  * "Neraca Seimbang" badge for a balanced ledger.
  */
 
-const AS_OF = "2026-08-31";
+// Isolated as-of date: the balance sheet is cumulative, so using a date no
+// other spec writes to keeps the totals deterministic in parallel runs.
+const AS_OF = "2026-06-30";
 
 test.describe("Balance Sheet report", () => {
   test("renders asset, liability, and equity sections", async ({ authPage }) => {
@@ -41,7 +43,7 @@ test.describe("Balance Sheet report", () => {
       const body = await res.json() as { accounts: { code: string; id: string }[] };
       const cash = body.accounts.find((a) => a.code === "1110");
       const equity = body.accounts.find((a) => a.code === "3110");
-      return { cash: cash?.id ?? "", equity: equity?.id ?? "" };
+      return { cashId: cash?.id ?? "", equityId: equity?.id ?? "" };
     });
 
     const posted = await authPage.evaluate(
@@ -51,7 +53,7 @@ test.describe("Balance Sheet report", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             transactionType: "owner_deposit",
-            transactionDate: "2026-08-10",
+            transactionDate: "2026-06-10",
             cashAccountId: cashId,
             counterAccountId: equityId,
             description: `[E2E] Neraca ${Date.now()}`,
@@ -69,7 +71,12 @@ test.describe("Balance Sheet report", () => {
     await authPage.getByLabel("Tanggal").fill(AS_OF);
     await authPage.getByRole("button", { name: "Tampilkan" }).click();
 
-    await expect(authPage.getByText("Modal Pemilik")).toBeVisible({ timeout: 15000 });
-    await expect(authPage.getByText("Rp 1.000.000")).toBeVisible({ timeout: 15000 });
+    // Modal Pemilik holds this org's accumulated owner deposits, so the row
+    // amount must be nonzero after this test posts Rp 1.000.000. Exact amounts
+    // are avoided because repeated runs on shared staging accumulate.
+    const equityRow = authPage.locator("li", { hasText: "3110 · Modal Pemilik" });
+    await expect(equityRow).toBeVisible({ timeout: 15000 });
+    // \\s+ covers the NBSP that Intl inserts between "Rp" and the digits.
+    await expect(equityRow.getByText(/^Rp\s+[1-9]/)).toBeVisible({ timeout: 15000 });
   });
 });

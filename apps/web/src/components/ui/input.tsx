@@ -1,4 +1,4 @@
-import { forwardRef, useId, useRef, type ChangeEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type MutableRefObject } from "react";
+import { forwardRef, useId, useRef, useState, type ChangeEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type MutableRefObject } from "react";
 import { cn, formatAmountInput, formatDecimalInput } from "@/lib/utils";
 import { Field } from "./field";
 import { SIZE_STYLES } from "./size-styles";
@@ -179,9 +179,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const internalRef = useRef<HTMLInputElement | null>(null);
     const setRefs = (node: HTMLInputElement | null) => assignRef(ref, node, internalRef);
 
-    // Currency/numeric inputs are fully controlled with a formatted display so
-    // thousands separators appear WHILE typing, not just on blur.
-    const numericDisplay = resolveNumericDisplay(props.value, isFormattedInput, hasDecimals);
+    // Currency/numeric inputs show a formatted display so thousands separators
+    // appear WHILE typing, not just on blur. When a parent passes a value prop
+    // the display is fully controlled and derived from it; when it does not
+    // (react-hook-form register never passes value), the formatted string is
+    // kept in local state so typing still works - otherwise the controlled
+    // empty value would swallow every keystroke.
+    const isControlledValue = props.value !== undefined;
+    const [internalDisplay, setInternalDisplay] = useState("");
+    const numericDisplay = isControlledValue
+      ? resolveNumericDisplay(props.value, isFormattedInput, hasDecimals)
+      : internalDisplay;
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
       if (!isNumericInput) {
@@ -201,6 +209,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       if (hasDecimals) {
         const { normalized, intPart, fracPart } = normalizeDecimalInput(e.target.value);
         if (e.target.value !== normalized) e.target.value = normalized;
+        if (!isControlledValue) {
+          setInternalDisplay(formatDecimalInput(Number(`${intPart || 0}.${fracPart || 0}`), true));
+        }
         props.onChange?.(e);
         const el = internalRef.current;
         if (el) {
@@ -214,6 +225,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       // display concern only - parents receive a clean value they can parse.
       const { normalized, negative, digits } = normalizeWholeAmount(e.target.value);
       if (e.target.value !== normalized) e.target.value = normalized;
+      if (!isControlledValue) {
+        setInternalDisplay(formatAmountInput(Number(digits || 0), true));
+      }
       props.onChange?.(e);
       // Keep the caret at the right end (cash-register feel: new digits are
       // appended at the right, aligned with the formatted display).

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -16,8 +16,20 @@ export function SettingsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [name, setName] = useState(orgData?.organization?.name ?? "");
+  const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  // Once the user edits the field, the org query must never clobber their
+  // input - it can resolve late (or refetch after a save) with an older value.
+  const touchedRef = useRef(false);
+
+  // Prefill the field once the org query resolves (it is async, so the
+  // initial render cannot seed the state).
+  useEffect(() => {
+    const orgName = orgData?.organization?.name;
+    if (orgName != null && !touchedRef.current) {
+      setName(orgName);
+    }
+  }, [orgData?.organization?.name]);
 
   const handleSave = async () => {
     if (saving) return;
@@ -57,7 +69,10 @@ export function SettingsPage() {
             <Input
               label="Nama Usaha"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                touchedRef.current = true;
+                setName(e.target.value);
+              }}
               placeholder="Nama usaha Anda"
             />
             <div className="flex justify-end">

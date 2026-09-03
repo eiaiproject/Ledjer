@@ -43,6 +43,36 @@ export const test = base.extend<AuthFixtures>({
 
     const page = await context.newPage();
 
+    // Token-based auth: when PLAYWRIGHT_SESSION_TOKEN is set (a session row
+    // inserted directly into the target D1, see scripts/create-e2e-session),
+    // inject it as the session cookie and skip the login API entirely. This
+    // keeps full-suite runs (dozens of tests, parallel workers) under the
+    // login rate limit (10 per IP+email per 15 min).
+    const sessionToken = process.env.PLAYWRIGHT_SESSION_TOKEN;
+    if (sessionToken) {
+      const isProd = baseURL.includes("ledjer.id") && !baseURL.includes("staging");
+      const cookieName = isProd ? "__Host-ledjer_session" : "ledjer_session";
+      await context.addCookies([
+        {
+          name: cookieName,
+          value: sessionToken,
+          domain: new URL(baseURL).hostname,
+          path: "/",
+        },
+      ]);
+      // Navigate to the app root and select the current org (mirrors what the
+      // login flow does client-side). Explicitly fetch the current org so the
+      // session's current_organization_id gets set server-side.
+      await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
+      await page.evaluate(async () => {
+        await fetch("/api/organizations/current");
+      });
+      await page.waitForTimeout(1000);
+      await acceptFixture(page);
+      await context.close();
+      return;
+    }
+
     // Navigate to the app first to establish the origin
     await page.goto("/login", { waitUntil: "domcontentloaded", timeout: 15000 });
 

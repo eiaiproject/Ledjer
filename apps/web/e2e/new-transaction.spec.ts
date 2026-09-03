@@ -18,7 +18,8 @@ async function fillCommonForm(page: import("@playwright/test").Page) {
 }
 
 async function selectCashAccount(page: import("@playwright/test").Page, label: string) {
-  await page.getByLabel(label).selectOption({ label: /^1110 · Kas/ });
+  // Exact label ("<code> · <name>") - selectOption only accepts plain strings.
+  await page.getByLabel(label).selectOption({ label: "1110 · Kas" });
 }
 
 test.describe("New Transaction", () => {
@@ -26,14 +27,16 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("cash_in");
     await selectCashAccount(authPage, "Akun Kas/Bank Tujuan");
-    await authPage.getByLabel("Kategori Pendapatan").selectOption({ label: /Pendapatan Usaha/ });
+    await authPage.getByLabel("Kategori Pendapatan").selectOption({ label: "4110 · Pendapatan Usaha" });
     await authPage.getByLabel(/Nominal/i).fill("500000");
     await authPage.getByLabel("Keterangan").fill(DESCRIPTION);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
 
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
     await expect(authPage.getByText(DESCRIPTION)).toBeVisible();
-    await expect(authPage.getByText("Uang Masuk")).toBeVisible();
+    // The type is rendered in the page header as "<type> · <date>" (date from fillCommonForm).
+    await expect(authPage.getByText("Uang Masuk · 1 Agustus 2026")).toBeVisible();
     await expect(authPage.getByText("Posted")).toBeVisible();
     await expect(authPage.getByText("Pendapatan Usaha")).toBeVisible();
   });
@@ -43,14 +46,15 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("cash_out");
     await selectCashAccount(authPage, "Akun Kas/Bank Sumber");
-    await authPage.getByLabel("Kategori Beban").selectOption({ label: /Beban Lain-lain/ });
+    await authPage.getByLabel("Kategori Beban").selectOption({ label: "6180 · Beban Lain-lain" });
     await authPage.getByLabel(/Nominal/i).fill("75000");
     await authPage.getByLabel("Keterangan").fill(desc);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
 
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
     await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Uang Keluar")).toBeVisible();
+    await expect(authPage.getByText("Uang Keluar · 1 Agustus 2026")).toBeVisible();
     await expect(authPage.getByText("Beban Lain-lain")).toBeVisible();
   });
 
@@ -59,14 +63,15 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("transfer");
     await selectCashAccount(authPage, "Akun Sumber");
-    await authPage.getByLabel("Akun Tujuan").selectOption({ label: /Bank/ });
+    await authPage.getByLabel("Akun Tujuan").selectOption({ label: "1120 · Bank" });
     await authPage.getByLabel(/Nominal/i).fill("200000");
     await authPage.getByLabel("Keterangan").fill(desc);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
 
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
     await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Transfer")).toBeVisible();
+    await expect(authPage.getByText("Transfer · 1 Agustus 2026")).toBeVisible();
   });
 
   test("creates an owner_deposit (modal masuk)", async ({ authPage }) => {
@@ -74,14 +79,15 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("owner_deposit");
     await selectCashAccount(authPage, "Akun Kas/Bank Tujuan");
-    await authPage.getByLabel("Modal Pemilik").selectOption({ label: /Modal Pemilik/ });
+    await authPage.getByLabel("Modal Pemilik").selectOption({ label: "3110 · Modal Pemilik" });
     await authPage.getByLabel(/Nominal/i).fill("1000000");
     await authPage.getByLabel("Keterangan").fill(desc);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
 
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
     await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Modal Masuk")).toBeVisible();
+    await expect(authPage.getByText("Modal Masuk · 1 Agustus 2026")).toBeVisible();
   });
 
   test("creates an owner_withdrawal (pengambilan pemilik)", async ({ authPage }) => {
@@ -89,14 +95,15 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("owner_withdrawal");
     await selectCashAccount(authPage, "Akun Kas/Bank Sumber");
-    await authPage.getByLabel("Pengambilan Pemilik").selectOption({ label: /Pengambilan Pemilik/ });
+    await authPage.getByLabel("Pengambilan Pemilik").selectOption({ label: "3120 · Pengambilan Pemilik" });
     await authPage.getByLabel(/Nominal/i).fill("250000");
     await authPage.getByLabel("Keterangan").fill(desc);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
 
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
     await expect(authPage.getByText(desc)).toBeVisible();
-    await expect(authPage.getByText("Pengambilan Pemilik")).toBeVisible();
+    await expect(authPage.getByText("Pengambilan Pemilik · 1 Agustus 2026")).toBeVisible();
   });
 
   test("voids a posted transaction", async ({ authPage }) => {
@@ -104,11 +111,12 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("cash_out");
     await selectCashAccount(authPage, "Akun Kas/Bank Sumber");
-    await authPage.getByLabel("Kategori Beban").selectOption({ label: /Beban Lain-lain/ });
+    await authPage.getByLabel("Kategori Beban").selectOption({ label: "6180 · Beban Lain-lain" });
     await authPage.getByLabel(/Nominal/i).fill("50000");
     await authPage.getByLabel("Keterangan").fill(desc);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
     await authPage.getByRole("button", { name: /Batalkan Transaksi/ }).click();
     await authPage.getByRole("button", { name: /Ya, Batalkan/ }).click();
@@ -128,11 +136,12 @@ test.describe("New Transaction", () => {
     await fillCommonForm(authPage);
     await authPage.getByLabel("Jenis Transaksi").selectOption("cash_in");
     await selectCashAccount(authPage, "Akun Kas/Bank Tujuan");
-    await authPage.getByLabel("Kategori Pendapatan").selectOption({ label: /Pendapatan Usaha/ });
+    await authPage.getByLabel("Kategori Pendapatan").selectOption({ label: "4110 · Pendapatan Usaha" });
     await authPage.getByLabel(/Nominal/i).fill("100000");
     await authPage.getByLabel("Keterangan").fill(desc);
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
-    await expect(authPage).toHaveURL(/\/transactions\/[^/]+$/, { timeout: 15000 });
+    // UUID detail route - deliberately NOT /[^/]+$ which would also match /transactions/new.
+await expect(authPage).toHaveURL(/\/transactions\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
     await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
     await expect(authPage.getByText(desc)).toBeVisible({ timeout: 15000 });

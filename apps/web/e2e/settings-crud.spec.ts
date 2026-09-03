@@ -12,7 +12,7 @@ test.describe("Settings page", () => {
   test("shows the business profile and account info", async ({ authPage }) => {
     await authPage.goto("/settings", { waitUntil: "load", timeout: 15000 });
     await expect(authPage.getByRole("heading", { name: /Pengaturan/ })).toBeVisible({ timeout: 15000 });
-    await expect(authPage.getByText("Profil Usaha")).toBeVisible();
+    await expect(authPage.getByRole("heading", { name: "Profil Usaha" })).toBeVisible();
     await expect(authPage.getByText("Email")).toBeVisible();
   });
 

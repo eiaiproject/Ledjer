@@ -9,8 +9,10 @@ import { expect } from "@playwright/test";
  */
 
 const TS = Date.now();
-const REPORT_FROM = "2026-08-01";
-const REPORT_TO = "2026-08-31";
+// Isolated period: no other spec writes June transactions, so the income
+// total is deterministic even when specs run in parallel on shared staging.
+const REPORT_FROM = "2026-06-01";
+const REPORT_TO = "2026-06-30";
 
 test.describe("Profit & Loss report", () => {
   test("renders income, expense, and net income sections", async ({ authPage }) => {
@@ -46,7 +48,7 @@ test.describe("Profit & Loss report", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             transactionType: "cash_in",
-            transactionDate: "2026-08-15",
+            transactionDate: "2026-06-15",
             cashAccountId: cashId,
             counterAccountId: incomeId,
             description,
@@ -65,7 +67,12 @@ test.describe("Profit & Loss report", () => {
     await authPage.getByLabel("Sampai").fill(REPORT_TO);
     await authPage.getByRole("button", { name: "Tampilkan" }).click();
 
-    await expect(authPage.getByText("Pendapatan Usaha")).toBeVisible({ timeout: 15000 });
-    await expect(authPage.getByText("Rp 250.000")).toBeVisible({ timeout: 15000 });
+    // The account row renders the accumulated income for the period. It must be
+    // nonzero because this test just posted Rp 250.000 into it; exact-amount
+    // assertions are avoided since repeated runs on shared staging accumulate.
+    const incomeRow = authPage.locator("li", { hasText: "4110 · Pendapatan Usaha" });
+    await expect(incomeRow).toBeVisible({ timeout: 15000 });
+    // \\s+ covers the NBSP that Intl inserts between "Rp" and the digits.
+    await expect(incomeRow.getByText(/^Rp\s+[1-9]/)).toBeVisible({ timeout: 15000 });
   });
 });
