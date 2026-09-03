@@ -4,9 +4,12 @@ import type { AppContext } from "../env";
 /**
  * Structured JSON request logger middleware.
  *
- * Logs: method, path, status, duration, requestId, version, env.
- * Never logs: headers, cookies, Authorization, body, query params,
- * or any data that could contain PII or secrets.
+ * Logs the request lifecycle plus the registered route pattern (e.g.
+ * "/api/transactions/:id"), which is a code-defined constant - never the raw
+ * URL path or query string, because those are user-controlled input and must
+ * not be written to logs (tssecurity:S5145). Route-level aggregates are also
+ * covered by the metrics middleware, and error logs share the same requestId
+ * for correlation.
  *
  * Usage in index.ts:
  *   app.use("*", requestLogger());
@@ -15,15 +18,20 @@ export function requestLogger(): MiddlewareHandler<AppContext> {
   return async (c, next) => {
     const start = Date.now();
     const method = c.req.method;
-    const url = new URL(c.req.url);
-    const path = url.pathname;
-    const query = url.searchParams.toString();
 
     await next();
 
     const duration = Date.now() - start;
     const status = c.res.status;
     const requestId = c.get("requestId") ?? "unknown";
+
+    // Resolve the registered route pattern (code-defined, e.g.
+    // "/api/transactions/:id") instead of the raw URL path. matchedRoutes
+    // holds only server-registered patterns, never user input; routeIndex
+    // points at the handler that produced the response (404 requests match
+    // only the "/*" middleware, which is dropped).
+    const matched = c.req.matchedRoutes[c.req.routeIndex];
+    const route = matched && !matched.path.includes("*") ? matched.path : undefined;
 
     // Build structured log entry
     let level: string;
@@ -39,8 +47,7 @@ export function requestLogger(): MiddlewareHandler<AppContext> {
       time: new Date().toISOString(),
       level,
       method,
-      path,
-      query: query || undefined,
+      route,
       status,
       duration,
       requestId,
@@ -52,7 +59,8 @@ export function requestLogger(): MiddlewareHandler<AppContext> {
       entry.version = c.env.GIT_SHA;
     }
 
-    // Never log: organization_id, user_id, email, session tokens, body, headers
+    // Never log: raw URL path, query string, organization_id, user_id,
+    // email, session tokens, body, headers - any user-controlled data.
     console.log(JSON.stringify(entry));
   };
 }

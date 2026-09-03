@@ -1,6 +1,5 @@
 import type { Context } from "hono";
 import { ZodError, type ZodType } from "zod";
-import type { AppContext } from "../env";
 import { badRequest } from "./errors";
 
 /**
@@ -22,20 +21,6 @@ export function redactedBody(body: unknown): unknown {
   return body;
 }
 
-function logRequest(c: Context<AppContext>, body: unknown): void {
-  const env = c.env as { APP_ENV?: string } | undefined;
-  if (env?.APP_ENV === "test") return;
-
-  const log = {
-    level: "info",
-    requestId: c.get("requestId") ?? undefined,
-    method: c.req.method,
-    path: c.req.path,
-    body: redactedBody(body),
-  };
-  console.log(JSON.stringify(log));
-}
-
 export async function readJson<T>(
   c: Context,
   schema: ZodType<T>,
@@ -53,7 +38,9 @@ export async function readJson<T>(
   }
 
   try {
-    logRequest(c, body);
+    // Request bodies are intentionally not logged: they are user-controlled
+    // data (tssecurity:S5145). The request logger middleware records the
+    // request lifecycle with a correlating requestId instead.
     return schema.parse(body);
   } catch (error) {
     if (error instanceof ZodError) {
