@@ -1,14 +1,6 @@
 import { queryAll, type D1Input } from "../db/client";
 import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
-import { listAccounts } from "./accounts.service";
-import { listProducts } from "./products.service";
-import {
-  getBalanceSheet,
-  getGeneralLedger,
-  getProfitLoss,
-  getTrialBalance,
-} from "./reports.service";
 
 export interface ExportResponse {
   csv: string;
@@ -25,24 +17,19 @@ export interface TransactionExportFilters {
   status?: string;
 }
 
-export interface GeneralLedgerExportFilters {
-  accountId?: string;
-  fromDate: string;
-  toDate: string;
-}
-
 interface ExportTransactionRow {
   transaction_date: string;
   transaction_number: string;
   transaction_type: string;
-  party_name: string | null;
-  description: string;
-  amount: number;
   status: string;
+  description: string;
+  cash_bank_account: string | null;
+  counter_account: string | null;
+  amount_idr: number;
 }
 
-/** Maximum rows for any CSV export, preventing Worker OOM. */
-const MAX_EXPORT_ROWS = 50_000;
+/** Maximum rows for any CSV export, preventing Worker OOM (PRD EXP-01). */
+export const MAX_EXPORT_ROWS = 50_000;
 
 export function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -85,182 +72,50 @@ export function csvHeaders(filename: string): Headers {
   });
 }
 
-export async function exportAccountsCsv(
-  db: D1Database,
-  organizationId: string,
-): Promise<ExportResponse> {
-  const accounts = await listAccounts(db, organizationId);
-  return {
-    filename: filenameFor("akun"),
-    csv: toCsv(
-      ["Kode", "Nama Akun", "Tipe", "Saldo Normal", "Aktif"],
-      accounts.map((account) => [
-        account.code,
-        account.name,
-        account.account_type,
-        account.normal_balance,
-        account.is_active,
-      ]),
-    ),
-  };
-}
-
-export async function exportProductsCsv(
-  db: D1Database,
-  organizationId: string,
-): Promise<ExportResponse> {
-  const products = await listProducts(db, organizationId, true);
-  return {
-    filename: filenameFor("produk"),
-    csv: toCsv(
-      [
-        "Kode",
-        "Nama",
-        "Deskripsi",
-        "Satuan",
-        "Harga Beli",
-        "Harga Jual",
-        "Stok",
-        "Stok Min",
-        "Aktif",
-      ],
-      products.map((product) => [
-        product.code,
-        product.name,
-        product.description ?? "",
-        product.unit,
-        product.purchase_price,
-        product.selling_price,
-        product.current_stock,
-        product.min_stock,
-        product.is_active,
-      ]),
-    ),
-  };
-}
-
+/** Export transaksi sebagai CSV UTF-8 dengan BOM (PRD EXP-01). */
 export async function exportTransactionsCsv(
   db: D1Database,
   organizationId: string,
   filters: TransactionExportFilters = {},
 ): Promise<ExportResponse> {
-  const rows = await listTransactionsForExport(db, organizationId, filters);
-  const truncated = rows.length > MAX_EXPORT_ROWS;
-  const capped = rows.slice(0, MAX_EXPORT_ROWS);
-  const result = toCsv(
-    ["Tanggal", "No Transaksi", "Jenis", "Partai", "Deskripsi", "Nominal", "Status"],
-    capped.map((transaction) => [
-      transaction.transaction_date,
-      transaction.transaction_number,
-      transaction.transaction_type,
-      transaction.party_name ?? "",
-      transaction.description,
-      transaction.amount,
-      transaction.status,
+  const effectiveStatus = filters.status ?? "posted";
+  const rows = await listTransactionsForExport(db, organizationId, { ...filters, status: effectiveStatus });
+
+  if (rows.length > MAX_EXPORT_ROWS) {
+    throw badRequest(
+      "export_too_large",
+      "Jumlah data melebihi batas ekspor. Persempit rentang tanggal lalu coba lagi.",
+    );
+  }
+
+  // Kolom per PRD §10.25. UTF-8 BOM agar terbuka benar di spreadsheet.
+  const csv = `\uFEFF${toCsv(
+    [
+      "transaction_date",
+      "transaction_number",
+      "transaction_type",
+      "status",
+      "description",
+      "cash_bank_account",
+      "counter_account",
+      "amount_idr",
+    ],
+    rows.map((t) => [
+      t.transaction_date,
+      t.transaction_number,
+      t.transaction_type,
+      t.status,
+      t.description,
+      t.cash_bank_account ?? "",
+      t.counter_account ?? "",
+      t.amount_idr,
     ]),
-  );
+  )}`;
+
   return {
     filename: filenameFor("transaksi"),
-    csv: truncated
-      ? `# NOTE: Hasil dipotong ke ${MAX_EXPORT_ROWS} baris dari total ${rows.length}\n${result}`
-      : result,
-    truncated,
+    csv,
     totalRows: rows.length,
-  };
-}
-
-export async function exportTrialBalanceCsv(
-  db: D1Database,
-  organizationId: string,
-  asOfDate: string,
-): Promise<ExportResponse> {
-  const trialBalance = await getTrialBalance(db, organizationId, asOfDate);
-  return {
-    filename: filenameFor("neraca_saldo"),
-    csv: toCsv(
-      ["Kode", "Nama Akun", "Debit", "Kredit"],
-      trialBalance.map((row) => [
-        row.account_code,
-        row.account_name,
-        row.ending_debit,
-        row.ending_credit,
-      ]),
-    ),
-  };
-}
-
-export async function exportProfitLossCsv(
-  db: D1Database,
-  organizationId: string,
-  fromDate: string,
-  toDate: string,
-): Promise<ExportResponse> {
-  const profitLoss = await getProfitLoss(db, organizationId, fromDate, toDate);
-  return {
-    filename: filenameFor("laba_rugi"),
-    csv: toCsv(
-      ["Bagian", "Kode", "Nama Akun", "Jumlah"],
-      profitLoss.map((row) => [
-        row.section,
-        row.account_code,
-        row.account_name,
-        row.amount,
-      ]),
-    ),
-  };
-}
-
-export async function exportBalanceSheetCsv(
-  db: D1Database,
-  organizationId: string,
-  asOfDate: string,
-): Promise<ExportResponse> {
-  const balanceSheet = await getBalanceSheet(db, organizationId, asOfDate);
-  return {
-    filename: filenameFor("neraca"),
-    csv: toCsv(
-      ["Bagian", "Kode", "Nama Akun", "Jumlah"],
-      balanceSheet.map((row) => [
-        row.section,
-        row.account_code,
-        row.account_name,
-        row.amount,
-      ]),
-    ),
-  };
-}
-
-export async function exportGeneralLedgerCsv(
-  db: D1Database,
-  organizationId: string,
-  filters: GeneralLedgerExportFilters,
-): Promise<ExportResponse> {
-  const ledger = await getGeneralLedger(db, organizationId, filters);
-  const truncated = ledger.length > MAX_EXPORT_ROWS;
-  const capped = ledger.slice(0, MAX_EXPORT_ROWS);
-  const rows = capped.map((row) => [
-    row.entry_date,
-    row.transaction_number ?? row.entry_number,
-    row.account_id,
-    row.account_code,
-    row.account_name,
-    row.description,
-    row.debit,
-    row.credit,
-    row.running_balance,
-  ]);
-  if (truncated) {
-    const note: (string | number)[] = [`# NOTE: Hasil dipotong ke ${MAX_EXPORT_ROWS} baris dari total ${ledger.length}`];
-    rows.unshift(note);
-  }
-  return {
-    truncated,
-    totalRows: ledger.length,
-    filename: filenameFor("buku_besar"),
-    csv: toCsv(
-      ["Tanggal", "No Ref", "Account ID", "Kode Akun", "Nama Akun", "Keterangan", "Debit", "Kredit", "Saldo"],
-      rows,
-    ),
   };
 }
 
@@ -280,11 +135,7 @@ async function listTransactionsForExport(
   organizationId: string,
   filters: TransactionExportFilters,
 ): Promise<ExportTransactionRow[]> {
-  // Same rule as listTransactions: show every transaction, including void
-  // reversals, so the export is a complete sequential audit trail.
-  const conditions = [
-    "t.organization_id = ?",
-  ];
+  const conditions = ["t.organization_id = ?"];
   const values: D1Input[] = [organizationId];
 
   if (filters.fromDate) {
@@ -296,7 +147,7 @@ async function listTransactionsForExport(
     values.push(normalizeDate(filters.toDate, "to_date_invalid"));
   }
   if (filters.fromDate && filters.toDate && filters.fromDate > filters.toDate) {
-    throw badRequest("date_range_invalid", "Start date must not be after end date");
+    throw badRequest("date_range_invalid", "Tanggal awal tidak boleh melewati tanggal akhir.");
   }
   if (filters.transactionType) {
     conditions.push("t.transaction_type = ?");
@@ -309,10 +160,8 @@ async function listTransactionsForExport(
   if (filters.search) {
     const search = sanitizeSearch(filters.search);
     if (search) {
-      conditions.push(
-        "(lower(t.description) LIKE ? OR lower(t.transaction_number) LIKE ? OR lower(p.name) LIKE ?)",
-      );
-      values.push(search, search, search);
+      conditions.push("(lower(t.description) LIKE ? OR lower(t.transaction_number) LIKE ?)");
+      values.push(search, search);
     }
   }
 
@@ -322,14 +171,14 @@ async function listTransactionsForExport(
        t.transaction_date,
        t.transaction_number,
        t.transaction_type,
-       p.name AS party_name,
+       t.status,
        t.description,
-       t.amount_minor AS amount,
-       t.status
+       cash.name AS cash_bank_account,
+       counter.name AS counter_account,
+       t.amount_idr
      FROM transactions t
-     LEFT JOIN parties p
-       ON p.id = t.party_id
-      AND p.organization_id = t.organization_id
+     LEFT JOIN accounts cash ON cash.id = t.cash_account_id
+     LEFT JOIN accounts counter ON counter.id = t.counter_account_id
      WHERE ${conditions.join(" AND ")}
      ORDER BY t.transaction_date ASC, t.transaction_number ASC`,
     values,
@@ -340,4 +189,3 @@ function sanitizeSearch(input: string): string {
   const value = input.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ").toLowerCase();
   return value ? `%${value}%` : "";
 }
-

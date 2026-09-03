@@ -8,18 +8,13 @@ import { test, expect } from "@playwright/test";
  * 2. Have a meaningful page title
  * 3. Render expected content elements
  *
- * Protected routes are tested separately (see auth.spec.ts, explore.spec.ts).
+ * Protected routes are tested separately (see smoke.spec.ts).
  */
 
 const PUBLIC_ROUTES = [
   { path: "/", title: /Ledjer/i, content: "Ledjer" },
   { path: "/login", title: /Ledjer/i, content: /email/i },
   { path: "/register", title: /Ledjer/i, content: /email/i },
-  { path: "/forgot-password", title: /Ledjer/i, content: /email/i },
-  { path: "/reset-password", title: /Ledjer/i, content: /email|password|token|reset/i },
-  { path: "/privacy", title: /Ledjer/i, content: /privasi|data|pribadi/i },
-  { path: "/terms", title: /Ledjer/i, content: /ketentuan|syarat/i },
-  { path: "/contact", title: /Ledjer/i, content: /kontak|email/i },
 ];
 
 test.describe("Public static routes", () => {
@@ -40,13 +35,11 @@ test.describe("Protected route redirects", () => {
   const protectedRoutes = [
     "/dashboard",
     "/transactions",
-    "/products",
+    "/transactions/new",
     "/accounts",
-    "/reports/general-ledger",
-    "/reports/trial-balance",
     "/reports/profit-loss",
     "/reports/balance-sheet",
-    "/settings/team",
+    "/settings",
   ];
 
   for (const route of protectedRoutes) {
@@ -57,30 +50,28 @@ test.describe("Protected route redirects", () => {
   }
 });
 
-test.describe("Canonical auth routes", () => {
-  const OLD_AUTH_PATHS = [
-    "/auth/login",
-    "/auth/register",
-    "/auth/forgot-password",
-  ];
-
-  for (const oldPath of OLD_AUTH_PATHS) {
-    test(`old ${oldPath} path shows not-found (canonical route is ${oldPath.replace("/auth", "")})`, async ({ page }) => {
-      await page.goto(oldPath);
-      await expect(page.locator("h1")).toBeVisible();
-      // Must not show any auth page - confirm not-found is displayed
-      await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
-      // Safety check: canonical route h1 must not contain "masuk" or "daftar"
-      const h1Text = await page.locator("h1").textContent();
-      expect(h1Text?.toLowerCase()).not.toMatch(/masuk|daftar|email/i);
-    });
-  }
-});
-
 test.describe("404 handling", () => {
   test("unknown route shows not-found page", async ({ page }) => {
     await page.goto("/nonexistent-page-12345");
     await expect(page.locator("h1")).toBeVisible();
     await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
+  });
+
+  test("removed non-MVP routes show not-found page", async ({ page }) => {
+    const removedRoutes = [
+      "/products",
+      "/forgot-password",
+      "/reset-password",
+      "/reports/trial-balance",
+      "/reports/general-ledger",
+      "/settings/team",
+      "/settings/period-locks",
+      "/auth/login",
+      "/auth/register",
+    ];
+    for (const route of removedRoutes) {
+      await page.goto(route);
+      await expect(page.getByRole("heading", { name: /tidak ditemukan|not found/i })).toBeVisible();
+    }
   });
 });

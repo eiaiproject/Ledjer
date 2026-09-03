@@ -71,8 +71,8 @@ describe("Migrations against real SQLite", () => {
   it("journal_lines CHECK constraint rejects invalid entries", () => {
     expect(() => {
       db.exec(
-        "INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) " +
-        "VALUES ('test-1', 'org-1', 'je-1', 'acct-1', 100, 100, 'both sides', 1, 1)"
+        "INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at) " +
+        "VALUES ('test-1', 'org-1', 'je-1', 'acct-1', 100, 100, 1)"
       );
     }).toThrow();
   });
@@ -81,16 +81,16 @@ describe("Migrations against real SQLite", () => {
     // Temporarily disable FK for setup inserts to avoid silent failures
     db.exec("PRAGMA foreign_keys=OFF");
     db.exec("INSERT INTO users (id, email, full_name, password_hash, created_at, updated_at) VALUES ('user-1', 'test@example.com', 'Test User', 'hash', 1, 1)");
-    db.exec("INSERT INTO organizations (id, name, business_type, base_currency, books_start_date, onboarding_status, created_by, created_at, updated_at) VALUES ('org-1', 'Test', 'simple_trading', 'IDR', '2026-01-01', 'completed', 'user-1', 1, 1)");
-    db.exec("INSERT INTO accounts (id, organization_id, code, name, account_type, normal_balance, is_active, is_cash_account, created_at, updated_at) VALUES ('acct-1', 'org-1', '1110', 'Cash', 'asset', 'debit', 1, 1, 1, 1)");
-    db.exec("INSERT INTO transactions (id, organization_id, transaction_number, transaction_date, transaction_type, amount_minor, payment_status, status, description, created_by, created_at, updated_at) VALUES ('tx-1', 'org-1', 'TRX-001', '2026-01-01', 'cash_sale', 100000, 'paid', 'posted', 'test', 'user-1', 1, 1)");
-    db.exec("INSERT INTO journal_entries (id, organization_id, transaction_id, entry_number, entry_date, entry_type, status, posted_by, created_at, updated_at) VALUES ('je-1', 'org-1', 'tx-1', 'JE-001', '2026-01-01', 'reversal', 'posted', 'user-1', 1, 1)");
+    db.exec("INSERT INTO organizations (id, name, base_currency, status, created_at, updated_at) VALUES ('org-1', 'Test', 'IDR', 'active', 1, 1)");
+    db.exec("INSERT INTO accounts (id, organization_id, code, name, account_class, account_subtype, is_system, is_active, created_at, updated_at) VALUES ('acct-1', 'org-1', '1110', 'Cash', 'asset', 'cash', 1, 1, 1, 1)");
+    db.exec("INSERT INTO transactions (id, organization_id, transaction_number, transaction_type, transaction_date, description, status, amount_idr, cash_account_id, counter_account_id, created_by, created_at, updated_at) VALUES ('tx-1', 'org-1', 'TRX-20260101-AB12', 'cash_in', '2026-01-01', 'test', 'posted', 100000, 'acct-1', 'acct-1', 'user-1', 1, 1)");
+    db.exec("INSERT INTO journal_entries (id, organization_id, transaction_id, entry_date, description, created_at) VALUES ('je-1', 'org-1', 'tx-1', '2026-01-01', 'test', 1)");
     db.exec("PRAGMA foreign_keys=ON");
 
     expect(() => {
       db.exec(
-        "INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_minor, credit_minor, description, line_order, created_at) " +
-        "VALUES ('test-2', 'org-1', 'je-1', 'acct-1', 500000, 0, 'valid debit', 2, 1)"
+        "INSERT INTO journal_lines (id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at) " +
+        "VALUES ('test-2', 'org-1', 'je-1', 'acct-1', 500000, 0, 1)"
       );
     }).not.toThrow();
   });

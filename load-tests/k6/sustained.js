@@ -25,9 +25,9 @@ export default function () {
   } else if (r < 0.7) {
     http.get(`${BASE_URL}/api/accounts`, { headers: { Cookie: COOKIE } });
   } else if (r < 0.85) {
-    http.get(`${BASE_URL}/api/dashboard`, { headers: { Cookie: COOKIE } });
+    http.get(`${BASE_URL}/api/dashboard/summary`, { headers: { Cookie: COOKIE } });
   } else {
-    http.get(`${BASE_URL}/api/reports/trial-balance?asOfDate=2026-07-01`, { headers: { Cookie: COOKIE } });
+    http.get(`${BASE_URL}/api/reports/balance-sheet?asOfDate=2026-07-01`, { headers: { Cookie: COOKIE } });
   }
   sleep(3);
 }

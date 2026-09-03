@@ -13,8 +13,6 @@ import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
 import { getSafeRedirectPath } from "@/lib/redirect";
-import { useCooldown } from "@/hooks/useCooldown";
-import { isApiError } from "@/lib/api/client";
 import { startGoogleAuth } from "@/lib/api/auth";
 import { Lock, Envelope } from "reicon-react";
 
@@ -24,20 +22,29 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn, resendConfirmationEmail } = useAuth();
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rateLimited, setRateLimited] = useState(false);
 
-  // Email-not-confirmed state
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resendLoading, setResendLoading] = useState(false);
-  const resendCooldown = useCooldown({ duration: 60 });
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  // OAuth callback redirects here with ?error=<code> on failure
+  const oauthError = (() => {
+    const code = searchParams.get("error");
+    if (!code) return null;
+    const messages: Record<string, string> = {
+      oauth_denied: "Login Google dibatalkan.",
+      oauth_missing_params: "Sesi login Google tidak valid. Coba lagi.",
+      oauth_invalid_state: "Sesi login Google tidak valid. Coba lagi.",
+      oauth_not_configured: "Masuk dengan Google belum aktif. Coba lagi nanti.",
+      oauth_email_conflict: "Email Google tidak terverifikasi. Masuk dengan email dan password.",
+      oauth_failed: "Gagal masuk dengan Google. Coba lagi.",
+    };
+    return messages[code] ?? "Gagal masuk dengan Google. Coba lagi.";
+  })();
 
   const {
     register,
@@ -48,44 +55,16 @@ export function LoginPage() {
   });
 
   const onSubmit = async (data: LoginForm) => {
-    if (loading || oauthLoading) return;
-    const email = data.email.trim().toLowerCase();
-
+    if (loading) return;
     setLoading(true);
     setError(null);
     try {
-      await signIn(email, data.password);
+      await signIn(data.email.trim().toLowerCase(), data.password);
       navigate(getSafeRedirectPath(searchParams.get("redirect"), "/dashboard"));
-    } catch (err) {
-      const message = translateError(err);
-      setError(message);
-
-      if (isApiError(err) && err.code === "rate_limited") {
-        setRateLimited(true);
-      }
-
-      // Detect "email not confirmed" so we can offer a resend action.
-      if (isApiError(err) && err.code === "email_not_confirmed") {
-        setUnverifiedEmail(email);
-        resendCooldown.start();
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendFromLogin = async () => {
-    if (!unverifiedEmail || resendLoading || resendCooldown.isActive) return;
-    setResendLoading(true);
-    setResendMessage(null);
-    try {
-      await resendConfirmationEmail(unverifiedEmail);
-      setResendMessage("Email konfirmasi telah dikirim ulang.");
-      resendCooldown.start();
     } catch (err) {
       setError(translateError(err));
     } finally {
-      setResendLoading(false);
+      setLoading(false);
     }
   };
 
@@ -95,7 +74,7 @@ export function LoginPage() {
     setError(null);
     try {
       const response = await startGoogleAuth();
-      if (!response.url) throw new Error("Google OAuth is not configured yet");
+      if (!response.url) throw new Error("oauth_not_configured");
       window.location.assign(response.url);
     } catch (err) {
       setError(translateError(err));
@@ -104,24 +83,20 @@ export function LoginPage() {
   };
 
   return (
-    // ledger-safe-top keeps content below the status bar on edge-to-edge Android
     <div className="ledger-page ledger-safe-top ledger-min-dvh bg-cream-100 lg:grid lg:grid-cols-3">
-      {/* Brand panel - 33% */}
       <AuthBrandPanel
         className="col-span-1"
         title="Masuk ke pembukuan yang rapi."
-        description="Transaksi, stok, dan laporan tersambung dalam satu alur yang bisa ditelusuri."
+        description="Catat uang masuk dan keluar, lalu lihat saldo serta laba bersih usaha Anda."
         entries={[
-          { label: "Penjualan tunai", amount: "+8,5 jt", tone: "leaf" },
-          { label: "Pembelian bahan", amount: "-3,2 jt", tone: "clay" },
-          { label: "Saldo kas", amount: "45,2 jt", tone: "wood" },
+          { label: "Uang masuk bulan ini", amount: "+8,5 jt", tone: "leaf" },
+          { label: "Uang keluar bulan ini", amount: "-3,2 jt", tone: "clay" },
+          { label: "Saldo kas & bank", amount: "45,2 jt", tone: "wood" },
         ]}
       />
 
-      {/* Form - 67% */}
       <div className="col-span-1 flex items-center justify-center p-4 sm:p-6 lg:min-h-0 lg:col-span-2">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
           <div className="mb-8 flex justify-center lg:hidden">
             <Logo size="md" variant="full" />
           </div>
@@ -129,38 +104,11 @@ export function LoginPage() {
           <Card className="p-6">
             <CardContent>
               <h1 className="text-xl font-bold text-text-primary">Masuk</h1>
-              <p className="mt-1 text-sm text-text-secondary">
-                Masuk ke akun Anda.
-              </p>
+              <p className="mt-1 text-sm text-text-secondary">Masuk ke akun Anda.</p>
 
-              {error && (
+              {(error || oauthError) && (
                 <Callout variant="error" className="mt-4">
-                  {error}
-                </Callout>
-              )}
-
-              {unverifiedEmail && (
-                <Callout variant="warning" className="mt-4 space-y-3">
-                  <p>
-                    Email <span className="font-medium break-all">{unverifiedEmail}</span>{" "}
-                    belum dikonfirmasi.
-                  </p>
-                  {resendMessage && (
-                    <p>{resendMessage}</p>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    fullWidth
-                    onClick={handleResendFromLogin}
-                    loading={resendLoading}
-                    disabled={resendLoading || resendCooldown.isActive}
-                  >
-                    {resendCooldown.isActive
-                      ? `Kirim ulang (${resendCooldown.remaining}s)`
-                      : "Kirim ulang email konfirmasi"}
-                  </Button>
+                  {error ?? oauthError}
                 </Callout>
               )}
 
@@ -172,7 +120,6 @@ export function LoginPage() {
                   placeholder="email@contoh.com"
                   prefix={<Envelope className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
-                  disabled={rateLimited}
                   autoComplete="email"
                 />
 
@@ -183,20 +130,10 @@ export function LoginPage() {
                   placeholder="Password"
                   prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.password?.message}
-                  disabled={rateLimited}
                   autoComplete="current-password"
                 />
 
-                <div className="text-right">
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm font-medium text-wood-600 hover:text-wood-800"
-                  >
-                    Lupa password?
-                  </Link>
-                </div>
-
-                <Button type="submit" fullWidth loading={loading} disabled={rateLimited || oauthLoading}>
+                <Button type="submit" fullWidth loading={loading}>
                   Masuk
                 </Button>
               </form>
@@ -214,7 +151,7 @@ export function LoginPage() {
                 mode="login"
                 onClick={handleGoogleSignIn}
                 loading={oauthLoading}
-                disabled={loading || rateLimited || oauthLoading}
+                disabled={loading || oauthLoading}
               />
 
               <p className="mt-4 text-center text-sm text-wood-500">
@@ -226,7 +163,6 @@ export function LoginPage() {
             </CardContent>
           </Card>
 
-          {/* Security notice */}
           <p className="mt-6 text-center text-xs text-wood-500">
             Koneksi terenkripsi. Data Anda aman.
           </p>

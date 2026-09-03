@@ -1,636 +1,249 @@
-import { useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PullToRefresh } from "@/components/ui/pull-to-refresh";
-import { refreshAllData } from "@/lib/query-client";
-
-/* ------------------------------------------------------------------ */
-/*  Empty state helper (reduce cognitive complexity)                   */
-/* ------------------------------------------------------------------ */
-
-function getEmptyContent({ isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty, isDatasetEmpty, canCreateTransaction, search, resetSearch, resetFilters }: {
-  isSearchAndFilterEmpty: boolean;
-  isSearchEmpty: boolean;
-  isFilterEmpty: boolean;
-  isDatasetEmpty: boolean;
-  canCreateTransaction: boolean;
-  search: string;
-  resetSearch: () => void;
-  resetFilters: () => void;
-}): ReactNode {
-  if (isSearchAndFilterEmpty) {
-    return (
-      <EmptyState icon={<Filter className="h-8 w-8" />}
-        title="Tidak ada transaksi yang sesuai"
-        description="Coba ubah pencarian atau filter yang digunakan."
-        action={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={resetSearch}>Hapus pencarian</Button><Button type="button" variant="outline" size="sm" onClick={resetFilters}>Reset filter</Button></div>} />
-    );
-  }
-  if (isSearchEmpty) {
-    return (
-      <EmptyState icon={<Search className="h-8 w-8" />}
-        title="Transaksi tidak ditemukan"
-        description={`Tidak ada transaksi yang cocok dengan "${search}".`}
-        action={<Button type="button" variant="outline" size="sm" onClick={resetSearch}>Hapus pencarian</Button>} />
-    );
-  }
-  if (isFilterEmpty) {
-    return (
-      <EmptyState icon={<Filter className="h-8 w-8" />}
-        title="Tidak ada transaksi yang sesuai"
-        description="Coba ubah tanggal, status, atau filter yang dipilih."
-        action={<Button type="button" variant="outline" size="sm" onClick={resetFilters}>Reset filter</Button>} />
-    );
-  }
-  if (isDatasetEmpty) {
-    return (
-      <EmptyState icon={<Receipt className="h-8 w-8" />}
-        title="Belum ada transaksi"
-        description="Catat transaksi pertama untuk mulai membentuk jurnal."
-        action={canCreateTransaction ? (
-          <Button as={Link} to="/transactions/new" variant="primary">
-            Catat transaksi pertama
-          </Button>
-        ) : undefined} />
-    );
-  }
-  return null;
-}
+import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Download, Plus } from "reicon-react";
+import { useOrganization } from "@/hooks/useOrganization";
+import { listTransactions, type Transaction } from "@/lib/api/transactions";
+import { downloadTransactionsCsv } from "@/lib/api/exports";
 import { queryKeys } from "@/lib/query-keys";
-import { voidTransaction } from "@/lib/api/transactions";
-import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
-import { formatIDR, formatShortDate, localDate } from "@/lib/utils";
-import { TransactionListSkeleton } from "@/components/ui/skeleton";
-import { ErrorState } from "@/components/ui/error-state";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "@/components/ui/toast";
-import { translateError } from "@/lib/errors";
-import { exportTransactionsCsv } from "@/lib/csv-export";
-import { Receipt, Search, Download, Check, X, ArrowRight, Filter } from "reicon-react";
-import { PageShell } from "@/components/ui/page-shell";
-import { PageToolbar } from "@/components/ui/page-toolbar";
-import { Card } from "@/components/ui/card";
-import { PageGuide } from "@/components/ui/page-guide";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import {
-  listTransactions,
-  type TransactionStatus,
-} from "@/lib/api/transactions";
-import {
-  TRANSACTION_LABELS,
-  labelForTransactionType,
-  statusVariant,
-  statusLabel,
-} from "@/lib/transactions";
+import { formatIDR, formatShortDate } from "@/lib/utils";
+import { labelForTransactionType, directionSign, TRANSACTION_TYPES } from "@/lib/transactions";
+import { getStatus } from "@/lib/status-registry";
 
-/** Status badge with icon for accessibility */
-function StatusBadge({ status }: { readonly status: string }) {
-  const variant = statusVariant(status);
-  const label = statusLabel(status);
+const PAGE_SIZE = 25;
 
-  return (
-    <Badge variant={variant} size="sm">
-      <StatusIcon status={status} />
-      {label}
-    </Badge>
-  );
-}
-
-function StatusIcon({ status }: { readonly status: string }) {
-  if (status === "posted") return <Check className="h-3 w-3" />;
-  if (status === "voided") return <X className="h-3 w-3" />;
-  return <ArrowRight className="h-3 w-3" />;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Transaction Filter Bar                                              */
-/* ------------------------------------------------------------------ */
-
-interface TransactionFilterBarProps {
-  readonly search: string;
-  readonly setSearch: (v: string) => void;
-  readonly fromDate: string;
-  readonly setFromDate: (v: string) => void;
-  readonly toDate: string;
-  readonly setToDate: (v: string) => void;
-  readonly typeFilter: string;
-  readonly setTypeFilter: (v: string) => void;
-  readonly statusFilter: string;
-  readonly setStatusFilter: (v: TransactionStatus | "") => void;
-  readonly hasSearchQuery: boolean;
-  readonly hasDateFilter: boolean;
-  readonly hasTypeFilter: boolean;
-  readonly hasStatusFilter: boolean;
-  readonly onResetSearch: () => void;
-  readonly onResetFilters: () => void;
-  readonly onResetAll: () => void;
-  readonly onClearDates: () => void;
-  readonly onClearType: () => void;
-  readonly onClearStatus: () => void;
-}
-
-function TransactionFilterBar({
-  search,
-  setSearch,
-  fromDate,
-  setFromDate,
-  toDate,
-  setToDate,
-  typeFilter,
-  setTypeFilter,
-  statusFilter,
-  setStatusFilter,
-  hasSearchQuery,
-  hasDateFilter,
-  hasTypeFilter,
-  hasStatusFilter,
-  onResetSearch,
-  onResetFilters,
-  onResetAll,
-  onClearDates,
-  onClearType,
-  onClearStatus,
-}: TransactionFilterBarProps) {
-  const hasActiveFilters = hasDateFilter || hasTypeFilter || hasStatusFilter;
-
-  return (
-    <PageToolbar
-      searchValue={search}
-      onSearchChange={setSearch}
-      searchPlaceholder="Cari transaksi..."
-      searchLabel="Cari transaksi"
-      searchInputId="transaction-search"
-      onResetSearch={onResetSearch}
-      onResetFilters={hasActiveFilters ? onResetFilters : undefined}
-      onResetAll={hasSearchQuery && hasActiveFilters ? onResetAll : undefined}
-      filters={[
-        {
-          key: "date",
-          label: "Periode",
-          active: hasDateFilter,
-          span: 6,
-          onClear: onClearDates,
-          children: (
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Dari" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-              <Input label="Sampai" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            </div>
-          ),
-        },
-        {
-          key: "type",
-          label: "Jenis",
-          active: hasTypeFilter,
-          span: 2,
-          onClear: onClearType,
-          children: (
-            <Select
-              label="Jenis"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              placeholder="Semua Jenis"
-              options={Object.entries(TRANSACTION_LABELS).filter(([k]) => !k.startsWith("opening_") && k !== "simple_adjustment").map(([value, label]) => ({ value, label }))}
-            />
-          ),
-        },
-        {
-          key: "status",
-          label: "Status",
-          active: hasStatusFilter,
-          span: 2,
-          onClear: onClearStatus,
-          children: (
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | "")}
-              placeholder="Semua Status"
-              options={[
-                { value: "posted", label: "Posted" },
-                { value: "voided", label: "Dibatalkan" },
-              ]}
-            />
-          ),
-        },
-      ]}
-    />
-  );
-}
-
-export function TransactionListPage() { // NOSONAR typescript:S3776 - complexity 16/15; page-level conditions are inherently complex
+export function TransactionListPage() {
   const { data: orgData } = useOrganization();
-  const { canCreateTransaction, canCreateExports } = useOrgPermissions();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const search = searchParams.get("q") ?? "";
-  const typeFilter = searchParams.get("type") ?? "";
-  const statusFilter = (searchParams.get("status") ?? "") as TransactionStatus | "";
-  const fromDate = searchParams.get("from") ?? localDate(-30);
-  const toDate = searchParams.get("to") ?? localDate();
-  const page = Number(searchParams.get("page") ?? "0");
+  const orgId = orgData?.organization?.id;
+
+  const [search, setSearch] = useState("");
+  const [transactionType, setTransactionType] = useState("");
+  const [status, setStatus] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [offset, setOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const limit = 20;
-  const updateParams = (mutate: (next: URLSearchParams) => void) => {
-    const next = new URLSearchParams(searchParams);
-    mutate(next);
-    setSearchParams(next, { replace: true });
-  };
-  const setSearch = (v: string) => updateParams((n) => { if (v) { n.set("q", v); } else { n.delete("q"); } n.set("page", "0"); });
-  const setTypeFilter = (v: string) => updateParams((n) => { if (v) { n.set("type", v); } else { n.delete("type"); } n.set("page", "0"); });
-  const setStatusFilter = (v: TransactionStatus | "") => updateParams((n) => { if (v) { n.set("status", v); } else { n.delete("status"); } n.set("page", "0"); });
-  const setFromDate = (v: string) => updateParams((n) => { n.set("from", v); n.set("page", "0"); });
-  const setToDate = (v: string) => updateParams((n) => { n.set("to", v); n.set("page", "0"); });
-  const setPage = (updater: number | ((p: number) => number)) => updateParams((n) => { const nextPage = typeof updater === "function" ? (updater as (p: number) => number)(page) : updater; n.set("page", String(Math.max(0, nextPage))); });
 
-  const DEFAULT_FROM = localDate(-30);
-  const DEFAULT_TO = localDate();
+  const filters = useMemo(
+    () => ({
+      search: search || undefined,
+      transactionType: transactionType || undefined,
+      status: status || undefined,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+      limit: PAGE_SIZE,
+      offset,
+    }),
+    [search, transactionType, status, fromDate, toDate, offset],
+  );
 
-  const normalizedSearch = search.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ");
-  const dateRangeInvalid = fromDate > toDate;
-
-  const hasSearchQuery = Boolean(normalizedSearch);
-  const hasTypeFilter = Boolean(typeFilter);
-  const hasStatusFilter = Boolean(statusFilter);
-  const hasDateFilter = fromDate !== DEFAULT_FROM || toDate !== DEFAULT_TO;
-  const hasActiveFilters = hasTypeFilter || hasStatusFilter || hasDateFilter;
-  const hasAnyActiveCriteria = hasSearchQuery || hasActiveFilters;
-
-  const { data: transactions, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: queryKeys.transactions.list(orgData?.organization?.id, normalizedSearch, typeFilter, statusFilter, fromDate, toDate, page),
+  const query = useQuery({
+    queryKey: queryKeys.transactions.list(orgId, filters),
     queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return listTransactions({
-        search: normalizedSearch || undefined,
-        transactionType: typeFilter || undefined,
-        status: statusFilter || undefined,
-        fromDate,
-        toDate,
-        limit,
-        offset: page * limit,
-      });
+      if (!orgId) throw new Error("No organization");
+      return listTransactions(filters);
     },
-    enabled: !!orgData?.organization?.id,
+    enabled: !!orgId,
   });
 
-  // Derived state model
-  const isInitialLoading = isLoading && !transactions;
-  const hasAnyTransactions = (transactions?.length ?? 0) > 0 || (page > 0);
-  const isDatasetEmpty = !isLoading && !error && transactions !== undefined && transactions.length === 0 && page === 0 && !hasAnyActiveCriteria;
-  const isSearchEmpty = hasSearchQuery && !hasActiveFilters && !isLoading && transactions?.length === 0;
-  const isFilterEmpty = hasActiveFilters && !hasSearchQuery && !isLoading && transactions?.length === 0;
-  const isSearchAndFilterEmpty = hasSearchQuery && hasActiveFilters && !isLoading && transactions?.length === 0;
-  const isPageError = Boolean(error);
-  const isRefreshing = isFetching && !isLoading;
-  const canExport = canCreateExports && !isDatasetEmpty && !isPageError && !dateRangeInvalid;
-  const allPageIds = (transactions ?? []).map((t) => t.id);
-  const allSelected = allPageIds.length > 0 && allPageIds.every((id) => selectedIds.has(id));
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-  const toggleAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(allPageIds));
-  };
-  const clearSelection = () => setSelectedIds(new Set());
-  const queryClient = useQueryClient();
-  const [bulkVoiding, setBulkVoiding] = useState(false);
-  const [confirmBulkVoid, setConfirmBulkVoid] = useState(false);
-  const handleBulkVoid = async () => {
-    if (bulkVoiding || selectedIds.size === 0) return;
-    setBulkVoiding(true);
-    const ids = [...selectedIds];
-    const results = await Promise.allSettled(
-      ids.map((id) => voidTransaction(id, "Void massal dari daftar transaksi", crypto.randomUUID())),
-    );
-    const ok = results.filter((r) => r.status === "fulfilled").length;
-    const failed = results.length - ok;
-    if (ok > 0) {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
-      const voidSuffix = failed > 0 ? `, ${failed} gagal` : "";
-      toast.success(`${ok} transaksi dibatalkan${voidSuffix}`);
-    } else {
-      toast.error("Semua void gagal - coba lagi");
-    }
-    setSelectedIds(new Set());
-    setBulkVoiding(false);
-    setConfirmBulkVoid(false);
-  };
-
   const handleExport = async () => {
-    if (!orgData?.organization?.id || dateRangeInvalid || exporting) return;
+    if (exporting) return;
     setExporting(true);
     try {
-      await exportTransactionsCsv({
-        search: normalizedSearch || undefined,
-        transactionType: typeFilter || undefined,
-        status: statusFilter || undefined,
-        fromDate,
-        toDate,
-      });
-      toast.success("Ekspor CSV transaksi dimulai");
-    } catch (err) {
-      toast.error(translateError(err));
+      await downloadTransactionsCsv(filters);
+      toast.success("Export CSV berhasil diunduh.");
+    } catch {
+      toast.error("Gagal mengunduh CSV. Coba lagi.");
     } finally {
       setExporting(false);
     }
   };
 
-  const resetFilters = () => {
-    setTypeFilter("");
-    setStatusFilter("");
-    setFromDate(DEFAULT_FROM);
-    setToDate(DEFAULT_TO);
-    setPage(0);
-  };
+  const totalPages = Math.max(1, Math.ceil((query.data?.total ?? 0) / PAGE_SIZE));
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
-  const resetSearch = () => {
-    setSearch("");
-    setPage(0);
-  };
-
-  const resetAll = () => {
-    setSearch("");
-    resetFilters();
-  };
-
-  // Empty state content based on state
-  const emptyContent = getEmptyContent({
-    isSearchAndFilterEmpty, isSearchEmpty, isFilterEmpty, isDatasetEmpty,
-    canCreateTransaction, search, resetSearch, resetFilters,
-  });
+  let rowsContent: ReactNode;
+  if (query.isLoading) {
+    rowsContent = (
+      <div className="space-y-3 p-5">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
+        ))}
+      </div>
+    );
+  } else if (query.isError) {
+    rowsContent = (
+      <ErrorState
+        title="Gagal memuat transaksi"
+        message="Terjadi kesalahan saat mengambil daftar transaksi."
+        onRetry={() => query.refetch()}
+      />
+    );
+  } else if (query.data && query.data.transactions.length > 0) {
+    rowsContent = (
+      <ul className="divide-y divide-wood-100">
+        {query.data.transactions.map((transaction) => (
+          <TransactionRow key={transaction.id} transaction={transaction} />
+        ))}
+      </ul>
+    );
+  } else {
+    rowsContent = (
+      <EmptyState
+        title="Tidak ada transaksi"
+        description="Belum ada transaksi yang cocok dengan filter ini."
+        action={
+          <Link to="/transactions/new">
+            <Button>Catat Transaksi</Button>
+          </Link>
+        }
+      />
+    );
+  }
 
   return (
-    <PullToRefresh onRefresh={refreshAllData}>
-    <PageShell
-      header={{
-        title: "Transaksi",
-        description: isDatasetEmpty
-          ? "Mulai mencatat transaksi bisnis Anda"
-          : "Lihat dan kelola seluruh transaksi bisnis Anda",
-        actions: [
-          ...(canExport ? [{ key: "export", children: (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => { handleExport(); }}
-                disabled={exporting}
-                className="hidden sm:inline-flex"
-              >
-                {exporting ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    <span>Mengekspor...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    Ekspor CSV
-                  </>
-                )}
+    <div className="space-y-4">
+      <PageHeader
+        title="Transaksi"
+        description="Semua catatan uang masuk dan keluar."
+        actions={[
+          {
+            key: "export",
+            children: (
+              <Button variant="secondary" onClick={handleExport} loading={exporting}>
+                <Download className="h-4 w-4" />
+                Export CSV
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => { handleExport(); }}
-                disabled={exporting}
-                className="sm:hidden min-h-[44px] min-w-[44px]"
-                aria-label="Ekspor transaksi"
-              >
-                {exporting ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-              </Button>
-            </>
-          ) }] : []),
-          ...(canCreateTransaction ? [{ key: "create", children: (
-            <Button as={Link} to="/transactions/new" variant="primary">
-              Transaksi Baru
-            </Button>
-          ) }] : []),
-        ],
-      }}
-    >
-
-      {/* Panduan halaman */}
-      <PageGuide guideKey="transactions" />
-
-      {/* Search + Filter */}
-      <TransactionFilterBar
-        search={search}
-        setSearch={setSearch}
-        fromDate={fromDate}
-        setFromDate={setFromDate}
-        toDate={toDate}
-        setToDate={setToDate}
-        typeFilter={typeFilter}
-        setTypeFilter={setTypeFilter}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        hasSearchQuery={hasSearchQuery}
-        hasDateFilter={hasDateFilter}
-        hasTypeFilter={hasTypeFilter}
-        hasStatusFilter={hasStatusFilter}
-        onResetSearch={resetSearch}
-        onResetFilters={resetFilters}
-        onResetAll={resetAll}
-        onClearDates={() => { setFromDate(DEFAULT_FROM); setToDate(DEFAULT_TO); setPage(0); }}
-        onClearType={() => { setTypeFilter(""); setPage(0); }}
-        onClearStatus={() => { setStatusFilter(""); setPage(0); }}
+            ),
+          },
+          {
+            key: "new",
+            children: (
+              <Link to="/transactions/new">
+                <Button>
+                  <Plus className="h-4 w-4" />
+                  Transaksi Baru
+                </Button>
+              </Link>
+            ),
+          },
+        ]}
       />
 
-      {dateRangeInvalid && (
-        <p className="text-sm text-error" role="alert">
-          Tanggal awal tidak boleh melewati tanggal akhir.
-        </p>
-      )}
-
-      {/* Background refresh indicator */}
-      {isRefreshing && (
-        <div className="flex items-center gap-2 text-xs text-text-tertiary" role="status" aria-live="polite">
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-wood-300 border-t-wood-600" />
-          <span>Memperbarui...</span>
-        </div>
-      )}
-
-      {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-wood-200 bg-wood-50 px-3 py-2 text-sm">
-          <span className="font-medium text-wood-700">{selectedIds.size} dipilih</span>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={clearSelection} disabled={bulkVoiding}>Batal</Button>
-            <Button type="button" variant="primary" size="sm" onClick={() => setConfirmBulkVoid(true)} disabled={bulkVoiding}>
-              {bulkVoiding ? "Membatalkan..." : `Void ${selectedIds.size} Terpilih`}
-            </Button>
+      <Card elevated>
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
+          <Input
+            label="Cari"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setOffset(0);
+            }}
+            placeholder="Keterangan atau nomor transaksi"
+            className="lg:col-span-2"
+          />
+          <Select
+            label="Jenis"
+            value={transactionType}
+            onChange={(e) => {
+              setTransactionType(e.target.value);
+              setOffset(0);
+            }}
+            placeholder="Semua jenis"
+            options={TRANSACTION_TYPES.map((type) => ({
+              value: type,
+              label: labelForTransactionType(type),
+            }))}
+          />
+          <Select
+            label="Status"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setOffset(0);
+            }}
+            placeholder="Semua status"
+            options={[
+              { value: "posted", label: "Posted" },
+              { value: "voided", label: "Dibatalkan" },
+            ]}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Input label="Dari" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setOffset(0); }} />
+            <Input label="Sampai" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setOffset(0); }} />
           </div>
-        </div>
-      )}
-
-      {/* Bulk void confirmation */}
-      <ConfirmDialog
-        open={confirmBulkVoid}
-        onClose={() => setConfirmBulkVoid(false)}
-        onConfirm={handleBulkVoid}
-        title="Void transaksi terpilih?"
-        message={`${selectedIds.size} transaksi akan dibatalkan dengan jurnal pembalik otomatis. Tindakan ini tercatat di audit log.`}
-        confirmLabel="Ya, Void"
-        loading={bulkVoiding}
-      />
-
-      {/* Transaction list */}
-      <Card elevated aria-label="Daftar transaksi" role="region">
-        {isPageError && (
-          <div className="p-8">
-            <ErrorState
-              error={error}
-              message="Periksa koneksi Anda, lalu coba lagi."
-              onRetry={() => { refetch(); }}
-            />
-          </div>
-        )}
-
-        {isInitialLoading && (
-          <div className="p-4">
-            <TransactionListSkeleton />
-          </div>
-        )}
-
-        {!isPageError && !isInitialLoading && emptyContent}
-
-        {!isPageError && !isInitialLoading && hasAnyTransactions && (
-          <>
-            {/* Result count */}
-            {hasAnyActiveCriteria && (
-              <div className="border-b border-wood-100 px-4 py-2.5">
-                <p className="text-xs text-text-tertiary">
-                  {transactions?.length ?? 0} transaksi ditemukan
-                  {page > 0 && ` · Halaman ${page + 1}`}
-                </p>
-              </div>
-            )}
-
-            {/* Mobile: Card list */}
-            <div className="divide-y divide-wood-100 sm:hidden">
-              {transactions?.map((txn) => (
-                <div key={txn.id} className="flex items-center gap-2 px-4 py-3 hover:bg-cream-50">
-                  <input type="checkbox" checked={selectedIds.has(txn.id)} onChange={() => toggleOne(txn.id)} className="h-4 w-4 rounded border-wood-300 text-wood-600 focus:ring-wood-500" aria-label={`Pilih ${txn.transaction_number}`} />
-                  <Link
-                    to={`/transactions/${txn.id}`}
-                    className="flex flex-1 items-start justify-between gap-3 min-w-0 outline-none active:bg-cream-100 transition-colors min-h-[44px]"
-                    aria-label={`${labelForTransactionType(txn.transaction_type)}, ${formatIDR(Number(txn.amount))}, ${statusLabel(txn.status)}, ${formatShortDate(txn.transaction_date)}`}
-                  >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-medium text-wood-600">
-                        {txn.transaction_number}
-                      </span>
-                      <StatusBadge status={txn.status} />
-                    </div>
-                    <p className="mt-1 line-clamp-2 break-words text-sm font-medium text-text-primary">
-                      {txn.description || labelForTransactionType(txn.transaction_type)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-text-tertiary">
-                      {formatShortDate(txn.transaction_date)} · {labelForTransactionType(txn.transaction_type)}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 pl-2">
-                    <p className="num-mono text-sm font-semibold text-text-primary whitespace-nowrap">
-                      {formatIDR(Number(txn.amount))}
-                    </p>
-                  </div>
-                  </Link>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop: Table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-wood-100 bg-cream-100/50">
-                  <tr>
-                    <th scope="col" className="px-4 py-3"><input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-wood-300 text-wood-600" aria-label="Pilih semua" /></th>
-                    <th scope="col" className="px-4 py-3 font-medium text-wood-600">Tanggal</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-wood-600">No.</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-wood-600">Jenis</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-wood-600">Deskripsi</th>
-                    <th scope="col" className="px-4 py-3 text-right font-medium text-wood-600">Nominal</th>
-                    <th scope="col" className="px-4 py-3 font-medium text-wood-600">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-wood-50">
-                  {transactions?.map((txn) => (
-                    <tr key={txn.id} className="transition-colors hover:bg-cream-50">
-                      <td className="px-4 py-3"><input type="checkbox" checked={selectedIds.has(txn.id)} onChange={() => toggleOne(txn.id)} className="h-4 w-4 rounded border-wood-300 text-wood-600" aria-label={`Pilih ${txn.transaction_number}`} /></td>
-                      <td className="whitespace-nowrap px-4 py-3 text-wood-600">
-                        {formatShortDate(txn.transaction_date)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
-                        <Link
-                          to={`/transactions/${txn.id}`}
-                          className="font-medium text-wood-700 hover:text-wood-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500 rounded"
-                        >
-                          {txn.transaction_number}
-                        </Link>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-wood-700">
-                        {labelForTransactionType(txn.transaction_type)}
-                      </td>
-                      <td className="max-w-[280px] px-4 py-3 text-wood-600">
-                        <span className="line-clamp-2 break-words">{txn.description || "-"}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-medium num-mono text-wood-800">
-                        {formatIDR(Number(txn.amount))}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={txn.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        </CardContent>
       </Card>
 
-      {/* Pagination */}
-      {!isPageError && !isInitialLoading && transactions && (page > 0 || transactions.length === limit) && (
-        <nav className="flex justify-center gap-2" aria-label="Paginasi transaksi">
+      <Card elevated>
+        <CardContent className="p-0">{rowsContent}</CardContent>
+      </Card>
+
+      {query.data && query.data.total > PAGE_SIZE && (
+        <nav aria-label="Navigasi halaman" className="flex items-center justify-between gap-4">
           <Button
-            type="button"
             variant="outline"
             size="sm"
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
+            disabled={currentPage <= 1}
+            onClick={() => setOffset((currentPage - 2) * PAGE_SIZE)}
           >
             Sebelumnya
           </Button>
-          <span className="px-3 py-1.5 text-sm text-wood-500" aria-current="page">Halaman {page + 1}</span>
+          <p className="text-sm text-text-secondary">
+            Halaman {currentPage} dari {totalPages}
+          </p>
           <Button
-            type="button"
             variant="outline"
             size="sm"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={transactions.length < limit}
+            disabled={currentPage >= totalPages}
+            onClick={() => setOffset(currentPage * PAGE_SIZE)}
           >
-            Selanjutnya
+            Berikutnya
           </Button>
         </nav>
       )}
-    </PageShell>
-    </PullToRefresh>
+    </div>
+  );
+}
+
+function TransactionRow({ transaction }: { readonly transaction: Transaction }) {
+  const status = getStatus("transactions", transaction.status);
+  const isNegative = transaction.direction === "out";
+
+  return (
+    <li>
+      <Link
+        to={`/transactions/${transaction.id}`}
+        className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-cream-100 sm:px-5"
+      >
+        <div className="min-w-0">
+          <p className="break-words text-sm font-medium text-text-primary">{transaction.description}</p>
+          <p className="mt-0.5 text-xs text-text-tertiary">
+            {transaction.transaction_number} · {formatShortDate(transaction.transaction_date)}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <p
+            className={`num-mono text-sm font-semibold ${
+              isNegative ? "text-clay-700" : "text-leaf-700"
+            }`}
+          >
+            {directionSign(transaction.direction)} {formatIDR(transaction.amount_idr)}
+          </p>
+          <Badge variant={status.variant} size="sm">
+            {status.label}
+          </Badge>
+        </div>
+      </Link>
+    </li>
   );
 }

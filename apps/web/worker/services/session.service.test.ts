@@ -79,7 +79,6 @@ describe("Session Service", () => {
               current_organization_id: null,
               email: "test@example.com",
               full_name: "Test User",
-              email_verified_at: Date.now(),
             };
           }
           return null;
@@ -93,8 +92,8 @@ describe("Session Service", () => {
       expect(session!.full_name).toBe("Test User");
     });
 
-    it("enforces the 1-hour idle timeout in the session query", async () => {
-      const { getSessionByToken } = await import("./session.service");
+    it("enforces the idle timeout in the session query", async () => {
+      const { getSessionByToken, IDLE_TIMEOUT_MS } = await import("./session.service");
       let capturedSql = "";
       let capturedValues: unknown[] = [];
 
@@ -111,12 +110,12 @@ describe("Session Service", () => {
       await getSessionByToken(db, "some-token");
       const after = Date.now();
 
-      // Query must filter on last_used_at within the 1h idle window.
+      // Query must filter on last_used_at within the idle window.
       expect(capturedSql).toContain("s.last_used_at >= ?");
       // values = [tokenHash, current, current - IDLE_TIMEOUT_MS]
       const idleBound = capturedValues[2] as number;
-      expect(idleBound).toBeGreaterThanOrEqual(before - 60 * 60 * 1000);
-      expect(idleBound).toBeLessThanOrEqual(after - 60 * 60 * 1000);
+      expect(idleBound).toBeGreaterThanOrEqual(before - IDLE_TIMEOUT_MS);
+      expect(idleBound).toBeLessThanOrEqual(after - IDLE_TIMEOUT_MS);
     });
 
     it("returns null when the session row is idle-expired", async () => {
@@ -145,7 +144,6 @@ describe("Session Service", () => {
               current_organization_id: null,
               email: "test@example.com",
               full_name: "Test User",
-              email_verified_at: now,
               // Active within the idle window, but the token hash is 8 days old.
               last_used_at: now,
               last_rotated_at: eightDaysAgo,

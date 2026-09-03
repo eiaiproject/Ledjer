@@ -67,24 +67,18 @@ describe("Worker API", () => {
         `${method} ${path} should not return 404 (unregistered route)`
       ).not.toBe(404);
     };
-    // GET routes
+    // GET routes (MVP)
     await check("GET", "/api/auth/me");
     await check("GET", "/api/organizations/current");
     await check("GET", "/api/accounts");
-    await check("GET", "/api/products");
     await check("GET", "/api/transactions");
-    await check("GET", "/api/parties");
-    await check("GET", "/api/invoices");
-    await check("GET", "/api/reports/trial-balance");
-    await check("GET", "/api/reports/cash-flow");
-    await check("GET", "/api/opening-balance/status");
-    await check("GET", "/api/period-locks");
-    await check("GET", "/api/attachments?entity_type=transaction&entity_id=test");
-    await check("GET", "/api/onboarding/status");
+    await check("GET", "/api/reports/profit-loss");
+    await check("GET", "/api/reports/balance-sheet");
+    await check("GET", "/api/dashboard/summary");
+    await check("GET", "/api/exports/transactions.csv");
     // POST routes
     await check("POST", "/api/auth/login");
-    await check("POST", "/api/import/coa/preview");
-    await check("POST", "/api/reconciliation/import-statement");
+    await check("POST", "/api/auth/register");
   });
 
   it("rejects mutating cookie-authenticated requests from a foreign origin", async () => {

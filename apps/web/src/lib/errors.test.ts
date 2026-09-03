@@ -12,7 +12,8 @@ describe("translateError", () => {
 
   it("translates Worker error codes", () => {
     expect(translateError({ code: "journal_unbalanced" })).toBe("Jurnal transaksi tidak seimbang.");
-    expect(translateError({ code: "product_code_duplicate" })).toBe("Kode produk sudah digunakan.");
+    expect(translateError({ code: "account_name_taken" })).toBe("Nama akun sudah dipakai dalam organisasi ini.");
+    expect(translateError({ code: "invalid_credentials" })).toBe("Email atau password salah.");
   });
 
   it("translates known Worker messages", () => {

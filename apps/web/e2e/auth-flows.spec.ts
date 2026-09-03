@@ -35,21 +35,7 @@ test.describe("Authenticated API Flows", () => {
     const res = await apiGet(authPage, "/api/dashboard/summary");
     expect(res.status).toBe(200);
     expect(res.body.summary).toBeDefined();
-  });
-
-  test("GET /api/products returns products", async ({ authPage }) => {
-    const res = await apiGet(authPage, "/api/products");
-    expect(res.status).toBe(200);
-    expect(res.body.products).toBeDefined();
-  });
-
-  test("GET /api/reports/trial-balance returns trial balance", async ({ authPage }) => {
-    const res = await apiGet(
-      authPage,
-      "/api/reports/trial-balance?asOfDate=2026-07-17",
-    );
-    expect(res.status).toBe(200);
-    expect(res.body).toBeDefined();
+    expect(typeof res.body.summary.cashBankBalance).toBe("number");
   });
 
   test("GET /api/reports/profit-loss returns P&L", async ({ authPage }) => {
@@ -58,7 +44,7 @@ test.describe("Authenticated API Flows", () => {
       "/api/reports/profit-loss?fromDate=2026-01-01&toDate=2026-12-31",
     );
     expect(res.status).toBe(200);
-    expect(res.body).toBeDefined();
+    expect(res.body.report).toBeDefined();
   });
 
   test("GET /api/reports/balance-sheet returns balance sheet", async ({ authPage }) => {
@@ -67,25 +53,8 @@ test.describe("Authenticated API Flows", () => {
       "/api/reports/balance-sheet?asOfDate=2026-07-17",
     );
     expect(res.status).toBe(200);
-    expect(res.body).toBeDefined();
-  });
-
-  test("GET /api/team/members returns team members", async ({ authPage }) => {
-    const res = await apiGet(authPage, "/api/team/members");
-    expect(res.status).toBe(200);
-    expect(res.body).toBeDefined();
-  });
-
-  test("GET /api/period-locks returns locks", async ({ authPage }) => {
-    const res = await apiGet(authPage, "/api/period-locks");
-    expect(res.status).toBe(200);
-    expect(res.body).toBeDefined();
-  });
-
-  test("GET /api/audit-logs returns audit logs", async ({ authPage }) => {
-    const res = await apiGet(authPage, "/api/audit-logs?limit=10");
-    expect(res.status).toBe(200);
-    expect(res.body).toBeDefined();
+    expect(res.body.report).toBeDefined();
+    expect(typeof res.body.report.balanced).toBe("boolean");
   });
 
   test("GET /api/organizations/current returns org details", async ({ authPage }) => {

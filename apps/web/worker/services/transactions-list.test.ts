@@ -10,8 +10,7 @@ const NOW = 1_750_000_000_000;
 /**
  * Minimal real-SQLite stand-in for D1Database: the service layer only uses
  * prepare().bind().all()/first()/run() for listTransactions, so a thin
- * adapter over node:sqlite gives us real SQL semantics (including the
- * NOT EXISTS subquery) without a full D1 emulator.
+ * adapter over node:sqlite gives us real SQL semantics without a D1 emulator.
  */
 class SqliteD1 {
   constructor(private readonly db: DatabaseSync) {}
@@ -57,60 +56,35 @@ class SqliteD1Statement {
 
 function createSchema(db: DatabaseSync): void {
   db.exec(`
-    CREATE TABLE organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-    CREATE TABLE users (id TEXT PRIMARY KEY, full_name TEXT);
-    CREATE TABLE parties (
-      id TEXT PRIMARY KEY, organization_id TEXT NOT NULL, name TEXT
+    CREATE TABLE accounts (
+      id TEXT PRIMARY KEY, organization_id TEXT NOT NULL, code TEXT NOT NULL,
+      name TEXT NOT NULL, account_class TEXT NOT NULL, account_subtype TEXT
     );
     CREATE TABLE transactions (
       id TEXT PRIMARY KEY,
       organization_id TEXT NOT NULL,
       transaction_number TEXT NOT NULL,
-      transaction_date TEXT NOT NULL,
       transaction_type TEXT NOT NULL,
-      amount_minor INTEGER NOT NULL,
-      party_id TEXT,
-      category_name TEXT,
-      cash_account_id TEXT,
-      destination_cash_account_id TEXT,
-      payment_status TEXT NOT NULL DEFAULT 'paid',
-      due_date TEXT,
-      description TEXT NOT NULL DEFAULT '',
-      notes TEXT,
+      transaction_date TEXT NOT NULL,
+      description TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'posted',
-      idempotency_key TEXT,
-      posted_at INTEGER,
-      posted_by TEXT,
-      voided_at INTEGER,
-      voided_by TEXT,
-      void_reason TEXT,
-      original_transaction_id TEXT,
-      reversal_transaction_id TEXT,
+      amount_idr INTEGER NOT NULL,
+      cash_account_id TEXT,
+      counter_account_id TEXT,
       created_by TEXT NOT NULL,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE journal_entries (
-      id TEXT PRIMARY KEY,
-      organization_id TEXT NOT NULL,
-      entry_number TEXT NOT NULL,
-      entry_date TEXT NOT NULL,
-      entry_type TEXT NOT NULL DEFAULT 'normal',
-      transaction_id TEXT,
-      description TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'posted',
-      created_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      voided_at INTEGER,
+      void_reason TEXT
     );
   `);
 }
 
 function insertTransaction(db: SqliteD1, row: Record<string, unknown>): Promise<void> {
-  // payment_status omitted on purpose: it is NOT NULL with DEFAULT 'paid'.
   const columns = [
-    "id", "organization_id", "transaction_number", "transaction_date", "transaction_type",
-    "amount_minor", "party_id", "category_name", "cash_account_id", "destination_cash_account_id",
-    "due_date", "description", "notes", "status", "idempotency_key",
-    "posted_at", "posted_by", "original_transaction_id", "created_by", "created_at", "updated_at",
+    "id", "organization_id", "transaction_number", "transaction_type", "transaction_date",
+    "description", "status", "amount_idr", "cash_account_id", "counter_account_id",
+    "created_by", "created_at", "updated_at", "voided_at", "void_reason",
   ];
   const values = columns.map((c) => row[c] ?? null) as (string | number | null)[];
   return db
@@ -123,94 +97,80 @@ function insertTransaction(db: SqliteD1, row: Record<string, unknown>): Promise<
     .then(() => undefined);
 }
 
-function insertJournalEntry(
-  db: SqliteD1,
-  row: { id: string; transactionId: string; entryType: "normal" | "reversal"; description: string },
-): Promise<void> {
-  return db
-    .prepare(
-      `INSERT INTO journal_entries
-         (id, organization_id, entry_number, entry_date, entry_type, transaction_id, description, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'posted', ?)`,
-    )
-    .bind(
-      row.id, ORG, `JE-${row.id}`, "2026-08-15", row.entryType, row.transactionId,
-      row.description, NOW,
-    )
-    .run()
-    .then(() => undefined);
-}
-
-describe("listTransactions shows the complete audit trail", () => {
+describe("listTransactions (real SQLite)", () => {
   let sqlite: DatabaseSync;
   let db: SqliteD1;
 
   beforeAll(() => {
     sqlite = new DatabaseSync(":memory:");
-    sqlite.exec("PRAGMA foreign_keys=ON");
     createSchema(sqlite);
     db = new SqliteD1(sqlite);
 
-    db.exec(`INSERT INTO organizations (id, name) VALUES ('${ORG}', 'Test Org')`);
-    db.exec(`INSERT INTO users (id, full_name) VALUES ('${USER}', 'Test User')`);
+    db.exec(`INSERT INTO accounts (id, organization_id, code, name, account_class, account_subtype)
+             VALUES ('acct-cash', '${ORG}', '1110', 'Kas', 'asset', 'cash')`);
+    db.exec(`INSERT INTO accounts (id, organization_id, code, name, account_class, account_subtype)
+             VALUES ('acct-rev', '${ORG}', '4110', 'Pendapatan Usaha', 'income', NULL)`);
 
     return Promise.all([
-      // Original posted sale - must be visible.
+      // Posted cash_in - must be visible.
       insertTransaction(db, {
-        id: "txn-original", organization_id: ORG, transaction_number: "TRX-202608-000001",
-        transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
-        description: "Penjualan Telur x30", status: "voided",
-        posted_at: NOW, posted_by: USER, created_by: USER, created_at: NOW, updated_at: NOW,
-      }),
-      // Reversal created by the void flow - also visible (complete audit trail).
-      insertTransaction(db, {
-        id: "txn-reversal", organization_id: ORG, transaction_number: "TRX-202608-000002",
-        transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
-        description: "Pembatalan: Penjualan Telur x30", status: "posted",
-        posted_at: NOW, posted_by: USER, original_transaction_id: "txn-original",
+        id: "txn-cashin", organization_id: ORG, transaction_number: "TRX-20260815-AB12",
+        transaction_date: "2026-08-15", transaction_type: "cash_in", amount_idr: 81000,
+        description: "Penjualan tunai", status: "posted",
+        cash_account_id: "acct-cash", counter_account_id: "acct-rev",
         created_by: USER, created_at: NOW, updated_at: NOW,
       }),
-      // Corrected re-entry created after the void - must be visible.
+      // Voided transaction - must be visible too (audit trail), with void reason.
       insertTransaction(db, {
-        id: "txn-correction", organization_id: ORG, transaction_number: "TRX-202608-000003",
-        transaction_date: "2026-08-15", transaction_type: "cash_sale", amount_minor: 81000,
-        description: "Penjualan Telur x30 (Nadiah)", status: "posted",
-        posted_at: NOW, posted_by: USER, original_transaction_id: "txn-original",
+        id: "txn-voided", organization_id: ORG, transaction_number: "TRX-20260816-CD34",
+        transaction_date: "2026-08-16", transaction_type: "cash_out", amount_idr: 20000,
+        description: "Beban dibatalkan", status: "voided",
+        cash_account_id: "acct-cash", counter_account_id: "acct-rev",
+        created_by: USER, created_at: NOW, updated_at: NOW,
+        voided_at: NOW, void_reason: "Salah input",
+      }),
+      // Posted cash_out - newest first in the list.
+      insertTransaction(db, {
+        id: "txn-cashout", organization_id: ORG, transaction_number: "TRX-20260817-EF56",
+        transaction_date: "2026-08-17", transaction_type: "cash_out", amount_idr: 50000,
+        description: "Bayar listrik", status: "posted",
+        cash_account_id: "acct-cash", counter_account_id: "acct-rev",
         created_by: USER, created_at: NOW, updated_at: NOW,
       }),
-      // Settlement payment (receive_receivable) - real transaction, must be visible.
-      insertTransaction(db, {
-        id: "txn-settle", organization_id: ORG, transaction_number: "TRX-202608-000004",
-        transaction_date: "2026-08-15", transaction_type: "receive_receivable", amount_minor: 20000,
-        description: "Pelunasan: Penjualan Telur x30", status: "posted",
-        posted_at: NOW, posted_by: USER, original_transaction_id: "txn-original",
-        created_by: USER, created_at: NOW, updated_at: NOW,
-      }),
-    ]).then(() =>
-      Promise.all([
-        insertJournalEntry(db, {
-          id: "je-reversal", transactionId: "txn-reversal", entryType: "reversal",
-          description: "Pembatalan: Penjualan Telur x30",
-        }),
-        insertJournalEntry(db, {
-          id: "je-correction", transactionId: "txn-correction", entryType: "normal",
-          description: "Penjualan Telur x30 (Nadiah)",
-        }),
-        insertJournalEntry(db, {
-          id: "je-settle", transactionId: "txn-settle", entryType: "normal",
-          description: "Pelunasan sisa: Rp20.000",
-        }),
-      ]),
-    );
+    ]);
   });
 
-  it("lists every transaction in order - original, reversal, correction and settlement", async () => {
+  it("lists every transaction in order - newest date first", async () => {
     const rows = await listTransactions(db as unknown as D1Database, ORG, {});
-    const numbers = rows.map((r) => r.transaction_number);
+    expect(rows.map((r) => r.transaction_number)).toEqual([
+      "TRX-20260817-EF56",
+      "TRX-20260816-CD34",
+      "TRX-20260815-AB12",
+    ]);
+    expect(rows[1].status).toBe("voided");
+    expect(rows[1].void_reason).toBe("Salah input");
+  });
 
-    expect(numbers).toContain("TRX-202608-000001"); // original (voided but listed)
-    expect(numbers).toContain("TRX-202608-000002"); // reversal (void flow)
-    expect(numbers).toContain("TRX-202608-000003"); // corrected re-entry
-    expect(numbers).toContain("TRX-202608-000004"); // settlement payment
+  it("joins account names", async () => {
+    const rows = await listTransactions(db as unknown as D1Database, ORG, {});
+    const cashIn = rows.find((r) => r.id === "txn-cashin")!;
+    expect(cashIn.cash_bank_account).toBe("Kas");
+    expect(cashIn.counter_account).toBe("Pendapatan Usaha");
+  });
+
+  it("filters by status and search", async () => {
+    const voided = await listTransactions(db as unknown as D1Database, ORG, { status: "voided" });
+    expect(voided).toHaveLength(1);
+
+    const search = await listTransactions(db as unknown as D1Database, ORG, {
+      search: "listrik",
+    });
+    expect(search).toHaveLength(1);
+    expect(search[0].transaction_number).toBe("TRX-20260817-EF56");
+  });
+
+  it("isolates by organization", async () => {
+    const rows = await listTransactions(db as unknown as D1Database, "other-org", {});
+    expect(rows).toHaveLength(0);
   });
 });

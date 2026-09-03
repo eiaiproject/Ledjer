@@ -20,8 +20,6 @@ export default function () {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
     `${BASE_URL}/api/exports/transactions.csv?fromDate=2026-01-01&toDate=${today}`,
-    `${BASE_URL}/api/exports/reports/trial-balance.csv?asOfDate=${today}`,
-    `${BASE_URL}/api/exports/reports/general-ledger.csv?fromDate=2026-01-01&toDate=${today}`,
   ];
   for (const url of urls) {
     const res = http.get(url, { headers: { Cookie: COOKIE } });

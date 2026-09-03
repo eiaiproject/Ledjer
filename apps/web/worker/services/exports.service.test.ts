@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FakeD1Database } from "../test/fake-d1";
 import { csvEscape, toCsv } from "./exports.service";
-import { cleanupExpiredRows } from "./maintenance.service";
 
 describe("CSV escaping", () => {
   it("escapes delimiters, quotes, newlines, and spreadsheet formula prefixes", () => {
@@ -23,29 +21,3 @@ describe("CSV escaping", () => {
   });
 });
 
-describe("maintenance cleanup", () => {
-  it("deletes expired sessions, tokens, and export jobs", async () => {
-    const db = new FakeD1Database({
-      run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
-    });
-    const result = await cleanupExpiredRows(db as unknown as D1Database, 12345);
-
-    expect(result).toEqual({
-      sessions: 1,
-      emailVerifications: 1,
-      passwordResetTokens: 1,
-      loginAttempts: 1,
-      auditLogs: 1,
-      rateLimits: 1,
-    });
-    expect(db.statements).toHaveLength(6);
-    expect(db.statements.map((statement) => statement.sql)).toEqual([
-      expect.stringContaining("DELETE FROM sessions"),
-      expect.stringContaining("DELETE FROM email_verifications"),
-      expect.stringContaining("DELETE FROM password_reset_tokens"),
-      expect.stringContaining("DELETE FROM login_attempts"),
-      expect.stringContaining("DELETE FROM audit_logs"),
-      expect.stringContaining("DELETE FROM rate_limits"),
-    ]);
-  });
-});

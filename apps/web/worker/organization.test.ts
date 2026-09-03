@@ -4,196 +4,94 @@ import type { Env } from "./env";
 import { app } from "./index";
 import { FakeD1Database } from "./test/fake-d1";
 
-interface FakeSession {
-  session_id: string;
-  user_id: string;
-  expires_at: number;
-  current_organization_id: string | null;
-  email: string;
-  full_name: string;
-  email_verified_at: number | null;
-  token_hash: string;
-}
-
-interface FakeOrganization {
+interface FakeOrg {
   id: string;
   name: string;
-  business_type: "service" | "simple_trading";
   base_currency: string;
-  books_start_date: string;
-  onboarding_status: string;
-  created_by: string;
+  status: "active" | "disabled";
+  created_at: number;
+  updated_at: number;
 }
 
 interface FakeMember {
   id: string;
   organization_id: string;
   user_id: string;
-  role: "owner" | "admin" | "member" | "viewer";
-  status: string;
+  role: "owner";
 }
 
-function organizationDb(
-  session: FakeSession,
-  organizations: FakeOrganization[],
-  members: FakeMember[],
-): D1Database {
-  const newOrganizations: FakeOrganization[] = [];
-  const newMembers: FakeMember[] = [];
+const ORGS: FakeOrg[] = [
+  { id: "org-1", name: "Owner Org", base_currency: "IDR", status: "active", created_at: 1, updated_at: 1 },
+  { id: "org-2", name: "Other Org", base_currency: "IDR", status: "active", created_at: 1, updated_at: 1 },
+];
 
-  const findOrganizationMemberRow = (
-    sql: string,
-    values: unknown[],
-  ): Record<string, unknown> | null => {
-    const userId = values[0] as string;
-    const organizationId = sql.includes("m.organization_id = ?")
-      ? values[1] as string
-      : undefined;
-    const allMembers = [...members, ...newMembers];
-    const allOrgs = [...organizations, ...newOrganizations];
-    const member = allMembers.find(
-      (candidate) =>
-        candidate.user_id === userId &&
-        candidate.status === "active" &&
-        (!organizationId || candidate.organization_id === organizationId),
-    );
-    if (!member) return null;
+const MEMBERS: FakeMember[] = [
+  { id: "member-1", organization_id: "org-1", user_id: "user-1", role: "owner" },
+];
 
-    const organization = allOrgs.find(
-      (candidate) => candidate.id === member.organization_id,
-    );
-    if (!organization) return null;
-
-    return {
-      organization_id: organization.id,
-      organization_name: organization.name,
-      business_type: organization.business_type,
-      base_currency: organization.base_currency,
-      books_start_date: organization.books_start_date,
-      onboarding_status: organization.onboarding_status,
-      created_by: organization.created_by,
-      member_id: member.id,
-      user_id: member.user_id,
-      role: member.role,
-      status: member.status,
-    };
-  };
-
+function organizationDb(tokenHash: string): D1Database {
   return new FakeD1Database({
     first: (sql, values) => {
-      if (sql.includes("FROM sessions s")) {
-        const [tokenHash, current] = values as [string, number];
-        if (tokenHash !== session.token_hash || session.expires_at <= current) {
-          return null;
-        }
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("FROM sessions s") && s.includes("JOIN users u")) {
+        if (tokenHash !== (values[0] as string)) return null;
         return {
-          session_id: session.session_id,
-          user_id: session.user_id,
-          expires_at: session.expires_at,
-          current_organization_id: session.current_organization_id,
-          email: session.email,
-          full_name: session.full_name,
-          email_verified_at: session.email_verified_at,
+          session_id: "session-1",
+          user_id: "user-1",
+          expires_at: Date.now() + 60_000,
+          current_organization_id: "org-1",
+          email: "owner@example.com",
+          full_name: "Owner",
+          last_used_at: Date.now(),
+          last_rotated_at: null,
+          created_at: Date.now() - 1000,
         };
       }
-
-      if (sql.includes("FROM organization_members m")) {
-        return findOrganizationMemberRow(sql, values);
+      if (s.includes("FROM memberships m") && s.includes("JOIN organizations o")) {
+        const userId = values[0] as string;
+        const orgId = s.includes("m.organization_id = ?") ? (values[1] as string) : undefined;
+        const member = MEMBERS.find(
+          (m) => m.user_id === userId && (!orgId || m.organization_id === orgId),
+        );
+        if (!member) return null;
+        const org = ORGS.find((o) => o.id === member.organization_id);
+        if (!org) return null;
+        return {
+          organization_id: org.id,
+          organization_name: org.name,
+          base_currency: org.base_currency,
+          organization_status: org.status,
+          created_at: org.created_at,
+          member_id: member.id,
+          user_id: member.user_id,
+          role: member.role,
+        };
       }
-
       return null;
     },
-    all: (sql, values) => {
-      if (!sql.includes("FROM organization_members m")) return [];
-      const row = findOrganizationMemberRow(sql, values);
-      return row ? [row] : [];
-    },
     run: (sql, values) => {
-      if (sql.includes("UPDATE sessions SET current_organization_id")) {
-        session.current_organization_id = values[0] as string | null;
-        return;
+      const s = (sql as string).replace(/\s+/g, " ");
+      if (s.includes("UPDATE organizations SET name")) {
+        const org = ORGS.find((o) => o.id === (values[2] as string));
+        if (org) org.name = values[0] as string;
       }
-
-      if (sql.includes("INSERT INTO")) {
-        if (sql.includes("INSERT INTO organizations")) {
-          newOrganizations.push({
-            id: values[0] as string,
-            name: values[1] as string,
-            business_type: values[2] as "service" | "simple_trading",
-            base_currency: values[3] as string,
-            books_start_date: values[4] as string,
-            onboarding_status: "completed",
-            created_by: values[6] as string,
-          });
-        }
-        if (sql.includes("INSERT INTO organization_members")) {
-          newMembers.push({
-            id: values[0] as string,
-            organization_id: values[1] as string,
-            user_id: values[2] as string,
-            role: "owner" as const,
-            status: "active",
-          });
-        }
-      }
+      return { success: true, meta: { changes: 1 } } as D1Result;
     },
   }) as unknown as D1Database;
 }
 
 async function testEnv(token: string): Promise<Env> {
-  const session: FakeSession = {
-    session_id: "session-1",
-    user_id: "user-1",
-    expires_at: Date.now() + 60_000,
-    current_organization_id: "org-1",
-    email: "owner@example.com",
-    full_name: "Owner",
-    email_verified_at: Date.now(),
-    token_hash: await hashToken(token),
-  };
-
   return {
     ASSETS: {
       fetch: () => Promise.resolve(new Response("asset")),
     } as unknown as Fetcher,
-    DB: organizationDb(
-      session,
-      [
-        {
-          id: "org-1",
-          name: "Owner Org",
-          business_type: "service",
-          base_currency: "IDR",
-          books_start_date: "2026-07-07",
-          onboarding_status: "completed",
-          created_by: "user-1",
-        },
-        {
-          id: "org-2",
-          name: "Other Org",
-          business_type: "service",
-          base_currency: "IDR",
-          books_start_date: "2026-07-07",
-          onboarding_status: "completed",
-          created_by: "user-2",
-        },
-      ],
-      [
-        {
-          id: "member-1",
-          organization_id: "org-1",
-          user_id: "user-1",
-          role: "owner",
-          status: "active",
-        },
-      ],
-    ),
+    DB: organizationDb(await hashToken(token)),
     APP_ORIGIN: "http://localhost:5173",
   };
 }
 
 describe("Organization API", () => {
-  it("returns the selected current organization for an authenticated member", async () => {
+  it("returns the current organization for an authenticated member", async () => {
     const token = "session-token";
     const response = await app.fetch(
       new Request("http://localhost/api/organizations/current", {
@@ -204,7 +102,7 @@ describe("Organization API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      organization: { id: "org-1", name: "Owner Org" },
+      organization: { id: "org-1", name: "Owner Org", base_currency: "IDR" },
       member: {
         organization_id: "org-1",
         user_id: "user-1",
@@ -215,44 +113,52 @@ describe("Organization API", () => {
     });
   });
 
-  it("fails closed when the authenticated user is not an organization member", async () => {
+  it("rejects unauthenticated requests", async () => {
+    const response = await app.fetch(
+      new Request("http://localhost/api/organizations/current"),
+      await testEnv("no-such-token"),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects a mutating request from a foreign origin (CSRF)", async () => {
     const token = "session-token";
     const response = await app.fetch(
-      new Request("http://localhost/api/organizations/org-2", {
-        headers: { Cookie: `ledjer_session=${token}` },
+      new Request("http://localhost/api/organizations/current", {
+        method: "PATCH",
+        headers: {
+          Cookie: `ledjer_session=${token}`,
+          "Content-Type": "application/json",
+          Origin: "https://evil.example",
+        },
+        body: JSON.stringify({ name: "Hacked" }),
       }),
       await testEnv(token),
     );
-
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
-      error: { code: "organization_forbidden" },
+      error: { code: "csrf_invalid" },
     });
   });
 
-  it("creates organization without opening balances", async () => {
+  it("updates the organization name", async () => {
     const token = "session-token";
-    const env = await testEnv(token);
     const response = await app.fetch(
-      new Request("http://localhost/api/organizations", {
-        method: "POST",
+      new Request("http://localhost/api/organizations/current", {
+        method: "PATCH",
         headers: {
           Cookie: `ledjer_session=${token}`,
           "Content-Type": "application/json",
           Origin: "http://localhost:5173",
         },
-        body: JSON.stringify({
-          organizationName: "New Org",
-          businessType: "service",
-          booksStartDate: "2026-07-07",
-          openingCashBalance: 0,
-          extraOpeningBalances: [],
-        }),
+        body: JSON.stringify({ name: "Warung Baru" }),
       }),
-      env,
+      await testEnv(token),
     );
 
-    // Organization creation without opening balances should succeed
     expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      organization: { id: "org-1", name: "Warung Baru" },
+    });
   });
 });

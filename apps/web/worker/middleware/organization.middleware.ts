@@ -10,7 +10,7 @@ import {
 export function loadCurrentOrganization(): MiddlewareHandler<AppContext> {
   return async (c, next) => {
     const context = await getCurrentOrganization(c.env.DB, c.get("session"));
-    if (!context.organization || !context.member) {
+    if (!context?.organization || !context.member) {
       throw forbidden("organization_required", "Organization membership is required");
     }
 
@@ -31,7 +31,12 @@ export function loadCurrentOrganization(): MiddlewareHandler<AppContext> {
 
 export function requirePermission(permission: Permission): MiddlewareHandler<AppContext> {
   return async (c, next) => {
+    // loadCurrentOrganization runs first and throws when the context is
+    // missing, so the context is guaranteed to be set here.
     const context = c.get("organizationContext");
+    if (!context) {
+      throw forbidden("organization_required", "Organization membership is required");
+    }
     assertPermission(context.member, permission);
     await next();
   };
