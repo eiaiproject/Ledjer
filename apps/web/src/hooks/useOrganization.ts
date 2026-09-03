@@ -26,19 +26,13 @@ export function useIsOwner() {
 export function useOrgPermissions() {
   const { data } = useOrganization();
   const member = data?.member;
-  const isOwner = member?.role === "owner";
-  const isAdmin = member?.role === "admin";
 
   return {
-    isOwner,
-    canCreateTransaction: !!member && (isOwner || member.can_create_transaction),
-    canViewReports: !!member && (isOwner || member.can_view_reports),
-    canManageAccounts: !!member && (isOwner || member.can_manage_accounts),
-    canVoidTransaction: !!member && (isOwner || member.can_void_transaction),
-    canViewAuditLog: !!member && (isOwner || member.can_view_audit_log),
-    canManageProducts: !!member && (isOwner || member.can_manage_products),
-    canReadTeam: !!member && (isOwner || isAdmin),
-    canManageTeam: !!member && (isOwner || isAdmin),
-    canCreateExports: !!member && (isOwner || isAdmin),
+    isOwner: member?.role === "owner",
+    canCreateTransaction: !!member?.can_create_transaction,
+    canViewReports: !!member?.can_view_reports,
+    canManageAccounts: !!member?.can_manage_accounts,
+    canVoidTransaction: !!member?.can_void_transaction,
+    canCreateExports: !!member,
   };
 }

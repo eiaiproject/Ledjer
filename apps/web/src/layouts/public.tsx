@@ -50,24 +50,7 @@ export function PublicLayout({ children }: { readonly children: ReactNode }) {
         aria-label="Informasi footer"
         className="border-t border-wood-200 bg-cream-50"
       >
-        <nav
-          aria-label="Tautan legal"
-          className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-4 py-6 text-sm text-wood-600 sm:px-6 lg:px-8"
-        >
-          <Link to="/privacy" className="hover:text-wood-800 min-h-[44px] flex items-center">
-            Kebijakan Privasi
-          </Link>
-          <Link to="/terms" className="hover:text-wood-800 min-h-[44px] flex items-center">
-            Syarat &amp; Ketentuan
-          </Link>
-          <Link to="/security" className="hover:text-wood-800 min-h-[44px] flex items-center">
-            Keamanan
-          </Link>
-          <Link to="/contact" className="hover:text-wood-800 min-h-[44px] flex items-center">
-            Kontak
-          </Link>
-        </nav>
-        <p className="mx-auto max-w-6xl px-4 pb-6 text-center text-xs text-wood-500 sm:px-6 lg:px-8">
+        <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-wood-500 sm:px-6 lg:px-8">
           © {new Date().getFullYear()} Ledjer. Hak cipta dilindungi.
         </p>
       </footer>

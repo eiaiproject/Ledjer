@@ -2,14 +2,14 @@ import { execute, queryFirst } from "../db/client";
 import { generateId, generateToken, hashToken } from "../auth/tokens";
 
 // Absolute session lifetime: the session is invalidated 14 days after login
-// regardless of activity.
+// regardless of activity (PRD AUTH-04).
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 days
 
-// Idle timeout: the session is invalidated after 1 hour without any request
+// Idle timeout: the session is invalidated after 7 days without any request
 // (tracked via last_used_at). Combined with the absolute TTL, active users
-// stay logged in up to 14 days, but an unused session dies after 1h idle.
-// Exported for reuse in the maintenance cleanup (keep both in sync).
-export const IDLE_TIMEOUT_MS = 1000 * 60 * 60; // 1 hour
+// stay logged in up to 14 days, but an unused session dies after 7 days idle
+// (PRD AUTH-04). Exported for reuse in the maintenance cleanup.
+export const IDLE_TIMEOUT_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
 // Rotate the token hash when it is older than 50% of TTL (7 days) since it
 // was issued (creation or last rotation). Active sessions get a fresh hash
@@ -22,7 +22,6 @@ export interface SessionUser {
   id: string;
   email: string;
   full_name: string;
-  email_verified_at: number | null;
 }
 
 export interface AuthSession {
@@ -43,8 +42,6 @@ interface CurrentSessionRow {
   current_organization_id: string | null;
   email: string;
   full_name: string;
-  email_verified_at: number | null;
-  has_oauth: number;
 }
 
 export interface CreatedSession {
@@ -98,8 +95,6 @@ export async function getSessionByToken(
        s.current_organization_id,
        u.email,
        u.full_name,
-       u.email_verified_at,
-       EXISTS(SELECT 1 FROM oauth_accounts oa WHERE oa.user_id = u.id) AS has_oauth,
        s.last_used_at,
        s.last_rotated_at,
        s.created_at
@@ -156,7 +151,6 @@ export async function getSessionByToken(
          s.current_organization_id,
          u.email,
          u.full_name,
-         u.email_verified_at,
          s.last_used_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id

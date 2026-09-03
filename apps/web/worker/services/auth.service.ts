@@ -1,19 +1,9 @@
-import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
-import { badRequest, forbidden, unauthorized } from "../http/errors";
+import { execute, queryFirst } from "../db/client";
+import { forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
-import { generateId, generateToken, hashToken } from "../auth/tokens";
 import { logAuthEvent } from "./auth-audit.service";
-import { sendEmail } from "./email.service";
-import {
-  createSession,
-  revokeAllUserSessions,
-  type CreatedSession,
-} from "./session.service";
-
-const EMAIL_VERIFICATION_TTL_MS = 1000 * 60 * 60 * 24;
-const PASSWORD_RESET_TTL_MS = 1000 * 60 * 60;
-const LOGIN_LOCKOUT_MS = 1000 * 60 * 15;
-const LOGIN_MAX_FAILURES = 20;
+import { createSession, revokeAllUserSessions, type CreatedSession } from "./session.service";
+import { createOrganizationWithOwner, type PublicOrganization } from "./organization.service";
 
 interface UserRow {
   id: string;
@@ -21,49 +11,37 @@ interface UserRow {
   password_hash: string;
   full_name: string;
   status: string;
-  email_verified_at: number | null;
-}
-
-interface TokenUserRow {
-  user_id: string;
-  expires_at: number;
-  used_at: number | null;
-  email: string;
 }
 
 export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
+  organizationName: string;
 }
 
 export interface RegisterResult {
   userId: string;
-  needsEmailConfirmation: boolean;
+  organization: PublicOrganization;
+  session: CreatedSession;
 }
 
 export async function registerUser(
   db: D1Database,
   input: RegisterInput,
+  request: Request,
   pepper?: string,
-  emailApiKey?: string,
-  originUrl?: string,
-  emailFrom?: string,
 ): Promise<RegisterResult> {
   const email = input.email.trim().toLowerCase();
   const current = Date.now();
+
   const existing = await findUserByEmail(db, email);
   if (existing) {
-    // ponytail: Prevent email enumeration - silently log and create verification email.
-    await createEmailVerification(db, existing.id, email, emailApiKey, originUrl, emailFrom);
     await logDuplicateRegistration(db, email, current);
-    return {
-      userId: existing.id,
-      needsEmailConfirmation: true,
-    };
+    throw forbidden("email_taken", "Email sudah terdaftar.");
   }
 
-  const userId = generateId();
+  const userId = crypto.randomUUID();
   await execute(
     db,
     `INSERT INTO users (
@@ -78,13 +56,12 @@ export async function registerUser(
       current,
     ],
   );
-  await createEmailVerification(db, userId, email, emailApiKey, originUrl, emailFrom);
-  await logAuthEvent(db, userId, userId, "registration", { email });
 
-  return {
-    userId,
-    needsEmailConfirmation: true,
-  };
+  const organization = await createOrganizationWithOwner(db, userId, input.organizationName.trim(), current);
+  const session = await createSession(db, userId, request, organization.id);
+
+  await logAuthEvent(db, userId, userId, "registration", { email, organizationId: organization.id });
+  return { userId, organization, session };
 }
 
 export async function loginUser(
@@ -95,339 +72,43 @@ export async function loginUser(
   pepper?: string,
 ): Promise<CreatedSession> {
   const email = emailInput.trim().toLowerCase();
-  const ipAddress = request.headers.get("CF-Connecting-IP");
-  const locked = await isLoginRateLimited(db, email, ipAddress);
-  if (locked) {
-    throw forbidden("rate_limited", "Too many failed login attempts");
-  }
-
   const user = await findUserByEmail(db, email);
   if (!user || !(await verifyPassword(password, user.password_hash, pepper))) {
-    await recordLoginAttempt(db, email, request, false, "invalid_credentials");
-    throw unauthorized("Invalid email or password");
+    throw unauthorized("Email atau password salah.");
   }
 
   if (user.status !== "active") {
-    await recordLoginAttempt(db, email, request, false, "user_disabled");
-    throw forbidden("user_disabled", "User is disabled");
+    throw forbidden("user_disabled", "Akun dinonaktifkan.");
   }
 
-  if (!user.email_verified_at) {
-    await recordLoginAttempt(db, email, request, false, "email_not_confirmed");
-    throw forbidden("email_not_confirmed", "Email is not confirmed");
-  }
-
-  await recordLoginAttempt(db, email, request, true);
   await logAuthEvent(db, user.id, user.id, "login_success", { email });
   return createSession(db, user.id, request);
 }
 
-export async function verifyEmailToken(
-  db: D1Database,
-  token: string,
-  request: Request,
-): Promise<CreatedSession> {
-  const tokenHash = await hashToken(token);
-  const current = Date.now();
-  const row = await queryFirst<TokenUserRow>(
-    db,
-    `SELECT ev.user_id, ev.expires_at, ev.used_at, u.email
-     FROM email_verifications ev
-     JOIN users u ON u.id = ev.user_id
-     WHERE ev.token_hash = ?`,
-    [tokenHash],
-  );
-
-  if (!row || row.used_at || row.expires_at <= current) {
-    throw forbidden("token_expired", "Verification token is invalid or expired");
-  }
-
-  await execute(
-    db,
-    "UPDATE email_verifications SET used_at = ? WHERE token_hash = ?",
-    [current, tokenHash],
-  );
-  await execute(
-    db,
-    "UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?",
-    [current, current, row.user_id],
-  );
-  await logAuthEvent(db, row.user_id, row.user_id, "email_verification_completed", {});
-
-  return createSession(db, row.user_id, request);
-}
-
-export async function resendEmailVerification(
-  db: D1Database,
-  emailInput: string,
-  emailApiKey?: string,
-  originUrl?: string,
-  emailFrom?: string,
-): Promise<void> {
-  const email = emailInput.trim().toLowerCase();
-  const user = await findUserByEmail(db, email);
-  if (!user || user.email_verified_at) return;
-  await createEmailVerification(db, user.id, email, emailApiKey, originUrl, emailFrom);
-}
-
-export async function createPasswordReset(
-  db: D1Database,
-  emailInput: string,
-  emailApiKey?: string,
-  originUrl?: string,
-  emailFrom?: string,
-): Promise<void> {
-  const email = emailInput.trim().toLowerCase();
-  const user = await findUserByEmail(db, email);
-  if (user?.status !== "active") return;
-
-  const token = generateToken();
-  const current = Date.now();
-  await execute(
-    db,
-    `INSERT INTO password_reset_tokens (
-       id, user_id, token_hash, expires_at, created_at
-     ) VALUES (?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      user.id,
-      await hashToken(token),
-      current + PASSWORD_RESET_TTL_MS,
-      current,
-    ],
-  );
-
-  // Send password reset email if configured
-  if (emailApiKey && originUrl) {
-    const link = `${originUrl}/auth/callback?token=${token}&type=recovery`;
-    try {
-      await sendEmail(emailApiKey, {
-        to: email,
-        subject: "Atur ulang password - Ledjer",
-        html: `<p>Klik tautan berikut untuk mengatur ulang password Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 1 jam.</p>`,
-      }, emailFrom);
-    } catch (err) {
-      console.error("Failed to send password reset email", err);
-      throw err;
-    }
-  }
-}
-
-export async function verifyPasswordResetToken(
-  db: D1Database,
-  token: string,
-  request: Request,
-): Promise<CreatedSession> {
-  const tokenHash = await hashToken(token);
-  const current = Date.now();
-  const row = await queryFirst<TokenUserRow>(
-    db,
-    `SELECT pr.user_id, pr.expires_at, pr.used_at, u.email
-     FROM password_reset_tokens pr
-     JOIN users u ON u.id = pr.user_id
-     WHERE pr.token_hash = ?`,
-    [tokenHash],
-  );
-
-  if (!row || row.used_at || row.expires_at <= current) {
-    throw forbidden("token_expired", "Recovery token is invalid or expired");
-  }
-
-  await execute(
-    db,
-    "UPDATE password_reset_tokens SET used_at = ? WHERE token_hash = ?",
-    [current, tokenHash],
-  );
-
-  return createSession(db, row.user_id, request);
-}
-
-export async function resetPassword(
+export async function changePassword(
   db: D1Database,
   userId: string,
-  password: string,
+  nextPassword: string,
   pepper?: string,
 ): Promise<void> {
   const current = Date.now();
   await execute(
     db,
     "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
-    [await hashPassword(password, pepper), current, userId],
+    [await hashPassword(nextPassword, pepper), current, userId],
   );
   await revokeAllUserSessions(db, userId);
-  await logAuthEvent(db, userId, userId, "password_reset_completed", {});
-}
-
-export async function changePassword(
-  db: D1Database,
-  userId: string,
-  currentPassword: string,
-  nextPassword: string,
-  pepper?: string,
-): Promise<void> {
-  const user = await queryFirst<UserRow>(
-    db,
-    "SELECT id, email, password_hash, full_name, status, email_verified_at FROM users WHERE id = ?",
-    [userId],
-  );
-  if (!user || !(await verifyPassword(currentPassword, user.password_hash, pepper))) {
-    throw unauthorized("Invalid current password");
-  }
-  await resetPassword(db, userId, nextPassword, pepper);
-}
-
-export interface DeleteAccountInput {
-  password?: string;
-  confirmation?: string;
-}
-
-export interface DeleteAccountResult {
-  deletedOrganizations: string[];
-}
-
-/**
- * Permanently delete the requesting account. Owner-only: orgs where the user
- * is the sole owner are cascade-deleted; orgs with another owner survive.
- * OAuth users (no known password) confirm with the literal "HAPUS".
- */
-export async function deleteAccount(
-  db: D1Database,
-  userId: string,
-  input: DeleteAccountInput,
-  pepper?: string,
-): Promise<DeleteAccountResult> {
-  const user = await queryFirst<UserRow>(
-    db,
-    "SELECT id, email, password_hash FROM users WHERE id = ?",
-    [userId],
-  );
-  if (!user) throw unauthorized();
-
-  const ownedOrgs = await queryAll<{ organization_id: string }>(
-    db,
-    "SELECT organization_id FROM organization_members WHERE user_id = ? AND role = 'owner'",
-    [userId],
-  );
-  if (ownedOrgs.length === 0) {
-    throw forbidden("account_delete_not_owner", "Only organization owners can delete their account");
-  }
-
-  const hasOAuth = await queryFirst<{ id: string }>(
-    db,
-    "SELECT id FROM oauth_accounts WHERE user_id = ? LIMIT 1",
-    [userId],
-  );
-  if (hasOAuth) {
-    if (input.confirmation !== "HAPUS") {
-      throw badRequest("confirmation_required", "Ketik HAPUS untuk konfirmasi penghapusan");
-    }
-  } else if (!input.password || !(await verifyPassword(input.password, user.password_hash, pepper))) {
-    throw unauthorized("Invalid password");
-  }
-
-  // Orgs deleted: owned orgs where the user is the only owner.
-  const deletedOrganizations: string[] = [];
-  for (const org of ownedOrgs) {
-    const ownerCount = await queryFirst<{ c: number }>(
-      db,
-      "SELECT COUNT(*) AS c FROM organization_members WHERE organization_id = ? AND role = 'owner'",
-      [org.organization_id],
-    );
-    if (!ownerCount || ownerCount.c <= 1) deletedOrganizations.push(org.organization_id);
-  }
-
-  const current = Date.now();
-  // Audit trail first - actor NULL survives the user delete (actor_user_id has no cascade).
-  await execute(
-    db,
-    `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action, created_at
-     ) VALUES (?, NULL, NULL, 'user', ?, 'account_deleted', ?)`,
-    [generateId(), user.email, current],
-  );
-
-  // Batch is atomic in D1 - all deletes succeed or roll back together.
-  await executeBatch(db, [
-    statement(db, "DELETE FROM audit_logs WHERE actor_user_id = ?", [userId]),
-    ...deletedOrganizations.map((orgId) =>
-      statement(db, "DELETE FROM organizations WHERE id = ?", [orgId]),
-    ),
-    statement(db, "DELETE FROM login_attempts WHERE email = ?", [user.email]),
-    statement(db, "DELETE FROM users WHERE id = ?", [userId]),
-  ]);
-
-  return { deletedOrganizations };
+  await logAuthEvent(db, userId, userId, "password_changed", {});
 }
 
 async function findUserByEmail(db: D1Database, email: string): Promise<UserRow | null> {
   return queryFirst<UserRow>(
     db,
-    `SELECT id, email, password_hash, full_name, status, email_verified_at
+    `SELECT id, email, password_hash, full_name, status
      FROM users
      WHERE email = ?`,
     [email],
   );
-}
-
-async function createEmailVerification(
-  db: D1Database,
-  userId: string,
-  email: string,
-  emailApiKey?: string,
-  originUrl?: string,
-  emailFrom?: string,
-): Promise<void> {
-  const token = generateToken();
-  const current = Date.now();
-  await execute(
-    db,
-    `INSERT INTO email_verifications (
-       id, user_id, email, token_hash, expires_at, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      userId,
-      email,
-      await hashToken(token),
-      current + EMAIL_VERIFICATION_TTL_MS,
-      current,
-    ],
-  );
-
-  // Send verification email if configured
-  if (emailApiKey && originUrl) {
-    const link = `${originUrl}/auth/callback?token=${token}&type=signup`;
-    try {
-      await sendEmail(emailApiKey, {
-        to: email,
-        subject: "Konfirmasi email Anda - Ledjer",
-        html: `<p>Klik tautan berikut untuk mengkonfirmasi email Anda:</p><p><a href="${link}">${link}</a></p><p>Tautan berlaku selama 24 jam.</p>`,
-      }, emailFrom);
-    } catch (err) {
-      console.error("Failed to send verification email", err);
-      throw err;
-    }
-  }
-}
-
-async function isLoginRateLimited(
-  db: D1Database,
-  email: string,
-  ipAddress: string | null,
-): Promise<boolean> {
-  const since = Date.now() - LOGIN_LOCKOUT_MS;
-  const rows = await queryAll<{ id: string }>(
-    db,
-    `SELECT id
-     FROM login_attempts
-     WHERE success = 0
-       AND created_at >= ?
-       AND (email = ? OR (? IS NOT NULL AND ip_address = ?))
-     LIMIT ?`,
-    [since, email, ipAddress, ipAddress, LOGIN_MAX_FAILURES],
-  );
-
-  return rows.length >= LOGIN_MAX_FAILURES;
 }
 
 async function logDuplicateRegistration(
@@ -441,30 +122,6 @@ async function logDuplicateRegistration(
        id, organization_id, actor_user_id, entity_type, entity_id, action,
        before_json, after_json, reason, created_at
      ) VALUES (?, NULL, NULL, 'auth', ?, 'duplicate_registration', NULL, NULL, ?, ?)`,
-    [generateId(), email, `Duplicate registration attempt for ${email}`, current],
-  );
-}
-
-async function recordLoginAttempt(
-  db: D1Database,
-  email: string,
-  request: Request,
-  success: boolean,
-  errorCode?: string,
-): Promise<void> {
-  await execute(
-    db,
-    `INSERT INTO login_attempts (
-       id, email, ip_address, user_agent, success, error_code, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      generateId(),
-      email,
-      request.headers.get("CF-Connecting-IP"),
-      request.headers.get("User-Agent"),
-      success,
-      errorCode,
-      Date.now(),
-    ],
+    [crypto.randomUUID(), email, `Duplicate registration attempt for ${email}`, current],
   );
 }

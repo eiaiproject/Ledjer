@@ -19,7 +19,6 @@ const COOKIE = __ENV.SESSION_COOKIE || "";
 export default function () {
   const today = new Date().toISOString().slice(0, 10);
   const endpoints = [
-    `${BASE_URL}/api/reports/trial-balance?asOfDate=${today}`,
     `${BASE_URL}/api/reports/profit-loss?fromDate=2026-01-01&toDate=${today}`,
     `${BASE_URL}/api/reports/balance-sheet?asOfDate=${today}`,
   ];

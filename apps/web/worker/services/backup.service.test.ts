@@ -315,8 +315,8 @@ describe("Backup Service", () => {
       { id: "je-1", organization_id: "org-1", entry_number: "JE-001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: "txn-1", status: "posted" },
     ]));
     await bucket.put(`backups/${dateStr}/journal_lines.json`, JSON.stringify([
-      { id: "jl-1", journal_entry_id: "je-1", account_id: "acct-1", debit_minor: 500000, credit_minor: 0, line_order: 1 },
-      { id: "jl-2", journal_entry_id: "je-1", account_id: "acct-2", debit_minor: 0, credit_minor: 500000, line_order: 2 },
+      { id: "jl-1", journal_entry_id: "je-1", account_id: "acct-1", debit_idr: 500000, credit_idr: 0, line_order: 1 },
+      { id: "jl-2", journal_entry_id: "je-1", account_id: "acct-2", debit_idr: 0, credit_idr: 500000, line_order: 2 },
     ]));
     await bucket.put(`backups/${dateStr}/accounts.json`, JSON.stringify([
       { id: "acct-1", code: "1110", name: "Kas", account_type: "asset", normal_balance: "debit", is_active: 1 },
@@ -398,8 +398,8 @@ describe("Backup Service", () => {
       { id: "je-1", organization_id: "org-1", entry_number: "JE-001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: "txn-1", status: "posted" },
     ]));
     await bucket.put(`backups/${dateStr}/journal_lines.json`, JSON.stringify([
-      { id: "jl-1", journal_entry_id: "je-1", account_id: "acct-1", debit_minor: 500000, credit_minor: 0, line_order: 1 },
-      { id: "jl-2", journal_entry_id: "je-1", account_id: "acct-2", debit_minor: 0, credit_minor: 300000, line_order: 2 },
+      { id: "jl-1", journal_entry_id: "je-1", account_id: "acct-1", debit_idr: 500000, credit_idr: 0, line_order: 1 },
+      { id: "jl-2", journal_entry_id: "je-1", account_id: "acct-2", debit_idr: 0, credit_idr: 300000, line_order: 2 },
     ]));
     await bucket.put(`backups/${dateStr}/organizations.json`, JSON.stringify([]));
     await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify([]));

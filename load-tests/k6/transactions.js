@@ -18,9 +18,10 @@ const BASE_URL = __ENV.BASE_URL || "http://localhost:4173";
 export default function () {
   const payload = JSON.stringify({
     transactionDate: "2026-07-17",
-    transactionType: "cash_sale",
-    amount: 50000,
+    transactionType: "cash_in",
+    amountIdr: 50000,
     cashAccountId: __ENV.CASH_ACCOUNT_ID || "",
+    counterAccountId: __ENV.INCOME_ACCOUNT_ID || "",
     description: "Load test transaction",
     idempotencyKey: `load-test-${__VU}-${__ITER}`,
   });

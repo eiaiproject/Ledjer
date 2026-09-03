@@ -1,70 +1,65 @@
-import { getStatus } from "./status-registry";
+import type { TransactionDirection, TransactionType } from "./api/transactions";
 
-// Transaction labels - single flat map, includes historical/opening types.
-// Opening types not in UI selector but kept for display of stored records.
-export const TRANSACTION_LABELS: Record<string, string> = {
-  cash_sale: "Penjualan Tunai",
-  credit_sale: "Penjualan Kredit",
-  receive_receivable: "Terima Piutang",
-  cash_purchase: "Pembelian Tunai",
-  credit_purchase: "Pembelian Kredit",
-  pay_payable: "Bayar Utang",
-  expense_payment: "Bayar Beban",
-  owner_capital: "Modal Pemilik",
-  owner_draw: "Penarikan Tunai",
-  cash_transfer: "Transfer Antar Rekening Bank",
-  opening_cash_balance: "Saldo Awal Kas",
-  opening_receivable_balance: "Saldo Awal Piutang",
-  opening_payable_balance: "Saldo Awal Utang",
-  simple_adjustment: "Penyesuaian",
+// Label user (Bahasa Indonesia) untuk 5 jenis transaksi MVP (PRD TRX-01).
+export const TRANSACTION_LABELS: Record<TransactionType, string> = {
+  cash_in: "Uang Masuk",
+  cash_out: "Uang Keluar",
+  transfer: "Transfer",
+  owner_deposit: "Modal Masuk",
+  owner_withdrawal: "Pengambilan Pemilik",
 };
 
-export const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  paid: "Lunas",
-  unpaid: "Belum dibayar",
-  partial: "Sebagian dibayar",
-};
+export const TRANSACTION_TYPES: TransactionType[] = [
+  "cash_in",
+  "cash_out",
+  "transfer",
+  "owner_deposit",
+  "owner_withdrawal",
+];
 
-// Feature flags per transaction type - replaces 6 separate constant arrays + 6 accessor functions
-const TX_FEATURES: Record<string, { cash?: true; dest?: true; party?: true; category?: true; payment?: true }> = {
-  cash_sale:         { cash: true },
-  credit_sale:       { party: true, payment: true },
-  receive_receivable:{ cash: true, party: true },
-  cash_purchase:     { cash: true, category: true },
-  credit_purchase:   { party: true, category: true, payment: true },
-  pay_payable:       { cash: true, party: true },
-  expense_payment:   { cash: true, category: true },
-  owner_capital:     { cash: true },
-  owner_draw:        { cash: true },
-  cash_transfer:     { cash: true, dest: true },
-};
-
-const features = (type?: string) => TX_FEATURES[type ?? ""] ?? {};
-export const usesCashAccount = (t?: string) => !!features(t).cash;
-export const usesDestinationAccount = (t?: string) => !!features(t).dest;
-export const usesParty = (t?: string) => !!features(t).party;
-export const usesCategory = (t?: string) => !!features(t).category;
-export const usesPaymentStatus = (t?: string) => !!features(t).payment;
-
-/**
- * Delegasikan ke status-registry terpusat.
- * Fungsi ini tetap ada untuk backward compatibility.
- */
-export function statusVariant(status: string): "success" | "warning" | "error" | "neutral" {
-  return getStatus("transactions", status).variant as "success" | "warning" | "error" | "neutral";
-}
-
-export function statusLabel(status: string): string {
-  return getStatus("transactions", status).label;
-}
-
-export function partyTypeForTransaction(type?: string) {
-  if (type === "credit_sale" || type === "receive_receivable") return "customer";
-  if (type === "credit_purchase" || type === "pay_payable") return "supplier";
-  return "other";
-}
-
-export function labelForTransactionType(type?: string | null): string {
+export function labelForTransactionType(type?: TransactionType | null): string {
   if (!type) return "-";
   return TRANSACTION_LABELS[type] ?? type;
+}
+
+/** Arah tanda nominal di daftar transaksi (PRD TRX-09). */
+export function directionSign(direction: TransactionDirection): string {
+  switch (direction) {
+    case "in":
+      return "+";
+    case "out":
+      return "-";
+    case "neutral":
+      return "↔";
+  }
+}
+
+/** Deskripsi peran akun lawan (counter account) per jenis transaksi. */
+export function counterAccountLabel(type: TransactionType): string {
+  switch (type) {
+    case "cash_in":
+      return "Kategori Pendapatan";
+    case "cash_out":
+      return "Kategori Beban";
+    case "transfer":
+      return "Akun Tujuan";
+    case "owner_deposit":
+      return "Modal Pemilik";
+    case "owner_withdrawal":
+      return "Pengambilan Pemilik";
+  }
+}
+
+/** Label akun kas/bank sesuai jenis transaksi. */
+export function cashAccountLabel(type: TransactionType): string {
+  switch (type) {
+    case "cash_in":
+    case "owner_deposit":
+      return "Akun Kas/Bank Tujuan";
+    case "cash_out":
+    case "owner_withdrawal":
+      return "Akun Kas/Bank Sumber";
+    case "transfer":
+      return "Akun Sumber";
+  }
 }

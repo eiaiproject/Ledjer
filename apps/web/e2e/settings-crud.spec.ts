@@ -2,72 +2,32 @@ import { test } from "./helpers/auth";
 import { expect } from "@playwright/test";
 
 /**
- * Settings CRUD: Period Locks, Team Settings
+ * Settings (Pengaturan) E2E for the MVP: rename the business profile.
  */
 
-const TEST_PREFIX = `[E2E] ${Date.now()}`;
+const TS = Date.now();
+const RENAMED = `Toko E2E ${TS}`;
 
-// ═══════════════════════════════════════════════════════════════════
-//  PERIOD LOCKS (/settings/period-locks)
-// ═══════════════════════════════════════════════════════════════════
-
-test.describe("Period Locks CRUD", () => {
-  test("Create a period lock", async ({ authPage }) => {
-    await authPage.goto("/settings/period-locks", { waitUntil: "load", timeout: 15000 });
-    await authPage.waitForTimeout(2000);
-
-    // Inline form - look for date input and submit button
-    const formHeading = authPage.getByRole("heading", { name: /tambah kunci periode/i });
-    await expect(formHeading).toBeVisible({ timeout: 5000 });
-
-    // Date input - use the first date input on the page
-    const dateInput = authPage.locator('input[type="date"]').first();
-    if (await dateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await dateInput.fill(new Date().toISOString().slice(0, 10));
-    }
-
-    // Reason textarea
-    const reasonInput = authPage.locator('#alasan');
-    if (await reasonInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await reasonInput.fill(`E2E lock ${TEST_PREFIX}`);
-    }
-
-    // Submit button
-    const submitBtn = authPage.getByRole("button", { name: /kunci/i });
-    if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await submitBtn.click();
-      await authPage.waitForTimeout(3000);
-    }
-
-    await expect(authPage.locator('text=Error handled by React Router')).toHaveCount(0);
+test.describe("Settings page", () => {
+  test("shows the business profile and account info", async ({ authPage }) => {
+    await authPage.goto("/settings", { waitUntil: "load", timeout: 15000 });
+    await expect(authPage.getByRole("heading", { name: /Pengaturan/ })).toBeVisible({ timeout: 15000 });
+    await expect(authPage.getByRole("heading", { name: "Profil Usaha" })).toBeVisible();
+    await expect(authPage.getByText("Email")).toBeVisible();
   });
-});
 
-// ═══════════════════════════════════════════════════════════════════
-//  TEAM SETTINGS (/settings/team)
-// ═══════════════════════════════════════════════════════════════════
+  test("renames the organization", async ({ authPage }) => {
+    await authPage.goto("/settings", { waitUntil: "load", timeout: 15000 });
 
-test.describe("Team Settings CRUD", () => {
-  test("Create an invitation link", async ({ authPage }) => {
-    await authPage.goto("/settings/team", { waitUntil: "load", timeout: 15000 });
-    await authPage.waitForTimeout(2000);
+    const nameInput = authPage.getByLabel("Nama Usaha");
+    await expect(nameInput).toBeVisible({ timeout: 15000 });
+    await nameInput.fill(RENAMED);
+    await authPage.getByRole("button", { name: "Simpan" }).click();
 
-    // Email field - Input uses label "Email anggota" → id="email-anggota"
-    const emailInput = authPage.locator('#email-anggota');
-    await expect(emailInput).toBeVisible({ timeout: 5000 });
-    await emailInput.fill(`e2e-${TEST_PREFIX}@yopmail.com`);
+    await expect(authPage.getByText("Profil usaha diperbarui.")).toBeVisible({ timeout: 10000 });
 
-    // Role select - id="invite-role"
-    const roleSelect = authPage.locator('#invite-role');
-    await expect(roleSelect).toBeVisible({ timeout: 3000 });
-    await roleSelect.selectOption('member');
-
-    // Submit button
-    const submitBtn = authPage.getByRole("button", { name: /buat link undangan/i });
-    await expect(submitBtn).toBeVisible({ timeout: 3000 });
-    await submitBtn.click();
-    await authPage.waitForTimeout(3000);
-
-    await expect(authPage.locator('text=Error handled by React Router')).toHaveCount(0);
+    // The new name persists after reload.
+    await authPage.goto("/settings", { waitUntil: "load", timeout: 15000 });
+    await expect(authPage.getByLabel("Nama Usaha")).toHaveValue(RENAMED, { timeout: 15000 });
   });
 });

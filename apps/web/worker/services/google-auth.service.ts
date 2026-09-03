@@ -1,14 +1,11 @@
 import { execute, queryFirst } from "../db/client";
 import { generateId, randomBytes } from "../auth/tokens";
 import { bytesToBase64 } from "../auth/encoding";
-import {
-  createSession,
-  type CreatedSession,
-} from "./session.service";
+import { createSession, type CreatedSession } from "./session.service";
 import { badRequest, conflict, unauthorized } from "../http/errors";
-import { writeAuditStatement } from "../http/audit";
 import { hashPassword } from "../auth/password";
 import { logAuthEvent } from "./auth-audit.service";
+import { createOrganizationWithOwner } from "./organization.service";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -35,19 +32,11 @@ interface UserRow {
   email: string;
   full_name: string;
   status: string;
-  email_verified_at: number | null;
-}
-
-interface OAuthAccountRow {
-  id: string;
-  user_id: string;
-  provider: string;
-  provider_account_id: string;
 }
 
 /**
  * Generate the Google OAuth authorization URL.
- * Stores state in a short-lived cookie for CSRF protection.
+ * State is stored in a short-lived cookie for CSRF protection.
  */
 export function buildGoogleAuthUrl(
   clientId: string,
@@ -75,7 +64,6 @@ async function exchangeCodeForUser(
   clientSecret: string,
   redirectUri: string,
 ): Promise<GoogleUserInfo> {
-  // Exchange code for tokens
   const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -95,7 +83,6 @@ async function exchangeCodeForUser(
 
   const tokens: GoogleTokenResponse = await tokenResponse.json();
 
-  // Fetch user info
   const userInfoResponse = await fetch(GOOGLE_USERINFO_URL, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
@@ -116,7 +103,7 @@ async function findUserByGoogleId(
 ): Promise<UserRow | null> {
   return queryFirst<UserRow>(
     db,
-    `SELECT u.id, u.email, u.full_name, u.status, u.email_verified_at
+    `SELECT u.id, u.email, u.full_name, u.status
      FROM oauth_accounts oa
      JOIN users u ON u.id = oa.user_id
      WHERE oa.provider = 'google'
@@ -134,7 +121,7 @@ async function findUserByEmail(
 ): Promise<UserRow | null> {
   return queryFirst<UserRow>(
     db,
-    `SELECT id, email, full_name, status, email_verified_at
+    `SELECT id, email, full_name, status
      FROM users
      WHERE email = ?`,
     [email],
@@ -142,14 +129,15 @@ async function findUserByEmail(
 }
 
 /**
- * Link Google OAuth account to existing user.
+ * Link Google OAuth account to an existing user.
  */
 async function linkOAuthAccount(
   db: D1Database,
   userId: string,
   googleId: string,
+  googleEmail: string,
 ): Promise<void> {
-  const existing = await queryFirst<OAuthAccountRow>(
+  const existing = await queryFirst<{ id: string }>(
     db,
     `SELECT id FROM oauth_accounts
      WHERE provider = 'google'
@@ -165,20 +153,13 @@ async function linkOAuthAccount(
     `INSERT INTO oauth_accounts (
        id, user_id, provider, provider_account_id, email, created_at, updated_at
      ) VALUES (?, ?, 'google', ?, ?, ?, ?)`,
-    [generateId(), userId, googleId, null, current, current],
-  );
-
-  // Google verifies email - mark verified when linking existing account
-  await execute(
-    db,
-    `UPDATE users SET email_verified_at = ?, updated_at = ?
-     WHERE id = ? AND email_verified_at IS NULL`,
-    [current, current, userId],
+    [generateId(), userId, googleId, googleEmail, current, current],
   );
 }
 
 /**
- * Create new user from Google info.
+ * Create a new user from Google info (random unguessable password so
+ * password login stays impossible for accounts created via OAuth).
  */
 async function createUserFromGoogle(
   db: D1Database,
@@ -187,39 +168,47 @@ async function createUserFromGoogle(
   const current = Date.now();
   const userId = generateId();
 
-  // Generate random high-entropy password so password-login is impossible without reset
   const passwordHash = await hashPassword(bytesToBase64(randomBytes(32)));
 
   await execute(
     db,
     `INSERT INTO users (
-       id, email, password_hash, full_name, status, email_verified_at, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`,
+       id, email, password_hash, full_name, status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, 'active', ?, ?)`,
     [
       userId,
       googleUser.email,
       passwordHash,
       googleUser.name || googleUser.email,
-      current, // email_verified_at (Google verifies email)
       current,
       current,
     ],
   );
 
-  // Link OAuth account
-  await linkOAuthAccount(db, userId, googleUser.id);
+  await linkOAuthAccount(db, userId, googleUser.id, googleUser.email);
 
   return {
     id: userId,
     email: googleUser.email,
     full_name: googleUser.name || googleUser.email,
     status: "active",
-    email_verified_at: current,
   };
 }
 
 /**
- * Complete Google OAuth flow: exchange code, find/create user, create session.
+ * Default organization name for Google signups, mirroring the register
+ * form's required "nama usaha". Users can rename it from settings.
+ */
+function defaultOrganizationName(googleUser: GoogleUserInfo): string {
+  const firstName = (googleUser.name || "").trim().split(/\s+/)[0];
+  if (firstName) return `Bisnis ${firstName}`;
+  const localPart = (googleUser.email || "").split("@")[0];
+  return localPart ? `Bisnis ${localPart}` : "Usaha Saya";
+}
+
+/**
+ * Complete Google OAuth flow: exchange code, find/create user (with org +
+ * default COA for new signups, matching the email register flow), create session.
  */
 export async function completeGoogleAuth(
   db: D1Database,
@@ -229,53 +218,53 @@ export async function completeGoogleAuth(
   redirectUri: string,
   request: Request,
 ): Promise<CreatedSession> {
-  // Exchange code for user info
   const googleUser = await exchangeCodeForUser(code, clientId, clientSecret, redirectUri);
 
   if (!googleUser.email) {
     throw badRequest("oauth_no_email", "Google account does not have an email");
   }
 
-  // Find existing user by Google ID or email
+  const current = Date.now();
   let user = await findUserByGoogleId(db, googleUser.id);
 
   if (!user) {
-    // Try finding by email
     user = await findUserByEmail(db, googleUser.email);
 
     if (user) {
-      // Only auto-link if Google email is verified and local email is verified.
+      // Email match: only auto-link when Google confirms the email is verified.
       // Google's verified_email flag is trusted - email ownership is already
       // proven by Google's account creation process.
       if (!googleUser.verified_email) {
-        throw conflict("oauth_email_conflict", "Google email is not verified. Sign in with your password first, then link Google account from settings.");
+        throw conflict(
+          "oauth_email_conflict",
+          "Email Google tidak terverifikasi. Masuk dengan password terlebih dahulu.",
+        );
       }
 
-      if (!user.email_verified_at) {
-        throw conflict("oauth_email_conflict", "Your email is not verified. Sign in with your password first, then link Google account from settings.");
-      }
-
-      // Link Google account to existing user
-      await linkOAuthAccount(db, user.id, googleUser.id);
-      writeAuditStatement(db, {
-        organizationId: null,
-        actorUserId: user.id,
-        entityType: "auth",
-        entityId: user.id,
-        action: "oauth_link",
-        reason: `Auto-linked Google account ${googleUser.id} for existing user`,
-      });
+      await linkOAuthAccount(db, user.id, googleUser.id, googleUser.email);
+      await logAuthEvent(db, user.id, user.id, "oauth_link", { provider: "google" });
     } else {
-      // Create new user
+      // New user: create user + organization + default COA (same as register)
       user = await createUserFromGoogle(db, googleUser);
+      const organization = await createOrganizationWithOwner(
+        db,
+        user.id,
+        defaultOrganizationName(googleUser),
+        current,
+      );
+      await logAuthEvent(db, user.id, user.id, "registration", {
+        email: googleUser.email,
+        organizationId: organization.id,
+        provider: "google",
+      });
+      return createSession(db, user.id, request, organization.id);
     }
   }
 
   if (user.status !== "active") {
-    throw unauthorized("User account is disabled");
+    throw unauthorized("Akun dinonaktifkan.");
   }
 
-  // Create session
   await logAuthEvent(db, user.id, user.id, "oauth_login", { provider: "google" });
   return createSession(db, user.id, request);
 }

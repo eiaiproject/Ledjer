@@ -1,34 +1,28 @@
-import { FakeD1Database, validateJournalLine } from "./fake-d1";
+import { FakeD1Database } from "./fake-d1";
+import { hashToken } from "../auth/tokens";
+import { hashPassword } from "../auth/password";
 
 /**
- * Deterministic seeded test fixtures for accounting and security tests.
+ * Deterministic seeded test fixtures for MVP accounting and security tests.
  *
- * Two organizations (Org A and Org B) with:
- * - Owner, admin, member, viewer per org
- * - Chart of accounts
- * - Products with stock
- * - Parties (customer, supplier)
- * - Posted transactions
- * - Partial credit transactions
- * - Locked periods
- * - Audit events
+ * Two organizations (Org A and Org B) plus an empty organization, each with an
+ * owner user and session. Org A carries a full MVP chart of accounts and
+ * posted transactions (owner_deposit, cash_in, cash_out, transfer) with their
+ * journal entries/lines, so report and balance tests have data to compute on.
  *
- * Fixture IDs are centrally defined to avoid scattering through tests.
- * All monetary values are in minor units (integer IDR).
- * All quantity values are in milli-units (integer 1/1000).
+ * All monetary values are integer IDR. Fixture IDs are centrally defined to
+ * avoid scattering them through tests.
+ *
+ * FakeD1 is stateless, so every write goes through runtime mirrors of the seed
+ * arrays. `createSeedFixtures()` resets those mirrors, giving every test its
+ * own isolated database.
  */
 
 // ── Central ID Definitions ─────────────────────────────────────
 export const FIXTURE_IDS = {
   users: {
     ownerA: "user-orga-owner-00001",
-    adminA: "user-orga-admin-00001",
-    memberA: "user-orga-member-0001",
-    viewerA: "user-orga-viewer-0001",
     ownerB: "user-orgb-owner-00001",
-    adminB: "user-orgb-admin-00001",
-    memberB: "user-orgb-member-0001",
-    viewerB: "user-orgb-viewer-0001",
     ownerEmpty: "user-empty-owner-00001",
   },
   orgs: {
@@ -39,719 +33,962 @@ export const FIXTURE_IDS = {
   accounts: {
     cashA: "acct-orga-cash-000001",
     bankA: "acct-orga-bank-000001",
-    arA: "acct-orga-ar-0000001",
-    inventoryA: "acct-orga-inv-000001",
-    apA: "acct-orga-ap-0000001",
-    equityA: "acct-orga-eq-000001",
-    revenueA: "acct-orga-rev-000001",
-    cogsA: "acct-orga-cogs-00001",
-    expenseA: "acct-orga-exp-000001",
+    equityA: "acct-orga-eq-0000001",
+    drawA: "acct-orga-draw-000001",
+    revenueA: "acct-orga-rev-0000001",
+    otherRevenueA: "acct-orga-rev2-000001",
+    expenseSalaryA: "acct-orga-exp1-000001",
+    expenseRentA: "acct-orga-exp2-000001",
     cashB: "acct-orgb-cash-000001",
-    arB: "acct-orgb-ar-0000001",
-    apB: "acct-orgb-ap-0000001",
-    revenueB: "acct-orgb-rev-000001",
-  },
-  products: {
-    widget: "prod-orga-widget-0001",
-    gadget: "prod-orga-gadget-0001",
-    widgetB: "prod-orgb-widget-0001",
-  },
-  parties: {
-    customerA: "party-orga-cust-00001",
-    supplierA: "party-orga-supp-00001",
-    customerB: "party-orgb-cust-00001",
+    equityB: "acct-orgb-eq-0000001",
+    revenueB: "acct-orgb-rev-0000001",
+    expenseB: "acct-orgb-exp-0000001",
   },
   transactions: {
-    cashSaleA: "txn-orga-cshsl-0001",
-    creditSaleA: "txn-orga-crdsl-0001",
-    partialCreditA: "txn-orga-prtcr-0001",
-    cashPurchaseA: "txn-orga-cshpr-0001",
-    creditPurchaseA: "txn-orga-crdpr-0001",
-    expenseA: "txn-orga-expns-0001",
-    capitalA: "txn-orga-captl-0001",
-  },
-  journalEntries: {
-    cashSaleA: "je-orga-cashsl-0001",
-    creditSaleA: "je-orga-crdsl-0001",
-    partialCreditA: "je-orga-prtcr-0001",
-  },
-  periodLocks: {
-    lockA: "lock-orga-jul2026-001",
+    depositA: "txn-orga-deposit-0001",
+    cashInA: "txn-orga-cshin-00001",
+    cashOutA: "txn-orga-cshout-00001",
+    transferA: "txn-orga-trsfr-00001",
+    cashInB1: "txn-orga-cshin-00002",
+    voidedOutA: "txn-orga-voided-0001",
+    cashInB: "txn-orgb-cshin-00001",
+    depositB: "txn-orgb-deposit-0001",
   },
 } as const;
 
-const NOW = 1750000000000; // Fixed timestamp for determinism
+const NOW = 1750000000000; // Fixed timestamp for seed rows (2025-06-16)
 
-/**
- * Build a FakeD1Database with complete seeded schema + data.
- */
-export function createSeedFixtures(): {
-  db: FakeD1Database;
-  /** @deprecated use tokens.ownerA */
-  sessionTokenA: string;
-  /** @deprecated use tokens.ownerB */
-  sessionTokenB: string;
-  tokens: {
-    ownerA: string; adminA: string; memberA: string; viewerA: string;
-    ownerB: string; adminB: string; memberB: string; viewerB: string;
-    ownerEmpty: string;
-  };
-} {
-  const db = new FakeD1Database({
-    first: createFirstHandler(),
-    all: createAllHandler(),
-    run: createRunHandler(),
-    batch: createBatchHandler(),
-  });
+// ── Seed data templates ────────────────────────────────────────
 
-  // ponytail: PRODUCTS is mutated by rememberInserted/UpdatedProduct (FakeD1 is
-  // stateless), so re-seed it per fixture to isolate tests.
-  PRODUCTS = SEED_PRODUCTS.map(p => ({ ...p }));
-
-  const tokens = {
-    ownerA: "session-token-orga-000001",
-    adminA: "session-token-orga-admin-000001",
-    memberA: "session-token-orga-member-0001",
-    viewerA: "session-token-orga-viewer-0001",
-    ownerB: "session-token-orgb-000001",
-    adminB: "session-token-orgb-admin-000001",
-    memberB: "session-token-orgb-member-0001",
-    viewerB: "session-token-orgb-viewer-0001",
-    ownerEmpty: "session-token-empty-000001",
-  };
-
-  return {
-    db: db as unknown as FakeD1Database,
-    sessionTokenA: tokens.ownerA,
-    sessionTokenB: tokens.ownerB,
-    tokens,
-  };
-}
-
-// ── In-memory seed data stores ─────────────────────────────────
 interface SeedUser {
-  id: string; email: string; password_hash: string; full_name: string;
-  status: string; email_verified_at: number; created_at: number; updated_at: number;
+  id: string;
+  email: string;
+  password_hash: string;
+  full_name: string;
+  status: string;
+  created_at: number;
+  updated_at: number;
 }
-interface SeedSession {
-  id: string; user_id: string; token_hash: string; expires_at: number;
-  current_organization_id: string; created_at: number;
+
+interface SeedOrganization {
+  id: string;
+  name: string;
+  base_currency: string;
+  status: "active" | "disabled";
+  created_at: number;
+  updated_at: number;
 }
-interface SeedOrg {
-  id: string; name: string; business_type: string; base_currency: string;
-  books_start_date: string; onboarding_status: string; created_by: string;
-  created_at: number; updated_at: number;
-}
-interface SeedMember {
-  id: string; organization_id: string; user_id: string; role: string;
-  status: string; created_at: number;
-}
-interface SeedAccount {
-  id: string; organization_id: string; code: string; name: string;
-  account_type: string; normal_balance: string; is_active: number;
-  is_cash_account: number; created_at: number; updated_at: number;
-}
-interface SeedProduct {
-  id: string; organization_id: string; code: string; name: string;
-  unit?: string;
-  purchase_price_minor: number; selling_price_minor: number;
-  average_cost_minor: number; current_stock_milli: number;
-  min_stock_milli?: number;
-  is_active: number; created_at: number; updated_at: number;
-}
-interface SeedParty {
-  id: string; organization_id: string; name: string; party_type: string;
-  is_active: number; created_at: number; updated_at: number;
-}
-interface SeedTransaction {
-  id: string; organization_id: string; transaction_number: string;
-  transaction_date: string; transaction_type: string; amount_minor: number;
-  party_id: string | null; cash_account_id: string | null;
-  payment_status: string; status: string; idempotency_key: string | null;
-  posted_at: number; created_by: string; created_at: number; updated_at: number;
-  description: string;
-}
-interface SeedJournalEntry {
-  id: string; organization_id: string; entry_number: string;
-  entry_date: string; entry_type: string; transaction_id: string;
-  status: string; posted_at: number; created_at: number;
-}
-interface SeedJournalLine {
-  id: string; organization_id: string; journal_entry_id: string;
-  account_id: string; debit_minor: number; credit_minor: number;
-  description: string; line_order: number; created_at: number;
-}
-interface SeedPeriodLock {
-  id: string; organization_id: string; locked_through_date: string;
-  reason: string; locked_by: string; created_at: number; updated_at: number;
-}
-interface SeedAuditLog {
-  id: string; organization_id: string; actor_user_id: string;
-  entity_type: string; entity_id: string; action: string;
+
+interface SeedMembership {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: "owner";
   created_at: number;
 }
-// ponytail: Seed types used by createSeedFixtures handlers at runtime.
-// Stock movement shape documented inline in handler code.
 
-const USERS: SeedUser[] = [
-  { id: FIXTURE_IDS.users.ownerA, email: "owner@orga.test", password_hash: "", full_name: "Owner A", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.adminA, email: "admin@orga.test", password_hash: "", full_name: "Admin A", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.memberA, email: "member@orga.test", password_hash: "", full_name: "Member A", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.viewerA, email: "viewer@orga.test", password_hash: "", full_name: "Viewer A", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.ownerB, email: "owner@orgb.test", password_hash: "", full_name: "Owner B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.adminB, email: "admin@orgb.test", password_hash: "", full_name: "Admin B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.memberB, email: "member@orgb.test", password_hash: "", full_name: "Member B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.viewerB, email: "viewer@orgb.test", password_hash: "", full_name: "Viewer B", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.users.ownerEmpty, email: "owner@empty.test", password_hash: "", full_name: "Owner Empty", status: "active", email_verified_at: NOW, created_at: NOW, updated_at: NOW },
-];
-
-const ORGS: SeedOrg[] = [
-  { id: FIXTURE_IDS.orgs.a, name: "PT Organisasi A", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.orgs.b, name: "CV Organisasi B", business_type: "service", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: FIXTURE_IDS.users.ownerB, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.orgs.empty, name: "Empty Organization", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-06-01", onboarding_status: "pending", created_by: FIXTURE_IDS.users.ownerEmpty, created_at: NOW, updated_at: NOW },
-];
-
-const MEMBERS: SeedMember[] = [
-  { id: "mem-orga-owner-0001", organization_id: FIXTURE_IDS.orgs.a, user_id: FIXTURE_IDS.users.ownerA, role: "owner", status: "active", created_at: NOW },
-  { id: "mem-orga-admin-0001", organization_id: FIXTURE_IDS.orgs.a, user_id: FIXTURE_IDS.users.adminA, role: "admin", status: "active", created_at: NOW },
-  { id: "mem-orga-member-0001", organization_id: FIXTURE_IDS.orgs.a, user_id: FIXTURE_IDS.users.memberA, role: "member", status: "active", created_at: NOW },
-  { id: "mem-orga-viewer-0001", organization_id: FIXTURE_IDS.orgs.a, user_id: FIXTURE_IDS.users.viewerA, role: "viewer", status: "active", created_at: NOW },
-  { id: "mem-orgb-owner-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.ownerB, role: "owner", status: "active", created_at: NOW },
-  { id: "mem-orgb-admin-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.adminB, role: "admin", status: "active", created_at: NOW },
-  { id: "mem-orgb-member-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.memberB, role: "member", status: "active", created_at: NOW },
-  { id: "mem-orgb-viewer-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.viewerB, role: "viewer", status: "active", created_at: NOW },
-  { id: "mem-empty-owner-0001", organization_id: FIXTURE_IDS.orgs.empty, user_id: FIXTURE_IDS.users.ownerEmpty, role: "owner", status: "active", created_at: NOW },
-];
-
-const ACCOUNTS: SeedAccount[] = [
-  { id: FIXTURE_IDS.accounts.cashA, organization_id: FIXTURE_IDS.orgs.a, code: "1110", name: "Kas Org A", account_type: "asset", normal_balance: "debit", is_active: 1, is_cash_account: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.bankA, organization_id: FIXTURE_IDS.orgs.a, code: "1120", name: "Bank Org A", account_type: "asset", normal_balance: "debit", is_active: 1, is_cash_account: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.arA, organization_id: FIXTURE_IDS.orgs.a, code: "1200", name: "Piutang Usaha A", account_type: "asset", normal_balance: "debit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.inventoryA, organization_id: FIXTURE_IDS.orgs.a, code: "1300", name: "Persediaan A", account_type: "asset", normal_balance: "debit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.apA, organization_id: FIXTURE_IDS.orgs.a, code: "2100", name: "Utang Usaha A", account_type: "liability", normal_balance: "credit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.equityA, organization_id: FIXTURE_IDS.orgs.a, code: "3100", name: "Modal Pemilik A", account_type: "equity", normal_balance: "credit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.revenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4100", name: "Pendapatan A", account_type: "revenue", normal_balance: "credit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.cogsA, organization_id: FIXTURE_IDS.orgs.a, code: "5100", name: "HPP A", account_type: "cogs", normal_balance: "debit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.expenseA, organization_id: FIXTURE_IDS.orgs.a, code: "6100", name: "Beban Operasional A", account_type: "expense", normal_balance: "debit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.cashB, organization_id: FIXTURE_IDS.orgs.b, code: "1110", name: "Kas Org B", account_type: "asset", normal_balance: "debit", is_active: 1, is_cash_account: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.arB, organization_id: FIXTURE_IDS.orgs.b, code: "1200", name: "Piutang Usaha B", account_type: "asset", normal_balance: "debit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.apB, organization_id: FIXTURE_IDS.orgs.b, code: "2100", name: "Utang Usaha B", account_type: "liability", normal_balance: "credit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.revenueB, organization_id: FIXTURE_IDS.orgs.b, code: "4110", name: "Pendapatan B", account_type: "revenue", normal_balance: "credit", is_active: 1, is_cash_account: 0, created_at: NOW, updated_at: NOW },
-];
-
-const SEED_PRODUCTS: SeedProduct[] = [
-  { id: FIXTURE_IDS.products.widget, organization_id: FIXTURE_IDS.orgs.a, code: "WGT-001", name: "Widget A", purchase_price_minor: 50000, selling_price_minor: 100000, average_cost_minor: 50000, current_stock_milli: 100_000, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.products.gadget, organization_id: FIXTURE_IDS.orgs.a, code: "GDT-001", name: "Gadget A", purchase_price_minor: 150000, selling_price_minor: 250000, average_cost_minor: 150000, current_stock_milli: 50_000, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.products.widgetB, organization_id: FIXTURE_IDS.orgs.b, code: "WGT-001", name: "Widget B", purchase_price_minor: 60000, selling_price_minor: 120000, average_cost_minor: 60000, current_stock_milli: 200_000, is_active: 1, created_at: NOW, updated_at: NOW },
-];
-// ponytail: mutable mirror of SEED_PRODUCTS; rememberInserted/UpdatedProduct
-// mutate it because FakeD1 is stateless. Re-seeded per fixture in createSeedFixtures.
-let PRODUCTS: SeedProduct[] = SEED_PRODUCTS.map(p => ({ ...p }));
-
-// ponytail: These const arrays are intentionally declared for documentation and
-// future use. The _ prefix tricks no-unused-vars but in TS we use a comment.
-const PARTIES: SeedParty[] = [
-  { id: FIXTURE_IDS.parties.customerA, organization_id: FIXTURE_IDS.orgs.a, name: "Pelanggan A", party_type: "customer", is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.parties.supplierA, organization_id: FIXTURE_IDS.orgs.a, name: "Pemasok A", party_type: "supplier", is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.parties.customerB, organization_id: FIXTURE_IDS.orgs.b, name: "Pelanggan B", party_type: "customer", is_active: 1, created_at: NOW, updated_at: NOW },
-];
-PARTIES satisfies SeedParty[]; // Used in handler closure
-
-const TRANSACTIONS: SeedTransaction[] = [
-  { id: FIXTURE_IDS.transactions.cashSaleA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202601-000001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-cashsale-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Penjualan tunai widget" },
-  { id: FIXTURE_IDS.transactions.creditSaleA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202601-000002", transaction_date: "2026-01-20", transaction_type: "credit_sale", amount_minor: 750000, party_id: FIXTURE_IDS.parties.customerA, cash_account_id: null, payment_status: "unpaid", status: "posted", idempotency_key: "idem-crdsale-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Penjualan kredit gadget" },
-  { id: FIXTURE_IDS.transactions.partialCreditA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202601-000003", transaction_date: "2026-01-25", transaction_type: "credit_sale", amount_minor: 1000000, party_id: FIXTURE_IDS.parties.customerA, cash_account_id: null, payment_status: "partial", status: "posted", idempotency_key: "idem-prtcr-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Penjualan kredit partial widget" },
-  { id: FIXTURE_IDS.transactions.cashPurchaseA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202602-000001", transaction_date: "2026-02-01", transaction_type: "cash_purchase", amount_minor: 300000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-cashpur-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Pembelian tunai stok widget" },
-  { id: FIXTURE_IDS.transactions.creditPurchaseA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202602-000002", transaction_date: "2026-02-05", transaction_type: "credit_purchase", amount_minor: 600000, party_id: FIXTURE_IDS.parties.supplierA, cash_account_id: null, payment_status: "unpaid", status: "posted", idempotency_key: "idem-crdpur-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Pembelian kredit stok gadget" },
-  { id: FIXTURE_IDS.transactions.expenseA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202602-000003", transaction_date: "2026-02-10", transaction_type: "expense_payment", amount_minor: 100000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-expns-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Pembayaran beban sewa" },
-  { id: FIXTURE_IDS.transactions.capitalA, organization_id: FIXTURE_IDS.orgs.a, transaction_number: "TRX-202601-000004", transaction_date: "2026-01-10", transaction_type: "owner_capital", amount_minor: 5000000, party_id: null, cash_account_id: FIXTURE_IDS.accounts.cashA, payment_status: "paid", status: "posted", idempotency_key: "idem-captl-orga-01", posted_at: NOW, created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW, description: "Setoran modal awal" },
-];
-TRANSACTIONS satisfies SeedTransaction[]; // Referenced in handler closure
-
-const JOURNAL_ENTRIES: SeedJournalEntry[] = [
-  { id: FIXTURE_IDS.journalEntries.cashSaleA, organization_id: FIXTURE_IDS.orgs.a, entry_number: "JE-000001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: FIXTURE_IDS.transactions.cashSaleA, status: "posted", posted_at: NOW, created_at: NOW },
-  { id: FIXTURE_IDS.journalEntries.creditSaleA, organization_id: FIXTURE_IDS.orgs.a, entry_number: "JE-000002", entry_date: "2026-01-20", entry_type: "normal", transaction_id: FIXTURE_IDS.transactions.creditSaleA, status: "posted", posted_at: NOW, created_at: NOW },
-  { id: FIXTURE_IDS.journalEntries.partialCreditA, organization_id: FIXTURE_IDS.orgs.a, entry_number: "JE-000003", entry_date: "2026-01-25", entry_type: "normal", transaction_id: FIXTURE_IDS.transactions.partialCreditA, status: "posted", posted_at: NOW, created_at: NOW },
-];
-JOURNAL_ENTRIES satisfies SeedJournalEntry[]; // Referenced in handler closure
-
-const JOURNAL_LINES: SeedJournalLine[] = [
-  // Cash sale: Dr Cash 500k, Cr Revenue 500k
-  { id: "jl-orga-cshsl-001", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.cashSaleA, account_id: FIXTURE_IDS.accounts.cashA, debit_minor: 500000, credit_minor: 0, description: "Penjualan tunai", line_order: 1, created_at: NOW },
-  { id: "jl-orga-cshsl-002", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.cashSaleA, account_id: FIXTURE_IDS.accounts.revenueA, debit_minor: 0, credit_minor: 500000, description: "Penjualan tunai", line_order: 2, created_at: NOW },
-  // Credit sale: Dr AR 750k, Cr Revenue 750k
-  { id: "jl-orga-crdsl-001", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.creditSaleA, account_id: FIXTURE_IDS.accounts.arA, debit_minor: 750000, credit_minor: 0, description: "Penjualan kredit", line_order: 1, created_at: NOW },
-  { id: "jl-orga-crdsl-002", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.creditSaleA, account_id: FIXTURE_IDS.accounts.revenueA, debit_minor: 0, credit_minor: 750000, description: "Penjualan kredit", line_order: 2, created_at: NOW },
-  // Partial credit: Dr Cash 300k, Dr AR 700k, Cr Revenue 1M
-  { id: "jl-orga-prtcr-001", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.partialCreditA, account_id: FIXTURE_IDS.accounts.cashA, debit_minor: 300000, credit_minor: 0, description: "Pembayaran partial", line_order: 1, created_at: NOW },
-  { id: "jl-orga-prtcr-002", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.partialCreditA, account_id: FIXTURE_IDS.accounts.arA, debit_minor: 700000, credit_minor: 0, description: "Sisa piutang", line_order: 2, created_at: NOW },
-  { id: "jl-orga-prtcr-003", organization_id: FIXTURE_IDS.orgs.a, journal_entry_id: FIXTURE_IDS.journalEntries.partialCreditA, account_id: FIXTURE_IDS.accounts.revenueA, debit_minor: 0, credit_minor: 1000000, description: "Penjualan kredit partial", line_order: 3, created_at: NOW },
-];
-
-const PERIOD_LOCKS: SeedPeriodLock[] = [
-  { id: FIXTURE_IDS.periodLocks.lockA, organization_id: FIXTURE_IDS.orgs.a, locked_through_date: "2026-01-31", reason: "Tutup buku Januari 2026", locked_by: FIXTURE_IDS.users.ownerA, created_at: NOW, updated_at: NOW },
-];
-
-const AUDIT_LOGS: SeedAuditLog[] = [
-  { id: "audit-orga-post-001", organization_id: FIXTURE_IDS.orgs.a, actor_user_id: FIXTURE_IDS.users.ownerA, entity_type: "transaction", entity_id: FIXTURE_IDS.transactions.cashSaleA, action: "post", created_at: NOW },
-  { id: "audit-orga-post-002", organization_id: FIXTURE_IDS.orgs.a, actor_user_id: FIXTURE_IDS.users.ownerA, entity_type: "transaction", entity_id: FIXTURE_IDS.transactions.creditSaleA, action: "post", created_at: NOW },
-  { id: "audit-orga-lock-001", organization_id: FIXTURE_IDS.orgs.a, actor_user_id: FIXTURE_IDS.users.ownerA, entity_type: "period_lock", entity_id: FIXTURE_IDS.periodLocks.lockA, action: "period_lock_created", created_at: NOW },
-];
-AUDIT_LOGS satisfies SeedAuditLog[];
-
-/**
- * Helper: create a basic golden-test FakeD1Database with product stock mock.
- * Reduces boilerplate in golden-accounting.test.ts.
- */
-export function goldenTestDb(
-  customHandlers?: Partial<{
-    first: (sql: string, values: unknown[]) => unknown;
-    all: (sql: string, values: unknown[]) => unknown[];
-  }>,
-): FakeD1Database {
-  return new FakeD1Database({
-    first: (sql, values) => {
-      const s = (sql as string).replace(/\s+/g, " ");
-      if (s.includes("FROM products WHERE")) {
-        return PRODUCTS.find(p => p.id === values[0]) ?? null;
-      }
-      if (s.includes("FROM accounts") && s.includes("code = ?")) {
-        return ACCOUNTS.find(a => a.organization_id === values[0] && a.code === values[1]) ?? null;
-      }
-      if (s.includes("FROM accounts") && (s.includes("id = ?") || s.includes("id= ?"))) {
-        const accountVal = s.indexOf("organization_id = ?") < s.indexOf("id = ?") ? values[1] : values[0];
-        return ACCOUNTS.find(a => a.id === accountVal) ?? null;
-      }
-      if (s.includes("FROM organizations")) {
-        return ORGS.find(o => o.id === values[0]) ?? null;
-      }
-      if (s.includes("MAX(transaction_number")) {
-        return { "MAX(transaction_number)": 0 };
-      }
-      if (s.includes("MAX(entry_number")) {
-        return { "MAX(entry_number)": 0 };
-      }
-      if (s.includes("current_value")) {
-        return { current_value: 1 };
-      }
-      if (s.includes("FROM period_locks")) {
-        return null; // No lock by default
-      }
-      return customHandlers?.first?.(sql as string, values as unknown[]) ?? null;
-    },
-    all: (sql, values) => {
-      const s = (sql as string).replace(/\s+/g, " ");
-      if (s.includes("FROM journal_entries je")) {
-        return [
-          {
-            journal_entry_id: "je-synthetic-readback",
-            entry_number: "JE-TEST-001",
-            entry_date: "2026-02-15",
-            entry_type: "normal",
-            entry_description: null,
-            entry_status: "posted",
-            line_id: "jl-synthetic-dr",
-            account_id: FIXTURE_IDS.accounts.cashA,
-            account_code: "1110",
-            account_name: "Kas",
-            debit_minor: 500000,
-            credit_minor: 0,
-            line_description: "Synthetic debit",
-          },
-          {
-            journal_entry_id: "je-synthetic-readback",
-            entry_number: "JE-TEST-001",
-            entry_date: "2026-02-15",
-            entry_type: "normal",
-            entry_description: null,
-            entry_status: "posted",
-            line_id: "jl-synthetic-cr",
-            account_id: FIXTURE_IDS.accounts.revenueA,
-            account_code: "4100",
-            account_name: "Pendapatan",
-            debit_minor: 0,
-            credit_minor: 500000,
-            line_description: "Synthetic credit",
-          },
-        ];
-      }
-      if (s.includes("FROM journal_lines jl")) {
-        return JOURNAL_LINES.filter(jl => jl.organization_id === values[0]).map(jl => ({
-          id: jl.id, journal_entry_id: jl.journal_entry_id,
-          account_id: jl.account_id, debit_minor: jl.debit_minor,
-          credit_minor: jl.credit_minor, description: jl.description,
-          line_order: jl.line_order,
-        }));
-      }
-      return customHandlers?.all?.(sql as string, values as unknown[]) ?? [];
-    },
-    run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
-    batch: (stmts: { sql: string; values: unknown[] }[]) => {
-      for (const s of stmts) validateJournalLine(s.sql, s.values);
-      return stmts.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
-    },
-  });
+interface SeedSession {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  current_organization_id: string | null;
+  expires_at: number;
+  last_used_at: number;
+  last_rotated_at: number | null;
+  created_at: number;
+  revoked_at: number | null;
 }
 
-/**
- * Intentionally invalid test data for validation tests.
- * Each entry violates a known constraint to verify rejection.
- */
-export const INVALID_DATA = {
-  /** Unbalanced journal: debit != credit */
-  unbalancedJournal: {
-    lines: [
-      { account_id: "acct-invalid-001", debit_minor: 500000, credit_minor: 0, description: "Dr only" },
-      { account_id: "acct-invalid-002", debit_minor: 0, credit_minor: 300000, description: "Cr mismatch" },
-    ],
+interface SeedOAuthAccount {
+  id: string;
+  user_id: string;
+  provider: "google";
+  provider_account_id: string;
+  email: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+interface SeedAccount {
+  id: string;
+  organization_id: string;
+  code: string;
+  name: string;
+  account_class: "asset" | "liability" | "equity" | "income" | "expense";
+  account_subtype: "cash" | "bank" | null;
+  is_system: number;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+}
+
+interface SeedTransaction {
+  id: string;
+  organization_id: string;
+  transaction_number: string;
+  transaction_type: "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal";
+  transaction_date: string;
+  description: string;
+  status: "posted" | "voided";
+  amount_idr: number;
+  cash_account_id: string;
+  counter_account_id: string;
+  idempotency_key: string;
+  created_by: string;
+  created_at: number;
+  voided_at: number | null;
+  void_reason: string | null;
+  updated_at: number;
+}
+
+interface SeedJournalEntry {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  entry_date: string;
+  description: string;
+  created_at: number;
+}
+
+interface SeedJournalLine {
+  id: string;
+  organization_id: string;
+  journal_entry_id: string;
+  account_id: string;
+  debit_idr: number;
+  credit_idr: number;
+  created_at: number;
+}
+
+const TEST_PASSWORD = "Password123";
+const TEST_PEPPER = "test-pepper";
+
+const SEED_USERS: SeedUser[] = [
+  { id: FIXTURE_IDS.users.ownerA, email: "owner@orga.test", password_hash: "", full_name: "Owner A", status: "active", created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.users.ownerB, email: "owner@orgb.test", password_hash: "", full_name: "Owner B", status: "active", created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.users.ownerEmpty, email: "owner@empty.test", password_hash: "", full_name: "Owner Empty", status: "active", created_at: NOW, updated_at: NOW },
+];
+
+const SEED_ORGS: SeedOrganization[] = [
+  { id: FIXTURE_IDS.orgs.a, name: "PT Organisasi A", base_currency: "IDR", status: "active", created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.orgs.b, name: "CV Organisasi B", base_currency: "IDR", status: "active", created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.orgs.empty, name: "Empty Organization", base_currency: "IDR", status: "active", created_at: NOW, updated_at: NOW },
+];
+
+const SEED_MEMBERSHIPS: SeedMembership[] = [
+  { id: "mem-orga-owner-0001", organization_id: FIXTURE_IDS.orgs.a, user_id: FIXTURE_IDS.users.ownerA, role: "owner", created_at: NOW },
+  { id: "mem-orgb-owner-0001", organization_id: FIXTURE_IDS.orgs.b, user_id: FIXTURE_IDS.users.ownerB, role: "owner", created_at: NOW },
+  { id: "mem-empty-owner-0001", organization_id: FIXTURE_IDS.orgs.empty, user_id: FIXTURE_IDS.users.ownerEmpty, role: "owner", created_at: NOW },
+];
+
+// Sessions are keyed by precomputed SHA-256 of the plaintext token so
+// getSessionByToken (which hashes the incoming token) resolves correctly.
+// Timestamps are filled relative to load time in buildSessions().
+const SEED_SESSIONS: SeedSession[] = [
+  { id: "session-orga-owner-1", user_id: FIXTURE_IDS.users.ownerA, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.a, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null },
+  { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.b, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null },
+  { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.empty, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null },
+];
+
+const SEED_ACCOUNTS: SeedAccount[] = [
+  { id: FIXTURE_IDS.accounts.cashA, organization_id: FIXTURE_IDS.orgs.a, code: "1110", name: "Kas", account_class: "asset", account_subtype: "cash", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.bankA, organization_id: FIXTURE_IDS.orgs.a, code: "1120", name: "Bank", account_class: "asset", account_subtype: "bank", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.equityA, organization_id: FIXTURE_IDS.orgs.a, code: "3110", name: "Modal Pemilik", account_class: "equity", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.drawA, organization_id: FIXTURE_IDS.orgs.a, code: "3120", name: "Pengambilan Pemilik", account_class: "equity", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.revenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4110", name: "Pendapatan Usaha", account_class: "income", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.otherRevenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4120", name: "Pendapatan Lain", account_class: "income", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.expenseSalaryA, organization_id: FIXTURE_IDS.orgs.a, code: "6110", name: "Beban Gaji & Upah", account_class: "expense", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.expenseRentA, organization_id: FIXTURE_IDS.orgs.a, code: "6120", name: "Beban Sewa", account_class: "expense", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.cashB, organization_id: FIXTURE_IDS.orgs.b, code: "1110", name: "Kas", account_class: "asset", account_subtype: "cash", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.equityB, organization_id: FIXTURE_IDS.orgs.b, code: "3110", name: "Modal Pemilik", account_class: "equity", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.revenueB, organization_id: FIXTURE_IDS.orgs.b, code: "4110", name: "Pendapatan Usaha", account_class: "income", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.expenseB, organization_id: FIXTURE_IDS.orgs.b, code: "6110", name: "Beban Gaji & Upah", account_class: "expense", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+];
+
+const SEED_TRANSACTIONS: SeedTransaction[] = [
+  // Org A — June 2026
+  {
+    id: FIXTURE_IDS.transactions.depositA, organization_id: FIXTURE_IDS.orgs.a,
+    transaction_number: "TRX-20260605-AB12", transaction_type: "owner_deposit",
+    transaction_date: "2026-06-05", description: "Setoran modal awal",
+    status: "posted", amount_idr: 5000000, cash_account_id: FIXTURE_IDS.accounts.cashA,
+    counter_account_id: FIXTURE_IDS.accounts.equityA, idempotency_key: "idem-deposit-orga-01",
+    created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
-  /** Missing required fields */
-  missingRequired: {
-    transaction: { transaction_date: "", transaction_type: "", amount_minor: 0 },
+  {
+    id: FIXTURE_IDS.transactions.cashInA, organization_id: FIXTURE_IDS.orgs.a,
+    transaction_number: "TRX-20260610-CD34", transaction_type: "cash_in",
+    transaction_date: "2026-06-10", description: "Penjualan tunai",
+    status: "posted", amount_idr: 2000000, cash_account_id: FIXTURE_IDS.accounts.cashA,
+    counter_account_id: FIXTURE_IDS.accounts.revenueA, idempotency_key: "idem-cshin-orga-01",
+    created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
-  /** Negative amount */
-  negativeAmount: { amount_minor: -1000 },
-  /** Future date beyond allowed horizon */
-  futureDate: "2030-01-01",
-  /** Empty string fields */
-  emptyFields: { name: "", code: "" },
-} as const;
-INVALID_DATA satisfies Record<string, unknown>;
+  {
+    id: FIXTURE_IDS.transactions.cashOutA, organization_id: FIXTURE_IDS.orgs.a,
+    transaction_number: "TRX-20260615-EF56", transaction_type: "cash_out",
+    transaction_date: "2026-06-15", description: "Bayar sewa ruko",
+    status: "posted", amount_idr: 1200000, cash_account_id: FIXTURE_IDS.accounts.cashA,
+    counter_account_id: FIXTURE_IDS.accounts.expenseRentA, idempotency_key: "idem-cshout-orga-01",
+    created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
+  },
+  {
+    id: FIXTURE_IDS.transactions.transferA, organization_id: FIXTURE_IDS.orgs.a,
+    transaction_number: "TRX-20260620-GH78", transaction_type: "transfer",
+    transaction_date: "2026-06-20", description: "Pindah ke bank",
+    status: "posted", amount_idr: 500000, cash_account_id: FIXTURE_IDS.accounts.cashA,
+    counter_account_id: FIXTURE_IDS.accounts.bankA, idempotency_key: "idem-trsfr-orga-01",
+    created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
+  },
+  // Org A — July 2026 (for period-filtered report tests)
+  {
+    id: FIXTURE_IDS.transactions.cashInB1, organization_id: FIXTURE_IDS.orgs.a,
+    transaction_number: "TRX-20260702-JK90", transaction_type: "cash_in",
+    transaction_date: "2026-07-02", description: "Penjualan tunai Juli",
+    status: "posted", amount_idr: 800000, cash_account_id: FIXTURE_IDS.accounts.cashA,
+    counter_account_id: FIXTURE_IDS.accounts.revenueA, idempotency_key: "idem-cshin-orga-02",
+    created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
+  },
+  // Voided transaction - must be excluded from reports and balances
+  {
+    id: FIXTURE_IDS.transactions.voidedOutA, organization_id: FIXTURE_IDS.orgs.a,
+    transaction_number: "TRX-20260705-LM12", transaction_type: "cash_out",
+    transaction_date: "2026-07-05", description: "Beban dibatalkan",
+    status: "voided", amount_idr: 100000, cash_account_id: FIXTURE_IDS.accounts.cashA,
+    counter_account_id: FIXTURE_IDS.accounts.expenseSalaryA, idempotency_key: "idem-voided-orga-01",
+    created_by: FIXTURE_IDS.users.ownerA, created_at: NOW, voided_at: NOW, void_reason: "Salah input", updated_at: NOW,
+  },
+  // Org B — June 2026
+  {
+    id: FIXTURE_IDS.transactions.depositB, organization_id: FIXTURE_IDS.orgs.b,
+    transaction_number: "TRX-20260601-AB11", transaction_type: "owner_deposit",
+    transaction_date: "2026-06-01", description: "Setoran modal",
+    status: "posted", amount_idr: 3000000, cash_account_id: FIXTURE_IDS.accounts.cashB,
+    counter_account_id: FIXTURE_IDS.accounts.equityB, idempotency_key: "idem-deposit-orgb-01",
+    created_by: FIXTURE_IDS.users.ownerB, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
+  },
+  {
+    id: FIXTURE_IDS.transactions.cashInB, organization_id: FIXTURE_IDS.orgs.b,
+    transaction_number: "TRX-20260612-CD33", transaction_type: "cash_in",
+    transaction_date: "2026-06-12", description: "Penjualan tunai B",
+    status: "posted", amount_idr: 1000000, cash_account_id: FIXTURE_IDS.accounts.cashB,
+    counter_account_id: FIXTURE_IDS.accounts.revenueB, idempotency_key: "idem-cshin-orgb-01",
+    created_by: FIXTURE_IDS.users.ownerB, created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
+  },
+];
 
-/**
- * Helper: create a minimal FakeD1Database that mocks product stock.
- * Useful for golden tests that need specific stock levels.
- */
-export function mockProductStock(
-  options: Partial<{
-    id: string; organizationId: string;
-    currentStockMilli: number; averageCostMinor: number;
-  }> = {},
-): FakeD1Database {
-  const defaultProduct = PRODUCTS[0];
-  return new FakeD1Database({
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    first: (sql: string, _values: unknown[]) => {
-      const s = (sql as string).replace(/\s+/g, " ");
-      if (s.includes("FROM products WHERE")) {
-        return {
-          id: options.id ?? defaultProduct.id,
-          organization_id: options.organizationId ?? defaultProduct.organization_id,
-          code: defaultProduct.code, name: defaultProduct.name,
-          purchase_price_minor: defaultProduct.purchase_price_minor,
-          selling_price_minor: defaultProduct.selling_price_minor,
-          average_cost_minor: options.averageCostMinor ?? defaultProduct.average_cost_minor,
-          current_stock_milli: options.currentStockMilli ?? defaultProduct.current_stock_milli,
-          is_active: 1,
-          inventory_account_id: null, cogs_account_id: null, revenue_account_id: null,
-        };
-      }
-      return null;
-    },
-    all: () => [],
-    run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
-  });
+const SEED_JOURNAL_ENTRIES: SeedJournalEntry[] = SEED_TRANSACTIONS.map((t) => ({
+  id: `je-${t.id}`,
+  organization_id: t.organization_id,
+  transaction_id: t.id,
+  entry_date: t.transaction_date,
+  description: t.description,
+  created_at: NOW,
+}));
+
+function entryFor(transactionId: string): SeedJournalEntry {
+  return SEED_JOURNAL_ENTRIES.find((e) => e.transaction_id === transactionId)!;
 }
 
-// ponytail: Counter tracking for nextCounter (INSERT ... RETURNING current_value)
-const counters: Record<string, number> = {};
+const SEED_JOURNAL_LINES: SeedJournalLine[] = SEED_TRANSACTIONS.flatMap((t) => {
+  const entry = entryFor(t.id);
+  const debitAccountId = t.transaction_type === "cash_in" || t.transaction_type === "owner_deposit"
+    ? t.cash_account_id
+    : t.counter_account_id;
+  const creditAccountId = t.transaction_type === "cash_in" || t.transaction_type === "owner_deposit"
+    ? t.counter_account_id
+    : t.cash_account_id;
+  return [
+    { id: `jl-${t.id}-d`, organization_id: t.organization_id, journal_entry_id: entry.id, account_id: debitAccountId, debit_idr: t.amount_idr, credit_idr: 0, created_at: NOW },
+    { id: `jl-${t.id}-c`, organization_id: t.organization_id, journal_entry_id: entry.id, account_id: creditAccountId, debit_idr: 0, credit_idr: t.amount_idr, created_at: NOW },
+  ];
+});
 
-// ── Handlers ───────────────────────────────────────────────────
+// ── Runtime mirrors (reset per fixture) ────────────────────────
 
-// ── Query handler extractors (reduce cognitive complexity of createFirstHandler) ──
+let users: SeedUser[] = [];
+let orgs: SeedOrganization[] = [];
+let memberships: SeedMembership[] = [];
+let sessions: SeedSession[] = [];
+let accounts: SeedAccount[] = [];
+let transactions: SeedTransaction[] = [];
+let journalEntries: SeedJournalEntry[] = [];
+let journalLines: SeedJournalLine[] = [];
+let insertedUsers: SeedUser[] = [];
+let oauthAccounts: SeedOAuthAccount[] = [];
 
-function handleUserQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM users WHERE")) return undefined;
-  const user = USERS.find(u => u.id === values[0] || u.email === values[0]);
-  return user ? { ...user } : null;
+function resetRuntime(): void {
+  users = SEED_USERS.map((u) => ({ ...u }));
+  orgs = SEED_ORGS.map((o) => ({ ...o }));
+  memberships = SEED_MEMBERSHIPS.map((m) => ({ ...m }));
+  sessions = SEED_SESSIONS.map((s) => ({ ...s }));
+  accounts = SEED_ACCOUNTS.map((a) => ({ ...a }));
+  transactions = SEED_TRANSACTIONS.map((t) => ({ ...t }));
+  journalEntries = SEED_JOURNAL_ENTRIES.map((e) => ({ ...e }));
+  journalLines = SEED_JOURNAL_LINES.map((l) => ({ ...l }));
+  insertedUsers = [];
+  oauthAccounts = [];
 }
 
-function handleSessionQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM sessions s")) return undefined;
-  const tokenHash = values[0] as string;
-  const session = SESSIONS.find(s => s.token_hash === tokenHash);
-  if (!session) return null;
-  const user = USERS.find(u => u.id === session.user_id);
-  if (!user) return null;
+function findUserByIdOrEmail(value: string): SeedUser | undefined {
+  return users.find((u) => u.id === value || u.email === value) ??
+    insertedUsers.find((u) => u.id === value || u.email === value);
+}
+
+function allTransactions(orgId?: string): SeedTransaction[] {
+  return orgId ? transactions.filter((t) => t.organization_id === orgId) : transactions;
+}
+
+function allAccounts(orgId?: string): SeedAccount[] {
+  return orgId ? accounts.filter((a) => a.organization_id === orgId) : accounts;
+}
+
+function accountById(orgId: string, accountId: string): SeedAccount | undefined {
+  return allAccounts(orgId).find((a) => a.id === accountId);
+}
+
+function orgTransactions(orgId: string): SeedTransaction[] {
+  return allTransactions(orgId);
+}
+
+function toTransactionReadback(t: SeedTransaction, orgId: string): Record<string, unknown> {
+  const cash = accountById(orgId, t.cash_account_id);
+  const counter = accountById(orgId, t.counter_account_id);
   return {
-    session_id: session.id,
-    user_id: session.user_id,
-    expires_at: session.expires_at,
-    current_organization_id: session.current_organization_id,
-    email: user.email,
-    full_name: user.full_name,
-    email_verified_at: user.email_verified_at,
+    id: t.id,
+    organization_id: t.organization_id,
+    transaction_number: t.transaction_number,
+    transaction_type: t.transaction_type,
+    transaction_date: t.transaction_date,
+    description: t.description,
+    status: t.status,
+    amount_idr: t.amount_idr,
+    cash_account_id: t.cash_account_id,
+    counter_account_id: t.counter_account_id,
+    created_by: t.created_by,
+    created_at: t.created_at,
+    voided_at: t.voided_at,
+    void_reason: t.void_reason,
+    cash_bank_account: cash?.name ?? null,
+    counter_account: counter?.name ?? null,
   };
 }
 
-function handleOrganizationMemberQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM organization_members m")) return undefined;
-  const userId = values[0] as string;
-  const orgId = values[1] as string | undefined;
-  return MEMBERS.find(m => m.user_id === userId && (!orgId || m.organization_id === orgId)) ?? null;
+function norm(sql: string): string {
+  return sql.replace(/\s+/g, " ");
 }
 
-function handleOrganizationQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM organizations")) return undefined;
-  return ORGS.find(o => o.id === values[0]) ?? null;
+/**
+ * Apply the org-scoped transaction filters (date range, type, status, search)
+ * that listTransactions/countTransactions build, in builder order. `prefix` is
+ * "t." for aliased selects and "" for plain COUNT(*) queries; filter values
+ * start at index 1 (index 0 is the organization id).
+ */
+function applyTransactionFilters(
+  source: SeedTransaction[],
+  s: string,
+  values: unknown[],
+  prefix: string,
+): SeedTransaction[] {
+  let result = source;
+  let vi = 1;
+  if (s.includes(`${prefix}transaction_date >= ?`)) {
+    const from = values[vi++] as string;
+    result = result.filter((t) => t.transaction_date >= from);
+  }
+  if (s.includes(`${prefix}transaction_date <= ?`)) {
+    const to = values[vi++] as string;
+    result = result.filter((t) => t.transaction_date <= to);
+  }
+  if (s.includes(`${prefix}transaction_type = ?`)) {
+    const type = values[vi++] as SeedTransaction["transaction_type"];
+    result = result.filter((t) => t.transaction_type === type);
+  }
+  if (s.includes(`${prefix}status = ?`)) {
+    const status = values[vi++] as "posted" | "voided";
+    result = result.filter((t) => t.status === status);
+  }
+  if (s.includes(`lower(${prefix}description) LIKE ?`)) {
+    // description LIKE + number LIKE share the same value
+    const search = (values[vi] as string).replaceAll("%", "").toLowerCase();
+    result = result.filter(
+      (t) =>
+        t.description.toLowerCase().includes(search) ||
+        t.transaction_number.toLowerCase().includes(search),
+    );
+  }
+  return result;
 }
 
-function handleAccountQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM accounts") || !sql.includes("WHERE")) return undefined;
-  if (sql.includes("code = ?")) {
-    return ACCOUNTS.find(a => a.organization_id === values[0] && a.code === values[1]) ?? null;
-  }
-  if (sql.includes("organization_id = ? AND id =") || sql.includes("organization_id = ? and id =")) {
-    return ACCOUNTS.find(a => a.organization_id === values[0] && a.id === values[1]) ?? null;
-  }
-  if (sql.includes("id = ? AND organization_id")) {
-    return ACCOUNTS.find(a => a.id === values[0] && a.organization_id === values[1]) ?? null;
-  }
-  return ACCOUNTS.find(a => a.id === values[0]) ?? null;
-}
+// ── In-memory query handlers ───────────────────────────────────
 
-function handleProductQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM products") || !sql.includes("WHERE")) return undefined;
-  if (sql.includes("lower(name)")) {
+function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
+  const s = norm(sql);
+
+  // Users (login/register lookups)
+  if (s.includes("FROM users WHERE")) {
+    const user = findUserByIdOrEmail(values[0] as string);
+    return user ? { ...user } : null;
+  }
+
+  // Sessions (getSessionByToken + rotation re-read)
+  if (s.includes("FROM sessions s") && s.includes("JOIN users u")) {
+    if (s.includes("WHERE s.token_hash = ?")) {
+      const tokenHash = values[0] as string;
+      const current = Number(values[1]);
+      const session = sessions.find((x) => x.token_hash === tokenHash && x.revoked_at === null);
+      if (!session) return null;
+      if (session.expires_at <= current) return null;
+      const user = findUserByIdOrEmail(session.user_id);
+      if (!user) return null;
+      return {
+        session_id: session.id,
+        user_id: session.user_id,
+        expires_at: session.expires_at,
+        current_organization_id: session.current_organization_id,
+        email: user.email,
+        full_name: user.full_name,
+        last_used_at: session.last_used_at,
+        last_rotated_at: session.last_rotated_at,
+        created_at: session.created_at,
+      };
+    }
+    if (s.includes("WHERE s.id = ?") && s.includes("s.user_id = ?")) {
+      const session = sessions.find(
+        (x) => x.id === values[0] && x.user_id === values[1] && x.revoked_at === null,
+      );
+      if (!session) return null;
+      const current = Number(values[2]);
+      if (session.expires_at <= current) return null;
+      const user = findUserByIdOrEmail(session.user_id);
+      if (!user) return null;
+      return {
+        session_id: session.id,
+        user_id: session.user_id,
+        expires_at: session.expires_at,
+        current_organization_id: session.current_organization_id,
+        email: user.email,
+        full_name: user.full_name,
+        last_used_at: session.last_used_at,
+      };
+    }
+    return null;
+  }
+
+  // Google OAuth lookups (must run before the plain FROM users WHERE branch)
+  if (s.includes("FROM oauth_accounts oa") && s.includes("JOIN users u")) {
+    const account = oauthAccounts.find(
+      (x) => x.provider === "google" && x.provider_account_id === (values[0] as string),
+    );
+    if (!account) return null;
+    const user = findUserByIdOrEmail(account.user_id);
+    if (!user) return null;
+    return { id: user.id, email: user.email, full_name: user.full_name, status: user.status };
+  }
+  if (s.includes("FROM oauth_accounts") && s.includes("provider_account_id = ?")) {
+    const account = oauthAccounts.find(
+      (x) => x.provider === "google" && x.provider_account_id === (values[0] as string),
+    );
+    return account ? { ...account } : null;
+  }
+
+  // Organizations
+  if (s.includes("FROM organizations")) {
+    return orgs.find((o) => o.id === values[0]) ?? null;
+  }
+
+  // Memberships (plain lookups, e.g. register integration test)
+  if (s.includes("FROM memberships") && !s.includes("JOIN organizations")) {
+    // Lookup by user_id only (e.g. google-oauth org resolution)
+    if (s.includes("WHERE user_id = ?") && values.length === 1) {
+      const member = memberships.find((m) => m.user_id === (values[0] as string));
+      return member ? { organization_id: member.organization_id, role: member.role } : null;
+    }
+    const member = memberships.find(
+      (m) =>
+        m.organization_id === values[0] && m.user_id === values[1],
+    );
+    return member ? { role: member.role } : null;
+  }
+
+  // Memberships (getCurrentOrganization)
+  if (s.includes("FROM memberships m") && s.includes("JOIN organizations o")) {
+    const userId = values[0] as string;
+    const orgId = s.includes("m.organization_id = ?") ? (values[1] as string) : undefined;
+    const member = memberships.find(
+      (m) => m.user_id === userId && (!orgId || m.organization_id === orgId),
+    );
+    if (!member) return null;
+    const org = orgs.find((o) => o.id === member.organization_id);
+    if (!org) return null;
+    return {
+      organization_id: org.id,
+      organization_name: org.name,
+      base_currency: org.base_currency,
+      organization_status: org.status,
+      created_at: org.created_at,
+      member_id: member.id,
+      user_id: member.user_id,
+      role: member.role,
+    };
+  }
+
+  // Accounts
+  if (s.includes("FROM accounts")) {
+    // Name-taken lookups: SELECT id FROM accounts WHERE organization_id = ? AND name = ? [AND id != ?]
+    if (s.includes("name = ?")) {
+      const orgId = values[0] as string;
+      const name = values[1] as string;
+      const excludeId = s.includes("id != ?") ? (values[2] as string) : undefined;
+      const account = allAccounts(orgId).find((a) => a.name === name && a.id !== excludeId);
+      return account ? { id: account.id } : null;
+    }
+    // MAX(CAST(code AS INTEGER)) - next cash/bank code
+    if (s.includes("MAX(CAST(code AS INTEGER))")) {
+      const orgId = values[0] as string;
+      const maxCode = allAccounts(orgId)
+        .filter((a) => a.account_subtype !== null)
+        .reduce((max, a) => Math.max(max, Number(a.code)), 0);
+      return { max_code: maxCode };
+    }
+    // getAccount: SELECT ... FROM accounts WHERE id = ? AND organization_id = ?
+    if (s.includes("WHERE id = ?") && s.includes("organization_id = ?")) {
+      const account = allAccounts().find(
+        (a) => a.id === values[0] && a.organization_id === values[1],
+      );
+      return account ? { ...account } : null;
+    }
+    return null;
+  }
+
+  // Count queries (must run before the FROM transactions block, which
+  // returns null for queries it does not recognize)
+  if (s.includes("COUNT(*)") && s.includes("FROM transactions") && s.includes("cash_account_id = ?")) {
+    // accountIsUsed: transactions referencing a specific account
     const orgId = values[0] as string;
-    const name = String(values[1]).toLowerCase();
-    return PRODUCTS.find(p => p.organization_id === orgId && p.name.toLowerCase() === name) ?? null;
+    const cashAccountId = values[1] as string;
+    const counterAccountId = values[2] as string;
+    return {
+      c: orgTransactions(orgId).filter(
+        (t) => t.cash_account_id === cashAccountId || t.counter_account_id === counterAccountId,
+      ).length,
+    };
   }
-  return PRODUCTS.find(p => p.id === values[0]) ?? null;
-}
+  if (s.includes("COUNT(*)") && s.includes("FROM transactions")) {
+    const orgId = values[0] as string;
+    const result = applyTransactionFilters(orgTransactions(orgId), s, values, "");
+    return { c: result.length };
+  }
 
-function handlePartyQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM parties") || !sql.includes("is_active")) return undefined;
-  return PARTIES.find(p => p.id === values[0]) ?? null;
-}
+  // Transactions
+  if (s.includes("FROM transactions")) {
+    // Idempotency lookup
+    if (s.includes("t.idempotency_key = ?") || s.includes("idempotency_key = ?")) {
+      const orgId = values[0] as string;
+      const key = values[1] as string;
+      const txn = transactions.find(
+        (t) => t.organization_id === orgId && t.idempotency_key === key,
+      );
+      return txn ? { id: txn.id, transaction_number: txn.transaction_number } : null;
+    }
+    // Unique transaction number check
+    if (s.includes("transaction_number = ?")) {
+      const txn = transactions.find((t) => t.transaction_number === values[0]);
+      return txn ? { id: txn.id } : null;
+    }
+    // Void lookup: SELECT id, status, transaction_number ...
+    if (s.includes("WHERE id = ?") && s.includes("organization_id = ?") && !s.includes("LEFT JOIN")) {
+      const txn = transactions.find(
+        (t) => t.id === values[0] && t.organization_id === values[1],
+      );
+      return txn ? { id: txn.id, status: txn.status, transaction_number: txn.transaction_number } : null;
+    }
+    // getTransaction (LEFT JOIN readback)
+    if (s.includes("LEFT JOIN") && s.includes("t.id = ?")) {
+      const txn = transactions.find(
+        (t) => t.id === values[0] && t.organization_id === values[1],
+      );
+      return txn ? toTransactionReadback(txn, txn.organization_id) : null;
+    }
+    return null;
+  }
 
-function handlePeriodLockQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("period_locks") || (!sql.includes("SELECT") && !sql.includes("FROM"))) return undefined;
-  if (!sql.includes("locked_through_date") || !Array.isArray(values) || values.length < 2) return undefined;
-  const orgId = values[0] as string;
-  const checkDate = values[1] as string;
-  const lock = PERIOD_LOCKS.find(l => l.organization_id === orgId && l.locked_through_date >= checkDate);
-  return lock ? { id: lock.id, locked_through_date: lock.locked_through_date } : null;
-}
+  // Journal entries
+  if (s.includes("FROM journal_entries")) {
+    const txnId = values[0] as string;
+    const orgId = values[1] as string;
+    const entry = journalEntries.find(
+      (e) => e.transaction_id === txnId && e.organization_id === orgId,
+    );
+    return entry ? { id: entry.id } : null;
+  }
 
-function handleTransactionReadbackQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("FROM transactions t") || !sql.includes("LEFT JOIN") || !sql.includes("t.id =")) return undefined;
-  const txnId = values[0] as string;
-  const orgId = values[1] as string;
-  return {
-    id: txnId,
-    organization_id: orgId,
-    transaction_number: "TRX-TEST",
-    transaction_date: "2026-02-15",
-    transaction_type: "cash_sale",
-    amount_minor: 500000,
-    party_id: null, party_name: null,
-    category_name: null,
-    cash_account_id: null,
-    destination_cash_account_id: null,
-    payment_status: "paid", due_date: null,
-    description: "Synthetic readback", notes: null,
-    status: "posted",
-    idempotency_key: null,
-    posted_at: Date.now(), voided_at: null, void_reason: null,
-    original_transaction_id: null, reversal_transaction_id: null,
-    created_by: FIXTURE_IDS.users.ownerA,
-    created_by_name: "Owner A",
-    created_at: Date.now(),
-  };
-}
-
-function handleTransactionIdempotencyQuery(sql: string) {
-  if (!sql.includes("FROM transactions t") || !sql.includes("WHERE") || !sql.includes("t.idempotency_key")) return undefined;
   return null;
 }
 
-function handleTransactionNumberQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("MAX(transaction_number")) return undefined;
-  const last = TRANSACTIONS.filter(t => t.organization_id === values[0])
-    .reduce((max, t) => Math.max(max, Number.parseInt(t.transaction_number)), 0);
-  return { "MAX(transaction_number)": last || 0 };
-}
+function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
+  const s = norm(sql);
 
-function handleEntryNumberQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("MAX(entry_number")) return undefined;
-  const last = JOURNAL_ENTRIES.filter(e => e.organization_id === values[0])
-    .reduce((max, e) => Math.max(max, Number.parseInt(e.entry_number)), 0);
-  return { "MAX(entry_number)": last || 0 };
-}
-
-function handleCounterInsertQuery(sql: string, values: unknown[]) {
-  if (!sql.includes("organization_document_counters") || !sql.includes("RETURNING current_value")) return undefined;
-  const key = `${values[0] as string}:${values[1] as string}`;
-  counters[key] = (counters[key] ?? 0) + 1;
-  return { current_value: counters[key] };
-}
-
-function handleSchemaQuery(sql: string) {
-  if (!sql.includes("app_metadata") && !sql.includes("SELECT 1")) return undefined;
-  return { ok: 1, value: "9" };
-}
-
-function createFirstHandler() {
-  const norm = (sql: string) => sql.replace(/\s+/g, " ");
-
-  return (sql: string, values: unknown[]) => {
-    const s = norm(sql);
-    return (
-      handleUserQuery(s, values) ??
-      handleSessionQuery(s, values) ??
-      handleOrganizationMemberQuery(s, values) ??
-      handleOrganizationQuery(s, values) ??
-      handleAccountQuery(s, values) ??
-      handleProductQuery(s, values) ??
-      handlePartyQuery(s, values) ??
-      handlePeriodLockQuery(s, values) ??
-      handleTransactionReadbackQuery(s, values) ??
-      handleTransactionIdempotencyQuery(s) ??
-      handleTransactionNumberQuery(s, values) ??
-      handleEntryNumberQuery(s, values) ??
-      handleCounterInsertQuery(s, values) ??
-      handleSchemaQuery(s) ??
-      null
-    );
-  };
-}
-
-const SESSIONS: SeedSession[] = [
-  { id: "session-orga-owner-1", user_id: FIXTURE_IDS.users.ownerA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
-  { id: "session-orga-admin-1", user_id: FIXTURE_IDS.users.adminA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
-  { id: "session-orga-member-1", user_id: FIXTURE_IDS.users.memberA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
-  { id: "session-orga-viewer-1", user_id: FIXTURE_IDS.users.viewerA, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.a, created_at: NOW },
-  { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
-  { id: "session-orgb-admin-1", user_id: FIXTURE_IDS.users.adminB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
-  { id: "session-orgb-member-1", user_id: FIXTURE_IDS.users.memberB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
-  { id: "session-orgb-viewer-1", user_id: FIXTURE_IDS.users.viewerB, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.b, created_at: NOW },
-  { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", expires_at: NOW + 86400000, current_organization_id: FIXTURE_IDS.orgs.empty, created_at: NOW },
-];
-
-function createAllHandler() {
-  return (sql: string, values: unknown[]) => {
-    // Members list
-    if (sql.includes("FROM organization_members m")) {
-      const userId = values[0] as string;
-      return MEMBERS.filter(m => m.user_id === userId).map(m => ({
-        organization_id: m.organization_id,
-        organization_name: ORGS.find(o => o.id === m.organization_id)?.name ?? "",
-        business_type: ORGS.find(o => o.id === m.organization_id)?.business_type ?? "",
-        base_currency: "IDR",
-        books_start_date: "2026-01-01",
-        onboarding_status: "completed",
-        created_by: ORGS.find(o => o.id === m.organization_id)?.created_by ?? "",
-        member_id: m.id,
-        user_id: m.user_id,
-        role: m.role,
-      }));
-    }
-    // Period locks
-    if (sql.includes("FROM period_locks")) {
-      return PERIOD_LOCKS.filter(l => l.organization_id === values[0]).map(l => ({
-        id: l.id,
-        locked_through_date: l.locked_through_date,
-      }));
-    }
-    // Journal lines for transaction (listJournalEntriesForTransaction in buildPostResult)
-    if (sql.includes("FROM journal_entries je")) {
-      // Build synthetic readback response for buildPostResult
-      // The actual data was inserted by executeBatch but FakeD1 doesn't persist.
-      // Return a minimal debit/credit pair so buildPostResult can find both sides.
-      return [{
-        journal_entry_id: "je-synthetic-readback",
-        entry_number: "JE-TEST-001",
-        entry_date: "2026-02-15",
-        entry_type: "normal",
-        entry_description: null,
-        entry_status: "posted",
-        line_id: "jl-synthetic-dr",
-        account_id: FIXTURE_IDS.accounts.cashA,
-        account_code: "1110",
-        account_name: "Kas",
-        debit_minor: 500000,
-        credit_minor: 0,
-        line_description: "Synthetic debit",
-      }, {
-        journal_entry_id: "je-synthetic-readback",
-        entry_number: "JE-TEST-001",
-        entry_date: "2026-02-15",
-        entry_type: "normal",
-        entry_description: null,
-        entry_status: "posted",
-        line_id: "jl-synthetic-cr",
-        account_id: FIXTURE_IDS.accounts.revenueA,
-        account_code: "4100",
-        account_name: "Pendapatan",
-        debit_minor: 0,
-        credit_minor: 500000,
-        line_description: "Synthetic credit",
-      }];
-    }
-    // Journal lines by org (generic)
-    if (sql.includes("FROM journal_lines jl")) {
-      return JOURNAL_LINES.filter(jl => jl.organization_id === values[0]).map(jl => ({
-        id: jl.id, journal_entry_id: jl.journal_entry_id,
-        account_id: jl.account_id, debit_minor: jl.debit_minor,
-        credit_minor: jl.credit_minor, description: jl.description,
-        line_order: jl.line_order,
-      }));
-    }
-    return [];
-  };
-}
-
-function createRunHandler() {
-  return (sql: string, values: unknown[]) => {
-    validateJournalLine(sql, values);
-    rememberInsertedProduct(sql, values);
-    rememberUpdatedProduct(sql, values);
-    return { success: true, meta: { changes: 1 } } as D1Result;
-  };
-}
-
-function createBatchHandler() {
-  return (statements: { sql: string; values: unknown[] }[]) => {
-    for (const s of statements) {
-      validateJournalLine(s.sql, s.values);
-      rememberInsertedProduct(s.sql, s.values);
-      rememberUpdatedProduct(s.sql, s.values);
-    }
-    return statements.map(() => ({ success: true, meta: { changes: 1 } } as D1Result));
-  };
-}
-
-// ponytail: FakeD1 is stateless, so INSERT/UPDATE on products would be
-// invisible to later SELECTs. Remember them so findOrCreateProductByName
-// readbacks and stock/WAC assertions work.
-function rememberInsertedProduct(sql: string, values: unknown[]) {
-  if (!sql.toLowerCase().includes("insert into products")) return;
-  PRODUCTS.push({
-    id: String(values[0]),
-    organization_id: String(values[1]),
-    code: String(values[2]),
-    name: String(values[3]),
-    unit: String(values[5]),
-    purchase_price_minor: Number(values[6]),
-    selling_price_minor: Number(values[7]),
-    average_cost_minor: Number(values[8]),
-    current_stock_milli: Number(values[9]),
-    min_stock_milli: Number(values[10]),
-    is_active: Number(values[14]),
-    created_at: Number(values[17]),
-    updated_at: Number(values[18]),
-  });
-}
-
-function rememberUpdatedProduct(sql: string, values: unknown[]) {
-  if (!sql.toLowerCase().includes("update products set")) return;
-  const product = PRODUCTS.find(p => p.id === String(values.at(-3)));
-  if (!product) return;
-  // UPDATE products SET current_stock_milli = ?, average_cost_minor = ?,
-  //   purchase_price_minor = ?, updated_at = ? WHERE id = ? ...
-  if (sql.toLowerCase().includes("current_stock_milli = ?")) {
-    product.current_stock_milli = Number(values[0]);
-    product.average_cost_minor = Number(values[1]);
+  // Plain memberships lookup (e.g. counting orgs per user)
+  if (s.includes("FROM memberships") && !s.includes("JOIN")) {
+    return memberships
+      .filter((m) => m.user_id === (values[0] as string))
+      .map((m) => ({ organization_id: m.organization_id }));
   }
+
+  // Transactions list / export (LEFT JOIN readbacks)
+  if (s.includes("FROM transactions t") && s.includes("LEFT JOIN accounts")) {
+    const orgId = values[0] as string;
+    const result = applyTransactionFilters(orgTransactions(orgId), s, values, "t.");
+    return result.map((t) => toTransactionReadback(t, orgId));
+  }
+
+  // Account list (plain SELECT ... FROM accounts WHERE organization_id = ?)
+  if (s.includes("FROM accounts") && !s.includes("FROM accounts a") && !s.includes("ORDER BY")) {
+    const orgId = values[0] as string;
+    return allAccounts(orgId).map((a) => ({ ...a }));
+  }
+
+  // Account list
+  if (s.includes("FROM accounts a") || (s.includes("FROM accounts") && s.includes("ORDER BY a.code"))) {
+    const orgId = values[0] as string;
+    let result = allAccounts(orgId);
+    if (s.includes("a.is_active = 1")) result = result.filter((a) => a.is_active === 1);
+    if (s.includes("a.account_subtype = ?")) {
+      const subtype = values[1] as "cash" | "bank";
+      result = result.filter((a) => a.account_subtype === subtype);
+    }
+    if (s.includes("a.account_class = ?")) {
+      const accountClass = values[1] as SeedAccount["account_class"];
+      result = result.filter((a) => a.account_class === accountClass);
+    }
+    return result.map((a) => ({ ...a }));
+  }
+
+  // Balances per account (dashboard + accounts list): grouped debit/credit
+  if (s.includes("FROM journal_lines jl") && s.includes("GROUP BY jl.account_id")) {
+    const orgId = values[0] as string;
+    const totals = journalTotalsByAccount(orgId, {});
+    return [...totals.entries()].map(([account_id, { debit, credit }]) => ({
+      account_id,
+      debit,
+      credit,
+    }));
+  }
+
+  // Report account totals (profit-loss + balance-sheet)
+  if (s.includes("FROM journal_lines jl") && s.includes("GROUP BY a.id")) {
+    const orgId = values[0] as string;
+    const toDate = values[1] as string;
+    const fromDate = s.includes("t.transaction_date >= ?") ? (values[2] as string) : null;
+    const totals = journalTotalsByAccount(orgId, { toDate, fromDate });
+    return [...totals.entries()].map(([account_id, { debit, credit }]) => {
+      const account = allAccounts(orgId).find((a) => a.id === account_id);
+      return {
+        id: account_id,
+        code: account?.code ?? "",
+        name: account?.name ?? "",
+        account_class: account?.account_class ?? "",
+        debit,
+        credit,
+      };
+    });
+  }
+
+  return [];
 }
+
+/** Sum debits/credits of posted journal lines per account (date-filterable). */
+function journalTotalsByAccount(
+  orgId: string,
+  opts: { toDate?: string; fromDate?: string | null },
+): Map<string, { debit: number; credit: number }> {
+  const totals = new Map<string, { debit: number; credit: number }>();
+  for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
+    const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
+    const txn = entry ? transactions.find((t) => t.id === entry.transaction_id) : null;
+    if (!txn) continue;
+    if (txn.status !== "posted") continue;
+    if (opts.toDate && txn.transaction_date > opts.toDate) continue;
+    if (opts.fromDate && txn.transaction_date < opts.fromDate) continue;
+    const bucket = totals.get(line.account_id) ?? { debit: 0, credit: 0 };
+    bucket.debit += line.debit_idr;
+    bucket.credit += line.credit_idr;
+    totals.set(line.account_id, bucket);
+  }
+  return totals;
+}
+
+function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 - fake-D1 dispatcher mirrors real query shapes
+  const s = norm(sql);
+
+  if (s.includes("INSERT INTO users")) {
+    insertedUsers.push({
+      id: values[0] as string,
+      email: values[1] as string,
+      password_hash: values[2] as string,
+      full_name: values[3] as string,
+      status: "active",
+      created_at: Number(values[5]),
+      updated_at: Number(values[6]),
+    });
+  }
+
+  if (s.includes("INSERT INTO oauth_accounts")) {
+    // VALUES (?, ?, 'google', ?, ?, ?, ?): id, user_id, provider_account_id, email, created_at, updated_at
+    oauthAccounts.push({
+      id: values[0] as string,
+      user_id: values[1] as string,
+      provider: "google",
+      provider_account_id: values[2] as string,
+      email: (values[3] as string | null) ?? null,
+      created_at: Number(values[4]),
+      updated_at: Number(values[5]),
+    });
+  }
+
+  if (s.includes("INSERT INTO sessions")) {
+    // hasOrg shape: (id, user_id, token_hash, ip, ua, current_organization_id, expires_at, last_used_at, created_at)
+    // no-org shape: (id, user_id, token_hash, ip, ua, expires_at, last_used_at, created_at)
+    const hasOrg = values.length === 9;
+    sessions.push({
+      id: values[0] as string,
+      user_id: values[1] as string,
+      token_hash: values[2] as string,
+      current_organization_id: hasOrg ? (values[5] as string | null) : null,
+      expires_at: Number(values[hasOrg ? 6 : 5]),
+      last_used_at: Number(values[hasOrg ? 7 : 6]),
+      last_rotated_at: null,
+      created_at: Number(values[hasOrg ? 8 : 7]),
+      revoked_at: null,
+    });
+  }
+
+  if (s.includes("INSERT INTO accounts")) {
+    if (values.length === 10) {
+      // Legacy shape: all columns explicit
+      accounts.push({
+        id: values[0] as string,
+        organization_id: values[1] as string,
+        code: values[2] as string,
+        name: values[3] as string,
+        account_class: values[4] as SeedAccount["account_class"],
+        account_subtype: values[5] as "cash" | "bank",
+        is_system: Number(values[6]),
+        is_active: Number(values[7]),
+        created_at: Number(values[8]),
+        updated_at: Number(values[9]),
+      });
+    } else if (values.length === 9) {
+      // createDefaultAccounts: is_active hardcoded as 1 in SQL
+      accounts.push({
+        id: values[0] as string,
+        organization_id: values[1] as string,
+        code: values[2] as string,
+        name: values[3] as string,
+        account_class: values[4] as SeedAccount["account_class"],
+        account_subtype: values[5] as "cash" | "bank",
+        is_system: Number(values[6]),
+        is_active: 1,
+        created_at: Number(values[7]),
+        updated_at: Number(values[8]),
+      });
+    } else {
+      // createCashBankAccount: 'asset', 0, 1 hardcoded in SQL
+      accounts.push({
+        id: values[0] as string,
+        organization_id: values[1] as string,
+        code: values[2] as string,
+        name: values[3] as string,
+        account_class: "asset",
+        account_subtype: values[4] as "cash" | "bank",
+        is_system: 0,
+        is_active: 1,
+        created_at: Number(values[5]),
+        updated_at: Number(values[6]),
+      });
+    }
+  }
+
+  if (s.includes("INSERT INTO organizations")) {
+    orgs.push({
+      id: values[0] as string,
+      name: values[1] as string,
+      base_currency: values[2] as string,
+      status: "active",
+      created_at: Number(values[3]),
+      updated_at: Number(values[4]),
+    });
+  }
+
+  if (s.includes("INSERT INTO memberships")) {
+    // Columns: (id, user_id, organization_id, role, created_at)
+    memberships.push({
+      id: values[0] as string,
+      user_id: values[1] as string,
+      organization_id: values[2] as string,
+      role: "owner",
+      created_at: Number(values[3]),
+    });
+  }
+
+  if (s.includes("UPDATE accounts SET")) {
+    const account = accounts.find(
+      (a) =>
+        a.id === values.at(-2) &&
+        a.organization_id === values.at(-1),
+    );
+    if (account) {
+      let vi = 0;
+      if (s.includes("name = ?")) account.name = values[vi++] as string;
+      // eslint-disable-next-line no-useless-assignment -- final index read
+      if (s.includes("is_active = ?")) account.is_active = Number(values[vi++]);
+      account.updated_at = Number(values.at(-3));
+    }
+  }
+
+  if (s.includes("INSERT INTO transactions")) {
+    transactions.push({
+      id: values[0] as string,
+      organization_id: values[1] as string,
+      transaction_number: values[2] as string,
+      transaction_type: values[3] as SeedTransaction["transaction_type"],
+      transaction_date: values[4] as string,
+      description: values[5] as string,
+      status: "posted",
+      amount_idr: Number(values[6]),
+      cash_account_id: values[7] as string,
+      counter_account_id: values[8] as string,
+      idempotency_key: values[9] as string,
+      created_by: values[10] as string,
+      created_at: Number(values[11]),
+      voided_at: null,
+      void_reason: null,
+      updated_at: Number(values[12]),
+    });
+  }
+
+  if (s.includes("INSERT INTO journal_entries")) {
+    journalEntries.push({
+      id: values[0] as string,
+      organization_id: values[1] as string,
+      transaction_id: values[2] as string,
+      entry_date: values[3] as string,
+      description: values[4] as string,
+      created_at: Number(values[5]),
+    });
+  }
+
+  if (s.includes("INSERT INTO journal_lines")) {
+    journalLines.push({
+      id: values[0] as string,
+      organization_id: values[1] as string,
+      journal_entry_id: values[2] as string,
+      account_id: values[3] as string,
+      debit_idr: Number(values[4]),
+      credit_idr: Number(values[5]),
+      created_at: Number(values[6]),
+    });
+  }
+
+  if (s.includes("UPDATE transactions SET status")) {
+    const txn = transactions.find((t) => t.id === values[3]);
+    if (txn?.status === "posted") {
+      txn.status = "voided";
+      txn.voided_at = Number(values[0]);
+      txn.void_reason = (values[1] as string | null) ?? null;
+    }
+  }
+
+  if (s.includes("UPDATE sessions SET")) {
+    const session = sessions.find((x) => x.id === values[1]);
+    if (session) {
+      if (s.includes("current_organization_id = ?")) {
+        session.current_organization_id = values[0] as string | null;
+      }
+      if (s.includes("last_used_at = ?")) {
+        session.last_used_at = Number(values[0]);
+      }
+    }
+  }
+
+  return {
+    success: true,
+    results: [],
+    meta: {
+      duration: 0,
+      size_after: 0,
+      rows_read: 0,
+      rows_written: 1,
+      last_row_id: 0,
+      changed_db: true,
+      changes: 1,
+    },
+  };
+}
+
+// ── Public fixtures API ─────────────────────────────────────────
+
+export interface SeedFixture {
+  db: FakeD1Database;
+  tokens: {
+    ownerA: string;
+    ownerB: string;
+    ownerEmpty: string;
+  };
+  password: string;
+  pepper: string;
+}
+
+async function buildSessions(): Promise<void> {
+  const tokens = ["session-token-orga-000001", "session-token-orgb-000001", "session-token-empty-000001"];
+  const now = Date.now();
+  const hashes = await Promise.all(tokens.map((t) => hashToken(t)));
+  SEED_SESSIONS[0].token_hash = hashes[0];
+  SEED_SESSIONS[1].token_hash = hashes[1];
+  SEED_SESSIONS[2].token_hash = hashes[2];
+  for (const session of SEED_SESSIONS) {
+    session.expires_at = now + 7 * 86400000; // valid for a week from load
+    session.last_used_at = now - 1000;
+    session.created_at = now - 86400000; // 1 day old → no token rotation
+  }
+  const passwordHash = await hashPassword(TEST_PASSWORD, TEST_PEPPER);
+  SEED_USERS[0].password_hash = passwordHash;
+}
+
+/** Await once at module load (vitest ESM supports top-level await). */
+await buildSessions();
+
+/**
+ * Build a FakeD1Database with the complete MVP seed schema + data.
+ * Each call resets the runtime mirrors, isolating tests from each other.
+ */
+export function createSeedFixtures(): SeedFixture {
+  resetRuntime();
+  const db = new FakeD1Database({
+    first: handleFirst,
+    all: handleAll,
+    run: handleRun,
+  });
+
+  return {
+    db: db as unknown as FakeD1Database,
+    tokens: {
+      ownerA: "session-token-orga-000001",
+      ownerB: "session-token-orgb-000001",
+      ownerEmpty: "session-token-empty-000001",
+    },
+    password: TEST_PASSWORD,
+    pepper: TEST_PEPPER,
+  };
+}
+
+/** Unbalanced journal fixture for validation tests. */
+export const INVALID_DATA = {
+  unbalancedJournal: {
+    lines: [
+      { accountId: "acct-invalid-001", debitIdr: 500000, creditIdr: 0 },
+      { accountId: "acct-invalid-002", debitIdr: 0, creditIdr: 300000 },
+    ],
+  },
+  negativeAmount: { amountIdr: -1000 },
+} as const;

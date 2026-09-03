@@ -1,31 +1,20 @@
 import { apiRequest } from "./client";
 
-export type AccountType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "cogs"
-  | "expense"
-  | "other_income"
-  | "other_expense";
-
-export type NormalBalance = "debit" | "credit";
-export type CashBankKind = "cash" | "bank" | "qris" | "ewallet";
+export type AccountClass = "asset" | "liability" | "equity" | "income" | "expense";
+export type CashBankSubtype = "cash" | "bank";
 
 export interface Account {
   id: string;
-  code: number;
+  organization_id: string;
+  code: string;
   name: string;
-  account_type: AccountType;
-  normal_balance: NormalBalance;
-  parent_account_id: string | null;
-  is_system: boolean;
-  is_locked: boolean;
-  is_active: boolean;
-  is_cash_account: boolean;
-  cash_account_type: "cash" | "bank" | "qris" | null;
-  report_group: string | null;
+  account_class: AccountClass;
+  account_subtype: CashBankSubtype | null;
+  is_system: number;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+  balance_idr?: number;
 }
 
 interface AccountsResponse {
@@ -37,54 +26,41 @@ interface AccountResponse {
 }
 
 export interface AccountListFilters {
-  active?: boolean;
-  cashBankOnly?: boolean;
-  accountTypes?: AccountType[];
+  includeInactive?: boolean;
+  subtype?: CashBankSubtype;
 }
 
 export function listAccounts(filters: AccountListFilters = {}): Promise<Account[]> {
   const params = new URLSearchParams();
-  if (filters.active !== undefined) params.set("active", String(filters.active));
-  if (filters.cashBankOnly) params.set("kind", "cash-bank");
-  if (filters.accountTypes?.length) {
-    params.set("accountTypes", filters.accountTypes.join(","));
-  }
+  if (filters.includeInactive) params.set("includeInactive", "true");
+  if (filters.subtype) params.set("subtype", filters.subtype);
   const query = params.toString();
   const path = query ? `/api/accounts?${query}` : "/api/accounts";
-  return apiRequest<AccountsResponse>(path).then(
-    (data) => data.accounts,
-  );
+  return apiRequest<AccountsResponse>(path).then((data) => data.accounts);
 }
 
 export function listCashBankAccounts(): Promise<Account[]> {
-  return apiRequest<AccountsResponse>("/api/accounts/cash-bank").then(
-    (data) => data.accounts,
+  return listAccounts({ subtype: "cash" }).then((cash) =>
+    listAccounts({ subtype: "bank" }).then((bank) => [...cash, ...bank]),
   );
 }
 
 export function createCashBankAccount(
-  kind: CashBankKind,
+  subtype: CashBankSubtype,
   name: string,
 ): Promise<Account> {
   return apiRequest<AccountResponse>("/api/accounts/cash-bank", {
     method: "POST",
-    body: JSON.stringify({ kind, name }),
+    body: JSON.stringify({ subtype, name }),
   }).then((data) => data.account);
 }
 
-export function generateCashBankCode(kind: CashBankKind): Promise<number> {
-  return apiRequest<{ code: number }>("/api/accounts/generate-code", {
-    method: "POST",
-    body: JSON.stringify({ kind }),
-  }).then((data) => data.code);
-}
-
-export function updateAccountName(
+export function patchAccount(
   accountId: string,
-  name: string,
+  input: { name?: string; isActive?: boolean },
 ): Promise<Account> {
   return apiRequest<AccountResponse>(`/api/accounts/${accountId}`, {
     method: "PATCH",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(input),
   }).then((data) => data.account);
 }

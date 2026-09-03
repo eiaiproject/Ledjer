@@ -1,106 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { type ComponentType } from "react";
-import * as Sentry from "@sentry/react";
-import {
-  Home,
-  Receipt,
-  Package,
-  FileText,
-  Chart,
-  Settings,
-  Plus,
-  Logout,
-  Menu,
-  X,
-  ChevronDown,
-  AnglesLeft,
-  Wallet,
-  Coffee,
-  Refresh,
-} from "reicon-react";
-import { useOrganization, useIsOwner, useOrgPermissions } from "@/hooks/useOrganization";
+import { Chart, Home, Logout, Menu, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
+import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
-import { cn, SUPPORT_URL } from "@/lib/utils";
-import { trackSupportClick } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
-import { OfflineBanner } from "@/components/ui/offline-banner";
-import { toast } from "@/components/ui/toast";
-import { SupportBanner } from "@/components/ui/support-banner";
-import { refreshAllData } from "@/lib/query-client";
-import { GlobalSearchModal, SearchTrigger } from "@/components/global-search";
-import { NotificationBell } from "@/components/notification-bell";
 
 type NavItem =
   | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
   | { label: string; icon: ComponentType<{ className?: string }>; children: { to: string; label: string }[]; to?: never };
 
-type NavItemWithPerm = NavItem & { requires?: string };
-
-// ── Target Navigation ────────────────────────────────────────────
-// Bottom nav (mobile): Beranda | Transaksi | Produk | Lainnya
-// Laporan → Laba Rugi, Neraca, Arus Kas, Piutang & Utang, Buku Besar, Neraca Saldo
-// Pengaturan → Profil Usaha, Akun & Keamanan, Saldo Awal, Tim, Impor Data, Lanjutan
-
-const NAV_ITEMS: NavItemWithPerm[] = [
+const NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Beranda", icon: Home },
-  { to: "/transactions", label: "Transaksi", icon: Receipt, requires: "canCreateTransaction" },
-  { to: "/invoices", label: "Penjualan", icon: FileText, requires: "canCreateTransaction" },
-  { to: "/products", label: "Produk", icon: Package, requires: "canManageProducts" },
+  { to: "/transactions", label: "Transaksi", icon: Receipt },
   { to: "/accounts", label: "Kas & Bank", icon: Wallet },
   {
     label: "Laporan",
     icon: Chart,
-    requires: "canViewReports",
     children: [
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
-      { to: "/reports/cash-flow", label: "Arus Kas" },
-      { to: "/reports/aging", label: "Piutang & Utang" },
-      { to: "/reports/general-ledger", label: "Buku Besar" },
-      { to: "/reports/trial-balance", label: "Neraca Saldo" },
     ],
   },
-  {
-    label: "Pengaturan",
-    icon: Settings,
-    children: [
-      { to: "/settings/organization", label: "Profil Usaha" },
-      { to: "/settings/security", label: "Akun & Keamanan" },
-      { to: "/opening-balance", label: "Saldo Awal" },
-      { to: "/settings/team", label: "Tim" },
-      { to: "/import", label: "Impor Data" },
-      { to: "/settings/period-locks", label: "Cegah Perubahan Transaksi Lama" },
-      { to: "/journals", label: "Penyesuaian Akuntansi" },
-    ],
-  },
+  { to: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
-// Mobile bottom nav: 4 quick tabs + Lainnya. Kas & Bank added to quick access
-// (daily use for UMKM), Penjualan stays in Lainnya for casual users.
-const BOTTOM_NAV_ROUTES: ReadonlySet<string> = new Set(["/dashboard", "/transactions", "/products", "/accounts"]);
+const BOTTOM_NAV_ITEMS = NAV_ITEMS.filter((item) => !item.children);
 
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: orgData } = useOrganization();
-  const isOwner = useIsOwner();
-  const { canCreateTransaction } = useOrgPermissions();
-  const navPermissions = useOrgPermissions();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(["Laporan", "Pengaturan"]);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // P1.4: Onboarding guard - redirect to onboarding if not completed
-  useEffect(() => {
-    if (orgData?.needsOnboarding) {
-      navigate("/onboarding", { replace: true });
-    }
-  }, [orgData, navigate]);
-
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(["Laporan"]);
   const mobileDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -117,17 +50,6 @@ export function DashboardLayout() {
     setMobileMenuOpen(false);
   }, []);
 
-  // Filter nav items based on permissions
-  const visibleNavItems = NAV_ITEMS.filter((item) => {
-    if (!item.requires) return true;
-    return (navPermissions as Record<string, boolean>)[item.requires] === true;
-  });
-
-  // Bottom nav (mobile) tabs - subset of the top-level destinations.
-  const bottomNavItems = visibleNavItems.filter(
-    (item) => !item.children && BOTTOM_NAV_ROUTES.has(item.to ?? ""),
-  );
-
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>
       prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
@@ -143,68 +65,16 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
-  // Global refresh: one action refetches every page's cached data at once
-  // (current page refetched immediately, other pages invalidated so their
-  // next visit shows fresh data).
-  const handleGlobalRefresh = useCallback(async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    try {
-      await refreshAllData();
-      toast.success("Semua data diperbarui.");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
-
-  // Keyboard shortcut: Ctrl+K / Cmd+K to open search
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Sentry Feedback widget - only visible inside dashboard layout
-  useEffect(() => {
-    const feedback = Sentry.getFeedback() as { createWidget: (opts?: Record<string, unknown>) => { remove: () => void } } | undefined;
-    if (!feedback) return;
-    const widget = feedback.createWidget();
-    return () => widget.remove();
-  }, []);
-
-  // App-like feel on Android: disable pull-to-refresh / edge glow on the root
-  // scroller while inside the authenticated app. Scoped here (not globally) so
-  // the public landing page keeps native browser behavior.
-  useEffect(() => {
-    document.documentElement.classList.add("ledger-app-scroll");
-    return () => document.documentElement.classList.remove("ledger-app-scroll");
-  }, []);
-
-  if (orgData?.needsOnboarding) {
-    return (
-      <output className="flex ledger-min-dvh items-center justify-center" aria-label="Memuat data organisasi">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <span className="sr-only">Memuat data organisasi...</span>
-      </output>
-    );
-  }
-
   const handleSkipToContent = () => {
-    const main = document.getElementById('main-content');
+    const main = document.getElementById("main-content");
     if (main) {
       main.focus();
-      main.scrollIntoView({ behavior: 'smooth' });
+      main.scrollIntoView({ behavior: "smooth" });
     }
   };
 
-  const showBottomNav = location.pathname !== '/transactions/new';
-
-  const sidebarWidth = sidebarCollapsed ? "w-16" : "w-60";
+  const showBottomNav = location.pathname !== "/transactions/new";
+  const orgInitial = orgData?.organization?.name?.charAt(0)?.toUpperCase() || "L";
 
   return (
     <div className="ledger-min-dvh bg-background">
@@ -216,77 +86,49 @@ export function DashboardLayout() {
       >
         Langsung ke konten utama
       </a>
+
       {/* Desktop Sidebar */}
-      <aside className={cn(
-        "hidden bg-wood-700 transition-all duration-300 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:z-[var(--z-drawer)] lg:flex lg:flex-col",
-        sidebarWidth
-      )}>
-        {/* Logo */}
+      <aside className="hidden bg-wood-700 lg:fixed lg:inset-y-0 lg:left-0 lg:z-[var(--z-drawer)] lg:flex lg:w-60 lg:flex-col">
         <div className="flex h-16 items-center justify-between border-b border-wood-600 px-4">
-          {sidebarCollapsed ? (
-            <button               type="button"
-              onClick={() => setSidebarCollapsed(false)}
-              className="flex items-center gap-2"
-              aria-label="Perluas sidebar"
-            >
-              <Logo size="sm" variant="icon" className="h-8 w-8" />
-            </button>
-          ) : (
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <Logo size="md" variant="full" color="white" className="h-8" />
-            </Link>
-          )}
-          {!sidebarCollapsed && (
-            <button               type="button"
-              onClick={() => setSidebarCollapsed(true)}
-              className="p-2 rounded-md text-wood-300 hover:bg-wood-600 hover:text-cream-50 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label="Ciutkan sidebar"
-            >
-              <AnglesLeft className="h-4 w-4" />
-            </button>
-          )}
+          <Link to="/dashboard" className="flex items-center gap-2">
+            <Logo size="md" variant="full" color="white" className="h-8" />
+          </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2" aria-label="Primary">
+        <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Navigasi utama">
           <ul className="space-y-1">
-            {visibleNavItems.map((item) => {
+            {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const children = item.children;
-              const isExpanded = expandedMenus.includes(item.label) || (children ? isParentActive(children) : false);
+              const isExpanded = children ? expandedMenus.includes(item.label) || isParentActive(children) : false;
               const active = children ? isParentActive(children) : isActive(item.to!);
-              const menuId = `desktop-nav-${item.label.toLowerCase()}`;
 
               if (children) {
+                const menuId = `desktop-nav-${item.label.toLowerCase()}`;
                 return (
                   <li key={item.label}>
-                    <button                       type="button"
+                    <button
+                      type="button"
                       onClick={() => toggleMenu(item.label)}
                       aria-expanded={isExpanded}
                       aria-controls={menuId}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-lg text-sm font-medium transition-colors",
-                        sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
+                        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         active
                           ? "bg-wood-600 text-cream-50"
                           : "text-wood-200 hover:bg-wood-600/50 hover:text-cream-50"
                       )}
-                      title={sidebarCollapsed ? item.label : undefined}
                     >
                       <Icon className="h-5 w-5 shrink-0" />
-                      {!sidebarCollapsed && (
-                        <>
-                          <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
-                          <ChevronDown
-                            className={cn(
-                              "h-4 w-4 transition-transform",
-                              isExpanded && "rotate-180"
-                            )}
-                          />
-                        </>
-                      )}
+                      <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
+                      <span
+                        className={cn("text-wood-300 transition-transform", isExpanded && "rotate-180")}
+                        aria-hidden="true"
+                      >
+                        ▾
+                      </span>
                     </button>
-                    {!sidebarCollapsed && isExpanded && (
+                    {isExpanded && (
                       <ul id={menuId} className="mt-1 ml-8 space-y-1">
                         {children.map((child) => (
                           <li key={child.to}>
@@ -313,19 +155,17 @@ export function DashboardLayout() {
               return (
                 <li key={item.to}>
                   <Link
-                    to={item.to}
+                    to={item.to!}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
-                      sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       active
                         ? "bg-wood-600 text-cream-50"
                         : "text-wood-200 hover:bg-wood-600/50 hover:text-cream-50"
                     )}
-                    title={sidebarCollapsed ? item.label : undefined}
                   >
                     <Icon className="h-5 w-5 shrink-0" />
-                    {!sidebarCollapsed && <span className="min-w-0 break-words">{item.label}</span>}
+                    <span className="min-w-0 break-words">{item.label}</span>
                   </Link>
                 </li>
               );
@@ -333,79 +173,35 @@ export function DashboardLayout() {
           </ul>
         </nav>
 
-        {/* Trakteer Support */}
-        <div className={cn("border-t border-wood-600 px-3 py-2", sidebarCollapsed && "px-2")}>
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Dukung pengembangan Ledjer melalui Trakteer, terbuka di tab baru"
-            onClick={() => { trackSupportClick("app_menu"); }}
-            className={cn(
-              "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
-              sidebarCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
-              "text-wood-300 hover:bg-wood-600/50 hover:text-cream-50"
-            )}
-            data-placement="app_menu"
-          >
-            <span className="text-wood-300">
-              <Coffee className="h-5 w-5" aria-hidden="true" />
-            </span>
-            {!sidebarCollapsed && <span className="min-w-0 break-words">Traktir pengembang</span>}
-          </a>
-        </div>
-
-        {/* User Section */}
-        <div className={cn(
-          "border-t border-wood-600 p-3",
-          sidebarCollapsed && "px-2"
-        )}>
-          <div className={cn(
-            "flex items-center",
-            sidebarCollapsed ? "justify-center" : "gap-3"
-          )}>
-            <div className="h-9 w-9 rounded-full bg-wood-500 flex items-center justify-center text-cream-50 text-sm font-medium shrink-0">
-              {orgData?.organization?.name?.charAt(0) || "U"}
+        <div className="border-t border-wood-600 p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wood-500 text-sm font-medium text-cream-50">
+              {orgInitial}
             </div>
-            {!sidebarCollapsed && (
-              <>
-                <div className="flex-1 min-w-0">
-                  <p className="break-words text-sm font-medium text-cream-50">
-                    {orgData?.organization?.name || "Organisasi"}
-                  </p>
-                  <p className="text-xs text-wood-300 capitalize">
-                    {isOwner ? "Owner" : "Staff"}
-                  </p>
-                </div>
-                <button                   type="button"
-                  onClick={handleSignOut}
-                  className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                  aria-label="Keluar"
-                >
-                  <Logout className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </div>
-          {sidebarCollapsed && (
-            <button               type="button"
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-sm font-medium text-cream-50">
+                {orgData?.organization?.name || "Organisasi"}
+              </p>
+            </div>
+            <button
+              type="button"
               onClick={handleSignOut}
-              className="mt-2 w-full p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 flex justify-center min-h-[44px]"
+              className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-wood-300 hover:bg-wood-600 hover:text-cream-50"
               aria-label="Keluar"
             >
               <Logout className="h-4 w-4" />
             </button>
-          )}
+          </div>
         </div>
       </aside>
 
-      {/* Mobile Header - ledger-safe-top keeps content below the status bar on
-          notched phones and Android 15 edge-to-edge devices */}
-      <div className="ledger-safe-top fixed top-0 inset-x-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
+      {/* Mobile Header */}
+      <div className="ledger-safe-top fixed inset-x-0 top-0 z-[var(--z-dropdown)] border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <button             type="button"
+          <button
+            type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="flex h-11 w-11 items-center justify-center -ml-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+            className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-wood-600 hover:bg-cream-200"
             aria-label="Buka menu"
           >
             <Menu className="h-5 w-5" />
@@ -413,30 +209,18 @@ export function DashboardLayout() {
           <Link to="/dashboard" className="flex h-11 items-center">
             <Logo size="sm" variant="full" className="h-7" />
           </Link>
-          {location.pathname !== '/transactions/new' && (
-            <button
-              type="button"
-              onClick={handleGlobalRefresh}
-              disabled={refreshing}
-              aria-label={refreshing ? "Memperbarui data..." : "Perbarui semua data"}
-              className="flex h-11 w-11 items-center justify-center text-wood-600 hover:bg-cream-200 rounded-lg disabled:opacity-60"
-            >
-              <Refresh className={cn("h-5 w-5", refreshing && "animate-spin")} aria-hidden="true" />
-            </button>
-          )}
-          {canCreateTransaction && location.pathname !== '/transactions/new' && (
+          {location.pathname !== "/transactions/new" ? (
             <Link
               to="/transactions/new"
-              className="flex h-11 w-11 items-center justify-center -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+              className="-mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-wood-600 hover:bg-cream-200"
               aria-label="Transaksi baru"
             >
               <Plus className="h-5 w-5" />
             </Link>
-          )}
-          {location.pathname === '/transactions/new' && (
+          ) : (
             <Link
               to="/transactions"
-              className="flex h-11 w-11 items-center justify-center -mr-2 text-wood-600 hover:bg-cream-200 rounded-lg"
+              className="-mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-wood-600 hover:bg-cream-200"
               aria-label="Batalkan transaksi"
             >
               <X className="h-5 w-5" />
@@ -452,40 +236,43 @@ export function DashboardLayout() {
         className="fixed inset-0 z-[var(--z-modal)] m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent lg:hidden"
         aria-label="Menu navigasi"
       >
-        <button type="button" aria-label="Tutup menu" className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0" onClick={() => mobileDialogRef.current?.close()} />
-        {/* ledger-safe-top keeps the logo/close row below the status bar on
-            edge-to-edge Android devices */}
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0"
+          onClick={() => mobileDialogRef.current?.close()}
+        />
         <div className="ledger-drawer ledger-safe-top absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-wood-700 shadow-xl">
-          <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-wood-600">
+          <div className="flex h-16 shrink-0 items-center justify-between border-b border-wood-600 px-5">
             <Logo size="md" variant="full" color="white" className="h-8" />
-            <button               type="button"
+            <button
+              type="button"
               onClick={() => mobileDialogRef.current?.close()}
-              className="p-2 text-wood-300 hover:text-cream-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
+              className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-wood-300 hover:text-cream-50"
               aria-label="Tutup menu"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto py-4 px-3" aria-label="Primary">
+          <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Navigasi utama">
             <ul className="space-y-1">
-              {visibleNavItems.map((item) => {
+              {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
                 const children = item.children;
-                const active = children
-                  ? isParentActive(children)
-                  : isActive(item.to!);
+                const active = children ? isParentActive(children) : isActive(item.to!);
                 const isExpanded = children ? expandedMenus.includes(item.label) || isParentActive(children) : false;
                 const menuId = `mobile-nav-${item.label.toLowerCase()}`;
 
                 if (children) {
                   return (
                     <li key={item.label}>
-                      <button                         type="button"
+                      <button
+                        type="button"
                         onClick={() => toggleMenu(item.label)}
                         aria-expanded={isExpanded}
                         aria-controls={menuId}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px]",
+                          "flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
                           active
                             ? "bg-wood-600 text-cream-50"
                             : "text-wood-200 hover:bg-wood-600/50"
@@ -493,12 +280,12 @@ export function DashboardLayout() {
                       >
                         <Icon className="h-5 w-5" />
                         <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
-                        <ChevronDown
-                          className={cn(
-                            "h-4 w-4 transition-transform",
-                            isExpanded && "rotate-180"
-                          )}
-                        />
+                        <span
+                          className={cn("text-wood-300 transition-transform", isExpanded && "rotate-180")}
+                          aria-hidden="true"
+                        >
+                          ▾
+                        </span>
                       </button>
                       {isExpanded && (
                         <ul id={menuId} className="mt-1 ml-8 space-y-1">
@@ -509,9 +296,9 @@ export function DashboardLayout() {
                                 onClick={() => setMobileMenuOpen(false)}
                                 aria-current={isActive(child.to) ? "page" : undefined}
                                 className={cn(
-                                  "block rounded-lg px-3 py-2 text-sm min-h-[44px] flex items-center",
+                                  "flex min-h-[44px] items-center rounded-lg px-3 py-2 text-sm",
                                   isActive(child.to)
-                                    ? "bg-wood-600/50 text-cream-50 font-medium"
+                                    ? "bg-wood-600/50 font-medium text-cream-50"
                                     : "text-wood-300 hover:bg-wood-600/30"
                                 )}
                               >
@@ -528,11 +315,11 @@ export function DashboardLayout() {
                 return (
                   <li key={item.to}>
                     <Link
-                      to={item.to}
+                      to={item.to!}
                       onClick={() => setMobileMenuOpen(false)}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium min-h-[44px]",
+                        "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
                         active
                           ? "bg-wood-600 text-cream-50"
                           : "text-wood-200 hover:bg-wood-600/50"
@@ -547,37 +334,20 @@ export function DashboardLayout() {
             </ul>
           </nav>
 
-          {/* Mobile Trakteer Support */}
-          <div className="shrink-0 border-t border-wood-600 px-4 py-3">
-            <a
-              href={SUPPORT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Dukung pengembangan Ledjer melalui Trakteer, terbuka di tab baru"
-              onClick={() => { trackSupportClick("app_menu"); }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-wood-300 transition-colors hover:bg-wood-600/50 hover:text-cream-50 min-h-[44px]"
-              data-placement="app_menu"
-            >
-              <span className="text-wood-300">
-                <Coffee className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 break-words">Traktir pengembang</span>
-            </a>
-          </div>
-
           <div className="shrink-0 border-t border-wood-600 p-4 ledger-safe-bottom">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-wood-500 flex items-center justify-center text-cream-50 text-sm font-medium shrink-0">
-                {orgData?.organization?.name?.charAt(0) || "U"}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wood-500 text-sm font-medium text-cream-50">
+                {orgInitial}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="break-words text-sm font-medium text-cream-50">
                   {orgData?.organization?.name || "Organisasi"}
                 </p>
               </div>
-              <button                 type="button"
+              <button
+                type="button"
                 onClick={handleSignOut}
-                className="p-2 rounded-md text-wood-300 hover:text-cream-50 hover:bg-wood-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-wood-300 hover:bg-wood-600 hover:text-cream-50"
                 aria-label="Keluar"
               >
                 <Logout className="h-4 w-4" />
@@ -592,76 +362,52 @@ export function DashboardLayout() {
         id="main-content"
         tabIndex={-1}
         className={cn(
-          "bg-background transition-[padding] duration-300 ease-out outline-none",
-          "pt-[calc(56px+env(safe-area-inset-top,0px))] lg:pt-0",
-          showBottomNav && "pb-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] lg:pb-0",
-          sidebarCollapsed ? "lg:pl-16" : "lg:pl-60"
+          "bg-background outline-none transition-[padding] duration-300 ease-out",
+          "pt-[calc(56px+env(safe-area-inset-top,0px))] lg:pl-60 lg:pt-0",
+          showBottomNav && "pb-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] lg:pb-0"
         )}
       >
-        <OfflineBanner />
-        <div className="hidden border-b border-wood-100 bg-surface px-4 py-2 lg:flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleGlobalRefresh}
-            disabled={refreshing}
-            aria-label={refreshing ? "Memperbarui data..." : "Perbarui semua data"}
-            title="Perbarui semua data"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-wood-600 transition-colors hover:bg-cream-200 hover:text-wood-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Refresh className={cn("h-4 w-4", refreshing && "animate-spin")} aria-hidden="true" />
-          </button>
-          <SearchTrigger onClick={() => setSearchOpen(true)} />
-          <NotificationBell />
-        </div>
-        <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
-        <div key={location.pathname} className="@container ledger-page mx-auto max-w-7xl px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-8 lg:pb-8">
-          {/* Value-moment support banner - hidden on transaction input & error pages */}
-          {location.pathname !== "/transactions/new" && (
-            <SupportBanner className="mb-4 md:mb-6" />
-          )}
+        <div key={location.pathname} className="ledger-page mx-auto max-w-7xl px-4 pt-4 pb-8 md:px-6 md:pt-6 lg:px-8 lg:pt-8">
           <Outlet />
         </div>
       </main>
+
       {showBottomNav && (
-      <nav
-        className="fixed bottom-0 inset-x-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden ledger-safe-bottom"
-        aria-label="Navigasi mobile"
-      >
-        {/* flex-1 items + label truncation keep every tab visible on phones -
-            no horizontal scroll (was ~400px wide, wider than all phones) */}
-        <div className="mx-auto flex w-full max-w-md items-stretch gap-0.5 px-1.5">
-          {bottomNavItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.to!);
-            return (
-              <Link
-                key={item.to}
-                to={item.to!}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium leading-tight transition-colors min-h-[56px]",
-                  active
-                    ? "text-wood-800"
-                    : "text-wood-500 hover:text-wood-700"
-                )}
-              >
-                {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-wood-700 rounded-full" aria-hidden="true" />
-                )}
-                <div className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                  active ? "bg-wood-100 text-wood-800" : ""
-                )}>
-                  <Icon className={cn("h-5 w-5", active && "text-wood-700 font-semibold")} />
-                </div>
-                <span className={cn("max-w-full truncate", active && "font-semibold")}>{item.label}</span>
-              </Link>
-            );
-          })}
-          {visibleNavItems.some((item) => !item.children && !BOTTOM_NAV_ROUTES.has(item.to ?? "")) && (
-            <button               type="button"
+        <nav
+          className="ledger-safe-bottom fixed inset-x-0 bottom-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden"
+          aria-label="Navigasi mobile"
+        >
+          <div className="mx-auto flex w-full max-w-md items-stretch gap-0.5 px-1.5">
+            {BOTTOM_NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.to!);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to!}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight transition-colors",
+                    active ? "text-wood-800" : "text-wood-500 hover:text-wood-700"
+                  )}
+                >
+                  {active && (
+                    <span className="absolute top-0 left-1/2 h-[3px] w-8 -translate-x-1/2 rounded-full bg-wood-700" aria-hidden="true" />
+                  )}
+                  <div className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                    active ? "bg-wood-100 text-wood-800" : ""
+                  )}>
+                    <Icon className={cn("h-5 w-5", active && "font-semibold text-wood-700")} />
+                  </div>
+                  <span className={cn("max-w-full truncate", active && "font-semibold")}>{item.label}</span>
+                </Link>
+              );
+            })}
+            <button
+              type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium leading-tight text-wood-500 min-h-[56px]"
+              className="flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight text-wood-500"
               aria-label="Menu lainnya"
             >
               <div className="flex h-8 w-8 items-center justify-center">
@@ -669,9 +415,8 @@ export function DashboardLayout() {
               </div>
               <span className="max-w-full truncate">Lainnya</span>
             </button>
-          )}
-        </div>
-      </nav>
+          </div>
+        </nav>
       )}
     </div>
   );

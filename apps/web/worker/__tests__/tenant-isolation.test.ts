@@ -109,9 +109,9 @@ describe("Tenant Isolation", () => {
     describe("queryFirst", () => {
       it("accepts query with valid organization_id", async () => {
         const result = await repo.queryFirst(
-          "SELECT * FROM products WHERE organization_id = ? AND id = ?",
-          ["org-abc-123", "prod-1"],
-          { table: "products" },
+          "SELECT * FROM transactions WHERE organization_id = ? AND id = ?",
+          ["org-abc-123", "txn-1"],
+          { table: "transactions" },
         );
         expect(result).toBeNull();
       });
@@ -119,9 +119,9 @@ describe("Tenant Isolation", () => {
       it("throws without organization_id", async () => {
         await expect(
           repo.queryFirst(
-            "SELECT * FROM products WHERE id = ?",
-            ["prod-1"],
-            { table: "products" },
+            "SELECT * FROM transactions WHERE id = ?",
+            ["txn-1"],
+            { table: "transactions" },
           ),
         ).rejects.toThrow("requires organization_id");
       });

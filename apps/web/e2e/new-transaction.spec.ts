@@ -1,359 +1,178 @@
 import { test } from "./helpers/auth";
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
- * New Transaction page E2E tests.
+ * Transaction creation E2E - MVP 5 types + void flow.
+ *
+ * Creates real transactions against the staging Worker via the UI, so a
+ * unique description marks each run's data.
  */
 
-// ── Helpers ────────────────────────────────────────────────────────
+const TS = Date.now();
 
-async function gotoNewTransaction(authPage: import("@playwright/test").Page, width = 375, height = 812) {
-  await authPage.setViewportSize({ width, height });
-  await authPage.goto("/transactions/new");
-  await expect(authPage.locator("h1")).toBeVisible();
+const DETAIL_URL = /\/transactions\/[0-9a-f-]{36}$/;
+
+interface SubmitTransactionOptions {
+  type: string;
+  /** Label of the kas/bank select, e.g. "Akun Kas/Bank Sumber". */
+  cashAccountLabel: string;
+  /** Label of the counter-account select, e.g. "Kategori Pendapatan". */
+  counterLabel: string;
+  /** Exact option label ("<code> · <name>") for the counter account. */
+  counterAccount: string;
+  amount: string;
+  description: string;
 }
 
-// ── Viewports ──────────────────────────────────────────────────────
+/**
+ * Full UI flow from /transactions/new to a created transaction:
+ * fills the common form, submits, and waits for the UUID detail route
+ * (deliberately NOT /[^/]+$ which would also match /transactions/new).
+ */
+async function submitTransaction(page: Page, opts: SubmitTransactionOptions) {
+  await page.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
+  // Date: fixed past date so the future-date guard never trips.
+  await page.getByLabel("Tanggal").fill("2026-08-01");
+  await page.getByLabel("Jenis Transaksi").selectOption(opts.type);
+  // Exact label ("<code> · <name>") - selectOption only accepts plain strings.
+  await page.getByLabel(opts.cashAccountLabel).selectOption({ label: "1110 · Kas" });
+  await page.getByLabel(opts.counterLabel).selectOption({ label: opts.counterAccount });
+  await page.getByLabel(/Nominal/i).fill(opts.amount);
+  await page.getByLabel("Keterangan").fill(opts.description);
+  await page.getByRole("button", { name: "Simpan Transaksi" }).click();
+  await expect(page).toHaveURL(DETAIL_URL, { timeout: 15000 });
+}
 
-const viewports = [
-  { name: "Mobile 320", width: 320, height: 800 },
-  { name: "Mobile 375", width: 375, height: 812 },
-  { name: "Mobile 390", width: 390, height: 844 },
-  { name: "Mobile 430", width: 430, height: 932 },
-  { name: "Tablet 768", width: 768, height: 1024 },
-  { name: "Tablet 1024", width: 1024, height: 768 },
-  { name: "Desktop 1280", width: 1280, height: 800 },
-  { name: "Desktop 1440", width: 1440, height: 900 },
-  { name: "Desktop 1920", width: 1920, height: 1080 },
+interface CreationCase {
+  name: string;
+  descPrefix: string;
+  type: string;
+  cashAccountLabel: string;
+  counterLabel: string;
+  counterAccount: string;
+  amount: string;
+  /** Header line rendered on the detail page as "<type> · 1 Agustus 2026". */
+  header: string;
+  /** Extra detail-page texts to assert (account names, status badges). */
+  extraLabels: string[];
+}
+
+const CREATION_CASES: CreationCase[] = [
+  {
+    name: "creates a cash_in (uang masuk) transaction",
+    descPrefix: "Uang Masuk",
+    type: "cash_in",
+    cashAccountLabel: "Akun Kas/Bank Tujuan",
+    counterLabel: "Kategori Pendapatan",
+    counterAccount: "4110 · Pendapatan Usaha",
+    amount: "500000",
+    header: "Uang Masuk · 1 Agustus 2026",
+    extraLabels: ["Posted", "Pendapatan Usaha"],
+  },
+  {
+    name: "creates a cash_out (uang keluar) transaction",
+    descPrefix: "Uang Keluar",
+    type: "cash_out",
+    cashAccountLabel: "Akun Kas/Bank Sumber",
+    counterLabel: "Kategori Beban",
+    counterAccount: "6180 · Beban Lain-lain",
+    amount: "75000",
+    header: "Uang Keluar · 1 Agustus 2026",
+    extraLabels: ["Beban Lain-lain"],
+  },
+  {
+    name: "creates a transfer between kas and bank",
+    descPrefix: "Transfer",
+    type: "transfer",
+    cashAccountLabel: "Akun Sumber",
+    counterLabel: "Akun Tujuan",
+    counterAccount: "1120 · Bank",
+    amount: "200000",
+    header: "Transfer · 1 Agustus 2026",
+    extraLabels: [],
+  },
+  {
+    name: "creates an owner_deposit (modal masuk)",
+    descPrefix: "Modal Masuk",
+    type: "owner_deposit",
+    cashAccountLabel: "Akun Kas/Bank Tujuan",
+    counterLabel: "Modal Pemilik",
+    counterAccount: "3110 · Modal Pemilik",
+    amount: "1000000",
+    header: "Modal Masuk · 1 Agustus 2026",
+    extraLabels: [],
+  },
+  {
+    name: "creates an owner_withdrawal (pengambilan pemilik)",
+    descPrefix: "Pengambilan",
+    type: "owner_withdrawal",
+    cashAccountLabel: "Akun Kas/Bank Sumber",
+    counterLabel: "Pengambilan Pemilik",
+    counterAccount: "3120 · Pengambilan Pemilik",
+    amount: "250000",
+    header: "Pengambilan Pemilik · 1 Agustus 2026",
+    extraLabels: [],
+  },
 ];
 
-// ── Page basics (work unauthenticated) ─────────────────────────────
-
-test.describe("New Transaction page basics", () => {
-  test.use({ viewport: { width: 375, height: 812 } });
-
-  test("page loads without crash", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    await authPage.goto("/transactions/new");
-    await expect(authPage.locator("h1")).toBeVisible();
-    const title = await authPage.title();
-    expect(title).toMatch(/Ledjer/i);
-  });
-
-  test("no horizontal overflow at 320px", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    await authPage.setViewportSize({ width: 320, height: 800 });
-    await authPage.goto("/transactions/new");
-    await expect(authPage.locator("h1")).toBeVisible();
-    const hasOverflow = await authPage.evaluate(() => {
-      return document.body.scrollWidth > window.innerWidth;
-    });
-    expect(hasOverflow).toBeFalsy();
-  });
-});
-
-// ── Authenticated page tests ───────────────────────────────────────
-
-test.describe("Transaction type selector (auth required)", () => {
-  test("radio inputs exist for priority types", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const radios = authPage.locator('input[type="radio"][name="transactionType"]');
-    const count = await radios.count();
-    expect(count).toBeGreaterThanOrEqual(3);
-  });
-
-  test("only one radio can be checked at a time", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const radios = authPage.locator('input[type="radio"][name="transactionType"]');
-    const count = await radios.count();
-    if (count < 2) return;
-
-    // Click labels instead of radios directly
-    const firstLabel = authPage.locator('label[for="tx-type-cash_sale"]');
-    await firstLabel.click();
-    await authPage.waitForTimeout(300);
-
-    const secondLabel = authPage.locator('label[for="tx-type-cash_purchase"]');
-    await secondLabel.click();
-    await authPage.waitForTimeout(300);
-
-    expect(await authPage.locator('input[type="radio"][name="transactionType"]').nth(1).isChecked()).toBeTruthy();
-    expect(await authPage.locator('input[type="radio"][name="transactionType"]').nth(0).isChecked()).toBeFalsy();
-  });
-
-  test("fieldset and legend exist for type selector", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const fieldset = authPage.locator("fieldset").first();
-    await expect(fieldset).toBeAttached();
-    const legend = fieldset.locator("legend");
-    await expect(legend).toBeAttached();
-  });
-
-  test("radiogroup role exists", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const radiogroup = authPage.locator('[role="radiogroup"]');
-    await expect(radiogroup.first()).toBeAttached();
-  });
-});
-
-test.describe("Disclosure: Lihat jenis transaksi lainnya", () => {
-  test("disclosure button has aria-expanded=false initially", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const btn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
-    await expect(btn).toBeAttached();
-    await expect(btn).toHaveAttribute("aria-expanded", "false");
-  });
-
-  test("disclosure button has aria-controls pointing to a real element", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const btn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
-    const controlsId = await btn.getAttribute("aria-controls");
-    expect(controlsId).toBeTruthy();
-    // Use partial ID match for dynamic IDs
-    const target = authPage.locator('[id$="-additional"], [id*="additional"]').first();
-    await expect(target).toBeAttached();
-  });
-
-  test("clicking disclosure shows additional types and updates label", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const btn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
-    await btn.click();
-
-    const hideBtn = authPage.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
-    await expect(hideBtn).toBeVisible();
-    await expect(hideBtn).toHaveAttribute("aria-expanded", "true");
-  });
-
-  test("clicking hide collapses the additional types", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const expandBtn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
-    await expandBtn.click();
-
-    const hideBtn = authPage.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
-    await hideBtn.click();
-
-    const reExpand = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
-    await expect(reExpand).toBeVisible();
-    await expect(reExpand).toHaveAttribute("aria-expanded", "false");
-  });
-
-  test("selecting a type from additional list auto-expands", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const expandBtn = authPage.getByRole("button", { name: /lihat jenis transaksi lainnya/i });
-    await expandBtn.click();
-    await authPage.waitForTimeout(500);
-
-    // Click the label for credit_sale
-    const creditLabel = authPage.locator('label[for="tx-type-credit_sale"]');
-    await expect(creditLabel).toBeAttached();
-    await creditLabel.click();
-    await authPage.waitForTimeout(500);
-
-    const hideBtn = authPage.getByRole("button", { name: /sembunyikan jenis transaksi lainnya/i });
-    await expect(hideBtn).toBeVisible();
-  });
-});
-
-test.describe("Page copy (auth required)", () => {
-  test("h1 shows Transaksi Baru", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const h1 = authPage.locator("h1");
-    await expect(h1).toContainText("Transaksi Baru");
-  });
-
-  test("exactly one h1 exists", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    await authPage.goto("/transactions/new");
-    await expect(authPage.locator("h1")).toBeVisible();
-    const h1Count = await authPage.locator("h1").count();
-    expect(h1Count).toBe(1);
-  });
-
-  test("description does not contain 'Isi dari atas ke bawah'", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    await authPage.goto("/transactions/new");
-    await expect(authPage.locator("h1")).toBeVisible();
-    const body = authPage.locator("body");
-    await expect(body).not.toContainText("Isi dari atas ke bawah");
-  });
-
-  test("default section title is 'Pilih jenis transaksi'", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const sectionTitle = authPage.getByRole("heading", { name: /pilih jenis transaksi/i });
-    await expect(sectionTitle).toBeVisible({ timeout: 5000 });
-  });
-});
-
-test.describe("Submit button disabled state (auth required)", () => {
-  test("submit button is disabled before type selection", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const submitBtn = authPage.getByRole("button", { name: /catat transaksi/i });
-    await expect(submitBtn).toBeDisabled();
-  });
-
-  test("explanation text visible when no type selected", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const explanation = authPage.getByText("Pilih jenis transaksi untuk melanjutkan.");
-    await expect(explanation).toBeVisible({ timeout: 5000 });
-  });
-});
-
-test.describe("No duplicate transaction types (auth required)", () => {
-  test("Penjualan Tunai appears exactly once in initial selector", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const labels = authPage.locator('label:has-text("Penjualan Tunai")');
-    const count = await labels.count();
-    expect(count).toBe(1);
-  });
-
-  test("Pembelian Tunai appears exactly once in initial selector", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const labels = authPage.locator('label:has-text("Pembelian Tunai")');
-    const count = await labels.count();
-    expect(count).toBe(1);
-  });
-
-  test("no aria-pressed buttons exist in type selector", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    await authPage.goto("/transactions/new");
-    await expect(authPage.locator("h1")).toBeVisible();
-    const pressedButtons = authPage.locator('[role="radiogroup"] button[aria-pressed]');
-    const count = await pressedButtons.count();
-    expect(count).toBe(0);
-  });
-});
-
-test.describe("Mobile header on new transaction (auth required)", () => {
-  test("header shows X/close button instead of plus", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const closeBtn = authPage.getByRole("link", { name: /batalkan transaksi/i });
-    await expect(closeBtn).toBeVisible({ timeout: 5000 });
-
-    const plusLink = authPage.getByRole("link", { name: /^transaksi baru$/i });
-    const plusCount = await plusLink.count();
-    expect(plusCount).toBe(0);
-  });
-
-  test("close button links to /transactions", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const closeBtn = authPage.getByRole("link", { name: /batalkan transaksi/i });
-    const href = await closeBtn.getAttribute("href");
-    expect(href).toBe("/transactions");
-  });
-});
-
-// ── Responsive viewports (auth-independent) ────────────────────────
-
-for (const vp of viewports) {
-  test.describe(`Responsive: ${vp.name} (${vp.width}px)`, () => {
-    test.use({ viewport: { width: vp.width, height: vp.height } });
-
-    test("no horizontal overflow", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-      await authPage.goto("/transactions/new");
-      await expect(authPage.locator("h1")).toBeVisible();
-      const hasOverflow = await authPage.evaluate(() => {
-        return document.body.scrollWidth > window.innerWidth;
+test.describe("New Transaction", () => {
+  for (const c of CREATION_CASES) {
+    test(c.name, async ({ authPage }) => {
+      const desc = `[E2E] ${c.descPrefix} ${TS}`;
+      await submitTransaction(authPage, {
+        type: c.type,
+        cashAccountLabel: c.cashAccountLabel,
+        counterLabel: c.counterLabel,
+        counterAccount: c.counterAccount,
+        amount: c.amount,
+        description: desc,
       });
-      expect(hasOverflow).toBeFalsy();
-    });
 
-    test("type selector cards have min-height", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-      const firstCard = authPage.locator('input[type="radio"][name="transactionType"]').first();
-      await expect(firstCard).toBeAttached();
-      const label = authPage.locator(`label[for="${await firstCard.getAttribute("id")}"]`);
-      const box = await label.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-    });
-
-    test("logo is centered in mobile header", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-      await authPage.goto("/transactions/new");
-      await expect(authPage.locator("h1")).toBeVisible();
-
-      const logo = authPage.locator('a[href="/dashboard"]').first();
-      if (await logo.isVisible().catch(() => false)) {
-        const logoBox = await logo.boundingBox();
-        expect(logoBox).not.toBeNull();
-        if (logoBox) {
-          const centerX = logoBox.x + logoBox.width / 2;
-          const viewportCenter = vp.width / 2;
-          expect(Math.abs(centerX - viewportCenter)).toBeLessThan(50);
-        }
+      await expect(authPage.getByText(desc)).toBeVisible();
+      await expect(authPage.getByText(c.header)).toBeVisible();
+      for (const label of c.extraLabels) {
+        await expect(authPage.getByText(label)).toBeVisible();
       }
     });
-  });
-}
+  }
 
-// ── Keyboard navigation (auth required) ────────────────────────────
+  test("voids a posted transaction", async ({ authPage }) => {
+    const desc = `[E2E] Void ${TS}`;
+    await submitTransaction(authPage, {
+      type: "cash_out",
+      cashAccountLabel: "Akun Kas/Bank Sumber",
+      counterLabel: "Kategori Beban",
+      counterAccount: "6180 · Beban Lain-lain",
+      amount: "50000",
+      description: desc,
+    });
 
-test.describe("Keyboard navigation", () => {
-  test("arrow keys navigate between radio options", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    // Click a label first to ensure a radio is selected
-    const firstLabel = authPage.locator('label[for="tx-type-cash_sale"]');
-    await firstLabel.click();
-    await authPage.waitForTimeout(300);
+    await authPage.getByRole("button", { name: /Batalkan Transaksi/ }).click();
+    await authPage.getByRole("button", { name: /Ya, Batalkan/ }).click();
 
-    const firstRadio = authPage.locator('input[type="radio"][name="transactionType"]').first();
-    await firstRadio.focus();
-    await authPage.waitForTimeout(300);
-
-    await authPage.keyboard.press("ArrowDown");
-    await authPage.waitForTimeout(300);
-    const secondRadio = authPage.locator('input[type="radio"][name="transactionType"]').nth(1);
-    await expect(secondRadio).toBeAttached();
-    expect(await secondRadio.isChecked()).toBeTruthy();
+    await expect(authPage.getByText("Dibatalkan")).toBeVisible({ timeout: 10000 });
+    await expect(authPage.getByText("Transaksi berhasil dibatalkan.")).toBeVisible();
   });
 
-  test("space selects focused radio", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    // Click a label first to ensure a radio is selected
-    const firstLabel = authPage.locator('label[for="tx-type-cash_sale"]');
-    await firstLabel.click();
-    await authPage.waitForTimeout(300);
-
-    const firstRadio = authPage.locator('input[type="radio"][name="transactionType"]').first();
-    await firstRadio.focus();
-    await authPage.waitForTimeout(300);
-    await authPage.keyboard.press("Space");
-    await authPage.waitForTimeout(300);
-    expect(await firstRadio.isChecked()).toBeTruthy();
-  });
-});
-
-// ── Accessibility (auth required) ──────────────────────────────────
-
-test.describe("Accessibility", () => {
-  test("all interactive elements have accessible names", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const buttons = authPage.locator("button");
-    const count = await buttons.count();
-    for (let i = 0; i < count; i++) {
-      const btn = buttons.nth(i);
-      const name = await btn.getAttribute("aria-label");
-      const text = await btn.textContent();
-      expect(name || text?.trim()).toBeTruthy();
-    }
+  test("empty form cannot be submitted (stays on the form)", async ({ authPage }) => {
+    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
+    await authPage.getByLabel("Tanggal").fill("2026-08-01");
+    await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
+    await expect(authPage).toHaveURL(/\/transactions\/new/, { timeout: 5000 });
   });
 
-  test("decorative icons have aria-hidden", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    const icons = authPage.locator('[role="radiogroup"] [aria-hidden="true"]');
-    const count = await icons.count();
-    expect(count).toBeGreaterThan(0);
-  });
+  test("new transaction appears in the transactions list", async ({ authPage }) => {
+    const desc = `[E2E] List Check ${TS}`;
+    await submitTransaction(authPage, {
+      type: "cash_in",
+      cashAccountLabel: "Akun Kas/Bank Tujuan",
+      counterLabel: "Kategori Pendapatan",
+      counterAccount: "4110 · Pendapatan Usaha",
+      amount: "100000",
+      description: desc,
+    });
 
-  test("form fields have visible labels", async ({ authPage }) => {
-    await gotoNewTransaction(authPage);
-    // Click a label to select a transaction type and reveal form fields
-    const firstLabel = authPage.locator('label[for="tx-type-cash_sale"]');
-    await firstLabel.click();
-    await authPage.waitForTimeout(500);
-
-    const labels = authPage.locator("label");
-    await expect(labels.first()).toBeAttached();
+    await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
+    await expect(authPage.getByText(desc)).toBeVisible({ timeout: 15000 });
   });
 });

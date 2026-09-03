@@ -5,69 +5,30 @@ import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
 import { tooManyRequests } from "../http/errors";
 import { checkRateLimit } from "../services/rate-limit.service";
+import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import {
-  loadCurrentOrganization,
-  requirePermission,
-} from "../middleware/organization.middleware";
-import {
+  countTransactions,
   getTransaction,
-  listJournalEntriesForTransaction,
   listTransactions,
   postTransaction,
-  previewTransaction,
-  settlePartialTransaction,
   voidTransaction,
 } from "../services/transactions.service";
 
-const transactionTypeSchema = z.enum([
-  "cash_sale",
-  "credit_sale",
-  "receive_receivable",
-  "cash_purchase",
-  "credit_purchase",
-  "pay_payable",
-  "expense_payment",
-  "owner_capital",
-  "owner_draw",
-  "cash_transfer",
-]);
-
-const paymentStatusSchema = z.enum(["paid", "unpaid", "partial"]);
+const transactionTypeSchema = z.enum(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal"]);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const postTransactionSchema = z.object({
-  transactionDate: dateSchema,
   transactionType: transactionTypeSchema,
-  amount: z.number().positive(),
-  partyId: z.string().nullable().optional(),
-  partyName: z.string().max(160).nullable().optional(),
-  categoryName: z.string().max(160).nullable().optional(),
-  cashAccountId: z.string().nullable().optional(),
-  destinationCashAccountId: z.string().nullable().optional(),
-  paymentStatus: paymentStatusSchema.default("paid"),
-  partialAmount: z.number().positive().nullable().optional(),
-  dueDate: dateSchema.nullable().optional(),
-  description: z.string().min(1).max(500),
-  notes: z.string().max(1000).nullable().optional(),
-  productId: z.string().nullable().optional(),
-  productName: z.string().max(120).nullable().optional(),
-  unit: z.string().max(32).nullable().optional(),
-  quantity: z.number().positive().nullable().optional(),
-  unitPrice: z.number().min(0).nullable().optional(),
-  debitAccountId: z.string().nullable().optional(),
-  originalTransactionId: z.string().nullable().optional(),
+  transactionDate: dateSchema,
+  cashAccountId: z.string().min(1),
+  counterAccountId: z.string().min(1),
+  amountIdr: z.number().positive(),
+  description: z.string().min(1).max(200),
   idempotencyKey: z.string().min(8).max(160),
 });
 
 const voidTransactionSchema = z.object({
-  reason: z.string().min(5).max(500),
-  voidDate: dateSchema.nullable().optional(),
-  idempotencyKey: z.string().min(8).max(160),
-});
-
-const settleTransactionSchema = z.object({
-  cashAccountId: z.string(),
-  idempotencyKey: z.string().min(8).max(160),
+  reason: z.string().max(500).nullable().optional(),
 });
 
 export const transactionsRoutes = new Hono<AppContext>();
@@ -78,7 +39,7 @@ transactionsRoutes.use("*", loadCurrentOrganization());
 transactionsRoutes.get("/", requirePermission("transactions:read"), async (c) => {
   const context = c.get("organizationContext");
   const url = new URL(c.req.url);
-  const transactions = await listTransactions(c.env.DB, context.organization.id, {
+  const filters = {
     search: url.searchParams.get("search") ?? undefined,
     transactionType: url.searchParams.get("transactionType") ?? undefined,
     status: url.searchParams.get("status") ?? undefined,
@@ -86,14 +47,18 @@ transactionsRoutes.get("/", requirePermission("transactions:read"), async (c) =>
     toDate: url.searchParams.get("toDate") ?? undefined,
     limit: parseInteger(url.searchParams.get("limit")),
     offset: parseInteger(url.searchParams.get("offset")),
-  });
-  return c.json({ transactions });
+  };
+  const [transactions, total] = await Promise.all([
+    listTransactions(c.env.DB, context.organization.id, filters),
+    countTransactions(c.env.DB, context.organization.id, filters),
+  ]);
+  return c.json({ transactions, total });
 });
 
 transactionsRoutes.post("/", requirePermission("transactions:create"), async (c) => {
   const context = c.get("organizationContext");
-  if (await checkRateLimit(c.env.DB, "transactions_create", context.member.user_id, { max: 30, windowMs: 60000 })) {
-    throw tooManyRequests("Too many requests");
+  if (await checkRateLimit(c.env.DB, "transactions_create", context.member.user_id, { max: 60, windowMs: 60000 })) {
+    throw tooManyRequests("Terlalu banyak permintaan. Coba lagi nanti.");
   }
   const body = await readJson(c, postTransactionSchema);
   const result = await postTransaction(
@@ -105,27 +70,6 @@ transactionsRoutes.post("/", requirePermission("transactions:create"), async (c)
   );
   if (result.replayed) c.header("Idempotent-Replay", "true");
   return c.json(result);
-});
-
-transactionsRoutes.post("/preview", requirePermission("transactions:create"), async (c) => {
-  const context = c.get("organizationContext");
-  const body = await readJson(c, postTransactionSchema);
-  const result = await previewTransaction(
-    c.env.DB,
-    context.organization.id,
-    body,
-  );
-  return c.json(result);
-});
-
-transactionsRoutes.get("/:transactionId/journal", requirePermission("reports:read"), async (c) => {
-  const context = c.get("organizationContext");
-  const journalEntries = await listJournalEntriesForTransaction(
-    c.env.DB,
-    context.organization.id,
-    c.req.param("transactionId"),
-  );
-  return c.json({ journalEntries });
 });
 
 transactionsRoutes.get("/:transactionId", requirePermission("transactions:read"), async (c) => {
@@ -141,10 +85,10 @@ transactionsRoutes.get("/:transactionId", requirePermission("transactions:read")
 transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:void"), async (c) => {
   const context = c.get("organizationContext");
   if (await checkRateLimit(c.env.DB, "transactions_void", context.member.user_id, { max: 20, windowMs: 60000 })) {
-    throw tooManyRequests("Too many requests");
+    throw tooManyRequests("Terlalu banyak permintaan. Coba lagi nanti.");
   }
   const body = await readJson(c, voidTransactionSchema);
-  const result = await voidTransaction(
+  const transaction = await voidTransaction(
     c.env.DB,
     context.organization.id,
     context.member.user_id,
@@ -152,25 +96,7 @@ transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:
     body,
     c.get("requestId"),
   );
-  return c.json(result);
-});
-
-transactionsRoutes.post("/:transactionId/settle", requirePermission("transactions:create"), async (c) => {
-  const context = c.get("organizationContext");
-  if (await checkRateLimit(c.env.DB, "transactions_settle", context.member.user_id, { max: 20, windowMs: 60000 })) {
-    throw tooManyRequests("Too many requests");
-  }
-  const body = await readJson(c, settleTransactionSchema);
-  const result = await settlePartialTransaction(
-    c.env.DB,
-    context.organization.id,
-    context.member.user_id,
-    c.req.param("transactionId"),
-    body.cashAccountId,
-    body.idempotencyKey,
-    c.get("requestId"),
-  );
-  return c.json(result);
+  return c.json({ transaction });
 });
 
 function parseInteger(value: string | null): number | undefined {

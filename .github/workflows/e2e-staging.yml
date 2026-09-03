@@ -60,12 +60,26 @@ jobs:
         run: ./node_modules/.bin/playwright install chromium --with-deps
         working-directory: apps/web
 
-      - name: Run E2E CRUD tests
-        run: pnpm exec playwright test e2e/full-crud.spec.ts e2e/masterdata-crud.spec.ts e2e/settings-crud.spec.ts e2e/documents-crud.spec.ts --project=chromium --reporter=github,html --workers=2 --retries=1
+      - name: Create E2E session token (staging D1)
+        # Insert a session row directly into the staging D1 and export the raw
+        # token. The auth fixture then injects the cookie and skips the login
+        # API, so dozens of parallel tests never burst the Worker's login rate
+        # limit (10/IP+email per 15 min) - which previously stalled the whole
+        # suite in authPage with 30s fixture timeouts.
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          E2E_D1: ledjer-staging
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL || 'staging@yopmail.com' }}
+        run: node scripts/create-e2e-session.mjs >> "$GITHUB_ENV"
+
+      - name: Run E2E tests (MVP core specs)
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/auth.spec.ts e2e/auth-flows.spec.ts e2e/new-transaction.spec.ts e2e/accounts.spec.ts e2e/profit-loss.spec.ts e2e/balance-sheet.spec.ts e2e/settings-crud.spec.ts e2e/exports.spec.ts e2e/security-public.spec.ts e2e/security-headers.spec.ts e2e/csrf.spec.ts e2e/injection.spec.ts e2e/static-routes.spec.ts --project=chromium --reporter=github,html --workers=2 --retries=1
         working-directory: apps/web
         env:
-          # Low parallelism + login retries in the auth fixture keep us under
-          # the staging Worker's login rate limits even on shared runners.
+          # The fixture falls back to UI login only when no session token is
+          # exported (e.g. local ad-hoc runs); CI always uses the injected
+          # session from the step above.
           E2E_BASE_URL: https://ledjer-staging.eiai.workers.dev
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

@@ -1,175 +1,311 @@
 import { describe, expect, it } from "vitest";
-import { FakeD1Database } from "../test/fake-d1";
-import { assertJournalBalanced, assertPeriodOpen, calculateSettlementRemaining } from "./transactions.service";
+import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
+import type { D1Database } from "@cloudflare/workers-types";
+import {
+  assertJournalBalanced,
+  countTransactions,
+  getTransaction,
+  listTransactions,
+  postTransaction,
+  transactionDirection,
+  transactionTypeLabel,
+  voidTransaction,
+} from "./transactions.service";
+import { HttpError } from "../http/errors";
 
-describe("journal invariants", () => {
-  it("accepts positive balanced debit and credit totals", () => {
-    expect(() => assertJournalBalanced([
-      {
-        accountId: "cash",
-        debitMinor: 100_000,
-        creditMinor: 0,
-        description: "Cash sale",
-      },
-      {
-        accountId: "revenue",
-        debitMinor: 0,
-        creditMinor: 100_000,
-        description: "Cash sale",
-      },
-    ])).not.toThrow();
+const ORG_A = FIXTURE_IDS.orgs.a;
+const OWNER_A = FIXTURE_IDS.users.ownerA;
+
+function fresh(): ReturnType<typeof createSeedFixtures> {
+  return createSeedFixtures();
+}
+
+describe("assertJournalBalanced", () => {
+  it("accepts a balanced two-line journal", () => {
+    expect(() =>
+      assertJournalBalanced([
+        { accountId: "cash", debitIdr: 100000, creditIdr: 0 },
+        { accountId: "revenue", debitIdr: 0, creditIdr: 100000 },
+      ]),
+    ).not.toThrow();
   });
 
-  it("rejects unbalanced journals", () => {
-    expect(() => assertJournalBalanced([
-      {
-        accountId: "cash",
-        debitMinor: 100_000,
-        creditMinor: 0,
-        description: "Broken",
-      },
-      {
-        accountId: "revenue",
-        debitMinor: 0,
-        creditMinor: 90_000,
-        description: "Broken",
-      },
-    ])).toThrow(expect.objectContaining({ code: "journal_unbalanced" }));
+  it("rejects an unbalanced journal", () => {
+    expect(() =>
+      assertJournalBalanced([
+        { accountId: "cash", debitIdr: 100000, creditIdr: 0 },
+        { accountId: "revenue", debitIdr: 0, creditIdr: 90000 },
+      ]),
+    ).toThrowError(HttpError);
   });
 
-  it("rejects zero-value journals", () => {
-    expect(() => assertJournalBalanced([])).toThrow(
-      expect.objectContaining({ code: "journal_unbalanced" }),
-    );
+  it("rejects a line with both debit and credit", () => {
+    expect(() =>
+      assertJournalBalanced([
+        { accountId: "cash", debitIdr: 100000, creditIdr: 50000 },
+        { accountId: "revenue", debitIdr: 0, creditIdr: 50000 },
+      ]),
+    ).toThrowError(HttpError);
   });
 });
 
-describe("period lock guard", () => {
-  it("rejects posting inside a locked accounting period", async () => {
-    const db = new FakeD1Database({
-      first: () => ({
-        id: "lock-1",
-        locked_through_date: "2026-07-31",
-      }),
-    }) as unknown as D1Database;
+describe("transaction type helpers", () => {
+  it("maps transaction types to direction", () => {
+    expect(transactionDirection("cash_in")).toBe("in");
+    expect(transactionDirection("owner_deposit")).toBe("in");
+    expect(transactionDirection("cash_out")).toBe("out");
+    expect(transactionDirection("owner_withdrawal")).toBe("out");
+    expect(transactionDirection("transfer")).toBe("neutral");
+  });
 
-    await expect(assertPeriodOpen(db, "org-1", "2026-07-07")).rejects.toMatchObject({
-      code: "period_locked",
-      status: 409,
+  it("labels transaction types in Indonesian", () => {
+    expect(transactionTypeLabel("cash_in")).toBe("Uang Masuk");
+    expect(transactionTypeLabel("cash_out")).toBe("Uang Keluar");
+    expect(transactionTypeLabel("transfer")).toBe("Transfer");
+    expect(transactionTypeLabel("owner_deposit")).toBe("Modal Masuk");
+    expect(transactionTypeLabel("owner_withdrawal")).toBe("Pengambilan Pemilik");
+  });
+});
+
+describe("postTransaction", () => {
+  it("posts a cash_in transaction with a balanced journal", async () => {
+    const { db } = fresh();
+    const result = await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      transactionType: "cash_in",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      counterAccountId: FIXTURE_IDS.accounts.revenueA,
+      amountIdr: 500000,
+      description: "Penjualan tunai",
+      idempotencyKey: "idem-test-cashin-0001",
     });
+
+    expect(result.status).toBe("posted");
+    expect(result.transaction_number).toMatch(/^TRX-\d{8}-[A-Z2-9]{4}$/);
+    expect(result.journal_entry_id).toBeTruthy();
+
+    const journalLineInserts = db.statements.filter((s) =>
+      s.sql.includes("INSERT INTO journal_lines"),
+    );
+    expect(journalLineInserts).toHaveLength(2);
+    const [debit, credit] = journalLineInserts;
+    expect(debit.values[3]).toBe(FIXTURE_IDS.accounts.cashA);
+    expect(debit.values[4]).toBe(500000);
+    expect(debit.values[5]).toBe(0);
+    expect(credit.values[3]).toBe(FIXTURE_IDS.accounts.revenueA);
+    expect(credit.values[4]).toBe(0);
+    expect(credit.values[5]).toBe(500000);
   });
 
-  it("allows posting when no lock covers the date", async () => {
-    const db = new FakeD1Database() as unknown as D1Database;
+  it("posts a cash_out transaction (debit expense, credit cash)", async () => {
+    const { db } = fresh();
+    await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      transactionType: "cash_out",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      counterAccountId: FIXTURE_IDS.accounts.expenseRentA,
+      amountIdr: 250000,
+      description: "Bayar sewa",
+      idempotencyKey: "idem-test-cshout-0001",
+    });
 
-    await expect(assertPeriodOpen(db, "org-1", "2026-08-01")).resolves.toBeUndefined();
+    const journalLineInserts = db.statements.filter((s) =>
+      s.sql.includes("INSERT INTO journal_lines"),
+    );
+    const [debit, credit] = journalLineInserts;
+    expect(debit.values[3]).toBe(FIXTURE_IDS.accounts.expenseRentA);
+    expect(credit.values[3]).toBe(FIXTURE_IDS.accounts.cashA);
+  });
+
+  it("posts a transfer with destination debited and source credited", async () => {
+    const { db } = fresh();
+    await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      transactionType: "transfer",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      counterAccountId: FIXTURE_IDS.accounts.bankA,
+      amountIdr: 250000,
+      description: "Pindah ke bank",
+      idempotencyKey: "idem-test-trsfr-0001",
+    });
+
+    const journalLineInserts = db.statements.filter((s) =>
+      s.sql.includes("INSERT INTO journal_lines"),
+    );
+    const [debit, credit] = journalLineInserts;
+    expect(debit.values[3]).toBe(FIXTURE_IDS.accounts.bankA);
+    expect(credit.values[3]).toBe(FIXTURE_IDS.accounts.cashA);
+  });
+
+  it("is idempotent: replaying the same key returns the original transaction", async () => {
+    const { db } = fresh();
+    const input = {
+      transactionType: "cash_out" as const,
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      counterAccountId: FIXTURE_IDS.accounts.expenseRentA,
+      amountIdr: 100000,
+      description: "Bayar listrik",
+      idempotencyKey: "idem-test-replay-0001",
+    };
+
+    const first = await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, input);
+    const replay = await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, input);
+
+    expect(replay.transaction_id).toBe(first.transaction_id);
+    expect(replay.replayed).toBe(true);
+    expect(first.replayed).toBeUndefined();
+  });
+
+  it("rejects an invalid counter account class", async () => {
+    const { db } = fresh();
+    await expect(
+      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+        transactionType: "cash_in",
+        transactionDate: "2026-06-15",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        counterAccountId: FIXTURE_IDS.accounts.equityA, // equity is not income
+        amountIdr: 50000,
+        description: "Salah akun",
+        idempotencyKey: "idem-test-invalid-0001",
+      }),
+    ).rejects.toThrowError(HttpError);
+  });
+
+  it("rejects a transfer to the same account", async () => {
+    const { db } = fresh();
+    await expect(
+      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+        transactionType: "transfer",
+        transactionDate: "2026-06-15",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        counterAccountId: FIXTURE_IDS.accounts.cashA,
+        amountIdr: 50000,
+        description: "Transfer ke sendiri",
+        idempotencyKey: "idem-test-sameacct-0001",
+      }),
+    ).rejects.toThrowError(HttpError);
+  });
+
+  it("rejects a future transaction date", async () => {
+    const { db } = fresh();
+    const future = new Date(Date.now() + 30 * 86400000).toLocaleDateString("en-CA");
+    await expect(
+      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+        transactionType: "cash_in",
+        transactionDate: future,
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        counterAccountId: FIXTURE_IDS.accounts.revenueA,
+        amountIdr: 50000,
+        description: "Tanggal masa depan",
+        idempotencyKey: "idem-test-future-0001",
+      }),
+    ).rejects.toThrowError(HttpError);
+  });
+
+  it("rejects a zero amount", async () => {
+    const { db } = fresh();
+    await expect(
+      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+        transactionType: "cash_in",
+        transactionDate: "2026-06-15",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        counterAccountId: FIXTURE_IDS.accounts.revenueA,
+        amountIdr: 0,
+        description: "Nol rupiah",
+        idempotencyKey: "idem-test-zero-0001",
+      }),
+    ).rejects.toThrowError(HttpError);
   });
 });
 
-describe("calculateSettlementRemaining", () => {
-  const linesForCreditSalePartial30k = [
-    {
-      id: "jl1", journal_entry_id: "je1", account_id: "1100",
-      debit_minor: 30_000, credit_minor: 0, description: "Partial payment", line_order: 1,
-    },
-    {
-      id: "jl2", journal_entry_id: "je1", account_id: "1200",
-      debit_minor: 70_000, credit_minor: 0, description: "AR remaining", line_order: 2,
-    },
-    {
-      id: "jl3", journal_entry_id: "je1", account_id: "4000",
-      debit_minor: 0, credit_minor: 100_000, description: "Revenue", line_order: 3,
-    },
-  ];
-
-  const linesForCreditPurchasePartial30k = [
-    {
-      id: "jl1", journal_entry_id: "je1", account_id: "1100",
-      debit_minor: 0, credit_minor: 30_000, description: "Partial payment", line_order: 1,
-    },
-    {
-      id: "jl2", journal_entry_id: "je1", account_id: "2100",
-      debit_minor: 0, credit_minor: 70_000, description: "AP remaining", line_order: 2,
-    },
-    {
-      id: "jl3", journal_entry_id: "je1", account_id: "5000",
-      debit_minor: 100_000, credit_minor: 0, description: "Inventory/Expense", line_order: 3,
-    },
-  ];
-
-  function makeDb(lines: typeof linesForCreditSalePartial30k) {
-    return new FakeD1Database({
-      all: (sql) => {
-        if (sql.includes("FROM journal_lines jl")) return lines;
-        return [];
-      },
-    }) as unknown as D1Database;
-  }
-
-  it("returns 70k remaining when settling 100k credit_sale with 30k already paid via same cash account", async () => {
-    const db = makeDb(linesForCreditSalePartial30k);
-    const remaining = await calculateSettlementRemaining(db, "org-1", "tx-1", "1100", 100_000, true, "1100");
-    expect(remaining).toBe(70_000);
+describe("listTransactions / getTransaction", () => {
+  it("lists all posted and voided transactions for the org", async () => {
+    const { db } = fresh();
+    const transactions = await listTransactions(db as unknown as D1Database, ORG_A, {});
+    const total = await countTransactions(db as unknown as D1Database, ORG_A, {});
+    expect(total).toBe(6);
+    expect(transactions).toHaveLength(6);
+    expect(transactions[0].transaction_number).toMatch(/^TRX-/);
+    expect(transactions.some((t) => t.status === "voided")).toBe(true);
   });
 
-  it("returns 70k remaining when settling 100k credit_sale with 30k already paid via different cash account", async () => {
-    const db = makeDb(linesForCreditSalePartial30k);
-    const remaining = await calculateSettlementRemaining(db, "org-1", "tx-1", "1101", 100_000, true, "1100");
-    expect(remaining).toBe(70_000);
+  it("filters by status", async () => {
+    const { db } = fresh();
+    const transactions = await listTransactions(db as unknown as D1Database, ORG_A, {
+      status: "voided",
+    });
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].id).toBe(FIXTURE_IDS.transactions.voidedOutA);
   });
 
-  it("returns 70k remaining when settling 100k credit_purchase with 30k already paid via same cash account", async () => {
-    const db = makeDb(linesForCreditPurchasePartial30k);
-    const remaining = await calculateSettlementRemaining(db, "org-1", "tx-1", "1100", 100_000, false, "1100");
-    expect(remaining).toBe(70_000);
+  it("filters by transaction type", async () => {
+    const { db } = fresh();
+    const transactions = await listTransactions(db as unknown as D1Database, ORG_A, {
+      transactionType: "transfer",
+    });
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].transaction_type).toBe("transfer");
   });
 
-  it("returns 70k remaining when settling 100k credit_purchase with 30k already paid via different cash account", async () => {
-    const db = makeDb(linesForCreditPurchasePartial30k);
-    const remaining = await calculateSettlementRemaining(db, "org-1", "tx-1", "1101", 100_000, false, "1100");
-    expect(remaining).toBe(70_000);
+  it("gets a single transaction with account names joined", async () => {
+    const { db } = fresh();
+    const txn = await getTransaction(
+      db as unknown as D1Database,
+      ORG_A,
+      FIXTURE_IDS.transactions.cashInA,
+    );
+    expect(txn.description).toBe("Penjualan tunai");
+    expect(txn.cash_bank_account).toBe("Kas");
+    expect(txn.counter_account).toBe("Pendapatan Usaha");
   });
 
-  it("throws already_fully_paid when attempting to settle an already fully paid transaction", async () => {
-    const fullyPaidLines = [
-      {
-        id: "jl1", journal_entry_id: "je1", account_id: "1100",
-        debit_minor: 100_000, credit_minor: 0, description: "Full payment", line_order: 1,
-      },
-      {
-        id: "jl2", journal_entry_id: "je1", account_id: "1200",
-        debit_minor: 0, credit_minor: 100_000, description: "AR", line_order: 2,
-      },
-    ];
-    const db = makeDb(fullyPaidLines);
+  it("throws not found for a transaction outside the org", async () => {
+    const { db } = fresh();
     await expect(
-      calculateSettlementRemaining(db, "org-1", "tx-1", "1100", 100_000, true, "1100"),
-    ).rejects.toMatchObject({ code: "already_fully_paid" });
+      getTransaction(db as unknown as D1Database, ORG_A, FIXTURE_IDS.transactions.cashInB),
+    ).rejects.toThrowError(HttpError);
+  });
+});
+
+describe("voidTransaction", () => {
+  it("voids a posted transaction and returns it as voided", async () => {
+    const { db } = fresh();
+    const txn = await voidTransaction(
+      db as unknown as D1Database,
+      ORG_A,
+      OWNER_A,
+      FIXTURE_IDS.transactions.cashOutA,
+      { reason: "Salah nominal" },
+    );
+
+    expect(txn.status).toBe("voided");
+    expect(txn.void_reason).toBe("Salah nominal");
   });
 
-  it("throws over_settlement when settlement amount exceeds remaining", async () => {
-    const oversettleLines = [
-      {
-        id: "jl1", journal_entry_id: "je1", account_id: "1100",
-        debit_minor: 0, credit_minor: 20_000, description: "Partial payment", line_order: 1,
-      },
-      {
-        id: "jl2", journal_entry_id: "je1", account_id: "2100",
-        debit_minor: 0, credit_minor: 80_000, description: "AP", line_order: 2,
-      },
-      {
-        id: "jl3", journal_entry_id: "je1", account_id: "5000",
-        debit_minor: 100_000, credit_minor: 0, description: "Inventory", line_order: 3,
-      },
-    ];
-    const db = makeDb(oversettleLines);
-    // originalAmountMinor=50k but 20k already paid → remaining=30k
-    // Trying to settle for 50k would be over_settlement, but function only gets originalAmount
-    // remaining = 50k - 20k = 30k, no error (still positive)
-    // To trigger over_settlement, need originalAmount < what's been paid
-    // Use originalAmountMinor=10k with 20k already paid → remaining = -10k → over_settlement
+  it("rejects voiding an already-voided transaction", async () => {
+    const { db } = fresh();
     await expect(
-      calculateSettlementRemaining(db, "org-1", "tx-1", "1100", 10_000, false, "1100"),
-    ).rejects.toMatchObject({ code: "over_settlement" });
+      voidTransaction(
+        db as unknown as D1Database,
+        ORG_A,
+        OWNER_A,
+        FIXTURE_IDS.transactions.voidedOutA,
+        {},
+      ),
+    ).rejects.toThrowError(HttpError);
+  });
+
+  it("rejects voiding a transaction from another org", async () => {
+    const { db } = fresh();
+    await expect(
+      voidTransaction(
+        db as unknown as D1Database,
+        ORG_A,
+        OWNER_A,
+        FIXTURE_IDS.transactions.cashInB,
+        {},
+      ),
+    ).rejects.toThrowError(HttpError);
   });
 });
