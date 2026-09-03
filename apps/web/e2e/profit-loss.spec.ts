@@ -1,223 +1,78 @@
-import { expect } from "@playwright/test";
 import { test } from "./helpers/auth";
+import { expect } from "@playwright/test";
 
 /**
- * Profit and Loss page E2E tests.
- * Uses authenticated fixture for auth-required tests.
+ * Profit & Loss (Laba Rugi) E2E for the MVP report page.
+ *
+ * Verifies the report renders income/expense sections and that a posted
+ * cash_in transaction shows up as income for the period.
  */
 
-async function gotoProfitLoss(
-  page: import("@playwright/test").Page,
-  width = 375,
-  height = 812,
-) {
-  await page.setViewportSize({ width, height });
-  await page.goto("/reports/profit-loss");
-  await expect(page.locator("h1")).toBeVisible();
-}
+const TS = Date.now();
+// Isolated period: no other spec writes June transactions, so the income
+// total is deterministic even when specs run in parallel on shared staging.
+const REPORT_FROM = "2026-06-01";
+const REPORT_TO = "2026-06-30";
 
-// ── Page basics (auth-independent) ─────────────────────────────────
+test.describe("Profit & Loss report", () => {
+  test("renders income, expense, and net income sections", async ({ authPage }) => {
+    await authPage.goto("/reports/profit-loss", { waitUntil: "load", timeout: 15000 });
+    await expect(authPage.getByRole("heading", { name: /Laba Rugi/ })).toBeVisible({ timeout: 15000 });
 
-test.describe("Profit & Loss page basics", () => {
-  test.use({ viewport: { width: 375, height: 812 } });
+    await authPage.getByLabel("Dari").fill(REPORT_FROM);
+    await authPage.getByLabel("Sampai").fill(REPORT_TO);
+    await authPage.getByRole("button", { name: "Tampilkan" }).click();
 
-  test("page loads without crash", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await authPage.goto("/reports/profit-loss");
-    await expect(authPage.locator("h1")).toBeVisible();
-    expect(await authPage.title()).toMatch(/Ledjer/i);
+    await expect(authPage.getByText("Pendapatan")).toBeVisible({ timeout: 15000 });
+    await expect(authPage.getByText("Beban")).toBeVisible({ timeout: 15000 });
+    await expect(authPage.getByText("Laba Bersih")).toBeVisible({ timeout: 15000 });
   });
 
-  test("no horizontal overflow at 320px", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await authPage.setViewportSize({ width: 320, height: 800 });
-    await authPage.goto("/reports/profit-loss");
-    await expect(authPage.locator("h1")).toBeVisible();
-    expect(
-      await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
-    ).toBeFalsy();
-  });
+  test("a posted cash_in appears as income for the period", async ({ authPage }) => {
+    const desc = `[E2E] Laba Rugi ${TS}`;
 
-  test("exactly one h1 exists", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await expect(authPage.locator("h1")).toHaveCount(1);
-  });
-
-  test("page title says Laba Rugi", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await expect(authPage.locator("h1")).toContainText("Laba Rugi");
-  });
-
-  test("no duplicate ledger-page animation", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await authPage.goto("/reports/profit-loss");
-    await expect(authPage.locator("h1")).toBeVisible();
-    const count = await authPage.locator(".ledger-page").count();
-    expect(count).toBeLessThanOrEqual(1);
-  });
-});
-
-// ── Date display (auth required) ───────────────────────────────────
-
-test.describe("Date display (auth required)", () => {
-  test("subtitle uses localized Indonesian date range", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const subtitle = authPage.locator("p[aria-live='polite']").first();
-    await expect(subtitle).toBeVisible();
-    const text = await subtitle.textContent();
-    // Should not contain DD/MM/YYYY pattern
-    expect(text).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
-    // Should contain Indonesian month name
-    expect(text).toMatch(/\d+ \w+ \d{4}/);
-  });
-
-  test("subtitle does not say Periode:", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const subtitle = authPage.locator("p[aria-live='polite']").first();
-    const text = await subtitle.textContent();
-    expect(text).not.toContain("Periode:");
-  });
-});
-
-// ── Date apply behavior (auth required) ────────────────────────────
-
-test.describe("Date apply behavior (auth required)", () => {
-  test("apply button says Tampilkan laporan", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await expect(authPage.getByRole("button", { name: /tampilkan laporan/i })).toBeVisible();
-  });
-
-  test("date fields have Indonesian labels", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const dariLabel = authPage.locator("label").filter({ hasText: /dari tanggal/i });
-    const sampaiLabel = authPage.locator("label").filter({ hasText: /sampai tanggal/i });
-    await expect(dariLabel.first()).toBeAttached();
-    await expect(sampaiLabel.first()).toBeAttached();
-  });
-
-  test("date fields have aria-invalid when invalid", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    // Set from date after to date
-    const fromInput = authPage.locator('input[type="date"]').first();
-    const toInput = authPage.locator('input[type="date"]').nth(1);
-
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 10);
-    const tomorrowStr = tomorrow.toISOString().split("T")[0];
-
-    await fromInput.fill(tomorrowStr);
-    await toInput.fill(new Date().toISOString().split("T")[0]);
-
-    // Verify inputs exist and can be filled
-    await expect(fromInput).toHaveValue(tomorrowStr);
-  });
-
-  test("refresh button has aria-label", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const refreshBtn = authPage.locator("button[aria-label*='muat ulang' i]").first();
-    const exists = await refreshBtn.isVisible().catch(() => false);
-    if (!exists) {
-      await expect(authPage.locator("h1")).toBeVisible();
-    }
-  });
-});
-
-// ── Export (auth required) ──────────────────────────────────────────
-
-test.describe("Export (auth required)", () => {
-  test("export button has Indonesian accessible name", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const btn = authPage.getByRole("button", { name: /ekspor/i });
-    await expect(btn.first()).toBeAttached();
-  });
-
-  test("export button text is Ekspor on mobile", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const eksporBtn = authPage.getByRole("button", { name: /ekspor/i });
-    await expect(eksporBtn.first()).toBeAttached();
-    const text = await eksporBtn.first().textContent();
-    expect(text).not.toContain("Export");
-  });
-});
-
-// ── Inactive accounts toggle ───────────────────────────────────────
-
-test.describe("Inactive accounts toggle (auth required)", () => {
-  test("toggle label exists in Indonesian", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const toggle = authPage
-      .locator("label")
-      .filter({ hasText: /tampilkan akun tanpa aktivitas/i });
-    await expect(toggle.first()).toBeAttached();
-  });
-
-  test("toggle is a checkbox", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    await expect(authPage.locator("input[type='checkbox']").first()).toBeAttached();
-  });
-});
-
-// ── Table semantics (auth required, desktop) ───────────────────────
-
-test.describe("Desktop table semantics (auth required)", () => {
-  test("table has caption", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const captions = authPage.locator("table caption");
-    await expect(captions.first()).toBeAttached();
-    const count = await captions.count();
-    for (let i = 0; i < count; i++) {
-      await expect(captions.nth(i)).toHaveClass(/sr-only/);
-    }
-  });
-
-  test("headers have scope=col", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const scopedHeaders = authPage.locator("th[scope]");
-    await expect(scopedHeaders.first()).toBeAttached();
-    const count = await scopedHeaders.count();
-    expect(count).toBeGreaterThanOrEqual(2);
-  });
-});
-
-// ── Result labels (auth required) ──────────────────────────────────
-
-test.describe("Result labels (auth required)", () => {
-  test("gross result row exists", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const grossLabel = authPage.getByText(/laba kotor|rugi kotor|hasil kotor/i);
-    await expect(grossLabel.first()).toBeAttached();
-  });
-
-  test("net result row exists", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-    const netLabel = authPage.getByText(/laba bersih|rugi bersih|hasil bersih/i);
-    await expect(netLabel.first()).toBeAttached();
-  });
-});
-
-// ── Responsive viewports ───────────────────────────────────────────
-
-const viewports = [
-  { name: "Mobile 320", width: 320, height: 800 },
-  { name: "Mobile 375", width: 375, height: 812 },
-  { name: "Mobile 430", width: 430, height: 932 },
-  { name: "Tablet 768", width: 768, height: 1024 },
-  { name: "Desktop 1280", width: 1280, height: 800 },
-  { name: "Desktop 1440", width: 1440, height: 900 },
-  { name: "Desktop 1920", width: 1920, height: 1080 },
-];
-
-for (const vp of viewports) {
-  test.describe(`Responsive: ${vp.name} (${vp.width}px)`, () => {
-    test.use({ viewport: { width: vp.width, height: vp.height } });
-
-    test("no horizontal overflow", async ({ authPage }) => {
-    await gotoProfitLoss(authPage);
-      await authPage.goto("/reports/profit-loss");
-      await expect(authPage.locator("h1")).toBeVisible();
-      expect(
-        await authPage.evaluate(() => document.body.scrollWidth > window.innerWidth),
-      ).toBeFalsy();
+    // Resolve seeded account IDs (Kas + Pendapatan Usaha), then create a
+    // cash_in dated within the report period via the API.
+    const accountIds = await authPage.evaluate(async () => {
+      const res = await fetch("/api/accounts");
+      const body = await res.json() as { accounts: { code: string; id: string }[] };
+      const cash = body.accounts.find((a) => a.code === "1110");
+      const income = body.accounts.find((a) => a.code === "4110");
+      return { cash: cash?.id ?? "", income: income?.id ?? "" };
     });
+
+    const created = await authPage.evaluate(
+      async ({ description, cashId, incomeId }: { description: string; cashId: string; incomeId: string }) => {
+        const res = await fetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionType: "cash_in",
+            transactionDate: "2026-06-15",
+            cashAccountId: cashId,
+            counterAccountId: incomeId,
+            description,
+            amountIdr: 250000,
+            idempotencyKey: `e2e-pl-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          }),
+        });
+        return res.ok;
+      },
+      { description: desc, cashId: accountIds.cash, incomeId: accountIds.income },
+    );
+    expect(created).toBe(true);
+
+    await authPage.goto("/reports/profit-loss", { waitUntil: "load", timeout: 15000 });
+    await authPage.getByLabel("Dari").fill(REPORT_FROM);
+    await authPage.getByLabel("Sampai").fill(REPORT_TO);
+    await authPage.getByRole("button", { name: "Tampilkan" }).click();
+
+    // The account row renders the accumulated income for the period. It must be
+    // nonzero because this test just posted Rp 250.000 into it; exact-amount
+    // assertions are avoided since repeated runs on shared staging accumulate.
+    const incomeRow = authPage.locator("li", { hasText: "4110 · Pendapatan Usaha" });
+    await expect(incomeRow).toBeVisible({ timeout: 15000 });
+    // \\s+ covers the NBSP that Intl inserts between "Rp" and the digits.
+    await expect(incomeRow.getByText(/^Rp\s+[1-9]/)).toBeVisible({ timeout: 15000 });
   });
-}
+});

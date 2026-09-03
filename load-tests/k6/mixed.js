@@ -24,7 +24,7 @@ export default function () {
     check(res, { "landing status is 200": (r) => r.status === 200 });
   } else if (r < 0.7) {
     // Dashboard
-    const res = http.get(`${BASE_URL}/api/dashboard`, { headers: { Cookie: COOKIE } });
+    const res = http.get(`${BASE_URL}/api/dashboard/summary`, { headers: { Cookie: COOKIE } });
     check(res, { "dashboard status is 200 or 401": (r) => [200, 401].includes(r.status) });
   } else if (r < 0.9) {
     // Transaction list
@@ -34,7 +34,7 @@ export default function () {
     // CSV export
     const today = new Date().toISOString().slice(0, 10);
     const res = http.get(
-      `${BASE_URL}/api/exports/reports/general-ledger.csv?fromDate=2026-01-01&toDate=${today}`,
+      `${BASE_URL}/api/exports/transactions.csv?fromDate=2026-01-01&toDate=${today}`,
       { headers: { Cookie: COOKIE } },
     );
     check(res, { "export status is 200 or 401": (r) => [200, 401].includes(r.status) });

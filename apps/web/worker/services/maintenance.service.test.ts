@@ -1,62 +1,25 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { FakeD1Database } from "../test/fake-d1";
+import type { D1Database } from "@cloudflare/workers-types";
+import { cleanupExpiredRows } from "./maintenance.service";
 
-describe("Maintenance Service", () => {
-  it("cleans up expired sessions, verifications, tokens, and old audit logs", async () => {
-    const { cleanupExpiredRows } = await import("./maintenance.service");
-    const executedQueries: string[] = [];
-
+describe("maintenance cleanup", () => {
+  it("deletes expired sessions, audit logs, and rate limits", async () => {
     const db = new FakeD1Database({
-      run: (sql) => {
-        executedQueries.push(sql as string);
-        return { success: true, meta: { changes: 1 } } as D1Result;
-      },
-    }) as unknown as D1Database;
+      run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
+    });
+    const result = await cleanupExpiredRows(db as unknown as D1Database, 12345);
 
-    const result = await cleanupExpiredRows(db, Date.now());
-
-    expect(result.sessions).toBe(1);
-    expect(result.emailVerifications).toBe(1);
-    expect(result.passwordResetTokens).toBe(1);
-    expect(result.rateLimits).toBe(1);
-
-    const deleteCount = executedQueries.filter((q) => q.includes("DELETE FROM")).length;
-    expect(deleteCount).toBe(6); // sessions, email_verifications, password_reset_tokens, login_attempts, audit_logs, rate_limits
-  });
-
-  it("reports zero changes when no rows match", async () => {
-    const { cleanupExpiredRows } = await import("./maintenance.service");
-
-    const db = new FakeD1Database({
-      run: () => {
-        return { success: true, meta: { changes: 0 } } as D1Result;
-      },
-    }) as unknown as D1Database;
-
-    const result = await cleanupExpiredRows(db, Date.now());
-
-    expect(result.sessions).toBe(0);
-    expect(result.emailVerifications).toBe(0);
-    expect(result.passwordResetTokens).toBe(0);
-    expect(result.loginAttempts).toBe(0);
-    expect(result.auditLogs).toBe(0);
-    expect(result.rateLimits).toBe(0);
-  });
-
-  it("accepts custom auditRetentionDays config", async () => {
-    const { cleanupExpiredRows } = await import("./maintenance.service");
-    const executedQueries: string[] = [];
-
-    const db = new FakeD1Database({
-      run: (sql) => {
-        executedQueries.push(sql as string);
-        return { success: true, meta: { changes: 1 } } as D1Result;
-      },
-    }) as unknown as D1Database;
-
-    await cleanupExpiredRows(db, Date.now(), { auditRetentionDays: 365 });
-
-    const auditDelete = executedQueries.find((q) => q.includes("DELETE FROM audit_logs"));
-    expect(auditDelete).toBeDefined();
+    expect(result).toEqual({
+      sessions: 1,
+      auditLogs: 1,
+      rateLimits: 1,
+    });
+    expect(db.statements).toHaveLength(3);
+    expect(db.statements.map((statement) => statement.sql)).toEqual([
+      expect.stringContaining("DELETE FROM sessions"),
+      expect.stringContaining("DELETE FROM audit_logs"),
+      expect.stringContaining("DELETE FROM rate_limits"),
+    ]);
   });
 });

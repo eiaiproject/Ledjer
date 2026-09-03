@@ -28,14 +28,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:local": "playwright test e2e/smoke.spec.ts e2e/auth.spec.ts e2e/security-public.spec.ts e2e/accessibility.spec.ts",
+    "test:e2e:local": "playwright test e2e/smoke.spec.ts e2e/auth.spec.ts e2e/security-public.spec.ts e2e/static-routes.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:webkit": "playwright test --project=webkit",
-    "test:visual": "E2E_VISUAL=1 playwright test e2e/visual.spec.ts",
-    "test:visual:update": "E2E_VISUAL=1 playwright test e2e/visual.spec.ts --update-snapshots",
-    "test:visual:ci": "E2E_VISUAL=1 playwright test e2e/visual.spec.ts --reporter=github",
     "benchmark:seed": "node scripts/seed-benchmark-data.mjs",
     "analyze": "ANALYZE=true vite build",
     "typecheck": "tsc -b --pretty false"
@@ -48,7 +45,6 @@
     "@tanstack/react-query": "^5.101.4",
     "clsx": "^2.1.1",
     "hono": "^4.13.3",
-    "pdf-lib": "^1.17.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.85.0",
@@ -59,7 +55,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
     "@cloudflare/vite-plugin": "^1.53.1",
     "@cloudflare/workers-types": "^5.20260821.1",
     "@eslint/js": "^10.0.1",

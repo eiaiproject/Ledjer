@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  ACCOUNT_TYPE_VALUES,
+  ACCOUNT_CLASS_VALUES,
   CORE_INDEXES,
   CORE_TABLES,
-  NORMAL_BALANCE_VALUES,
   ROLE_VALUES,
   TENANT_SCOPED_TABLES,
+  TRANSACTION_STATUS_VALUES,
+  TRANSACTION_TYPE_VALUES,
 } from "./schema";
 import { normalizeD1Value, normalizeD1Values } from "./client";
 
@@ -32,29 +33,26 @@ describe("D1 schema contract", () => {
 
     expect(TENANT_SCOPED_TABLES).not.toContain("users");
     expect(TENANT_SCOPED_TABLES).not.toContain("sessions");
+    expect(TENANT_SCOPED_TABLES).not.toContain("organizations");
   });
 
-  it("CORE_TABLES excludes system/global tables from tenant scope", () => {
-    // These tables are NOT in TENANT_SCOPED_TABLES because they store
-    // global data (users) or session/auth data (sessions, tokens).
-    // They don't have organization_id columns or the column is not the
-    // primary scoping mechanism.
-    expect(TENANT_SCOPED_TABLES).not.toContain("email_verifications");
-    expect(TENANT_SCOPED_TABLES).not.toContain("password_reset_tokens");
-    expect(TENANT_SCOPED_TABLES).not.toContain("login_attempts");
-    expect(TENANT_SCOPED_TABLES).not.toContain("oauth_accounts");
-  });
-
-  it("audit_logs and period_locks are tenant-scoped", () => {
-    expect(TENANT_SCOPED_TABLES).toContain("audit_logs");
-    expect(TENANT_SCOPED_TABLES).toContain("period_locks");
-    expect(TENANT_SCOPED_TABLES).toContain("organization_members");
-  });
-
-  it("uses target role and accounting enum values", () => {
-    expect(ROLE_VALUES).toEqual(["owner", "admin", "member", "viewer"]);
-    expect(ACCOUNT_TYPE_VALUES).toContain("cogs");
-    expect(NORMAL_BALANCE_VALUES).toEqual(["debit", "credit"]);
+  it("uses the MVP role and accounting enum values", () => {
+    expect(ROLE_VALUES).toEqual(["owner"]);
+    expect(ACCOUNT_CLASS_VALUES).toEqual([
+      "asset",
+      "liability",
+      "equity",
+      "income",
+      "expense",
+    ]);
+    expect(TRANSACTION_TYPE_VALUES).toEqual([
+      "cash_in",
+      "cash_out",
+      "transfer",
+      "owner_deposit",
+      "owner_withdrawal",
+    ]);
+    expect(TRANSACTION_STATUS_VALUES).toEqual(["posted", "voided"]);
   });
 });
 
@@ -70,6 +68,4 @@ describe("D1 client helpers", () => {
       null,
     ]);
   });
-
-
 });

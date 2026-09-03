@@ -4,8 +4,26 @@ All notable changes to Ledjer are documented here.
 
 ## [Unreleased]
 
+### MVP cash-only reset (branch `mvp-cash-only`)
+
+Per PRD 2026-09-03, Ledjer di-strip besar-besaran menjadi MVP pencatatan kas yang sederhana:
+
+#### Removed
+- `apps/admin` (dashboard internal admin.ledjer.id) dan `apps/docs` (situs VitePress) dihapus dari repo
+- Fitur non-MVP: inventory/produk/stok, faktur & piutang/utang (AR/AP), pihak (parties), jurnal manual, rekonsiliasi bank, kunci periode, impor data, ekspor PDF, email verification & reset password, notifikasi & web push, pencarian global, lampiran, onboarding wizard, kolaborasi tim (invitations), buku besar, neraca saldo, arus kas, aging, admin users/sessions
+- Google OAuth dipertahankan (keputusan produk): login/daftar dengan Google aktif di MVP
+- 33 migrasi D1 lama dibuang; skema di-reset bersih ke 11 tabel inti MVP (`0001_mvp_foundation.sql`, `0002_mvp_accounting.sql`)
+
+#### Added
+- 5 jenis transaksi: `cash_in`, `cash_out`, `transfer`, `owner_deposit`, `owner_withdrawal`; jurnal debit-kredit dipaksa seimbang; void dengan audit trail; idempotency key; nomor `TRX-YYYYMMDD-XXXX`
+- Chart of accounts default 14 akun dibuat otomatis saat registrasi; CRUD akun kas/bank sederhana
+- Laporan laba rugi & neraca (selalu balance); dashboard (saldo kas/bank, uang masuk/keluar bulan ini, laba bersih); ekspor CSV transaksi
+- Backup D1 → R2 harian + cleanup sesi (cron) untuk tabel MVP
+- Unit/integration tests ditulis ulang (182 worker + 41 frontend) dan e2e Playwright inti (89 tests)
+- README, `.env.example`, dan workflow CI/CD disesuaikan dengan cakupan MVP
+
 ### Changed
-- CSP: removed `'unsafe-inline'` from `script-src` in production `_headers` (web + admin); no inline executable scripts exist in production HTML
+- CSP: removed `'unsafe-inline'` from `script-src` in production `_headers`; no inline executable scripts exist in production HTML
 - `X-XSS-Protection: 1; mode=block` → `0` (obsolete header per OWASP secure headers guidance)
 
 ### Added

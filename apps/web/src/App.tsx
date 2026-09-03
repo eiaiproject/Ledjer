@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode, useEffect } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { createBrowserRouter, Outlet, RouterProvider, useLocation } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -14,42 +14,14 @@ import { queryClient } from "@/lib/query-client";
 const LandingPage = lazy(async () => ({ default: (await import("@/pages/landing")).LandingPage }));
 const LoginPage = lazy(async () => ({ default: (await import("@/pages/login")).LoginPage }));
 const RegisterPage = lazy(async () => ({ default: (await import("@/pages/register")).RegisterPage }));
-const AuthCallbackPage = lazy(async () => ({ default: (await import("@/pages/auth-callback")).AuthCallbackPage }));
-const OnboardingPage = lazy(async () => ({ default: (await import("@/pages/onboarding")).OnboardingPage }));
-const OnboardingGuard = lazy(async () => ({ default: (await import("@/components/onboarding-guard")).OnboardingGuard }));
 const DashboardPage = lazy(async () => ({ default: (await import("@/pages/dashboard")).DashboardPage }));
 const TransactionListPage = lazy(async () => ({ default: (await import("@/pages/transactions/index")).TransactionListPage }));
 const NewTransactionPage = lazy(async () => ({ default: (await import("@/pages/transactions/new")).NewTransactionPage }));
 const TransactionDetailPage = lazy(async () => ({ default: (await import("@/pages/transactions/[id]")).TransactionDetailPage }));
 const AccountsPage = lazy(async () => ({ default: (await import("@/pages/accounts/index")).AccountsPage }));
-const GeneralLedgerPage = lazy(async () => ({ default: (await import("@/pages/reports/general-ledger")).GeneralLedgerPage }));
-const TrialBalancePage = lazy(async () => ({ default: (await import("@/pages/reports/trial-balance")).TrialBalancePage }));
 const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/reports/profit-loss")).ProfitLossPage }));
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
-const CashFlowPage = lazy(async () => ({ default: (await import("@/pages/reports/cash-flow")).default }));
-const AgingReportPage = lazy(async () => ({ default: (await import("@/pages/reports/aging")).default }));
-const PartyStatementPage = lazy(async () => ({ default: (await import("@/pages/reports/party-statement")).default }));
-const ReconciliationPage = lazy(async () => ({ default: (await import("@/pages/reconciliation/index")).default }));
-const OpeningBalancePage = lazy(async () => ({ default: (await import("@/pages/opening-balance")).default }));
-const ImportPage = lazy(async () => ({ default: (await import("@/pages/import/index")).default }));
-const TeamSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/team")).TeamSettingsPage }));
-const PeriodLocksPage = lazy(async () => ({ default: (await import("@/pages/settings/period-locks")).PeriodLocksPage }));
-const OrganizationSettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/organization")).OrganizationSettingsPage }));
-const SecuritySettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/security")).SecuritySettingsPage }));
-const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
-const ResetPasswordPage = lazy(async () => ({ default: (await import("@/pages/reset-password")).ResetPasswordPage }));
-const ForgotPasswordPage = lazy(async () => ({ default: (await import("@/pages/forgot-password")).ForgotPasswordPage }));
-const AcceptInvitationPage = lazy(async () => ({ default: (await import("@/pages/invitations/accept")).AcceptInvitationPage }));
-const TermsOfServicePage = lazy(async () => ({ default: (await import("@/pages/legal/terms")).TermsOfServicePage }));
-const PrivacyPolicyPage = lazy(async () => ({ default: (await import("@/pages/legal/privacy")).PrivacyPolicyPage }));
-const SecurityPage = lazy(async () => ({ default: (await import("@/pages/legal/security")).SecurityPage }));
-const ContactPage = lazy(async () => ({ default: (await import("@/pages/legal/contact")).ContactPage }));
-const InvoiceListPage = lazy(async () => ({ default: (await import("@/pages/invoices/index")).default }));
-const NewInvoicePage = lazy(async () => ({ default: (await import("@/pages/invoices/new")).default }));
-const InvoiceDetailPage = lazy(async () => ({ default: (await import("@/pages/invoices/[id]")).default }));
-
-const NotificationsPage = lazy(async () => ({ default: (await import("@/pages/notifications/index")).NotificationsPage }));
-const ManualJournalPage = lazy(async () => ({ default: (await import("@/pages/journals/index")).ManualJournalPage }));
+const SettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/index")).SettingsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -62,7 +34,7 @@ type SeoProps = Readonly<{
 
 const SITE_URL = "https://ledjer.id";
 const DEFAULT_DESCRIPTION =
-  "Ledjer adalah aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet.";
+  "Ledjer adalah aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat uang masuk, uang keluar, dan lihat laporan keuangan tanpa spreadsheet.";
 
 function setMeta(selector: string, value: string) {
   const element = document.head.querySelector(selector);
@@ -93,14 +65,11 @@ function Seo({ title, description, path, noindex = false, children }: SeoProps) 
     setMeta('meta[property="og:url"]', canonicalUrl);
     setMeta('meta[name="twitter:title"]', title);
     setMeta('meta[name="twitter:description"]', description);
-    setMeta('meta[property="og:image"]', `${SITE_URL}/og-image.png`);
-    setMeta('meta[name="twitter:image"]', `${SITE_URL}/og-image.png`);
     setMeta('meta[property="og:locale"]', 'id_ID');
   }, [canonicalUrl, description, noindex, title]);
 
   return <>{children}</>;
 }
-
 
 function RouteFallback() {
   return (
@@ -121,9 +90,7 @@ const routerConfig = [
       </Seo>
     ),
   },
-  // All other public pages share PublicLayout (header + main + footer).
-  // PublicRoute handles the auth-redirect-if-signed-in case; the layout
-  // wraps the Outlet so every page gets chrome in one place.
+  // Public pages share PublicLayout (header + main + footer).
   {
     path: "/",
     element: (
@@ -150,87 +117,6 @@ const routerConfig = [
           </Seo>
         ),
       },
-      {
-        path: "forgot-password",
-        element: (
-          <Seo title="Lupa password - Ledjer" description="Minta tautan pemulihan password Ledjer." noindex>
-            <ForgotPasswordPage />
-          </Seo>
-        ),
-      },
-      {
-        path: "terms",
-        element: (
-          <Seo title="Syarat & Ketentuan - Ledjer" description="Syarat dan ketentuan penggunaan Ledjer.">
-            <TermsOfServicePage />
-          </Seo>
-        ),
-      },
-      {
-        path: "privacy",
-        element: (
-          <Seo title="Kebijakan Privasi - Ledjer" description="Kebijakan privasi dan pengelolaan data Ledjer.">
-            <PrivacyPolicyPage />
-          </Seo>
-        ),
-      },
-      {
-        path: "security",
-        element: (
-          <Seo title="Keamanan - Ledjer" description="Ringkasan keamanan data dan infrastruktur Ledjer.">
-            <SecurityPage />
-          </Seo>
-        ),
-      },
-      {
-        path: "contact",
-        element: (
-          <Seo title="Kontak - Ledjer" description="Hubungi tim Ledjer untuk dukungan, bug, atau keamanan.">
-            <ContactPage />
-          </Seo>
-        ),
-      },
-    ],
-  },
-  // Auth callback must NOT sit under PublicRoute/ProtectedRoute: after
-  // token verification sets a session, route guards would redirect before
-  // this page can choose the right destination. Render outside any layout.
-  {
-    path: "/auth/callback",
-    element: (
-      <Seo title="Memproses autentikasi - Ledjer" description="Memproses autentikasi Ledjer." noindex>
-        <AuthCallbackPage />
-      </Seo>
-    ),
-  },
-  // Password recovery destination. Recovery email links land here with a
-  // temporary session so the user can set a new password. Outside the
-  // shared public layout so it can decide its own chrome (full-bleed form).
-  {
-    path: "/reset-password",
-    element: (
-      <Seo title="Reset password - Ledjer" description="Reset password akun Ledjer." noindex>
-        <ResetPasswordPage />
-      </Seo>
-    ),
-  },
-  {
-    path: "/invitations/accept",
-    element: (
-      <Seo title="Terima undangan - Ledjer" description="Terima undangan tim Ledjer." noindex>
-        <AcceptInvitationPage />
-      </Seo>
-    ),
-  },
-  {
-    path: "/onboarding",
-    element: (
-      <Seo title="Onboarding - Ledjer" description="Setup awal organisasi Ledjer." noindex>
-        <ProtectedRoute />
-      </Seo>
-    ),
-    children: [
-      { index: true, element: <OnboardingGuard><OnboardingPage /></OnboardingGuard> },
     ],
   },
   {
@@ -248,26 +134,9 @@ const routerConfig = [
           { path: "/transactions/new", element: <NewTransactionPage /> },
           { path: "/transactions/:id", element: <TransactionDetailPage /> },
           { path: "/accounts", element: <AccountsPage /> },
-          { path: "/products", element: <ProductsPage /> },
-          { path: "/invoices", element: <InvoiceListPage /> },
-          { path: "/invoices/new", element: <NewInvoicePage /> },
-          { path: "/invoices/:id", element: <InvoiceDetailPage /> },
-          { path: "/notifications", element: <NotificationsPage /> },
-          { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
-          { path: "/reports/trial-balance", element: <TrialBalancePage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
-          { path: "/reports/cash-flow", element: <CashFlowPage /> },
-          { path: "/reports/aging", element: <AgingReportPage /> },
-          { path: "/reports/aging/:partyId", element: <PartyStatementPage /> },
-          { path: "/reconciliation", element: <ReconciliationPage /> },
-          { path: "/opening-balance", element: <OpeningBalancePage /> },
-          { path: "/import", element: <ImportPage /> },
-          { path: "/settings/team", element: <TeamSettingsPage /> },
-          { path: "/settings/organization", element: <OrganizationSettingsPage /> },
-          { path: "/settings/security", element: <SecuritySettingsPage /> },
-          { path: "/journals", element: <ManualJournalPage /> },
-          { path: "/settings/period-locks", element: <PeriodLocksPage /> },
+          { path: "/settings", element: <SettingsPage /> },
         ],
       },
     ],

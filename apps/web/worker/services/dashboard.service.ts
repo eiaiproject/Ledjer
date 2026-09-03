@@ -1,414 +1,72 @@
-import { queryFirst } from "../db/client";
+import { listAccounts, balancesByAccount } from "./accounts.service";
+import { getProfitLoss } from "./reports.service";
+import { listTransactions, type PublicTransaction } from "./transactions.service";
 
 export interface DashboardSummary {
-  cash_balance: number;
-  revenue_current_period: number;
-  expense_current_period: number;
-  net_profit_current_period: number;
-  accounts_receivable: number;
-  accounts_payable: number;
-  period_from: string;
-  period_to: string;
+  cashBankBalance: number;
+  cashBankAccounts: { id: string; code: string; name: string; balance: number }[];
+  month: { from: string; to: string };
+  moneyIn: number;
+  moneyOut: number;
+  netIncome: number;
+  recentTransactions: PublicTransaction[];
 }
 
-interface DashboardSummaryRow {
-  cash_balance: number | null;
-  revenue_current_period: number | null;
-  expense_current_period: number | null;
-  accounts_receivable: number | null;
-  accounts_payable: number | null;
-}
-
-/* ───── Dashboard Alerts ───── */
-
-export interface DashboardAlert {
-  id: string;
-  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period" | "inventory_mismatch";
-  severity: "high" | "medium" | "low";
-  title: string;
-  description: string;
-  count: number;
-  actionLabel: string;
-  actionPath: string;
-}
-
-export interface DashboardAlerts {
-  alerts: DashboardAlert[];
-}
-
-/**
- * Fetch actionable alerts for the dashboard.
- */
-export async function getDashboardAlerts(
-  db: D1Database,
-  organizationId: string,
-): Promise<DashboardAlerts> {
-  const alerts: DashboardAlert[] = [];
-
-  // Run each check independently. If a table doesn't exist yet (migration
-  // not applied), the check is silently skipped rather than crashing the page.
-  const checks = [
-    checkOverdueReceivables,
-    checkUpcomingPayables,
-    checkLowStock,
-    checkDraftTransactions,
-    checkUnreconciledStatements,
-    checkUnclosedPeriod,
-    checkInventoryMismatch,
-  ];
-
-  for (const check of checks) {
-    try {
-      await check(db, organizationId, alerts);
-    } catch {
-      // Table may not exist yet - skip this alert category gracefully
-    }
-  }
-
-  return { alerts };
-}
-
-async function checkOverdueReceivables(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const overdueRow = await queryFirst<{ count: number; total_minor: number }>(
-    db,
-    `SELECT COUNT(*) as count, COALESCE(SUM(
-       CASE WHEN i.status = 'overdue' THEN i.total_minor - i.paid_minor
-       ELSE 0 END
-     ), 0) as total_minor
-     FROM invoices i
-     WHERE i.organization_id = ? AND i.status IN ('overdue', 'partially_paid') AND i.due_date < date('now', '+1 day')`,
-    [orgId],
-  );
-  if (overdueRow && overdueRow.count > 0) {
-    alerts.push({
-      id: "overdue_receivable", type: "overdue_receivable", severity: "high",
-      title: "Piutang Jatuh Tempo",
-      description: `${overdueRow.count} faktur dengan total Rp ${(overdueRow.total_minor / 100).toLocaleString("id-ID")} sudah melewati jatuh tempo.`,
-      count: overdueRow.count, actionLabel: "Lihat Piutang", actionPath: "/reports/aging",
-    });
-  }
-}
-
-async function checkUpcomingPayables(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const upcomingRow = await queryFirst<{ count: number; total_minor: number }>(
-    db,
-    `SELECT COUNT(*) as count, COALESCE(SUM(i.total_minor - i.paid_minor), 0) as total_minor
-     FROM invoices i
-     WHERE i.organization_id = ? AND i.status IN ('issued', 'sent')
-       AND i.due_date BETWEEN date('now') AND date('now', '+7 days')`,
-    [orgId],
-  );
-  if (upcomingRow && upcomingRow.count > 0) {
-    alerts.push({
-      id: "upcoming_payable", type: "upcoming_payable", severity: "medium",
-      title: "Tagihan Mendekati Jatuh Tempo",
-      description: `${upcomingRow.count} tagihan sebesar Rp ${(upcomingRow.total_minor / 100).toLocaleString("id-ID")} akan jatuh tempo dalam 7 hari ke depan.`,
-      count: upcomingRow.count, actionLabel: "Lihat Tagihan", actionPath: "/invoices",
-    });
-  }
-}
-
-async function checkLowStock(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const outRow = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) as count FROM products
-     WHERE organization_id = ? AND is_active = 1 AND current_stock_milli <= 0`,
-    [orgId],
-  );
-  if (outRow && outRow.count > 0) {
-    alerts.push({
-      id: "low_stock", type: "low_stock", severity: "high",
-      title: "Stok Habis",
-      description: `${outRow.count} produk memiliki stok habis. Segera lakukan pengadaan atau penyesuaian stok.`,
-      count: outRow.count, actionLabel: "Kelola Produk", actionPath: "/products",
-    });
-  }
-
-  const lowRow = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) as count FROM products
-     WHERE organization_id = ? AND is_active = 1
-       AND current_stock_milli > 0 AND min_stock_milli > 0
-       AND current_stock_milli <= min_stock_milli`,
-    [orgId],
-  );
-  if (lowRow && lowRow.count > 0) {
-    alerts.push({
-      id: "low_stock_threshold", type: "low_stock", severity: "medium",
-      title: "Stok Menipis",
-      description: `${lowRow.count} produk sudah mencapai atau di bawah stok minimum.`,
-      count: lowRow.count, actionLabel: "Kelola Produk", actionPath: "/products",
-    });
-  }
-}
-
-async function checkDraftTransactions(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const draftRow = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) as count FROM transactions
-     WHERE organization_id = ? AND status = 'draft'`,
-    [orgId],
-  );
-  if (draftRow && draftRow.count > 0) {
-    alerts.push({
-      id: "draft_transaction", type: "draft_transaction", severity: "low",
-      title: "Transaksi Draft",
-      description: `${draftRow.count} transaksi masih dalam status draft. Posting untuk mencatatnya ke pembukuan.`,
-      count: draftRow.count, actionLabel: "Lihat Draft", actionPath: "/transactions",
-    });
-  }
-}
-
-async function checkUnreconciledStatements(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const unreconciledRow = await queryFirst<{ count: number }>(
-    db,
-    `SELECT COUNT(*) as count FROM bank_statements
-     WHERE organization_id = ? AND status = 'open'`,
-    [orgId],
-  );
-  if (unreconciledRow && unreconciledRow.count > 0) {
-    alerts.push({
-      id: "unreconciled_statement", type: "unreconciled_statement", severity: "low",
-      title: "Rekonsiliasi Belum Selesai",
-      description: `${unreconciledRow.count} rekening koran masih perlu direkonsiliasi. Cocokkan transaksi untuk memastikan saldo sesuai.`,
-      count: unreconciledRow.count, actionLabel: "Rekonsiliasi", actionPath: "/reconciliation",
-    });
-  }
-}
-
-/**
- * Compute the inventory control-account balance vs the stock subledger value.
- *
- * Returns the raw (rounded) figures plus a `matched` flag. The `matched` flag
- * tolerates small WAC rounding drift (>= Rp 1.000 divergence is a real mismatch).
- * Extracted as a pure function so it can be unit-tested with realistic fixtures
- * (see dashboard.service.test.ts) and exposed on-demand via the
- * `/api/dashboard/inventory-reconciliation` endpoint.
- *
- * Mirrors verifyInventoryMatch in backup.service (kept in sync: same tolerance).
- */
-export interface InventoryReconciliation {
-  /** Persediaan control-account balance in minor units (book value). */
-  accountBalance: number;
-  /** Σ(stock × average cost) across all products in minor units. */
-  stockValue: number;
-  /** Absolute divergence: |accountBalance − stockValue|. */
-  diff: number;
-  /** True when divergence is within tolerance (no alert needed). */
-  matched: boolean;
-}
-
-const INVENTORY_MISMATCH_TOLERANCE = 1000; // Rp 1.000 — ignore WAC rounding drift
-
-export async function computeInventoryMismatch(
-  db: D1Database,
-  orgId: string,
-): Promise<InventoryReconciliation> {
-  const row = await queryFirst<{ account_balance: number | null; stock_value: number | null }>(
-    db,
-    `WITH posted_lines AS (
-       SELECT jl.account_id, jl.debit_minor, jl.credit_minor
-       FROM journal_lines jl
-       JOIN journal_entries je
-         ON je.id = jl.journal_entry_id
-        AND je.organization_id = jl.organization_id
-       WHERE jl.organization_id = ?
-         AND je.status = 'posted'
-     ),
-     inv_balance AS (
-       SELECT COALESCE(SUM(pl.debit_minor - pl.credit_minor), 0) AS balance
-       FROM accounts a
-       LEFT JOIN posted_lines pl ON pl.account_id = a.id
-       WHERE a.organization_id = ?
-         AND a.account_type = 'asset'
-         AND (a.code LIKE '13%' OR a.name LIKE '%Persediaan%' OR a.name LIKE '%Inventory%')
-     ),
-     stock_value AS (
-       SELECT COALESCE(SUM((current_stock_milli / 1000.0) * average_cost_minor), 0) AS value
-       FROM products
-       WHERE organization_id = ?
-     )
-     SELECT inv_balance.balance AS account_balance, stock_value.value AS stock_value
-     FROM inv_balance, stock_value`,
-    [orgId, orgId, orgId],
-  );
-
-  const accountBalance = Math.round(row?.account_balance ?? 0);
-  const stockValue = Math.round(row?.stock_value ?? 0);
-  const diff = Math.abs(accountBalance - stockValue);
-  // Tolerate small WAC rounding drift; flag real divergences (>= Rp 1.000).
-  const matched = diff < INVENTORY_MISMATCH_TOLERANCE;
-  return { accountBalance, stockValue, diff, matched };
-}
-
-/**
- * Flag when the Persediaan control account balance diverges from the stock
- * subledger value (e.g. a stock adjustment whose journal never posted, or a
- * void/WAC rounding drift). Delegates the computation to computeInventoryMismatch.
- */
-async function checkInventoryMismatch(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const { accountBalance, stockValue, diff, matched } = await computeInventoryMismatch(db, orgId);
-  if (matched) return;
-
-  alerts.push({
-    id: "inventory_mismatch",
-    type: "inventory_mismatch",
-    severity: "medium",
-    title: "Stok Tidak Sesuai Pembukuan",
-    description: `Nilai persediaan di pembukuan (Rp ${accountBalance.toLocaleString("id-ID")}) tidak sama dengan nilai stok produk (Rp ${stockValue.toLocaleString("id-ID")}), selisih Rp ${diff.toLocaleString("id-ID")}. Periksa jurnal persediaan atau lakukan penyesuaian stok.`,
-    count: 1,
-    actionLabel: "Periksa Stok",
-    actionPath: "/products",
-  });
-}
-
-async function checkUnclosedPeriod(
-  db: D1Database, orgId: string, alerts: DashboardAlert[],
-): Promise<void> {
-  const unclosedRow = await queryFirst<{ count: number; max_locked: string | null }>(
-    db,
-    `SELECT COUNT(*) as count, MAX(locked_through_date) as max_locked
-     FROM period_locks WHERE organization_id = ?`,
-    [orgId],
-  );
-  if (unclosedRow) {
-    const hasLock = unclosedRow.count > 0 && unclosedRow.max_locked;
-    if (!hasLock) {
-      alerts.push({
-        id: "unclosed_period", type: "unclosed_period", severity: "medium",
-        title: "Periode Belum Ditutup",
-        description: "Belum ada periode yang dikunci. Tutup periode setelah selesai untuk mencegah perubahan data lama.",
-        count: 1, actionLabel: "Kunci Periode", actionPath: "/settings/period-locks",
-      });
-    }
-  }
+/** First and last day of the current month in Asia/Jakarta. */
+export function currentMonthPeriod(date = new Date()): { from: string; to: string } {
+  const jakarta = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+  }).format(date);
+  const [year, month] = jakarta.split("-");
+  const lastDay = new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
+  return {
+    from: `${jakarta}-01`,
+    to: `${jakarta}-${String(lastDay).padStart(2, "0")}`,
+  };
 }
 
 export async function getDashboardSummary(
   db: D1Database,
   organizationId: string,
-  today = new Date(),
 ): Promise<DashboardSummary> {
-  const { periodFrom, periodTo } = currentMonthPeriod(today);
-  const row = await queryFirst<DashboardSummaryRow>(
-    db,
-    `WITH posted_lines AS (
-       SELECT jl.account_id, jl.debit_minor, jl.credit_minor
-       FROM journal_lines jl
-       JOIN journal_entries je
-         ON je.id = jl.journal_entry_id
-        AND je.organization_id = jl.organization_id
-       WHERE jl.organization_id = ?
-         AND je.status = 'posted'
-         AND je.entry_date <= ?
-     ),
-     posted_balances AS (
-       SELECT
-         account_id,
-         SUM(debit_minor - credit_minor) AS debit_balance,
-         SUM(credit_minor - debit_minor) AS credit_balance
-       FROM posted_lines
-       GROUP BY account_id
-     ),
-     period_lines AS (
-       SELECT jl.account_id, jl.debit_minor, jl.credit_minor
-       FROM journal_lines jl
-       JOIN journal_entries je
-         ON je.id = jl.journal_entry_id
-        AND je.organization_id = jl.organization_id
-       WHERE jl.organization_id = ?
-         AND je.status = 'posted'
-         AND je.entry_type != 'opening_balance'
-         AND je.entry_date BETWEEN ? AND ?
-     ),
-     period_balances AS (
-       SELECT
-         account_id,
-         SUM(debit_minor - credit_minor) AS debit_balance,
-         SUM(credit_minor - debit_minor) AS credit_balance
-       FROM period_lines
-       GROUP BY account_id
-     )
-     SELECT
-       COALESCE(SUM(CASE
-         WHEN a.is_cash_account = 1 THEN pb.debit_balance
-         ELSE 0
-       END), 0) AS cash_balance,
-       COALESCE(SUM(CASE
-         WHEN a.account_type IN ('revenue', 'other_income')
-           THEN pe.credit_balance
-         ELSE 0
-       END), 0) AS revenue_current_period,
-       COALESCE(SUM(CASE
-         WHEN a.account_type IN ('cogs', 'expense', 'other_expense')
-           THEN pe.debit_balance
-         ELSE 0
-       END), 0) AS expense_current_period,
-       COALESCE(SUM(CASE
-         WHEN a.account_subtype = 'accounts_receivable'
-           THEN pb.debit_balance
-         ELSE 0
-       END), 0) AS accounts_receivable,
-       COALESCE(SUM(CASE
-         WHEN a.account_subtype = 'accounts_payable'
-           THEN pb.credit_balance
-         ELSE 0
-       END), 0) AS accounts_payable
-     FROM accounts a
-     LEFT JOIN posted_balances pb ON pb.account_id = a.id
-     LEFT JOIN period_balances pe ON pe.account_id = a.id
-     WHERE a.organization_id = ?`,
-    [organizationId, periodTo, organizationId, periodFrom, periodTo, organizationId],
-  );
+  const cashAccounts = await listAccounts(db, organizationId, { subtype: "cash" });
+  const bankAccounts = await listAccounts(db, organizationId, { subtype: "bank" });
+  const balances = await balancesByAccount(db, organizationId);
 
-  const revenue = row?.revenue_current_period ?? 0;
-  const expense = row?.expense_current_period ?? 0;
+  const cashBankAccounts = [...cashAccounts, ...bankAccounts].map((a) => ({
+    id: a.id,
+    code: a.code,
+    name: a.name,
+    balance: balances.get(a.id) ?? 0,
+  }));
+  const cashBankBalance = cashBankAccounts.reduce((s, a) => s + a.balance, 0);
+
+  const month = currentMonthPeriod();
+  const pl = await getProfitLoss(db, organizationId, month.from, month.to);
+  const recentTransactions = await listTransactions(db, organizationId, { limit: 5 });
 
   return {
-    cash_balance: row?.cash_balance ?? 0,
-    revenue_current_period: revenue,
-    expense_current_period: expense,
-    net_profit_current_period: revenue - expense,
-    accounts_receivable: row?.accounts_receivable ?? 0,
-    accounts_payable: row?.accounts_payable ?? 0,
-    period_from: periodFrom,
-    period_to: periodTo,
+    cashBankBalance,
+    cashBankAccounts,
+    month,
+    moneyIn: pl.income.total,
+    moneyOut: pl.expense.total,
+    netIncome: pl.netIncome,
+    recentTransactions,
   };
 }
 
-export function currentMonthPeriod(date: Date): {
-  periodFrom: string;
-  periodTo: string;
-} {
-  // ponytail: Use local time instead of UTC to avoid timezone drift.
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  return {
-    periodFrom: isoDate(new Date(year, month, 1)),
-    periodTo: isoDate(date),
-  };
-}
-
-function isoDate(date: Date): string {
-  return orgDate(date);
-}
-
-/**
- * Format a Date as YYYY-MM-DD in the given timezone.
- * Defaults to 'Asia/Jakarta' (WIB) for server-side usage.
- */
-function orgDate(date: Date, tz = 'Asia/Jakarta'): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date);
+/** Alerts ringan untuk dashboard: akun kas/bank bersaldo negatif. */
+export async function getDashboardAlerts(
+  db: D1Database,
+  organizationId: string,
+): Promise<{ negativeBalanceAccounts: { id: string; name: string; balance: number }[] }> {
+  const accounts = await listAccounts(db, organizationId);
+  const balances = await balancesByAccount(db, organizationId);
+  const negativeBalanceAccounts = accounts
+    .filter((a) => a.account_subtype !== null && (balances.get(a.id) ?? 0) < 0)
+    .map((a) => ({ id: a.id, name: a.name, balance: balances.get(a.id) ?? 0 }));
+  return { negativeBalanceAccounts };
 }

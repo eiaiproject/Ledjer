@@ -68,7 +68,7 @@ test.describe("CSRF Protection", () => {
       method: "OPTIONS",
     });
     // On Worker, OPTIONS may return 204 or 200
-    const ok = await response.ok().catch(() => false);
+    const ok = response.ok();
     if (!ok) {
       expect(response.status()).toBeLessThan(500);
     }

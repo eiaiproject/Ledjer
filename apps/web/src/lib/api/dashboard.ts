@@ -1,33 +1,22 @@
 import { apiRequest } from "./client";
+import type { Transaction } from "./transactions";
 
 export interface DashboardSummary {
-  cash_balance: number;
-  revenue_current_period: number;
-  expense_current_period: number;
-  net_profit_current_period: number;
-  accounts_receivable: number;
-  accounts_payable: number;
-  period_from: string;
-  period_to: string;
+  cashBankBalance: number;
+  cashBankAccounts: { id: string; code: string; name: string; balance: number }[];
+  month: { from: string; to: string };
+  moneyIn: number;
+  moneyOut: number;
+  netIncome: number;
+  recentTransactions: Transaction[];
 }
 
 interface DashboardSummaryResponse {
   summary: DashboardSummary;
 }
 
-export interface DashboardAlert {
-  id: string;
-  type: "overdue_receivable" | "upcoming_payable" | "low_stock" | "draft_transaction" | "unreconciled_statement" | "unclosed_period" | "inventory_mismatch";
-  severity: "high" | "medium" | "low";
-  title: string;
-  description: string;
-  count: number;
-  actionLabel: string;
-  actionPath: string;
-}
-
 export interface DashboardAlerts {
-  alerts: DashboardAlert[];
+  negativeBalanceAccounts: { id: string; name: string; balance: number }[];
 }
 
 export function getDashboardSummary(): Promise<DashboardSummary> {
