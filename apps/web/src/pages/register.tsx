@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
+import { startGoogleAuth } from "@/lib/api/auth";
 import { Lock, Envelope, User, Store } from "reicon-react";
 
 const passwordSchema = z
@@ -36,9 +38,24 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const oauthError = (() => {
+    const code = searchParams.get("error");
+    if (!code) return null;
+    const messages: Record<string, string> = {
+      oauth_denied: "Pendaftaran Google dibatalkan.",
+      oauth_missing_params: "Sesi Google tidak valid. Coba lagi.",
+      oauth_invalid_state: "Sesi Google tidak valid. Coba lagi.",
+      oauth_not_configured: "Daftar dengan Google belum aktif. Coba lagi nanti.",
+      oauth_failed: "Gagal daftar dengan Google. Coba lagi.",
+    };
+    return messages[code] ?? "Gagal daftar dengan Google. Coba lagi.";
+  })();
 
   const {
     register,
@@ -64,6 +81,20 @@ export function RegisterPage() {
       setError(translateError(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    if (loading || oauthLoading) return;
+    setOauthLoading(true);
+    setError(null);
+    try {
+      const response = await startGoogleAuth();
+      if (!response.url) throw new Error("oauth_not_configured");
+      window.location.assign(response.url);
+    } catch (err) {
+      setError(translateError(err));
+      setOauthLoading(false);
     }
   };
 
@@ -93,9 +124,9 @@ export function RegisterPage() {
                 Buat akun dan nama usaha Anda, lalu langsung catat transaksi pertama.
               </p>
 
-              {error && (
+              {(error || oauthError) && (
                 <Callout variant="error" className="mt-4">
-                  {error}
+                  {error ?? oauthError}
                 </Callout>
               )}
 
@@ -152,6 +183,22 @@ export function RegisterPage() {
                   Buat akun gratis
                 </Button>
               </form>
+
+              <div className="relative mt-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-wood-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="bg-surface px-2 text-wood-500">atau</span>
+                </div>
+              </div>
+
+              <GoogleAuthButton
+                mode="signup"
+                onClick={handleGoogleSignUp}
+                loading={oauthLoading}
+                disabled={loading || oauthLoading}
+              />
 
               <p className="mt-4 text-center text-sm text-wood-500">
                 Sudah punya akun?{" "}

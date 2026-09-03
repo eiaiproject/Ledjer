@@ -7,6 +7,7 @@ import { tooManyRequests, unauthorized } from "../http/errors";
 import { execute } from "../db/client";
 import { readJson } from "../http/json";
 import { loginUser, registerUser } from "../services/auth.service";
+import { buildGoogleAuthUrl, completeGoogleAuth } from "../services/google-auth.service";
 import { checkRateLimit } from "../services/rate-limit.service";
 import { getSessionByToken } from "../services/session.service";
 import { logAuthEvent } from "../services/auth-audit.service";
@@ -100,6 +101,93 @@ authRoutes.post("/logout", async (c) => {
   }
   deleteCookie(c, cookieName(c), cookieOptions(c));
   return c.json({ ok: true });
+});
+
+authRoutes.get("/google/start", (c) => {
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return c.json(
+      {
+        error: {
+          code: "oauth_not_configured",
+          message: "Google OAuth belum dikonfigurasi.",
+          requestId: c.get("requestId"),
+        },
+      },
+      501,
+    );
+  }
+
+  // Generate CSRF state token, stored in a 5-minute cookie
+  const state = crypto.randomUUID();
+  const current = Date.now();
+  setCookie(c, "google_oauth_state", state, {
+    ...cookieOptions(c),
+    expires: new Date(current + 5 * 60 * 1000),
+    httpOnly: true,
+  });
+
+  // OAuth provider only accepts a single redirect_uri, so use the first APP_ORIGIN.
+  const firstOrigin = (c.env.APP_ORIGIN || new URL(c.req.url).origin).split(",")[0].trim();
+  const redirectUri = `${firstOrigin}/api/auth/google/callback`;
+
+  return c.json({ url: buildGoogleAuthUrl(clientId, redirectUri, state) });
+});
+
+authRoutes.get("/google/callback", async (c) => {
+  const code = c.req.query("code");
+  const state = c.req.query("state");
+  const error = c.req.query("error");
+
+  if (error) {
+    return c.redirect("/login?error=oauth_denied");
+  }
+
+  if (!code || !state) {
+    return c.redirect("/login?error=oauth_missing_params");
+  }
+
+  // Verify CSRF state cookie
+  const storedState = getCookie(c, "google_oauth_state");
+  if (!storedState || storedState !== state) {
+    return c.redirect("/login?error=oauth_invalid_state");
+  }
+  deleteCookie(c, "google_oauth_state", cookieOptions(c));
+
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return c.redirect("/login?error=oauth_not_configured");
+  }
+
+  try {
+    const origin = (c.env.APP_ORIGIN || new URL(c.req.url).origin).split(",")[0].trim();
+    const redirectUri = `${origin}/api/auth/google/callback`;
+
+    const session = await completeGoogleAuth(
+      c.env.DB,
+      code,
+      clientId,
+      clientSecret,
+      redirectUri,
+      c.req.raw,
+    );
+
+    setCookie(c, cookieName(c), session.token, {
+      ...cookieOptions(c),
+      expires: new Date(session.expiresAt),
+      httpOnly: true,
+    });
+    return c.redirect("/dashboard");
+  } catch (err) {
+    const errorCode =
+      err instanceof Error && "code" in err
+        ? String((err as { code?: unknown }).code ?? "oauth_failed")
+        : "oauth_failed";
+    return c.redirect(`/login?error=${encodeURIComponent(errorCode)}`);
+  }
 });
 
 authRoutes.get("/me", async (c) => {

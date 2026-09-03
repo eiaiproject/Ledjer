@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0002", () => {
-    const expected = Array.from({ length: 2 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0003", () => {
+    const expected = Array.from({ length: 3 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);
@@ -156,7 +156,7 @@ describe("Database Migrations", () => {
       "attachments", "dimensions", "journal_line_tags", "budgets",
       "budget_lines", "bank_statements", "unmatched_lines",
       "account_mappings", "admin_users", "admin_sessions",
-      "oauth_accounts", "email_verifications", "password_reset_tokens",
+      "email_verifications", "password_reset_tokens",
     ]) {
       expect(final.tables.has(forbidden), `${forbidden} must not exist in MVP schema`).toBe(false);
     }

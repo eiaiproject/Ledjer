@@ -99,6 +99,16 @@ interface SeedSession {
   revoked_at: number | null;
 }
 
+interface SeedOAuthAccount {
+  id: string;
+  user_id: string;
+  provider: "google";
+  provider_account_id: string;
+  email: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
 interface SeedAccount {
   id: string;
   organization_id: string;
@@ -304,6 +314,7 @@ let transactions: SeedTransaction[] = [];
 let journalEntries: SeedJournalEntry[] = [];
 let journalLines: SeedJournalLine[] = [];
 let insertedUsers: SeedUser[] = [];
+let oauthAccounts: SeedOAuthAccount[] = [];
 
 function resetRuntime(): void {
   users = SEED_USERS.map((u) => ({ ...u }));
@@ -315,6 +326,7 @@ function resetRuntime(): void {
   journalEntries = SEED_JOURNAL_ENTRIES.map((e) => ({ ...e }));
   journalLines = SEED_JOURNAL_LINES.map((l) => ({ ...l }));
   insertedUsers = [];
+  oauthAccounts = [];
 }
 
 function findUserByIdOrEmail(value: string): SeedUser | undefined {
@@ -420,6 +432,23 @@ function handleFirst(sql: string, values: unknown[]): unknown {
     return null;
   }
 
+  // Google OAuth lookups (must run before the plain FROM users WHERE branch)
+  if (s.includes("FROM oauth_accounts oa") && s.includes("JOIN users u")) {
+    const account = oauthAccounts.find(
+      (x) => x.provider === "google" && x.provider_account_id === (values[0] as string),
+    );
+    if (!account) return null;
+    const user = findUserByIdOrEmail(account.user_id);
+    if (!user) return null;
+    return { id: user.id, email: user.email, full_name: user.full_name, status: user.status };
+  }
+  if (s.includes("FROM oauth_accounts") && s.includes("provider_account_id = ?")) {
+    const account = oauthAccounts.find(
+      (x) => x.provider === "google" && x.provider_account_id === (values[0] as string),
+    );
+    return account ? { ...account } : null;
+  }
+
   // Organizations
   if (s.includes("FROM organizations")) {
     return orgs.find((o) => o.id === values[0]) ?? null;
@@ -427,6 +456,11 @@ function handleFirst(sql: string, values: unknown[]): unknown {
 
   // Memberships (plain lookups, e.g. register integration test)
   if (s.includes("FROM memberships") && !s.includes("JOIN organizations")) {
+    // Lookup by user_id only (e.g. google-oauth org resolution)
+    if (s.includes("WHERE user_id = ?") && values.length === 1) {
+      const member = memberships.find((m) => m.user_id === (values[0] as string));
+      return member ? { organization_id: member.organization_id, role: member.role } : null;
+    }
     const member = memberships.find(
       (m) =>
         m.organization_id === values[0] && m.user_id === values[1],
@@ -570,6 +604,13 @@ function handleFirst(sql: string, values: unknown[]): unknown {
 function handleAll(sql: string, values: unknown[]): unknown[] {
   const s = norm(sql);
 
+  // Plain memberships lookup (e.g. counting orgs per user)
+  if (s.includes("FROM memberships") && !s.includes("JOIN")) {
+    return memberships
+      .filter((m) => m.user_id === (values[0] as string))
+      .map((m) => ({ organization_id: m.organization_id }));
+  }
+
   // Transactions list / export (LEFT JOIN readbacks)
   if (s.includes("FROM transactions t") && s.includes("LEFT JOIN accounts")) {
     const orgId = values[0] as string;
@@ -691,6 +732,36 @@ function handleRun(sql: string, values: unknown[]): D1Result {
       status: "active",
       created_at: Number(values[5]),
       updated_at: Number(values[6]),
+    });
+  }
+
+  if (s.includes("INSERT INTO oauth_accounts")) {
+    // VALUES (?, ?, 'google', ?, ?, ?, ?): id, user_id, provider_account_id, email, created_at, updated_at
+    oauthAccounts.push({
+      id: values[0] as string,
+      user_id: values[1] as string,
+      provider: "google",
+      provider_account_id: values[2] as string,
+      email: (values[3] as string | null) ?? null,
+      created_at: Number(values[4]),
+      updated_at: Number(values[5]),
+    });
+  }
+
+  if (s.includes("INSERT INTO sessions")) {
+    // hasOrg shape: (id, user_id, token_hash, ip, ua, current_organization_id, expires_at, last_used_at, created_at)
+    // no-org shape: (id, user_id, token_hash, ip, ua, expires_at, last_used_at, created_at)
+    const hasOrg = values.length === 9;
+    sessions.push({
+      id: values[0] as string,
+      user_id: values[1] as string,
+      token_hash: values[2] as string,
+      current_organization_id: hasOrg ? (values[5] as string | null) : null,
+      expires_at: Number(values[hasOrg ? 6 : 5]),
+      last_used_at: Number(values[hasOrg ? 7 : 6]),
+      last_rotated_at: null,
+      created_at: Number(values[hasOrg ? 8 : 7]),
+      revoked_at: null,
     });
   }
 

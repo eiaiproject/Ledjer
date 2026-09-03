@@ -8,6 +8,8 @@ export interface Env {
   APP_ORIGIN?: string;
   COOKIE_DOMAIN?: string;
   PASSWORD_PEPPER?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
   SENTRY_DSN?: string;
   APP_ENV?: string;
   GIT_SHA?: string;

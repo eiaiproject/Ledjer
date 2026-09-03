@@ -10,6 +10,7 @@ export const CORE_TABLES = [
   "journal_entries",
   "journal_lines",
   "audit_logs",
+  "oauth_accounts",
 ] as const;
 
 export const TENANT_SCOPED_TABLES = [

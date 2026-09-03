@@ -10,7 +10,8 @@ Per PRD 2026-09-03, Ledjer di-strip besar-besaran menjadi MVP pencatatan kas yan
 
 #### Removed
 - `apps/admin` (dashboard internal admin.ledjer.id) dan `apps/docs` (situs VitePress) dihapus dari repo
-- Fitur non-MVP: inventory/produk/stok, faktur & piutang/utang (AR/AP), pihak (parties), jurnal manual, rekonsiliasi bank, kunci periode, impor data, ekspor PDF, OAuth Google, email verification & reset password, notifikasi & web push, pencarian global, lampiran, onboarding wizard, kolaborasi tim (invitations), buku besar, neraca saldo, arus kas, aging, admin users/sessions
+- Fitur non-MVP: inventory/produk/stok, faktur & piutang/utang (AR/AP), pihak (parties), jurnal manual, rekonsiliasi bank, kunci periode, impor data, ekspor PDF, email verification & reset password, notifikasi & web push, pencarian global, lampiran, onboarding wizard, kolaborasi tim (invitations), buku besar, neraca saldo, arus kas, aging, admin users/sessions
+- Google OAuth dipertahankan (keputusan produk): login/daftar dengan Google aktif di MVP
 - 33 migrasi D1 lama dibuang; skema di-reset bersih ke 11 tabel inti MVP (`0001_mvp_foundation.sql`, `0002_mvp_accounting.sql`)
 
 #### Added

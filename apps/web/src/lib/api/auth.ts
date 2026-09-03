@@ -56,3 +56,11 @@ export function register(
 export function logout(): Promise<{ ok: true }> {
   return apiRequest<{ ok: true }>("/api/auth/logout", { method: "POST" });
 }
+
+export interface GoogleStartResponse {
+  url: string;
+}
+
+export function startGoogleAuth(): Promise<GoogleStartResponse> {
+  return apiRequest<GoogleStartResponse>("/api/auth/google/start");
+}

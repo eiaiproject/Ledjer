@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
 import { getSafeRedirectPath } from "@/lib/redirect";
+import { startGoogleAuth } from "@/lib/api/auth";
 import { Lock, Envelope } from "reicon-react";
 
 const loginSchema = z.object({
@@ -26,7 +28,23 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // OAuth callback redirects here with ?error=<code> on failure
+  const oauthError = (() => {
+    const code = searchParams.get("error");
+    if (!code) return null;
+    const messages: Record<string, string> = {
+      oauth_denied: "Login Google dibatalkan.",
+      oauth_missing_params: "Sesi login Google tidak valid. Coba lagi.",
+      oauth_invalid_state: "Sesi login Google tidak valid. Coba lagi.",
+      oauth_not_configured: "Masuk dengan Google belum aktif. Coba lagi nanti.",
+      oauth_email_conflict: "Email Google tidak terverifikasi. Masuk dengan email dan password.",
+      oauth_failed: "Gagal masuk dengan Google. Coba lagi.",
+    };
+    return messages[code] ?? "Gagal masuk dengan Google. Coba lagi.";
+  })();
 
   const {
     register,
@@ -47,6 +65,20 @@ export function LoginPage() {
       setError(translateError(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (loading || oauthLoading) return;
+    setOauthLoading(true);
+    setError(null);
+    try {
+      const response = await startGoogleAuth();
+      if (!response.url) throw new Error("oauth_not_configured");
+      window.location.assign(response.url);
+    } catch (err) {
+      setError(translateError(err));
+      setOauthLoading(false);
     }
   };
 
@@ -74,9 +106,9 @@ export function LoginPage() {
               <h1 className="text-xl font-bold text-text-primary">Masuk</h1>
               <p className="mt-1 text-sm text-text-secondary">Masuk ke akun Anda.</p>
 
-              {error && (
+              {(error || oauthError) && (
                 <Callout variant="error" className="mt-4">
-                  {error}
+                  {error ?? oauthError}
                 </Callout>
               )}
 
@@ -105,6 +137,22 @@ export function LoginPage() {
                   Masuk
                 </Button>
               </form>
+
+              <div className="relative mt-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-wood-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="bg-surface px-2 text-wood-500">atau</span>
+                </div>
+              </div>
+
+              <GoogleAuthButton
+                mode="login"
+                onClick={handleGoogleSignIn}
+                loading={oauthLoading}
+                disabled={loading || oauthLoading}
+              />
 
               <p className="mt-4 text-center text-sm text-wood-500">
                 Belum punya akun?{" "}
