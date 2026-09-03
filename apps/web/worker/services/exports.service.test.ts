@@ -24,7 +24,7 @@ describe("CSV escaping", () => {
 });
 
 describe("maintenance cleanup", () => {
-  it("deletes expired sessions, tokens, and export jobs", async () => {
+  it("deletes expired sessions, audit logs, and rate limits", async () => {
     const db = new FakeD1Database({
       run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
     });
@@ -32,18 +32,12 @@ describe("maintenance cleanup", () => {
 
     expect(result).toEqual({
       sessions: 1,
-      emailVerifications: 1,
-      passwordResetTokens: 1,
-      loginAttempts: 1,
       auditLogs: 1,
       rateLimits: 1,
     });
-    expect(db.statements).toHaveLength(6);
+    expect(db.statements).toHaveLength(3);
     expect(db.statements.map((statement) => statement.sql)).toEqual([
       expect.stringContaining("DELETE FROM sessions"),
-      expect.stringContaining("DELETE FROM email_verifications"),
-      expect.stringContaining("DELETE FROM password_reset_tokens"),
-      expect.stringContaining("DELETE FROM login_attempts"),
       expect.stringContaining("DELETE FROM audit_logs"),
       expect.stringContaining("DELETE FROM rate_limits"),
     ]);

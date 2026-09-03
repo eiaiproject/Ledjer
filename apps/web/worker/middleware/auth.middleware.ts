@@ -32,7 +32,6 @@ export function requireAuth(): MiddlewareHandler<AppContext> {
       id: session.user_id,
       email: session.email,
       full_name: session.full_name,
-      email_verified_at: session.email_verified_at,
     });
     await next();
   };

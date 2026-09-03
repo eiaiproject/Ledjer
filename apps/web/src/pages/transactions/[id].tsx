@@ -1,431 +1,152 @@
-import { useRef, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Undo } from "reicon-react";
+import { useOrganization } from "@/hooks/useOrganization";
+import { getTransaction, voidTransaction } from "@/lib/api/transactions";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
-import { formatIDR, formatShortDate, createClientToken } from "@/lib/utils";
-import {
-  PAYMENT_STATUS_LABELS,
-  TRANSACTION_LABELS,
-  usesCategory,
-  statusVariant,
-  statusLabel,
-} from "@/lib/transactions";
-import { Badge } from "@/components/ui/badge";
-import { StatusFlow } from "@/components/ui/status-flow";
-import { FieldHelp } from "@/components/ui/help-tooltip";
+import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorState } from "@/components/ui/error-state";
-import { AttachmentSection } from "@/components/attachment-section";
-import { PageGuide } from "@/components/ui/page-guide";
-import { Callout } from "@/components/ui/callout";
-import { Select } from "@/components/ui/select";
-import { PageSpinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { formatIDR, formatDateLong } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
-import { ChevronDown, ChevronRight } from "reicon-react";
-import {
-  getTransaction,
-  listTransactionJournal,
-  voidTransaction,
-  settleTransaction,
-} from "@/lib/api/transactions";
-import { listCashBankAccounts } from "@/lib/api/accounts";
+import { labelForTransactionType } from "@/lib/transactions";
+import { getStatus } from "@/lib/status-registry";
 
-export function TransactionDetailPage() { // NOSONAR typescript:S3776 - page component with void/settle/journal UIs; readability over complexity
-  const { id } = useParams<{ id: string }>();
+export function TransactionDetailPage() {
+  const { id = "" } = useParams();
   const queryClient = useQueryClient();
   const { data: orgData } = useOrganization();
-  const { canViewReports, canVoidTransaction, canCreateTransaction } = useOrgPermissions();
-  const [showVoidForm, setShowVoidForm] = useState(false);
-  const [showSettleForm, setShowSettleForm] = useState(false);
-  const [settleCashAccountId, setSettleCashAccountId] = useState("");
-  const [voidReason, setVoidReason] = useState("");
-  const [showJournal, setShowJournal] = useState(false);
-  const [voidSuccessId, setVoidSuccessId] = useState<string | null>(null);
-  const voidTokenRef = useRef(createClientToken());
-  const navigate = useNavigate();
+  const orgId = orgData?.organization?.id;
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voiding, setVoiding] = useState(false);
 
-  // P1.3: Allow any member with transaction access to view business details.
-  // Journal lines are separately gated by RLS (can_view_reports policy).
-  const { data: transaction, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.transactions.detail(id!),
+  const query = useQuery({
+    queryKey: queryKeys.transactions.detail(id),
     queryFn: async () => {
-      if (!id || !orgData?.organization?.id) return null;
+      if (!id) throw new Error("Missing id");
       return getTransaction(id);
     },
-    enabled: !!id && !!orgData?.organization?.id && canViewReports,
+    enabled: !!id,
   });
 
-  const { data: journalEntries, error: journalError, refetch: refetchJournal } = useQuery({
-    queryKey: queryKeys.journalEntries.detail(id!),
-    queryFn: async () => {
-      if (!id || !orgData?.organization?.id) return [];
-      return listTransactionJournal(id);
-    },
-    enabled: !!id && !!orgData?.organization?.id,
-  });
+  const transaction = query.data;
 
-  const { data: cashAccounts } = useQuery({
-    queryKey: ["cash-bank-accounts"],
-    queryFn: listCashBankAccounts,
-    enabled: !!orgData?.organization?.id,
-  });
+  const handleVoid = async () => {
+    if (!transaction || voiding) return;
+    setVoiding(true);
+    try {
+      await voidTransaction(transaction.id, null);
+      invalidateTransactionFinancialCaches(queryClient, orgId);
+      toast.success("Transaksi berhasil dibatalkan.");
+      setVoidOpen(false);
+      query.refetch();
+    } catch (err) {
+      toast.error(translateError(err));
+    } finally {
+      setVoiding(false);
+    }
+  };
 
-  const voidMutation = useMutation({
-    mutationFn: async () => {
-      if (!id || !orgData?.organization?.id) throw new Error("Missing data");
-      return voidTransaction(id, voidReason, voidTokenRef.current);
-    },
-    onSuccess: (result) => {
-      voidTokenRef.current = createClientToken();
-      setVoidSuccessId(result.reversal_transaction_id);
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.journalEntries.detail(id!) });
-      // P1.5: void reverses stock, COGS, balances → invalidate everything
-      invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
-      setShowVoidForm(false);
-    },
-    onError: (err) => toast.error(translateError(err)),
-  });
-
-  const settleMutation = useMutation({
-    mutationFn: async (cashAccountId: string) => {
-      if (!id || !orgData?.organization?.id) throw new Error("Missing data");
-      return settleTransaction(id, cashAccountId, voidTokenRef.current);
-    },
-    onSuccess: (result) => {
-      voidTokenRef.current = createClientToken();
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.detail(id!) });
-      invalidateTransactionFinancialCaches(queryClient, orgData?.organization?.id);
-      toast.success(`Sisa tagihan dilunasi: ${result.settle_transaction_number}`);
-      setShowSettleForm(false);
-      setSettleCashAccountId("");
-    },
-    onError: (err) => toast.error(translateError(err)),
-  });
-
-  // P1.3: No longer block entire page for non-report users.
-  // Journal lines section below is separately gated by canViewReports.
-
-  if (isLoading) {
-    return <PageSpinner />;
-  }
-
-  if (error) return <ErrorState error={error} onRetry={refetch} />;
-
-  if (!transaction) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-8 text-center">
-        <p className="break-words text-wood-500">Transaksi tidak ditemukan</p>
-        <Link to="/transactions" className="mt-2 inline-flex h-11 items-center text-sm text-wood-600 hover:text-wood-500">
-          ← Kembali ke daftar
-        </Link>
-      </div>
-    );
-  }
-
-  const voidSection = transaction.status === "posted" && canVoidTransaction ? (
-    <div className="mt-4">
-      {!showVoidForm && !voidSuccessId ? (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowVoidForm(true)}
-          className="border-error-border text-error hover:bg-error-bg"
-        >
-          Batalkan Transaksi
-        </Button>
-      ) : !voidSuccessId ? ( // NOSONAR typescript:S3358 - nested ternary for void form states
-        <Callout variant="error" title="Pembatalan Transaksi" className="p-4">
-          <p className="text-xs">
-            Transaksi akan dibalik dengan jurnal reversal. Data tidak akan dihapus.
-          </p>
-          <Textarea
-            label="Alasan pembatalan"
-            value={voidReason}
-            onChange={(e) => setVoidReason(e.target.value)}
-            containerClassName="mt-2"
-            placeholder="Alasan pembatalan..."
-            rows={2}
-            error={voidReason.trim().length > 0 && voidReason.trim().length < 5 ? "Alasan minimal 5 karakter." : undefined}
-          />
-          <div className="mt-3 flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowVoidForm(false)}
-            >
-              Batal
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => voidMutation.mutate()}
-              disabled={voidReason.trim().length < 5 || voidMutation.isPending}
-              loading={voidMutation.isPending}
-            >
-              Batalkan
-            </Button>
-          </div>
-        </Callout>
-      ) : (
-        <Callout variant="success" title="Transaksi berhasil dibatalkan" className="p-4">
-          <p className="text-xs">
-            Jurnal reversal dan stok telah dikembalikan seperti sebelum transaksi.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => navigate(`/transactions/new?replace=${id}&type=${transaction.transaction_type}&amount=${transaction.amount}&desc=${encodeURIComponent(transaction.description || "Pengganti " + transaction.transaction_number)}`)}
-            >
-              Buat Transaksi Pengganti
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setVoidSuccessId(null)}
-            >
-              Tutup
-            </Button>
-          </div>
-        </Callout>
-      )}
-    </div>
-  ) : null;
+  const status = transaction ? getStatus("transactions", transaction.status) : null;
 
   return (
-    <div className="ledger-page mx-auto max-w-3xl px-4 py-8">
-      <Link to="/transactions" className="mb-4 flex h-11 items-center text-sm text-wood-600 hover:text-wood-500">
-        ← Kembali
+    <div className="mx-auto max-w-2xl space-y-4">
+      <Link
+        to="/transactions"
+        className="inline-flex min-h-[44px] items-center gap-2 text-sm font-medium text-wood-600 hover:text-wood-800"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Kembali ke Transaksi
       </Link>
 
-      <div className="mb-6 flex min-w-0 items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="break-words text-2xl font-bold text-text-primary">
-            {TRANSACTION_LABELS[transaction.transaction_type] || transaction.transaction_type}
-          </h1>
-          <p className="mt-1 break-words font-mono text-sm text-wood-500">{transaction.transaction_number}</p>
-        </div>
-        <Badge variant={statusVariant(transaction.status)} size="md" className="shrink-0">
-          {statusLabel(transaction.status)}
-        </Badge>
-      </div>
-
-      {/* Panduan halaman */}
-      <PageGuide guideKey="transactions/:id" className="mb-6" />
-
-      {/* Lifecycle status flow + hint why actions may be missing */}
-      <div className="mb-6 flex flex-wrap items-center gap-2 pt-2">
-        <StatusFlow
-          steps={[
-            { key: "draft", label: "Draft" },
-            { key: "posted", label: "Diposting" },
-            { key: "voided", label: "Dibatalkan" },
-          ]}
-          current={transaction.status}
+      {query.isLoading ? (
+        <div className="h-40 animate-pulse rounded-xl bg-wood-100" />
+      ) : query.isError ? (
+        <ErrorState
+          title="Gagal memuat transaksi"
+          message="Transaksi tidak ditemukan atau terjadi kesalahan."
+          onRetry={() => query.refetch()}
         />
-        <FieldHelp topic="transaction_status" label="Aksi muncul sesuai status" />
-      </div>
+      ) : transaction && status ? (
+        <>
+          <PageHeader
+            title={transaction.transaction_number}
+            description={`${labelForTransactionType(transaction.transaction_type)} · ${formatDateLong(transaction.transaction_date)}`}
+            actions={[
+              {
+                key: "void",
+                children: transaction.status === "posted" ? (
+                  <Button variant="danger" onClick={() => setVoidOpen(true)}>
+                    <Undo className="h-4 w-4" />
+                    Batalkan Transaksi
+                  </Button>
+                ) : (
+                  <Badge variant={status.variant} size="md">
+                    {status.label}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
 
-      {/* Transaction Details */}
-      <div className="rounded-lg border border-wood-200 bg-cream-50 p-6">
-        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-wood-500">Tanggal</dt>
-            <dd className="mt-1 font-medium">{formatShortDate(transaction.transaction_date)}</dd>
-          </div>
-          <div>
-            <dt className="text-wood-500">Nominal</dt>
-            <dd className="mt-1 text-lg font-bold text-wood-600">{formatIDR(Number(transaction.amount))}</dd>
-          </div>
-          {transaction.parties && (
-            <div>
-              <dt className="text-wood-500">Pihak</dt>
-              <dd className="mt-1 break-words font-medium">{transaction.parties.name}</dd>
-            </div>
+          {transaction.void_reason && (
+            <Card className="border-clay-200">
+              <CardContent className="p-4">
+                <p className="text-sm text-clay-700">
+                  Alasan pembatalan: {transaction.void_reason}
+                </p>
+              </CardContent>
+            </Card>
           )}
-          <div>
-            <dt className="text-wood-500">Pembayaran</dt>
-            <dd className="mt-1 font-medium">
-              {PAYMENT_STATUS_LABELS[transaction.payment_status as keyof typeof PAYMENT_STATUS_LABELS] || transaction.payment_status}
-            </dd>
-          </div>
-          {usesCategory(transaction.transaction_type) && transaction.category_name && (
-            <div>
-              <dt className="text-wood-500">Kategori</dt>
-              <dd className="mt-1 break-words font-medium">{transaction.category_name}</dd>
-            </div>
-          )}
-          {transaction.due_date && (
-            <div>
-              <dt className="text-wood-500">Jatuh Tempo</dt>
-              <dd className="mt-1 font-medium">{formatShortDate(transaction.due_date)}</dd>
-            </div>
-          )}
-          <div className="sm:col-span-2">
-            <dt className="text-wood-500">Deskripsi</dt>
-            <dd className="mt-1 break-words">{transaction.description || "-"}</dd>
-          </div>
-          {transaction.notes && (
-            <div className="sm:col-span-2">
-              <dt className="text-wood-500">Catatan</dt>
-              <dd className="mt-1 break-words">{transaction.notes}</dd>
-            </div>
-          )}
-            <div>
-              <dt className="text-wood-500">Dibuat oleh</dt>
-              <dd className="mt-1 break-words">{transaction.created_by_profile?.full_name || "-"}</dd>
-            </div>
-          <div>
-            <dt className="text-wood-500">Diposting</dt>              <dd className="mt-1">{transaction.posted_at ? formatShortDate(transaction.posted_at) : "-"}</dd>
-            </div>
-        </dl>
-      </div>
 
-      {/* Catat Lagi - for posted transactions */}
-      {transaction.status === "posted" && canCreateTransaction && (
-        <div className="mt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(`/transactions/new?type=${transaction.transaction_type}&amount=${transaction.amount}&desc=${encodeURIComponent(transaction.description || "")}`)}
-            className="border-sky-300 text-sky-700 hover:bg-sky-50"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M10 3a.75.75 0 01.75.75v5.5h5.5a.75.75 0 010 1.5h-5.5v5.5a.75.75 0 01-1.5 0v-5.5h-5.5a.75.75 0 010-1.5h5.5v-5.5A.75.75 0 0110 3z" />
-            </svg>
-            Catat Lagi
-          </Button>
-        </div>
-      )}
+          <Card elevated>
+            <dl className="divide-y divide-wood-100">
+              <DetailRow label="Keterangan" value={transaction.description} />
+              <DetailRow label="Nominal" value={formatIDR(transaction.amount_idr)} mono />
+              <DetailRow label="Kas/Bank" value={transaction.cash_bank_account ?? "-"} />
+              <DetailRow label="Akun Lawan" value={transaction.counter_account ?? "-"} />
+              <DetailRow label="Status" value={status.label} />
+              {transaction.voided_at ? (
+                <DetailRow label="Dibatalkan pada" value={formatDateLong(new Date(transaction.voided_at))} />
+              ) : null}
+            </dl>
+          </Card>
+        </>
+      ) : null}
 
-      {/* Settle Section - for partially paid credit transactions */}
-      {transaction.status === "posted" && (transaction.transaction_type === "credit_sale" || transaction.transaction_type === "credit_purchase") && transaction.payment_status === "partial" && (
-        <div className="mt-4">
-          {!showSettleForm ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowSettleForm(true)}
-              className="border-leaf-400 text-leaf-700 hover:bg-leaf-50"
-            >
-              Lunasi Sisa Tagihan
-            </Button>
-          ) : (
-            <Callout variant="success" title="Lunasi Sisa Tagihan" className="p-4">
-              <p className="text-xs">
-                Catat pelunasan sisa tagihan transaksi ini. Setelah dilunasi, transaksi dapat dibatalkan jika diperlukan.
-              </p>
-              <div className="mt-3">
-                <Select
-                  value={settleCashAccountId}
-                  onChange={(e) => setSettleCashAccountId(e.target.value)}
-                  aria-label="Pilih akun kas/bank"
-                  placeholder="Pilih akun kas/bank..."
-                >
-                  {cashAccounts?.map((acct) => (
-                    <option key={acct.id} value={acct.id}>
-                      {acct.code} - {acct.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => { setShowSettleForm(false); setSettleCashAccountId(""); }}
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => settleMutation.mutate(settleCashAccountId)}
-                  disabled={!settleCashAccountId || settleMutation.isPending}
-                  loading={settleMutation.isPending}
-                >
-                  Lunasi
-                </Button>
-              </div>
-            </Callout>
-          )}
-        </div>
-      )}
+      <ConfirmDialog
+        open={voidOpen}
+        onClose={() => setVoidOpen(false)}
+        onConfirm={handleVoid}
+        loading={voiding}
+        title="Batalkan transaksi?"
+        message="Transaksi akan ditandai batal. Saldo dan laporan akan disesuaikan otomatis. Tindakan ini tidak dapat dibatalkan."
+        confirmLabel="Ya, Batalkan"
+      />
+    </div>
+  );
+}
 
-      {/* Void Section */}
-      {voidSection}
-
-      {/* Journal Entries */}
-      {canViewReports && journalError && (
-        <div className="mt-6">
-          <ErrorState error={journalError} onRetry={refetchJournal} />
-        </div>
-      )}
-
-      {canViewReports && !journalError && journalEntries && journalEntries.length > 0 && (
-        <div className="mt-6">
-          <Button
-            type="button"
-            variant="link"
-            onClick={() => setShowJournal(!showJournal)}
-            className="flex items-center gap-2 text-sm font-medium text-wood-600 hover:text-wood-500"
-            aria-expanded={showJournal}
-          >
-            {showJournal ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            Lihat jurnal akuntansi
-          </Button>
-          {showJournal && (
-            <div className="mt-3 space-y-3">
-              {journalEntries.map((je) => (
-                <div key={je.id} className="rounded-lg border border-wood-200 bg-cream-50 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-mono text-xs text-wood-500">{je.entry_number}</span>
-                    <Badge variant={statusVariant(je.status)}>{statusLabel(je.status)}</Badge>
-                  </div>
-                  <div className="ledger-scroll-x">
-                  <table className="min-w-0 sm:min-w-[560px] w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-left text-xs text-wood-500">
-                        <th className="pb-1">Akun</th>
-                        <th className="pb-1 text-right">Debit</th>
-                        <th className="pb-1 text-right">Kredit</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {je.journal_lines.map((line) => (
-                        <tr key={line.id} className="border-b border-wood-50">
-                          <td className="sm:max-w-[280px] break-words py-1.5">
-                            <span className="font-mono text-xs text-wood-500">{line.accounts?.code}</span>{" "}
-                            {line.accounts?.name}
-                          </td>
-                          <td className="py-1.5 text-right">
-                            {Number(line.debit) > 0 ? formatIDR(Number(line.debit)) : ""}
-                          </td>
-                          <td className="py-1.5 text-right">
-                            {Number(line.credit) > 0 ? formatIDR(Number(line.credit)) : ""}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Attachments */}
-      {transaction && (
-        <div className="mt-8">
-          <AttachmentSection entityType="transaction" entityId={transaction.id} />
-        </div>
-      )}
+function DetailRow({
+  label,
+  value,
+  mono = false,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly mono?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 px-5 py-3">
+      <dt className="shrink-0 text-sm text-text-secondary">{label}</dt>
+      <dd className={`min-w-0 break-words text-right text-sm font-medium text-text-primary ${mono ? "num-mono" : ""}`}>
+        {value}
+      </dd>
     </div>
   );
 }

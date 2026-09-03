@@ -7,10 +7,6 @@ export interface Env {
   BACKUP_BUCKET?: R2Bucket;
   APP_ORIGIN?: string;
   COOKIE_DOMAIN?: string;
-  EMAIL_API_KEY?: string;
-EMAIL_FROM?: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
   PASSWORD_PEPPER?: string;
   SENTRY_DSN?: string;
   APP_ENV?: string;

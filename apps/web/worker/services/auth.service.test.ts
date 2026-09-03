@@ -1,16 +1,94 @@
 import { describe, expect, it } from "vitest";
+import { createSeedFixtures } from "../test/fixtures";
+import type { D1Database } from "@cloudflare/workers-types";
+import { registerUser } from "./auth.service";
+import { DEFAULT_ACCOUNTS } from "./organization.service";
 
 /**
- * Login rate limiting unit tests.
- *
- * The auth service implements a sliding-window rate limiter:
- *   - LOGIN_MAX_FAILURES = 5
- *   - LOGIN_LOCKOUT_MS = 15 minutes
- *
- * We test the exported assertJournalBalanced / assertPeriodOpen in
- * transactions.service.test.ts; here we test the pure logic of the
- * rate-limit check by verifying the SQL query shape and constants.
+ * Register integration tests (PRD test plan 21.2 #1):
+ * registerUser creates the user, an organization owned by them, and the
+ * default MVP chart of accounts.
  */
+
+describe("registerUser", () => {
+  it("creates user + organization + default COA in one call", async () => {
+    const { db, password, pepper } = createSeedFixtures();
+    const result = await registerUser(
+      db as unknown as D1Database,
+      {
+        email: "new-owner@test.com",
+        password,
+        fullName: "Owner Baru",
+        organizationName: "Toko Baru",
+      },
+      new Request("http://localhost"),
+      pepper,
+    );
+
+    expect(result.userId).toBeTruthy();
+    expect(result.organization.name).toBe("Toko Baru");
+    expect(result.organization.status).toBe("active");
+    expect(result.session.token).toBeTruthy();
+
+    // Session points at the new organization.
+    expect(result.session.expiresAt).toBeGreaterThan(Date.now());
+
+    // The new org exists and is owned by the new user.
+    const orgRow = await (db as unknown as { first<T>(sql: string, values: unknown[]): Promise<T | null> }).first<{ name: string }>(
+      "SELECT name FROM organizations WHERE id = ?",
+      [result.organization.id],
+    );
+    expect(orgRow?.name).toBe("Toko Baru");
+
+    const memberRow = await (db as unknown as { first<T>(sql: string, values: unknown[]): Promise<T | null> }).first<{ role: string }>(
+      "SELECT role FROM memberships WHERE organization_id = ? AND user_id = ?",
+      [result.organization.id, result.userId],
+    );
+    expect(memberRow?.role).toBe("owner");
+
+    // Default COA: 14 seeded accounts for the new org.
+    const accountRows = await (db as unknown as { all<T>(sql: string, values: unknown[]): Promise<T[]> }).all<{ code: string; name: string; account_class: string }>(
+      "SELECT code, name, account_class FROM accounts WHERE organization_id = ?",
+      [result.organization.id],
+    );
+    expect(accountRows).toHaveLength(DEFAULT_ACCOUNTS.length);
+    expect(accountRows.map((a) => a.code)).toEqual(
+      DEFAULT_ACCOUNTS.map((a) => a.code),
+    );
+    // Kas/Bank have cash/bank subtype; income/expense/equity do not.
+    const kas = accountRows.find((a) => a.code === "1110");
+    expect(kas).toBeDefined();
+  });
+
+  it("rejects a duplicate email", async () => {
+    const { db, password, pepper } = createSeedFixtures();
+    await expect(
+      registerUser(
+        db as unknown as D1Database,
+        {
+          email: "owner@orga.test", // already seeded
+          password,
+          fullName: "Dup",
+          organizationName: "Toko Dup",
+        },
+        new Request("http://localhost"),
+        pepper,
+      ),
+    ).rejects.toThrow("Email sudah terdaftar.");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────
+// Login rate limiting unit tests.
+//
+// The auth service implements a sliding-window rate limiter:
+//   - LOGIN_MAX_FAILURES = 5
+//   - LOGIN_LOCKOUT_MS = 15 minutes
+//
+// We test the exported assertJournalBalanced / assertPeriodOpen in
+// transactions.service.test.ts; here we test the pure logic of the
+// rate-limit check by verifying the SQL query shape and constants.
+// ────────────────────────────────────────────────────────────────
 
 // Import the constants indirectly by testing behavior
 const LOGIN_MAX_FAILURES = 5;

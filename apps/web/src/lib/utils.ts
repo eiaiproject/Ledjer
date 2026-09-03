@@ -1,12 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-/**
- * Terpusat URL dukungan sukarela.
- * Bersifat publik - bukan secret.
- */
-export const SUPPORT_URL = "https://trakteer.id/eiaiproject/tip" as const;
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -75,6 +69,17 @@ export function localDate(offsetDays = 0): string {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
   return date.toLocaleDateString("en-CA");
+}
+
+/** First and last day of the current month as YYYY-MM-DD (local time). */
+export function monthRange(date = new Date()): { from: string; to: string } {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(year, date.getMonth() + 1, 0).getDate();
+  return {
+    from: `${year}-${month}-01`,
+    to: `${year}-${month}-${String(lastDay).padStart(2, "0")}`,
+  };
 }
 
 type DateInput = string | Date | null | undefined;

@@ -37,9 +37,9 @@ test.describe("Tenant Isolation (API-level)", () => {
     const endpoints = [
       "/api/accounts",
       "/api/transactions",
-      "/api/products",
-      "/api/reports/trial-balance?asOfDate=2026-01-01",
-      "/api/team",
+      "/api/dashboard/summary",
+      "/api/reports/profit-loss?fromDate=2026-01-01&toDate=2026-12-31",
+      "/api/reports/balance-sheet?asOfDate=2026-01-01",
     ];
 
     for (const endpoint of endpoints) {
@@ -94,7 +94,7 @@ test.describe("Tenant Isolation (API-level)", () => {
       },
     ]);
 
-    const response = await request.get(`${API_BASE}/api/reports/trial-balance?asOfDate=2026-01-31`, {
+    const response = await request.get(`${API_BASE}/api/reports/balance-sheet?asOfDate=2026-01-31`, {
       headers: { "x-org-id": orgAId },
     });
     expect(response.status()).not.toBe(200);

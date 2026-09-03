@@ -58,7 +58,6 @@ test.describe("Auth pages", () => {
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('input[type="password"]')).toBeVisible({ timeout: 15_000 });
     // The login form has a submit button. The exact text is "Masuk".
-    // There's also "Masuk dengan Google" - use first() to pick the form submit.
     const loginBtn = page.getByRole("button", { name: /^masuk$/i }).first();
     await expect(loginBtn).toBeVisible({ timeout: 15_000 });
   });
@@ -66,7 +65,9 @@ test.describe("Auth pages", () => {
   test("register page loads with form elements", async ({ page }) => {
     await page.goto("/register");
     await waitForAppReady(page);
+    await expect(page.getByRole("textbox", { name: /nama lengkap/i })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("textbox", { name: /nama usaha/i })).toBeVisible({ timeout: 15_000 });
     // Register has two password fields - just verify at least one is visible
     const pwFields = page.locator('input[type="password"]');
     await expect(pwFields.first()).toBeVisible({ timeout: 15_000 });
@@ -74,33 +75,17 @@ test.describe("Auth pages", () => {
     const registerBtn = page.getByRole("button", { name: /buat akun gratis/i }).first();
     await expect(registerBtn).toBeVisible({ timeout: 15_000 });
   });
-
-  test("forgot password page loads", async ({ page }) => {
-    await page.goto("/forgot-password");
-    await waitForAppReady(page);
-    await expect(page.getByRole("textbox", { name: /email/i })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("button", { name: /kirim/i })).toBeVisible({ timeout: 15_000 });
-  });
-
-  test("reset-password without token shows safe state", async ({ page }) => {
-    await page.goto("/reset-password");
-    await waitForAppReady(page);
-    const body = page.locator("body");
-    await expect(body).toBeVisible();
-  });
 });
 
 test.describe("Route guards", () => {
   const protectedRoutes = [
     "/dashboard",
     "/transactions",
-    "/products",
+    "/transactions/new",
     "/accounts",
-    "/reports/general-ledger",
-    "/reports/trial-balance",
     "/reports/profit-loss",
     "/reports/balance-sheet",
-    "/settings/team",
+    "/settings",
   ];
 
   for (const route of protectedRoutes) {

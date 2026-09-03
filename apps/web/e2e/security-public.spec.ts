@@ -106,12 +106,12 @@ test.describe("XSS prevention", () => {
     }
   });
 
-  test("XSS in reset-password token param does not execute or mutate DOM", async ({
+  test("XSS in unknown route segment does not execute or mutate DOM", async ({
     page,
   }) => {
     const detectors = setupXssDetectors(page);
 
-    await page.goto("/reset-password?token=<script>alert(1)</script>");
+    await page.goto(`/<script>alert(1)</script>`);
     await waitForAppReady(page);
     await detectors.checkDomInjection();
 
@@ -155,21 +155,7 @@ test.describe("Secrets exposure", () => {
       const body = await resp.text();
       expect(body).not.toContain("your-session-secret");
       expect(body).not.toContain("your-pepper");
-      expect(body).not.toContain("your-google-client");
     }
-  });
-});
-
-test.describe("Admin surface", () => {
-  test("admin dashboard is not exposed in the public client router", async ({
-    page,
-  }) => {
-    await page.goto("/admin");
-    await waitForAppReady(page);
-    await expect(
-      page.getByRole("heading", { name: /halaman tidak ditemukan/i }),
-    ).toBeVisible();
-    await expect(page.getByText(/admin dashboard/i)).toHaveCount(0);
   });
 });
 
@@ -222,21 +208,15 @@ test.describe("API-level authorization", () => {
     request,
   }) => {
     // Direct API calls without session cookie must return 401.
-    // Paths verified against actual route registrations in worker/index.ts:
-    //   /api/period-locks (not /api/settings/period-locks)
-    //   /api/exports (not /api/exports/transactions)
+    // Paths verified against actual route registrations in worker/index.ts.
     const sensitiveEndpoints = [
       "/api/transactions",
       "/api/dashboard/summary",
       "/api/accounts",
-      "/api/reports/trial-balance?asOfDate=2026-01-01",
-      "/api/team",
-      "/api/period-locks",
-      "/api/products",
-      "/api/parties",
-      "/api/exports/transactions",
-      "/api/inventory",
-      "/api/organizations",
+      "/api/reports/profit-loss?fromDate=2026-01-01&toDate=2026-12-31",
+      "/api/reports/balance-sheet?asOfDate=2026-01-01",
+      "/api/exports/transactions.csv",
+      "/api/organizations/current",
     ];
 
     for (const endpoint of sensitiveEndpoints) {
@@ -253,8 +233,7 @@ test.describe("API-level authorization", () => {
     const mutationEndpoints = [
       { url: "/api/transactions", body: {} },
       { url: "/api/accounts", body: {} },
-      { url: "/api/products", body: {} },
-      { url: "/api/period-locks", body: {} },
+      { url: "/api/auth/logout", body: {} },
     ];
 
     for (const ep of mutationEndpoints) {

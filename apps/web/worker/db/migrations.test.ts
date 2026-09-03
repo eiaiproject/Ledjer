@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0033", () => {
-    const expected = Array.from({ length: 33 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0002", () => {
+    const expected = Array.from({ length: 2 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);
@@ -147,23 +147,19 @@ describe("Database Migrations", () => {
     for (const table of CORE_TABLES) {
       expect(final.tables.has(table)).toBe(true);
     }
-    // Dropped tables should not exist
-    expect(final.tables.has("export_jobs")).toBe(false);
-    expect(final.tables.has("account_mappings")).toBe(false);
-    expect(final.tables.has("business_documents")).toBe(false);
-    expect(final.tables.has("document_lines")).toBe(false);
-    expect(final.tables.has("recurring_transactions")).toBe(false);
-    expect(final.tables.has("recurring_execution_log")).toBe(false);
-    expect(final.tables.has("approval_requests")).toBe(false);
-    expect(final.tables.has("approval_configs")).toBe(false);
-    expect(final.tables.has("budgets")).toBe(false);
-    expect(final.tables.has("budget_lines")).toBe(false);
-    expect(final.tables.has("dimensions")).toBe(false);
-    expect(final.tables.has("transaction_tags")).toBe(false);
-    expect(final.tables.has("journal_line_tags")).toBe(false);
-    expect(final.tables.has("fixed_assets")).toBe(false);
-    expect(final.tables.has("asset_depreciation")).toBe(false);
-    expect(final.tables.has("export_jobs_v2")).toBe(false);
+    // Non-MVP tables (PRD §13.11) must not exist
+    for (const forbidden of [
+      "products", "stock_movements", "transaction_lines", "parties",
+      "invoices", "invoice_lines", "business_documents", "document_lines",
+      "notifications", "journal_templates", "manual_journal_entries",
+      "period_locks", "import_batches", "import_rows", "export_jobs",
+      "attachments", "dimensions", "journal_line_tags", "budgets",
+      "budget_lines", "bank_statements", "unmatched_lines",
+      "account_mappings", "admin_users", "admin_sessions",
+      "oauth_accounts", "email_verifications", "password_reset_tokens",
+    ]) {
+      expect(final.tables.has(forbidden), `${forbidden} must not exist in MVP schema`).toBe(false);
+    }
   });
 
   it("each core table has at least one column", () => {
@@ -193,8 +189,8 @@ describe("Database Migrations", () => {
 
   it("no CREATE TABLE after DROP TABLE for same table", () => {
     const final = buildFinalSchema(migrations);
-    // export_jobs and account_mappings should be dropped permanently
-    for (const table of ["export_jobs", "account_mappings"]) {
+    // MVP schema starts clean: forbidden tables never appear
+    for (const table of ["products", "invoices", "export_jobs", "account_mappings"]) {
       expect(final.tables.has(table)).toBe(false);
     }
   });

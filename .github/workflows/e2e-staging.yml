@@ -60,8 +60,8 @@ jobs:
         run: ./node_modules/.bin/playwright install chromium --with-deps
         working-directory: apps/web
 
-      - name: Run E2E CRUD tests
-        run: pnpm exec playwright test e2e/full-crud.spec.ts e2e/masterdata-crud.spec.ts e2e/settings-crud.spec.ts e2e/documents-crud.spec.ts --project=chromium --reporter=github,html --workers=2 --retries=1
+      - name: Run E2E tests (MVP core specs)
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/auth.spec.ts e2e/auth-flows.spec.ts e2e/new-transaction.spec.ts e2e/accounts.spec.ts e2e/profit-loss.spec.ts e2e/balance-sheet.spec.ts e2e/settings-crud.spec.ts e2e/exports.spec.ts e2e/security-public.spec.ts e2e/security-headers.spec.ts e2e/csrf.spec.ts e2e/injection.spec.ts e2e/static-routes.spec.ts --project=chromium --reporter=github,html --workers=2 --retries=1
         working-directory: apps/web
         env:
           # Low parallelism + login retries in the auth fixture keep us under

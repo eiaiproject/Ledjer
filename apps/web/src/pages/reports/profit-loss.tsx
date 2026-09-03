@@ -1,502 +1,120 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useOrganization, useOrgPermissions } from "@/hooks/useOrganization";
+import { useOrganization } from "@/hooks/useOrganization";
+import { getProfitLoss, type ReportAccountLine } from "@/lib/api/reports";
 import { queryKeys } from "@/lib/query-keys";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { ReportSkeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
-import { EmptyState } from "@/components/ui/empty-state";
-import { formatDateRange, formatIDR } from "@/lib/utils";
-import { exportProfitLossCsv } from "@/lib/csv-export";
-import { exportProfitLossPdf } from "@/lib/pdf-export";
-import { Refresh } from "reicon-react";
-import { getProfitLoss, type ProfitLossItem } from "@/lib/api/reports";
-import {
-  useReportDateRange,
-  handleReportExport,
-  ReportExportButtons,
-  ReportSectionMobile,
-  ReportSectionRows,
-} from "./_components";
-import { ReportShell } from "@/components/ui/report-shell";
-
-// ── Canonical report model ──────────────────────────────────────────
-
-type SectionId =
-  | "revenue"
-  | "cogs"
-  | "expense"
-  | "other_income"
-  | "other_expense";
-
-interface ReportSection {
-  id: SectionId;
-  label: string;
-  items: ProfitLossItem[];
-}
-
-interface ReportModel {
-  sections: ReportSection[];
-  totals: Record<SectionId, number>;
-  grossResult: number;
-  operatingResult: number;
-  otherIncomeTotal: number;
-  otherExpenseTotal: number;
-  netResult: number;
-  hasData: boolean;
-}
-
-// ── Section labels ──────────────────────────────────────────────────
-
-const SECTION_META: Record<SectionId, { label: string }> = {
-  revenue: { label: "Pendapatan" },
-  cogs: { label: "Harga Pokok Penjualan" },
-  expense: { label: "Beban Operasional" },
-  other_income: { label: "Pendapatan Lain" },
-  other_expense: { label: "Beban Lain" },
-};
-
-const SECTION_ORDER: SectionId[] = [
-  "revenue",
-  "cogs",
-  "expense",
-  "other_income",
-  "other_expense",
-];
-
-// ── Build canonical report model ────────────────────────────────────
-
-function buildReportModel(data: ProfitLossItem[]): ReportModel {
-  const grouped: Record<string, ProfitLossItem[]> = {};
-  for (const section of SECTION_ORDER) grouped[section] = [];
-
-  for (const item of data) {
-    const key = item.section as SectionId;
-    if (grouped[key]) grouped[key].push(item);
-  }
-
-  const totals: Record<SectionId, number> = {
-    revenue: 0,
-    cogs: 0,
-    expense: 0,
-    other_income: 0,
-    other_expense: 0,
-  };
-
-  for (const section of SECTION_ORDER) {
-    totals[section] = grouped[section].reduce((s, i) => s + i.amount, 0);
-  }
-
-  const grossResult = totals.revenue - totals.cogs;
-  const operatingResult = grossResult - totals.expense;
-  const netResult = operatingResult + totals.other_income - totals.other_expense;
-
-  return {
-    sections: SECTION_ORDER.map((id) => ({
-      id,
-      label: SECTION_META[id].label,
-      items: grouped[id],
-    })),
-    totals,
-    grossResult,
-    operatingResult,
-    otherIncomeTotal: totals.other_income,
-    otherExpenseTotal: totals.other_expense,
-    netResult,
-    hasData: data.length > 0,
-  };
-}
-
-// ── Dynamic result labels ───────────────────────────────────────────
-
-function resultLabel(value: number, gain: string, loss: string): string {
-  return value >= 0 ? gain : loss;
-}
-
-// ── Shared report layout definition ─────────────────────────────────
-
-interface SectionDef {
-  type: "section";
-  index: number;
-  showTotal: boolean;
-}
-
-interface ResultDef {
-  type: "result";
-  label: string;
-  value: number;
-  variant: "intermediate" | "final";
-}
-
-type ReportLayoutItem = SectionDef | ResultDef;
-
-function buildReportLayout(report: ReportModel): ReportLayoutItem[] {
-  return [
-    { type: "section", index: 0, showTotal: true },
-    { type: "section", index: 1, showTotal: true },
-    { type: "result", label: resultLabel(report.grossResult, "Laba Kotor", "Rugi Kotor"), value: report.grossResult, variant: "intermediate" },
-    { type: "section", index: 2, showTotal: true },
-    { type: "result", label: resultLabel(report.operatingResult, "Laba Operasional", "Rugi Operasional"), value: report.operatingResult, variant: "intermediate" },
-    { type: "section", index: 3, showTotal: true },
-    { type: "section", index: 4, showTotal: true },
-    { type: "result", label: resultLabel(report.netResult, "Laba Bersih", "Rugi Bersih"), value: report.netResult, variant: "final" },
-  ];
-}
-
-// ── Component ───────────────────────────────────────────────────────
+import { formatIDR, formatDateLong, monthRange } from "@/lib/utils";
 
 export function ProfitLossPage() {
   const { data: orgData } = useOrganization();
-  const { canViewReports, canCreateExports } = useOrgPermissions();
+  const orgId = orgData?.organization?.id;
+  const initialRange = monthRange();
 
-  const {
-    pendingFrom, setPendingFrom,
-    pendingTo, setPendingTo,
-    appliedFrom, appliedTo,
-    dateRangeInvalid, isPending,
-    applyDate, syncPending,
-  } = useReportDateRange();
-  const [showInactive, setShowInactive] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportingPdf, setExportingPdf] = useState(false);
+  const [fromDate, setFromDate] = useState(initialRange.from);
+  const [toDate, setToDate] = useState(initialRange.to);
+  const [submittedFrom, setSubmittedFrom] = useState(initialRange.from);
+  const [submittedTo, setSubmittedTo] = useState(initialRange.to);
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: queryKeys.reports.profitLoss(
-      orgData?.organization?.id,
-      appliedFrom,
-      appliedTo,
-    ),
+  const query = useQuery({
+    queryKey: queryKeys.reports.profitLoss(orgId, submittedFrom, submittedTo),
     queryFn: async () => {
-      if (!orgData?.organization?.id) return [];
-      return getProfitLoss(appliedFrom, appliedTo);
+      if (!orgId) throw new Error("No organization");
+      return getProfitLoss(submittedFrom, submittedTo);
     },
-    enabled: !!orgData?.organization?.id && canViewReports && !dateRangeInvalid,
-    staleTime: 0,
+    enabled: !!orgId,
   });
 
-  const handleApply = useCallback(() => { applyDate(); }, [applyDate]);
-
-  const handleRefresh = useCallback(() => {
-    syncPending();
-    refetch();
-  }, [syncPending, refetch]);
-
-  if (!canViewReports) {
-    return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <p className="text-wood-500">Anda tidak memiliki izin untuk melihat laporan ini.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Laba Rugi</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            {formatDateRange(appliedFrom, appliedTo)}
-          </p>
-        </div>
-        <ErrorState
-          message="Laporan laba rugi gagal dimuat. Periksa koneksi Anda, lalu coba lagi."
-          onRetry={refetch}
-        />
-      </div>
-    );
-  }
-
-  const report = buildReportModel(data || []);
-  const isEmpty = !isLoading && !report.hasData;
-  const isRefreshing = isFetching && !isLoading;
-
-  // Filter inactive accounts when toggle is off
-  const visibleSections = report.sections.map((section) => ({
-    ...section,
-    items: showInactive
-      ? section.items
-      : section.items.filter((item) => item.amount !== 0),
-  }));
-
-  // Check if all visible accounts are hidden
-  const totalVisibleAccounts = visibleSections.reduce(
-    (s, sec) => s + sec.items.length,
-    0,
-  );
-  const showResults = report.hasData || totalVisibleAccounts > 0;
-
-  const handleExport = async () => {
-    await handleReportExport({
-      orgId: orgData?.organization?.id,
-      disabled: dateRangeInvalid || exporting,
-      exportFn: () => exportProfitLossCsv(appliedFrom, appliedTo),
-      onFinally: () => setExporting(false),
-    });
-  };
-
-  const handleExportPdf = async () => {
-    await handleReportExport({
-      orgId: orgData?.organization?.id,
-      disabled: dateRangeInvalid || exportingPdf,
-      exportFn: () => exportProfitLossPdf(appliedFrom, appliedTo),
-      onFinally: () => setExportingPdf(false),
-    });
-  };
+  const report = query.data;
 
   return (
-    <ReportShell
-      title="Laba Rugi"
-      helpTopic="profit_loss"
-      guide="reports/profit-loss"
-      description={isRefreshing ? "Memperbarui laporan..." : formatDateRange(appliedFrom, appliedTo)}
-    >
+    <div className="space-y-4">
+      <PageHeader title="Laba Rugi" description="Pendapatan dan beban pada periode tertentu." />
 
-      {/* Toolbar */}
-      <Card>
-        <CardContent>
+      <Card elevated>
+        <CardContent className="p-4">
           <form
+            className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"
             onSubmit={(e) => {
               e.preventDefault();
-              handleApply();
+              setSubmittedFrom(fromDate);
+              setSubmittedTo(toDate);
             }}
-            className="flex flex-col sm:flex-row gap-3 items-end"
           >
-            <Input
-              label="Dari tanggal"
-              type="date"
-              value={pendingFrom}
-              onChange={(e) => setPendingFrom(e.target.value)}
-              aria-invalid={dateRangeInvalid || undefined}
-              aria-describedby={dateRangeInvalid ? "date-range-error" : undefined}
-            />
-            <Input
-              label="Sampai tanggal"
-              type="date"
-              value={pendingTo}
-              onChange={(e) => setPendingTo(e.target.value)}
-              aria-invalid={dateRangeInvalid || undefined}
-              aria-describedby={dateRangeInvalid ? "date-range-error" : undefined}
-            />
-            {dateRangeInvalid && (
-              <p id="date-range-error" className="text-sm text-error" role="alert">
-                Tanggal awal tidak boleh setelah tanggal akhir.
-              </p>
-            )}
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Button
-                type="submit"
-                variant={isPending ? "primary" : "outline"}
-                disabled={dateRangeInvalid || (!isPending && !pendingFrom && !pendingTo)}
-                loading={isLoading && !isRefreshing}
-                className="flex-1 sm:flex-none"
-              >
-                {isRefreshing ? "Memperbarui..." : "Tampilkan laporan"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Muat ulang data"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              >
-                <Refresh className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              </Button>
-            </div>
+            <Input label="Dari" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            <Input label="Sampai" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            <Button type="submit" className="sm:mb-0">
+              Tampilkan
+            </Button>
           </form>
-          <div className="flex flex-col sm:flex-row gap-3 items-end mt-3">
-            <label className="flex items-center gap-2 text-sm text-wood-600">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="rounded border-wood-300"
-              />
-              <span>Tampilkan akun tanpa aktivitas</span>
-            </label>
-            {canCreateExports && (
-              <ReportExportButtons
-                className="sm:ml-auto"
-                disabled={isLoading || isEmpty || dateRangeInvalid}
-                isExportingCsv={exporting}
-                isExportingPdf={exportingPdf}
-                onExportCsv={handleExport}
-                onExportPdf={handleExportPdf}
-                csvAriaLabel="Ekspor laporan laba rugi ke CSV"
-                pdfAriaLabel="Ekspor laporan laba rugi ke PDF"
-              />
-            )}
-          </div>
         </CardContent>
       </Card>
 
-      {/* Loading */}
-      {isLoading && <ReportSkeleton rows={10} cols={2} />}
-
-      {/* Empty */}
-      {isEmpty && (
-        <EmptyState
-          title="Belum ada aktivitas pendapatan atau beban pada periode ini"
-          description="Ubah periode atau catat transaksi bisnis terlebih dahulu."
-        />
-      )}
-
-      {/* Report */}
-      {!isLoading && showResults && (
+      {query.isLoading ? (
+        <div className="h-48 animate-pulse rounded-xl bg-wood-100" />
+      ) : query.isError ? (
+        <ErrorState title="Gagal memuat laporan" message="Terjadi kesalahan saat menghitung laba rugi." onRetry={() => query.refetch()} />
+      ) : report ? (
         <>
-          {/* ── Mobile ──────────────────────────────────────── */}
-          <ul className="space-y-4 sm:hidden list-none p-0 m-0" aria-label="Laporan laba rugi">
-            <ReportMobile
-              sections={visibleSections}
-              report={report}
-            />
-          </ul>
+          <p className="text-sm text-text-secondary">
+            Periode {formatDateLong(report.fromDate)} – {formatDateLong(report.toDate)}
+          </p>
 
-          {/* ── Desktop table ───────────────────────────────── */}
-          <Card className="hidden sm:block">
-            <div className="ledger-scroll-x">
-              <table className="ledger-table min-w-0 sm:min-w-[480px]">
-                <caption className="sr-only">
-                  Laporan laba rugi periode {formatDateRange(appliedFrom, appliedTo)}
-                </caption>
-                <thead>
-                  <tr className="border-b border-wood-200">
-                    <th scope="col" className="px-5 py-3 text-left font-medium text-wood-600">
-                      Akun
-                    </th>
-                    <th scope="col" className="px-5 py-3 text-right font-medium text-wood-600">
-                      Jumlah
-                    </th>
-                  </tr>
-                </thead>
-                <ReportTableBody
-                  sections={visibleSections}
-                  report={report}
-                />
-              </table>
-            </div>
+          <Card elevated>
+            <CardContent className="p-0">
+              <SectionHeader title="Pendapatan" total={report.income.total} />
+              <AccountLines lines={report.income.accounts} />
+              <SectionHeader title="Beban" total={report.expense.total} />
+              <AccountLines lines={report.expense.accounts} />
+              <div className="flex items-center justify-between gap-4 border-t-2 border-wood-300 bg-cream-100 px-5 py-4">
+                <p className="text-sm font-semibold text-text-primary">Laba Bersih</p>
+                <p
+                  className={`num-mono text-base font-bold ${
+                    report.netIncome >= 0 ? "text-leaf-700" : "text-clay-700"
+                  }`}
+                >
+                  {formatIDR(report.netIncome)}
+                </p>
+              </div>
+            </CardContent>
           </Card>
         </>
-      )}
-    </ReportShell>
+      ) : null}
+    </div>
   );
 }
 
-// ── Shared layout renderers (mobile + desktop from single layout def) ─
-
-function ReportMobile({
-  sections,
-  report,
-}: {
-  readonly sections: ReportSection[];
-  readonly report: ReportModel;
-}) {
-  const layout = buildReportLayout(report);
+function SectionHeader({ title, total }: { readonly title: string; readonly total: number }) {
   return (
-    <>
-      {layout.map((def) =>
-        def.type === "section" ? (
-          <ReportSectionMobile key={`section-${def.index}`} section={sections[def.index]} showTotal={def.showTotal} emptyText="Tidak ada akun" />
-        ) : (
-          <ResultRow key={`result-${def.label}`} label={def.label} value={def.value} variant={def.variant} />
-        )
-      )}
-    </>
+    <div className="flex items-center justify-between gap-4 border-b border-wood-100 bg-cream-50 px-5 py-3">
+      <p className="text-sm font-semibold text-text-primary">{title}</p>
+      <p className="num-mono text-sm font-semibold text-text-primary">{formatIDR(total)}</p>
+    </div>
   );
 }
 
-
-
-function ResultRow({
-  label,
-  value,
-  variant,
-}: {
-  readonly label: string;
-  readonly value: number;
-  readonly variant: "intermediate" | "final";
-}) {
-  const borderClass =
-    variant === "final" ? "border-t-2 border-wood-800" : "border-t border-wood-200";
-  const bgClass = variant === "final" ? "bg-cream-100/70" : "";
-  const textClass =
-    variant === "final"
-      ? "text-base font-bold text-text-primary"
-      : "text-sm font-semibold text-wood-700";
-  const valueClass =
-    variant === "final"
-      ? "text-base font-bold text-wood-800 tabular-nums"
-      : "text-sm font-bold text-wood-800 tabular-nums";
-
+function AccountLines({ lines }: { readonly lines: ReportAccountLine[] }) {
+  if (lines.length === 0) {
+    return (
+      <p className="border-b border-wood-100 px-5 py-4 text-sm text-text-tertiary">
+        Belum ada transaksi pada periode ini.
+      </p>
+    );
+  }
   return (
-    <li
-      className={`flex items-center justify-between px-4 py-3 rounded-lg border border-wood-200 ${borderClass} ${bgClass} list-none`}
-    >
-      <span className={textClass}>{label}</span>
-      <span className={valueClass}>{formatIDR(value)}</span>
-    </li>
-  );
-}
-
-// ── Desktop table body ──────────────────────────────────────────────
-
-function ReportTableBody({
-  sections,
-  report,
-}: {
-  readonly sections: ReportSection[];
-  readonly report: ReportModel;
-}) {
-  const layout = buildReportLayout(report);
-  return (
-    <>
-      {layout.map((def) =>
-        def.type === "section" ? (
-          <tbody key={`section-${def.index}`}>
-            <ReportSectionRows section={sections[def.index]} showTotal={def.showTotal} emptyText="Tidak ada akun" />
-          </tbody>
-        ) : (
-          <tbody key={`result-${def.label}`}>
-            <ResultRowDesktop label={def.label} value={def.value} variant={def.variant} />
-          </tbody>
-        )
-      )}
-    </>
-  );
-}
-
-
-
-function ResultRowDesktop({
-  label,
-  value,
-  variant,
-}: {
-  readonly label: string;
-  readonly value: number;
-  readonly variant: "intermediate" | "final";
-}) {
-  const borderClass =
-    variant === "final" ? "border-t-2 border-wood-800" : "border-t border-wood-200";
-  const bgClass = variant === "final" ? "bg-cream-100/70" : "";
-  const textClass =
-    variant === "final"
-      ? "font-bold text-text-primary"
-      : "font-semibold text-wood-700";
-  const valueClass = "font-bold text-wood-800 tabular-nums";
-
-  return (
-    <tr className={`${borderClass} ${bgClass}`}>
-      <td scope="row" className={`px-5 py-3 ${textClass}`}>
-        {label}
-      </td>
-      <td className={`px-5 py-3 text-right ${valueClass}`}>
-        {formatIDR(value)}
-      </td>
-    </tr>
+    <ul className="divide-y divide-wood-100 border-b border-wood-100">
+      {lines.map((line) => (
+        <li key={line.code} className="flex items-center justify-between gap-4 px-5 py-3">
+          <p className="min-w-0 break-words text-sm text-text-secondary">
+            <span className="num-mono text-text-tertiary">{line.code}</span> · {line.name}
+          </p>
+          <p className="num-mono shrink-0 text-sm text-text-primary">{formatIDR(line.amount)}</p>
+        </li>
+      ))}
+    </ul>
   );
 }
