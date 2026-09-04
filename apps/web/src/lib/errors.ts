@@ -6,7 +6,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   user_disabled: 'Akun Anda telah dinonaktifkan.',
   organization_forbidden: 'Anda tidak memiliki akses ke organisasi ini.',
   organization_required: 'Anda belum terhubung ke organisasi mana pun.',
-  organization_disabled: 'Organisasi Anda dinonaktifkan oleh administrator platform.',
   permission_denied: 'Anda tidak memiliki izin untuk aksi ini.',
   account_name_taken: 'Nama akun sudah dipakai dalam organisasi ini.',
   account_inactive: 'Akun ini tidak aktif. Pilih akun lain.',

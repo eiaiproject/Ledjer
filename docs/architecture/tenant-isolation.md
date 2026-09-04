@@ -30,7 +30,6 @@ These tables are global across all tenants:
 - `login_attempts`, `oauth_accounts`
 - `organizations` (the org entity itself)
 - `app_metadata`, `rate_limits`
-- `admin_users`, `admin_sessions` (platform admin credentials - the admin worker at `admin.ledjer.id` is intentionally platform-wide)
 
 ## Enforcement Layers
 
