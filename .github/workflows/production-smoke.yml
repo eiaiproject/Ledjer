@@ -41,11 +41,13 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps # NOSONAR - browser binary, not package install
 
-      # Preflight uses HEAD: Cloudflare's bot protection challenges GETs from
-      # datacenter IPs (GitHub runners) with 403, while HEAD is served from the
-      # edge cache. The real browser-based smoke tests below still perform GET
-      # and render the app, so the reachability gate stays meaningful.
-      - name: Preflight - production URL is reachable (HTTP 200)
+      # Cloudflare's bot protection (managed challenge) returns HTTP 403 to
+      # curl from GitHub's datacenter IPs even though the site is healthy for
+      # real users - so a 403 here is expected and NOT a production outage.
+      # The real gate is the Playwright browser tests below, which run a real
+      # Chromium that can solve the challenge. Only 5xx (origin unreachable)
+      # hard-fails the preflight.
+      - name: Preflight - production URL is reachable (not 5xx)
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
@@ -55,8 +57,13 @@ jobs:
           if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
-          curl -fsSI "${AUTH_ARGS[@]}" "${PRODUCTION_URL}" --max-time 15 >/dev/null
-          echo "✅ Production URL is reachable"
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}" || echo "000")
+          echo "Production URL HTTP status: ${STATUS}"
+          case "$STATUS" in
+            200|301|302|403) echo "✅ Reachable (403 = Cloudflare challenge, expected from runners)" ;;
+            5*) echo "❌ Production origin returned HTTP $STATUS" && exit 1 ;;
+            *) echo "⚠️  Unexpected HTTP $STATUS - continuing to browser tests" ;;
+          esac
 
       # Ensure smoke tests never mutate production financial data:
       # - E2E_MODE=deploy-smoke selects only read-only test files
@@ -156,14 +163,13 @@ jobs:
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
 
-          # HEAD requests are served from Cloudflare's edge cache and are not
-          # challenged by bot protection (GET from datacenter IPs is).
-          HTTP_STATUS=$(curl -sSI -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
+          # Cloudflare challenges curl from datacenter IPs with 403 even when
+          # the site is healthy; 5xx means the origin is actually down.
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}" || echo "000")
 
           echo "Final HTTP status: $HTTP_STATUS"
 
-          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "301" ] && [ "$HTTP_STATUS" != "302" ]; then
-            echo "❌ Production URL returned unexpected HTTP $HTTP_STATUS"
-            exit 1
-          fi
-          echo "✅ Production URL is reachable (HTTP $HTTP_STATUS)"
+          case "$HTTP_STATUS" in
+            200|301|302|403) echo "✅ Production URL is reachable (HTTP $HTTP_STATUS)" ;;
+            *) echo "❌ Production URL returned unexpected HTTP $HTTP_STATUS" && exit 1 ;;
+          esac
