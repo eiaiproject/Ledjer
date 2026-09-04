@@ -39,9 +39,17 @@ export function DashboardPage() {
   const summary = summaryQuery.data;
   const alerts = alertsQuery.data;
 
-  let recentTransactions: ReactNode;
+  // The summary/alerts payloads are trusted to be arrays, but guard against
+  // partial responses (e.g. a stale cached summary fetched while an older
+  // worker was still deployed, or an upstream shape change) so the page can
+  // never crash on `.length` of undefined.
+  const recentTransactions = summary?.recentTransactions ?? [];
+  const cashBankAccounts = summary?.cashBankAccounts ?? [];
+  const negativeBalanceAccounts = alerts?.negativeBalanceAccounts ?? [];
+
+  let recentTransactionsNode: ReactNode;
   if (summaryQuery.isLoading) {
-    recentTransactions = (
+    recentTransactionsNode = (
       <div className="space-y-3 p-5">
         {[0, 1, 2].map((i) => (
           <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
@@ -49,23 +57,23 @@ export function DashboardPage() {
       </div>
     );
   } else if (summaryQuery.isError) {
-    recentTransactions = (
+    recentTransactionsNode = (
       <ErrorState
         title="Gagal memuat transaksi"
         message="Terjadi kesalahan saat mengambil data transaksi terbaru."
         onRetry={() => summaryQuery.refetch()}
       />
     );
-  } else if (summary && summary.recentTransactions.length > 0) {
-    recentTransactions = (
+  } else if (recentTransactions.length > 0) {
+    recentTransactionsNode = (
       <ul className="divide-y divide-wood-100">
-        {summary.recentTransactions.map((transaction) => (
+        {recentTransactions.map((transaction) => (
           <RecentTransactionRow key={transaction.id} transaction={transaction} />
         ))}
       </ul>
     );
   } else {
-    recentTransactions = (
+    recentTransactionsNode = (
       <EmptyState
         title="Belum ada transaksi"
         description="Catat transaksi pertama Anda untuk melihat ringkasannya di sini."
@@ -95,12 +103,12 @@ export function DashboardPage() {
         ]}
       />
 
-      {alerts && alerts.negativeBalanceAccounts.length > 0 && (
+      {negativeBalanceAccounts.length > 0 && (
         <Card className="border-clay-200 bg-clay-50">
           <CardContent className="p-4">
             <p className="text-sm font-medium text-clay-700">
               Akun kas/bank bersaldo negatif:{" "}
-              {alerts.negativeBalanceAccounts.map((a) => a.name).join(", ")}
+              {negativeBalanceAccounts.map((a) => a.name).join(", ")}
             </p>
           </CardContent>
         </Card>
@@ -139,10 +147,10 @@ export function DashboardPage() {
         />
       </div>
 
-      {summary && summary.cashBankAccounts.length > 0 && (
+      {cashBankAccounts.length > 0 && (
         <Card elevated title="Rincian Kas & Bank">
           <ul className="divide-y divide-wood-100">
-            {summary.cashBankAccounts.map((account) => (
+            {cashBankAccounts.map((account) => (
               <li key={account.id} className="flex items-center justify-between gap-4 px-5 py-3">
                 <div className="min-w-0">
                   <p className="break-words text-sm font-medium text-text-primary">{account.name}</p>
@@ -158,7 +166,7 @@ export function DashboardPage() {
       )}
 
       <Card elevated title="Transaksi Terbaru">
-        <CardContent className="p-0">{recentTransactions}</CardContent>
+        <CardContent className="p-0">{recentTransactionsNode}</CardContent>
       </Card>
     </div>
   );
