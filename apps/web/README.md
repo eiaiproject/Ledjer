@@ -33,8 +33,6 @@ pnpm --filter web cf:dev      # Vite dev (HMR + Worker simulator)
 - Laporan: neraca saldo, laba rugi, neraca, buku besar, arus kas, aging
 - Platform: Google OAuth, kolaborasi tim, notifikasi + Web Push, pencarian global, audit log, lampiran (R2), backup harian, onboarding
 
-Dokumentasi pengguna: [docs.ledjer.id](https://docs.ledjer.id)
-
 ## Deploy
 
 Deploy dari root monorepo:

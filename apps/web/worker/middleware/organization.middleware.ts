@@ -14,13 +14,6 @@ export function loadCurrentOrganization(): MiddlewareHandler<AppContext> {
       throw forbidden("organization_required", "Organization membership is required");
     }
 
-    // ponytail: Platform admins can disable an organization from the admin
-    // dashboard (admin.ledjer.id). Disabled orgs are read-only for members:
-    // every org-scoped API call is rejected until the org is re-enabled.
-    if (context.organization.status === "disabled") {
-      throw forbidden("organization_disabled", "Organization is disabled by the platform administrator");
-    }
-
     c.set("organizationContext", {
       organization: context.organization,
       member: context.member,
