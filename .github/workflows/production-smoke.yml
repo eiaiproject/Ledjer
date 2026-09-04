@@ -71,7 +71,7 @@ jobs:
       - name: Run production smoke tests (read-only enforcement)
         env:
           E2E_MODE: deploy-smoke
-          E2E_BASE_URL: ${PRODUCTION_URL}
+          E2E_BASE_URL: ${{ env.PRODUCTION_URL }}
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           CI: true
