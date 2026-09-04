@@ -4,6 +4,7 @@
 // restore drill validation. Upgrade to D1 export API when available.
 
 import { queryAll, executeBatch } from "../db/client";
+import { sha256Hex } from "../auth/tokens";
 import { CORE_TABLES } from "../db/schema";
 
 export interface BackupManifest {
@@ -15,6 +16,22 @@ export interface BackupManifest {
 }
 
 const BACKUP_VERSION = 1;
+
+/** Stable hash input for a manifest: everything except the sha itself. */
+export function manifestHashPayload(manifest: Pick<BackupManifest, "version" | "startedAt" | "completedAt" | "tables">): string {
+  return JSON.stringify({
+    version: manifest.version,
+    startedAt: manifest.startedAt,
+    completedAt: manifest.completedAt,
+    tables: manifest.tables,
+  });
+}
+
+export async function manifestSha256(
+  manifest: Pick<BackupManifest, "version" | "startedAt" | "completedAt" | "tables">,
+): Promise<string> {
+  return sha256Hex(manifestHashPayload(manifest));
+}
 
 async function jsonToR2(
   bucket: R2Bucket,
@@ -63,29 +80,22 @@ export async function createBackup(
   manifest.completedAt = Date.now();
   (manifest as unknown as Record<string, unknown>).consistency_warning = true;
 
-  const manifestJson = JSON.stringify(manifest, null, 2);
-  const enc = new TextEncoder();
-  const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(manifestJson));
-  const hashHex = Array.from(new Uint8Array(hashBuf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  manifest.sha256 = hashHex;
+  // Hash covers the stable payload only (never the sha field itself), so the
+  // post-write re-read below recomputes the identical digest.
+  manifest.sha256 = await manifestSha256(manifest);
 
   await bucket.put(`${prefix}/manifest.json`, JSON.stringify(manifest, null, 2), {
     httpMetadata: { contentType: "application/json" },
-    customMetadata: { sha256: hashHex },
+    customMetadata: { sha256: manifest.sha256 },
   });
 
-  // L-03: Post-write verification - re-read manifest and verify SHA-256 matches
+  // Post-write verification: recompute the digest over the stored payload
+  // and warn only on a genuine mismatch.
   const writtenObj = await bucket.get(`${prefix}/manifest.json`);
   if (writtenObj) {
-    const writtenManifest: BackupManifest = JSON.parse(await writtenObj.text());
-    const enc2 = new TextEncoder();
-    const hashBuf2 = await crypto.subtle.digest("SHA-256", enc2.encode(JSON.stringify(writtenManifest)));
-    const hashHex2 = Array.from(new Uint8Array(hashBuf2))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    if (hashHex2 !== writtenManifest.sha256 && hashHex2 !== manifest.sha256) {
+    const writtenManifest = JSON.parse(await writtenObj.text()) as BackupManifest;
+    const recomputed = await manifestSha256(writtenManifest);
+    if (recomputed !== writtenManifest.sha256) {
       (manifest as unknown as Record<string, unknown>).integrity_warning = "SHA-256 mismatch after write";
     }
   }
@@ -95,15 +105,23 @@ export async function createBackup(
   return manifest;
 }
 
-/** Remove backups older than 30 days (retensi minimal 14 hari per PRD §17.1). */
+/** Remove backups older than 30 days (retensi minimal 14 hari per PRD §17.1).
+ *  Lists the whole backups/ prefix so a missed cron run cannot strand old
+ *  snapshots forever (previously only the exact 30-day-old date was swept). */
 async function cleanupOldBackups(bucket: R2Bucket, current: number): Promise<void> {
-  const thirtyDaysAgo = current - 30 * 86_400_000;
-  const oldDate = new Date(thirtyDaysAgo).toISOString().slice(0, 10);
-  const oldPrefix = `backups/${oldDate}`;
+  const cutoff = new Date(current - 30 * 86_400_000).toISOString().slice(0, 10);
   try {
-    const oldObjects = await bucket.list({ prefix: oldPrefix });
-    if (oldObjects.objects.length > 0) {
-      await bucket.delete(oldObjects.objects.map((o) => o.key));
+    const listed = await bucket.list({ prefix: "backups/" });
+    const stale = new Set<string>();
+    for (const obj of listed.objects) {
+      const match = /^backups\/(\d{4}-\d{2}-\d{2})\//.exec(obj.key);
+      if (match && match[1] < cutoff) stale.add(`backups/${match[1]}`);
+    }
+    for (const prefix of stale) {
+      const oldObjects = await bucket.list({ prefix });
+      if (oldObjects.objects.length > 0) {
+        await bucket.delete(oldObjects.objects.map((o) => o.key));
+      }
     }
   } catch {
     // Ignore cleanup errors
@@ -154,6 +172,9 @@ export async function validateBackup(
     errors,
   };
 }
+
+/** Max statements per D1 batch during restore (bounds Worker memory). */
+export const RESTORE_BATCH_SIZE = 200;
 
 export interface RestoreResult {
   success: boolean;
@@ -228,7 +249,11 @@ export async function restoreBackup(
       tables[table] = { restored: rows.length };
     }
 
-    await executeBatch(db, allStatements);
+    // Bounded batches: a large org would otherwise exceed D1 batch limits
+    // and Worker memory with a single giant batch.
+    for (let i = 0; i < allStatements.length; i += RESTORE_BATCH_SIZE) {
+      await executeBatch(db, allStatements.slice(i, i + RESTORE_BATCH_SIZE));
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     errors.push(`restore failed: ${msg}`);

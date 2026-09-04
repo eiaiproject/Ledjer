@@ -77,7 +77,10 @@ authRoutes.post("/register", async (c) => {
 authRoutes.post("/login", async (c) => {
   const body = await readJson(c, loginSchema);
   const ip = c.req.header("CF-Connecting-IP") || "unknown";
-  if (await checkRateLimit(c.env.DB, "login", `${ip}:${body.email}`, { max: 10, windowMs: 15 * 60 * 1000 })) {
+  // body.email is already lowercased by emailSchema, but normalize again so
+  // rate-limit buckets cannot be split by case variations.
+  const emailKey = body.email.trim().toLowerCase();
+  if (await checkRateLimit(c.env.DB, "login", `${ip}:${emailKey}`, { max: 10, windowMs: 15 * 60 * 1000 })) {
     throw tooManyRequests("Terlalu banyak percobaan. Coba lagi dalam beberapa menit.");
   }
 

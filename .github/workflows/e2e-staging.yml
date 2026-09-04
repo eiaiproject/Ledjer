@@ -42,6 +42,15 @@ jobs:
         run: pnpm build
         working-directory: apps/web
 
+      - name: Apply D1 migrations (staging)
+        # New code can depend on new columns (e.g. idempotency payload hash),
+        # so migrate BEFORE deploying the worker that queries them.
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        working-directory: apps/web
+        run: pnpm exec wrangler d1 migrations apply DB --remote --env staging --config wrangler.jsonc
+
       - name: Deploy to Cloudflare Workers (staging)
         # Deploy directly with wrangler. node_modules was installed with
         # --ignore-scripts by the Install step above, so no lifecycle scripts

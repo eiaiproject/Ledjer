@@ -154,12 +154,19 @@ export async function updateOrganization(
   name: string,
 ): Promise<void> {
   const current = Date.now();
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw badRequest("organization_name_required", "Nama usaha harus diisi.");
+  }
+  if (trimmed.length > 120) {
+    throw badRequest("organization_name_too_long", "Nama usaha maksimal 120 karakter.");
+  }
   await execute(
     db,
     `UPDATE organizations SET name = ?, updated_at = ? WHERE id = ?`,
-    [name.trim(), current, organizationId],
+    [trimmed, current, organizationId],
   );
-  await logAuthEvent(db, userId, organizationId, "organization_updated", { name });
+  await logAuthEvent(db, userId, organizationId, "organization_updated", { name: trimmed });
 }
 
 function organizationMemberSelect(): string {

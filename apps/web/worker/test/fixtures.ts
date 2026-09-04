@@ -134,6 +134,7 @@ interface SeedTransaction {
   cash_account_id: string;
   counter_account_id: string;
   idempotency_key: string;
+  idempotency_payload_hash?: string | null;
   created_by: string;
   created_at: number;
   voided_at: number | null;
@@ -588,7 +589,7 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
       const txn = transactions.find(
         (t) => t.organization_id === orgId && t.idempotency_key === key,
       );
-      return txn ? { id: txn.id, transaction_number: txn.transaction_number } : null;
+      return txn ? { id: txn.id, transaction_number: txn.transaction_number, idempotency_payload_hash: txn.idempotency_payload_hash ?? null } : null;
     }
     // Unique transaction number check
     if (s.includes("transaction_number = ?")) {
@@ -831,6 +832,14 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
     });
   }
 
+  if (s.includes("UPDATE organizations SET")) {
+    const org = orgs.find((o) => o.id === values.at(-1));
+    if (org) {
+      if (s.includes("name = ?")) org.name = values[0] as string;
+      org.updated_at = Number(values.at(-2));
+    }
+  }
+
   if (s.includes("UPDATE accounts SET")) {
     const account = accounts.find(
       (a) =>
@@ -859,6 +868,9 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
       cash_account_id: values[7] as string,
       counter_account_id: values[8] as string,
       idempotency_key: values[9] as string,
+      // values[13] is idempotency_payload_hash when the service INSERT
+      // includes it (appended last so positions 0..12 stay stable).
+      idempotency_payload_hash: (values[13] as string | undefined) ?? null,
       created_by: values[10] as string,
       created_at: Number(values[11]),
       voided_at: null,
