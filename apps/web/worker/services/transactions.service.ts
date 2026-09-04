@@ -490,7 +490,7 @@ function randomSuffix(length: number): string {
 }
 
 /** Backslash (char 92) used as the LIKE ESCAPE character. */
-const LIKE_ESCAPE_CHAR = String.fromCharCode(92);
+const LIKE_ESCAPE_CHAR = String.fromCodePoint(92);
 
 /** Escape LIKE wildcards so user search text matches literally. */
 export function escapeLikePattern(value: string): string {

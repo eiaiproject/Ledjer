@@ -146,7 +146,7 @@ interface ExportFilterQuery {
 }
 
 /** Backslash (char 92) used as the LIKE ESCAPE character. */
-const LIKE_ESCAPE_CHAR = String.fromCharCode(92);
+const LIKE_ESCAPE_CHAR = String.fromCodePoint(92);
 
 /** Shared WHERE clause for the export count + list queries. */
 function buildExportFilter(
