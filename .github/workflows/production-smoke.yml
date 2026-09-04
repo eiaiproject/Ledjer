@@ -41,6 +41,10 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps # NOSONAR - browser binary, not package install
 
+      # Preflight uses HEAD: Cloudflare's bot protection challenges GETs from
+      # datacenter IPs (GitHub runners) with 403, while HEAD is served from the
+      # edge cache. The real browser-based smoke tests below still perform GET
+      # and render the app, so the reachability gate stays meaningful.
       - name: Preflight - production URL is reachable (HTTP 200)
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
@@ -51,7 +55,7 @@ jobs:
           if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
-          curl -fsS "${AUTH_ARGS[@]}" "${PRODUCTION_URL}" -o /dev/null --max-time 15
+          curl -fsSI "${AUTH_ARGS[@]}" "${PRODUCTION_URL}" --max-time 15 >/dev/null
           echo "✅ Production URL is reachable"
 
       # Ensure smoke tests never mutate production financial data:
@@ -152,13 +156,11 @@ jobs:
             AUTH_ARGS=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
           fi
 
-          FINAL_URL=$(curl -sS -o /dev/null -w "%{redirect_url}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
-          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
+          # HEAD requests are served from Cloudflare's edge cache and are not
+          # challenged by bot protection (GET from datacenter IPs is).
+          HTTP_STATUS=$(curl -sSI -o /dev/null -w "%{http_code}" --max-time 15 "${AUTH_ARGS[@]}" "${PRODUCTION_URL}")
 
           echo "Final HTTP status: $HTTP_STATUS"
-          if [ -n "$FINAL_URL" ]; then
-            echo "Final URL (after redirects): $FINAL_URL"
-          fi
 
           if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "301" ] && [ "$HTTP_STATUS" != "302" ]; then
             echo "❌ Production URL returned unexpected HTTP $HTTP_STATUS"
