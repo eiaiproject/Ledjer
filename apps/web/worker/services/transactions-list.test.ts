@@ -1,58 +1,12 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import type { D1Database } from "@cloudflare/workers-types";
+import { SqliteD1 } from "../test/sqlite-d1";
 import { listTransactions } from "./transactions.service";
 
 const ORG = "org-1";
 const USER = "user-1";
 const NOW = 1_750_000_000_000;
-
-/**
- * Minimal real-SQLite stand-in for D1Database: the service layer only uses
- * prepare().bind().all()/first()/run() for listTransactions, so a thin
- * adapter over node:sqlite gives us real SQL semantics without a D1 emulator.
- */
-class SqliteD1 {
-  constructor(private readonly db: DatabaseSync) {}
-
-  prepare(sql: string): SqliteD1Statement {
-    return new SqliteD1Statement(this.db, sql);
-  }
-
-  exec(sql: string): void {
-    this.db.exec(sql);
-  }
-}
-
-class SqliteD1Statement {
-  private values: (string | number | null)[] = [];
-
-  constructor(
-    private readonly db: DatabaseSync,
-    private readonly sql: string,
-  ) {}
-
-  bind(...values: (string | number | null)[]): this {
-    this.values = values;
-    return this;
-  }
-
-  async all<T>(): Promise<{ results: T[] }> {
-    return { results: this.db.prepare(this.sql).all(...this.values) as T[] };
-  }
-
-  async first<T>(): Promise<T | null> {
-    return (this.db.prepare(this.sql).get(...this.values) as T | undefined) ?? null;
-  }
-
-  async run(): Promise<{ success: boolean; meta: { changes: number; last_row_id: number } }> {
-    const result = this.db.prepare(this.sql).run(...this.values);
-    return {
-      success: true,
-      meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid) },
-    };
-  }
-}
 
 function createSchema(db: DatabaseSync): void {
   db.exec(`

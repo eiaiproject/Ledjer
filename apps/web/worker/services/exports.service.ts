@@ -72,6 +72,13 @@ export function csvHeaders(filename: string): Headers {
   });
 }
 
+function throwExportTooLarge(): never {
+  throw badRequest(
+    "export_too_large",
+    "Jumlah data melebihi batas ekspor. Persempit rentang tanggal lalu coba lagi.",
+  );
+}
+
 /** Export transaksi sebagai CSV UTF-8 dengan BOM (PRD EXP-01). */
 export async function exportTransactionsCsv(
   db: D1Database,
@@ -84,22 +91,12 @@ export async function exportTransactionsCsv(
   // Count first so over-limit exports are rejected without materializing
   // tens of thousands of rows into Worker memory (OOM guard).
   const total = await countTransactionsForExport(db, organizationId, effective);
-  if (total > MAX_EXPORT_ROWS) {
-    throw badRequest(
-      "export_too_large",
-      "Jumlah data melebihi batas ekspor. Persempit rentang tanggal lalu coba lagi.",
-    );
-  }
+  if (total > MAX_EXPORT_ROWS) throwExportTooLarge();
 
   const rows = await listTransactionsForExport(db, organizationId, effective);
 
   // Defense in depth: the bounded query below can never exceed MAX+1 rows.
-  if (rows.length > MAX_EXPORT_ROWS) {
-    throw badRequest(
-      "export_too_large",
-      "Jumlah data melebihi batas ekspor. Persempit rentang tanggal lalu coba lagi.",
-    );
-  }
+  if (rows.length > MAX_EXPORT_ROWS) throwExportTooLarge();
 
   // Kolom per PRD §10.25. UTF-8 BOM agar terbuka benar di spreadsheet.
   const csv = `\uFEFF${toCsv(

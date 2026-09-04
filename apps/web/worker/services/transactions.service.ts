@@ -3,6 +3,7 @@ import { badRequest, conflict, notFound } from "../http/errors";
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { TransactionType, TransactionStatus } from "../db/schema";
+import { sha256Hex } from "../auth/tokens";
 import { getAccount, isCashBankAccount, type AccountRow } from "./accounts.service";
 
 export type TransactionDirection = "in" | "out" | "neutral";
@@ -510,10 +511,7 @@ export async function idempotencyPayloadHash(payload: {
     transactionDate: payload.transactionDate,
     transactionType: payload.transactionType,
   });
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return sha256Hex(canonical);
 }
 
 async function getTransactionByIdempotencyKey(

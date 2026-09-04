@@ -4,6 +4,7 @@
 // restore drill validation. Upgrade to D1 export API when available.
 
 import { queryAll, executeBatch } from "../db/client";
+import { sha256Hex } from "../auth/tokens";
 import { CORE_TABLES } from "../db/schema";
 
 export interface BackupManifest {
@@ -29,10 +30,7 @@ export function manifestHashPayload(manifest: Pick<BackupManifest, "version" | "
 export async function manifestSha256(
   manifest: Pick<BackupManifest, "version" | "startedAt" | "completedAt" | "tables">,
 ): Promise<string> {
-  const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(manifestHashPayload(manifest)));
-  return Array.from(new Uint8Array(hashBuf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return sha256Hex(manifestHashPayload(manifest));
 }
 
 async function jsonToR2(

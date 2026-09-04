@@ -2,71 +2,14 @@ import { describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import type { D1Database } from "@cloudflare/workers-types";
 import { FakeD1Database } from "../test/fake-d1";
+import { SqliteD1 } from "../test/sqlite-d1";
+import { FakeR2Bucket } from "../test/fake-r2";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
 import { HttpError } from "../http/errors";
 import { normalizeDate } from "../http/date";
 
 const ORG_A = FIXTURE_IDS.orgs.a;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
-
-/** Minimal real-SQLite D1 stand-in (same shape as transactions-list.test.ts). */
-class SqliteD1 {
-  constructor(private readonly db: DatabaseSync) {}
-  prepare(sql: string): SqliteD1Statement {
-    return new SqliteD1Statement(this.db, sql);
-  }
-  exec(sql: string): void {
-    this.db.exec(sql);
-  }
-}
-
-class SqliteD1Statement {
-  private values: (string | number | null)[] = [];
-  constructor(
-    private readonly db: DatabaseSync,
-    private readonly sql: string,
-  ) {}
-  bind(...values: (string | number | null)[]): this {
-    this.values = values;
-    return this;
-  }
-  async all<T>(): Promise<{ results: T[] }> {
-    return { results: this.db.prepare(this.sql).all(...this.values) as T[] };
-  }
-  async first<T>(): Promise<T | null> {
-    return (this.db.prepare(this.sql).get(...this.values) as T | undefined) ?? null;
-  }
-  async run(): Promise<{ success: boolean; meta: { changes: number; last_row_id: number } }> {
-    const result = this.db.prepare(this.sql).run(...this.values);
-    return {
-      success: true,
-      meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid) },
-    };
-  }
-}
-
-/** Minimal in-memory R2 bucket stub. */
-class FakeR2Bucket {
-  private store = new Map<string, string>();
-  async put(key: string, data: string): Promise<void> {
-    this.store.set(key, data);
-  }
-  async get(key: string): Promise<{ text(): Promise<string> } | null> {
-    const body = this.store.get(key);
-    if (body === undefined) return null;
-    return { text: async () => body };
-  }
-  async list(opts?: { prefix?: string }): Promise<{ objects: { key: string }[] }> {
-    const prefix = opts?.prefix ?? "";
-    return { objects: Array.from(this.store.keys()).filter((k) => k.startsWith(prefix)).map((key) => ({ key })) };
-  }
-  async delete(keys: string[]): Promise<void> {
-    for (const key of keys) this.store.delete(key);
-  }
-  keys(): string[] {
-    return Array.from(this.store.keys());
-  }
-}
 
 function emptyD1(): D1Database {
   return new FakeD1Database({ all: async () => [] }) as unknown as D1Database;
