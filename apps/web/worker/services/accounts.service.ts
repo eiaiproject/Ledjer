@@ -115,19 +115,30 @@ export async function createCashBankAccount(
   const current = Date.now();
   const accountId = crypto.randomUUID();
 
-  await execute(
-    db,
-    `INSERT INTO accounts (
-       id, organization_id, code, name, account_class, account_subtype,
-       is_system, is_active, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'asset', ?, 0, 1, ?, ?)`,
-    [accountId, organizationId, code, name, input.subtype, current, current],
-  );
-  await logAuthEvent(db, userId, organizationId, "account_created", { accountId, code, name, subtype: input.subtype });
-
-  const account = await getAccount(db, organizationId, accountId);
-  if (!account) throw badRequest("account_create_failed", "Gagal membuat akun.");
-  return account;
+  // Two concurrent creates can compute the same next code; retry with a
+  // freshly computed code instead of surfacing a 500 UNIQUE violation.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const attemptCode = attempt === 0 ? code : await nextCashBankCode(db, organizationId);
+    const attemptId = attempt === 0 ? accountId : crypto.randomUUID();
+    try {
+      await execute(
+        db,
+        `INSERT INTO accounts (
+           id, organization_id, code, name, account_class, account_subtype,
+           is_system, is_active, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, 'asset', ?, 0, 1, ?, ?)`,
+        [attemptId, organizationId, attemptCode, name, input.subtype, current, current],
+      );
+      await logAuthEvent(db, userId, organizationId, "account_created", { accountId: attemptId, code: attemptCode, name, subtype: input.subtype });
+      const account = await getAccount(db, organizationId, attemptId);
+      if (!account) throw badRequest("account_create_failed", "Gagal membuat akun.");
+      return account;
+    } catch (err) {
+      if (attempt < 2 && err instanceof Error && /unique|constraint/i.test(err.message)) continue;
+      throw err;
+    }
+  }
+  throw badRequest("account_create_failed", "Gagal membuat akun.");
 }
 
 export interface PatchAccountInput {
@@ -201,7 +212,7 @@ export async function accountIsUsed(
   const row = await queryFirst<{ c: number }>(
     db,
     `SELECT COUNT(*) AS c FROM transactions
-     WHERE organization_id = ? AND (cash_account_id = ? OR counter_account_id = ?)`,
+     WHERE organization_id = ? AND status = 'posted' AND (cash_account_id = ? OR counter_account_id = ?)`,
     [organizationId, accountId, accountId],
   );
   return (row?.c ?? 0) > 0;

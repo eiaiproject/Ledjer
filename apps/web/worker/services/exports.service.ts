@@ -1,4 +1,4 @@
-import { queryAll, type D1Input } from "../db/client";
+import { queryAll, queryFirst, type D1Input } from "../db/client";
 import { normalizeDate } from "../http/date";
 import { badRequest } from "../http/errors";
 
@@ -79,8 +79,21 @@ export async function exportTransactionsCsv(
   filters: TransactionExportFilters = {},
 ): Promise<ExportResponse> {
   const effectiveStatus = filters.status ?? "posted";
-  const rows = await listTransactionsForExport(db, organizationId, { ...filters, status: effectiveStatus });
+  const effective = { ...filters, status: effectiveStatus };
 
+  // Count first so over-limit exports are rejected without materializing
+  // tens of thousands of rows into Worker memory (OOM guard).
+  const total = await countTransactionsForExport(db, organizationId, effective);
+  if (total > MAX_EXPORT_ROWS) {
+    throw badRequest(
+      "export_too_large",
+      "Jumlah data melebihi batas ekspor. Persempit rentang tanggal lalu coba lagi.",
+    );
+  }
+
+  const rows = await listTransactionsForExport(db, organizationId, effective);
+
+  // Defense in depth: the bounded query below can never exceed MAX+1 rows.
   if (rows.length > MAX_EXPORT_ROWS) {
     throw badRequest(
       "export_too_large",
@@ -130,11 +143,16 @@ function safeFilename(filename: string): string {
   return filename.replace(/[^A-Za-z0-9._-]/g, "_");
 }
 
-async function listTransactionsForExport(
-  db: D1Database,
+interface ExportFilterQuery {
+  conditions: string[];
+  values: D1Input[];
+}
+
+/** Shared WHERE clause for the export count + list queries. */
+function buildExportFilter(
   organizationId: string,
   filters: TransactionExportFilters,
-): Promise<ExportTransactionRow[]> {
+): ExportFilterQuery {
   const conditions = ["t.organization_id = ?"];
   const values: D1Input[] = [organizationId];
 
@@ -160,10 +178,35 @@ async function listTransactionsForExport(
   if (filters.search) {
     const search = sanitizeSearch(filters.search);
     if (search) {
-      conditions.push("(lower(t.description) LIKE ? OR lower(t.transaction_number) LIKE ?)");
+      conditions.push("(lower(t.description) LIKE ? ESCAPE '\\\\' OR lower(t.transaction_number) LIKE ? ESCAPE '\\\\')");
       values.push(search, search);
     }
   }
+  return { conditions, values };
+}
+
+async function countTransactionsForExport(
+  db: D1Database,
+  organizationId: string,
+  filters: TransactionExportFilters,
+): Promise<number> {
+  const { conditions, values } = buildExportFilter(organizationId, filters);
+  const row = await queryFirst<{ c: number }>(
+    db,
+    `SELECT COUNT(*) AS c FROM transactions t WHERE ${conditions.join(" AND ")}`,
+    values,
+  );
+  return row?.c ?? 0;
+}
+
+async function listTransactionsForExport(
+  db: D1Database,
+  organizationId: string,
+  filters: TransactionExportFilters,
+): Promise<ExportTransactionRow[]> {
+  const { conditions, values } = buildExportFilter(organizationId, filters);
+  // Bounded: at most MAX_EXPORT_ROWS + 1 rows ever enter Worker memory.
+  const bounded = [...values, MAX_EXPORT_ROWS + 1];
 
   return queryAll<ExportTransactionRow>(
     db,
@@ -180,12 +223,15 @@ async function listTransactionsForExport(
      LEFT JOIN accounts cash ON cash.id = t.cash_account_id
      LEFT JOIN accounts counter ON counter.id = t.counter_account_id
      WHERE ${conditions.join(" AND ")}
-     ORDER BY t.transaction_date ASC, t.transaction_number ASC`,
-    values,
+     ORDER BY t.transaction_date ASC, t.transaction_number ASC
+     LIMIT ?`,
+    bounded,
   );
 }
 
 function sanitizeSearch(input: string): string {
   const value = input.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ").toLowerCase();
-  return value ? `%${value}%` : "";
+  if (!value) return "";
+  const escaped = value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return `%${escaped}%`;
 }

@@ -18,6 +18,10 @@ export const IDLE_TIMEOUT_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 // during page load - all requests within the interval share the same token.
 const TOKEN_ROTATION_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// Throttle last_used_at writes: refreshing the sliding window every few
+// minutes is plenty, and avoids a D1 write on every authenticated read.
+export const LAST_USED_WRITE_MS = 5 * 60 * 1000;
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -170,15 +174,19 @@ export async function getSessionByToken(
     return null;
   }
 
-  // Rotation skipped - just update last_used_at so the sliding window stays accurate
-  await execute(
-    db,
-    `UPDATE sessions
-     SET last_used_at = ?
-     WHERE id = ?
-       AND revoked_at IS NULL`,
-    [current, row.session_id],
-  );
+  // Rotation skipped - refresh last_used_at only when the stored value is
+  // older than the throttle window, so the sliding window stays accurate
+  // without a D1 write on every request.
+  if (current - (row.last_used_at ?? 0) > LAST_USED_WRITE_MS) {
+    await execute(
+      db,
+      `UPDATE sessions
+       SET last_used_at = ?
+       WHERE id = ?
+         AND revoked_at IS NULL`,
+      [current, row.session_id],
+    );
+  }
 
   return row;
 }

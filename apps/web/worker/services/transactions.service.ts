@@ -154,8 +154,26 @@ export async function postTransaction(
   requestId?: string,
 ): Promise<PostTransactionResult> {
   const normalizedKey = normalizeIdempotencyKey(input.idempotencyKey);
+  const type = normalizeTransactionType(input.transactionType);
+  const transactionDate = normalizeDate(input.transactionDate, "transaction_date_invalid");
+  const amountIdr = toIdr(input.amountIdr);
+  const description = normalizeRequiredText(input.description, 200, "transaction_description_required");
+  const payloadHash = await idempotencyPayloadHash({
+    transactionType: type,
+    transactionDate,
+    cashAccountId: input.cashAccountId,
+    counterAccountId: input.counterAccountId,
+    amountIdr,
+    description,
+  });
   const existing = await getTransactionByIdempotencyKey(db, organizationId, normalizedKey);
   if (existing) {
+    // A reused key with a different payload is a client bug, not a replay:
+    // fail loudly instead of returning the wrong transaction. Rows written
+    // before the payload-hash column existed carry NULL and stay replayable.
+    if (existing.idempotency_payload_hash !== null && existing.idempotency_payload_hash !== payloadHash) {
+      throw conflict("idempotency_key_reused", "Idempotency key sudah dipakai untuk transaksi lain. Muat ulang halaman dan coba lagi.");
+    }
     const entry = await queryFirst<{ id: string }>(
       db,
       "SELECT id FROM journal_entries WHERE transaction_id = ? AND organization_id = ?",
@@ -170,11 +188,7 @@ export async function postTransaction(
     };
   }
 
-  const type = normalizeTransactionType(input.transactionType);
-  const transactionDate = normalizeDate(input.transactionDate, "transaction_date_invalid");
   await assertDateNotFuture(transactionDate);
-  const amountIdr = toIdr(input.amountIdr);
-  const description = normalizeRequiredText(input.description, 200, "transaction_description_required");
   const current = Date.now();
 
   const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
@@ -199,12 +213,12 @@ export async function postTransaction(
       `INSERT INTO transactions (
          id, organization_id, transaction_number, transaction_type, transaction_date,
          description, status, amount_idr, cash_account_id, counter_account_id,
-         idempotency_key, created_by, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
+         idempotency_key, created_by, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         transactionId, organizationId, transactionNumber, type, transactionDate,
         description, amountIdr, cashAccount!.id, counterAccount!.id,
-        normalizedKey, userId, current, current,
+        normalizedKey, userId, current, current, payloadHash,
       ],
     ),
     statement(
@@ -264,8 +278,8 @@ function buildTransactionFilter(
     values.push(filters.status);
   }
   if (filters.search) {
-    const search = `%${filters.search.toLowerCase()}%`;
-    conditions.push(`(lower(${prefix}description) LIKE ? OR lower(${prefix}transaction_number) LIKE ?)`);
+    const search = `%${escapeLikePattern(filters.search.trim().toLowerCase())}%`;
+    conditions.push(`(lower(${prefix}description) LIKE ? ESCAPE '\\' OR lower(${prefix}transaction_number) LIKE ? ESCAPE '\\')`);
     values.push(search, search);
   }
 
@@ -474,14 +488,42 @@ function randomSuffix(length: number): string {
   return out;
 }
 
+/** Escape LIKE wildcards so user search text matches literally. */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+/** SHA-256 hex over the canonical transaction payload for idempotency binding. */
+export async function idempotencyPayloadHash(payload: {
+  transactionType: string;
+  transactionDate: string;
+  cashAccountId: string;
+  counterAccountId: string;
+  amountIdr: number;
+  description: string;
+}): Promise<string> {
+  const canonical = JSON.stringify({
+    amountIdr: payload.amountIdr,
+    cashAccountId: payload.cashAccountId,
+    counterAccountId: payload.counterAccountId,
+    description: payload.description,
+    transactionDate: payload.transactionDate,
+    transactionType: payload.transactionType,
+  });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 async function getTransactionByIdempotencyKey(
   db: D1Database,
   organizationId: string,
   idempotencyKey: string,
-): Promise<{ id: string; transaction_number: string } | null> {
-  return queryFirst<{ id: string; transaction_number: string }>(
+): Promise<{ id: string; transaction_number: string; idempotency_payload_hash: string | null } | null> {
+  return queryFirst<{ id: string; transaction_number: string; idempotency_payload_hash: string | null }>(
     db,
-    "SELECT id, transaction_number FROM transactions WHERE organization_id = ? AND idempotency_key = ?",
+    "SELECT id, transaction_number, idempotency_payload_hash FROM transactions WHERE organization_id = ? AND idempotency_key = ?",
     [organizationId, idempotencyKey],
   );
 }
