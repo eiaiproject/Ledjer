@@ -270,8 +270,13 @@ async function auditViewport(browser, vp, txnId) {
     row.routes.push(entry);
   }
 
-  // Authenticate once per viewport.
+  // Authenticate once per viewport. Send an Origin header like a real
+  // browser: the worker's CSRF check (worker/index.ts, ADR 0003) rejects
+  // state-changing requests that carry a session cookie but no allowed
+  // Origin, so cookie-authenticated POSTs from a bare request context
+  // (which omits Origin) would 403 against hardened deployments.
   const login = await context.request.post(`${baseUrl}/api/auth/login`, {
+    headers: { Origin: baseUrl },
     data: { email: EMAIL, password: PASSWORD },
   });
   if (!login.ok()) {
@@ -287,6 +292,7 @@ async function auditViewport(browser, vp, txnId) {
     const today = new Date().toISOString().slice(0, 10); // UTC date is never "future" in Asia/Jakarta
     if (cash && equity && orgId) {
       const created = await context.request.post(`${baseUrl}/api/transactions`, {
+        headers: { Origin: baseUrl },
         data: {
           transactionType: "owner_deposit",
           transactionDate: today,
