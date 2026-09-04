@@ -145,6 +145,9 @@ interface ExportFilterQuery {
   values: D1Input[];
 }
 
+/** Backslash (char 92) used as the LIKE ESCAPE character. */
+const LIKE_ESCAPE_CHAR = String.fromCharCode(92);
+
 /** Shared WHERE clause for the export count + list queries. */
 function buildExportFilter(
   organizationId: string,
@@ -175,7 +178,7 @@ function buildExportFilter(
   if (filters.search) {
     const search = sanitizeSearch(filters.search);
     if (search) {
-      conditions.push("(lower(t.description) LIKE ? ESCAPE '\\\\' OR lower(t.transaction_number) LIKE ? ESCAPE '\\\\')");
+      conditions.push(`(lower(t.description) LIKE ? ESCAPE '${LIKE_ESCAPE_CHAR}' OR lower(t.transaction_number) LIKE ? ESCAPE '${LIKE_ESCAPE_CHAR}')`);
       values.push(search, search);
     }
   }
@@ -227,8 +230,11 @@ async function listTransactionsForExport(
 }
 
 function sanitizeSearch(input: string): string {
-  const value = input.trim().replace(/[,%()]/g, " ").replace(/\s+/g, " ").toLowerCase();
+  const value = input.trim().replaceAll(/[,()%]/g, " ").replaceAll(/\s+/g, " ").toLowerCase();
   if (!value) return "";
-  const escaped = value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  const escaped = value
+    .replaceAll(LIKE_ESCAPE_CHAR, String.raw`\\`)
+    .replaceAll("%", String.raw`\%`)
+    .replaceAll("_", String.raw`\_`);
   return `%${escaped}%`;
 }

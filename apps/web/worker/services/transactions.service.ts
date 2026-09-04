@@ -280,7 +280,7 @@ function buildTransactionFilter(
   }
   if (filters.search) {
     const search = `%${escapeLikePattern(filters.search.trim().toLowerCase())}%`;
-    conditions.push(`(lower(${prefix}description) LIKE ? ESCAPE '\\' OR lower(${prefix}transaction_number) LIKE ? ESCAPE '\\')`);
+    conditions.push(`(lower(${prefix}description) LIKE ? ESCAPE '${LIKE_ESCAPE_CHAR}' OR lower(${prefix}transaction_number) LIKE ? ESCAPE '${LIKE_ESCAPE_CHAR}')`);
     values.push(search, search);
   }
 
@@ -489,9 +489,15 @@ function randomSuffix(length: number): string {
   return out;
 }
 
+/** Backslash (char 92) used as the LIKE ESCAPE character. */
+const LIKE_ESCAPE_CHAR = String.fromCharCode(92);
+
 /** Escape LIKE wildcards so user search text matches literally. */
 export function escapeLikePattern(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return value
+    .replaceAll(LIKE_ESCAPE_CHAR, String.raw`\\`)
+    .replaceAll("%", String.raw`\%`)
+    .replaceAll("_", String.raw`\_`);
 }
 
 /** SHA-256 hex over the canonical transaction payload for idempotency binding. */

@@ -1,6 +1,6 @@
 /** In-memory R2 bucket stub shared by backup/restore tests. */
 export class FakeR2Bucket {
-  private store = new Map<string, { body: string; metadata?: Record<string, string> }>();
+  private readonly store = new Map<string, { body: string; metadata?: Record<string, string> }>();
 
   async put(key: string, data: string, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }) {
     this.store.set(key, { body: data, metadata: options?.customMetadata ?? {} });
