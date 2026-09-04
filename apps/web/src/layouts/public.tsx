@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/ui/logo";
+import { TRAKTEER_URL } from "@/lib/external";
 
 /**
  * PublicLayout - minimal chrome for marketing / auth / legal pages.
@@ -52,6 +53,15 @@ export function PublicLayout({ children }: { readonly children: ReactNode }) {
       >
         <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-wood-500 sm:px-6 lg:px-8">
           © {new Date().getFullYear()} Ledjer. Hak cipta dilindungi.
+          <span aria-hidden="true" className="mx-2">·</span>
+          <a
+            href={TRAKTEER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline-offset-2 hover:text-wood-800 hover:underline"
+          >
+            Dukung kami di Trakteer
+          </a>
         </p>
       </footer>
     </div>

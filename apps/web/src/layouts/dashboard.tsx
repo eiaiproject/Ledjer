@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Chart, Home, Logout, Menu, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
+import { Chart, Heart, Home, Logout, Menu, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
+import { TRAKTEER_URL } from "@/lib/external";
 
 type NavItem =
   | { to: string; label: string; icon: ComponentType<{ className?: string }>; children?: never }
@@ -175,6 +176,15 @@ export function DashboardLayout() {
         </nav>
 
         <div className="border-t border-wood-600 p-3">
+          <a
+            href={TRAKTEER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-1 flex min-h-[44px] items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-wood-200 transition-colors hover:bg-wood-600/50 hover:text-cream-50"
+          >
+            <Heart className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Dukung di Trakteer
+          </a>
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wood-500 text-sm font-medium text-cream-50">
               {orgInitial}
@@ -336,6 +346,15 @@ export function DashboardLayout() {
           </nav>
 
           <div className="shrink-0 border-t border-wood-600 p-4 ledger-safe-bottom">
+            <a
+              href={TRAKTEER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-1 flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-sm font-medium text-wood-200 transition-colors hover:bg-wood-600/50 hover:text-cream-50"
+            >
+              <Heart className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Dukung di Trakteer
+            </a>
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wood-500 text-sm font-medium text-cream-50">
                 {orgInitial}
