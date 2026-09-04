@@ -4,6 +4,48 @@ All notable changes to Ledjer are documented here.
 
 ## [Unreleased]
 
+### Added
+- Buku besar (general ledger) MVP: `getGeneralLedger` di `reports.service`
+  (running balance per akun, saldo awal ikut terbawa), `GET
+  /api/reports/general-ledger`, halaman "Buku Besar" di bawah menu Laporan
+  (filter tanggal + akun), dan unit test. Buku besar dibaca langsung dari
+  journal lines transaksi `posted` - tanpa perubahan skema.
+
+### Changed
+- Dead code & sisa pre-MVP dihapus: 6 komponen UI tak terpakai
+  (`combobox`, `page-shell`, `page-toolbar`, `skeleton`, `status-flow`,
+  `textarea`), service worker `public/sw.js` (tidak pernah didaftarkan),
+  skrip benchmark skema lama `scripts/seed-benchmark-data.mjs` + script
+  `benchmark:seed`, artefak `e2e/.audit-results*.json`, dan CSS landing yang
+  tidak terpakai di `index.css`.
+- Dokumentasi disinkronkan dengan cakupan MVP: `docs/accounting-rules.md`
+  (5 tipe transaksi), `docs/architecture/permission-matrix.md` (role owner),
+  `docs/architecture/tenant-isolation.md` (daftar tabel aktual),
+  `docs/testing.md`, `docs/security/csp.md`, `docs/product/*`,
+  `docs/production/backup-and-restore.md`, `docs/performance.md`,
+  `apps/web/README.md`, `apps/web/worker/README.md`, dan `docs/api/*`
+  (openapi.yaml kini hanya berisi endpoint MVP yang hidup; p1-* ditandai
+  roadmap).
+- `CODEOWNERS` diperbaiki (path root-anchored `apps/web/worker/...`, referensi
+  file yang sudah dihapus dibuang) dan copy SEO/`robots.txt` dibersihkan dari
+  fitur non-MVP.
+- Konsistensi layout & tipografi: ritme seksi halaman diseragamkan (`space-y-4`),
+  kolom grid form yang `col-span`-nya tak pernah efektif diperbaiki, padding
+  ganda kartu auth/404 dirapikan, dan hierarki heading diselaraskan (judul
+  kartu `h2`, satu `h1` per halaman). Pemeriksaan desain otomatis ditambahkan
+  ke `scripts/ui-audit.mjs` (outline heading + keseimbangan kolom grid).
+
+### Fixed
+- Nominal pecahan rupiah ditolak alih-alih dibulatkan diam-diam (`amountIdr`
+  kini harus integer di service + schema zod; test ditambahkan).
+- Ekspor CSV tanpa filter status kini memuat SEMUA status (posted + voided),
+  konsisten dengan daftar transaksi "Semua status" di UI.
+- Race idempotensi (dua POST paralel dengan key sama) kini menghasilkan replay
+  transaksi pemenang, bukan error 500 UNIQUE sesaat.
+- Rotasi token sesi 7 hari tidak lagi memutus request paralel yang masih
+  membawa cookie lama: migrasi `0005_session_token_grace.sql` menyimpan hash
+  token lama selama window grace 60 detik (unit test + verifikasi HTTP).
+
 ### MVP cash-only reset (branch `mvp-cash-only`)
 
 Per PRD 2026-09-03, Ledjer di-strip besar-besaran menjadi MVP pencatatan kas yang sederhana:

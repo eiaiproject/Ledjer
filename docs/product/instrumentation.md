@@ -10,14 +10,12 @@ SDK is selected.
 | Event | Trigger | Properties | Privacy |
 |-------|---------|------------|---------|
 | `signup` | Registration form submitted | `method: email|google` | No email in event |
-| `email_verified` | Email verification completed | None | |
-| `org_created` | Organization created | `business_type` | No org name |
-| `onboarding_completed` | First-time setup finished | `business_type` | |
+| `org_created` | Organization created with default COA | None | No org name |
 | `first_transaction` | First transaction posted | `transaction_type` | |
+| `transaction_voided` | A posted transaction is voided | None | |
 | `first_report` | First report generated | `report_type` | |
-| `invitation_sent` | Team invitation sent | `role` | No email |
 | `export_downloaded` | CSV export downloaded | `export_type, row_count, truncated` | |
-| `weekly_active` | At least one action in 7 days | `org_count, role` | Aggregated |
+| `weekly_active` | At least one action in 7 days | `role` | Aggregated |
 
 ### Revenue Events (when billing exists)
 
@@ -48,7 +46,7 @@ SDK is selected.
 | Logo churn rate | Cancelled accounts / Total accounts | Monthly |
 | Revenue churn rate | Churned MRR / Starting MRR | Monthly |
 | Retention cohort | % of users active in month N after signup | Weekly cohorts |
-| Activation rate | Users who completed onboarding / Signups | |
+| Activation rate | Users who posted a first transaction / Signups | |
 | CAC | Total sales & marketing cost / New customers | Requires cost data |
 | LTV | ARPU / Monthly churn rate | Simplified calculation |
 | CAC payback | CAC / (ARPU - COGS per customer) | Months to recover CAC |

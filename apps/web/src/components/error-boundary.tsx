@@ -36,9 +36,9 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
       return (
         <div className="flex min-h-[300px] flex-col items-center justify-center px-4 py-12 text-center" role="alert" aria-live="assertive">
-          <h2 className="mt-3 text-lg font-semibold text-wood-900">
+          <h1 className="mt-3 text-xl font-bold text-wood-900">
             Terjadi kesalahan
-          </h2>
+          </h1>
           <p className="mt-1 max-w-sm break-words text-sm text-wood-500">
             {import.meta.env.DEV
               ? this.state.error?.message || "Terjadi kesalahan yang tidak terduga"

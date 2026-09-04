@@ -1,27 +1,36 @@
 # Ledjer CODEOWNERS
 # Each line is a file pattern followed by owner(s).
+# Patterns are repo-root-anchored; the Worker lives under apps/web/worker/.
 
 * @eiaiproject/ledjer-maintainers
 
 # Security-sensitive paths
 SECURITY.md @eiaiproject/ledjer-security
+apps/web/worker/auth/ @eiaiproject/ledjer-security
+apps/web/worker/middleware/ @eiaiproject/ledjer-security
+apps/web/worker/http/ @eiaiproject/ledjer-security
+apps/web/worker/services/session.service.ts @eiaiproject/ledjer-security
+apps/web/worker/services/rate-limit.service.ts @eiaiproject/ledjer-security
 docs/security/ @eiaiproject/ledjer-security
-worker/auth/ @eiaiproject/ledjer-security
-worker/middleware/ @eiaiproject/ledjer-security
 
 # Compliance docs
 docs/compliance/ @eiaiproject/ledjer-legal
 
 # Infrastructure
 wrangler.jsonc @eiaiproject/ledjer-infra
+apps/web/wrangler.jsonc @eiaiproject/ledjer-infra
 .github/workflows/ @eiaiproject/ledjer-infra
 scripts/ @eiaiproject/ledjer-infra
 
 # Accounting domain
-worker/services/transactions.service.ts @eiaiproject/ledjer-accounting
-worker/services/reports.service.ts @eiaiproject/ledjer-accounting
-worker/services/inventory.service.ts @eiaiproject/ledjer-accounting
-worker/__tests__/accounting-invariants.test.ts @eiaiproject/ledjer-accounting
+apps/web/worker/services/transactions.service.ts @eiaiproject/ledjer-accounting
+apps/web/worker/services/reports.service.ts @eiaiproject/ledjer-accounting
+apps/web/worker/services/accounts.service.ts @eiaiproject/ledjer-accounting
+apps/web/worker/services/organization.service.ts @eiaiproject/ledjer-accounting
+apps/web/worker/services/exports.service.ts @eiaiproject/ledjer-accounting
+apps/web/worker/db/migrations/ @eiaiproject/ledjer-accounting
+apps/web/worker/__tests__/accounting-invariants.test.ts @eiaiproject/ledjer-accounting
+docs/accounting-rules.md @eiaiproject/ledjer-accounting
 
-# API
+# API docs
 docs/api/ @eiaiproject/ledjer-api

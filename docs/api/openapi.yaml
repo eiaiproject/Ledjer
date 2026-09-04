@@ -1,183 +1,84 @@
 openapi: 3.1.0
 info:
   title: Ledjer API
-  description: Double-entry accounting API for Indonesian SMEs
   version: 1.0.0
-  contact:
-    name: Ledjer Team
-    url: https://ledjer.id
-
+  description: >
+    Cloudflare Worker (Hono) API for Ledjer - cash-only double-entry
+    bookkeeping MVP for Indonesian UMKM. All money values are integer IDR
+    (minor units). Protected endpoints require the session cookie
+    (`__Host-ledjer_session` in production, `ledjer_session` elsewhere) and
+    state-changing requests must send a same-origin `Origin` header.
 servers:
   - url: https://ledjer.id
     description: Production
-  - url: http://localhost:5173
-    description: Development
-
-components:
-  securitySchemes:
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: __Host-ledjer_session
-      description: Session cookie (HttpOnly, Secure, SameSite=Lax)
-
-  schemas:
-    Error:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code:
-              type: string
-            message:
-              type: string
-            requestId:
-              type: string
-
-    User:
-      type: object
-      properties:
-        id: { type: string }
-        email: { type: string }
-        full_name: { type: string }
-        email_verified_at: { type: integer, nullable: true }
-
-    Organization:
-      type: object
-      properties:
-        id: { type: string }
-        name: { type: string }
-        business_type: { type: string, enum: [service, simple_trading] }
-        base_currency: { type: string }
-        books_start_date: { type: string, format: date }
-        onboarding_status: { type: string }
-        created_by: { type: string }
-
-    OrganizationMember:
-      type: object
-      properties:
-        id: { type: string }
-        organization_id: { type: string }
-        user_id: { type: string }
-        role: { type: string, enum: [owner, admin, member, viewer] }
-        status: { type: string }
-
-    Account:
-      type: object
-      properties:
-        id: { type: string }
-        code: { type: integer }
-        name: { type: string }
-        account_type: { type: string }
-        normal_balance: { type: string, enum: [debit, credit] }
-        is_active: { type: boolean }
-        is_cash_account: { type: boolean }
-
-    Transaction:
-      type: object
-      properties:
-        id: { type: string }
-        transaction_number: { type: string }
-        transaction_date: { type: string, format: date }
-        transaction_type: { type: string }
-        amount: { type: integer }
-        description: { type: string }
-        status: { type: string, enum: [posted, voided] }
-        payment_status: { type: string, enum: [paid, unpaid, partial] }
-
-    Product:
-      type: object
-      properties:
-        id: { type: string }
-        code: { type: string }
-        name: { type: string }
-        unit: { type: string }
-        purchase_price: { type: integer }
-        selling_price: { type: integer }
-        current_stock: { type: string }
-        is_active: { type: boolean }
-
-    JournalEntry:
-      type: object
-      properties:
-        id: { type: string }
-        entry_number: { type: string }
-        entry_date: { type: string, format: date }
-        entry_type: { type: string }
-        description: { type: string }
-        status: { type: string }
-        journal_lines:
-          type: array
-          items:
-            $ref: '#/components/schemas/JournalLine'
-
-    JournalLine:
-      type: object
-      properties:
-        id: { type: string }
-        account_id: { type: string }
-        debit: { type: integer }
-        credit: { type: integer }
-        description: { type: string }
-
-    Pagination:
-      type: object
-      properties:
-        limit: { type: integer }
-        offset: { type: integer }
-        total: { type: integer }
-
+  - url: http://localhost:8788
+    description: "Local dev (via Vite proxy: http://localhost:5173)"
+tags:
+  - name: Health
+  - name: Auth
+  - name: Organizations
+  - name: Accounts
+  - name: Transactions
+  - name: Reports
+  - name: Dashboard
+  - name: Exports
 paths:
   /api/health:
     get:
-      summary: Health check
       tags: [Health]
+      summary: Liveness - checks DB connectivity
       responses:
-        '200':
-          description: OK
+        "200":
+          description: Healthy
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status: { type: string }
-                  timestamp: { type: integer }
-
+                  status: { type: string, enum: [healthy] }
+                  database: { type: string, enum: [up] }
+        "503":
+          description: Unhealthy (DB down)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /api/health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness - upstream dependency checks
+      responses:
+        "200":
+          description: Ready
+        "503":
+          description: Degraded
   /api/auth/register:
     post:
-      summary: Register new user
       tags: [Auth]
+      summary: Register a user, creating their first organization + default COA
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, password, fullName]
+              required: [email, password, fullName, organizationName]
               properties:
                 email: { type: string, format: email }
-                password: { type: string, minLength: 8 }
-                fullName: { type: string, minLength: 2 }
+                password: { type: string, minLength: 8, maxLength: 72 }
+                fullName: { type: string, minLength: 2, maxLength: 160 }
+                organizationName: { type: string, minLength: 1, maxLength: 120 }
       responses:
-        '200':
-          description: Registration initiated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user: { $ref: '#/components/schemas/User' }
-                  needsEmailConfirmation: { type: boolean }
-        '429':
+        "200":
+          description: Registered; session cookie set
+        "403":
+          description: Email already taken
+        "429":
           description: Rate limited
-
   /api/auth/login:
     post:
-      summary: Login
       tags: [Auth]
+      summary: Log in and set the session cookie
       requestBody:
         required: true
         content:
@@ -186,96 +87,116 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string }
+                email: { type: string, format: email }
                 password: { type: string }
       responses:
-        '200':
-          description: Login successful, session cookie set
-          headers:
-            Set-Cookie:
+        "200":
+          description: Logged in; session cookie set
+          content:
+            application/json:
               schema:
-                type: string
-        '401':
+                type: object
+                properties:
+                  ok: { type: boolean, enum: [true] }
+        "401":
           description: Invalid credentials
-        '429':
+        "429":
           description: Rate limited
-
   /api/auth/logout:
     post:
-      summary: Logout
       tags: [Auth]
-      security:
-        - cookieAuth: []
+      summary: Revoke the current session and clear the cookie
       responses:
-        '200':
+        "200":
           description: Logged out
-
   /api/auth/me:
     get:
-      summary: Get current user
       tags: [Auth]
+      summary: Current user + session (null when unauthenticated)
       responses:
-        '200':
-          description: User info
+        "200":
+          description: Current session state
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  user: { $ref: '#/components/schemas/User' }
-                  session: { type: object }
-
-  /api/organizations:
+                  user:
+                    type: [object, "null"]
+                    properties:
+                      id: { type: string }
+                      email: { type: string }
+                      full_name: { type: string }
+                  session:
+                    type: [object, "null"]
+                    properties:
+                      id: { type: string }
+                      user_id: { type: string }
+                      expires_at: { type: integer }
+                      current_organization_id: { type: [string, "null"] }
+  /api/auth/google/start:
     get:
-      summary: List user's organizations
-      tags: [Organizations]
-      security:
-        - cookieAuth: []
+      tags: [Auth]
+      summary: Return a Google OAuth authorization URL (state cookie set)
       responses:
-        '200':
-          description: Organization list
+        "200":
+          description: Authorization URL
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  organizations:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Organization'
-    post:
-      summary: Create organization
+                  url: { type: string }
+        "501":
+          description: OAuth not configured
+  /api/auth/google/callback:
+    get:
+      tags: [Auth]
+      summary: OAuth callback - exchanges code, sets session, redirects to /dashboard
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+      responses:
+        "302":
+          description: Redirect (dashboard on success, /login?error=... on failure)
+  /api/organizations/current:
+    get:
       tags: [Organizations]
-      security:
-        - cookieAuth: []
+      security: [{ cookieAuth: [] }]
+      summary: Current organization + owner membership
+      responses:
+        "200":
+          description: Organization context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationState"
+    patch:
+      tags: [Organizations]
+      security: [{ cookieAuth: [] }]
+      summary: Rename the current organization
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [organizationName, businessType, booksStartDate]
+              required: [name]
               properties:
-                organizationName: { type: string }
-                businessType: { type: string, enum: [service, simple_trading] }
-                booksStartDate: { type: string, format: date }
+                name: { type: string, minLength: 1, maxLength: 120 }
       responses:
-        '200':
-          description: Organization created
-
+        "200":
+          description: Updated organization state
   /api/accounts:
     get:
-      summary: List accounts
       tags: [Accounts]
-      security:
-        - cookieAuth: []
+      security: [{ cookieAuth: [] }]
+      summary: List accounts with current balance (active only by default)
       parameters:
-        - name: type
-          in: query
-          schema:
-            type: string
+        - { name: includeInactive, in: query, schema: { type: string, enum: ["true"] } }
+        - { name: subtype, in: query, schema: { type: string, enum: [cash, bank] } }
       responses:
-        '200':
+        "200":
           description: Account list
           content:
             application/json:
@@ -285,76 +206,113 @@ paths:
                   accounts:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Account'
+                      $ref: "#/components/schemas/Account"
+  /api/accounts/cash-bank:
     post:
-      summary: Create account
       tags: [Accounts]
-      security:
-        - cookieAuth: []
+      security: [{ cookieAuth: [] }]
+      summary: Create an additional cash or bank account
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name, accountType, normalBalance]
+              required: [subtype, name]
               properties:
-                name: { type: string }
-                accountType: { type: string }
-                normalBalance: { type: string, enum: [debit, credit] }
+                subtype: { type: string, enum: [cash, bank] }
+                name: { type: string, minLength: 1, maxLength: 80 }
       responses:
-        '201':
-          description: Account created
-
+        "200":
+          description: Created account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account: { $ref: "#/components/schemas/Account" }
+        "400":
+          description: Name taken / invalid
+  /api/accounts/{accountId}:
+    patch:
+      tags: [Accounts]
+      security: [{ cookieAuth: [] }]
+      summary: Rename or toggle active state of an account
+      parameters:
+        - { name: accountId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                isActive: { type: boolean }
+      responses:
+        "200":
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account: { $ref: "#/components/schemas/Account" }
+        "400":
+          description: System account / account in use cannot be deactivated
+        "404":
+          description: Account not found
   /api/transactions:
     get:
-      summary: List transactions
       tags: [Transactions]
-      security:
-        - cookieAuth: []
+      security: [{ cookieAuth: [] }]
+      summary: List transactions (filters + pagination)
       parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, maximum: 100, default: 20 }
-        - name: offset
-          in: query
-          schema: { type: integer, default: 0 }
-        - name: fromDate
-          in: query
-          schema: { type: string, format: date }
-        - name: toDate
-          in: query
-          schema: { type: string, format: date }
-        - name: transactionType
-          in: query
-          schema: { type: string }
-        - name: status
-          in: query
-          schema: { type: string }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: transactionType, in: query, schema: { $ref: "#/components/schemas/TransactionType" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/TransactionStatus" } }
+        - { name: fromDate, in: query, schema: { type: string, format: date } }
+        - { name: toDate, in: query, schema: { type: string, format: date } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
       responses:
-        '200':
-          description: Transaction list
+        "200":
+          description: Transaction page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Transaction" }
+                  total: { type: integer }
     post:
-      summary: Post transaction
       tags: [Transactions]
-      security:
-        - cookieAuth: []
+      security: [{ cookieAuth: [] }]
+      summary: Post a transaction (idempotent by idempotencyKey)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [transactionType, amount, description, idempotencyKey]
+              required:
+                [transactionType, transactionDate, cashAccountId, counterAccountId, amountIdr, description, idempotencyKey]
               properties:
-                transactionDate: { type: string, format: date }
-                transactionType: { type: string }
-                amount: { type: integer }
-                description: { type: string }
-                idempotencyKey: { type: string }
+                transactionType: { $ref: "#/components/schemas/TransactionType" }
+                transactionDate: { type: string, format: date, description: "YYYY-MM-DD; future dates (Asia/Jakarta) are rejected" }
+                cashAccountId: { type: string }
+                counterAccountId: { type: string }
+                amountIdr: { type: integer, exclusiveMinimum: 0 }
+                description: { type: string, minLength: 1, maxLength: 200 }
+                idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
       responses:
-        '200':
-          description: Transaction posted
+        "200":
+          description: Posted transaction
+          headers:
+            Idempotent-Replay:
+              schema: { type: string, enum: ["true"] }
+              description: Set when the request replayed an earlier one
           content:
             application/json:
               schema:
@@ -363,292 +321,287 @@ paths:
                   transaction_id: { type: string }
                   transaction_number: { type: string }
                   journal_entry_id: { type: string }
-                  entry_number: { type: string }
-                  impact: { type: object }
-
-  /api/transactions/{id}/void:
-    post:
-      summary: Void transaction
-      tags: [Transactions]
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [reason, idempotencyKey]
-              properties:
-                reason: { type: string }
-                idempotencyKey: { type: string }
-      responses:
-        '200':
-          description: Transaction voided
-
-  /api/transactions/{id}/settle:
-    post:
-      summary: Settle partial transaction
-      tags: [Transactions]
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Transaction settled
-
-  /api/products:
+                  status: { type: string, enum: [posted] }
+                  replayed: { type: boolean }
+        "400":
+          description: Validation failed (account class mismatch, future date, ...)
+        "409":
+          description: Idempotency key reused with a different payload
+        "429":
+          description: Rate limited
+  /api/transactions/{transactionId}:
     get:
-      summary: List products
-      tags: [Products]
-      security:
-        - cookieAuth: []
+      tags: [Transactions]
+      security: [{ cookieAuth: [] }]
+      summary: Transaction detail
+      parameters:
+        - { name: transactionId, in: path, required: true, schema: { type: string } }
       responses:
-        '200':
-          description: Product list
+        "200":
+          description: Transaction
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  products:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Product'
+                  transaction: { $ref: "#/components/schemas/Transaction" }
+        "404":
+          description: Not found in current organization
+  /api/transactions/{transactionId}/void:
     post:
-      summary: Create product
-      tags: [Products]
-      security:
-        - cookieAuth: []
-      responses:
-        '201':
-          description: Product created
-
-  /api/reports/trial-balance:
-    get:
-      summary: Trial balance
-      tags: [Reports]
-      security:
-        - cookieAuth: []
+      tags: [Transactions]
+      security: [{ cookieAuth: [] }]
+      summary: Void a posted transaction (reports then exclude it)
       parameters:
-        - name: asOfDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Trial balance report
-
-  /api/reports/profit-loss:
-    get:
-      summary: Profit and loss
-      tags: [Reports]
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: fromDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-        - name: toDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Profit and loss report
-
-  /api/reports/balance-sheet:
-    get:
-      summary: Balance sheet
-      tags: [Reports]
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: asOfDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Balance sheet report
-
-  /api/reports/general-ledger:
-    get:
-      summary: General ledger
-      tags: [Reports]
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: accountId
-          in: query
-          schema: { type: string }
-        - name: fromDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-        - name: toDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: General ledger report
-
-  /api/team:
-    get:
-      summary: List team members
-      tags: [Team]
-      security:
-        - cookieAuth: []
-      responses:
-        '200':
-          description: Team member list
-
-  /api/team/invitations:
-    post:
-      summary: Invite team member
-      tags: [Team]
-      security:
-        - cookieAuth: []
+        - { name: transactionId, in: path, required: true, schema: { type: string } }
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, role]
               properties:
-                email: { type: string, format: email }
-                role: { type: string, enum: [admin, member, viewer] }
+                reason: { type: [string, "null"], maxLength: 500 }
       responses:
-        '201':
-          description: Invitation created
-
-  /api/exports/transactions.csv:
-    get:
-      summary: Export transactions CSV
-      tags: [Exports]
-      security:
-        - cookieAuth: []
-      parameters:
-        - name: fromDate
-          in: query
-          schema: { type: string, format: date }
-        - name: toDate
-          in: query
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: CSV file
+        "200":
+          description: Voided transaction
           content:
-            text/csv:
+            application/json:
               schema:
-                type: string
-
-  /api/exports/reports/general-ledger.csv:
+                type: object
+                properties:
+                  transaction: { $ref: "#/components/schemas/Transaction" }
+        "409":
+          description: Only posted transactions can be voided
+  /api/reports/profit-loss:
     get:
-      summary: Export general ledger CSV
-      tags: [Exports]
-      security:
-        - cookieAuth: []
+      tags: [Reports]
+      security: [{ cookieAuth: [] }]
+      summary: Profit & loss within a date range
       parameters:
-        - name: fromDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
-        - name: toDate
-          in: query
-          required: true
-          schema: { type: string, format: date }
+        - { name: fromDate, in: query, required: true, schema: { type: string, format: date } }
+        - { name: toDate, in: query, required: true, schema: { type: string, format: date } }
       responses:
-        '200':
-          description: CSV file (max 50,000 rows, may be truncated)
-
-  /api/dashboard:
+        "200":
+          description: Profit-loss report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report:
+                    type: object
+                    properties:
+                      fromDate: { type: string }
+                      toDate: { type: string }
+                      income: { $ref: "#/components/schemas/ReportTotal" }
+                      expense: { $ref: "#/components/schemas/ReportTotal" }
+                      netIncome: { type: integer }
+  /api/reports/balance-sheet:
     get:
-      summary: Dashboard summary
-      tags: [Dashboard]
-      security:
-        - cookieAuth: []
+      tags: [Reports]
+      security: [{ cookieAuth: [] }]
+      summary: Balance sheet as of a date
+      parameters:
+        - { name: asOfDate, in: query, required: true, schema: { type: string, format: date } }
       responses:
-        '200':
-          description: Dashboard data
-
+        "200":
+          description: Balance sheet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report:
+                    type: object
+                    properties:
+                      asOfDate: { type: string }
+                      assets: { type: array, items: { $ref: "#/components/schemas/ReportLine" } }
+                      totalAssets: { type: integer }
+                      liabilities: { type: array, items: { $ref: "#/components/schemas/ReportLine" } }
+                      totalLiabilities: { type: integer }
+                      equity: { type: array, items: { $ref: "#/components/schemas/ReportLine" } }
+                      totalEquity: { type: integer }
+                      balanced: { type: boolean }
+  /api/reports/general-ledger:
+    get:
+      tags: [Reports]
+      security: [{ cookieAuth: [] }]
+      summary: General ledger - journal lines per account with running balance
+      parameters:
+        - { name: fromDate, in: query, required: true, schema: { type: string, format: date } }
+        - { name: toDate, in: query, required: true, schema: { type: string, format: date } }
+        - { name: accountId, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 5000, default: 5000 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200":
+          description: Ledger report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report:
+                    type: object
+                    properties:
+                      fromDate: { type: string }
+                      toDate: { type: string }
+                      accountId: { type: [string, "null"] }
+                      truncated: { type: boolean }
+                      entries:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            account_id: { type: string }
+                            account_code: { type: string }
+                            account_name: { type: string }
+                            account_class:
+                              type: string
+                              enum: [asset, liability, equity, income, expense]
+                            entry_date: { type: string, format: date }
+                            transaction_id: { type: string }
+                            transaction_number: { type: string }
+                            description: { type: string }
+                            debit_idr: { type: integer }
+                            credit_idr: { type: integer }
+                            running_balance_idr: { type: integer }
+  /api/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      security: [{ cookieAuth: [] }]
+      summary: Cash/bank balances, month totals, recent transactions
+      responses:
+        "200":
+          description: Dashboard summary
   /api/dashboard/alerts:
     get:
-      summary: Dashboard alerts
-      description: >
-        Actionable alerts for the current organization, including inventory
-        mismatch (control-account balance diverging from the stock subledger),
-        overdue receivables, low stock, draft transactions, etc.
       tags: [Dashboard]
-      security:
-        - cookieAuth: []
+      security: [{ cookieAuth: [] }]
+      summary: Accounts with negative cash/bank balances
       responses:
-        '200':
-          description: Alert list
-
-  /api/dashboard/inventory-reconciliation:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  negativeBalanceAccounts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        balance: { type: integer }
+  /api/exports/transactions.csv:
     get:
-      summary: Inventory reconciliation (on-demand)
-      description: >
-        Recompute the Persediaan control-account balance versus the stock
-        subledger value without caching, so a mismatch alert can be verified
-        immediately after a correction. Divergences below Rp 1.000 are treated
-        as WAC rounding drift and reported as matched.
-      tags: [Dashboard]
-      security:
-        - cookieAuth: []
-      responses:
-        '200':
-          description: >
-            Reconciliation result with account_balance, stock_value, diff, and
-            matched (boolean).
-
-  /api/period-locks:
-    get:
-      summary: List period locks
-      tags: [Period Locks]
-      security:
-        - cookieAuth: []
-      responses:
-        '200':
-          description: Period lock list
-    post:
-      summary: Create period lock
-      tags: [Period Locks]
-      security:
-        - cookieAuth: []
-      responses:
-        '201':
-          description: Period lock created
-
-  /api/audit-logs:
-    get:
-      summary: List audit logs
-      tags: [Audit]
-      security:
-        - cookieAuth: []
+      tags: [Exports]
+      security: [{ cookieAuth: [] }]
+      summary: Download transactions as CSV (UTF-8 BOM, formula-injection safe)
       parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, maximum: 200, default: 50 }
-        - name: offset
-          in: query
-          schema: { type: integer, default: 0 }
-        - name: action
-          in: query
-          schema: { type: string }
+        - { name: fromDate, in: query, schema: { type: string, format: date } }
+        - { name: toDate, in: query, schema: { type: string, format: date } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: transactionType, in: query, schema: { $ref: "#/components/schemas/TransactionType" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/TransactionStatus" } }
       responses:
-        '200':
-          description: Audit log list
+        "200":
+          description: CSV file (Content-Disposition attachment)
+          content:
+            text/csv:
+              schema: { type: string }
+        "400":
+          description: Over the 50,000 row export cap
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-ledjer_session
+  schemas:
+    ErrorBody:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+    AccountClass:
+      type: string
+      enum: [asset, liability, equity, income, expense]
+    TransactionType:
+      type: string
+      enum: [cash_in, cash_out, transfer, owner_deposit, owner_withdrawal]
+    TransactionStatus:
+      type: string
+      enum: [posted, voided]
+    Account:
+      type: object
+      properties:
+        id: { type: string }
+        organization_id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        account_class: { $ref: "#/components/schemas/AccountClass" }
+        account_subtype: { type: [string, "null"], enum: [cash, bank, null] }
+        is_system: { type: integer, enum: [0, 1] }
+        is_active: { type: integer, enum: [0, 1] }
+        balance_idr: { type: integer, description: Present on list responses }
+    Transaction:
+      type: object
+      properties:
+        id: { type: string }
+        transaction_number: { type: string, example: "TRX-20260610-CD34" }
+        transaction_type: { $ref: "#/components/schemas/TransactionType" }
+        transaction_date: { type: string, format: date }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/TransactionStatus" }
+        amount_idr: { type: integer }
+        cash_account_id: { type: string }
+        counter_account_id: { type: string }
+        cash_bank_account: { type: [string, "null"] }
+        counter_account: { type: [string, "null"] }
+        direction: { type: string, enum: [in, out, neutral] }
+        created_by: { type: string }
+        created_at: { type: integer }
+        voided_at: { type: [integer, "null"] }
+        void_reason: { type: [string, "null"] }
+    ReportLine:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        amount: { type: integer }
+    ReportTotal:
+      type: object
+      properties:
+        total: { type: integer }
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/ReportLine" }
+    OrganizationState:
+      type: object
+      properties:
+        organization:
+          type: [object, "null"]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            base_currency: { type: string, enum: [IDR] }
+            status: { type: string, enum: [active] }
+        member:
+          type: [object, "null"]
+          properties:
+            role: { type: string, enum: [owner] }
+            can_create_transaction: { type: boolean }
+            can_view_reports: { type: boolean }
+            can_manage_accounts: { type: boolean }
+            can_void_transaction: { type: boolean }
+        needsOnboarding:
+          type: boolean
+          description: Always false in the MVP (no onboarding flow)

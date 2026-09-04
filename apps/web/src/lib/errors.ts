@@ -14,7 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   counter_account_invalid: 'Akun lawan tidak sesuai jenis transaksi.',
   same_transfer_account: 'Akun sumber dan tujuan tidak boleh sama.',
   future_date_not_allowed: 'Tanggal transaksi tidak boleh lebih dari hari ini.',
-  invalid_amount: 'Nominal harus lebih dari 0.',
+  invalid_amount: 'Nominal harus berupa bilangan bulat rupiah lebih dari 0.',
   transaction_not_found: 'Transaksi tidak ditemukan.',
   transaction_not_posted: 'Hanya transaksi posted yang dapat dibatalkan.',
   idempotency_key_invalid: 'Token transaksi tidak valid. Muat ulang halaman dan coba lagi.',

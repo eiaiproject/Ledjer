@@ -39,6 +39,7 @@ test.describe("Protected route redirects", () => {
     "/accounts",
     "/reports/profit-loss",
     "/reports/balance-sheet",
+    "/reports/general-ledger",
     "/settings",
   ];
 
@@ -63,7 +64,6 @@ test.describe("404 handling", () => {
       "/forgot-password",
       "/reset-password",
       "/reports/trial-balance",
-      "/reports/general-ledger",
       "/settings/team",
       "/settings/period-locks",
       "/auth/login",

@@ -21,6 +21,7 @@ const TransactionDetailPage = lazy(async () => ({ default: (await import("@/page
 const AccountsPage = lazy(async () => ({ default: (await import("@/pages/accounts/index")).AccountsPage }));
 const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/reports/profit-loss")).ProfitLossPage }));
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
+const GeneralLedgerPage = lazy(async () => ({ default: (await import("@/pages/reports/general-ledger")).GeneralLedgerPage }));
 const SettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/index")).SettingsPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
@@ -136,6 +137,7 @@ const routerConfig = [
           { path: "/accounts", element: <AccountsPage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
+          { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
           { path: "/settings", element: <SettingsPage /> },
         ],
       },

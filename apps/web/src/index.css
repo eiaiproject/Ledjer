@@ -508,33 +508,12 @@ p, li {
   transform: translateY(1px) scale(0.99);
 }
 
-.ledger-command-panel {
-  animation: ledger-command-in var(--duration-base) var(--ease-out) both;
-  transform-origin: top center;
-}
-
 .ledger-drawer-backdrop {
   animation: modal-overlay-in var(--duration-base) var(--ease-out) both;
 }
 
 .ledger-drawer {
   animation: ledger-drawer-in var(--duration-slow) var(--ease-out) both;
-}
-
-.ledger-stagger > * {
-  animation: ledger-item-in 420ms var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 55ms);
-}
-
-/* Landing signature: rows reconcile into a balanced ledger. */
-.landing-ledger {
-  background:
-    linear-gradient(115deg, var(--color-cream-50) 0%, var(--color-cream-100) 58%, var(--color-leaf-50) 100%);
-}
-
-.ledger-hero-copy > * {
-  animation: ledger-copy-in 620ms var(--ease-out) both;
-  animation-delay: calc(80ms + var(--i, 0) * 70ms);
 }
 
 .ledger-mockup {
@@ -559,43 +538,6 @@ p, li {
 
 .ledger-soft-float {
   animation: ledger-soft-float 6s ease-in-out infinite;
-}
-
-/* Right-side flow line draws from center outward (matches left line) so the
-   "Debet = Kredit" pill reads as two sides reconciling into one balance. */
-.ledger-flow-line--left {
-  transform-origin: right center;
-}
-.ledger-flow-line--right {
-  transform-origin: left center;
-  animation-delay: calc(260ms + var(--i, 0) * 120ms + 80ms);
-}
-
-/* Pill lands just after both lines complete the reconciliation. */
-.ledger-balance-pill {
-  animation: ledger-stamp-in 520ms var(--ease-out) both;
-  animation-delay: 900ms;
-}
-
-/* Animated underline for the hero secondary link. */
-.ledger-cta-link {
-  background-image: linear-gradient(currentColor, currentColor);
-  background-position: 0 100%;
-  background-repeat: no-repeat;
-  background-size: 0% 1px;
-  transition: background-size 240ms var(--ease-out), color 200ms var(--ease-out);
-}
-.ledger-cta-link:hover,
-.ledger-cta-link:focus-visible {
-  background-size: 100% 1px;
-  text-decoration: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ledger-cta-link {
-    transition: none;
-    background-image: none;
-  }
 }
 
 /* Print styles */
@@ -627,17 +569,6 @@ p, li {
   }
 }
 
-@keyframes ledger-command-in {
-  from {
-    opacity: 0;
-    transform: translateY(-0.375rem) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @keyframes ledger-drawer-in {
   from {
     opacity: 0;
@@ -646,30 +577,6 @@ p, li {
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@keyframes ledger-item-in {
-  from {
-    opacity: 1;
-    transform: translateY(0.375rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes ledger-copy-in {
-  from {
-    opacity: 1;
-    transform: translateY(0.75rem);
-    filter: blur(0.375rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
   }
 }
 

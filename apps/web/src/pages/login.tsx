@@ -101,8 +101,8 @@ export function LoginPage() {
             <Logo size="md" variant="full" />
           </div>
 
-          <Card className="p-6">
-            <CardContent>
+          <Card>
+            <CardContent className="p-6">
               <h1 className="text-xl font-bold text-text-primary">Masuk</h1>
               <p className="mt-1 text-sm text-text-secondary">Masuk ke akun Anda.</p>
 

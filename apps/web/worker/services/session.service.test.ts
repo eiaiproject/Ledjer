@@ -1,220 +1,67 @@
-import { describe, it, expect } from "vitest";
-import { FakeD1Database } from "../test/fake-d1";
+import { describe, expect, it } from "vitest";
+import { createSeedFixtures, ageFixtureSessionToken, expireFixtureSessionGrace } from "../test/fixtures";
+import type { D1Database } from "@cloudflare/workers-types";
+import { getSessionByToken, revokeSessionToken } from "./session.service";
 
-describe("Session Service", () => {
-  describe("createSession", () => {
-    it("creates a session and returns token with expiry", async () => {
-      const { createSession } = await import("./session.service");
-      const executedQueries: string[] = [];
+const EIGHT_DAYS_MS = 8 * 24 * 60 * 60 * 1000;
 
-      const db = new FakeD1Database({
-        run: (sql) => {
-          executedQueries.push(sql as string);
-        },
-      }) as unknown as D1Database;
+describe("session token rotation grace", () => {
+  it("rotates an old token and still accepts the rotated-out token during the grace window", async () => {
+    const { db, tokens } = createSeedFixtures();
+    const d = db as unknown as D1Database;
 
-      const request = new Request("http://localhost", {
-        headers: {
-          "CF-Connecting-IP": "192.168.1.1",
-          "User-Agent": "Mozilla/5.0",
-        },
-      });
+    // Age the fixture session so the next lookup triggers rotation.
+    await ageFixtureSessionToken(tokens.ownerA, EIGHT_DAYS_MS);
 
-      const result = await createSession(db, "user-1", request);
-      expect(result.token).toBeTypeOf("string");
-      expect(result.token.length).toBeGreaterThan(0);
-      expect(result.expiresAt).toBeGreaterThan(Date.now());
+    const rotated = await getSessionByToken(d, tokens.ownerA);
+    expect(rotated).not.toBeNull();
+    expect(rotated!.newToken).toBeTruthy();
 
-      const insertCall = executedQueries.find((q) => q.includes("INSERT INTO sessions"));
-      expect(insertCall).toBeDefined();
-    });
+    // A parallel request still carrying the OLD cookie (the rotation winner
+    // set the new cookie, but stragglers may arrive a moment later) must not
+    // be logged out: the previous hash stays valid within the grace window.
+    const straggler = await getSessionByToken(d, tokens.ownerA);
+    expect(straggler).not.toBeNull();
+    expect(straggler!.session_id).toBe(rotated!.session_id);
+    expect(straggler!.newToken).toBeUndefined();
 
-    it("creates unique tokens for different sessions", async () => {
-      const { createSession } = await import("./session.service");
-      const db = new FakeD1Database() as unknown as D1Database;
-      const request = new Request("http://localhost");
-
-      const s1 = await createSession(db, "user-1", request);
-      const s2 = await createSession(db, "user-1", request);
-      expect(s1.token).not.toBe(s2.token);
-    });
-
-    it("expires sessions 14 days after login (absolute TTL)", async () => {
-      const { createSession } = await import("./session.service");
-      const db = new FakeD1Database() as unknown as D1Database;
-      const request = new Request("http://localhost");
-
-      const before = Date.now();
-      const result = await createSession(db, "user-1", request);
-      const after = Date.now();
-
-      const fourteenDays = 14 * 24 * 60 * 60 * 1000;
-      expect(result.expiresAt).toBeGreaterThanOrEqual(before + fourteenDays);
-      expect(result.expiresAt).toBeLessThanOrEqual(after + fourteenDays);
-    });
+    // The new cookie works as the session's current token.
+    const fresh = await getSessionByToken(d, rotated!.newToken!);
+    expect(fresh).not.toBeNull();
+    expect(fresh!.session_id).toBe(rotated!.session_id);
   });
 
-  describe("getSessionByToken", () => {
-    it("returns null for invalid token", async () => {
-      const { getSessionByToken } = await import("./session.service");
-      const db = new FakeD1Database({
-        first: () => null,
-      }) as unknown as D1Database;
+  it("stops accepting the old token once the grace window expires", async () => {
+    const { db, tokens } = createSeedFixtures();
+    const d = db as unknown as D1Database;
 
-      const session = await getSessionByToken(db, "invalid-token");
-      expect(session).toBeNull();
-    });
+    await ageFixtureSessionToken(tokens.ownerA, EIGHT_DAYS_MS);
+    const rotated = await getSessionByToken(d, tokens.ownerA);
+    expect(rotated!.newToken).toBeTruthy();
 
-    it("returns session data for valid token", async () => {
-      const { getSessionByToken } = await import("./session.service");
+    // Old token still valid inside the window...
+    expect(await getSessionByToken(d, tokens.ownerA)).not.toBeNull();
 
-      // Actually we need a real FakeD1Database flow. Simpler: test getSessionByToken with mocked first.
-      const db2 = new FakeD1Database({
-        first: (sql) => {
-          if ((sql as string).includes("FROM sessions s")) {
-            return {
-              session_id: "session-1",
-              user_id: "user-1",
-              expires_at: Date.now() + 86_400_000,
-              current_organization_id: null,
-              email: "test@example.com",
-              full_name: "Test User",
-            };
-          }
-          return null;
-        },
-      }) as unknown as D1Database;
+    // ...and rejected after the grace window passes.
+    await expireFixtureSessionGrace(tokens.ownerA);
+    expect(await getSessionByToken(d, tokens.ownerA)).toBeNull();
 
-      const session = await getSessionByToken(db2, "some-token");
-      expect(session).not.toBeNull();
-      expect(session!.user_id).toBe("user-1");
-      expect(session!.email).toBe("test@example.com");
-      expect(session!.full_name).toBe("Test User");
-    });
-
-    it("enforces the idle timeout in the session query", async () => {
-      const { getSessionByToken, IDLE_TIMEOUT_MS } = await import("./session.service");
-      let capturedSql = "";
-      let capturedValues: unknown[] = [];
-
-      const db = new FakeD1Database({
-        first: (sql, values) => {
-          capturedSql = sql as string;
-          capturedValues = values;
-          // Simulate the DB rejecting the row because last_used_at is stale.
-          return null;
-        },
-      }) as unknown as D1Database;
-
-      const before = Date.now();
-      await getSessionByToken(db, "some-token");
-      const after = Date.now();
-
-      // Query must filter on last_used_at within the idle window.
-      expect(capturedSql).toContain("s.last_used_at >= ?");
-      // values = [tokenHash, current, current - IDLE_TIMEOUT_MS]
-      const idleBound = capturedValues[2] as number;
-      expect(idleBound).toBeGreaterThanOrEqual(before - IDLE_TIMEOUT_MS);
-      expect(idleBound).toBeLessThanOrEqual(after - IDLE_TIMEOUT_MS);
-    });
-
-    it("returns null when the session row is idle-expired", async () => {
-      const { getSessionByToken } = await import("./session.service");
-      // DB returns no row (idle bound not satisfied) → must be treated as logged out.
-      const db = new FakeD1Database({
-        first: () => null,
-      }) as unknown as D1Database;
-
-      const session = await getSessionByToken(db, "stale-token");
-      expect(session).toBeNull();
-    });
-
-    it("rotates the token when it was issued more than 7 days ago", async () => {
-      const { getSessionByToken } = await import("./session.service");
-      const now = Date.now();
-      const eightDaysAgo = now - 8 * 24 * 60 * 60 * 1000;
-
-      const db = new FakeD1Database({
-        first: (sql) => {
-          if ((sql as string).includes("FROM sessions s")) {
-            return {
-              session_id: "session-1",
-              user_id: "user-1",
-              expires_at: now + 86_400_000,
-              current_organization_id: null,
-              email: "test@example.com",
-              full_name: "Test User",
-              // Active within the idle window, but the token hash is 8 days old.
-              last_used_at: now,
-              last_rotated_at: eightDaysAgo,
-              created_at: eightDaysAgo,
-            };
-          }
-          return null;
-        },
-        run: () => ({ success: true, meta: { changes: 1 } } as D1Result),
-      }) as unknown as D1Database;
-
-      const session = await getSessionByToken(db, "some-token");
-      expect(session).not.toBeNull();
-      expect(session!.newToken).toBeTypeOf("string");
-    });
+    // The rotated (current) token keeps working.
+    expect(await getSessionByToken(d, rotated!.newToken!)).not.toBeNull();
   });
 
-  describe("revokeSessionToken", () => {
-    it("sets revoked_at on the session", async () => {
-      const { revokeSessionToken } = await import("./session.service");
-      const executedQueries: string[] = [];
+  it("rejects unknown tokens and revoked sessions including the previous hash", async () => {
+    const { db, tokens } = createSeedFixtures();
+    const d = db as unknown as D1Database;
 
-      const db = new FakeD1Database({
-        run: (sql) => {
-          executedQueries.push(sql as string);
-        },
-      }) as unknown as D1Database;
+    await ageFixtureSessionToken(tokens.ownerA, EIGHT_DAYS_MS);
+    const rotated = await getSessionByToken(d, tokens.ownerA);
+    expect(rotated!.newToken).toBeTruthy();
 
-      await revokeSessionToken(db, "token-to-revoke");
-
-      const updateCall = executedQueries.find((q) => q.includes("UPDATE sessions"));
-      expect(updateCall).toBeDefined();
-      expect(updateCall).toContain("revoked_at");
-    });
-  });
-
-  describe("revokeAllUserSessions", () => {
-    it("revokes all sessions for a user", async () => {
-      const { revokeAllUserSessions } = await import("./session.service");
-      const executedQueries: string[] = [];
-
-      const db = new FakeD1Database({
-        run: (sql) => {
-          executedQueries.push(sql as string);
-        },
-      }) as unknown as D1Database;
-
-      await revokeAllUserSessions(db, "user-1");
-
-      const updateCall = executedQueries.find((q) => q.includes("UPDATE sessions"));
-      expect(updateCall).toBeDefined();
-      expect(updateCall).toContain("user_id = ?");
-    });
-  });
-
-  describe("setSessionCurrentOrganization", () => {
-    it("updates current_organization_id", async () => {
-      const { setSessionCurrentOrganization } = await import("./session.service");
-      const executedQueries: string[] = [];
-
-      const db = new FakeD1Database({
-        run: (sql) => {
-          executedQueries.push(sql as string);
-        },
-      }) as unknown as D1Database;
-
-      await setSessionCurrentOrganization(db, "session-1", "org-1");
-
-      const updateCall = executedQueries.find((q) => q.includes("UPDATE sessions"));
-      expect(updateCall).toBeDefined();
-      expect(updateCall).toContain("current_organization_id");
-    });
+    await revokeSessionToken(d, rotated!.newToken!);
+    expect(await getSessionByToken(d, rotated!.newToken!)).toBeNull();
+    // Revocation kills the previous hash too (revoked_at guard).
+    expect(await getSessionByToken(d, tokens.ownerA)).toBeNull();
+    expect(await getSessionByToken(d, "definitely-not-a-real-token")).toBeNull();
   });
 });

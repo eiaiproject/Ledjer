@@ -34,7 +34,9 @@ function organizationDb(tokenHash: string): D1Database {
     first: (sql, values) => {
       const s = (sql as string).replace(/\s+/g, " ");
       if (s.includes("FROM sessions s") && s.includes("JOIN users u")) {
-        if (tokenHash !== (values[0] as string)) return null;
+        // Session lookup param order changed with the rotation-grace feature:
+        // [current, idleCutoff, tokenHash, tokenHash, graceCurrent].
+        if (tokenHash !== (values[2] as string)) return null;
         return {
           session_id: "session-1",
           user_id: "user-1",

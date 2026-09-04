@@ -1,8 +1,23 @@
 import { queryAll } from "../db/client";
 import { badRequest } from "../http/errors";
-import type { BalanceSheetReport, ProfitLossReport, ReportAccountLine } from "./report-types";
+import type {
+  BalanceSheetReport,
+  GeneralLedgerEntry,
+  GeneralLedgerReport,
+  ProfitLossReport,
+  ReportAccountLine,
+} from "./report-types";
 
-export type { BalanceSheetReport, ProfitLossReport, ReportAccountLine } from "./report-types";
+export type {
+  BalanceSheetReport,
+  GeneralLedgerEntry,
+  GeneralLedgerReport,
+  ProfitLossReport,
+  ReportAccountLine,
+} from "./report-types";
+
+/** Batas baris buku besar per request - mencegah Worker OOM pada org besar. */
+export const MAX_GL_ROWS = 5000;
 
 interface AccountTotalRow {
   id: string;
@@ -146,5 +161,129 @@ export async function getBalanceSheet(
     equity,
     totalEquity,
     balanced,
+  };
+}
+
+interface GeneralLedgerRow {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_class: GeneralLedgerEntry["account_class"];
+  entry_date: string;
+  transaction_id: string;
+  transaction_number: string;
+  description: string;
+  debit: number;
+  credit: number;
+  running_balance_idr: number;
+}
+
+export interface GetGeneralLedgerInput {
+  /** Batasi ke satu akun (opsional); tanpa ini semua akun ditampilkan. */
+  accountId?: string;
+  fromDate: string;
+  toDate: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Buku besar (general ledger): journal lines per akun dari transaksi posted,
+ * diurutkan kronologis dengan saldo berjalan dalam arah normal akun.
+ *
+ * Window running balance dihitung atas SEMUA baris sampai `toDate` (jadi baris
+ * pertama yang tampil sudah membawa saldo awal akun), lalu hasilnya dipotong
+ * dari `fromDate` ke atas - konsisten dengan pola laporan MVP.
+ */
+export async function getGeneralLedger(
+  db: D1Database,
+  organizationId: string,
+  input: GetGeneralLedgerInput,
+): Promise<GeneralLedgerReport> {
+  assertDateRange(input.fromDate, input.toDate);
+  const accountFilter = input.accountId ? "AND jl.account_id = ?" : "";
+  const limit = Math.min(Math.max(input.limit ?? MAX_GL_ROWS, 1), MAX_GL_ROWS);
+  const offset = Math.max(input.offset ?? 0, 0);
+
+  const values: (string | number)[] = [organizationId, input.toDate];
+  if (input.accountId) values.push(input.accountId);
+  values.push(input.fromDate, limit, offset);
+
+  const rows = await queryAll<GeneralLedgerRow>(
+    db,
+    `WITH ledger_base AS (
+       SELECT
+         jl.organization_id,
+         jl.account_id,
+         a.code AS account_code,
+         a.name AS account_name,
+         a.account_class,
+         t.transaction_date AS entry_date,
+         t.created_at AS entry_created_at,
+         t.id AS transaction_id,
+         t.transaction_number,
+         t.description,
+         jl.debit_idr AS debit,
+         jl.credit_idr AS credit,
+         CASE
+           WHEN a.account_class IN ('asset', 'expense')
+             THEN jl.debit_idr - jl.credit_idr
+           ELSE jl.credit_idr - jl.debit_idr
+         END AS signed_amount
+       FROM journal_lines jl
+       JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.organization_id = jl.organization_id
+       JOIN transactions t ON t.id = je.transaction_id AND t.organization_id = jl.organization_id
+       JOIN accounts a ON a.id = jl.account_id AND a.organization_id = jl.organization_id
+       WHERE jl.organization_id = ?
+         AND t.status = 'posted'
+         AND t.transaction_date <= ?
+         ${accountFilter}
+     ),
+     ledger_running AS (
+       SELECT *,
+         SUM(signed_amount) OVER (
+           PARTITION BY account_id
+           ORDER BY entry_date, entry_created_at, transaction_id
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+         ) AS running_balance_idr
+       FROM ledger_base
+     )
+     SELECT
+       account_id,
+       account_code,
+       account_name,
+       account_class,
+       entry_date,
+       transaction_id,
+       transaction_number,
+       description,
+       debit,
+       credit,
+       running_balance_idr
+     FROM ledger_running
+     WHERE entry_date >= ?
+     ORDER BY CAST(account_code AS INTEGER) ASC, entry_date ASC, entry_created_at ASC, transaction_id ASC
+     LIMIT ? OFFSET ?`,
+    values,
+  );
+
+  return {
+    fromDate: input.fromDate,
+    toDate: input.toDate,
+    accountId: input.accountId ?? null,
+    entries: rows.map((row) => ({
+      account_id: row.account_id,
+      account_code: row.account_code,
+      account_name: row.account_name,
+      account_class: row.account_class,
+      entry_date: row.entry_date,
+      transaction_id: row.transaction_id,
+      transaction_number: row.transaction_number,
+      description: row.description,
+      debit_idr: row.debit,
+      credit_idr: row.credit,
+      running_balance_idr: row.running_balance_idr,
+    })),
+    truncated: rows.length >= limit,
   };
 }

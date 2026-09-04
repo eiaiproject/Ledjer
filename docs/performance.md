@@ -34,15 +34,14 @@ SESSION_COOKIE="__Host-ledjer_session=<token>" k6 run load-tests/k6/exports.js
 # Mixed workload (simulates real user behavior)
 SESSION_COOKIE="__Host-ledjer_session=<token>" k6 run load-tests/k6/mixed.js
 
-# Concurrent stock sale stress test
-SESSION_COOKIE="__Host-ledjer_session=<token>" \
-  PRODUCT_ID="<id>" \
-  CASH_ACCOUNT_ID="<id>" \
-  k6 run load-tests/k6/concurrent-stock.js
-
 # Sustained 30-min soak
 SESSION_COOKIE="__Host-ledjer_session=<token>" k6 run load-tests/k6/sustained.js
 ```
+
+> `load-tests/k6/` contains: `landing.js`, `auth.js`, `transactions.js`,
+> `reports.js`, `exports.js`, `mixed.js`, `sustained.js`. All authenticated
+> scenarios target the MVP endpoints (transactions, reports, dashboard,
+> CSV export) and need a session cookie obtained from a real login.
 
 ### Checkpoints
 

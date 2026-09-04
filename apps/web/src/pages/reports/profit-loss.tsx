@@ -92,7 +92,7 @@ export function ProfitLossPage() {
           >
             <Input label="Dari" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <Input label="Sampai" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            <Button type="submit" className="sm:mb-0">
+            <Button type="submit">
               Tampilkan
             </Button>
           </form>

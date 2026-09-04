@@ -4,12 +4,13 @@
 
 - **Schedule**: Daily at 03:00 UTC (10:00 WIB) - `wrangler.jsonc` crons `0 3 * * *` (UTC).
 - **Destination**: R2 bucket (`BACKUP_BUCKET` binding), prefix `backups/`.
-- **Format**: JSON export per major table (organizations, users, accounts, journal entries, products, etc.) with manifest.
+- **Format**: JSON export per core table (`CORE_TABLES` in `worker/db/schema.ts`)
+  with manifest.
 - **Checksum**: SHA-256 per backup payload, recorded in manifest.
 - **Retention**: 30 days (automatic cleanup in backup cycle).
 - **RPO**: 24 hours (daily schedule).
-- **RTO**: ~30 minutes (restore via validateBackup + sequential D1 inserts).
-  - Not yet automated restore drill - manual restore only.
+- **RTO**: ~30 minutes (restore via validateBackup + bounded D1 batches).
+  - Automated restore drill runs with the daily cron (`runRestoreDrill()`).
 - **Validation**: `validateBackup()` - checks schema version, entity counts, SHA-256 match.
 - **Alerts**: 
   - Backup age > 36 hours → Critical alert (manual check).
@@ -125,4 +126,4 @@ Production monitoring MUST:
 ## R2 Bucket
 
 Binding name: `BACKUP_BUCKET`.
-Prefix: `backups/` (shared bucket with `attachments/` prefix).
+Prefix: `backups/` (no other prefixes in the bucket in the MVP).

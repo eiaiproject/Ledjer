@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
+      { to: "/reports/general-ledger", label: "Buku Besar" },
     ],
   },
   { to: "/settings", label: "Pengaturan", icon: Settings },
@@ -90,7 +91,7 @@ export function DashboardLayout() {
       {/* Desktop Sidebar */}
       <aside className="hidden bg-wood-700 lg:fixed lg:inset-y-0 lg:left-0 lg:z-[var(--z-drawer)] lg:flex lg:w-60 lg:flex-col">
         <div className="flex h-16 items-center justify-between border-b border-wood-600 px-4">
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link to="/dashboard" aria-label="Ledjer beranda" className="flex items-center gap-2">
             <Logo size="md" variant="full" color="white" className="h-8" />
           </Link>
         </div>
@@ -206,7 +207,7 @@ export function DashboardLayout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link to="/dashboard" className="flex h-11 items-center">
+          <Link to="/dashboard" aria-label="Ledjer beranda" className="flex h-11 items-center">
             <Logo size="sm" variant="full" className="h-7" />
           </Link>
           {location.pathname !== "/transactions/new" ? (
