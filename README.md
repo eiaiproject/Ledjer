@@ -41,6 +41,7 @@ Ledjer membantu UMKM mencatat uang masuk dan keluar, lalu menghasilkan laporan k
 ### Laporan Keuangan
 - **Laba rugi (profit & loss)** - pendapatan, beban, dan laba bersih per periode
 - **Neraca (balance sheet)** - posisi aset, liabilitas, dan ekuitas; selalu seimbang
+- **Buku besar (general ledger)** - riwayat transaksi per akun dengan saldo berjalan (filter rentang tanggal & akun)
 
 ### Operasional
 - **Ekspor CSV** - unduh riwayat transaksi (anti formula-injection, UTF-8 BOM)
@@ -50,6 +51,7 @@ Ledjer membantu UMKM mencatat uang masuk dan keluar, lalu menghasilkan laporan k
 
 ### Platform
 - **Registrasi mandiri** - daftar langsung membuat organisasi + chart of accounts
+- **Masuk dengan Google (OAuth)** - opsional; aktif setelah `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` dikonfigurasi
 - **Sesi aman** - cookie httpOnly, idle timeout, rotasi token, CSRF origin validation
 - **Audit log** - jejak aksi pengguna (transaksi dibuat/dibatalkan, akun dikelola)
 - **Indonesian-first** - UI dalam Bahasa Indonesia, mata uang IDR
@@ -96,8 +98,7 @@ pnpm install
 pnpm dev
 ```
 
-Frontend: [http://localhost:5173](http://localhost:5173)  
-Worker API: [http://localhost:8788](http://localhost:8788) (berjalan bersamaan via Vite proxy)
+Aplikasi + Worker API: [http://localhost:5173](http://localhost:5173) — Worker berjalan di dev server yang sama via `@cloudflare/vite-plugin` (`/api/*` same-origin)
 
 ### Environment Setup
 
@@ -105,7 +106,7 @@ Worker API: [http://localhost:8788](http://localhost:8788) (berjalan bersamaan v
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-`VITE_API_BASE_URL` boleh dibiarkan kosong jika Worker API same-origin (Vite me-proxy `/api/*` ke Worker secara default).
+`VITE_API_BASE_URL` boleh dibiarkan kosong — Worker API berjalan same-origin di dev server (`@cloudflare/vite-plugin`).
 
 ---
 
@@ -127,7 +128,7 @@ pnpm ci:local:fast          # Quick CI checks (typecheck + lint + test)
 pnpm ci:local:full          # Full CI checks (includes build + migration apply)
 
 # Deploy
-pnpm deploy                 # Build + deploy web to Cloudflare
+pnpm deploy                 # Deploy web ke Cloudflare (jalankan pnpm build terlebih dahulu)
 ```
 
 ---
@@ -196,6 +197,8 @@ npx wrangler secret put SENTRY_DSN
 |--------|-------------|
 | `SENTRY_DSN` | Sentry DSN untuk worker error reporting |
 | `PASSWORD_PEPPER` | Pepper untuk hashing password |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID (opsional, untuk masuk dengan Google) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (opsional) |
 
 Konfigurasi tambahan dikelola via `wrangler.jsonc` (vars, D1 bindings, R2 buckets, cron triggers).
 

@@ -32,7 +32,7 @@ protected groups mount `requireAuth()` → `loadCurrentOrganization()` →
 
 ```bash
 pnpm --filter web dev        # Vite dev server + Worker (port 5173)
-pnpm --filter web cf:dev     # Standalone Wrangler dev
+pnpm --filter web cf:dev     # Alias `pnpm dev` (Vite dev + Worker)
 ```
 
 ## D1 Migrations
@@ -78,7 +78,7 @@ worker/
     client.ts           - D1 query helpers (queryAll/queryFirst/execute/batch)
     schema.ts           - Table/column constants + tenant-scoped table list
     tenant-scoped.repository.ts - Runtime org-scoping guard (optional wrapper)
-    migrations/         - Forward-only D1 SQL migrations (0001-0004)
+    migrations/         - Forward-only D1 SQL migrations (0001-0005)
   http/                 - Error types, JSON/Zod parsing + redaction,
                           audit-log writer, date normalization
   test/                 - FakeD1Database + deterministic seed fixtures

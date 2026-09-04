@@ -88,9 +88,10 @@ e2e/                     Playwright specs (public + auth fixture)
 
 - Frontend server state menggunakan TanStack React Query (query keys terpusat
   di `src/lib/query-keys.ts`).
-- Forms menggunakan React Hook Form + Zod (zod v3).
+- Forms menggunakan React Hook Form + Zod (zod v4).
 - API calls melalui `src/lib/api/*` (client tunggal dengan penanganan 401).
 - Worker route handlers tetap tipis; logika domain ada di `worker/services/*`.
 - User-facing copy dalam Bahasa Indonesia.
 - Worker diuji lewat `FakeD1Database` (tiruan in-memory) + seed fixtures;
-  e2e Playwright fokus pada halaman publik.
+  e2e Playwright mencakup halaman publik & alur CRUD terautentikasi via
+  fixture `e2e/helpers/auth.ts` (session token di CI, login API saat lokal).
