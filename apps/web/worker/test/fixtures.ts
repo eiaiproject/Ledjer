@@ -741,7 +741,7 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
     for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
       const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
       const txn = entry ? transactions.find((t) => t.id === entry.transaction_id) : null;
-      if (!txn || txn.status !== "posted") continue;
+      if (txn?.status !== "posted") continue;
       if (txn.transaction_date > toDate) continue;
       if (accountId && line.account_id !== accountId) continue;
       const account = allAccounts(orgId).find((a) => a.id === line.account_id);

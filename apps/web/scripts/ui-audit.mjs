@@ -26,16 +26,18 @@
  *
  * Usage (from apps/web):
  *   node scripts/ui-audit.mjs
- *   AUDIT_OUT=/tmp/ledjer-ui-audit node scripts/ui-audit.mjs
+ *   AUDIT_OUT=./.audit node scripts/ui-audit.mjs
  */
 import { chromium } from "playwright";
+import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseUrl = process.env.AUDIT_BASE_URL || "http://localhost:4173";
-const outDir = process.env.AUDIT_OUT || "/tmp/ledjer-ui-audit";
+const outDir = process.env.AUDIT_OUT || path.join(os.tmpdir(), "ledjer-ui-audit");
 
 const EMAIL = process.env.AUDIT_EMAIL || "ledjer@yopmail.com";
 const PASSWORD = process.env.AUDIT_PASSWORD || "Ledjer26#";
@@ -99,20 +101,21 @@ function runDesignChecks(page) {
   //      column) must render children at equal widths - catches spacing/span
   //      regressions like a col-span landing on the wrong element.
   return page.evaluate(() => {
-    const issues = [];
-
-    const heads = [...document.querySelectorAll("h1, h2, h3, h4, h5, h6")]
-      .filter((el) => {
-        const r = el.getBoundingClientRect();
-        return r.width > 0 && r.height > 0;
-      })
-      .map((el) => ({
-        tag: el.tagName.toLowerCase(),
-        txt: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40),
-      }));
-    if (heads.length === 0) {
-      issues.push({ kind: "design-heading", detail: "page has no headings" });
-    } else {
+    const checkHeadings = () => {
+      const issues = [];
+      const heads = [...document.querySelectorAll("h1, h2, h3, h4, h5, h6")]
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        })
+        .map((el) => ({
+          tag: el.tagName.toLowerCase(),
+          txt: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40),
+        }));
+      if (heads.length === 0) {
+        issues.push({ kind: "design-heading", detail: "page has no headings" });
+        return issues;
+      }
       if (heads[0].tag !== "h1") {
         issues.push({ kind: "design-heading", detail: `first heading is ${heads[0].tag} (not h1): "${heads[0].txt}"` });
       }
@@ -124,34 +127,39 @@ function runDesignChecks(page) {
         if (prev && lvl > prev + 1) issues.push({ kind: "design-heading", detail: `level skip ${prev}->${lvl}: "${n.txt}"` });
         prev = lvl;
       }
-    }
+      return issues;
+    };
 
-    const uneven = [];
-    for (const g of document.querySelectorAll("div")) {
-      if (!/grid/.test(g.className || "")) continue;
-      const style = window.getComputedStyle(g);
-      if (style.display !== "grid") continue;
-      const kids = [...g.children].filter((c) => c.getBoundingClientRect().width > 0);
-      if (kids.length < 3) continue;
-      // Skip intentionally uneven templates (e.g. [1fr_1fr_auto] toolbars).
-      const cols = style.gridTemplateColumns.split(" ").map((v) => parseFloat(v));
-      if (new Set(cols).size > 1) continue;
-      // Skip layouts where children span multiple tracks on purpose.
-      const spans = kids.map((c) => {
-        const s = window.getComputedStyle(c);
-        const a = parseInt(s.gridColumnStart, 10);
-        const b = parseInt(s.gridColumnEnd, 10);
-        return Number.isFinite(a) && Number.isFinite(b) ? b - a : null;
-      });
-      if (spans.some((v) => v !== 1)) continue;
-      const ws = kids.map((c) => c.getBoundingClientRect().width);
-      if (Math.max(...ws) - Math.min(...ws) > 3) {
-        uneven.push(`${g.className.toString().replace(/\s+/g, " ").slice(0, 70)} -> ${ws.map((w) => Math.round(w)).join("/")}`);
+    const checkGrids = () => {
+      const issues = [];
+      const uneven = [];
+      for (const g of document.querySelectorAll("div")) {
+        if (!/grid/.test(g.className || "")) continue;
+        const style = window.getComputedStyle(g);
+        if (style.display !== "grid") continue;
+        const kids = [...g.children].filter((c) => c.getBoundingClientRect().width > 0);
+        if (kids.length < 3) continue;
+        // Skip intentionally uneven templates (e.g. [1fr_1fr_auto] toolbars).
+        const cols = style.gridTemplateColumns.split(" ").map((v) => Number.parseFloat(v));
+        if (new Set(cols).size > 1) continue;
+        // Skip layouts where children span multiple tracks on purpose.
+        const spans = kids.map((c) => {
+          const s = window.getComputedStyle(c);
+          const a = Number.parseInt(s.gridColumnStart, 10);
+          const b = Number.parseInt(s.gridColumnEnd, 10);
+          return Number.isFinite(a) && Number.isFinite(b) ? b - a : null;
+        });
+        if (spans.some((v) => v !== 1)) continue;
+        const ws = kids.map((c) => c.getBoundingClientRect().width);
+        if (Math.max(...ws) - Math.min(...ws) > 3) {
+          uneven.push(`${g.className.toString().replace(/\s+/g, " ").slice(0, 70)} -> ${ws.map((w) => Math.round(w)).join("/")}`);
+        }
       }
-    }
-    if (uneven.length) issues.push({ kind: "design-grid", detail: uneven.slice(0, 3).join(" | ") });
+      if (uneven.length) issues.push({ kind: "design-grid", detail: uneven.slice(0, 3).join(" | ") });
+      return issues;
+    };
 
-    return { issues };
+    return { issues: [...checkHeadings(), ...checkGrids()] };
   });
 }
 
@@ -213,7 +221,7 @@ function runChecks(page) {
 async function tinyTouchTargets(page) {
   return page.evaluate(() => {
     const bad = [];
-    for (const el of [...document.querySelectorAll('button, [role="button"], a[href], input, select')]) {
+    for (const el of document.querySelectorAll('button, [role="button"], a[href], input, select')) {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       const style = window.getComputedStyle(el);
@@ -245,6 +253,33 @@ function screenshotName(vp, slug) {
 
 const report = { baseUrl, generatedAt: new Date().toISOString(), viewports: VIEWPORTS.map((v) => v.name), results: [] };
 
+async function seedAuditTransaction(context, vp, txnId) {
+  const org = await (await context.request.get(`${baseUrl}/api/organizations/current`)).json();
+  const orgId = org?.organization?.id;
+  if (!orgId) return null;
+  const accounts = (await (await context.request.get(`${baseUrl}/api/accounts`)).json()).accounts;
+  const cash = accounts.find((a) => a.code === "1110");
+  const equity = accounts.find((a) => a.code === "3110");
+  if (!cash || !equity) return null;
+  const today = new Date().toISOString().slice(0, 10); // UTC date is never "future" in Asia/Jakarta
+  const created = await context.request.post(`${baseUrl}/api/transactions`, {
+    headers: { Origin: baseUrl },
+    data: {
+      transactionType: "owner_deposit",
+      transactionDate: today,
+      cashAccountId: cash.id,
+      counterAccountId: equity.id,
+      amountIdr: 5_000_000,
+      description: "Transaksi audit UI",
+      idempotencyKey: `audit-${vp.name}-${randomUUID()}`,
+    },
+  });
+  if (!created.ok()) return { seedError: `create tx failed: ${created.status()}` };
+  const body = await created.json();
+  if (!txnId.value) txnId.value = body.transaction_id;
+  return null;
+}
+
 async function auditViewport(browser, vp, txnId) {
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
@@ -253,20 +288,11 @@ async function auditViewport(browser, vp, txnId) {
   });
   const page = await context.newPage();
 
-  const consoleErrors = [];
-  const pageErrors = [];
-  const failedRequests = [];
-  page.on("console", (msg) => {
-    if (msg.type() === "error") consoleErrors.push(msg.text().slice(0, 300));
-  });
-  page.on("pageerror", (err) => pageErrors.push(String(err).slice(0, 300)));
-  page.on("requestfailed", (req) => failedRequests.push(`${req.method()} ${req.url()} ${req.failure()?.errorText ?? ""}`));
-
   const row = { viewport: vp.name, width: vp.width, height: vp.height, routes: [] };
 
   // Public routes (no session needed)
   for (const route of PUBLIC_ROUTES) {
-    const entry = await auditRoute(page, vp, route, null);
+    const entry = await auditRoute(page, vp, route);
     row.routes.push(entry);
   }
 
@@ -281,42 +307,20 @@ async function auditViewport(browser, vp, txnId) {
   });
   if (!login.ok()) {
     row.authError = `login failed: ${login.status()} ${(await login.text()).slice(0, 200)}`;
-  } else {
-    // Seed today's transaction once per context so reports/GL have data and
-    // the transaction detail page can be audited.
-    const org = await (await context.request.get(`${baseUrl}/api/organizations/current`)).json();
-    const orgId = org?.organization?.id;
-    const accounts = (await (await context.request.get(`${baseUrl}/api/accounts`)).json()).accounts;
-    const cash = accounts.find((a) => a.code === "1110");
-    const equity = accounts.find((a) => a.code === "3110");
-    const today = new Date().toISOString().slice(0, 10); // UTC date is never "future" in Asia/Jakarta
-    if (cash && equity && orgId) {
-      const created = await context.request.post(`${baseUrl}/api/transactions`, {
-        headers: { Origin: baseUrl },
-        data: {
-          transactionType: "owner_deposit",
-          transactionDate: today,
-          cashAccountId: cash.id,
-          counterAccountId: equity.id,
-          amountIdr: 5_000_000,
-          description: "Transaksi audit UI",
-          idempotencyKey: `audit-${vp.name}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`,
-        },
-      });
-      if (created.ok()) {
-        const body = await created.json();
-        if (!txnId.value) txnId.value = body.transaction_id;
-      } else {
-        row.seedError = `create tx failed: ${created.status()}`;
-      }
-    }
-    if (txnId.value && !authedRoutes.some((r) => r.slug === "transactions-detail")) {
-      authedRoutes = [...authedRoutes, { path: `/transactions/${txnId.value}`, slug: "transactions-detail" }];
-    }
-    for (const route of authedRoutes) {
-      const entry = await auditRoute(page, vp, route, null);
-      row.routes.push(entry);
-    }
+    await context.close();
+    return row;
+  }
+
+  // Seed today's transaction once per context so reports/GL have data and
+  // the transaction detail page can be audited.
+  const seed = await seedAuditTransaction(context, vp, txnId);
+  if (seed?.seedError) row.seedError = seed.seedError;
+  if (txnId.value && !authedRoutes.some((r) => r.slug === "transactions-detail")) {
+    authedRoutes = [...authedRoutes, { path: `/transactions/${txnId.value}`, slug: "transactions-detail" }];
+  }
+  for (const route of authedRoutes) {
+    const entry = await auditRoute(page, vp, route);
+    row.routes.push(entry);
   }
 
   await context.close();

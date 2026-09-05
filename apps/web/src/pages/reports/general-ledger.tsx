@@ -67,7 +67,7 @@ export function GeneralLedgerPage() {
   const groups = useMemo<LedgerGroup[]>(() => {
     const out: LedgerGroup[] = [];
     for (const entry of report?.entries ?? []) {
-      const last = out[out.length - 1];
+      const last = out.at(-1);
       if (!last || last.accountId !== entry.account_id) {
         out.push({
           accountId: entry.account_id,
