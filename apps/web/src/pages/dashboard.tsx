@@ -87,7 +87,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={`Halo, ${orgData?.organization?.name ?? ""}`}
         description="Ringkasan keuangan usaha Anda."
@@ -114,7 +114,7 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Saldo Kas & Bank"
           value={summary?.cashBankBalance}

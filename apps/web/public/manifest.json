@@ -2,7 +2,7 @@
   "name": "Ledjer - Pembukuan UMKM Indonesia",
   "id": "/",
   "short_name": "Ledjer",
-  "description": "Aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat transaksi, kelola stok, dan lihat laporan keuangan tanpa spreadsheet.",
+  "description": "Aplikasi pembukuan double-entry untuk UMKM Indonesia. Catat uang masuk & keluar, lalu lihat saldo kas, laba rugi, dan neraca tanpa spreadsheet.",
   "start_url": "/?source=pwa",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

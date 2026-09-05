@@ -1,6 +1,15 @@
 # LEDJER API Documentation
 
-## P1 Backend Services
+## Live API
+
+[openapi.yaml](openapi.yaml) - OpenAPI 3.1 spec covering the **currently
+implemented MVP endpoints** (auth, organizations, accounts, transactions,
+reports, dashboard, exports).
+
+## P1 Roadmap (not implemented)
+
+The `p1-*.md` files are **proposals for future slices** - they describe APIs
+that do not exist in the codebase yet and are kept as design references only:
 
 | Slice | File | Description |
 |-------|------|-------------|
@@ -14,6 +23,6 @@
 
 ## General
 
-- [openapi.yaml](openapi.yaml) - OpenAPI 3.0 spec (legacy)
 - [versioning.md](versioning.md) - API versioning policy
-- Transaction preview endpoint *(planned - no spec yet, see versioning.md)*
+- The pre-MVP full-scope API (products, parties, inventory, team, period
+  locks, etc.) was removed with the cash-only MVP reset; see git history.

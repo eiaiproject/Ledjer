@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { TRAKTEER_URL } from "@/lib/external";
 
 export function LandingPage() {
   return (
@@ -68,6 +69,15 @@ export function LandingPage() {
       <footer aria-label="Informasi footer" className="border-t border-wood-200 bg-cream-50">
         <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-wood-500 sm:px-6 lg:px-8">
           © {new Date().getFullYear()} Ledjer. Hak cipta dilindungi.
+          <span aria-hidden="true" className="mx-2">·</span>
+          <a
+            href={TRAKTEER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline-offset-2 hover:text-wood-800 hover:underline"
+          >
+            Dukung kami di Trakteer
+          </a>
         </p>
       </footer>
     </div>

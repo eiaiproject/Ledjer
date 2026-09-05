@@ -140,7 +140,7 @@ export function TransactionListPage() {
       />
 
       <Card elevated>
-        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
           <Input
             label="Cari"
             value={search}
@@ -149,7 +149,7 @@ export function TransactionListPage() {
               setOffset(0);
             }}
             placeholder="Keterangan atau nomor transaksi"
-            className="lg:col-span-2"
+            containerClassName="lg:col-span-2"
           />
           <Select
             label="Jenis"
@@ -177,7 +177,7 @@ export function TransactionListPage() {
               { value: "voided", label: "Dibatalkan" },
             ]}
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 lg:col-span-2">
             <Input label="Dari" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setOffset(0); }} />
             <Input label="Sampai" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setOffset(0); }} />
           </div>
@@ -223,7 +223,7 @@ function TransactionRow({ transaction }: { readonly transaction: Transaction }) 
     <li>
       <Link
         to={`/transactions/${transaction.id}`}
-        className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-cream-100 sm:px-5"
+        className="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-cream-100"
       >
         <div className="min-w-0">
           <p className="break-words text-sm font-medium text-text-primary">{transaction.description}</p>

@@ -97,6 +97,8 @@ interface SeedSession {
   last_rotated_at: number | null;
   created_at: number;
   revoked_at: number | null;
+  previous_token_hash: string | null;
+  previous_token_expires_at: number | null;
 }
 
 interface SeedOAuthAccount {
@@ -186,9 +188,9 @@ const SEED_MEMBERSHIPS: SeedMembership[] = [
 // getSessionByToken (which hashes the incoming token) resolves correctly.
 // Timestamps are filled relative to load time in buildSessions().
 const SEED_SESSIONS: SeedSession[] = [
-  { id: "session-orga-owner-1", user_id: FIXTURE_IDS.users.ownerA, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.a, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null },
-  { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.b, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null },
-  { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.empty, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null },
+  { id: "session-orga-owner-1", user_id: FIXTURE_IDS.users.ownerA, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.a, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
+  { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.b, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
+  { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", current_organization_id: FIXTURE_IDS.orgs.empty, expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
 ];
 
 const SEED_ACCOUNTS: SeedAccount[] = [
@@ -433,12 +435,27 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
 
   // Sessions (getSessionByToken + rotation re-read)
   if (s.includes("FROM sessions s") && s.includes("JOIN users u")) {
-    if (s.includes("WHERE s.token_hash = ?")) {
-      const tokenHash = values[0] as string;
-      const current = Number(values[1]);
-      const session = sessions.find((x) => x.token_hash === tokenHash && x.revoked_at === null);
+    if (s.includes("s.token_hash = ?") || s.includes("s.previous_token_hash = ?")) {
+      // Service shape (with grace): [current, idleCutoff, tokenHash, tokenHash, graceCurrent]
+      // Ad-hoc helper shape (WHERE s.token_hash = ?): [tokenHash, current]
+      const hasGrace = s.includes("s.previous_token_hash = ?");
+      const tokenHash = (hasGrace ? values[2] : values[0]) as string;
+      const current = Number(hasGrace ? values[0] : (values[1] ?? Date.now()));
+      // Ad-hoc helper queries ([tokenHash, current]) never filter by idle time.
+      const idleCutoff = hasGrace ? Number(values[1]) : 0;
+      const graceCurrent = hasGrace ? Number(values[4]) : 0;
+      const session = sessions.find(
+        (x) =>
+          x.revoked_at === null &&
+          x.expires_at > current &&
+          (x.last_used_at ?? 0) >= idleCutoff &&
+          (x.token_hash === tokenHash ||
+            (hasGrace &&
+              x.previous_token_hash === tokenHash &&
+              x.previous_token_expires_at != null &&
+              x.previous_token_expires_at > graceCurrent)),
+      );
       if (!session) return null;
-      if (session.expires_at <= current) return null;
       const user = findUserByIdOrEmail(session.user_id);
       if (!user) return null;
       return {
@@ -451,6 +468,8 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
         last_used_at: session.last_used_at,
         last_rotated_at: session.last_rotated_at,
         created_at: session.created_at,
+        previous_token_hash: session.previous_token_hash,
+        previous_token_expires_at: session.previous_token_expires_at,
       };
     }
     if (s.includes("WHERE s.id = ?") && s.includes("s.user_id = ?")) {
@@ -695,6 +714,98 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
     });
   }
 
+  // General ledger (getGeneralLedger): per-account chronological journal
+  // lines with a running balance computed over all lines up to `to`, then
+  // sliced from `from` (so opening balances carry into the visible range).
+  if (s.includes("ledger_base") && s.includes("running_balance_idr")) {
+    const orgId = values[0] as string;
+    const toDate = values[1] as string;
+    const hasAccount = s.includes("jl.account_id = ?");
+    const accountId = hasAccount ? (values[2] as string) : undefined;
+    const fromDate = (hasAccount ? values[3] : values[2]) as string;
+
+    interface GlLine {
+      account_id: string;
+      code: string;
+      name: string;
+      account_class: SeedAccount["account_class"];
+      entry_date: string;
+      created_at: number;
+      transaction_id: string;
+      transaction_number: string;
+      description: string;
+      debit_idr: number;
+      credit_idr: number;
+    }
+    const rows: GlLine[] = [];
+    for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
+      const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
+      const txn = entry ? transactions.find((t) => t.id === entry.transaction_id) : null;
+      if (txn?.status !== "posted") continue;
+      if (txn.transaction_date > toDate) continue;
+      if (accountId && line.account_id !== accountId) continue;
+      const account = allAccounts(orgId).find((a) => a.id === line.account_id);
+      if (!account) continue;
+      rows.push({
+        account_id: line.account_id,
+        code: account.code,
+        name: account.name,
+        account_class: account.account_class,
+        entry_date: txn.transaction_date,
+        created_at: txn.created_at,
+        transaction_id: txn.id,
+        transaction_number: txn.transaction_number,
+        description: txn.description,
+        debit_idr: line.debit_idr,
+        credit_idr: line.credit_idr,
+      });
+    }
+    const sortLines = (a: GlLine, b: GlLine): number =>
+      a.entry_date.localeCompare(b.entry_date)
+      || a.created_at - b.created_at
+      || a.transaction_id.localeCompare(b.transaction_id)
+      || a.account_id.localeCompare(b.account_id);
+
+    const byAccount = new Map<string, GlLine[]>();
+    for (const row of rows) {
+      const list = byAccount.get(row.account_id) ?? [];
+      list.push(row);
+      byAccount.set(row.account_id, list);
+    }
+    const result: Record<string, unknown>[] = [];
+    const accountIds = [...byAccount.keys()].sort((x, y) => {
+      const ax = allAccounts(orgId).find((a) => a.id === x);
+      const ay = allAccounts(orgId).find((a) => a.id === y);
+      return Number(ax?.code ?? 0) - Number(ay?.code ?? 0) || x.localeCompare(y);
+    });
+    for (const id of accountIds) {
+      const list = byAccount.get(id)!.sort(sortLines);
+      let running = 0;
+      for (const line of list) {
+        const debitNormal = line.account_class === "asset" || line.account_class === "expense";
+        running += debitNormal
+          ? line.debit_idr - line.credit_idr
+          : line.credit_idr - line.debit_idr;
+        if (line.entry_date < fromDate) continue;
+        result.push({
+          account_id: line.account_id,
+          account_code: line.code,
+          account_name: line.name,
+          account_class: line.account_class,
+          entry_date: line.entry_date,
+          transaction_id: line.transaction_id,
+          transaction_number: line.transaction_number,
+          description: line.description,
+          // SQL output aliases (debit/credit), not source column names.
+          debit: line.debit_idr,
+          credit: line.credit_idr,
+          running_balance_idr: running,
+        });
+      }
+    }
+    return result;
+  }
+
   return [];
 }
 
@@ -761,6 +872,8 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
       last_rotated_at: null,
       created_at: Number(values[hasOrg ? 8 : 7]),
       revoked_at: null,
+      previous_token_hash: null,
+      previous_token_expires_at: null,
     });
   }
 
@@ -911,7 +1024,25 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
     }
   }
 
-  if (s.includes("UPDATE sessions SET")) {
+  if (s.includes("UPDATE sessions SET") && s.includes("revoked_at = ?")) {
+    // Revoke by token hash: (revokedAt, tokenHash)
+    const session = sessions.find((x) => x.token_hash === values[1] && x.revoked_at === null);
+    if (session) session.revoked_at = Number(values[0]);
+  }
+
+  if (s.includes("UPDATE sessions SET") && s.includes("token_hash = ?")) {
+    // Token rotation: (newHash, current, current, oldHash, graceExp, id, oldHash)
+    const session = sessions.find((x) => x.id === values[5]);
+    if (session && session.token_hash === values[6]) {
+      session.token_hash = values[0] as string;
+      session.last_used_at = Number(values[1]);
+      session.last_rotated_at = Number(values[2]);
+      session.previous_token_hash = (values[3] as string | null) ?? null;
+      session.previous_token_expires_at = Number(values[4] ?? 0) || null;
+    }
+  }
+
+  if (s.includes("UPDATE sessions SET") && !s.includes("token_hash = ?")) {
     const session = sessions.find((x) => x.id === values[1]);
     if (session) {
       if (s.includes("current_organization_id = ?")) {
@@ -992,6 +1123,30 @@ export function createSeedFixtures(): SeedFixture {
     password: TEST_PASSWORD,
     pepper: TEST_PEPPER,
   };
+}
+
+/**
+ * Age a fixture session's rotation timestamps so the next getSessionByToken
+ * call with its (plaintext) token triggers a token rotation. Used by the
+ * session rotation / grace-window tests. Call after createSeedFixtures().
+ */
+export async function ageFixtureSessionToken(token: string, ageMs: number): Promise<void> {
+  const tokenHash = await hashToken(token);
+  const session = sessions.find((x) => x.token_hash === tokenHash);
+  if (!session) return;
+  const target = Date.now() - ageMs;
+  session.created_at = target;
+  session.last_rotated_at = target;
+}
+
+/**
+ * Force the rotation grace window of the given (plaintext) OLD token to
+ * expire, so tests can assert the previous hash stops being accepted.
+ */
+export async function expireFixtureSessionGrace(token: string): Promise<void> {
+  const tokenHash = await hashToken(token);
+  const session = sessions.find((x) => x.previous_token_hash === tokenHash);
+  if (session) session.previous_token_expires_at = Date.now() - 1000;
 }
 
 /** Unbalanced journal fixture for validation tests. */

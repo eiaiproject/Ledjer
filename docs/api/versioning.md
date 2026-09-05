@@ -20,17 +20,15 @@ legacy `/api/*` routes during a transition window.
 ### Route Mapping
 
 ```
-Legacy          →  Stable
-/api/accounts   →  /api/v1/accounts
-/api/transactions → /api/v1/transactions
-/api/reports/*  →  /api/v1/reports/*
-/api/products   →  /api/v1/products
-/api/team       →  /api/v1/team
-/api/exports/*  →  /api/v1/exports/*
-/api/period-locks → /api/v1/period-locks
-/api/dashboard  →  /api/v1/dashboard
-/api/health     →  /api/v1/health (no auth)
-/api/auth/*     →  /api/v1/auth/* (no versioning needed for auth)
+Legacy              →  Stable
+/api/health         →  /api/v1/health (no auth)
+/api/auth/*         →  /api/v1/auth/*
+/api/organizations/* → /api/v1/organizations/*
+/api/accounts       →  /api/v1/accounts
+/api/transactions   →  /api/v1/transactions
+/api/reports/*      →  /api/v1/reports/*
+/api/dashboard/*    →  /api/v1/dashboard/*
+/api/exports/*      →  /api/v1/exports/*
 ```
 
 ### Implementation Strategy

@@ -20,7 +20,7 @@ export function Card({ children, className, title, elevated, ...rest }: Readonly
         className
       )}
     >
-      {title ? <h3 className="px-5 pt-4 text-base font-semibold text-text-primary">{title}</h3> : null}
+      {title ? <h2 className="px-5 pt-4 text-base font-semibold text-text-primary">{title}</h2> : null}
       {children}
     </div>
   );

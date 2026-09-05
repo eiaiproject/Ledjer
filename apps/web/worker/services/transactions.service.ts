@@ -167,27 +167,8 @@ export async function postTransaction(
     amountIdr,
     description,
   });
-  const existing = await getTransactionByIdempotencyKey(db, organizationId, normalizedKey);
-  if (existing) {
-    // A reused key with a different payload is a client bug, not a replay:
-    // fail loudly instead of returning the wrong transaction. Rows written
-    // before the payload-hash column existed carry NULL and stay replayable.
-    if (existing.idempotency_payload_hash !== null && existing.idempotency_payload_hash !== payloadHash) {
-      throw conflict("idempotency_key_reused", "Idempotency key sudah dipakai untuk transaksi lain. Muat ulang halaman dan coba lagi.");
-    }
-    const entry = await queryFirst<{ id: string }>(
-      db,
-      "SELECT id FROM journal_entries WHERE transaction_id = ? AND organization_id = ?",
-      [existing.id, organizationId],
-    );
-    return {
-      transaction_id: existing.id,
-      transaction_number: existing.transaction_number,
-      journal_entry_id: entry?.id ?? "",
-      status: "posted",
-      replayed: true,
-    };
-  }
+  const replay = await replayIfKeyAlreadyUsed(db, organizationId, normalizedKey, payloadHash);
+  if (replay) return replay;
 
   await assertDateNotFuture(transactionDate);
   const current = Date.now();
@@ -248,9 +229,73 @@ export async function postTransaction(
     }),
   ];
 
-  await executeBatch(db, statements);
+  try {
+    await executeBatch(db, statements);
+  } catch (err) {
+    // Two parallel requests can both miss the idempotency lookup above and
+    // race into the batch; the loser hits the UNIQUE(org, idempotency_key)
+    // index. D1 batches are atomic, so nothing was partially written - treat
+    // the constraint as a replay of the winner instead of a 500.
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+      const raced = await replayIfKeyAlreadyUsed(db, organizationId, normalizedKey, payloadHash);
+      if (raced) return raced;
+    }
+    throw err;
+  }
 
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
+}
+
+interface ExistingTransactionRow {
+  id: string;
+  transaction_number: string;
+  idempotency_payload_hash: string | null;
+}
+
+/**
+ * If the idempotency key already maps to a transaction, return the replay
+ * result for it. A reused key with a different payload is a client bug, not a
+ * replay - fail loudly instead of returning the wrong transaction. Rows
+ * written before the payload-hash column existed carry NULL and stay
+ * replayable. Returns null when the key is free.
+ */
+async function replayIfKeyAlreadyUsed(
+  db: D1Database,
+  organizationId: string,
+  idempotencyKey: string,
+  payloadHash: string,
+): Promise<PostTransactionResult | null> {
+  const existing = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+  if (!existing) return null;
+  if (
+    existing.idempotency_payload_hash !== null &&
+    existing.idempotency_payload_hash !== payloadHash
+  ) {
+    throw conflict(
+      "idempotency_key_reused",
+      "Idempotency key sudah dipakai untuk transaksi lain. Muat ulang halaman dan coba lagi.",
+    );
+  }
+  return buildReplayResult(db, organizationId, existing);
+}
+
+async function buildReplayResult(
+  db: D1Database,
+  organizationId: string,
+  existing: ExistingTransactionRow,
+): Promise<PostTransactionResult> {
+  const entry = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM journal_entries WHERE transaction_id = ? AND organization_id = ?",
+    [existing.id, organizationId],
+  );
+  return {
+    transaction_id: existing.id,
+    transaction_number: existing.transaction_number,
+    journal_entry_id: entry?.id ?? "",
+    status: "posted",
+    replayed: true,
+  };
 }
 
 /** Shared WHERE-clause builder for transaction queries (list + count). */
@@ -445,14 +490,16 @@ function normalizeTransactionType(type: string): TransactionType {
 }
 
 function toIdr(amount: number): number {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw badRequest("invalid_amount", "Nominal harus lebih dari 0.");
+  // Rupiah is whole currency (no decimals) - reject fractions instead of
+  // silently rounding them, which would record a different amount than the
+  // client sent (e.g. 1.5 -> 2).
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(amount)) {
+    throw badRequest("invalid_amount", "Nominal harus berupa bilangan bulat rupiah lebih dari 0.");
   }
-  const rounded = Math.round(amount);
-  if (rounded > 999_999_999_999) {
+  if (amount > 999_999_999_999) {
     throw badRequest("invalid_amount", "Nominal terlalu besar.");
   }
-  return rounded;
+  return amount;
 }
 
 function normalizeRequiredText(value: string, maxLength: number, code: string): string {

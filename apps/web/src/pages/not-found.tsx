@@ -12,8 +12,8 @@ export function NotFoundPage() {
           <Logo size="md" variant="full" />
         </div>
 
-        <Card className="p-6">
-          <CardContent>
+        <Card>
+          <CardContent className="p-6">
             <div className="flex flex-col items-center text-center">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning-bg text-warning">
                 <AlertTriangle className="h-6 w-6" />

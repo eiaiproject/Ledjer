@@ -97,7 +97,7 @@ export function AccountsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Contoh: Kas Kecil, BCA 123456"
-              className="sm:col-span-2"
+              containerClassName="sm:col-span-2"
             />
             <div className="sm:col-span-3 sm:flex sm:justify-end">
               <Button type="submit" loading={creating} fullWidth className="sm:w-auto">

@@ -85,8 +85,10 @@ export async function exportTransactionsCsv(
   organizationId: string,
   filters: TransactionExportFilters = {},
 ): Promise<ExportResponse> {
-  const effectiveStatus = filters.status ?? "posted";
-  const effective = { ...filters, status: effectiveStatus };
+  // Tanpa filter status, ekspor SEMUA status (posted + voided) - konsisten
+  // dengan daftar transaksi di UI saat filter "Semua status". Setiap baris
+  // membawa kolom `status` sehingga baris voided tetap terbaca jelas.
+  const effective = { ...filters };
 
   // Count first so over-limit exports are rejected without materializing
   // tens of thousands of rows into Worker memory (OOM guard).

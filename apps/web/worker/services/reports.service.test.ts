@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
 import type { D1Database } from "@cloudflare/workers-types";
-import { getBalanceSheet, getProfitLoss } from "./reports.service";
+import { getBalanceSheet, getGeneralLedger, getProfitLoss } from "./reports.service";
 import { HttpError } from "../http/errors";
 
 const ORG_A = FIXTURE_IDS.orgs.a;
@@ -75,5 +75,93 @@ describe("getBalanceSheet", () => {
     expect(report.totalAssets).toBe(4000000);
     expect(report.totalEquity).toBe(4000000);
     expect(report.balanced).toBe(true);
+  });
+});
+
+describe("getGeneralLedger", () => {
+  it("lists every journal line of posted transactions per account with a running balance", async () => {
+    const report = await getGeneralLedger(freshDb(), ORG_A, {
+      fromDate: "2026-06-01",
+      toDate: "2026-06-30",
+    });
+
+    // June: 4 posted transactions x 2 lines = 8 journal lines.
+    expect(report.entries).toHaveLength(8);
+
+    // Ordered by account code: 1110 Kas first, carrying the running balance.
+    const first = report.entries[0];
+    expect(first.account_code).toBe("1110");
+    expect(first.account_name).toBe("Kas");
+    expect(first.entry_date).toBe("2026-06-05");
+    expect(first.debit_idr).toBe(5000000);
+    expect(first.credit_idr).toBe(0);
+    expect(first.running_balance_idr).toBe(5000000);
+
+    // Kas: +5jt (deposit), +2jt (in), -1.2jt (out), -500rb (transfer).
+    const kas = report.entries.filter((e) => e.account_code === "1110");
+    expect(kas).toHaveLength(4);
+    expect(kas.at(-1)!.running_balance_idr).toBe(5300000);
+
+    // Bank receives the transferred 500rb.
+    const bank = report.entries.find((e) => e.account_code === "1120");
+    expect(bank?.debit_idr).toBe(500000);
+    expect(bank?.running_balance_idr).toBe(500000);
+
+    // Expense (debit-normal) grows its running balance on the debit side.
+    const rent = report.entries.find((e) => e.account_code === "6120");
+    expect(rent?.debit_idr).toBe(1200000);
+    expect(rent?.running_balance_idr).toBe(1200000);
+  });
+
+  it("excludes voided transactions", async () => {
+    const report = await getGeneralLedger(freshDb(), ORG_A, {
+      fromDate: "2026-07-01",
+      toDate: "2026-07-31",
+    });
+    // July: only cash_in 800rb (voided 100rb cash_out must not appear).
+    expect(report.entries).toHaveLength(2);
+    for (const entry of report.entries) {
+      expect(entry.transaction_number).not.toBe("TRX-20260705-LM12");
+    }
+  });
+
+  it("filters by account and carries the opening balance into the range", async () => {
+    const report = await getGeneralLedger(freshDb(), ORG_A, {
+      accountId: FIXTURE_IDS.accounts.cashA,
+      fromDate: "2026-06-10",
+      toDate: "2026-06-30",
+    });
+
+    // Only Kas lines from 10 June: in 2jt, out 1.2jt, transfer 500rb.
+    expect(report.entries).toHaveLength(3);
+    for (const entry of report.entries) {
+      expect(entry.account_id).toBe(FIXTURE_IDS.accounts.cashA);
+    }
+    // First visible row already includes the 5jt deposit from 5 June.
+    expect(report.entries[0].entry_date).toBe("2026-06-10");
+    expect(report.entries[0].debit_idr).toBe(2000000);
+    expect(report.entries[0].running_balance_idr).toBe(7000000);
+    expect(report.entries.at(-1)!.running_balance_idr).toBe(5300000);
+  });
+
+  it("isolates organizations on the ledger", async () => {
+    const report = await getGeneralLedger(freshDb(), FIXTURE_IDS.orgs.b, {
+      fromDate: "2026-06-01",
+      toDate: "2026-06-30",
+    });
+    // Org B June: deposit 3jt + cash_in 1jt = 4 lines.
+    expect(report.entries).toHaveLength(4);
+    for (const entry of report.entries) {
+      expect(entry.account_id).not.toBe(FIXTURE_IDS.accounts.cashA);
+    }
+  });
+
+  it("rejects an invalid date range", async () => {
+    await expect(
+      getGeneralLedger(freshDb(), ORG_A, {
+        fromDate: "2026-06-30",
+        toDate: "2026-06-01",
+      }),
+    ).rejects.toThrowError(HttpError);
   });
 });

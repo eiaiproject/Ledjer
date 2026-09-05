@@ -22,7 +22,7 @@ const postTransactionSchema = z.object({
   transactionDate: dateSchema,
   cashAccountId: z.string().min(1),
   counterAccountId: z.string().min(1),
-  amountIdr: z.number().positive(),
+  amountIdr: z.number().int().positive(),
   description: z.string().min(1).max(200),
   idempotencyKey: z.string().min(8).max(160),
 });

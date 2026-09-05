@@ -16,7 +16,7 @@
 | CDN ⇔ Worker | Medium | Cloudflare controls edge, Worker is tenant code |
 | Worker ⇔ D1 | High | Same Cloudflare account, not exposed to internet |
 | Worker ⇔ Sentry | Low | Error data sent externally |
-| Browser ⇔ Google OAuth | Low | OAuth state and PKCE protect this |
+| Browser ⇔ Google OAuth | Low | Short-lived state cookie protects this |
 
 ## Assets
 
@@ -26,7 +26,7 @@
 | Session tokens | Critical | D1 (sessions table) |
 | Financial transactions | High | D1 (transactions, journals) |
 | Organization data | High | D1 (all tenant tables) |
-| Personal data (email, name) | Medium | D1 (users, members, invitations) |
+| Personal data (email, name) | Medium | D1 (users, oauth_accounts) |
 | Auth tokens (Google OAuth) | Medium | D1 (sessions, transient) |
 
 ## Threats (STRIDE per component)
@@ -41,7 +41,7 @@
 | CSRF | **High** | Origin/Referer validation via URL.origin on all state changes (exact match, comma-separated) |
 | Privilege escalation | **High** | Permission check on every protected route |
 | Rate limit bypass | Medium | Atomic D1 conditional INSERT `COUNT(*) < max` per bucket_key (was SELECT+INSERT TOCTOU) |
-| WAC lost update / tie nondeterminism | Medium | Optimistic lock on `current_stock_milli` (3 retries) + `ORDER BY rowid` determinism |
+| Idempotency-key reuse | Medium | Key bound to SHA-256 payload hash; replay with a different payload rejected |
 
 ### D1 Database
 
@@ -56,7 +56,7 @@
 | Threat | Risk | Mitigation |
 |--------|------|------------|
 | OAuth state replay | Medium | State parameter validated |
-| Token interception | Low | TLS, PKCE |
+| Token interception | Low | TLS; state cookie guards the callback (no PKCE) |
 | Open redirect | Medium | Redirect URI validated |
 
 ### Sentry Error Reporting

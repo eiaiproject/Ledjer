@@ -34,7 +34,7 @@ export function AuthBrandPanel({ title, description, entries, className }: AuthB
           </div>
         </div>
 
-        <h2 className="text-3xl font-bold text-cream-50">{title}</h2>
+        <p className="text-3xl font-bold text-cream-50">{title}</p>
         <p className="mt-3 max-w-sm text-lg leading-relaxed text-wood-200">
           {description}
         </p>

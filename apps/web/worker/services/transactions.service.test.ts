@@ -12,6 +12,7 @@ import {
   voidTransaction,
 } from "./transactions.service";
 import { HttpError } from "../http/errors";
+import type { FakeD1Database } from "../test/fake-d1";
 
 const ORG_A = FIXTURE_IDS.orgs.a;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
@@ -216,6 +217,90 @@ describe("postTransaction", () => {
         idempotencyKey: "idem-test-zero-0001",
       }),
     ).rejects.toThrowError(HttpError);
+  });
+
+  it("rejects a fractional amount instead of silently rounding it", async () => {
+    const { db } = fresh();
+    await expect(
+      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+        transactionType: "cash_in",
+        transactionDate: "2026-06-15",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        counterAccountId: FIXTURE_IDS.accounts.revenueA,
+        amountIdr: 1.5,
+        description: "Rupiah pecahan",
+        idempotencyKey: "idem-test-frac-0001",
+      }),
+    ).rejects.toThrowError(HttpError);
+
+    // No journal may be written for the rejected amount.
+    expect(db.statements.some((s) => s.sql.includes("INSERT INTO journal_lines"))).toBe(false);
+  });
+
+  it("rejects an amount above the IDR ceiling", async () => {
+    const { db } = fresh();
+    await expect(
+      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+        transactionType: "cash_in",
+        transactionDate: "2026-06-15",
+        cashAccountId: FIXTURE_IDS.accounts.cashA,
+        counterAccountId: FIXTURE_IDS.accounts.revenueA,
+        amountIdr: 1_000_000_000_000,
+        description: "Terlalu besar",
+        idempotencyKey: "idem-test-huge-0001",
+      }),
+    ).rejects.toThrowError(HttpError);
+  });
+
+  it("turns a UNIQUE idempotency race into a replay instead of a 500", async () => {
+    const { db } = fresh();
+    const base = db as unknown as FakeD1Database;
+    const input = {
+      transactionType: "cash_in" as const,
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      counterAccountId: FIXTURE_IDS.accounts.revenueA,
+      amountIdr: 123000,
+      description: "Transaksi race",
+      idempotencyKey: "idem-test-race-0001",
+    };
+
+    // Winner commits first (real insert path).
+    const winner = await postTransaction(base as unknown as D1Database, ORG_A, OWNER_A, input);
+
+    // Loser simulation: its pre-insert idempotency lookup MISSES (it read
+    // before the winner committed) and its batch then hits the UNIQUE index.
+    let lookupSuppressed = false;
+    const racing = new Proxy(base, {
+      get(target, prop, receiver) {
+        if (prop === "prepare") {
+          return (sql: string) => {
+            const statement = Reflect.get(target, "prepare").call(target, sql);
+            if (!lookupSuppressed && typeof sql === "string" && sql.includes("idempotency_key")) {
+              lookupSuppressed = true;
+              return new Proxy(statement, {
+                get(stTarget, stProp) {
+                  if (stProp === "first") return async () => null;
+                  return Reflect.get(stTarget, stProp);
+                },
+              });
+            }
+            return statement;
+          };
+        }
+        if (prop === "batch") {
+          return async () => {
+            throw new Error("D1_ERROR: UNIQUE constraint failed: idx_transactions_org_idempotency");
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+
+    const loser = await postTransaction(racing as unknown as D1Database, ORG_A, OWNER_A, input);
+    expect(loser.transaction_id).toBe(winner.transaction_id);
+    expect(loser.replayed).toBe(true);
+    expect(loser.status).toBe("posted");
   });
 });
 

@@ -17,8 +17,8 @@ Content-Security-Policy:
 
 - **`script-src 'self'`**: No inline executable scripts exist in production HTML
   (`apps/web/index.html` only embeds a JSON-LD **data block**, which is not
-  subject to `script-src`). `'unsafe-inline'` was removed from both
-  `apps/web/public/_headers` and `apps/admin/public/_headers`. Dev mode keeps a
+  subject to `script-src`). `'unsafe-inline'` was removed from
+  `apps/web/public/_headers`. Dev mode keeps a
   relaxed CSP via `relaxCspForDev()` in `vite.config.ts` (Vite HMR needs inline
   scripts) - that relaxation never reaches production builds.
   Guarded by `e2e/security-headers.spec.ts` ("CSP script-src does not allow
