@@ -398,7 +398,7 @@ export function DashboardLayout() {
           className="ledger-safe-bottom fixed inset-x-0 bottom-0 z-[var(--z-sticky)] border-t border-wood-200 bg-cream-50/95 backdrop-blur-sm lg:hidden"
           aria-label="Navigasi mobile"
         >
-          <div className="mx-auto flex w-full max-w-md items-stretch gap-0.5 px-1.5">
+          <div className="mx-auto flex w-full max-w-md items-stretch gap-0 px-1">
             {BOTTOM_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.to!);
@@ -408,7 +408,7 @@ export function DashboardLayout() {
                   to={item.to!}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight transition-colors",
+                    "relative flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] font-medium leading-tight transition-colors",
                     active ? "text-wood-800" : "text-wood-500 hover:text-wood-700"
                   )}
                 >
@@ -428,7 +428,7 @@ export function DashboardLayout() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium leading-tight text-wood-500"
+              className="flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] font-medium leading-tight text-wood-500"
               aria-label="Menu lainnya"
             >
               <div className="flex h-8 w-8 items-center justify-center">

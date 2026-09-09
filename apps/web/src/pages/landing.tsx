@@ -53,7 +53,7 @@ export function LandingPage() {
 
           <div className="mx-auto mt-16 grid max-w-4xl gap-4 sm:grid-cols-3">
             {[
-              { title: "5 jenis transaksi", description: "Uang masuk, uang keluar, transfer, modal masuk, dan pengambilan pemilik." },
+              { title: "6 jenis transaksi", description: "Uang masuk, uang keluar, transfer, modal masuk, pembelian barang, dan pengambilan pemilik." },
               { title: "Laporan otomatis", description: "Laba rugi dan neraca tersusun sendiri dari jurnal yang seimbang." },
               { title: "Data milik Anda", description: "Ekspor CSV kapan saja. Tidak ada iklan, tidak ada penjualan data." },
             ].map((feature) => (

@@ -9,7 +9,7 @@
   - `5470b63` docs: update release readiness report to READY FOR RELEASE REVIEW
   - `db25b25` fix: recreate transactions table to allow purchase type
   - `96222e8` feat: add inventory tracking and cost of goods sold (HPP)
-- Artifact di staging: Worker Version ID `7c3e486e-21eb-488a-8b10-d9a952cec121` (deploy dari commit_fix F-07/modal ids + produk spec; migrasi D1 `0001–0007` applied (`No migrations to apply`)
+- Artifact di staging: Worker Version ID `4df27b40-020e-49ac-9e08-d32854664fc5` (deploy fix UI audit: landing copy, touch target, bottom-nav; migrasi D1 `0001–0007` applied)
 - Staging URL: `https://ledjer-staging.eiai.workers.dev`
 - Start time: 2026-09-09 ~13:17 WIB
 - End time: 2026-09-09 ~13:25 WIB
@@ -52,8 +52,8 @@
 - Safe CUD dengan data unik: product `SMOKE-*` create 200 → PATCH 200 → archive (`isActive:false`) OK; purchase regression: create purchase dengan items 200 (`posted`) → void 200 (`voided`) → product di-archive. CSRF terbukti: POST tanpa Origin + cookie → 403; dengan `Origin: staging` → lolos. Rute `GET /api/products/:id` dan `DELETE` mengembalikan 404 — **expected** (hanya `GET /`, `POST /`, `PATCH /:productId` yang diimplementasikan).
 
 ### Playwright Functional and CRUD Tests
-- Status: **PASS** — 93/93 (2.0 m), suite resmi `e2e-staging.yml` + `products.spec.ts` (15 specs)
-- Passed/failed/skipped/flaky: 93 / 0 / 0 / 0 (7 test produk baru: CRUD + validasi + toggle + purchase + goods-sale, semua first-run pass setelah perbaikan F-07)
+- Status: **PASS** — 93/93 (1.8 m) pada build terbaru `4df27b40`, suite resmi `e2e-staging.yml` + `products.spec.ts` (15 specs)
+- Passed/failed/skipped/flaky: 93 / 0 / 0 / 0
 - Browser and viewport coverage: Chromium desktop (sesuai konfigurasi resmi CI staging)
 - Auth: session-token injection via `scripts/create-e2e-session.mjs` (E2E_D1=ledjer-staging) sehingga tidak membebani login rate-limit
 - Report path: `/tmp/staging-readiness-e2e.log`, `apps/web/playwright-report/index.html` (dir di-ignore, tidak mengotori tree)
@@ -87,6 +87,9 @@
 | F-02 | Low | Deployment safety | Root `wrangler.jsonc` mirror | Mirror root berisi placeholder DB staging + origin salah + tanpa `name`/R2 staging. | **Fixed** — blok `staging` disinkronkan penuh (`name`, DB id `6bb8c1af…`, R2 `ledjer-backups-staging`, origin workers.dev) + preview ids; `deploy --dry-run --env=staging` dari root kini resolve bindings staging dengan benar |
 | F-03 | Low | Test coverage | E2E | Tidak ada spec Playwright untuk alur produk/purchase/sale. | **Fixed** — `apps/web/e2e/products.spec.ts` baru (7 test: form, validasi, create, edit, toggle, purchase, goods-sale) + didaftarkan ke suite resmi `e2e-staging.yml`; 93/93 PASS di staging |
 | F-04 | Info | API design | `products` API | `GET /api/products/:id` dan `DELETE` tidak ada (404 by design; hanya list/create/patch). | Info — dokumentasikan di API docs agar tidak dilaporkan ulang |
+| F-08 | P1 | Copy/kepercayaan | Landing `landing.tsx:56` | Klaim "5 jenis transaksi" padahal app punya 6 (pembelian). | **Fixed** — "6 jenis transaksi" + pembelian di deskripsi; terverifikasi di screenshot audit |
+| F-09 | P2 | Responsif | `/transactions/new` mobile | Tombol inline "Ini penjualan barang?…" 315×20 (<24px, WCAG 2.2 §2.5.8). | **Fixed** — `min-h-[24px]`; audit ulang 0 issues |
+| F-10 | P3 | Polish | Bottom-nav mobile 390px | Label "Pengaturan" terpotong ("Pengatur…"). | **Fixed** — padding/gap nav dirapatkan (`px-0.5`/`gap-0`), label penuh tampil; terminologi tidak diubah |
 | F-07 | Medium | A11y/correctness | `products` edit modal | Input modal edit memakai label yang sama dengan form create sehingga `id` DOM terduplikasi (`nama-produk` ×2); label menunjuk ke input yang salah dan edit nama diam-diam tidak tersimpan (ditemukan oleh spec F-03: toast sukses tapi nama tidak berubah). | **Fixed** — tiga input modal diberi `id` eksplisit unik (`edit-nama-produk`, `edit-satuan`, `edit-harga-jual`); spec edit kini hijau |
 | — | — | Regression (fixed, verified) | `purchase` API | F-06 audit lalu (CHECK constraint menolak `purchase`) **tetap fixed**: migrasi `0007` + regression test ada; purchase via API staging 200 pada audit ini. | Verified fixed |
 

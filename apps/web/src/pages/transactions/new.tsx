@@ -334,7 +334,7 @@ export function NewTransactionPage() {
               <button
                 type="button"
                 onClick={() => setGoodsSale(true)}
-                className="block text-left text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800"
+                className="block min-h-[24px] text-left text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800"
               >
                 Ini penjualan barang? Isi daftar produknya di sini.
               </button>
