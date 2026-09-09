@@ -236,16 +236,19 @@ export function ProductsPage() {
           <>
             <ModalContent className="space-y-4">
               <Input
+                id="edit-nama-produk"
                 label="Nama Produk"
                 value={edit.name}
                 onChange={(e) => setEdit({ ...edit, name: e.target.value })}
               />
               <Input
+                id="edit-satuan"
                 label="Satuan"
                 value={edit.unit}
                 onChange={(e) => setEdit({ ...edit, unit: e.target.value })}
               />
               <Input
+                id="edit-harga-jual"
                 label="Harga Jual (Rp)"
                 isCurrency
                 inputMode="numeric"

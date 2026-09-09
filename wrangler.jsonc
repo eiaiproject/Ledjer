@@ -19,15 +19,15 @@
       "binding": "DB",
       "database_name": "ledjer-production",
       "database_id": "37eff57a-d152-4235-8344-9379c7ad4cf2",
-      // TODO: Create preview DB and set this ID before enabling preview deployments.
-      "preview_database_id": "",
+      "preview_database_id": "304c2ea3-7368-420e-92fa-64a06411f3bf",
       "migrations_dir": "apps/web/worker/db/migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "BACKUP_BUCKET",
-      "bucket_name": "ledjer-backups"
+      "bucket_name": "ledjer-backups",
+      "preview_bucket_name": "ledjer-backups-preview"
     }
   ],
   "triggers": {
@@ -39,17 +39,24 @@
   },
   "env": {
     "staging": {
+      "name": "ledjer-staging",
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "ledjer-staging",
-          "database_id": "<replace-with-staging-db-id>",  // 🔁 Replace with real staging DB UUID before staging deploy
+          "database_id": "6bb8c1af-cf43-4d8e-b28c-ee8b9ce13a1d",
           "migrations_dir": "apps/web/worker/db/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BACKUP_BUCKET",
+          "bucket_name": "ledjer-backups-staging"
         }
       ],
       "vars": {
         "APP_ENV": "staging",
-        "APP_ORIGIN": "https://staging.ledjer.id"
+        "APP_ORIGIN": "https://ledjer-staging.eiai.workers.dev"
       }
     }
   }

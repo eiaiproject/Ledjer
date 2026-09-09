@@ -1,7 +1,7 @@
 # Release Readiness Report
 
 ## 1. Executive Summary
-- Final status: `READY FOR RELEASE REVIEW` — seluruh release gate wajib lulus; tidak ada temuan blocker/critical. Satu temuan Medium (F-01, carried) dan dua temuan Low (F-02, F-03, carried) bersifat non-blocking dengan remediasi terdokumentasi.
+- Final status: `READY FOR RELEASE REVIEW` — seluruh release gate wajib lulus; tidak ada temuan blocker/critical. F-02 dan F-03 sudah **Fixed** pada iterasi ini (termasuk bug duplikat DOM id F-07 yang ditemukan spec baru). Satu temuan Medium (F-01, carried, diskip sesuai instruksi) bersifat non-blocking.
 - Repository: `eiaiproject/Ledjer` (`git+https://github.com/eiaiproject/Ledjer.git`)
 - Branch: `main` (ahead 4 dari `origin/main`, belum di-push — tidak dilakukan push tanpa izin)
 - Commit SHA: `6feff5b87e8cbd95b59d9039f6cd5450f6b9db9d`
@@ -9,7 +9,7 @@
   - `5470b63` docs: update release readiness report to READY FOR RELEASE REVIEW
   - `db25b25` fix: recreate transactions table to allow purchase type
   - `96222e8` feat: add inventory tracking and cost of goods sold (HPP)
-- Artifact di staging: Worker Version ID `51b5aa02-932f-443d-a0cd-61a72ce1592c` (deploy dari commit `6feff5b`), migrasi D1 `0001–0007` applied (`No migrations to apply`)
+- Artifact di staging: Worker Version ID `7c3e486e-21eb-488a-8b10-d9a952cec121` (deploy dari commit_fix F-07/modal ids + produk spec; migrasi D1 `0001–0007` applied (`No migrations to apply`)
 - Staging URL: `https://ledjer-staging.eiai.workers.dev`
 - Start time: 2026-09-09 ~13:17 WIB
 - End time: 2026-09-09 ~13:25 WIB
@@ -52,8 +52,8 @@
 - Safe CUD dengan data unik: product `SMOKE-*` create 200 → PATCH 200 → archive (`isActive:false`) OK; purchase regression: create purchase dengan items 200 (`posted`) → void 200 (`voided`) → product di-archive. CSRF terbukti: POST tanpa Origin + cookie → 403; dengan `Origin: staging` → lolos. Rute `GET /api/products/:id` dan `DELETE` mengembalikan 404 — **expected** (hanya `GET /`, `POST /`, `PATCH /:productId` yang diimplementasikan).
 
 ### Playwright Functional and CRUD Tests
-- Status: **PASS** — 86/86 (1.3 m), suite resmi `e2e-staging.yml` persis (14 specs)
-- Passed/failed/skipped/flaky: 86 / 0 / 0 / 0
+- Status: **PASS** — 93/93 (2.0 m), suite resmi `e2e-staging.yml` + `products.spec.ts` (15 specs)
+- Passed/failed/skipped/flaky: 93 / 0 / 0 / 0 (7 test produk baru: CRUD + validasi + toggle + purchase + goods-sale, semua first-run pass setelah perbaikan F-07)
 - Browser and viewport coverage: Chromium desktop (sesuai konfigurasi resmi CI staging)
 - Auth: session-token injection via `scripts/create-e2e-session.mjs` (E2E_D1=ledjer-staging) sehingga tidak membebani login rate-limit
 - Report path: `/tmp/staging-readiness-e2e.log`, `apps/web/playwright-report/index.html` (dir di-ignore, tidak mengotori tree)
@@ -84,13 +84,14 @@
 | ID | Severity | Category | Affected | Detail | Status |
 |----|----------|----------|----------|--------|--------|
 | F-01 | Medium | Config (staging) | Staging env | `wrangler secret list --env staging` = `[]`: `PASSWORD_PEPPER`, `SENTRY_DSN`, `GOOGLE_CLIENT_ID/SECRET` tidak diset. Auth tetap berfungsi (pepper opsional) tapi Google OAuth & Sentry nonaktif di staging. | Open (carried) — set secrets sesuai `docs/production/deployment.md` |
-| F-02 | Low | Deployment safety | Root `wrangler.jsonc` mirror | Mirror root masih berisi placeholder `"<replace-with-staging-db-id>"` dan origin `https://staging.ledjer.id`, berbeda dari `apps/web/wrangler.jsonc` yang asli (`6bb8c1af…`, `https://ledjer-staging.eiai.workers.dev`). Deploy resmi memakai `apps/web/wrangler.jsonc` sehingga tidak berdampak, tetapi mirror menyesatkan. | Open (carried, diperbarui) — sinkronkan mirror atau beri penanda deprecated |
-| F-03 | Low | Test coverage | E2E | Tidak ada spec Playwright untuk alur produk/purchase/sale — hanya static-routes yang menyentuh `/products`. Alur inti diverifikasi manual via API di staging pada audit ini (purchase posted → voided, 200). | Open (carried) — tambah `e2e/products.spec.ts` |
-| F-04 | Info | API design | `products` API | `GET /api/products/:id` dan `DELETE` tidak ada (404 by design; hanya list/create/patch). Smoke test awal sempat tampak gagal sebelum dikonfirmasi by-design. | Info — dokumentasikan di API docs agar tidak dilaporkan ulang |
+| F-02 | Low | Deployment safety | Root `wrangler.jsonc` mirror | Mirror root berisi placeholder DB staging + origin salah + tanpa `name`/R2 staging. | **Fixed** — blok `staging` disinkronkan penuh (`name`, DB id `6bb8c1af…`, R2 `ledjer-backups-staging`, origin workers.dev) + preview ids; `deploy --dry-run --env=staging` dari root kini resolve bindings staging dengan benar |
+| F-03 | Low | Test coverage | E2E | Tidak ada spec Playwright untuk alur produk/purchase/sale. | **Fixed** — `apps/web/e2e/products.spec.ts` baru (7 test: form, validasi, create, edit, toggle, purchase, goods-sale) + didaftarkan ke suite resmi `e2e-staging.yml`; 93/93 PASS di staging |
+| F-04 | Info | API design | `products` API | `GET /api/products/:id` dan `DELETE` tidak ada (404 by design; hanya list/create/patch). | Info — dokumentasikan di API docs agar tidak dilaporkan ulang |
+| F-07 | Medium | A11y/correctness | `products` edit modal | Input modal edit memakai label yang sama dengan form create sehingga `id` DOM terduplikasi (`nama-produk` ×2); label menunjuk ke input yang salah dan edit nama diam-diam tidak tersimpan (ditemukan oleh spec F-03: toast sukses tapi nama tidak berubah). | **Fixed** — tiga input modal diberi `id` eksplisit unik (`edit-nama-produk`, `edit-satuan`, `edit-harga-jual`); spec edit kini hijau |
 | — | — | Regression (fixed, verified) | `purchase` API | F-06 audit lalu (CHECK constraint menolak `purchase`) **tetap fixed**: migrasi `0007` + regression test ada; purchase via API staging 200 pada audit ini. | Verified fixed |
 
 ## 5. Coverage Gaps
-- Untested pages/routes: alur produk/purchase/sale end-to-end di browser (F-03); `tenant-isolation.spec.ts` tidak dijalankan (butuh 2 org + 2 token, tidak termasuk suite resmi; di-cover unit test).
+- Untested pages/routes: `tenant-isolation.spec.ts` tidak dijalankan (butuh 2 org + 2 token, tidak termasuk suite resmi; di-cover unit test). Alur produk/purchase/sale kini ter-cover (F-03 fixed).
 - Untested roles: single-role app (owner) — tidak ada matrix multi-role.
 - Untested browsers/viewports: Firefox, WebKit, mobile (opt-in via `E2E_CROSS_BROWSER`/`E2E_FULL`, tidak diaktifkan di CI staging).
 - Skipped checks: visual regression (tanpa baseline), automated a11y (tanpa axe), Lighthouse perf (tanpa tooling), passive DAST khusus.
@@ -118,6 +119,5 @@
 - Decision: `READY FOR RELEASE REVIEW`
 - Blocking reasons: none.
 - Required next actions (non-blocking):
-  1. Set secret staging: `PASSWORD_PEPPER`, `SENTRY_DSN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (F-01).
-  2. Sinkronkan mirror `wrangler.jsonc` root (F-02) dan tambah E2E produk (F-03) pada iterasi berikutnya.
+  1. Set secret staging bila dibutuhkan: `PASSWORD_PEPPER`, `SENTRY_DSN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (F-01 — diskip sesuai instruksi).
 - Catatan: status ini **bukan instruksi deploy ke production** — hanya menyatakan commit `6feff5b` siap diajukan ke review manusia/proses resmi.
