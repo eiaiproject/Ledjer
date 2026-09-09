@@ -263,7 +263,7 @@ export async function postTransaction(
 
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, organizationId, transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -569,7 +569,7 @@ async function postPurchase(
 
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, organizationId, input.transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -718,7 +718,7 @@ async function postGoodsSale(
   );
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, organizationId, input.transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -1100,16 +1100,20 @@ function normalizeRequiredText(value: string, maxLength: number, code: string): 
   return text;
 }
 
-/** TRX-YYYYMMDD-XXXX — unique human-readable, not strictly sequential (PRD TRX-08). */
-export async function generateTransactionNumber(db: D1Database, date: string): Promise<string> {
+/** TRX-YYYYMMDD-XXXX — unik per organisasi (bukan global), human-readable (PRD TRX-08). */
+export async function generateTransactionNumber(
+  db: D1Database,
+  organizationId: string,
+  date: string,
+): Promise<string> {
   const base = `TRX-${date.replaceAll("-", "")}-`;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const suffix = randomSuffix(4);
     const number = `${base}${suffix}`;
     const existing = await queryFirst<{ id: string }>(
       db,
-      "SELECT id FROM transactions WHERE transaction_number = ?",
-      [number],
+      "SELECT id FROM transactions WHERE organization_id = ? AND transaction_number = ?",
+      [organizationId, number],
     );
     if (!existing) return number;
   }
