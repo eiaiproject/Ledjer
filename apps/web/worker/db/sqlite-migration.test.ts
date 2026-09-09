@@ -95,6 +95,35 @@ describe("Migrations against real SQLite", () => {
     }).not.toThrow();
   });
 
+  it("transactions CHECK constraint accepts 'purchase' and rejects unknown types", () => {
+    // Regression: migration 0006 introduced the purchase transaction type, but
+    // the original transactions CHECK (0002) only allowed the 5 cash-based
+    // types. 0007 recreates the table to widen the constraint. This test
+    // guards against that class of bug — the schema must accept what the
+    // service layer writes.
+    db.exec("PRAGMA foreign_keys=OFF");
+    db.exec("INSERT INTO organizations (id, name, base_currency, status, created_at, updated_at) VALUES ('org-purchase', 'Purchase', 'IDR', 'active', 1, 1)");
+    db.exec("INSERT INTO users (id, email, full_name, password_hash, created_at, updated_at) VALUES ('user-purchase', 'purchase@example.com', 'P User', 'hash', 1, 1)");
+    db.exec("INSERT INTO accounts (id, organization_id, code, name, account_class, account_subtype, is_system, is_active, created_at, updated_at) VALUES ('acct-purchase', 'org-purchase', '1110', 'Cash', 'asset', 'cash', 1, 1, 1, 1)");
+    db.exec("PRAGMA foreign_keys=ON");
+
+    // purchase must be accepted (widened by 0007)
+    expect(() => {
+      db.exec(
+        "INSERT INTO transactions (id, organization_id, transaction_number, transaction_type, transaction_date, description, status, amount_idr, cash_account_id, counter_account_id, created_by, created_at, updated_at) " +
+        "VALUES ('tx-purchase', 'org-purchase', 'TRX-20260101-P001', 'purchase', '2026-01-01', 'test', 'posted', 50000, 'acct-purchase', 'acct-purchase', 'user-purchase', 1, 1)"
+      );
+    }).not.toThrow();
+
+    // unknown types must still be rejected
+    expect(() => {
+      db.exec(
+        "INSERT INTO transactions (id, organization_id, transaction_number, transaction_type, transaction_date, description, status, amount_idr, cash_account_id, counter_account_id, created_by, created_at, updated_at) " +
+        "VALUES ('tx-bad', 'org-purchase', 'TRX-20260101-B001', 'nonsense', '2026-01-01', 'test', 'posted', 50000, 'acct-purchase', 'acct-purchase', 'user-purchase', 1, 1)"
+      );
+    }).toThrow();
+  });
+
   it("can roll-forward from mid-state to latest migrations", () => {
     // Simulate upgrading from an older version:
     // Apply first half of migrations, then apply the rest
