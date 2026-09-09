@@ -9,6 +9,8 @@ export type Permission =
   | "organization:update"
   | "accounts:read"
   | "accounts:write"
+  | "products:read"
+  | "products:write"
   | "transactions:read"
   | "transactions:create"
   | "transactions:void"
@@ -54,6 +56,7 @@ interface OrganizationMemberRow {
 const ROLE_PERMISSIONS: Record<"owner", ReadonlySet<Permission>> = {
   owner: new Set([
     "organization:read", "organization:update", "accounts:read", "accounts:write",
+    "products:read", "products:write",
     "transactions:read", "transactions:create", "transactions:void",
     "reports:read", "exports:create",
   ]),
@@ -201,6 +204,7 @@ interface DefaultAccount {
   name: string;
   accountClass: AccountClass;
   accountSubtype?: "cash" | "bank";
+  accountKind?: "inventory" | "cogs";
   isSystem: boolean;
 }
 
@@ -208,6 +212,7 @@ interface DefaultAccount {
 export const DEFAULT_ACCOUNTS: readonly DefaultAccount[] = [
   { code: "1110", name: "Kas", accountClass: "asset", accountSubtype: "cash", isSystem: true },
   { code: "1120", name: "Bank", accountClass: "asset", accountSubtype: "bank", isSystem: true },
+  { code: "1130", name: "Persediaan", accountClass: "asset", accountKind: "inventory", isSystem: true },
   { code: "3110", name: "Modal Pemilik", accountClass: "equity", isSystem: true },
   { code: "3120", name: "Pengambilan Pemilik", accountClass: "equity", isSystem: true },
   { code: "4110", name: "Pendapatan Usaha", accountClass: "income", isSystem: true },
@@ -220,6 +225,7 @@ export const DEFAULT_ACCOUNTS: readonly DefaultAccount[] = [
   { code: "6160", name: "Beban Perlengkapan", accountClass: "expense", isSystem: true },
   { code: "6170", name: "Beban Administrasi", accountClass: "expense", isSystem: true },
   { code: "6180", name: "Beban Lain-lain", accountClass: "expense", isSystem: true },
+  { code: "6190", name: "Harga Pokok Penjualan", accountClass: "expense", accountKind: "cogs", isSystem: true },
 ];
 
 export async function createDefaultAccounts(
@@ -232,8 +238,8 @@ export async function createDefaultAccounts(
       db,
       `INSERT INTO accounts (
          id, organization_id, code, name, account_class, account_subtype,
-         is_system, is_active, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         account_kind, is_system, is_active, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       [
         crypto.randomUUID(),
         organizationId,
@@ -241,6 +247,7 @@ export async function createDefaultAccounts(
         account.name,
         account.accountClass,
         account.accountSubtype ?? null,
+        account.accountKind ?? null,
         account.isSystem ? 1 : 0,
         current,
         current,

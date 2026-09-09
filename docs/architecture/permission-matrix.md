@@ -17,6 +17,8 @@ the `requirePermission(...)` middleware:
 | organization:update | ✓ |
 | accounts:read | ✓ |
 | accounts:write | ✓ |
+| products:read | ✓ |
+| products:write | ✓ |
 | transactions:read | ✓ |
 | transactions:create | ✓ |
 | transactions:void | ✓ |
@@ -45,6 +47,9 @@ below. Order per route group: `requireAuth()` →
 | GET /api/accounts | ✓ | ✓ | accounts:read | `includeInactive`, `subtype` filters |
 | POST /api/accounts/cash-bank | ✓ | ✓ | accounts:write | Create cash/bank account |
 | PATCH /api/accounts/:id | ✓ | ✓ | accounts:write | Rename / toggle active |
+| GET /api/products | ✓ | ✓ | products:read | List (active only by default) |
+| POST /api/products | ✓ | ✓ | products:write | Create product |
+| PATCH /api/products/:id | ✓ | ✓ | products:write | Rename / price / toggle active |
 | GET /api/transactions | ✓ | ✓ | transactions:read | List + count, filters |
 | POST /api/transactions | ✓ | ✓ | transactions:create | Idempotency key; rate-limited |
 | GET /api/transactions/:id | ✓ | ✓ | transactions:read | |

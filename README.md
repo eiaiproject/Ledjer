@@ -29,13 +29,19 @@ Ledjer membantu UMKM mencatat uang masuk dan keluar, lalu menghasilkan laporan k
 ## Features (MVP)
 
 ### Pencatatan Transaksi
-- **5 jenis transaksi** - uang masuk, uang keluar, transfer kas/bank, modal masuk (setoran pemilik), dan pengambilan pemilik
+- **6 jenis transaksi** - uang masuk, uang keluar, transfer kas/bank, modal masuk (setoran pemilik), pengambilan pemilik, dan pembelian barang
 - **Double-entry bookkeeping** - setiap transaksi otomatis menjadi jurnal debit-kredit yang dipaksa seimbang
 - **Void (pembatalan)** - transaksi salah dapat dibatalkan; saldo dan laporan menyesuaikan otomatis dengan jejak audit
 - **Idempotency** - kirim ulang form tidak pernah menduplikasi transaksi (key unik per form)
 
+### Persediaan & HPP
+- **Master produk** - daftar produk dengan stok & harga jual; kode otomatis
+- **Moving-average cost (WAC)** - harga pokok rata-rata dihitung otomatis dari pembelian; HPP dicatat saat penjualan barang
+- **Pembelian & penjualan barang** - beli menambah stok (Persediaan DR / Kas CR), jual memotong stok + mencatat HPP (HPP DR / Persediaan CR)
+- **Void persediaan** - stok & WAC dihitung ulang otomatis; stok negatif ditolak
+
 ### Akun Kas & Bank
-- **Chart of accounts default** - 14 akun standar (Kas, Bank, Modal, Pendapatan, dan beban) dibuat otomatis saat daftar
+- **Chart of accounts default** - 16 akun standar (Kas, Bank, Persediaan, Modal, Pendapatan, HPP, dan beban) dibuat otomatis saat daftar
 - **Akun kas/bank tambahan** - buat, ganti nama, dan aktif/nonaktifkan akun kas & rekening bank
 
 ### Laporan Keuangan

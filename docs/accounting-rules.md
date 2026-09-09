@@ -1,15 +1,16 @@
 # Ledjer - Accounting Rules Reference (MVP Cash-Only)
 
 This document describes the accounting model actually implemented in the MVP:
-5 cash-based transaction types posted as balanced double-entry journals against a
-default chart of accounts. It is the single source of truth for the current
+6 cash-based transaction types (termasuk pembelian barang dengan persediaan
+berbasis moving-average cost) posted as balanced double-entry journals against
+a default chart of accounts. It is the single source of truth for the current
 schema (`apps/web/worker/db/migrations`).
 
-> Scope note: receivables/payables at the party level, product/inventory with
-> moving-average cost, opening balances, manual journals, and invoice-level
-> settlement are **not** part of the MVP. Proposals for those live in
-> [docs/api/p1-*](docs/api) and in the pre-MVP git history; do not assume any of
-> them exist in the codebase.
+> Scope note: inventory with **moving-average cost (WAC)** *is* part of the MVP
+> (master produk + HPP). Receivables/payables at the party level, opening
+> balances, manual journals, and invoice-level settlement are **not** part of
+> the MVP. Proposals for those live in [docs/api/p1-*](docs/api); do not assume
+> any of them exist in the codebase.
 
 ## Transaction Types
 
@@ -20,6 +21,12 @@ schema (`apps/web/worker/db/migrations`).
 | `transfer` | Pindah antar kas/bank | Destination Cash/Bank | Source Cash/Bank |
 | `owner_deposit` | Setoran modal pemilik | Cash/Bank | Equity account |
 | `owner_withdrawal` | Pengambilan pemilik | Equity account | Cash/Bank |
+| `purchase` | Pembelian barang (beli stok) | Inventory (Persediaan) | Cash/Bank |
+
+`cash_in` **dengan item produk** adalah penjualan barang: selain jurnal
+Kas/Bank DR / Income CR (sebesar total harga jual), diposting juga jurnal
+**HPP DR / Persediaan CR** sebesar total harga pokok (COGS) dari moving-average
+cost (lihat [Persediaan & HPP](#persediaan--hpp)).
 
 Validation rules enforced by `transactions.service.ts` (`validateTransaction`):
 
@@ -37,25 +44,30 @@ Validation rules enforced by `transactions.service.ts` (`validateTransaction`):
 
 ## Chart of Accounts
 
-14 default accounts are created automatically on registration
-(`DEFAULT_ACCOUNTS` in `organization.service.ts`):
+16 default accounts are created automatically on registration
+(`DEFAULT_ACCOUNTS` in `organization.service.ts`). `Persediaan` (asset) dan
+`Harga Pokok Penjualan` (expense) ditandai dengan `account_kind`
+(`inventory` / `cogs`) sehingga service bisa menemukannya walau diganti nama;
+keduanya juga di-backfill untuk organisasi lama oleh migrasi 0006.
 
-| Code | Name | Class | Subtype |
-|------|------|-------|---------|
-| 1110 | Kas | asset | cash |
-| 1120 | Bank | asset | bank |
-| 3110 | Modal Pemilik | equity | - |
-| 3120 | Pengambilan Pemilik | equity | - |
-| 4110 | Pendapatan Usaha | income | - |
-| 4120 | Pendapatan Lain | income | - |
-| 6110 | Beban Gaji & Upah | expense | - |
-| 6120 | Beban Sewa | expense | - |
-| 6130 | Beban Pemasaran | expense | - |
-| 6140 | Beban Transportasi | expense | - |
-| 6150 | Beban Komunikasi & Internet | expense | - |
-| 6160 | Beban Perlengkapan | expense | - |
-| 6170 | Beban Administrasi | expense | - |
-| 6180 | Beban Lain-lain | expense | - |
+| Code | Name | Class | Subtype | Kind |
+|------|------|-------|---------|------|
+| 1110 | Kas | asset | cash | - |
+| 1120 | Bank | asset | bank | - |
+| 1130 | Persediaan | asset | - | inventory |
+| 3110 | Modal Pemilik | equity | - | - |
+| 3120 | Pengambilan Pemilik | equity | - | - |
+| 4110 | Pendapatan Usaha | income | - | - |
+| 4120 | Pendapatan Lain | income | - | - |
+| 6110 | Beban Gaji & Upah | expense | - | - |
+| 6120 | Beban Sewa | expense | - | - |
+| 6130 | Beban Pemasaran | expense | - | - |
+| 6140 | Beban Transportasi | expense | - | - |
+| 6150 | Beban Komunikasi & Internet | expense | - | - |
+| 6160 | Beban Perlengkapan | expense | - | - |
+| 6170 | Beban Administrasi | expense | - | - |
+| 6180 | Beban Lain-lain | expense | - | - |
+| 6190 | Harga Pokok Penjualan | expense | - | cogs |
 
 Account management rules (`accounts.service.ts`):
 
@@ -68,15 +80,52 @@ Account management rules (`accounts.service.ts`):
   `income` = credit. There is no `normal_balance` column; it is derived from
   `account_class`.
 
+## Persediaan & HPP
+
+Model persediaan MVP memakai **master produk + moving-average cost (WAC)**:
+
+- **`products`** — data master (kode, nama, satuan, harga jual) + kolom cache
+  `current_stock_milli` (stok × 1000, 3 desimal) dan `average_cost_minor`
+  (harga pokok per satuan × 10.000, 4 desimal).
+- **`stock_movements`** — buku pergerakan stok immutable per transaksi:
+  `quantity_milli` bertanda (+ beli / − jual), `unit_cost_minor` (harga beli
+  untuk pembelian, WAC saat itu untuk penjualan), `cost_total_idr`.
+
+**Pembelian (`purchase`)** — tiap item menambah stok dan memperbarui WAC:
+
+```
+WAC' = (stok × WAC + qty × harga beli) / (stok + qty)
+```
+
+**Penjualan barang (`cash_in` + items)** — tiap item dikurangi dari stok
+(ditolak bila stok tidak mencukupi, `insufficient_stock`) dan COGS dihitung
+dari WAC saat itu (`qty × WAC`, pembulatan setengah ke atas). WAC tidak
+berubah oleh penjualan. Total pendapatan dihitung dari item (qty × harga
+jual), bukan dari nominal yang dikirim klien.
+
+**Void** — selain membalik status transaksi, stok & WAC produk dihitung ulang
+dari `stock_movements` transaksi yang masih `posted` (`recalculateProductCosts`),
+jadi void pembelian mengembalikan stok & menurunkan WAC, dan void penjualan
+mengembalikan stok. Update stok/WAC memakai guarded UPDATE (retry) agar aman
+dari race dua permintaan paralel.
+
+HPP muncul sebagai beban di laba rugi dan Persediaan sebagai aset di neraca
+secara otomatis (keduanya dibaca dari jurnal seperti akun lain).
+
 ## Validation & Safety
 
 - Amounts are integer IDR, > 0, capped at Rp 999.999.999.999.
 - Transaction dates use `YYYY-MM-DD`; future dates (relative to Asia/Jakarta)
   are rejected (`future_date_not_allowed`).
 - **Idempotency**: every create request carries an idempotency key bound to a
-  SHA-256 hash of the payload. Re-submitting the same key returns the original
-  transaction (response header `Idempotent-Replay: true`); reusing a key with a
-  *different* payload is rejected with 409 `idempotency_key_reused`.
+  SHA-256 hash of the payload (termasuk item produk). Re-submitting the same
+  key returns the original transaction (response header `Idempotent-Replay:
+  true`); reusing a key with a *different* payload is rejected with 409
+  `idempotency_key_reused`.
+- **Jumlah & harga produk**: jumlah dalam satuan produk (desimal, maks 3
+  angka di belakang koma, dikonversi ke milli); harga beli/jual integer rupiah
+  tidak negatif; produk yang sama tidak boleh diisi dua kali dalam satu
+  transaksi; produk harus aktif.
 - Rate limits: register (5/15 min per IP), login (10/15 min per IP+email),
   transaction create (60/min), void (20/min).
 
@@ -108,6 +157,7 @@ current organization:
 
 - **Laba Rugi (P&L)** - `income` accounts (credit − debit) and `expense`
   accounts (debit − credit) within a date range; `netIncome = income − expense`.
+  HPP muncul sebagai beban "Harga Pokok Penjualan" sehingga laba kotor = income − HPP.
 - **Neraca (balance sheet)** - as of a date: assets (debit − credit),
   liabilities (credit − debit), equity (credit − debit), plus `Laba Berjalan`
   (`NET`) = income − expense. A mismatch is logged to error monitoring.

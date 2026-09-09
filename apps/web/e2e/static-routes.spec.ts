@@ -37,6 +37,7 @@ test.describe("Protected route redirects", () => {
     "/transactions",
     "/transactions/new",
     "/accounts",
+    "/products",
     "/reports/profit-loss",
     "/reports/balance-sheet",
     "/reports/general-ledger",
@@ -60,7 +61,6 @@ test.describe("404 handling", () => {
 
   test("removed non-MVP routes show not-found page", async ({ page }) => {
     const removedRoutes = [
-      "/products",
       "/forgot-password",
       "/reset-password",
       "/reports/trial-balance",

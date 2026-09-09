@@ -33,7 +33,7 @@ pnpm --filter web cf:dev      # Vite dev (HMR + Worker simulator)
 - Void transaksi dengan jejak audit (status `voided`; laporan hanya membaca
   transaksi `posted`)
 - Idempotency key per form - kirim ulang tidak menduplikasi transaksi
-- Chart of accounts default 14 akun (dibuat saat registrasi); kelola akun
+- Chart of accounts default 16 akun (dibuat saat registrasi); kelola akun
   kas/bank tambahan (buat, rename, aktif/nonaktif)
 - Laporan: laba rugi, neraca (selalu balance), dan buku besar per akun
   dengan saldo berjalan

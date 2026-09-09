@@ -3,8 +3,8 @@
 ## Live API
 
 [openapi.yaml](openapi.yaml) - OpenAPI 3.1 spec covering the **currently
-implemented MVP endpoints** (auth, organizations, accounts, transactions,
-reports, dashboard, exports).
+implemented MVP endpoints** (auth, organizations, accounts, products,
+transactions, reports, dashboard, exports).
 
 ## P1 Roadmap (not implemented)
 
@@ -24,5 +24,6 @@ that do not exist in the codebase yet and are kept as design references only:
 ## General
 
 - [versioning.md](versioning.md) - API versioning policy
-- The pre-MVP full-scope API (products, parties, inventory, team, period
-  locks, etc.) was removed with the cash-only MVP reset; see git history.
+- Inventory & HPP (master produk + moving-average cost) are part of the MVP;
+  the remaining pre-MVP full-scope API (parties, team, period locks, etc.)
+  was removed with the cash-only MVP reset; see git history.

@@ -1,12 +1,13 @@
 import type { TransactionDirection, TransactionType } from "./api/transactions";
 
-// Label user (Bahasa Indonesia) untuk 5 jenis transaksi MVP (PRD TRX-01).
+// Label user (Bahasa Indonesia) untuk 6 jenis transaksi MVP (PRD TRX-01).
 export const TRANSACTION_LABELS: Record<TransactionType, string> = {
   cash_in: "Uang Masuk",
   cash_out: "Uang Keluar",
   transfer: "Transfer",
   owner_deposit: "Modal Masuk",
   owner_withdrawal: "Pengambilan Pemilik",
+  purchase: "Pembelian Barang",
 };
 
 export const TRANSACTION_TYPES: TransactionType[] = [
@@ -15,6 +16,7 @@ export const TRANSACTION_TYPES: TransactionType[] = [
   "transfer",
   "owner_deposit",
   "owner_withdrawal",
+  "purchase",
 ];
 
 export function labelForTransactionType(type?: TransactionType | null): string {
@@ -47,6 +49,8 @@ export function counterAccountLabel(type: TransactionType): string {
       return "Modal Pemilik";
     case "owner_withdrawal":
       return "Pengambilan Pemilik";
+    case "purchase":
+      return "Akun Persediaan";
   }
 }
 
@@ -58,6 +62,7 @@ export function cashAccountLabel(type: TransactionType): string {
       return "Akun Kas/Bank Tujuan";
     case "cash_out":
     case "owner_withdrawal":
+    case "purchase":
       return "Akun Kas/Bank Sumber";
     case "transfer":
       return "Akun Sumber";

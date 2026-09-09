@@ -261,6 +261,79 @@ paths:
           description: System account / account in use cannot be deactivated
         "404":
           description: Account not found
+  /api/products:
+    get:
+      tags: [Products]
+      security: [{ cookieAuth: [] }]
+      summary: List products with stock & average cost (active only by default)
+      parameters:
+        - { name: includeInactive, in: query, schema: { type: string, enum: ["true"] } }
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items: { $ref: "#/components/schemas/Product" }
+    post:
+      tags: [Products]
+      security: [{ cookieAuth: [] }]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, unit]
+              properties:
+                code: { type: string, minLength: 1, maxLength: 40 }
+                name: { type: string, minLength: 1, maxLength: 80 }
+                unit: { type: string, minLength: 1, maxLength: 20 }
+                sellingPriceIdr: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product: { $ref: "#/components/schemas/Product" }
+  /api/products/{productId}:
+    patch:
+      tags: [Products]
+      security: [{ cookieAuth: [] }]
+      summary: Rename, update unit/price, or toggle active state of a product
+      parameters:
+        - { name: productId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                unit: { type: string, minLength: 1, maxLength: 20 }
+                sellingPriceIdr: { type: integer, minimum: 0 }
+                isActive: { type: boolean }
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product: { $ref: "#/components/schemas/Product" }
+        "400":
+          description: Name taken / product in use cannot be deactivated
+        "404":
+          description: Product not found
   /api/transactions:
     get:
       tags: [Transactions]
@@ -296,16 +369,26 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                [transactionType, transactionDate, cashAccountId, counterAccountId, amountIdr, description, idempotencyKey]
+              required: [transactionType, transactionDate, cashAccountId, description, idempotencyKey]
               properties:
                 transactionType: { $ref: "#/components/schemas/TransactionType" }
                 transactionDate: { type: string, format: date, description: "YYYY-MM-DD; future dates (Asia/Jakarta) are rejected" }
                 cashAccountId: { type: string }
-                counterAccountId: { type: string }
-                amountIdr: { type: integer, exclusiveMinimum: 0 }
+                counterAccountId: { type: string, description: "Required for all types except purchase (inventory account is auto-resolved)" }
+                amountIdr: { type: integer, exclusiveMinimum: 0, description: "Required for non-inventory types; for goods sale the total is computed from items" }
                 description: { type: string, minLength: 1, maxLength: 200 }
                 idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
+                items:
+                  type: array
+                  description: "Items for inventory transactions: required for purchase; optional for cash_in (goods sale)"
+                  items:
+                    type: object
+                    required: [productId, quantity]
+                    properties:
+                      productId: { type: string }
+                      quantity: { type: number, exclusiveMinimum: 0, description: "In product units; up to 3 decimals (e.g. 0.5 kg)" }
+                      unitCostIdr: { type: integer, minimum: 0, description: "Purchase price per unit (purchase)" }
+                      unitPriceIdr: { type: integer, minimum: 0, description: "Selling price per unit (goods sale)" }
       responses:
         "200":
           description: Posted transaction
@@ -536,7 +619,7 @@ components:
       enum: [asset, liability, equity, income, expense]
     TransactionType:
       type: string
-      enum: [cash_in, cash_out, transfer, owner_deposit, owner_withdrawal]
+      enum: [cash_in, cash_out, transfer, owner_deposit, owner_withdrawal, purchase]
     TransactionStatus:
       type: string
       enum: [posted, voided]
@@ -571,6 +654,33 @@ components:
         created_at: { type: integer }
         voided_at: { type: [integer, "null"] }
         void_reason: { type: [string, "null"] }
+        items:
+          type: [array, "null"]
+          description: "Product items for inventory transactions; null otherwise"
+          items:
+            type: object
+            properties:
+              product_id: { type: string }
+              product_code: { type: string }
+              product_name: { type: string }
+              quantity: { type: number }
+              quantity_milli: { type: integer }
+              unit_cost_idr: { type: number }
+              cost_total_idr: { type: integer }
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        code: { type: string, example: "PRD-0001" }
+        name: { type: string }
+        unit: { type: string }
+        selling_price_idr: { type: integer }
+        current_stock: { type: number, description: "In product units (up to 3 decimals)" }
+        average_cost_idr: { type: number, description: "Moving-average cost per unit (up to 4 decimals)" }
+        stock_value_idr: { type: integer }
+        is_active: { type: integer, enum: [0, 1] }
+        created_at: { type: integer }
+        updated_at: { type: integer }
     ReportLine:
       type: object
       properties:

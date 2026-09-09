@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Chart, Heart, Home, Logout, Menu, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
+import { Chart, Heart, Home, Logout, Menu, Package, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Beranda", icon: Home },
   { to: "/transactions", label: "Transaksi", icon: Receipt },
   { to: "/accounts", label: "Kas & Bank", icon: Wallet },
+  { to: "/products", label: "Produk", icon: Package },
   {
     label: "Laporan",
     icon: Chart,

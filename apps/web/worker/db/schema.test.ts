@@ -51,6 +51,7 @@ describe("D1 schema contract", () => {
       "transfer",
       "owner_deposit",
       "owner_withdrawal",
+      "purchase",
     ]);
     expect(TRANSACTION_STATUS_VALUES).toEqual(["posted", "voided"]);
   });

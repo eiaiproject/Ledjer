@@ -103,7 +103,7 @@ pnpm exec wrangler d1 migrations list DB --remote --config wrangler.jsonc   # �
 
 - Deploy berjalan otomatis via `.github/workflows/auto-deploy.yml` saat push ke `main`
   (quality → migrations → deploy). Jika reset dilakukan manual lebih dulu, deploy akan aman.
-- Verifikasi post-deploy: `/api/health` 200, register user baru → org + COA terbentuk (14 akun),
+- Verifikasi post-deploy: `/api/health` 200, register user baru → org + COA terbentuk (16 akun),
   login berhasil.
 
 ### 6. Rollback (jika ada masalah)
@@ -119,5 +119,5 @@ pnpm exec wrangler d1 migrations list DB --remote --config wrangler.jsonc   # �
 | Drop semua tabel | ✅ `num_tables: 0` |
 | Apply migrasi MVP fresh | ✅ 0001–0003, `No migrations to apply` |
 | Verifikasi skema | ✅ 12 tabel MVP, semua hitungan 0 |
-| Register user baru (API) | ✅ 200 → 1 user, 1 org, 14 akun COA |
+| Register user baru (API) | ✅ 200 → 1 user, 1 org, 16 akun COA |
 | Full E2E CRUD suite | ✅ **84/84 passed** (~1.7 mnt) |

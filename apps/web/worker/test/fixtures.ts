@@ -33,6 +33,8 @@ export const FIXTURE_IDS = {
   accounts: {
     cashA: "acct-orga-cash-000001",
     bankA: "acct-orga-bank-000001",
+    inventoryA: "acct-orga-inv-000001",
+    cogsA: "acct-orga-cogs-000001",
     equityA: "acct-orga-eq-0000001",
     drawA: "acct-orga-draw-000001",
     revenueA: "acct-orga-rev-0000001",
@@ -40,9 +42,16 @@ export const FIXTURE_IDS = {
     expenseSalaryA: "acct-orga-exp1-000001",
     expenseRentA: "acct-orga-exp2-000001",
     cashB: "acct-orgb-cash-000001",
+    inventoryB: "acct-orgb-inv-000001",
+    cogsB: "acct-orgb-cogs-000001",
     equityB: "acct-orgb-eq-0000001",
     revenueB: "acct-orgb-rev-0000001",
     expenseB: "acct-orgb-exp-0000001",
+  },
+  products: {
+    kopiA: "prod-orga-kopi-00001",
+    gulaA: "prod-orga-gula-00001",
+    kopiB: "prod-orgb-kopi-00001",
   },
   transactions: {
     depositA: "txn-orga-deposit-0001",
@@ -118,10 +127,36 @@ interface SeedAccount {
   name: string;
   account_class: "asset" | "liability" | "equity" | "income" | "expense";
   account_subtype: "cash" | "bank" | null;
+  account_kind: "inventory" | "cogs" | null;
   is_system: number;
   is_active: number;
   created_at: number;
   updated_at: number;
+}
+
+interface SeedProduct {
+  id: string;
+  organization_id: string;
+  code: string;
+  name: string;
+  unit: string;
+  selling_price_idr: number;
+  current_stock_milli: number;
+  average_cost_minor: number;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+}
+
+interface SeedStockMovement {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  product_id: string;
+  quantity_milli: number;
+  unit_cost_minor: number;
+  cost_total_idr: number;
+  created_at: number;
 }
 
 interface SeedTransaction {
@@ -194,18 +229,29 @@ const SEED_SESSIONS: SeedSession[] = [
 ];
 
 const SEED_ACCOUNTS: SeedAccount[] = [
-  { id: FIXTURE_IDS.accounts.cashA, organization_id: FIXTURE_IDS.orgs.a, code: "1110", name: "Kas", account_class: "asset", account_subtype: "cash", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.bankA, organization_id: FIXTURE_IDS.orgs.a, code: "1120", name: "Bank", account_class: "asset", account_subtype: "bank", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.equityA, organization_id: FIXTURE_IDS.orgs.a, code: "3110", name: "Modal Pemilik", account_class: "equity", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.drawA, organization_id: FIXTURE_IDS.orgs.a, code: "3120", name: "Pengambilan Pemilik", account_class: "equity", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.revenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4110", name: "Pendapatan Usaha", account_class: "income", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.otherRevenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4120", name: "Pendapatan Lain", account_class: "income", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.expenseSalaryA, organization_id: FIXTURE_IDS.orgs.a, code: "6110", name: "Beban Gaji & Upah", account_class: "expense", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.expenseRentA, organization_id: FIXTURE_IDS.orgs.a, code: "6120", name: "Beban Sewa", account_class: "expense", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.cashB, organization_id: FIXTURE_IDS.orgs.b, code: "1110", name: "Kas", account_class: "asset", account_subtype: "cash", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.equityB, organization_id: FIXTURE_IDS.orgs.b, code: "3110", name: "Modal Pemilik", account_class: "equity", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.revenueB, organization_id: FIXTURE_IDS.orgs.b, code: "4110", name: "Pendapatan Usaha", account_class: "income", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
-  { id: FIXTURE_IDS.accounts.expenseB, organization_id: FIXTURE_IDS.orgs.b, code: "6110", name: "Beban Gaji & Upah", account_class: "expense", account_subtype: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.cashA, organization_id: FIXTURE_IDS.orgs.a, code: "1110", name: "Kas", account_class: "asset", account_subtype: "cash", account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.bankA, organization_id: FIXTURE_IDS.orgs.a, code: "1120", name: "Bank", account_class: "asset", account_subtype: "bank", account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.inventoryA, organization_id: FIXTURE_IDS.orgs.a, code: "1130", name: "Persediaan", account_class: "asset", account_subtype: null, account_kind: "inventory", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.cogsA, organization_id: FIXTURE_IDS.orgs.a, code: "6190", name: "Harga Pokok Penjualan", account_class: "expense", account_subtype: null, account_kind: "cogs", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.equityA, organization_id: FIXTURE_IDS.orgs.a, code: "3110", name: "Modal Pemilik", account_class: "equity", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.drawA, organization_id: FIXTURE_IDS.orgs.a, code: "3120", name: "Pengambilan Pemilik", account_class: "equity", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.revenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4110", name: "Pendapatan Usaha", account_class: "income", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.otherRevenueA, organization_id: FIXTURE_IDS.orgs.a, code: "4120", name: "Pendapatan Lain", account_class: "income", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.expenseSalaryA, organization_id: FIXTURE_IDS.orgs.a, code: "6110", name: "Beban Gaji & Upah", account_class: "expense", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.expenseRentA, organization_id: FIXTURE_IDS.orgs.a, code: "6120", name: "Beban Sewa", account_class: "expense", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.cashB, organization_id: FIXTURE_IDS.orgs.b, code: "1110", name: "Kas", account_class: "asset", account_subtype: "cash", account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.inventoryB, organization_id: FIXTURE_IDS.orgs.b, code: "1130", name: "Persediaan", account_class: "asset", account_subtype: null, account_kind: "inventory", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.cogsB, organization_id: FIXTURE_IDS.orgs.b, code: "6190", name: "Harga Pokok Penjualan", account_class: "expense", account_subtype: null, account_kind: "cogs", is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.equityB, organization_id: FIXTURE_IDS.orgs.b, code: "3110", name: "Modal Pemilik", account_class: "equity", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.revenueB, organization_id: FIXTURE_IDS.orgs.b, code: "4110", name: "Pendapatan Usaha", account_class: "income", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.accounts.expenseB, organization_id: FIXTURE_IDS.orgs.b, code: "6110", name: "Beban Gaji & Upah", account_class: "expense", account_subtype: null, account_kind: null, is_system: 1, is_active: 1, created_at: NOW, updated_at: NOW },
+];
+
+// Produk di-seed tanpa stok awal; WAC/stok diuji melalui transaksi pembelian.
+const SEED_PRODUCTS: SeedProduct[] = [
+  { id: FIXTURE_IDS.products.kopiA, organization_id: FIXTURE_IDS.orgs.a, code: "PRD-0001", name: "Kopi Bubuk 250g", unit: "bungkus", selling_price_idr: 50000, current_stock_milli: 0, average_cost_minor: 0, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.products.gulaA, organization_id: FIXTURE_IDS.orgs.a, code: "PRD-0002", name: "Gula Pasir 1kg", unit: "kg", selling_price_idr: 18000, current_stock_milli: 0, average_cost_minor: 0, is_active: 1, created_at: NOW, updated_at: NOW },
+  { id: FIXTURE_IDS.products.kopiB, organization_id: FIXTURE_IDS.orgs.b, code: "PRD-0001", name: "Kopi Bubuk 250g", unit: "bungkus", selling_price_idr: 55000, current_stock_milli: 0, average_cost_minor: 0, is_active: 1, created_at: NOW, updated_at: NOW },
 ];
 
 const SEED_TRANSACTIONS: SeedTransaction[] = [
@@ -318,6 +364,8 @@ let journalEntries: SeedJournalEntry[] = [];
 let journalLines: SeedJournalLine[] = [];
 let insertedUsers: SeedUser[] = [];
 let oauthAccounts: SeedOAuthAccount[] = [];
+let products: SeedProduct[] = [];
+let stockMovements: SeedStockMovement[] = [];
 
 function resetRuntime(): void {
   users = SEED_USERS.map((u) => ({ ...u }));
@@ -330,6 +378,8 @@ function resetRuntime(): void {
   journalLines = SEED_JOURNAL_LINES.map((l) => ({ ...l }));
   insertedUsers = [];
   oauthAccounts = [];
+  products = SEED_PRODUCTS.map((p) => ({ ...p }));
+  stockMovements = [];
 }
 
 function findUserByIdOrEmail(value: string): SeedUser | undefined {
@@ -347,6 +397,14 @@ function allAccounts(orgId?: string): SeedAccount[] {
 
 function accountById(orgId: string, accountId: string): SeedAccount | undefined {
   return allAccounts(orgId).find((a) => a.id === accountId);
+}
+
+function allProducts(orgId?: string): SeedProduct[] {
+  return orgId ? products.filter((p) => p.organization_id === orgId) : products;
+}
+
+function productById(orgId: string, productId: string): SeedProduct | undefined {
+  return allProducts(orgId).find((p) => p.id === productId);
 }
 
 function orgTransactions(orgId: string): SeedTransaction[] {
@@ -562,6 +620,13 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
       const account = allAccounts(orgId).find((a) => a.name === name && a.id !== excludeId);
       return account ? { id: account.id } : null;
     }
+    // nextCashBankCode collision check: SELECT id FROM accounts WHERE organization_id = ? AND code = ?
+    if (s.includes("code = ?") && !s.includes("account_kind")) {
+      const orgId = values[0] as string;
+      const code = values[1] as string;
+      const account = allAccounts(orgId).find((a) => a.code === code);
+      return account ? { id: account.id } : null;
+    }
     // MAX(CAST(code AS INTEGER)) - next cash/bank code
     if (s.includes("MAX(CAST(code AS INTEGER))")) {
       const orgId = values[0] as string;
@@ -569,6 +634,15 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
         .filter((a) => a.account_subtype !== null)
         .reduce((max, a) => Math.max(max, Number(a.code)), 0);
       return { max_code: maxCode };
+    }
+    // getAccountByKind: ... WHERE organization_id = ? AND account_kind = ? AND is_active = 1
+    if (s.includes("account_kind = ?")) {
+      const orgId = values[0] as string;
+      const kind = values[1] as "inventory" | "cogs";
+      const account = allAccounts(orgId).find(
+        (a) => a.account_kind === kind && a.is_active === 1,
+      );
+      return account ? { ...account } : null;
     }
     // getAccount: SELECT ... FROM accounts WHERE id = ? AND organization_id = ?
     if (s.includes("WHERE id = ?") && s.includes("organization_id = ?")) {
@@ -578,6 +652,52 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
       return account ? { ...account } : null;
     }
     return null;
+  }
+
+  // Products
+  if (s.includes("FROM products")) {
+    // Name-taken lookups
+    if (s.includes("name = ?")) {
+      const orgId = values[0] as string;
+      const name = values[1] as string;
+      const excludeId = s.includes("id != ?") ? (values[2] as string) : undefined;
+      const product = allProducts(orgId).find((p) => p.name === name && p.id !== excludeId);
+      return product ? { id: product.id } : null;
+    }
+    // nextProductCode: MAX(CAST(SUBSTR(code, 5) AS INTEGER)) ... code LIKE 'PRD-%'
+    if (s.includes("SUBSTR(code, 5)")) {
+      const orgId = values[0] as string;
+      const maxSeq = allProducts(orgId)
+        .filter((p) => p.code.startsWith("PRD-"))
+        .reduce((max, p) => Math.max(max, Number(p.code.slice(4)) || 0), 0);
+      return { max_seq: maxSeq };
+    }
+    // Code collision check: SELECT id FROM products WHERE organization_id = ? AND code = ?
+    if (s.includes("code = ?")) {
+      const orgId = values[0] as string;
+      const code = values[1] as string;
+      const product = allProducts(orgId).find((p) => p.code === code);
+      return product ? { id: product.id } : null;
+    }
+    // getProduct: SELECT ... WHERE id = ? AND organization_id = ?
+    if (s.includes("WHERE id = ?") && s.includes("organization_id = ?")) {
+      const product = allProducts().find(
+        (p) => p.id === values[0] && p.organization_id === values[1],
+      );
+      return product ? { ...product } : null;
+    }
+    return null;
+  }
+
+  // productIsUsed: COUNT(*) FROM stock_movements sm JOIN transactions t ...
+  if (s.includes("COUNT(*)") && s.includes("FROM stock_movements sm")) {
+    const orgId = values[0] as string;
+    const productId = values[1] as string;
+    const count = stockMovements.filter(
+      (m) => m.organization_id === orgId && m.product_id === productId &&
+        transactions.find((t) => t.id === m.transaction_id)?.status === "posted",
+    ).length;
+    return { c: count };
   }
 
   // Count queries (must run before the FROM transactions block, which
@@ -806,6 +926,69 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
     return result;
   }
 
+  // Products list
+  if (s.includes("FROM products") && !s.includes("JOIN")) {
+    const orgId = values[0] as string;
+    let result = allProducts(orgId);
+    if (s.includes("is_active = 1")) result = result.filter((p) => p.is_active === 1);
+    return result.map((p) => ({ ...p }));
+  }
+
+  // Transaction items (getTransaction detail): stock_movements JOIN products
+  if (s.includes("FROM stock_movements sm") && s.includes("JOIN products p") && s.includes("sm.transaction_id = ?")) {
+    const orgId = values[0] as string;
+    const transactionId = values[1] as string;
+    return stockMovements
+      .filter((m) => m.organization_id === orgId && m.transaction_id === transactionId)
+      .map((m) => {
+        const product = productById(orgId, m.product_id);
+        return {
+          product_id: m.product_id,
+          product_code: product?.code ?? "",
+          product_name: product?.name ?? "",
+          quantity_milli: m.quantity_milli,
+          unit_cost_minor: m.unit_cost_minor,
+          cost_total_idr: m.cost_total_idr,
+        };
+      });
+  }
+
+  // Void: SELECT product_id FROM stock_movements WHERE organization_id = ? AND transaction_id = ?
+  if (s.includes("SELECT product_id FROM stock_movements") && s.includes("transaction_id = ?")) {
+    const orgId = values[0] as string;
+    const transactionId = values[1] as string;
+    return stockMovements
+      .filter((m) => m.organization_id === orgId && m.transaction_id === transactionId)
+      .map((m) => ({ product_id: m.product_id }));
+  }
+
+  // movementsForProduct (recalc): stock_movements JOIN transactions, posted only
+  if (s.includes("FROM stock_movements sm") && s.includes("JOIN transactions t") && s.includes("sm.product_id = ?")) {
+    const orgId = values[0] as string;
+    const productId = values[1] as string;
+    return stockMovements
+      .filter(
+        (m) => m.organization_id === orgId && m.product_id === productId &&
+          transactions.find((t) => t.id === m.transaction_id)?.status === "posted",
+      )
+      .map((m) => ({ ...m }));
+  }
+
+  // Dashboard cash flow: SELECT transaction_type, SUM(amount_idr) ... GROUP BY transaction_type
+  if (s.includes("GROUP BY transaction_type") && s.includes("SUM(amount_idr)")) {
+    const orgId = values[0] as string;
+    const fromDate = values[1] as string;
+    const toDate = values[2] as string;
+    const totals = new Map<string, number>();
+    for (const t of transactions.filter(
+      (tx) => tx.organization_id === orgId && tx.status === "posted" &&
+        tx.transaction_date >= fromDate && tx.transaction_date <= toDate,
+    )) {
+      totals.set(t.transaction_type, (totals.get(t.transaction_type) ?? 0) + t.amount_idr);
+    }
+    return [...totals.entries()].map(([transaction_type, total]) => ({ transaction_type, total }));
+  }
+
   return [];
 }
 
@@ -879,32 +1062,20 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
 
   if (s.includes("INSERT INTO accounts")) {
     if (values.length === 10) {
-      // Legacy shape: all columns explicit
+      // createDefaultAccounts (with account_kind): is_active hardcoded as 1
+      // values: id, org, code, name, class, subtype, kind, is_system, created, updated
       accounts.push({
         id: values[0] as string,
         organization_id: values[1] as string,
         code: values[2] as string,
         name: values[3] as string,
         account_class: values[4] as SeedAccount["account_class"],
-        account_subtype: values[5] as "cash" | "bank",
-        is_system: Number(values[6]),
-        is_active: Number(values[7]),
+        account_subtype: values[5] as "cash" | "bank" | null,
+        account_kind: values[6] as "inventory" | "cogs" | null,
+        is_system: Number(values[7]),
+        is_active: 1,
         created_at: Number(values[8]),
         updated_at: Number(values[9]),
-      });
-    } else if (values.length === 9) {
-      // createDefaultAccounts: is_active hardcoded as 1 in SQL
-      accounts.push({
-        id: values[0] as string,
-        organization_id: values[1] as string,
-        code: values[2] as string,
-        name: values[3] as string,
-        account_class: values[4] as SeedAccount["account_class"],
-        account_subtype: values[5] as "cash" | "bank",
-        is_system: Number(values[6]),
-        is_active: 1,
-        created_at: Number(values[7]),
-        updated_at: Number(values[8]),
       });
     } else {
       // createCashBankAccount: 'asset', 0, 1 hardcoded in SQL
@@ -915,12 +1086,79 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
         name: values[3] as string,
         account_class: "asset",
         account_subtype: values[4] as "cash" | "bank",
+        account_kind: null,
         is_system: 0,
         is_active: 1,
         created_at: Number(values[5]),
         updated_at: Number(values[6]),
       });
     }
+  }
+
+  if (s.includes("INSERT INTO products")) {
+    // values: id, org, code, name, unit, selling_price_idr, created, updated
+    products.push({
+      id: values[0] as string,
+      organization_id: values[1] as string,
+      code: values[2] as string,
+      name: values[3] as string,
+      unit: values[4] as string,
+      selling_price_idr: Number(values[5]),
+      current_stock_milli: 0,
+      average_cost_minor: 0,
+      is_active: 1,
+      created_at: Number(values[6]),
+      updated_at: Number(values[7]),
+    });
+  }
+
+  if (s.includes("UPDATE products SET")) {
+    // Guarded stock/WAC shape:
+    //   SET current_stock_milli=?, average_cost_minor=?, updated_at=? WHERE id=? AND organization_id=? AND current_stock_milli=? AND average_cost_minor=?
+    if (s.includes("AND current_stock_milli = ?")) {
+      const product = productById(values[4] as string, values[3] as string);
+      if (product &&
+        product.current_stock_milli === Number(values[5]) &&
+        product.average_cost_minor === Number(values[6])) {
+        product.current_stock_milli = Number(values[0]);
+        product.average_cost_minor = Number(values[1]);
+        product.updated_at = Number(values[2]);
+      }
+    } else if (s.includes("current_stock_milli = ?")) {
+      // recalculateProductCosts shape (no guard):
+      //   SET current_stock_milli=?, average_cost_minor=?, updated_at=? WHERE id=? AND organization_id=?
+      const product = productById(values[4] as string, values[3] as string);
+      if (product) {
+        product.current_stock_milli = Number(values[0]);
+        product.average_cost_minor = Number(values[1]);
+        product.updated_at = Number(values[2]);
+      }
+    } else {
+      // Patch shape: ... updated_at=? WHERE id=? AND organization_id=?
+      const product = productById(values.at(-1) as string, values.at(-2) as string);
+      if (product) {
+        let vi = 0;
+        if (s.includes("name = ?")) product.name = values[vi++] as string;
+        if (s.includes("unit = ?")) product.unit = values[vi++] as string;
+        if (s.includes("selling_price_idr = ?")) product.selling_price_idr = Number(values[vi++]);
+        if (s.includes("is_active = ?")) product.is_active = Number(values[vi++]);
+        product.updated_at = Number(values[vi]);
+      }
+    }
+  }
+
+  if (s.includes("INSERT INTO stock_movements")) {
+    // values: id, org, transaction_id, product_id, quantity_milli, unit_cost_minor, cost_total_idr, created_at
+    stockMovements.push({
+      id: values[0] as string,
+      organization_id: values[1] as string,
+      transaction_id: values[2] as string,
+      product_id: values[3] as string,
+      quantity_milli: Number(values[4]),
+      unit_cost_minor: Number(values[5]),
+      cost_total_idr: Number(values[6]),
+      created_at: Number(values[7]),
+    });
   }
 
   if (s.includes("INSERT INTO organizations")) {

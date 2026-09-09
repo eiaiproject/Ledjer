@@ -5,17 +5,43 @@ import { normalizeDate } from "../http/date";
 import type { TransactionType, TransactionStatus } from "../db/schema";
 import { sha256Hex } from "../auth/tokens";
 import { getAccount, isCashBankAccount, type AccountRow } from "./accounts.service";
+import {
+  cogsFromMilliWac,
+  computeNewWac,
+  costTotalFromMilli,
+  getProduct,
+  idrToMinor,
+  milliToQuantity,
+  minorToIdr,
+  quantityToMilli,
+  recalculateProductCosts,
+  resolveCogsAccount,
+  resolveInventoryAccount,
+  updateProductStockWac,
+} from "./products.service";
 
 export type TransactionDirection = "in" | "out" | "neutral";
+
+/** Satu baris produk dalam transaksi persediaan (beli/jual barang). */
+export interface TransactionItemInput {
+  productId: string;
+  /** Jumlah dalam satuan produk (desimal, maks 3 angka di belakang koma). */
+  quantity: number;
+  /** Harga beli per satuan (wajib untuk `purchase`). */
+  unitCostIdr?: number;
+  /** Harga jual per satuan (wajib untuk penjualan barang via `cash_in`). */
+  unitPriceIdr?: number;
+}
 
 export interface PostTransactionInput {
   transactionType: TransactionType;
   transactionDate: string;
   cashAccountId: string;
-  counterAccountId: string;
-  amountIdr: number;
+  counterAccountId?: string;
+  amountIdr?: number;
   description: string;
   idempotencyKey: string;
+  items?: TransactionItemInput[];
 }
 
 export interface VoidTransactionInput {
@@ -30,6 +56,18 @@ export interface TransactionFilters {
   toDate?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface TransactionItemInfo {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  /** Jumlah dalam satuan produk (desimal). */
+  quantity: number;
+  quantity_milli: number;
+  /** Biaya pokok per satuan (harga beli / HPP). */
+  unit_cost_idr: number;
+  cost_total_idr: number;
 }
 
 export interface PublicTransaction {
@@ -49,6 +87,8 @@ export interface PublicTransaction {
   created_at: number;
   voided_at: number | null;
   void_reason: string | null;
+  /** Item produk untuk transaksi persediaan; null untuk transaksi biasa. */
+  items: TransactionItemInfo[] | null;
 }
 
 export interface PostTransactionResult {
@@ -90,6 +130,7 @@ const TRANSACTION_TYPES = new Set<TransactionType>([
   "transfer",
   "owner_deposit",
   "owner_withdrawal",
+  "purchase",
 ]);
 
 export const TRANSACTION_LABELS: Record<TransactionType, string> = {
@@ -98,6 +139,7 @@ export const TRANSACTION_LABELS: Record<TransactionType, string> = {
   transfer: "Transfer",
   owner_deposit: "Modal Masuk",
   owner_withdrawal: "Pengambilan Pemilik",
+  purchase: "Pembelian Barang",
 };
 
 export function transactionTypeLabel(type: TransactionType): string {
@@ -111,6 +153,7 @@ export function transactionDirection(type: TransactionType): TransactionDirectio
       return "in";
     case "cash_out":
     case "owner_withdrawal":
+    case "purchase":
       return "out";
     case "transfer":
       return "neutral";
@@ -143,6 +186,7 @@ function resolveJournalAccounts(
     case "cash_out":
     case "transfer":
     case "owner_withdrawal":
+    case "purchase":
       return { debitAccount: counterAccount, creditAccount: cashAccount };
   }
 }
@@ -157,13 +201,43 @@ export async function postTransaction(
   const normalizedKey = normalizeIdempotencyKey(input.idempotencyKey);
   const type = normalizeTransactionType(input.transactionType);
   const transactionDate = normalizeDate(input.transactionDate, "transaction_date_invalid");
-  const amountIdr = toIdr(input.amountIdr);
   const description = normalizeRequiredText(input.description, 200, "transaction_description_required");
+  const items = normalizeOptionalItems(input.items);
+
+  // Pembelian barang: jurnal Persediaan DR / Kas CR + pergerakan stok (+ WAC).
+  if (type === "purchase") {
+    return postPurchase(db, organizationId, userId, {
+      transactionDate, description, idempotencyKey: normalizedKey,
+      cashAccountId: input.cashAccountId, items,
+    }, requestId);
+  }
+
+  // Penjualan barang: cash_in dengan items → Kas DR / Pendapatan CR + HPP DR / Persediaan CR.
+  if (items && items.length > 0) {
+    if (type !== "cash_in") {
+      throw badRequest("items_not_allowed", "Item produk hanya untuk pembelian atau penjualan barang.");
+    }
+    return postGoodsSale(db, organizationId, userId, {
+      transactionDate, description, idempotencyKey: normalizedKey,
+      cashAccountId: input.cashAccountId, counterAccountId: input.counterAccountId,
+      amountIdr: input.amountIdr, items,
+    }, requestId);
+  }
+
+  // Transaksi biasa (tanpa persediaan) - perilaku MVP asli.
+  if (input.amountIdr === undefined) {
+    throw badRequest("amount_required", "Nominal wajib diisi.");
+  }
+  const amountIdr = toIdr(input.amountIdr);
+  const counterAccountId = input.counterAccountId;
+  if (!counterAccountId) {
+    throw badRequest("counter_account_required", "Akun lawan harus diisi.");
+  }
   const payloadHash = await idempotencyPayloadHash({
     transactionType: type,
     transactionDate,
     cashAccountId: input.cashAccountId,
-    counterAccountId: input.counterAccountId,
+    counterAccountId,
     amountIdr,
     description,
   });
@@ -174,7 +248,7 @@ export async function postTransaction(
   const current = Date.now();
 
   const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
-  const counterAccount = await getAccount(db, organizationId, input.counterAccountId);
+  const counterAccount = await getAccount(db, organizationId, counterAccountId);
   await validateTransaction(type, cashAccount, counterAccount);
 
   const { debitAccount, creditAccount } = resolveJournalAccounts(type, cashAccount!, counterAccount!);
@@ -241,6 +315,389 @@ export async function postTransaction(
       if (raced) return raced;
     }
     throw err;
+  }
+
+  return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
+}
+
+// ── Persediaan: pembelian & penjualan barang ───────────────────
+
+interface NormalizedPurchaseItem {
+  productId: string;
+  quantityMilli: number;
+  unitCostIdr: number;
+  unitCostMinor: number;
+  costTotalIdr: number;
+}
+
+interface NormalizedSaleItem {
+  productId: string;
+  quantityMilli: number;
+  unitPriceIdr: number;
+  revenueIdr: number;
+  cogsIdr: number;
+  wacMinor: number;
+}
+
+function normalizeOptionalItems(items: TransactionItemInput[] | undefined): TransactionItemInput[] | undefined {
+  if (!items || items.length === 0) return undefined;
+  return items;
+}
+
+function assertUniqueItems(items: TransactionItemInput[]): void {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (!item.productId) throw badRequest("product_required", "Pilih produk.");
+    if (seen.has(item.productId)) {
+      throw badRequest("duplicate_product", "Produk yang sama tidak boleh diisi dua kali.");
+    }
+    seen.add(item.productId);
+  }
+}
+
+async function normalizePurchaseItems(
+  db: D1Database,
+  organizationId: string,
+  items: TransactionItemInput[] | undefined,
+): Promise<NormalizedPurchaseItem[]> {
+  if (!items || items.length === 0) {
+    throw badRequest("items_required", "Minimal satu produk harus diisi.");
+  }
+  assertUniqueItems(items);
+  const result: NormalizedPurchaseItem[] = [];
+  for (const item of items) {
+    const unitCostIdr = item.unitCostIdr;
+    if (unitCostIdr === undefined || !Number.isInteger(unitCostIdr) || unitCostIdr < 0 || unitCostIdr > 999_999_999_999) {
+      throw badRequest("invalid_unit_cost", "Harga beli harus bilangan bulat rupiah tidak negatif.");
+    }
+    const quantityMilli = quantityToMilli(item.quantity);
+    const product = await getProduct(db, organizationId, item.productId);
+    if (!product || product.is_active !== 1) {
+      throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
+    }
+    result.push({
+      productId: item.productId,
+      quantityMilli,
+      unitCostIdr,
+      unitCostMinor: idrToMinor(unitCostIdr),
+      costTotalIdr: costTotalFromMilli(quantityMilli, unitCostIdr),
+    });
+  }
+  return result;
+}
+
+async function normalizeSaleItems(
+  db: D1Database,
+  organizationId: string,
+  items: TransactionItemInput[] | undefined,
+): Promise<NormalizedSaleItem[]> {
+  if (!items || items.length === 0) {
+    throw badRequest("items_required", "Minimal satu produk harus diisi.");
+  }
+  assertUniqueItems(items);
+  const result: NormalizedSaleItem[] = [];
+  for (const item of items) {
+    const unitPriceIdr = item.unitPriceIdr;
+    if (unitPriceIdr === undefined || !Number.isInteger(unitPriceIdr) || unitPriceIdr < 0 || unitPriceIdr > 999_999_999_999) {
+      throw badRequest("invalid_unit_price", "Harga jual harus bilangan bulat rupiah tidak negatif.");
+    }
+    const quantityMilli = quantityToMilli(item.quantity);
+    const product = await getProduct(db, organizationId, item.productId);
+    if (!product || product.is_active !== 1) {
+      throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
+    }
+    if (product.current_stock_milli < quantityMilli) {
+      throw badRequest("insufficient_stock", `Stok ${product.name} tidak mencukupi.`);
+    }
+    result.push({
+      productId: item.productId,
+      quantityMilli,
+      unitPriceIdr,
+      revenueIdr: costTotalFromMilli(quantityMilli, unitPriceIdr),
+      cogsIdr: cogsFromMilliWac(quantityMilli, product.average_cost_minor),
+      wacMinor: product.average_cost_minor,
+    });
+  }
+  return result;
+}
+
+async function postPurchase(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: {
+    transactionDate: string;
+    description: string;
+    idempotencyKey: string;
+    cashAccountId: string;
+    items: TransactionItemInput[] | undefined;
+  },
+  requestId?: string,
+): Promise<PostTransactionResult> {
+  const items = await normalizePurchaseItems(db, organizationId, input.items);
+  const totalCost = items.reduce((s, i) => s + i.costTotalIdr, 0);
+  const payloadHash = await idempotencyPayloadHash({
+    transactionType: "purchase",
+    transactionDate: input.transactionDate,
+    cashAccountId: input.cashAccountId,
+    amountIdr: totalCost,
+    description: input.description,
+    items: items.map((i) => ({ productId: i.productId, quantityMilli: i.quantityMilli, unitCostIdr: i.unitCostIdr })),
+  });
+  const replay = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
+  if (replay) return replay;
+
+  await assertDateNotFuture(input.transactionDate);
+  const current = Date.now();
+
+  const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
+  if (!isCashBankAccount(cashAccount)) {
+    throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
+  }
+  const inventoryAccount = await resolveInventoryAccount(db, organizationId);
+  if (!inventoryAccount) {
+    throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
+  }
+
+  const transactionId = crypto.randomUUID();
+  const journalEntryId = crypto.randomUUID();
+  const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
+
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, organization_id, transaction_number, transaction_type, transaction_date,
+         description, status, amount_idr, cash_account_id, counter_account_id,
+         idempotency_key, created_by, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        transactionId, organizationId, transactionNumber, "purchase", input.transactionDate,
+        input.description, totalCost, cashAccount!.id, inventoryAccount.id,
+        input.idempotencyKey, userId, current, current, payloadHash,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, transaction_id, entry_date, description, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [journalEntryId, organizationId, transactionId, input.transactionDate, input.description, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, journalEntryId, inventoryAccount.id, totalCost, 0, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, journalEntryId, cashAccount!.id, 0, totalCost, current],
+    ),
+    ...items.map((item) => statement(
+      db,
+      `INSERT INTO stock_movements (
+         id, organization_id, transaction_id, product_id, quantity_milli,
+         unit_cost_minor, cost_total_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, transactionId, item.productId, item.quantityMilli, item.unitCostMinor, item.costTotalIdr, current],
+    )),
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "transaction",
+      entityId: transactionId,
+      action: "transaction_created",
+      after: { transaction_type: "purchase", amount_idr: totalCost, transaction_number: transactionNumber, items: items.length },
+      requestId,
+      current,
+    }),
+  ];
+
+  try {
+    await executeBatch(db, statements);
+  } catch (err) {
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+      const raced = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
+      if (raced) return raced;
+    }
+    throw err;
+  }
+
+  for (const item of items) {
+    try {
+      await updateProductStockWac(db, organizationId, item.productId, ({ stockMilli, wacMinor }) => ({
+        stockMilli: stockMilli + item.quantityMilli,
+        wacMinor: computeNewWac(stockMilli, wacMinor, item.quantityMilli, item.unitCostMinor),
+      }));
+    } catch (err) {
+      // Jaring pengaman race: cache stok/WAC disinkronkan dari riwayat yang
+      // sudah ter-commit sebelum error dilempar ke klien.
+      await recalculateProductCosts(db, organizationId, item.productId);
+      throw err;
+    }
+  }
+
+  return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
+}
+
+async function postGoodsSale(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: {
+    transactionDate: string;
+    description: string;
+    idempotencyKey: string;
+    cashAccountId: string;
+    counterAccountId: string | undefined;
+    amountIdr: number | undefined;
+    items: TransactionItemInput[] | undefined;
+  },
+  requestId?: string,
+): Promise<PostTransactionResult> {
+  const items = await normalizeSaleItems(db, organizationId, input.items);
+  // Total pendapatan selalu dihitung dari item (qty × harga jual), bukan
+  // dari amountIdr yang dikirim klien — menghindari selisih pembulatan.
+  const revenue = items.reduce((s, i) => s + i.revenueIdr, 0);
+  const cogsTotal = items.reduce((s, i) => s + i.cogsIdr, 0);
+  if (revenue <= 0) throw badRequest("invalid_amount", "Total penjualan harus lebih dari 0.");
+  const counterAccountId = input.counterAccountId;
+  if (!counterAccountId) {
+    throw badRequest("counter_account_required", "Kategori pendapatan harus diisi.");
+  }
+
+  const payloadHash = await idempotencyPayloadHash({
+    transactionType: "cash_in",
+    transactionDate: input.transactionDate,
+    cashAccountId: input.cashAccountId,
+    counterAccountId,
+    amountIdr: revenue,
+    description: input.description,
+    items: items.map((i) => ({ productId: i.productId, quantityMilli: i.quantityMilli, unitPriceIdr: i.unitPriceIdr })),
+  });
+  const replay = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
+  if (replay) return replay;
+
+  await assertDateNotFuture(input.transactionDate);
+  const current = Date.now();
+
+  const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
+  if (!isCashBankAccount(cashAccount)) {
+    throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
+  }
+  const incomeAccount = await getAccount(db, organizationId, counterAccountId);
+  if (!incomeAccount || incomeAccount.account_class !== "income" || incomeAccount.is_active !== 1) {
+    throw badRequest("counter_account_invalid", "Akun lawan harus akun pendapatan.");
+  }
+  const hppAccount = await resolveCogsAccount(db, organizationId);
+  if (!hppAccount) {
+    throw badRequest("cogs_account_missing", "Akun HPP belum tersedia. Hubungi dukungan.");
+  }
+  const inventoryAccount = await resolveInventoryAccount(db, organizationId);
+  if (!inventoryAccount) {
+    throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
+  }
+
+  const transactionId = crypto.randomUUID();
+  const journalEntryId = crypto.randomUUID();
+  const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
+
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, organization_id, transaction_number, transaction_type, transaction_date,
+         description, status, amount_idr, cash_account_id, counter_account_id,
+         idempotency_key, created_by, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        transactionId, organizationId, transactionNumber, "cash_in", input.transactionDate,
+        input.description, revenue, cashAccount!.id, incomeAccount.id,
+        input.idempotencyKey, userId, current, current, payloadHash,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, organization_id, transaction_id, entry_date, description, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [journalEntryId, organizationId, transactionId, input.transactionDate, input.description, current],
+    ),
+    // Kas DR (pendapatan) / Pendapatan CR
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, journalEntryId, cashAccount!.id, revenue, 0, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, journalEntryId, incomeAccount.id, 0, revenue, current],
+    ),
+    // HPP DR / Persediaan CR
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, journalEntryId, hppAccount.id, cogsTotal, 0, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, journalEntryId, inventoryAccount.id, 0, cogsTotal, current],
+    ),
+    ...items.map((item) => statement(
+      db,
+      `INSERT INTO stock_movements (
+         id, organization_id, transaction_id, product_id, quantity_milli,
+         unit_cost_minor, cost_total_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), organizationId, transactionId, item.productId, -item.quantityMilli, item.wacMinor, item.cogsIdr, current],
+    )),
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "transaction",
+      entityId: transactionId,
+      action: "transaction_created",
+      after: { transaction_type: "cash_in", amount_idr: revenue, transaction_number: transactionNumber, items: items.length, cogs_idr: cogsTotal },
+      requestId,
+      current,
+    }),
+  ];
+
+  try {
+    await executeBatch(db, statements);
+  } catch (err) {
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+      const raced = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
+      if (raced) return raced;
+    }
+    throw err;
+  }
+
+  for (const item of items) {
+    try {
+      await updateProductStockWac(db, organizationId, item.productId, ({ stockMilli, wacMinor }) => ({
+        stockMilli: stockMilli - item.quantityMilli,
+        wacMinor,
+      }));
+    } catch (err) {
+      await recalculateProductCosts(db, organizationId, item.productId);
+      throw err;
+    }
   }
 
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
@@ -352,7 +809,7 @@ export async function listTransactions(
     values,
   );
 
-  return rows.map(toPublicTransaction);
+  return rows.map((row) => toPublicTransaction(row, null));
 }
 
 export async function countTransactions(
@@ -381,7 +838,8 @@ export async function getTransaction(
     [transactionId, organizationId],
   );
   if (!row) throw notFound("transaction_not_found", "Transaksi tidak ditemukan.");
-  return toPublicTransaction(row);
+  const items = await transactionItems(db, organizationId, transactionId);
+  return toPublicTransaction(row, items);
 }
 
 export async function voidTransaction(
@@ -411,6 +869,18 @@ export async function voidTransaction(
      WHERE id = ? AND organization_id = ? AND status = 'posted'`,
     [current, reason, current, transactionId, organizationId],
   );
+
+  // Transaksi persediaan: pulihkan stok & WAC produk dari riwayat posted
+  // (pergerakan transaksi yang dibatalkan otomatis terhapus dari hitungan).
+  const movements = await queryAll<{ product_id: string }>(
+    db,
+    "SELECT product_id FROM stock_movements WHERE organization_id = ? AND transaction_id = ?",
+    [organizationId, transactionId],
+  );
+  const productIds = [...new Set(movements.map((m) => m.product_id))];
+  for (const productId of productIds) {
+    await recalculateProductCosts(db, organizationId, productId);
+  }
 
   await writeAuditStatement(db, {
     organizationId,
@@ -552,15 +1022,17 @@ export async function idempotencyPayloadHash(payload: {
   transactionType: string;
   transactionDate: string;
   cashAccountId: string;
-  counterAccountId: string;
+  counterAccountId?: string;
   amountIdr: number;
   description: string;
+  items?: { productId: string; quantityMilli: number; unitCostIdr?: number; unitPriceIdr?: number }[];
 }): Promise<string> {
   const canonical = JSON.stringify({
     amountIdr: payload.amountIdr,
     cashAccountId: payload.cashAccountId,
-    counterAccountId: payload.counterAccountId,
+    counterAccountId: payload.counterAccountId ?? null,
     description: payload.description,
+    items: payload.items ?? null,
     transactionDate: payload.transactionDate,
     transactionType: payload.transactionType,
   });
@@ -591,7 +1063,10 @@ function transactionSelectSql(): string {
     LEFT JOIN accounts counter ON counter.id = t.counter_account_id`;
 }
 
-function toPublicTransaction(row: TransactionRow): PublicTransaction {
+function toPublicTransaction(
+  row: TransactionRow,
+  items: TransactionItemInfo[] | null,
+): PublicTransaction {
   return {
     id: row.id,
     transaction_number: row.transaction_number,
@@ -609,5 +1084,41 @@ function toPublicTransaction(row: TransactionRow): PublicTransaction {
     created_at: row.created_at,
     voided_at: row.voided_at,
     void_reason: row.void_reason,
+    items,
   };
+}
+
+/** Item produk dari stock_movements transaksi; null bila bukan transaksi persediaan. */
+async function transactionItems(
+  db: D1Database,
+  organizationId: string,
+  transactionId: string,
+): Promise<TransactionItemInfo[] | null> {
+  const rows = await queryAll<{
+    product_id: string;
+    product_code: string;
+    product_name: string;
+    quantity_milli: number;
+    unit_cost_minor: number;
+    cost_total_idr: number;
+  }>(
+    db,
+    `SELECT sm.product_id, p.code AS product_code, p.name AS product_name,
+            sm.quantity_milli, sm.unit_cost_minor, sm.cost_total_idr
+     FROM stock_movements sm
+     JOIN products p ON p.id = sm.product_id
+     WHERE sm.organization_id = ? AND sm.transaction_id = ?
+     ORDER BY sm.created_at ASC, sm.rowid ASC`,
+    [organizationId, transactionId],
+  );
+  if (rows.length === 0) return null;
+  return rows.map((row) => ({
+    product_id: row.product_id,
+    product_code: row.product_code,
+    product_name: row.product_name,
+    quantity: milliToQuantity(row.quantity_milli),
+    quantity_milli: row.quantity_milli,
+    unit_cost_idr: minorToIdr(row.unit_cost_minor),
+    cost_total_idr: row.cost_total_idr,
+  }));
 }

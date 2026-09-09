@@ -6,9 +6,11 @@ export const CORE_TABLES = [
   "sessions",
   "rate_limits",
   "accounts",
+  "products",
   "transactions",
   "journal_entries",
   "journal_lines",
+  "stock_movements",
   "audit_logs",
   "oauth_accounts",
 ] as const;
@@ -16,9 +18,11 @@ export const CORE_TABLES = [
 export const TENANT_SCOPED_TABLES = [
   "memberships",
   "accounts",
+  "products",
   "transactions",
   "journal_entries",
   "journal_lines",
+  "stock_movements",
   "audit_logs",
 ] as const;
 
@@ -35,6 +39,9 @@ export const CORE_INDEXES = [
   "idx_accounts_org_class",
   "idx_accounts_org_active",
   "idx_accounts_org_subtype",
+  "idx_products_org_code",
+  "idx_products_org_name",
+  "idx_products_org_active",
   "idx_transactions_number",
   "idx_transactions_org_idempotency",
   "idx_transactions_org_date",
@@ -46,6 +53,8 @@ export const CORE_INDEXES = [
   "idx_journal_lines_entry",
   "idx_journal_lines_org_account",
   "idx_journal_lines_org_account_date",
+  "idx_stock_movements_transaction",
+  "idx_stock_movements_product",
   "idx_audit_logs_org_created",
   "idx_audit_logs_entity",
 ] as const;
@@ -64,6 +73,7 @@ export const TRANSACTION_TYPE_VALUES = [
   "transfer",
   "owner_deposit",
   "owner_withdrawal",
+  "purchase",
 ] as const;
 export const TRANSACTION_STATUS_VALUES = ["posted", "voided"] as const;
 

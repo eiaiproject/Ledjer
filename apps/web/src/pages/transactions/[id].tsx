@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorState } from "@/components/ui/error-state";
 import { toast } from "@/components/ui/toast";
-import { formatIDR, formatDateLong } from "@/lib/utils";
+import { formatIDR, formatDateLong, formatQuantity } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 import { labelForTransactionType } from "@/lib/transactions";
 import { getStatus } from "@/lib/status-registry";
@@ -110,6 +110,29 @@ export function TransactionDetailPage() {
             ) : null}
           </dl>
         </Card>
+
+        {transaction.items && transaction.items.length > 0 && (
+          <Card elevated title={transaction.transaction_type === "purchase" ? "Barang Dibeli" : "Barang Terjual"}>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-wood-100">
+                {transaction.items.map((item) => (
+                  <li key={item.product_id} className="flex items-center justify-between gap-4 px-5 py-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-text-primary">{item.product_name}</p>
+                      <p className="mt-0.5 text-xs text-text-tertiary">{item.product_code}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="num-mono text-sm font-semibold text-text-primary">{formatIDR(item.cost_total_idr)}</p>
+                      <p className="text-xs text-text-tertiary">
+                        {formatQuantity(item.quantity)} × HPP {formatIDR(Math.round(item.unit_cost_idr))}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
       </>
     );
   }

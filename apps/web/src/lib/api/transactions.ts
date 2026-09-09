@@ -1,8 +1,20 @@
 import { apiRequest } from "./client";
 
-export type TransactionType = "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal";
+export type TransactionType = "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase";
 export type TransactionStatus = "posted" | "voided";
 export type TransactionDirection = "in" | "out" | "neutral";
+
+export interface TransactionItem {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  /** Jumlah dalam satuan produk (desimal). */
+  quantity: number;
+  quantity_milli: number;
+  /** Biaya pokok per satuan (harga beli / HPP). */
+  unit_cost_idr: number;
+  cost_total_idr: number;
+}
 
 export interface Transaction {
   id: string;
@@ -21,6 +33,8 @@ export interface Transaction {
   created_at: number;
   voided_at: number | null;
   void_reason: string | null;
+  /** Item produk untuk transaksi persediaan; null untuk transaksi biasa. */
+  items: TransactionItem[] | null;
 }
 
 export interface TransactionListFilters {
@@ -33,14 +47,25 @@ export interface TransactionListFilters {
   offset?: number;
 }
 
+export interface TransactionItemInput {
+  productId: string;
+  /** Jumlah dalam satuan produk (desimal, maks 3 desimal). */
+  quantity: number;
+  /** Harga beli per satuan (wajib untuk `purchase`). */
+  unitCostIdr?: number;
+  /** Harga jual per satuan (wajib untuk penjualan barang via `cash_in`). */
+  unitPriceIdr?: number;
+}
+
 export interface PostTransactionInput {
   transactionType: TransactionType;
   transactionDate: string;
   cashAccountId: string;
-  counterAccountId: string;
-  amountIdr: number;
+  counterAccountId?: string;
+  amountIdr?: number;
   description: string;
   idempotencyKey: string;
+  items?: TransactionItemInput[];
 }
 
 export interface PostTransactionResult {

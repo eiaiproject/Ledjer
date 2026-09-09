@@ -11,19 +11,21 @@ import {
 import { getStatus } from '@/lib/status-registry';
 
 describe('Transaction Type Labels', () => {
-  it('has labels for all 5 MVP transaction types', () => {
+  it('has labels for all 6 MVP transaction types', () => {
     expect(TRANSACTION_TYPES).toEqual([
       'cash_in',
       'cash_out',
       'transfer',
       'owner_deposit',
       'owner_withdrawal',
+      'purchase',
     ]);
     expect(TRANSACTION_LABELS.cash_in).toBe('Uang Masuk');
     expect(TRANSACTION_LABELS.cash_out).toBe('Uang Keluar');
     expect(TRANSACTION_LABELS.transfer).toBe('Transfer');
     expect(TRANSACTION_LABELS.owner_deposit).toBe('Modal Masuk');
     expect(TRANSACTION_LABELS.owner_withdrawal).toBe('Pengambilan Pemilik');
+    expect(TRANSACTION_LABELS.purchase).toBe('Pembelian Barang');
   });
 
   it('labelForTransactionType falls back gracefully', () => {
@@ -50,6 +52,7 @@ describe('account role labels', () => {
     expect(counterAccountLabel('transfer')).toBe('Akun Tujuan');
     expect(counterAccountLabel('owner_deposit')).toBe('Modal Pemilik');
     expect(counterAccountLabel('owner_withdrawal')).toBe('Pengambilan Pemilik');
+    expect(counterAccountLabel('purchase')).toBe('Akun Persediaan');
   });
 
   it('cashAccountLabel describes the cash/bank account per type', () => {
@@ -58,6 +61,7 @@ describe('account role labels', () => {
     expect(cashAccountLabel('transfer')).toBe('Akun Sumber');
     expect(cashAccountLabel('owner_deposit')).toBe('Akun Kas/Bank Tujuan');
     expect(cashAccountLabel('owner_withdrawal')).toBe('Akun Kas/Bank Sumber');
+    expect(cashAccountLabel('purchase')).toBe('Akun Kas/Bank Sumber');
   });
 });
 

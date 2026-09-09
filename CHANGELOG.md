@@ -5,6 +5,23 @@ All notable changes to Ledjer are documented here.
 ## [Unreleased]
 
 ### Added
+- **HPP & persediaan (inventory)** dengan master produk + moving-average cost:
+  - Migrasi `0006_inventory_hpp.sql`: tabel `products` & `stock_movements`, kolom
+    `accounts.account_kind` (`inventory`/`cogs`), backfill akun Persediaan (1130)
+    & Harga Pokok Penjualan (6190) untuk organisasi lama.
+  - Tipe transaksi baru `purchase` (beli stok): Persediaan DR / Kas CR +
+    pergerakan stok; WAC dihitung ulang otomatis.
+  - Penjualan barang via `cash_in` + items: jurnal ganda Kas DR / Pendapatan CR
+    + HPP DR / Persediaan CR; COGS dari WAC; stok tidak mencukupi ditolak.
+  - Void transaksi persediaan menghitung ulang stok & WAC dari riwayat posted
+    (tanpa reversal movement — aman dari race void ganda).
+  - Halaman "Produk" baru (list, buat, edit, aktif/nonaktifkan) + menu navigasi;
+    form transaksi baru mendukung pembelian & penjualan barang per item;
+    detail transaksi menampilkan rincian item.
+  - Dashboard: uang masuk/keluar dihitung per jenis transaksi sehingga pembelian
+    terhitung sebagai uang keluar dan HPP (beban non-tunai) tidak ikut.
+  - `GET/POST /api/products` + `PATCH /api/products/:id` (permission
+    `products:read`/`products:write`); 22 unit test persediaan/HPP baru.
 - Buku besar (general ledger) MVP: `getGeneralLedger` di `reports.service`
   (running balance per akun, saldo awal ikut terbawa), `GET
   /api/reports/general-ledger`, halaman "Buku Besar" di bawah menu Laporan

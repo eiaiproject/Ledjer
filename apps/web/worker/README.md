@@ -13,9 +13,17 @@ Cloudflare Worker API for Ledjer (MVP cash-only).
 /api/accounts - Chart of accounts list
 /api/accounts/cash-bank - Create a cash/bank account
 /api/accounts/:accountId - Rename / toggle active (PATCH)
+/api/products - Product list (stock & WAC)
+/api/products - Create product
+/api/products/:productId - Rename / price / toggle active (PATCH)
 /api/transactions - List (filters, pagination) + create (idempotent)
-/api/transactions/:transactionId - Detail
+/api/transactions/:transactionId - Detail (incl. product items)
 /api/transactions/:transactionId/void - Void a posted transaction
+
+Inventory flows: `purchase` posts Persediaan DR / Kas CR + stock movement (WAC
+updated); `cash_in` with `items` posts Kas DR / Income CR + HPP DR / Persediaan
+CR (COGS from WAC, stock decremented). Void recalculates stock & WAC from
+posted movements.
 /api/reports/profit-loss - Laba rugi (date range)
 /api/reports/balance-sheet - Neraca (as-of date)
 /api/reports/general-ledger - Buku besar per akun (date range ± account)

@@ -46,8 +46,9 @@ describe("listAccounts", () => {
 describe("nextCashBankCode", () => {
   it("returns the next code after the highest cash/bank account code", async () => {
     const code = await nextCashBankCode(freshDb(), ORG_A);
-    // Org A has 1110 (Kas) and 1120 (Bank) → next = 1130.
-    expect(code).toBe("1130");
+    // Org A has 1110 (Kas) and 1120 (Bank); 1130 is taken by Persediaan,
+    // so the next free cash/bank code is 1140.
+    expect(code).toBe("1140");
   });
 });
 
@@ -58,7 +59,7 @@ describe("createCashBankAccount", () => {
       subtype: "bank",
       name: "BCA 123456",
     });
-    expect(account.code).toBe("1130");
+    expect(account.code).toBe("1140");
     expect(account.account_class).toBe("asset");
     expect(account.account_subtype).toBe("bank");
     expect(account.is_system).toBe(0);

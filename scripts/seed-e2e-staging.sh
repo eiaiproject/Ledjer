@@ -35,7 +35,9 @@ STATUS="$(curl -sS -X POST "$BASE_URL/api/auth/register" \
   -o /tmp/ledjer-seed-register.json -w '%{http_code}')"
 echo "[seed-e2e-staging] register status: $STATUS"
 
-if [[ "$STATUS" != "200" && "$STATUS" != "201" && "$STATUS" != "409" && "$STATUS" != "400" ]]; then
+# email_taken is returned as 403 (forbidden) by the register endpoint, so a
+# repeated seed run is also a success.
+if [[ "$STATUS" != "200" && "$STATUS" != "201" && "$STATUS" != "403" && "$STATUS" != "409" && "$STATUS" != "400" ]]; then
   echo "[seed-e2e-staging] ERROR: register failed with status $STATUS" >&2
   cat /tmp/ledjer-seed-register.json >&2 || true
   exit 1

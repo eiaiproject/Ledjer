@@ -10,6 +10,7 @@ export interface AccountRow {
   name: string;
   account_class: AccountClass;
   account_subtype: "cash" | "bank" | null;
+  account_kind: "inventory" | "cogs" | null;
   is_system: number;
   is_active: number;
   created_at: number;
@@ -26,7 +27,7 @@ export interface ListAccountsOptions {
   subtype?: "cash" | "bank";
 }
 
-const accountColumns = "id, organization_id, code, name, account_class, account_subtype, is_system, is_active, created_at, updated_at";
+const accountColumns = "id, organization_id, code, name, account_class, account_subtype, account_kind, is_system, is_active, created_at, updated_at";
 
 export async function listAccounts(
   db: D1Database,
@@ -75,6 +76,19 @@ export async function getAccount(
 
 export function isCashBankAccount(account: AccountRow | null | undefined): boolean {
   return !!account && account.account_subtype !== null && account.is_active === 1;
+}
+
+/** Akun sistem bertanda (Persediaan/HPP) milik organisasi, aktif. */
+export async function getAccountByKind(
+  db: D1Database,
+  organizationId: string,
+  kind: "inventory" | "cogs",
+): Promise<AccountRow | null> {
+  return queryFirst<AccountRow>(
+    db,
+    `SELECT ${accountColumns} FROM accounts WHERE organization_id = ? AND account_kind = ? AND is_active = 1`,
+    [organizationId, kind],
+  );
 }
 
 /**
@@ -200,8 +214,18 @@ export async function nextCashBankCode(db: D1Database, organizationId: string): 
      WHERE organization_id = ? AND account_subtype IS NOT NULL`,
     [organizationId],
   );
-  const next = (row?.max_code ?? 1110) + 10;
-  return String(next);
+  // Lewati kode yang sudah dipakai akun lain (mis. Persediaan 1130) agar
+  // tidak menabrak UNIQUE(organization_id, code) pada akun kas/bank baru.
+  let next = (row?.max_code ?? 1110) + 10;
+  for (;;) {
+    const existing = await queryFirst<{ id: string }>(
+      db,
+      "SELECT id FROM accounts WHERE organization_id = ? AND code = ?",
+      [organizationId, String(next)],
+    );
+    if (!existing) return String(next);
+    next += 10;
+  }
 }
 
 export async function accountIsUsed(

@@ -14,17 +14,25 @@ import {
   voidTransaction,
 } from "../services/transactions.service";
 
-const transactionTypeSchema = z.enum(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal"]);
+const transactionTypeSchema = z.enum(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase"]);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+const transactionItemSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.number().positive(),
+  unitCostIdr: z.number().int().nonnegative().optional(),
+  unitPriceIdr: z.number().int().nonnegative().optional(),
+});
 
 const postTransactionSchema = z.object({
   transactionType: transactionTypeSchema,
   transactionDate: dateSchema,
   cashAccountId: z.string().min(1),
-  counterAccountId: z.string().min(1),
-  amountIdr: z.number().int().positive(),
+  counterAccountId: z.string().min(1).optional(),
+  amountIdr: z.number().int().positive().optional(),
   description: z.string().min(1).max(200),
   idempotencyKey: z.string().min(8).max(160),
+  items: z.array(transactionItemSchema).optional(),
 });
 
 const voidTransactionSchema = z.object({

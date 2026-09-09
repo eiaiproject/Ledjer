@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0005", () => {
-    const expected = Array.from({ length: 5 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0006", () => {
+    const expected = Array.from({ length: 6 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);
@@ -149,7 +149,7 @@ describe("Database Migrations", () => {
     }
     // Non-MVP tables (PRD §13.11) must not exist
     for (const forbidden of [
-      "products", "stock_movements", "transaction_lines", "parties",
+      "transaction_lines", "parties",
       "invoices", "invoice_lines", "business_documents", "document_lines",
       "notifications", "journal_templates", "manual_journal_entries",
       "period_locks", "import_batches", "import_rows", "export_jobs",
@@ -190,7 +190,7 @@ describe("Database Migrations", () => {
   it("no CREATE TABLE after DROP TABLE for same table", () => {
     const final = buildFinalSchema(migrations);
     // MVP schema starts clean: forbidden tables never appear
-    for (const table of ["products", "invoices", "export_jobs", "account_mappings"]) {
+    for (const table of ["invoices", "export_jobs", "account_mappings"]) {
       expect(final.tables.has(table)).toBe(false);
     }
   });

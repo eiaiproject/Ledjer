@@ -26,6 +26,11 @@ export const queryKeys = {
     all: (orgId: string) => ["accounts", orgId] as const,
   },
 
+  products: {
+    all: (orgId: string | undefined) => ["products", orgId] as const,
+    allProducts: () => ["products"] as const,
+  },
+
   transactions: {
     all: () => ["transactions"] as const,
     list: (orgId: string | undefined, ...filters: unknown[]) =>
@@ -41,6 +46,7 @@ export function invalidateTransactionFinancialCaches(qc: QueryClient, orgId = ""
     queryKeys.transactions.all(),
     queryKeys.allDashboard(),
     queryKeys.accounts.all(orgId),
+    queryKeys.products.allProducts(),
     queryKeys.reports.allProfitLoss(),
     queryKeys.reports.allBalanceSheet(),
     queryKeys.reports.allGeneralLedger(),
