@@ -94,7 +94,9 @@ export function cogsFromMilliWac(qtyMilli: number, wacMinor: number): number {
   return Number((BigInt(qtyMilli) * BigInt(wacMinor) + 5_000_000n) / 10_000_000n);
 }
 
-/** WAC baru setelah pembelian: (stok×wac + qty×harga) / stok baru. BigInt. */
+/** WAC baru setelah pembelian: (stok×wac + qty×harga) / stok baru.
+ *  BigInt dengan half-up rounding agar sisa pecahan tidak bias ke bawah
+ *  dan terakumulasi (truncation drift) di ribuan pembelian. */
 export function computeNewWac(
   stockMilli: number,
   wacMinor: number,
@@ -104,7 +106,7 @@ export function computeNewWac(
   const newStock = BigInt(stockMilli) + BigInt(qtyMilli);
   if (newStock <= 0n) return 0;
   return Number(
-    (BigInt(stockMilli) * BigInt(wacMinor) + BigInt(qtyMilli) * BigInt(unitCostMinor)) / newStock,
+    (BigInt(stockMilli) * BigInt(wacMinor) + BigInt(qtyMilli) * BigInt(unitCostMinor) + newStock / 2n) / newStock,
   );
 }
 
@@ -335,7 +337,9 @@ export function summarizeMovements(
     const qty = BigInt(m.quantity_milli);
     if (qty > 0n) {
       const newStock = stock + qty;
-      wac = (stock * wac + qty * BigInt(m.unit_cost_minor)) / newStock;
+      // Half-up seperti computeNewWac: live path dan recalculate/void path
+      // harus identik agar tak ada skew cache-vs-riwayat.
+      wac = (stock * wac + qty * BigInt(m.unit_cost_minor) + newStock / 2n) / newStock;
       stock = newStock;
     } else {
       stock += qty; // penjualan: stok berkurang, WAC tidak berubah

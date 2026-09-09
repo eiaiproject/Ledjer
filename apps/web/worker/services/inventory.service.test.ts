@@ -4,6 +4,7 @@ import type { FakeD1Statement } from "../test/fake-d1";
 import type { D1Database } from "@cloudflare/workers-types";
 import { HttpError } from "../http/errors";
 import {
+  computeNewWac,
   createProduct,
   getProduct,
   listProducts,
@@ -12,6 +13,7 @@ import {
   recalculateProductCosts,
   resolveCogsAccount,
   resolveInventoryAccount,
+  summarizeMovements,
 } from "./products.service";
 import {
   getTransaction,
@@ -619,5 +621,32 @@ describe("atomic void (split-transaction guard)", () => {
     const kopi = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
     expect(kopi?.current_stock_milli).toBe(0);
     expect(kopi?.average_cost_minor).toBe(0);
+  });
+});
+
+describe("WAC half-up rounding (anti truncation-drift)", () => {
+  // 200000001000 / 2000 = 100000000.5 tepat: truncate -> 100000000 (bias
+  // monoton ke bawah), half-up -> 100000001.
+  it("computeNewWac rounds half-up instead of truncating", () => {
+    expect(computeNewWac(1000, 100000001, 1000, 100000000)).toBe(100000001);
+  });
+
+  it("summarizeMovements matches live path (no live/recalc skew)", () => {
+    const result = summarizeMovements([
+      { quantity_milli: 1000, unit_cost_minor: 100000001 },
+      { quantity_milli: 1000, unit_cost_minor: 100000000 },
+    ]);
+    expect(result.current_stock_milli).toBe(2000);
+    expect(result.average_cost_minor).toBe(100000001);
+  });
+
+  it("keeps exact averages exact (no off-by-one on clean divisions)", () => {
+    expect(computeNewWac(4000, 10000 * 10000, 4000, 20000 * 10000)).toBe(15000 * 10000);
+    expect(
+      summarizeMovements([
+        { quantity_milli: 4000, unit_cost_minor: 10000 * 10000 },
+        { quantity_milli: 4000, unit_cost_minor: 20000 * 10000 },
+      ]).average_cost_minor,
+    ).toBe(15000 * 10000);
   });
 });
