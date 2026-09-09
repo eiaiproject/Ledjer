@@ -323,16 +323,12 @@ export async function movementsForProduct(
 }
 
 /**
- * Hitung ulang stok & WAC produk dari riwayat pergerakan (transaksi posted),
- * lalu tulis ke kolom cache. Dipakai saat void (pergerakan yang dibatalkan
- * otomatis terhapus dari hitungan) dan sebagai alat perbaikan.
+ * Hitung stok & WAC dari riwayat pergerakan (murni, tanpa I/O): pembelian
+ * menambah stok dengan moving-average, penjualan hanya mengurangi stok.
  */
-export async function recalculateProductCosts(
-  db: D1Database,
-  organizationId: string,
-  productId: string,
-): Promise<{ current_stock_milli: number; average_cost_minor: number }> {
-  const movements = await movementsForProduct(db, organizationId, productId);
+export function summarizeMovements(
+  movements: Pick<StockMovementRow, "quantity_milli" | "unit_cost_minor">[],
+): { current_stock_milli: number; average_cost_minor: number } {
   let stock = 0n;
   let wac = 0n;
   for (const m of movements) {
@@ -345,8 +341,21 @@ export async function recalculateProductCosts(
       stock += qty; // penjualan: stok berkurang, WAC tidak berubah
     }
   }
-  const current_stock_milli = Number(stock);
-  const average_cost_minor = Number(wac);
+  return { current_stock_milli: Number(stock), average_cost_minor: Number(wac) };
+}
+
+/**
+ * Hitung ulang stok & WAC produk dari riwayat pergerakan (transaksi posted),
+ * lalu tulis ke kolom cache. Dipakai saat void (pergerakan yang dibatalkan
+ * otomatis terhapus dari hitungan) dan sebagai alat perbaikan.
+ */
+export async function recalculateProductCosts(
+  db: D1Database,
+  organizationId: string,
+  productId: string,
+): Promise<{ current_stock_milli: number; average_cost_minor: number }> {
+  const movements = await movementsForProduct(db, organizationId, productId);
+  const { current_stock_milli, average_cost_minor } = summarizeMovements(movements);
   await execute(
     db,
     `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?

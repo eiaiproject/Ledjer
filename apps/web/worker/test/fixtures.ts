@@ -1117,12 +1117,28 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
     //   SET current_stock_milli=?, average_cost_minor=?, updated_at=? WHERE id=? AND organization_id=? AND current_stock_milli=? AND average_cost_minor=?
     if (s.includes("AND current_stock_milli = ?")) {
       const product = productById(values[4] as string, values[3] as string);
-      if (product?.current_stock_milli === Number(values[5]) &&
-        product?.average_cost_minor === Number(values[6])) {
+      const matched = product?.current_stock_milli === Number(values[5]) &&
+        product?.average_cost_minor === Number(values[6]);
+      if (matched && product) {
         product.current_stock_milli = Number(values[0]);
         product.average_cost_minor = Number(values[1]);
         product.updated_at = Number(values[2]);
       }
+      // Jujur seperti D1 asli: guard meleset -> changes 0 agar retry
+      // optimistic-locking produksi bisa diuji lewat fake ini.
+      return {
+        success: true,
+        results: [],
+        meta: {
+          duration: 0,
+          size_after: 0,
+          rows_read: 0,
+          rows_written: matched ? 1 : 0,
+          last_row_id: 0,
+          changed_db: true,
+          changes: matched ? 1 : 0,
+        },
+      };
     } else if (s.includes("current_stock_milli = ?")) {
       // recalculateProductCosts shape (no guard):
       //   SET current_stock_milli=?, average_cost_minor=?, updated_at=? WHERE id=? AND organization_id=?
