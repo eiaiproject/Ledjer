@@ -421,6 +421,50 @@ async function normalizeSaleItems(
   return result;
 }
 
+type StockWac = { stockMilli: number; wacMinor: number };
+
+/**
+ * Commit bersama transaksi inventory (beli/jual barang): eksekusi batch
+ * statement, lalu terapkan pergerakan stok per item. Menangani
+ * idempotency-race dan menyinkronkan ulang cache stok/WAC dari riwayat
+ * ter-commit bila update stok gagal.
+ *
+ * Mengembalikan hasil replay saat request ini duplikat, atau null bila
+ * commit berjalan dan pemanggil harus mengembalikan respons posted.
+ */
+async function commitInventoryTransaction<T extends { productId: string; quantityMilli: number }>(
+  db: D1Database,
+  organizationId: string,
+  idempotencyKey: string,
+  payloadHash: string,
+  statements: D1PreparedStatement[],
+  items: T[],
+  applyStock: (item: T) => (current: StockWac) => StockWac,
+): Promise<PostTransactionResult | null> {
+  try {
+    await executeBatch(db, statements);
+  } catch (err) {
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+      const raced = await replayIfKeyAlreadyUsed(db, organizationId, idempotencyKey, payloadHash);
+      if (raced) return raced;
+    }
+    throw err;
+  }
+
+  for (const item of items) {
+    try {
+      await updateProductStockWac(db, organizationId, item.productId, applyStock(item));
+    } catch (err) {
+      // Jaring pengaman race: cache stok/WAC disinkronkan dari riwayat yang
+      // sudah ter-commit sebelum error dilempar ke klien.
+      await recalculateProductCosts(db, organizationId, item.productId);
+      throw err;
+    }
+  }
+
+  return null;
+}
+
 async function postPurchase(
   db: D1Database,
   organizationId: string,
@@ -518,29 +562,19 @@ async function postPurchase(
     }),
   ];
 
-  try {
-    await executeBatch(db, statements);
-  } catch (err) {
-    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
-      const raced = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
-      if (raced) return raced;
-    }
-    throw err;
-  }
-
-  for (const item of items) {
-    try {
-      await updateProductStockWac(db, organizationId, item.productId, ({ stockMilli, wacMinor }) => ({
-        stockMilli: stockMilli + item.quantityMilli,
-        wacMinor: computeNewWac(stockMilli, wacMinor, item.quantityMilli, item.unitCostMinor),
-      }));
-    } catch (err) {
-      // Jaring pengaman race: cache stok/WAC disinkronkan dari riwayat yang
-      // sudah ter-commit sebelum error dilempar ke klien.
-      await recalculateProductCosts(db, organizationId, item.productId);
-      throw err;
-    }
-  }
+  const committedPurchase = await commitInventoryTransaction(
+    db,
+    organizationId,
+    input.idempotencyKey,
+    payloadHash,
+    statements,
+    items,
+    (item) => ({ stockMilli, wacMinor }) => ({
+      stockMilli: stockMilli + item.quantityMilli,
+      wacMinor: computeNewWac(stockMilli, wacMinor, item.quantityMilli, item.unitCostMinor),
+    }),
+  );
+  if (committedPurchase) return committedPurchase;
 
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
 }
@@ -693,27 +727,19 @@ async function postGoodsSale(
     }),
   ];
 
-  try {
-    await executeBatch(db, statements);
-  } catch (err) {
-    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
-      const raced = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
-      if (raced) return raced;
-    }
-    throw err;
-  }
-
-  for (const item of items) {
-    try {
-      await updateProductStockWac(db, organizationId, item.productId, ({ stockMilli, wacMinor }) => ({
-        stockMilli: stockMilli - item.quantityMilli,
-        wacMinor,
-      }));
-    } catch (err) {
-      await recalculateProductCosts(db, organizationId, item.productId);
-      throw err;
-    }
-  }
+  const committedSale = await commitInventoryTransaction(
+    db,
+    organizationId,
+    input.idempotencyKey,
+    payloadHash,
+    statements,
+    items,
+    (item) => ({ stockMilli, wacMinor }) => ({
+      stockMilli: stockMilli - item.quantityMilli,
+      wacMinor,
+    }),
+  );
+  if (committedSale) return committedSale;
 
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
 }
