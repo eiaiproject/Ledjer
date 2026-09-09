@@ -32,6 +32,12 @@ const transactionSchema = z.object({
 
 type TransactionForm = z.infer<typeof transactionSchema>;
 
+/** Label harga per baris produk: hanya baris pertama berlabel, ikut jenis transaksi. */
+function unitPriceRowLabel(index: number, isPurchase: boolean): string | undefined {
+  if (index !== 0) return undefined;
+  return isPurchase ? "Harga Beli (Rp)" : "Harga Jual (Rp)";
+}
+
 interface FormItem {
   key: string;
   productId: string;
@@ -377,7 +383,7 @@ export function NewTransactionPage() {
                             error={!stockOk ? "Melebihi stok" : undefined}
                           />
                           <Input
-                            label={index === 0 ? (isPurchase ? "Harga Beli (Rp)" : "Harga Jual (Rp)") : undefined}
+                            label={unitPriceRowLabel(index, isPurchase)}
                             isCurrency
                             inputMode="numeric"
                             placeholder="0"

@@ -372,7 +372,7 @@ async function normalizePurchaseItems(
     }
     const quantityMilli = quantityToMilli(item.quantity);
     const product = await getProduct(db, organizationId, item.productId);
-    if (!product || product.is_active !== 1) {
+    if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
     result.push({
@@ -403,7 +403,7 @@ async function normalizeSaleItems(
     }
     const quantityMilli = quantityToMilli(item.quantity);
     const product = await getProduct(db, organizationId, item.productId);
-    if (!product || product.is_active !== 1) {
+    if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
     if (product.current_stock_milli < quantityMilli) {
@@ -545,6 +545,32 @@ async function postPurchase(
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
 }
 
+/** Validasi + resolve 4 akun yang dipakai penjualan barang (kas, pendapatan, HPP, persediaan). */
+async function resolveSaleAccounts(
+  db: D1Database,
+  organizationId: string,
+  cashAccountId: string,
+  counterAccountId: string,
+): Promise<{ cashAccount: AccountRow; incomeAccount: AccountRow; hppAccount: AccountRow; inventoryAccount: AccountRow }> {
+  const cashAccount = await getAccount(db, organizationId, cashAccountId);
+  if (!isCashBankAccount(cashAccount)) {
+    throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
+  }
+  const incomeAccount = await getAccount(db, organizationId, counterAccountId);
+  if (incomeAccount?.account_class !== "income" || incomeAccount?.is_active !== 1) {
+    throw badRequest("counter_account_invalid", "Akun lawan harus akun pendapatan.");
+  }
+  const hppAccount = await resolveCogsAccount(db, organizationId);
+  if (!hppAccount) {
+    throw badRequest("cogs_account_missing", "Akun HPP belum tersedia. Hubungi dukungan.");
+  }
+  const inventoryAccount = await resolveInventoryAccount(db, organizationId);
+  if (!inventoryAccount) {
+    throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
+  }
+  return { cashAccount: cashAccount!, incomeAccount, hppAccount, inventoryAccount };
+}
+
 async function postGoodsSale(
   db: D1Database,
   organizationId: string,
@@ -586,23 +612,12 @@ async function postGoodsSale(
   await assertDateNotFuture(input.transactionDate);
   const current = Date.now();
 
-  const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
-  if (!isCashBankAccount(cashAccount)) {
-    throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
-  }
-  const incomeAccount = await getAccount(db, organizationId, counterAccountId);
-  if (!incomeAccount || incomeAccount.account_class !== "income" || incomeAccount.is_active !== 1) {
-    throw badRequest("counter_account_invalid", "Akun lawan harus akun pendapatan.");
-  }
-  const hppAccount = await resolveCogsAccount(db, organizationId);
-  if (!hppAccount) {
-    throw badRequest("cogs_account_missing", "Akun HPP belum tersedia. Hubungi dukungan.");
-  }
-  const inventoryAccount = await resolveInventoryAccount(db, organizationId);
-  if (!inventoryAccount) {
-    throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
-  }
-
+  const { cashAccount, incomeAccount, hppAccount, inventoryAccount } = await resolveSaleAccounts(
+    db,
+    organizationId,
+    input.cashAccountId,
+    counterAccountId,
+  );
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
   const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
