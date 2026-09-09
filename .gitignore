@@ -63,6 +63,7 @@ apps/web/test-results/
 LEDJER_MASTER_REMEDIATION_PROMPT.md
 AUDIT-AND-REMEDIATION.md
 *.remediation.md
+master-prompt-staging-release-readiness.md
 
 # Personal worklog
 worklog.md
