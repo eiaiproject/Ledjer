@@ -59,6 +59,7 @@ let authedRoutes = [
   { path: "/transactions", slug: "transactions-list" },
   { path: "/transactions/new", slug: "transactions-new" },
   { path: "/accounts", slug: "accounts" },
+  { path: "/products", slug: "products" },
   { path: "/reports/profit-loss", slug: "report-profit-loss" },
   { path: "/reports/balance-sheet", slug: "report-balance-sheet" },
   { path: "/reports/general-ledger", slug: "report-general-ledger" },
