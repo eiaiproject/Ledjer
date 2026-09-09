@@ -854,6 +854,8 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
       transaction_id: string;
       transaction_number: string;
       description: string;
+      status: "posted" | "voided";
+      void_reason: string | null;
       debit_idr: number;
       credit_idr: number;
     }
@@ -861,7 +863,8 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
     for (const line of journalLines.filter((l) => l.organization_id === orgId)) {
       const entry = journalEntries.find((e) => e.id === line.journal_entry_id);
       const txn = entry ? transactions.find((t) => t.id === entry.transaction_id) : null;
-      if (txn?.status !== "posted") continue;
+      // Cermin WHERE SQL: baris void tampil sebagai jejak audit.
+      if (txn?.status !== "posted" && txn?.status !== "voided") continue;
       if (txn.transaction_date > toDate) continue;
       if (accountId && line.account_id !== accountId) continue;
       const account = allAccounts(orgId).find((a) => a.id === line.account_id);
@@ -876,6 +879,8 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
         transaction_id: txn.id,
         transaction_number: txn.transaction_number,
         description: txn.description,
+        status: txn.status as "posted" | "voided",
+        void_reason: txn.void_reason,
         debit_idr: line.debit_idr,
         credit_idr: line.credit_idr,
       });
@@ -903,9 +908,12 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
       let running = 0;
       for (const line of list) {
         const debitNormal = line.account_class === "asset" || line.account_class === "expense";
-        running += debitNormal
-          ? line.debit_idr - line.credit_idr
-          : line.credit_idr - line.debit_idr;
+        // Cermin CASE SQL: baris void berkontribusi nol ke saldo berjalan.
+        if (line.status !== "voided") {
+          running += debitNormal
+            ? line.debit_idr - line.credit_idr
+            : line.credit_idr - line.debit_idr;
+        }
         if (line.entry_date < fromDate) continue;
         result.push({
           account_id: line.account_id,
@@ -916,6 +924,8 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
           transaction_id: line.transaction_id,
           transaction_number: line.transaction_number,
           description: line.description,
+          entry_status: line.status,
+          void_reason: line.void_reason,
           // SQL output aliases (debit/credit), not source column names.
           debit: line.debit_idr,
           credit: line.credit_idr,

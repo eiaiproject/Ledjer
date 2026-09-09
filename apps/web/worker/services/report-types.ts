@@ -40,6 +40,10 @@ export interface GeneralLedgerEntry {
   transaction_id: string;
   transaction_number: string;
   description: string;
+  /** Status transaksi sumber: voided tampil sebagai jejak audit (nol ke saldo). */
+  status: "posted" | "voided";
+  /** Alasan pembatalan (hanya untuk baris voided). */
+  void_reason: string | null;
   debit_idr: number;
   credit_idr: number;
   /** Saldo berjalan dalam arah normal akun (debit-normal vs credit-normal). */

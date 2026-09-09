@@ -173,6 +173,8 @@ interface GeneralLedgerRow {
   transaction_id: string;
   transaction_number: string;
   description: string;
+  entry_status: "posted" | "voided";
+  void_reason: string | null;
   debit: number;
   credit: number;
   running_balance_idr: number;
@@ -223,9 +225,14 @@ export async function getGeneralLedger(
          t.id AS transaction_id,
          t.transaction_number,
          t.description,
+         t.status AS entry_status,
+         t.void_reason,
          jl.debit_idr AS debit,
          jl.credit_idr AS credit,
          CASE
+           -- Baris void tampil sebagai jejak audit tetapi berkontribusi nol
+           -- sehingga saldo berjalan identik dengan versi posted-only.
+           WHEN t.status = 'voided' THEN 0
            WHEN a.account_class IN ('asset', 'expense')
              THEN jl.debit_idr - jl.credit_idr
            ELSE jl.credit_idr - jl.debit_idr
@@ -235,7 +242,7 @@ export async function getGeneralLedger(
        JOIN transactions t ON t.id = je.transaction_id AND t.organization_id = jl.organization_id
        JOIN accounts a ON a.id = jl.account_id AND a.organization_id = jl.organization_id
        WHERE jl.organization_id = ?
-         AND t.status = 'posted'
+         AND t.status IN ('posted', 'voided')
          AND t.transaction_date <= ?
          ${accountFilter}
      ),
@@ -280,6 +287,8 @@ export async function getGeneralLedger(
       transaction_id: row.transaction_id,
       transaction_number: row.transaction_number,
       description: row.description,
+      status: row.entry_status,
+      void_reason: row.void_reason,
       debit_idr: row.debit,
       credit_idr: row.credit,
       running_balance_idr: row.running_balance_idr,

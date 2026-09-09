@@ -113,16 +113,26 @@ describe("getGeneralLedger", () => {
     expect(rent?.running_balance_idr).toBe(1200000);
   });
 
-  it("excludes voided transactions", async () => {
+  it("shows voided lines marked as void without moving running balances", async () => {
     const report = await getGeneralLedger(freshDb(), ORG_A, {
       fromDate: "2026-07-01",
       toDate: "2026-07-31",
     });
-    // July: only cash_in 800rb (voided 100rb cash_out must not appear).
-    expect(report.entries).toHaveLength(2);
-    for (const entry of report.entries) {
-      expect(entry.transaction_number).not.toBe("TRX-20260705-LM12");
+    // Juli: cash_in 800rb (2 baris) + cash_out void 100rb (2 baris bertanda).
+    expect(report.entries).toHaveLength(4);
+    const voided = report.entries.filter(
+      (e) => e.transaction_number === "TRX-20260705-LM12",
+    );
+    expect(voided).toHaveLength(2);
+    for (const entry of voided) {
+      expect(entry.status).toBe("voided");
+      expect(entry.void_reason).toBe("Salah input");
     }
+    // Nilai jurnal void tetap terbaca (jejak audit), tetapi saldo berjalan
+    // melewatinya: Kas Juli berakhir 5.300.000 + 800.000 = 6.100.000.
+    expect(voided[0].debit_idr + voided[0].credit_idr).toBeGreaterThan(0);
+    const kas = report.entries.filter((e) => e.account_code === "1110");
+    expect(kas.at(-1)!.running_balance_idr).toBe(6100000);
   });
 
   it("filters by account and carries the opening balance into the range", async () => {
