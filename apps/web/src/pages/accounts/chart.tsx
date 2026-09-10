@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "reicon-react";
+import { ArrowLeft, ChevronDown, Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import {
   createAccount,
@@ -20,6 +21,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
 type AccountClass = Account["account_class"];
 
@@ -42,6 +44,8 @@ export function ChartOfAccountsPage() {
   const [accountClass, setAccountClass] = useState<CreatableAccountClass>("expense");
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
+  const [collapsed, setCollapsed] = useState<ReadonlySet<AccountClass>>(new Set());
 
   const query = useQuery({
     queryKey: queryKeys.accounts.fullList(orgId ?? ""),
@@ -53,8 +57,16 @@ export function ChartOfAccountsPage() {
   });
 
   const groups = useMemo(() => {
+    const needle = search.trim().toLowerCase();
     const byClass = new Map<AccountClass, Account[]>();
     for (const account of query.data ?? []) {
+      if (
+        needle !== "" &&
+        !account.name.toLowerCase().includes(needle) &&
+        !account.code.toLowerCase().includes(needle)
+      ) {
+        continue;
+      }
       const list = byClass.get(account.account_class) ?? [];
       list.push(account);
       byClass.set(account.account_class, list);
@@ -64,7 +76,16 @@ export function ChartOfAccountsPage() {
       label: CLASS_LABELS[c],
       accounts: (byClass.get(c) ?? []).sort((a, b) => a.code.localeCompare(b.code)),
     }));
-  }, [query.data]);
+  }, [query.data, search]);
+
+  const toggleGroup = (c: AccountClass) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+  };
 
   const handleCreate = async () => {
     if (creating) return;
@@ -89,14 +110,30 @@ export function ChartOfAccountsPage() {
 
   return (
     <div className="space-y-4">
+      <Link
+        to="/accounts"
+        aria-label="Kembali ke Kas & Bank"
+        className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-wood-700 hover:text-wood-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Kas & Bank
+      </Link>
       <PageHeader
         title="Bagan Akun"
         description="Seluruh akun pembukuan per klasifikasi. Akun sistem bawaan tidak dapat diubah."
       />
-      <Button onClick={() => setCreateOpen(true)} fullWidth className="sm:w-auto">
-        <Plus className="h-4 w-4" />
-        Tambah Akun
-      </Button>
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+        <Input
+          label="Cari akun"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Nama atau kode akun"
+        />
+        <Button onClick={() => setCreateOpen(true)} fullWidth className="sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Tambah Akun
+        </Button>
+      </div>
 
       {query.isError ? (
         <ErrorState
@@ -110,14 +147,34 @@ export function ChartOfAccountsPage() {
           description="Akun bawaan dibuat otomatis saat organisasi dibuat."
         />
       ) : (
-        groups.map((group) => (
-          <Card elevated key={group.class} title={group.label}>
-            <CardContent className="p-0">
+        groups.map((group) => {
+          const folded = collapsed.has(group.class);
+          return (
+          <Card elevated key={group.class}>
+            <button
+              type="button"
+              onClick={() => toggleGroup(group.class)}
+              aria-expanded={!folded}
+              aria-label={`${group.label}, ${group.accounts.length} akun`}
+              className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
+            >
+              <span className="text-base font-semibold text-text-primary">
+                {group.label}
+                <span className="ml-2 text-sm font-normal text-text-tertiary">
+                  {group.accounts.length}
+                </span>
+              </span>
+              <ChevronDown
+                className={cn("h-4 w-4 shrink-0 text-wood-500 transition-transform", folded && "-rotate-90")}
+              />
+            </button>
+            {!folded && (
+            <CardContent className="border-t border-wood-100 p-0">
               <ul className="divide-y divide-wood-100">
                 {group.accounts.map((account) => (
                   <li
                     key={account.id}
-                    className="flex items-center justify-between gap-4 px-5 py-3"
+                    className="flex items-center justify-between gap-4 px-5 py-2.5"
                   >
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
@@ -143,8 +200,10 @@ export function ChartOfAccountsPage() {
                 ))}
               </ul>
             </CardContent>
+            )}
           </Card>
-        ))
+          );
+        })
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tambah Akun" size="sm">

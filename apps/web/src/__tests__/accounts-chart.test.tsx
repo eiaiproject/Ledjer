@@ -53,6 +53,35 @@ function renderPage() {
 }
 
 describe('ChartOfAccountsPage', () => {
+  it('tombol kembali ke Kas & Bank', async () => {
+    listAccounts.mockResolvedValue(accounts);
+    renderPage();
+
+    expect(await screen.findByText('Aset')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /kembali.*kas.*bank/i })).toHaveAttribute('href', '/accounts');
+  });
+
+  it('pencarian memfilter akun', async () => {
+    listAccounts.mockResolvedValue(accounts);
+    renderPage();
+
+    expect(await screen.findByText('4110')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/cari akun/i), { target: { value: 'sewa' } });
+    await waitFor(() => {
+      expect(screen.queryByText('4110')).toBeNull();
+    });
+    expect(screen.getByText('6120')).toBeTruthy();
+  });
+
+  it('grup klasifikasi bisa dilipat', async () => {
+    listAccounts.mockResolvedValue(accounts);
+    renderPage();
+
+    expect(await screen.findByText('4110')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /pendapatan/i }));
+    expect(screen.queryByText('4110')).toBeNull();
+  });
+
   it('mengelompokkan akun per klasifikasi', async () => {
     listAccounts.mockResolvedValue(accounts);
     renderPage();
