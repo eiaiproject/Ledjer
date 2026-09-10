@@ -390,8 +390,8 @@ export async function getStockMovementReport(
       transaction_number: row.transaction_number,
       transaction_type: row.transaction_type,
       description: row.description,
-      quantity_in_milli: row.quantity_milli > 0 ? row.quantity_milli : 0,
-      quantity_out_milli: row.quantity_milli < 0 ? -row.quantity_milli : 0,
+      quantity_in_milli: Math.max(row.quantity_milli, 0),
+      quantity_out_milli: Math.max(-row.quantity_milli, 0),
       unit_cost_minor: row.unit_cost_minor,
       running_stock_milli: next,
     });

@@ -12,6 +12,14 @@ export type QuickEntryParseResult =
 
 const HELP = "Contoh: jual kopi 10pcs 50000";
 
+/** Pengali sufiks harga, tanpa nested-ternary. */
+const PRICE_MULTIPLIERS: Record<string, number> = {
+  rb: 1_000,
+  ribu: 1_000,
+  jt: 1_000_000,
+  juta: 1_000_000,
+};
+
 export interface ProductLite {
   id: string;
   name: string;
@@ -120,11 +128,45 @@ export function buildDraft(
   };
 }
 
+interface TakenPrice {
+  unitPriceIdr?: number;
+  totalIdr?: number;
+  count: number;
+}
+
+/** Ambil harga dari ujung kanan: "50000" (1 token) atau "50 ribu"/"total 500rb" (2 token). */
+function takePriceFromEnd(tokens: string[]): (TakenPrice & { ok: true }) | { ok: false } {
+  const last = tokens.at(-1) ?? "";
+  if (tokens.at(-2)?.toLowerCase() === "total") {
+    const total = parsePriceToken(last);
+    return total === null ? { ok: false } : { ok: true, totalIdr: total, count: 2 };
+  }
+  const single = parsePriceToken(last);
+  if (single !== null) return { ok: true, unitPriceIdr: single, count: 1 };
+  const prev = tokens.at(-2);
+  if (prev === undefined) return { ok: false };
+  const joined = parsePriceToken(`${prev} ${last}`);
+  return joined === null ? { ok: false } : { ok: true, unitPriceIdr: joined, count: 2 };
+}
+
+/** Urai token qty: angka (desimal koma) + satuan opsional. */
+function parseQtyToken(token: string): { quantity: number; unit?: string } | null {
+  const match = /^([\d.,]+)([a-z]*)$/.exec(token.toLowerCase());
+  if (!match) return null;
+  const [, digits, unit] = match;
+  if (!/^\d+([.,]\d+)?$/.test(digits)) return null;
+  const quantity = Number(digits.replace(",", "."));
+  if (!Number.isFinite(quantity) || quantity <= 0) return null;
+  return { quantity, unit: unit === "" ? undefined : unit };
+}
+
 function parsePriceToken(token: string): number | null {
   const cleaned = token.toLowerCase().replace(/\s+/g, "");
-  const match = /^(\d+(?:[.,]\d+)?)(rb|ribu|jt|juta)?$/.exec(cleaned);
+  // Regex linear (tanpa nested quantifier): digit lalu sisa huruf.
+  const match = /^(\d[\d.,]*)([a-z]*)$/.exec(cleaned);
   if (!match) return null;
   const [, digits, suffix] = match;
+  if (suffix !== "" && !(suffix in PRICE_MULTIPLIERS)) return null;
   // Titik hanya sah sebagai pemisah ribuan ("50.000", "1.500.000");
   // selain itu berarti desimal → rupiah tak bersisa → tolak.
   let plain = digits;
@@ -138,10 +180,10 @@ function parsePriceToken(token: string): number | null {
   }
   const value = Number(plain.replace(",", "."));
   if (!Number.isFinite(value)) return null;
-  const multiplier = suffix === "jt" || suffix === "juta" ? 1_000_000
-    : suffix === "rb" || suffix === "ribu" ? 1_000 : 1;
+  const multiplier = suffix === "" ? 1 : PRICE_MULTIPLIERS[suffix];
   const result = value * multiplier;
-  return Number.isInteger(result) ? result : null;
+  if (!Number.isInteger(result) || result <= 0) return null;
+  return result;
 }
 
 export function parseQuickEntryText(text: string): QuickEntryParseResult {
@@ -154,37 +196,16 @@ export function parseQuickEntryText(text: string): QuickEntryParseResult {
   // ("Produk QE 1788999999"), jadi harga = token terakhir, qty = sebelumnya.
   const tokens = rest.split(" ").filter((t) => t !== "");
   if (tokens.length < 3) return { ok: false, message: HELP };
-  // Harga dari kanan: "50000" (1 token), "50 ribu" / "total 500rb" (2 token).
-  let priceTokenCount = 1;
-  let totalIdr: number | undefined;
-  let unitPriceIdr: number | undefined;
-  if (tokens.length >= 2 && tokens[tokens.length - 2].toLowerCase() === "total") {
-    const parsed = parsePriceToken(tokens[tokens.length - 1]);
-    if (parsed === null || parsed <= 0) return { ok: false, message: HELP };
-    totalIdr = parsed;
-    priceTokenCount = 2;
-  } else {
-    const single = parsePriceToken(tokens[tokens.length - 1]);
-    if (single !== null && single > 0) {
-      unitPriceIdr = single;
-    } else if (tokens.length >= 2) {
-      const joined = parsePriceToken(`${tokens[tokens.length - 2]} ${tokens[tokens.length - 1]}`);
-      if (joined === null || joined <= 0) return { ok: false, message: HELP };
-      unitPriceIdr = joined;
-      priceTokenCount = 2;
-    } else {
-      return { ok: false, message: HELP };
-    }
-  }
-  const quantityToken = tokens[tokens.length - priceTokenCount - 1] ?? "";
-  const productTokens = tokens.slice(0, -priceTokenCount - 1);
-  const qtyMatch = /^(\d+(?:[.,]\d+)?)([a-z]*)$/.exec(quantityToken.toLowerCase());
-  if (!qtyMatch) return { ok: false, message: HELP };
-  const quantity = Number(qtyMatch[1].replace(",", "."));
-  const unit = qtyMatch[2] === "" ? undefined : qtyMatch[2];
-  const productQuery = productTokens.join(" ").trim();
-  if (!productQuery || !Number.isFinite(quantity) || quantity <= 0) {
-    return { ok: false, message: HELP };
-  }
-  return { ok: true, kind, productQuery, quantity, unit, unitPriceIdr, totalIdr };
+  // Harga dan qty dari kanan via helper (complexity rendah, regex linear).
+  const taken = takePriceFromEnd(tokens);
+  if (!taken.ok) return { ok: false, message: HELP };
+  const parsedQty = parseQtyToken(tokens.at(-taken.count - 1) ?? "");
+  if (!parsedQty) return { ok: false, message: HELP };
+  const productQuery = tokens.slice(0, -taken.count - 1).join(" ").trim();
+  if (!productQuery) return { ok: false, message: HELP };
+  return {
+    ok: true, kind, productQuery,
+    quantity: parsedQty.quantity, unit: parsedQty.unit,
+    unitPriceIdr: taken.unitPriceIdr, totalIdr: taken.totalIdr,
+  };
 }

@@ -137,28 +137,26 @@ export function QuickEntryBar() {
     !insufficient &&
     !posting;
 
-  const handleQtyChange = (value: string) => {
-    setQuantity(value);
-    const q = Number(value);
-    if (Number.isFinite(q) && q > 0 && Number.isInteger(price) && price > 0) {
-      setTotal(String(q * price));
+  /** Satu handler untuk qty/harga/total: field yang diubah menghitung ulang pasangannya. */
+  const handleAmountChange = (field: "quantity" | "unitPrice" | "total", value: string) => {
+    const nextQty = field === "quantity" ? value : quantity;
+    const nextPrice = field === "unitPrice" ? value : unitPrice;
+    let nextTotal = field === "total" ? value : total;
+    const qn = Number(nextQty);
+    const pn = Number(nextPrice);
+    const tn = Number(nextTotal);
+    if (field !== "total" && Number.isFinite(qn) && qn > 0 && Number.isInteger(pn) && pn > 0) {
+      nextTotal = String(qn * pn);
+    } else if (field === "total" && Number.isFinite(qn) && qn > 0 && Number.isInteger(tn) && tn > 0) {
+      return applyAmounts(nextQty, String(Math.round(tn / qn)), nextTotal);
     }
+    applyAmounts(nextQty, nextPrice, nextTotal);
   };
 
-  const handlePriceChange = (value: string) => {
-    setUnitPrice(value);
-    const p = Number(value);
-    if (Number.isFinite(qty) && qty > 0 && Number.isInteger(p) && p > 0) {
-      setTotal(String(qty * p));
-    }
-  };
-
-  const handleTotalChange = (value: string) => {
-    setTotal(value);
-    const t = Number(value);
-    if (Number.isFinite(qty) && qty > 0 && Number.isInteger(t) && t > 0) {
-      setUnitPrice(String(Math.round(t / qty)));
-    }
+  const applyAmounts = (nextQty: string, nextPrice: string, nextTotal: string) => {
+    setQuantity(nextQty);
+    setUnitPrice(nextPrice);
+    setTotal(nextTotal);
   };
 
   const handleConfirm = async () => {
@@ -316,9 +314,9 @@ export function QuickEntryBar() {
                   }}
                   options={draft.candidates.map((c) => ({ value: c.id, label: c.name }))}
                 />
-                <Input label="Jumlah" inputMode="decimal" value={quantity} onChange={(e) => handleQtyChange(e.target.value)} />
-                <Input label="Harga satuan (Rp)" inputMode="numeric" value={unitPrice} onChange={(e) => handlePriceChange(e.target.value)} />
-                <Input label="Total (Rp)" inputMode="numeric" value={total} onChange={(e) => handleTotalChange(e.target.value)} />
+                <Input label="Jumlah" inputMode="decimal" value={quantity} onChange={(e) => handleAmountChange("quantity", e.target.value)} />
+                <Input label="Harga satuan (Rp)" inputMode="numeric" value={unitPrice} onChange={(e) => handleAmountChange("unitPrice", e.target.value)} />
+                <Input label="Total (Rp)" inputMode="numeric" value={total} onChange={(e) => handleAmountChange("total", e.target.value)} />
                 <Select
                   label="Kas"
                   value={effectiveCashId}

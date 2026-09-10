@@ -79,7 +79,7 @@ export default defineConfig({
       // `wrangler deploy` reads wrangler.jsonc (plus .dev.vars is ignored),
       // so production deploys can never pick up these dev values.
       config: (cfg) => {
-        const viteCmd = process.argv.slice(2).find((a) => ["dev", "preview", "serve"].includes(a));
+        const viteCmd = process.argv.slice(2).some((a) => a === "dev" || a === "preview" || a === "serve");
         if (process.env.LEDJER_E2E_LOCAL === "1" || viteCmd) {
           cfg.vars = {
             APP_ENV: "development",

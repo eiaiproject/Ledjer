@@ -1,45 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { render, screen, within } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Routes, Route } from 'react-router-dom';
+import { screen, within } from '@testing-library/react';
 import { DashboardLayout } from '@/layouts/dashboard';
+import { renderWithProviders } from './test-utils';
 
-vi.mock('@/contexts/auth-context', () => ({
-  useAuth: () => ({
-    session: { id: 's1', user_id: 'u1', expires_at: 0, current_organization_id: 'o1' },
-    user: { id: 'u1', email: 'a@b.c', full_name: 'A' },
-    loading: false,
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-  }),
-}));
+vi.mock('@/contexts/auth-context', async () => {
+  const { authStub } = await import('./test-utils');
+  return { useAuth: () => authStub };
+});
 
-vi.mock('@/hooks/useOrganization', () => ({
-  useOrganization: () => ({
-    data: {
-      organization: { id: 'o1', name: 'Org A', base_currency: 'IDR', status: 'active', created_at: 0 },
-      member: { id: 'm1', organization_id: 'o1', user_id: 'u1', role: 'owner', status: 'active' },
-    },
-  }),
-}));
+vi.mock('@/hooks/useOrganization', async () => {
+  const { orgStub } = await import('./test-utils');
+  return { useOrganization: () => orgStub };
+});
 
 function renderLayoutAt(path: string) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route element={<DashboardLayout />}>
-            <Route path="/dashboard" element={<div>dash</div>} />
-            <Route path="/transactions/:id" element={<div>detail</div>} />
-            <Route path="/settings" element={<div>settings</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <Routes>
+      <Route element={<DashboardLayout />}>
+        <Route path="/dashboard" element={<div>dash</div>} />
+        <Route path="/transactions/:id" element={<div>detail</div>} />
+        <Route path="/settings" element={<div>settings</div>} />
+      </Route>
+    </Routes>,
+    path,
   );
 }
 

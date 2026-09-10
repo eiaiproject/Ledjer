@@ -1,28 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Routes, Route } from 'react-router-dom';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuickEntryBar } from '@/components/transactions/QuickEntryBar';
+import { renderWithProviders } from './test-utils';
 
-vi.mock('@/contexts/auth-context', () => ({
-  useAuth: () => ({
-    session: { id: 's1', user_id: 'u1', expires_at: 0, current_organization_id: 'o1' },
-    user: { id: 'u1', email: 'a@b.c', full_name: 'A' },
-    loading: false,
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-  }),
-}));
+vi.mock('@/contexts/auth-context', async () => {
+  const { authStub } = await import('./test-utils');
+  return { useAuth: () => authStub };
+});
 
-vi.mock('@/hooks/useOrganization', () => ({
-  useOrganization: () => ({
-    data: {
-      organization: { id: 'o1', name: 'Org A', base_currency: 'IDR', status: 'active', created_at: 0 },
-      member: { id: 'm1', organization_id: 'o1', user_id: 'u1', role: 'owner', status: 'active' },
-    },
-  }),
-}));
+vi.mock('@/hooks/useOrganization', async () => {
+  const { orgStub } = await import('./test-utils');
+  return { useOrganization: () => orgStub };
+});
 
 const listProducts = vi.fn();
 vi.mock('@/lib/api/products', () => ({
@@ -65,17 +55,11 @@ const product = {
 };
 
 function renderBar() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/transactions']}>
-        <Routes>
-          <Route path="/transactions" element={<QuickEntryBar />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <Routes>
+      <Route path="/transactions" element={<QuickEntryBar />} />
+    </Routes>,
+    '/transactions',
   );
 }
 
