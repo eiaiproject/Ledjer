@@ -7,6 +7,7 @@ import { listTransactions, type Transaction } from "@/lib/api/transactions";
 import { downloadTransactionsCsv } from "@/lib/api/exports";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
+import { QuickEntryBar } from "@/components/transactions/QuickEntryBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -138,6 +139,18 @@ export function TransactionListPage() {
           },
         ]}
       />
+
+      <QuickEntryBar />
+
+      <Link
+        to="/transactions/new"
+        className="sticky bottom-[calc(56px+env(safe-area-inset-bottom,0px)+12px)] z-[var(--z-sticky)] block lg:hidden"
+      >
+        <Button fullWidth className="shadow-lg">
+          <Plus className="h-4 w-4" />
+          Transaksi Baru
+        </Button>
+      </Link>
 
       <Card elevated>
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
