@@ -447,7 +447,7 @@ async function readPlannedUpdates<T extends { productId: string; quantityMilli: 
   const guarded: D1PreparedStatement[] = [];
   for (const item of items) {
     const product = await getProduct(db, organizationId, item.productId);
-    if (!product || product.is_active !== 1) {
+    if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
     const next = applyStock(item)({
