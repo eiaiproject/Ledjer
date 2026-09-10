@@ -1,4 +1,7 @@
 import { apiRequest } from "./client";
+import type { StockMovementReportLine } from "../../../worker/services/report-types";
+
+export type { StockMovementReportLine } from "../../../worker/services/report-types";
 
 export interface Product {
   id: string;
@@ -27,6 +30,24 @@ interface ProductResponse {
 export function listProducts(includeInactive = false): Promise<Product[]> {
   const query = includeInactive ? "?includeInactive=true" : "";
   return apiRequest<ProductsResponse>(`/api/products${query}`).then((data) => data.products);
+}
+
+interface ProductMovementsResponse {
+  movements: StockMovementReportLine[];
+}
+
+export function getProductMovements(
+  productId: string,
+  fromDate?: string,
+  toDate?: string,
+): Promise<StockMovementReportLine[]> {
+  const params = new URLSearchParams();
+  if (fromDate) params.set("fromDate", fromDate);
+  if (toDate) params.set("toDate", toDate);
+  const query = params.size > 0 ? `?${params}` : "";
+  return apiRequest<ProductMovementsResponse>(`/api/products/${productId}/movements${query}`).then(
+    (data) => data.movements,
+  );
 }
 
 export function createProduct(input: {

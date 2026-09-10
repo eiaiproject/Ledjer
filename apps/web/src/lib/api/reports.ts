@@ -3,7 +3,6 @@ import type {
   BalanceSheetReport,
   GeneralLedgerReport,
   ProfitLossReport,
-  StockMovementReport,
 } from "../../../worker/services/report-types";
 
 export type {
@@ -12,8 +11,6 @@ export type {
   GeneralLedgerReport,
   ProfitLossReport,
   ReportAccountLine,
-  StockMovementReport,
-  StockMovementReportLine,
 } from "../../../worker/services/report-types";
 
 interface ProfitLossResponse {
@@ -26,10 +23,6 @@ interface BalanceSheetResponse {
 
 interface GeneralLedgerResponse {
   report: GeneralLedgerReport;
-}
-
-interface StockMovementResponse {
-  report: StockMovementReport;
 }
 
 /** Fetch a report endpoint and unwrap its `report` payload. */
@@ -57,14 +50,4 @@ export function getGeneralLedger(
   const params = new URLSearchParams({ fromDate, toDate });
   if (accountId) params.set("accountId", accountId);
   return getReport<GeneralLedgerResponse>(`/api/reports/general-ledger?${params}`);
-}
-
-export function getStockMovementReport(
-  fromDate: string,
-  toDate: string,
-  productId?: string,
-): Promise<StockMovementReport> {
-  const params = new URLSearchParams({ fromDate, toDate });
-  if (productId) params.set("productId", productId);
-  return getReport<StockMovementResponse>(`/api/reports/stock-movements?${params}`);
 }

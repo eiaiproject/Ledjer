@@ -23,7 +23,6 @@ const NAV_ITEMS: NavItem[] = [
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
       { to: "/reports/general-ledger", label: "Buku Besar" },
-      { to: "/reports/stock-movements", label: "Mutasi Stok" },
     ],
   },
   { to: "/settings", label: "Pengaturan", icon: Settings },

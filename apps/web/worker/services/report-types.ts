@@ -76,13 +76,6 @@ export interface StockMovementReportLine {
   running_stock_milli: number;
 }
 
-export interface StockMovementReport {
-  fromDate: string;
-  toDate: string;
-  productId: string | null;
-  lines: StockMovementReportLine[];
-}
-
 export interface GetStockMovementReportInput {
   productId?: string;
   fromDate: string;

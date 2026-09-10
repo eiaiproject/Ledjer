@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit, Plus } from "reicon-react";
+import { ChevronDown, Edit, Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
-import { createProduct, listProducts, patchProduct, type Product } from "@/lib/api/products";
+import { createProduct, getProductMovements, listProducts, patchProduct, type Product, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
-import { formatIDR, formatDecimalIDR, formatQuantity } from "@/lib/utils";
+import { formatIDR, formatDecimalIDR, formatQuantity, formatShortDate, cn } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 
 interface EditState {
@@ -34,6 +34,7 @@ export function ProductsPage() {
   const [creating, setCreating] = useState(false);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: queryKeys.products.all(orgId),
@@ -182,20 +183,35 @@ export function ProductsPage() {
               <EmptyState title="Belum ada produk" description="Tambahkan produk untuk mulai mencatat pembelian & penjualan barang." />
             ) : (
               <ul className="divide-y divide-wood-100">
-                {products.map((product) => (
-                  <li key={product.id} className="flex items-center justify-between gap-4 px-5 py-3">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
-                        {product.name}
-                        {product.is_active !== 1 && (
-                          <Badge variant="neutral" size="sm">
-                            Nonaktif
-                          </Badge>
-                        )}
-                      </p>
-                      <p className="mt-0.5 text-xs text-text-tertiary">
-                        {product.code} · Stok {formatQuantity(product.current_stock)} {product.unit}
-                      </p>
+                {products.map((product) => {
+                  const expanded = expandedId === product.id;
+                  return (
+                  <li key={product.id} className="px-5 py-3">
+                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expanded ? null : product.id)}
+                        aria-expanded={expanded}
+                        aria-controls={`movements-${product.id}`}
+                        aria-label={`Riwayat mutasi ${product.name}`}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors hover:bg-wood-100 hover:text-wood-700"
+                      >
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+                      </button>
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
+                          {product.name}
+                          {product.is_active !== 1 && (
+                            <Badge variant="neutral" size="sm">
+                              Nonaktif
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-text-tertiary">
+                          {product.code} · Stok {formatQuantity(product.current_stock)} {product.unit}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-4">
                       <div className="text-right">
@@ -223,8 +239,15 @@ export function ProductsPage() {
                         )}
                       </div>
                     </div>
+                    </div>
+                    {expanded && (
+                      <div id={`movements-${product.id}`} className="mt-2 border-t border-wood-100 pt-2">
+                        <ProductMovementHistory productId={product.id} unit={product.unit} />
+                      </div>
+                    )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </CardContent>
@@ -276,4 +299,65 @@ function parseAmount(raw: string): number {
   const digits = raw.replace(/[^\d]/g, "");
   const value = Number(digits);
   return Number.isFinite(value) ? value : 0;
+}
+
+/** Riwayat mutasi satu produk: dimuat malas saat baris dikembangkan. */
+function ProductMovementHistory({ productId, unit }: { readonly productId: string; readonly unit: string }) {
+  const { data: orgData } = useOrganization();
+  const orgId = orgData?.organization?.id;
+  const query = useQuery({
+    queryKey: queryKeys.products.movements(orgId, productId),
+    queryFn: async () => {
+      if (!orgId) throw new Error("No organization");
+      return getProductMovements(productId);
+    },
+    enabled: !!orgId,
+  });
+
+  if (query.isLoading) {
+    return <div className="h-16 animate-pulse rounded-lg bg-wood-100" aria-label="Memuat riwayat mutasi" />;
+  }
+  if (query.isError) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg bg-wood-100 px-3 py-2 text-sm">
+        <span className="text-text-secondary">Gagal memuat riwayat mutasi.</span>
+        <Button variant="ghost" size="sm" onClick={() => query.refetch()}>
+          Coba lagi
+        </Button>
+      </div>
+    );
+  }
+  const lines = query.data ?? [];
+  if (lines.length === 0) {
+    return <p className="px-1 py-2 text-sm text-text-tertiary">Belum ada mutasi untuk produk ini.</p>;
+  }
+  return (
+    <ul className="divide-y divide-wood-100">
+      {lines.map((line: StockMovementReportLine) => {
+        const incoming = line.quantity_in_milli > 0;
+        return (
+          <li key={line.transaction_id} className="flex items-center justify-between gap-3 px-1 py-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-text-primary">
+                {formatShortDate(line.entry_date)}{" "}
+                <Badge variant={incoming ? "success" : "warning"} size="sm">
+                  {incoming ? "Masuk" : "Keluar"}
+                </Badge>
+              </p>
+              <p className="mt-0.5 truncate text-xs text-text-tertiary">
+                <span className="font-mono">{line.transaction_number}</span> · {line.description}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="num-mono text-sm font-semibold text-text-primary">
+                {incoming ? "+" : "−"}
+                {formatQuantity((incoming ? line.quantity_in_milli : line.quantity_out_milli) / 1000)} {unit}
+              </p>
+              <p className="text-xs text-text-tertiary">Sisa {formatQuantity(line.running_stock_milli / 1000)}</p>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
