@@ -152,12 +152,11 @@ describe('ProductsPage expandable rows', () => {
 });
 
 describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
-  it('chip filter dalam strip scroll horizontal di mobile', async () => {
+  it('chip filter grid 3+2 di mobile', async () => {
     renderPage();
     expect(await screen.findByText('Kopi')).toBeTruthy();
     const group = screen.getByRole('group', { name: 'Filter produk' });
-    expect(group.className).toContain('overflow-x-auto');
-    expect(group.className).toContain('flex-nowrap');
+    expect(group.className).toContain('grid-cols-3');
   });
 
   beforeEach(() => {

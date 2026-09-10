@@ -210,7 +210,7 @@ export function ProductsPage() {
             />
           </div>
           <div
-            className="-mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pt-0.5 pb-1.5 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+            className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2"
             role="group"
             aria-label="Filter produk"
           >
@@ -224,7 +224,7 @@ export function ProductsPage() {
                   setOffset(0);
                 }}
                 className={cn(
-                  "min-h-[44px] shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
+                  "min-h-[44px] rounded-full border px-2 text-center text-sm font-medium transition-colors",
                   chip === c.key
                     ? "border-wood-700 bg-wood-700 text-cream-50"
                     : "border-wood-300 text-wood-700 hover:bg-cream-100"
