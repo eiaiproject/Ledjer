@@ -7,7 +7,6 @@ import { listTransactions, type Transaction } from "@/lib/api/transactions";
 import { downloadTransactionsCsv } from "@/lib/api/exports";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
-import { QuickEntryBar } from "@/components/transactions/QuickEntryBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -139,8 +138,6 @@ export function TransactionListPage() {
           },
         ]}
       />
-
-      <QuickEntryBar />
 
       <Link
         to="/transactions/new"

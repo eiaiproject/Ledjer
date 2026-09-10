@@ -96,7 +96,8 @@ Konfirmasi memanggil client existing (bentuk identik form):
 
 ## 7. Mobile UX (Android & iOS) — `QuickEntryBar` di `/transactions`
 
-- Posisi: kartu chat di atas daftar, di bawah PageHeader.
+- Posisi: kartu chat di atas form halaman `/transactions/new`
+  (muara semua tombol Transaksi Baru dari manapun).
 - Input: `font-size ≥ 16px` (cegah auto-zoom iOS),
   `enterKeyHint="send"`, Enter = kirim, tombol Kirim ≥ 44px.
   Autocorrect tetap ON (matcher toleran typo).

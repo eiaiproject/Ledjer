@@ -39,7 +39,7 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
   }, PRODUCT_NAME);
   expect(setup.bought).toBe(true);
 
-  await authPage.goto("/transactions");
+  await authPage.goto("/transactions/new");
   await authPage.getByLabel(/input cepat/i).fill(`jual ${PRODUCT_NAME} 2pcs 50000`);
   await authPage.getByRole("button", { name: /kirim/i }).click();
   await expect(authPage.getByRole("button", { name: /^Catat$/ })).toBeEnabled({ timeout: 15000 });
