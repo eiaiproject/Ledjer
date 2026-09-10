@@ -28,7 +28,11 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/settings", label: "Pengaturan", icon: Settings },
 ];
 
-const BOTTOM_NAV_ITEMS = NAV_ITEMS.filter((item) => !item.children);
+// Bottom bar hanya memuat 4 rute harian; sisanya (Laporan, Pengaturan)
+// tetap lengkap di drawer "Lainnya" agar bar tidak sesak di 360-390px.
+const BOTTOM_NAV_ITEMS = NAV_ITEMS.filter((item) =>
+  ["/dashboard", "/transactions", "/accounts", "/products"].includes(item.to ?? ""),
+);
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -62,6 +66,11 @@ export function DashboardLayout() {
   const isActive = (path: string) => location.pathname === path;
   const isParentActive = (children: { to: string }[]) =>
     children.some((child) => location.pathname === child.to);
+  // Aktif per seksi ("/transactions" ikut aktif di "/transactions/:id").
+  // Hanya untuk bottom bar + tombol Lainnya; sidebar desktop tak diubah.
+  const isSectionActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
+  const bottomSectionActive = BOTTOM_NAV_ITEMS.some((item) => isSectionActive(item.to!));
 
   const handleSignOut = async () => {
     await signOut();
@@ -401,7 +410,7 @@ export function DashboardLayout() {
           <div className="mx-auto flex w-full max-w-md items-stretch gap-0 px-1">
             {BOTTOM_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const active = isActive(item.to!);
+              const active = isSectionActive(item.to!);
               return (
                 <Link
                   key={item.to}
@@ -428,13 +437,20 @@ export function DashboardLayout() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] font-medium leading-tight text-wood-500"
+              className={cn(
+                "flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] font-medium leading-tight transition-colors",
+                !bottomSectionActive ? "text-wood-800" : "text-wood-500"
+              )}
               aria-label="Menu lainnya"
+              aria-current={!bottomSectionActive ? "page" : undefined}
             >
-              <div className="flex h-8 w-8 items-center justify-center">
-                <Menu className="h-5 w-5" />
+              <div className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                !bottomSectionActive ? "bg-wood-100 text-wood-800" : ""
+              )}>
+                <Menu className={cn("h-5 w-5", !bottomSectionActive && "font-semibold text-wood-700")} />
               </div>
-              <span className="max-w-full truncate">Lainnya</span>
+              <span className={cn("max-w-full truncate", !bottomSectionActive && "font-semibold")}>Lainnya</span>
             </button>
           </div>
         </nav>
