@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Scale, Wallet } from "reicon-react";
+import { ArrowLeft, ArrowRight, Plus, Scale, Wallet } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { getDashboardAlerts, getDashboardSummary } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/query-keys";
@@ -95,7 +95,10 @@ export function DashboardPage() {
             key: "new-transaction",
             children: (
               <Link to="/transactions/new">
-                <Button>Transaksi Baru</Button>
+                <Button>
+                  <Plus className="h-4 w-4" />
+                  Transaksi Baru
+                </Button>
               </Link>
             ),
           },

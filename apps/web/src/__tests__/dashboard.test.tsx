@@ -62,6 +62,24 @@ describe('DashboardPage', () => {
     expect(screen.queryByText(/rincian kas & bank/i)).toBeNull();
   });
 
+  it('tombol Transaksi Baru memakai ikon Plus seperti CTA lain', async () => {
+    getDashboardSummary.mockResolvedValue({
+      cashBankBalance: 0,
+      cashBankAccounts: [],
+      month: { from: '2026-09-01', to: '2026-09-30' },
+      moneyIn: 0,
+      moneyOut: 0,
+      netIncome: 0,
+      recentTransactions: [],
+    });
+    getDashboardAlerts.mockResolvedValue({ negativeBalanceAccounts: [] });
+
+    renderDashboard();
+
+    const cta = await screen.findByRole('link', { name: 'Transaksi Baru' });
+    expect(cta.querySelector('svg')).not.toBeNull();
+  });
+
   it('renders without crashing when summary is missing recentTransactions', async () => {
     getDashboardSummary.mockResolvedValue({
       cashBankBalance: 0,
