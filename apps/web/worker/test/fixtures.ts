@@ -421,7 +421,7 @@ function selectProducts(sql: string, values: unknown[], orgId: string): SeedProd
     result = result.filter((p) => p.is_active === 1);
   }
   if (s.includes("like")) {
-    const needle = String(values[idx]).replace(/%/g, "").toLowerCase();
+    const needle = String(values[idx]).replaceAll("%", "").toLowerCase();
     idx += 2;
     result = result.filter(
       (p) => p.name.toLowerCase().includes(needle) || p.code.toLowerCase().includes(needle),
@@ -681,7 +681,7 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
     // MAX(CAST(code AS INTEGER)) - next cash/bank code (atau blok klasifikasi bila ada LIKE prefix).
     if (s.includes("MAX(CAST(code AS INTEGER))")) {
       const orgId = values[0] as string;
-      const prefix = s.includes("code LIKE ?") ? String(values[1]).replace(/%/g, "") : null;
+      const prefix = s.includes("code LIKE ?") ? String(values[1]).replaceAll("%", "") : null;
       const maxCode = allAccounts(orgId)
         .filter((a) => a.account_subtype !== null || (prefix !== null && a.code.startsWith(prefix)))
         .reduce((max, a) => Math.max(max, Number(a.code)), 0);

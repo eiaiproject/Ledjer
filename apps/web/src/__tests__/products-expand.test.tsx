@@ -152,6 +152,10 @@ describe('ProductsPage expandable rows', () => {
 });
 
 describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
+  beforeEach(() => {
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
+  });
+
   it('filter berupa dropdown dengan 5 opsi', async () => {
     renderPage();
     expect(await screen.findByText('Kopi')).toBeTruthy();
@@ -161,10 +165,6 @@ describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
     await waitFor(() => {
       expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ stock: 'low' }));
     });
-  });
-
-  beforeEach(() => {
-    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
   });
 
   it('memuat semua status secara default (termasuk nonaktif)', async () => {

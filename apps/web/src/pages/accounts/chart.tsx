@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, Plus } from "reicon-react";
@@ -35,6 +35,12 @@ const CLASS_LABELS: Record<AccountClass, string> = {
   expense: "Beban",
 };
 
+interface AccountGroup {
+  class: AccountClass;
+  label: string;
+  accounts: Account[];
+}
+
 export function ChartOfAccountsPage() {
   const { data: orgData } = useOrganization();
   const orgId = orgData?.organization?.id;
@@ -56,7 +62,7 @@ export function ChartOfAccountsPage() {
     enabled: !!orgId,
   });
 
-  const groups = useMemo(() => {
+  const groups: AccountGroup[] = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const byClass = new Map<AccountClass, Account[]>();
     for (const account of query.data ?? []) {
@@ -108,6 +114,28 @@ export function ChartOfAccountsPage() {
     }
   };
 
+  let groupsContent: ReactNode = null;
+  if (query.isError) {
+    groupsContent = (
+      <ErrorState
+        title="Gagal memuat bagan akun"
+        message="Terjadi kesalahan saat mengambil daftar akun."
+        onRetry={() => query.refetch()}
+      />
+    );
+  } else if (groups.length === 0) {
+    groupsContent = (
+      <EmptyState
+        title="Belum ada akun"
+        description="Akun bawaan dibuat otomatis saat organisasi dibuat."
+      />
+    );
+  } else {
+    groupsContent = (
+      <AccountGroupList groups={groups} collapsed={collapsed} onToggle={toggleGroup} />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Link
@@ -135,76 +163,7 @@ export function ChartOfAccountsPage() {
         </Button>
       </div>
 
-      {query.isError ? (
-        <ErrorState
-          title="Gagal memuat bagan akun"
-          message="Terjadi kesalahan saat mengambil daftar akun."
-          onRetry={() => query.refetch()}
-        />
-      ) : groups.length === 0 ? (
-        <EmptyState
-          title="Belum ada akun"
-          description="Akun bawaan dibuat otomatis saat organisasi dibuat."
-        />
-      ) : (
-        groups.map((group) => {
-          const folded = collapsed.has(group.class);
-          return (
-          <Card elevated key={group.class}>
-            <button
-              type="button"
-              onClick={() => toggleGroup(group.class)}
-              aria-expanded={!folded}
-              aria-label={`${group.label}, ${group.accounts.length} akun`}
-              className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
-            >
-              <span className="text-base font-semibold text-text-primary">
-                {group.label}
-                <span className="ml-2 text-sm font-normal text-text-tertiary">
-                  {group.accounts.length}
-                </span>
-              </span>
-              <ChevronDown
-                className={cn("h-4 w-4 shrink-0 text-wood-500 transition-transform", folded && "-rotate-90")}
-              />
-            </button>
-            {!folded && (
-            <CardContent className="border-t border-wood-100 p-0">
-              <ul className="divide-y divide-wood-100">
-                {group.accounts.map((account) => (
-                  <li
-                    key={account.id}
-                    className="flex items-center justify-between gap-4 px-5 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
-                        <span className="num-mono shrink-0 text-xs text-text-tertiary">
-                          {account.code}
-                        </span>
-                        {account.name}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {account.is_system === 1 && (
-                        <Badge variant="neutral" size="sm">
-                          Sistem
-                        </Badge>
-                      )}
-                      {account.is_active !== 1 && (
-                        <Badge variant="neutral" size="sm">
-                          Nonaktif
-                        </Badge>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            )}
-          </Card>
-          );
-        })
-      )}
+      {groupsContent}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tambah Akun" size="sm">
         <ModalContent className="space-y-4">
@@ -236,5 +195,77 @@ export function ChartOfAccountsPage() {
         </ModalFooter>
       </Modal>
     </div>
+  );
+}
+
+function AccountGroupList({
+  groups,
+  collapsed,
+  onToggle,
+}: {
+  readonly groups: AccountGroup[];
+  readonly collapsed: ReadonlySet<AccountClass>;
+  readonly onToggle: (c: AccountClass) => void;
+}) {
+  return (
+    <>
+      {groups.map((group) => {
+        const folded = collapsed.has(group.class);
+        return (
+          <Card elevated key={group.class}>
+            <button
+              type="button"
+              onClick={() => onToggle(group.class)}
+              aria-expanded={!folded}
+              aria-label={`${group.label}, ${group.accounts.length} akun`}
+              className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
+            >
+              <span className="text-base font-semibold text-text-primary">
+                {group.label}
+                <span className="ml-2 text-sm font-normal text-text-tertiary">
+                  {group.accounts.length}
+                </span>
+              </span>
+              <ChevronDown
+                className={cn("h-4 w-4 shrink-0 text-wood-500 transition-transform", folded && "-rotate-90")}
+              />
+            </button>
+            {!folded && (
+              <CardContent className="border-t border-wood-100 p-0">
+                <ul className="divide-y divide-wood-100">
+                  {group.accounts.map((account) => (
+                    <li
+                      key={account.id}
+                      className="flex items-center justify-between gap-4 px-5 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
+                          <span className="num-mono shrink-0 text-xs text-text-tertiary">
+                            {account.code}
+                          </span>
+                          {account.name}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {account.is_system === 1 && (
+                          <Badge variant="neutral" size="sm">
+                            Sistem
+                          </Badge>
+                        )}
+                        {account.is_active !== 1 && (
+                          <Badge variant="neutral" size="sm">
+                            Nonaktif
+                          </Badge>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </>
   );
 }
