@@ -42,7 +42,7 @@ export const CORE_INDEXES = [
   "idx_products_org_code",
   "idx_products_org_name",
   "idx_products_org_active",
-  "idx_transactions_number",
+  "idx_transactions_org_number",
   "idx_transactions_org_idempotency",
   "idx_transactions_org_date",
   "idx_transactions_org_status",

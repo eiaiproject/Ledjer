@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
 import type { D1Database } from "@cloudflare/workers-types";
 import {
   assertJournalBalanced,
   countTransactions,
+  generateTransactionNumber,
   getTransaction,
   listTransactions,
   postTransaction,
@@ -392,5 +393,37 @@ describe("voidTransaction", () => {
         {},
       ),
     ).rejects.toThrowError(HttpError);
+  });
+});
+describe("generateTransactionNumber", () => {
+  it("scopes uniqueness per organization (no cross-tenant collision)", async () => {
+    const { db } = fresh();
+    const d = db as unknown as D1Database;
+    // Org B memegang TRX-20260615-AAAA (suffix generator dipaksa ke AAAA:
+    // byte 0 -> alfabet[0] = 'A').
+    const spy = vi
+      .spyOn(crypto, "getRandomValues")
+      .mockImplementation(((buffer: Uint8Array) => {
+        buffer.fill(0);
+        return buffer;
+      }) as typeof crypto.getRandomValues);
+    try {
+      await postTransaction(d, FIXTURE_IDS.orgs.b, FIXTURE_IDS.users.ownerB, {
+        transactionType: "cash_in",
+        transactionDate: "2026-06-15",
+        cashAccountId: FIXTURE_IDS.accounts.cashB,
+        counterAccountId: FIXTURE_IDS.accounts.revenueB,
+        amountIdr: 100000,
+        description: "Penjualan B",
+        idempotencyKey: "idem-collision-orgb-0001",
+      });
+
+      // Org A boleh memakai nomor yang sama: tabrakan suffix lintas tenant
+      // tidak boleh menggagalkan transaksi org lain.
+      const number = await generateTransactionNumber(d, ORG_A, "2026-06-15");
+      expect(number).toBe("TRX-20260615-AAAA");
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Callout } from "@/components/ui/callout";
@@ -202,6 +203,16 @@ function LedgerGroupRows({ group }: { readonly group: LedgerGroup }) {
           </td>
           <td className="px-4 py-2.5 text-sm break-words text-text-primary">
             {entry.description}
+            {entry.status === "voided" && (
+              <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                <Badge variant="neutral" size="sm">
+                  Dibatalkan
+                </Badge>
+                {entry.void_reason && (
+                  <span className="text-xs text-text-tertiary">{entry.void_reason}</span>
+                )}
+              </span>
+            )}
           </td>
           <td className="num-mono px-4 py-2.5 text-right text-sm text-text-primary">
             {entry.debit_idr > 0 ? formatIDR(entry.debit_idr) : ""}

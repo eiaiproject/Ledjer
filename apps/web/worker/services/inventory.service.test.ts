@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
+import type { FakeD1Statement } from "../test/fake-d1";
 import type { D1Database } from "@cloudflare/workers-types";
 import { HttpError } from "../http/errors";
 import {
+  computeNewWac,
   createProduct,
   getProduct,
   listProducts,
@@ -11,6 +13,7 @@ import {
   recalculateProductCosts,
   resolveCogsAccount,
   resolveInventoryAccount,
+  summarizeMovements,
 } from "./products.service";
 import {
   getTransaction,
@@ -456,5 +459,194 @@ describe("recalculateProductCosts", () => {
     // Saldo Persediaan di neraca ikut terbaca dari jurnal (tidak bergantung cache).
     const bs = await getBalanceSheet(d, ORG_A, "2026-12-31");
     expect(bs.assets.find((a) => a.code === "1130")?.amount).toBe(120000);
+  });
+});
+describe("atomic inventory commit (split-transaction guard)", () => {
+  it("writes product cache updates in the same batch as journals and movements", async () => {
+    const f = fresh();
+    const d = db(f);
+    const batches: string[][] = [];
+    const origBatch = f.db.batch.bind(f.db);
+    f.db.batch = (async (stmts: FakeD1Statement[]) => {
+      batches.push(stmts.map((s) => s.sql));
+      return origBatch(stmts);
+    }) as typeof f.db.batch;
+
+    const result = await postTransaction(d, ORG_A, OWNER_A, {
+      transactionType: "purchase",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      description: "Beli kopi dan gula",
+      idempotencyKey: "idem-atomic-batch-0001",
+      items: [
+        { productId: FIXTURE_IDS.products.kopiA, quantity: 2, unitCostIdr: 10000 },
+        { productId: FIXTURE_IDS.products.gulaA, quantity: 1, unitCostIdr: 18000 },
+      ],
+    });
+    expect(result.status).toBe("posted");
+
+    // Satu batch atomik berisi jurnal + movements + kedua cache update
+    // ber-guard — crash di tengah tidak bisa menyisakan movement tanpa cache.
+    expect(batches).toHaveLength(1);
+    const [only] = batches;
+    expect(only.some((s) => s.includes("INSERT INTO journal_lines"))).toBe(true);
+    expect(only.some((s) => s.includes("INSERT INTO stock_movements"))).toBe(true);
+    const productUpdates = only.filter((s) => s.includes("UPDATE products"));
+    expect(productUpdates).toHaveLength(2);
+    expect(
+      productUpdates.every((s) => s.includes("AND current_stock_milli = ?")),
+    ).toBe(true);
+  });
+});
+
+describe("guarded stock UPDATE honesty (retry signal)", () => {
+  it("reports zero changes when the guard does not match", async () => {
+    const f = fresh();
+    const d = db(f);
+    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const res = await d
+      .prepare(
+        `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
+         WHERE id = ? AND organization_id = ? AND current_stock_milli = ? AND average_cost_minor = ?`,
+      )
+      .bind(
+        999,
+        999,
+        Date.now(),
+        FIXTURE_IDS.products.kopiA,
+        ORG_A,
+        (product?.current_stock_milli ?? 0) + 1,
+        product?.average_cost_minor ?? 0,
+      )
+      .run();
+    expect(res.meta.changes).toBe(0);
+  });
+});
+
+describe("concurrent writer during commit", () => {
+  it("recovers via guarded catch-up with correct final stock and WAC", async () => {
+    const f = fresh();
+    const d = db(f);
+    const origBatch = f.db.batch.bind(f.db);
+    let tampered = false;
+    f.db.batch = (async (stmts: FakeD1Statement[]) => {
+      if (!tampered) {
+        tampered = true;
+        // Penulis konkuren mendarat di antara baca dan batch kami:
+        // movement + cache untuk 5 unit @20000 (stok 5000, wac 2e8).
+        await d
+          .prepare(
+            `INSERT INTO stock_movements (
+               id, organization_id, transaction_id, product_id, quantity_milli,
+               unit_cost_minor, cost_total_idr, created_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            "concurrence-txn-0001",
+            ORG_A,
+            "concurrence-txn-0001",
+            FIXTURE_IDS.products.kopiA,
+            5000,
+            200000000,
+            100000,
+            Date.now(),
+          )
+          .run();
+        await d
+          .prepare(
+            `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
+             WHERE id = ? AND organization_id = ?`,
+          )
+          .bind(5000, 200000000, Date.now(), FIXTURE_IDS.products.kopiA, ORG_A)
+          .run();
+      }
+      return origBatch(stmts);
+    }) as typeof f.db.batch;
+
+    const result = await postTransaction(d, ORG_A, OWNER_A, {
+      transactionType: "purchase",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      description: "Beli 2 bungkus kopi",
+      idempotencyKey: "idem-atomic-retry-0001",
+      items: [{ productId: FIXTURE_IDS.products.kopiA, quantity: 2, unitCostIdr: 10000 }],
+    });
+    expect(result.status).toBe("posted");
+
+    // Guard batch pertama meleset (cache 0/0 -> 5000/2e8), catch-up menghitung
+    // ulang dari nilai kini: stok 7000, WAC floor((5*2e8 + 2*1e8)/7).
+    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    expect(product?.current_stock_milli).toBe(7000);
+    expect(product?.average_cost_minor).toBe(171428571);
+  });
+});
+
+describe("atomic void (split-transaction guard)", () => {
+  it("voids status, cache restore, and audit log in a single batch", async () => {
+    const f = fresh();
+    const d = db(f);
+    const posted = await postTransaction(d, ORG_A, OWNER_A, {
+      transactionType: "purchase",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      description: "Beli untuk dibatalkan",
+      idempotencyKey: "idem-atomic-void-0001",
+      items: [
+        { productId: FIXTURE_IDS.products.kopiA, quantity: 2, unitCostIdr: 10000 },
+        { productId: FIXTURE_IDS.products.gulaA, quantity: 1, unitCostIdr: 18000 },
+      ],
+    });
+
+    const batches: string[][] = [];
+    const origBatch = f.db.batch.bind(f.db);
+    f.db.batch = (async (stmts: FakeD1Statement[]) => {
+      batches.push(stmts.map((s) => s.sql));
+      return origBatch(stmts);
+    }) as typeof f.db.batch;
+
+    const voided = await voidTransaction(d, ORG_A, OWNER_A, posted.transaction_id, {
+      reason: "Salah input",
+    });
+    expect(voided.status).toBe("voided");
+
+    // Satu batch atomik: status + restore cache kedua produk + audit.
+    // Crash di tengah tidak bisa menyisakan status voided dengan cache basi.
+    expect(batches).toHaveLength(1);
+    const [only] = batches;
+    expect(only.some((s) => s.includes("UPDATE transactions"))).toBe(true);
+    expect(only.filter((s) => s.includes("UPDATE products"))).toHaveLength(2);
+    expect(only.some((s) => s.includes("INSERT INTO audit_logs"))).toBe(true);
+
+    // Cache pulih dari riwayat (tanpa movement voided): kembali nol.
+    const kopi = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    expect(kopi?.current_stock_milli).toBe(0);
+    expect(kopi?.average_cost_minor).toBe(0);
+  });
+});
+
+describe("WAC half-up rounding (anti truncation-drift)", () => {
+  // 200000001000 / 2000 = 100000000.5 tepat: truncate -> 100000000 (bias
+  // monoton ke bawah), half-up -> 100000001.
+  it("computeNewWac rounds half-up instead of truncating", () => {
+    expect(computeNewWac(1000, 100000001, 1000, 100000000)).toBe(100000001);
+  });
+
+  it("summarizeMovements matches live path (no live/recalc skew)", () => {
+    const result = summarizeMovements([
+      { quantity_milli: 1000, unit_cost_minor: 100000001 },
+      { quantity_milli: 1000, unit_cost_minor: 100000000 },
+    ]);
+    expect(result.current_stock_milli).toBe(2000);
+    expect(result.average_cost_minor).toBe(100000001);
+  });
+
+  it("keeps exact averages exact (no off-by-one on clean divisions)", () => {
+    expect(computeNewWac(4000, 10000 * 10000, 4000, 20000 * 10000)).toBe(15000 * 10000);
+    expect(
+      summarizeMovements([
+        { quantity_milli: 4000, unit_cost_minor: 10000 * 10000 },
+        { quantity_milli: 4000, unit_cost_minor: 20000 * 10000 },
+      ]).average_cost_minor,
+    ).toBe(15000 * 10000);
   });
 });

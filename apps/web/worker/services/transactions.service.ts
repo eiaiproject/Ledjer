@@ -1,8 +1,9 @@
-import { execute, executeBatch, queryAll, queryFirst, statement, type D1Input } from "../db/client";
+import { executeBatch, queryAll, queryFirst, statement, type D1Input } from "../db/client";
 import { badRequest, conflict, notFound } from "../http/errors";
 import { writeAuditStatement } from "../http/audit";
 import { normalizeDate } from "../http/date";
 import type { TransactionType, TransactionStatus } from "../db/schema";
+import type { D1Database, D1PreparedStatement, D1Result } from "@cloudflare/workers-types";
 import { sha256Hex } from "../auth/tokens";
 import { getAccount, isCashBankAccount, type AccountRow } from "./accounts.service";
 import {
@@ -13,11 +14,12 @@ import {
   idrToMinor,
   milliToQuantity,
   minorToIdr,
+  movementsForProduct,
   quantityToMilli,
   recalculateProductCosts,
   resolveCogsAccount,
   resolveInventoryAccount,
-  updateProductStockWac,
+  summarizeMovements,
 } from "./products.service";
 
 export type TransactionDirection = "in" | "out" | "neutral";
@@ -261,7 +263,7 @@ export async function postTransaction(
 
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, organizationId, transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -424,14 +426,60 @@ async function normalizeSaleItems(
 type StockWac = { stockMilli: number; wacMinor: number };
 
 /**
- * Commit bersama transaksi inventory (beli/jual barang): eksekusi batch
- * statement, lalu terapkan pergerakan stok per item. Menangani
- * idempotency-race dan menyinkronkan ulang cache stok/WAC dari riwayat
- * ter-commit bila update stok gagal.
+ * Commit atomik transaksi inventory (beli/jual barang): jurnal, movements,
+ * dan cache stok/WAC produk ditulis dalam SATU batch. Menangani
+ * idempotency-race dan guard-miss (retry baca-ulang bounded).
  *
  * Mengembalikan hasil replay saat request ini duplikat, atau null bila
  * commit berjalan dan pemanggil harus mengembalikan respons posted.
  */
+interface PlannedCacheUpdate {
+  guarded: D1PreparedStatement[];
+}
+
+/** Baca cache kini + hitung nilai berikut + susun guarded UPDATE per item. */
+async function readPlannedUpdates<T extends { productId: string; quantityMilli: number }>(
+  db: D1Database,
+  organizationId: string,
+  items: T[],
+  applyStock: (item: T) => (current: StockWac) => StockWac,
+): Promise<PlannedCacheUpdate> {
+  const guarded: D1PreparedStatement[] = [];
+  for (const item of items) {
+    const product = await getProduct(db, organizationId, item.productId);
+    if (product?.is_active !== 1) {
+      throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
+    }
+    const next = applyStock(item)({
+      stockMilli: product.current_stock_milli,
+      wacMinor: product.average_cost_minor,
+    });
+    if (next.stockMilli < 0) {
+      throw badRequest("insufficient_stock", "Stok produk tidak mencukupi.");
+    }
+    guarded.push(
+      statement(
+        db,
+        `UPDATE products
+         SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
+         WHERE id = ? AND organization_id = ?
+           AND current_stock_milli = ? AND average_cost_minor = ?`,
+        [
+          next.stockMilli, next.wacMinor, Date.now(),
+          item.productId, organizationId,
+          product.current_stock_milli, product.average_cost_minor,
+        ],
+      ),
+    );
+  }
+  return { guarded };
+}
+
+/** True bila semua guarded UPDATE (offset ke-n) mengubah tepat 1 baris. */
+function allCacheCommitted(results: D1Result[], offset: number): boolean {
+  return results.slice(offset).every((r) => (r.meta.changes ?? 0) > 0);
+}
+
 async function commitInventoryTransaction<T extends { productId: string; quantityMilli: number }>(
   db: D1Database,
   organizationId: string,
@@ -441,8 +489,21 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
   items: T[],
   applyStock: (item: T) => (current: StockWac) => StockWac,
 ): Promise<PostTransactionResult | null> {
+  // Cache produk ditulis dalam SATU batch atomik bersama jurnal & movements.
+  // Tanpa ini, crash di antara commit jurnal dan update cache menyisakan
+  // movement tanpa cache — dan guarded UPDATE berikutnya meloloskan nilai
+  // stale menjadi permanen. Guard dibaca ulang tiap percobaan agar retry
+  // selalu memakai nilai kini.
+  //
+  // Jika batch lolos tapi sebagian guard meleset, jurnal & movements SUDAH
+  // ter-commit (update 0-baris bukan error) — maka JANGAN ulangi batch
+  // (UUID ganda), melainkan kejar cache saja via guarded catch-up.
+  const MAX_COMMIT_ATTEMPTS = 6;
+  // Percobaan pertama: batch penuh (jurnal + movements + cache).
+  let pending = await readPlannedUpdates(db, organizationId, items, applyStock);
   try {
-    await executeBatch(db, statements);
+    const results = await executeBatch(db, [...statements, ...pending.guarded]);
+    if (allCacheCommitted(results, statements.length)) return null;
   } catch (err) {
     if (err instanceof Error && /unique|constraint/i.test(err.message)) {
       const raced = await replayIfKeyAlreadyUsed(db, organizationId, idempotencyKey, payloadHash);
@@ -451,18 +512,21 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
     throw err;
   }
 
-  for (const item of items) {
-    try {
-      await updateProductStockWac(db, organizationId, item.productId, applyStock(item));
-    } catch (err) {
-      // Jaring pengaman race: cache stok/WAC disinkronkan dari riwayat yang
-      // sudah ter-commit sebelum error dilempar ke klien.
-      await recalculateProductCosts(db, organizationId, item.productId);
-      throw err;
-    }
+  // Batch lolos tetapi cache belum lengkap: kejar hanya cache (guarded).
+  // Setiap tulis cache ber-guard sehingga concurrent writer ter-serialisasi
+  // via guard-miss, bukan via timpa-menimpa buta.
+  for (let attempt = 1; attempt < MAX_COMMIT_ATTEMPTS; attempt += 1) {
+    pending = await readPlannedUpdates(db, organizationId, items, applyStock);
+    const results = await executeBatch(db, pending.guarded);
+    if (allCacheCommitted(results, 0)) return null;
   }
 
-  return null;
+  // Guard terus meleset: pulihkan dari riwayat agar tak ada stale parsial,
+  // lalu minta klien mencoba lagi (semantik retry lama).
+  for (const item of items) {
+    await recalculateProductCosts(db, organizationId, item.productId);
+  }
+  throw conflict("stock_update_conflict", "Stok produk berubah saat diproses. Coba lagi.");
 }
 
 async function postPurchase(
@@ -505,7 +569,7 @@ async function postPurchase(
 
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, organizationId, input.transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -654,7 +718,7 @@ async function postGoodsSale(
   );
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, input.transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, organizationId, input.transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
@@ -904,36 +968,52 @@ export async function voidTransaction(
     throw conflict("transaction_not_posted", "Hanya transaksi berstatus posted yang dapat dibatalkan.");
   }
 
-  await execute(
-    db,
-    `UPDATE transactions SET status = 'voided', voided_at = ?, void_reason = ?, updated_at = ?
-     WHERE id = ? AND organization_id = ? AND status = 'posted'`,
-    [current, reason, current, transactionId, organizationId],
-  );
-
-  // Transaksi persediaan: pulihkan stok & WAC produk dari riwayat posted
-  // (pergerakan transaksi yang dibatalkan otomatis terhapus dari hitungan).
+  // Transaksi persediaan: pulihkan stok & WAC produk dari riwayat.
+  // Nilai dihitung dengan movement transaksi ini DIKECUALIKAN (setara baca
+  // setelah status voided), lalu status + restore + audit ditulis dalam SATU
+  // batch atomik agar crash tak menyisakan status voided dengan cache basi.
   const movements = await queryAll<{ product_id: string }>(
     db,
     "SELECT product_id FROM stock_movements WHERE organization_id = ? AND transaction_id = ?",
     [organizationId, transactionId],
   );
   const productIds = [...new Set(movements.map((m) => m.product_id))];
+  const restoreStatements: D1PreparedStatement[] = [];
   for (const productId of productIds) {
-    await recalculateProductCosts(db, organizationId, productId);
+    const history = await movementsForProduct(db, organizationId, productId);
+    const { current_stock_milli, average_cost_minor } = summarizeMovements(
+      history.filter((m) => m.transaction_id !== transactionId),
+    );
+    restoreStatements.push(
+      statement(
+        db,
+        `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
+         WHERE id = ? AND organization_id = ?`,
+        [current_stock_milli, average_cost_minor, current, productId, organizationId],
+      ),
+    );
   }
 
-  await writeAuditStatement(db, {
-    organizationId,
-    actorUserId: userId,
-    entityType: "transaction",
-    entityId: transactionId,
-    action: "transaction_voided",
-    after: { transaction_number: existing.transaction_number, void_reason: reason },
-    reason: reason ?? undefined,
-    requestId,
-    current,
-  });
+  await executeBatch(db, [
+    statement(
+      db,
+      `UPDATE transactions SET status = 'voided', voided_at = ?, void_reason = ?, updated_at = ?
+       WHERE id = ? AND organization_id = ? AND status = 'posted'`,
+      [current, reason, current, transactionId, organizationId],
+    ),
+    ...restoreStatements,
+    writeAuditStatement(db, {
+      organizationId,
+      actorUserId: userId,
+      entityType: "transaction",
+      entityId: transactionId,
+      action: "transaction_voided",
+      after: { transaction_number: existing.transaction_number, void_reason: reason },
+      reason: reason ?? undefined,
+      requestId,
+      current,
+    }),
+  ]);
 
   return getTransaction(db, organizationId, transactionId);
 }
@@ -1020,16 +1100,20 @@ function normalizeRequiredText(value: string, maxLength: number, code: string): 
   return text;
 }
 
-/** TRX-YYYYMMDD-XXXX — unique human-readable, not strictly sequential (PRD TRX-08). */
-export async function generateTransactionNumber(db: D1Database, date: string): Promise<string> {
+/** TRX-YYYYMMDD-XXXX — unik per organisasi (bukan global), human-readable (PRD TRX-08). */
+export async function generateTransactionNumber(
+  db: D1Database,
+  organizationId: string,
+  date: string,
+): Promise<string> {
   const base = `TRX-${date.replaceAll("-", "")}-`;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const suffix = randomSuffix(4);
     const number = `${base}${suffix}`;
     const existing = await queryFirst<{ id: string }>(
       db,
-      "SELECT id FROM transactions WHERE transaction_number = ?",
-      [number],
+      "SELECT id FROM transactions WHERE organization_id = ? AND transaction_number = ?",
+      [organizationId, number],
     );
     if (!existing) return number;
   }

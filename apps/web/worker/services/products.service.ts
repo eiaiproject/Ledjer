@@ -94,7 +94,9 @@ export function cogsFromMilliWac(qtyMilli: number, wacMinor: number): number {
   return Number((BigInt(qtyMilli) * BigInt(wacMinor) + 5_000_000n) / 10_000_000n);
 }
 
-/** WAC baru setelah pembelian: (stok×wac + qty×harga) / stok baru. BigInt. */
+/** WAC baru setelah pembelian: (stok×wac + qty×harga) / stok baru.
+ *  BigInt dengan half-up rounding agar sisa pecahan tidak bias ke bawah
+ *  dan terakumulasi (truncation drift) di ribuan pembelian. */
 export function computeNewWac(
   stockMilli: number,
   wacMinor: number,
@@ -104,7 +106,7 @@ export function computeNewWac(
   const newStock = BigInt(stockMilli) + BigInt(qtyMilli);
   if (newStock <= 0n) return 0;
   return Number(
-    (BigInt(stockMilli) * BigInt(wacMinor) + BigInt(qtyMilli) * BigInt(unitCostMinor)) / newStock,
+    (BigInt(stockMilli) * BigInt(wacMinor) + BigInt(qtyMilli) * BigInt(unitCostMinor) + newStock / 2n) / newStock,
   );
 }
 
@@ -323,6 +325,30 @@ export async function movementsForProduct(
 }
 
 /**
+ * Hitung stok & WAC dari riwayat pergerakan (murni, tanpa I/O): pembelian
+ * menambah stok dengan moving-average, penjualan hanya mengurangi stok.
+ */
+export function summarizeMovements(
+  movements: Pick<StockMovementRow, "quantity_milli" | "unit_cost_minor">[],
+): { current_stock_milli: number; average_cost_minor: number } {
+  let stock = 0n;
+  let wac = 0n;
+  for (const m of movements) {
+    const qty = BigInt(m.quantity_milli);
+    if (qty > 0n) {
+      const newStock = stock + qty;
+      // Half-up seperti computeNewWac: live path dan recalculate/void path
+      // harus identik agar tak ada skew cache-vs-riwayat.
+      wac = (stock * wac + qty * BigInt(m.unit_cost_minor) + newStock / 2n) / newStock;
+      stock = newStock;
+    } else {
+      stock += qty; // penjualan: stok berkurang, WAC tidak berubah
+    }
+  }
+  return { current_stock_milli: Number(stock), average_cost_minor: Number(wac) };
+}
+
+/**
  * Hitung ulang stok & WAC produk dari riwayat pergerakan (transaksi posted),
  * lalu tulis ke kolom cache. Dipakai saat void (pergerakan yang dibatalkan
  * otomatis terhapus dari hitungan) dan sebagai alat perbaikan.
@@ -333,20 +359,7 @@ export async function recalculateProductCosts(
   productId: string,
 ): Promise<{ current_stock_milli: number; average_cost_minor: number }> {
   const movements = await movementsForProduct(db, organizationId, productId);
-  let stock = 0n;
-  let wac = 0n;
-  for (const m of movements) {
-    const qty = BigInt(m.quantity_milli);
-    if (qty > 0n) {
-      const newStock = stock + qty;
-      wac = (stock * wac + qty * BigInt(m.unit_cost_minor)) / newStock;
-      stock = newStock;
-    } else {
-      stock += qty; // penjualan: stok berkurang, WAC tidak berubah
-    }
-  }
-  const current_stock_milli = Number(stock);
-  const average_cost_minor = Number(wac);
+  const { current_stock_milli, average_cost_minor } = summarizeMovements(movements);
   await execute(
     db,
     `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
