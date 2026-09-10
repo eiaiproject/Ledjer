@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -73,6 +74,11 @@ export function AccountsPage() {
         title="Kas & Bank"
         description="Kelola akun kas dan rekening bank usaha Anda."
       />
+      <Link to="/accounts/chart" className="block sm:w-auto">
+        <Button variant="secondary" fullWidth className="sm:w-auto">
+          Bagan Akun
+        </Button>
+      </Link>
 
       <Card elevated>
         <CardContent className="p-4">

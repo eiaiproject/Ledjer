@@ -19,6 +19,7 @@ const TransactionListPage = lazy(async () => ({ default: (await import("@/pages/
 const NewTransactionPage = lazy(async () => ({ default: (await import("@/pages/transactions/new")).NewTransactionPage }));
 const TransactionDetailPage = lazy(async () => ({ default: (await import("@/pages/transactions/[id]")).TransactionDetailPage }));
 const AccountsPage = lazy(async () => ({ default: (await import("@/pages/accounts/index")).AccountsPage }));
+const ChartOfAccountsPage = lazy(async () => ({ default: (await import("@/pages/accounts/chart")).ChartOfAccountsPage }));
 const ProductsPage = lazy(async () => ({ default: (await import("@/pages/products/index")).ProductsPage }));
 const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/reports/profit-loss")).ProfitLossPage }));
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
@@ -136,6 +137,7 @@ const routerConfig = [
           { path: "/transactions/new", element: <NewTransactionPage /> },
           { path: "/transactions/:id", element: <TransactionDetailPage /> },
           { path: "/accounts", element: <AccountsPage /> },
+          { path: "/accounts/chart", element: <ChartOfAccountsPage /> },
           { path: "/products", element: <ProductsPage /> },
           { path: "/reports/profit-loss", element: <ProfitLossPage /> },
           { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },

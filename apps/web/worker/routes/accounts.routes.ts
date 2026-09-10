@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 import { readJson } from "../http/json";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import {
+  createAccount,
   createCashBankAccount,
   listAccounts,
   patchAccount,
@@ -12,6 +13,11 @@ import {
 
 const createCashBankSchema = z.object({
   subtype: z.enum(["cash", "bank"]),
+  name: z.string().min(1).max(80),
+});
+
+const createAccountSchema = z.object({
+  accountClass: z.enum(["income", "expense"]),
   name: z.string().min(1).max(80),
 });
 
@@ -40,6 +46,18 @@ accountsRoutes.post("/cash-bank", requirePermission("accounts:write"), async (c)
   const context = c.get("organizationContext");
   const body = await readJson(c, createCashBankSchema);
   const account = await createCashBankAccount(
+    c.env.DB,
+    context.organization.id,
+    context.member.user_id,
+    body,
+  );
+  return c.json({ account });
+});
+
+accountsRoutes.post("/", requirePermission("accounts:write"), async (c) => {
+  const context = c.get("organizationContext");
+  const body = await readJson(c, createAccountSchema);
+  const account = await createAccount(
     c.env.DB,
     context.organization.id,
     context.member.user_id,
