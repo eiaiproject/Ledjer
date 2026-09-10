@@ -90,20 +90,13 @@ export function DashboardPage() {
       <PageHeader
         title={`Halo, ${orgData?.organization?.name ?? ""}`}
         description="Ringkasan keuangan usaha Anda."
-        actions={[
-          {
-            key: "new-transaction",
-            children: (
-              <Link to="/transactions/new">
-                <Button>
-                  <Plus className="h-4 w-4" />
-                  Transaksi Baru
-                </Button>
-              </Link>
-            ),
-          },
-        ]}
       />
+      <Link to="/transactions/new" className="block sm:w-fit">
+        <Button fullWidth className="sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Transaksi Baru
+        </Button>
+      </Link>
 
       {negativeBalanceAccounts.length > 0 && (
         <Card className="border-clay-200 bg-clay-50">
