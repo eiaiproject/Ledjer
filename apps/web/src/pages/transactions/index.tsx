@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -26,7 +26,11 @@ export function TransactionListPage() {
   const orgId = orgData?.organization?.id;
 
   const [search, setSearch] = useState("");
-  const [transactionType, setTransactionType] = useState("");
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get("type") ?? "";
+  const [transactionType, setTransactionType] = useState(
+    TRANSACTION_TYPES.includes(initialType as (typeof TRANSACTION_TYPES)[number]) ? initialType : "",
+  );
   const [status, setStatus] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");

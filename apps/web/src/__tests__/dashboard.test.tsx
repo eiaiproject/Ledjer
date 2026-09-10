@@ -31,6 +31,37 @@ function renderDashboard() {
 }
 
 describe('DashboardPage', () => {
+  it('kartu statistik tertaut ke halaman detail dan rincian kas dihapus', async () => {
+    getDashboardSummary.mockResolvedValue({
+      cashBankBalance: 1000000,
+      cashBankAccounts: [{ id: 'a1', code: '1110', name: 'Kas', balance: 1000000 }],
+      month: { from: '2026-09-01', to: '2026-09-30' },
+      moneyIn: 500000,
+      moneyOut: 200000,
+      netIncome: 300000,
+      recentTransactions: [],
+    });
+    getDashboardAlerts.mockResolvedValue({ negativeBalanceAccounts: [] });
+
+    renderDashboard();
+
+    expect(await screen.findByText(/belum ada transaksi/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /saldo kas & bank/i })).toHaveAttribute('href', '/accounts');
+    expect(screen.getByRole('link', { name: /uang masuk bulan ini/i })).toHaveAttribute(
+      'href',
+      '/transactions?type=cash_in',
+    );
+    expect(screen.getByRole('link', { name: /uang keluar bulan ini/i })).toHaveAttribute(
+      'href',
+      '/transactions?type=cash_out',
+    );
+    expect(screen.getByRole('link', { name: /laba bersih bulan ini/i })).toHaveAttribute(
+      'href',
+      '/reports/profit-loss',
+    );
+    expect(screen.queryByText(/rincian kas & bank/i)).toBeNull();
+  });
+
   it('renders without crashing when summary is missing recentTransactions', async () => {
     getDashboardSummary.mockResolvedValue({
       cashBankBalance: 0,
