@@ -21,12 +21,12 @@ const PAGE_SIZE = 25;
 
 type FilterChip = "all" | "active" | "inactive" | "low" | "out";
 
-const CHIPS: { key: FilterChip; label: string }[] = [
-  { key: "all", label: "Semua" },
-  { key: "active", label: "Aktif" },
-  { key: "inactive", label: "Nonaktif" },
-  { key: "low", label: "Menipis" },
-  { key: "out", label: "Habis" },
+const FILTER_OPTIONS: { value: FilterChip; label: string }[] = [
+  { value: "all", label: "Semua" },
+  { value: "active", label: "Aktif" },
+  { value: "inactive", label: "Nonaktif" },
+  { value: "low", label: "Menipis" },
+  { value: "out", label: "Habis" },
 ];
 
 interface EditState {
@@ -195,44 +195,30 @@ export function ProductsPage() {
               }}
               placeholder="Nama atau kode produk"
             />
-            <Select
-              label="Urutkan"
-              value={sort}
-              onChange={(e) => {
-                setSort(e.target.value as ProductListSort);
-                setOffset(0);
-              }}
-              options={[
-                { value: "name", label: "Nama A–Z" },
-                { value: "stock_asc", label: "Stok terendah" },
-                { value: "value_desc", label: "Nilai tertinggi" },
-              ]}
-            />
-          </div>
-          <div
-            className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2"
-            role="group"
-            aria-label="Filter produk"
-          >
-            {CHIPS.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                aria-pressed={chip === c.key}
-                onClick={() => {
-                  setChip(c.key);
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Filter"
+                value={chip}
+                onChange={(e) => {
+                  setChip(e.target.value as FilterChip);
                   setOffset(0);
                 }}
-                className={cn(
-                  "min-h-[44px] rounded-full border px-2 text-center text-sm font-medium transition-colors",
-                  chip === c.key
-                    ? "border-wood-700 bg-wood-700 text-cream-50"
-                    : "border-wood-300 text-wood-700 hover:bg-cream-100"
-                )}
-              >
-                {c.label}
-              </button>
-            ))}
+                options={FILTER_OPTIONS}
+              />
+              <Select
+                label="Urutkan"
+                value={sort}
+                onChange={(e) => {
+                  setSort(e.target.value as ProductListSort);
+                  setOffset(0);
+                }}
+                options={[
+                  { value: "name", label: "Nama A–Z" },
+                  { value: "stock_asc", label: "Stok terendah" },
+                  { value: "value_desc", label: "Nilai tertinggi" },
+                ]}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
