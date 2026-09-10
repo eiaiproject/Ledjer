@@ -56,7 +56,7 @@
 - No migration in branch; previous worker versions retained by Cloudflare; rollback = redeploy prior version ID.
 
 ## 4. Findings
-- **F-11 (Low, UX):** Quick-entry Kirim button is silently disabled while the product catalog loads; on a cold worker the user can type + tap with zero feedback (this is what made the E2E first attempt flake). Suggested: loading hint/skeleton on the send button while `productsQuery.isLoading`.
+- **F-11 (Low, UX — FIXED):** Quick-entry Kirim button was silently disabled while the product catalog loaded. Fixed: spinner + aria-busy while loading (unit-tested); redeployed staging `005effce`.
 - (No other findings. F-01…F-10 from prior audits remain as previously dispositioned.)
 
 ## 5. Coverage Gaps
