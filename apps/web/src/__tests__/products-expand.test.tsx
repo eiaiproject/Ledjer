@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProductsPage } from '@/pages/products/index';
 
@@ -94,6 +94,30 @@ function renderPage() {
 }
 
 describe('ProductsPage expandable rows', () => {
+  it('tombol aksi ringkas berlabel aksesibel (ikon di mobile)', async () => {
+    listProducts.mockResolvedValue([product]);
+    getProductMovements.mockResolvedValue([]);
+    renderPage();
+
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    // Nama aksesibel tetap menyebut produk; teks visual hanya di sm+.
+    expect(screen.getByRole('button', { name: 'Edit Kopi' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Nonaktifkan Kopi' })).toBeTruthy();
+  });
+
+  it('info HPP/Jual pindah ke panel expand (baris ringkas)', async () => {
+    listProducts.mockResolvedValue([{ ...product, average_cost_idr: 30000, selling_price_idr: 50000 }]);
+    getProductMovements.mockResolvedValue(movements);
+    renderPage();
+
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    // Baris ringkas: tidak ada teks HPP di daftar (form tambah diabaikan).
+    const list = screen.getByRole('list');
+    expect(within(list).queryByText(/HPP/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /riwayat mutasi kopi/i }));
+    expect(await within(list).findByText(/HPP/)).toBeTruthy();
+  });
+
   it('mengembangkan baris produk untuk menampilkan riwayat mutasi', async () => {
     listProducts.mockResolvedValue([product]);
     getProductMovements.mockResolvedValue(movements);

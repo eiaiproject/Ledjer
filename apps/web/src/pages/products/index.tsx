@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Edit, Plus } from "reicon-react";
+import { ChevronDown, Edit, Plus, Power } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { createProduct, getProductMovements, listProducts, patchProduct, type Product, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
@@ -195,7 +195,7 @@ export function ProductsPage() {
                         aria-expanded={expanded}
                         aria-controls={`movements-${product.id}`}
                         aria-label={`Riwayat mutasi ${product.name}`}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors hover:bg-wood-100 hover:text-wood-700"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors hover:bg-wood-100 hover:text-wood-700"
                       >
                         <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
                       </button>
@@ -218,23 +218,21 @@ export function ProductsPage() {
                         <p className="num-mono text-sm font-semibold text-text-primary">
                           {formatIDR(product.stock_value_idr)}
                         </p>
-                        <p className="text-xs text-text-tertiary">
-                          HPP {formatDecimalIDR(product.average_cost_idr)}/{product.unit} · Jual{" "}
-                          {formatDecimalIDR(product.selling_price_idr)}
-                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(product)}>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <Button variant="ghost" size="sm" aria-label={`Edit ${product.name}`} onClick={() => openEdit(product)}>
                           <Edit className="h-4 w-4" />
-                          Edit
+                          <span className="hidden sm:inline">Edit</span>
                         </Button>
                         {product.is_active === 1 ? (
-                          <Button variant="ghost" size="sm" onClick={() => handleToggleActive(product)}>
-                            Nonaktifkan
+                          <Button variant="ghost" size="sm" aria-label={`Nonaktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
+                            <Power className="h-4 w-4" />
+                            <span className="hidden sm:inline">Nonaktifkan</span>
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" onClick={() => handleToggleActive(product)}>
-                            Aktifkan
+                          <Button variant="outline" size="sm" aria-label={`Aktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
+                            <Power className="h-4 w-4" />
+                            <span className="hidden sm:inline">Aktifkan</span>
                           </Button>
                         )}
                       </div>
@@ -242,6 +240,10 @@ export function ProductsPage() {
                     </div>
                     {expanded && (
                       <div id={`movements-${product.id}`} className="mt-2 border-t border-wood-100 pt-2">
+                        <p className="px-1 pb-1 text-xs text-text-tertiary">
+                          HPP {formatDecimalIDR(product.average_cost_idr)}/{product.unit} · Jual{" "}
+                          {formatDecimalIDR(product.selling_price_idr)}
+                        </p>
                         <ProductMovementHistory productId={product.id} unit={product.unit} />
                       </div>
                     )}

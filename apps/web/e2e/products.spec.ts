@@ -110,7 +110,7 @@ test.describe("Products page", () => {
     await expectProductVisible(authPage, EDIT_PRODUCT_NAME);
 
     const row = authPage.locator("li", { hasText: EDIT_PRODUCT_NAME });
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: /^Edit / }).click();
     await expect(authPage.getByText("Edit Produk")).toBeVisible({ timeout: 10000 });
     await authPage.getByLabel("Nama Produk").last().fill(EDIT_PRODUCT_NEW_NAME);
     await authPage.getByRole("button", { name: "Simpan" }).click();
