@@ -52,7 +52,9 @@ interface ProductsPageResponse {
 
 export function listProductsPage(params: ProductListParams): Promise<ProductsPageResponse> {
   const query = new URLSearchParams();
-  if (params.status && params.status !== "all") query.set("status", params.status);
+  // status SELALU dikirim eksplisit: default server adalah aktif-saja,
+  // sedangkan chip "Semua" berarti termasuk nonaktif.
+  query.set("status", params.status ?? "all");
   if (params.search) query.set("search", params.search);
   if (params.stock && params.stock !== "all") query.set("stock", params.stock);
   if (params.sort) query.set("sort", params.sort);

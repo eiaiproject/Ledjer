@@ -156,6 +156,12 @@ describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
     listProductsPage.mockResolvedValue({ products: [product], total: 1 });
   });
 
+  it('memuat semua status secara default (termasuk nonaktif)', async () => {
+    renderPage();
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ status: 'all' }));
+  });
+
   function renderList() {
     return renderPage();
   }

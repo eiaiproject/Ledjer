@@ -55,7 +55,8 @@ export function ProductsPage() {
   const [sort, setSort] = useState<ProductListSort>("name");
   const [offset, setOffset] = useState(0);
 
-  const statusParam = chip === "active" || chip === "inactive" ? chip : undefined;
+  const statusParam: "active" | "inactive" | "all" =
+    chip === "active" || chip === "inactive" ? chip : "all";
   const stockParam = chip === "low" || chip === "out" ? chip : undefined;
   const query = useQuery({
     queryKey: queryKeys.products.page(orgId, {
