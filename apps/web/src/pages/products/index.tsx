@@ -209,7 +209,11 @@ export function ProductsPage() {
               ]}
             />
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter produk">
+          <div
+            className="-mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pt-0.5 pb-1.5 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+            role="group"
+            aria-label="Filter produk"
+          >
             {CHIPS.map((c) => (
               <button
                 key={c.key}
@@ -220,7 +224,7 @@ export function ProductsPage() {
                   setOffset(0);
                 }}
                 className={cn(
-                  "min-h-[36px] rounded-full border px-3 text-sm font-medium transition-colors",
+                  "min-h-[44px] shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
                   chip === c.key
                     ? "border-wood-700 bg-wood-700 text-cream-50"
                     : "border-wood-300 text-wood-700 hover:bg-cream-100"

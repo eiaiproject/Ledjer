@@ -152,6 +152,14 @@ describe('ProductsPage expandable rows', () => {
 });
 
 describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
+  it('chip filter dalam strip scroll horizontal di mobile', async () => {
+    renderPage();
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    const group = screen.getByRole('group', { name: 'Filter produk' });
+    expect(group.className).toContain('overflow-x-auto');
+    expect(group.className).toContain('flex-nowrap');
+  });
+
   beforeEach(() => {
     listProductsPage.mockResolvedValue({ products: [product], total: 1 });
   });
