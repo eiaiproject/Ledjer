@@ -984,6 +984,45 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
       .map((m) => ({ ...m }));
   }
 
+  // getStockMovementReport: mutasi + transaksi + produk, posted only, sisa berjalan.
+  if (s.includes("report:stock-movements")) {
+    const orgId = values[0] as string;
+    const toDate = values[1] as string;
+    const productId = values.length > 2 ? (values[2] as string) : undefined;
+    const lines = [];
+    for (const m of stockMovements) {
+      if (m.organization_id !== orgId) continue;
+      if (productId && m.product_id !== productId) continue;
+      const txn = transactions.find((t) => t.id === m.transaction_id);
+      if (txn?.status !== "posted") continue;
+      if (txn.transaction_date > toDate) continue;
+      const product = products.find((p) => p.id === m.product_id);
+      if (!product) continue;
+      lines.push({
+        product_id: product.id,
+        product_name: product.name,
+        unit: product.unit,
+        entry_date: txn.transaction_date,
+        transaction_id: txn.id,
+        transaction_number: txn.transaction_number,
+        transaction_type: txn.transaction_type,
+        description: txn.description,
+        quantity_milli: m.quantity_milli,
+        unit_cost_minor: m.unit_cost_minor,
+        created_at: m.created_at,
+      });
+    }
+    // Cermin ORDER BY SQL: nama produk, id, tanggal, created_at, urutan sisip.
+    lines.sort(
+      (a, b) =>
+        a.product_name.localeCompare(b.product_name) ||
+        a.product_id.localeCompare(b.product_id) ||
+        a.entry_date.localeCompare(b.entry_date) ||
+        a.created_at - b.created_at,
+    );
+    return lines;
+  }
+
   // Dashboard cash flow: SELECT transaction_type, SUM(amount_idr) ... GROUP BY transaction_type
   if (s.includes("GROUP BY transaction_type") && s.includes("SUM(amount_idr)")) {
     const orgId = values[0] as string;

@@ -3,6 +3,10 @@ import { badRequest, conflict, notFound } from "../http/errors";
 import { writeAuditStatement } from "../http/audit";
 import { getAccountByKind } from "./accounts.service";
 import type { AccountRow } from "./accounts.service";
+import type {
+  GetStockMovementReportInput,
+  StockMovementReportLine,
+} from "./report-types";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -322,6 +326,77 @@ export async function movementsForProduct(
      ORDER BY sm.created_at ASC, sm.rowid ASC`,
     [organizationId, productId],
   );
+}
+
+export type { GetStockMovementReportInput, StockMovementReportLine };
+
+/**
+ * Laporan mutasi stok per produk: hanya transaksi posted (void dikecualikan),
+ * urut produk lalu kronologis. Sisa berjalan dihitung dari seluruh riwayat
+ * s.d. toDate (pola yang sama dengan running balance Buku Besar) sehingga
+ * filter tanggal tidak mematahkan angka.
+ */
+export async function getStockMovementReport(
+  db: D1Database,
+  organizationId: string,
+  input: GetStockMovementReportInput,
+): Promise<StockMovementReportLine[]> {
+  const values: (string)[] = [organizationId, input.toDate];
+  let productFilter = "";
+  if (input.productId) {
+    productFilter = " AND sm.product_id = ?";
+    values.push(input.productId);
+  }
+  const rows = await queryAll<{
+    product_id: string;
+    product_name: string;
+    unit: string;
+    entry_date: string;
+    transaction_id: string;
+    transaction_number: string;
+    transaction_type: string;
+    description: string;
+    quantity_milli: number;
+    unit_cost_minor: number;
+    created_at: number;
+  }>(
+    db,
+    `-- report:stock-movements
+     SELECT p.id AS product_id, p.name AS product_name, p.unit,
+            t.transaction_date AS entry_date, t.id AS transaction_id,
+            t.transaction_number, t.transaction_type, t.description,
+            sm.quantity_milli, sm.unit_cost_minor, sm.created_at
+     FROM stock_movements sm
+     JOIN transactions t ON t.id = sm.transaction_id
+     JOIN products p ON p.id = sm.product_id
+     WHERE sm.organization_id = ? AND t.status = 'posted'
+       AND t.transaction_date <= ?${productFilter}
+     ORDER BY p.name ASC, p.id ASC, t.transaction_date ASC, sm.created_at ASC, sm.rowid ASC`,
+    values,
+  );
+
+  const running = new Map<string, number>();
+  const lines: StockMovementReportLine[] = [];
+  for (const row of rows) {
+    const next = (running.get(row.product_id) ?? 0) + row.quantity_milli;
+    running.set(row.product_id, next);
+    if (row.entry_date < input.fromDate) continue;
+    lines.push({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      unit: row.unit,
+      entry_date: row.entry_date,
+      transaction_id: row.transaction_id,
+      transaction_number: row.transaction_number,
+      transaction_type: row.transaction_type,
+      description: row.description,
+      quantity_in_milli: row.quantity_milli > 0 ? row.quantity_milli : 0,
+      quantity_out_milli: row.quantity_milli < 0 ? -row.quantity_milli : 0,
+      unit_cost_minor: row.unit_cost_minor,
+      running_stock_milli: next,
+    });
+  }
+  return lines;
 }
 
 /**

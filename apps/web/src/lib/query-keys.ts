@@ -16,9 +16,12 @@ export const queryKeys = {
       ["balance-sheet", orgId, asOfDate] as const,
     generalLedger: (orgId: string | undefined, fromDate: string, toDate: string, accountId?: string) =>
       ["general-ledger", orgId, fromDate, toDate, accountId ?? ""] as const,
+    stockMovements: (orgId: string | undefined, fromDate: string, toDate: string, productId?: string) =>
+      ["stock-movements", orgId, fromDate, toDate, productId ?? ""] as const,
     allProfitLoss: () => ["profit-loss"] as const,
     allBalanceSheet: () => ["balance-sheet"] as const,
     allGeneralLedger: () => ["general-ledger"] as const,
+    allStockMovements: () => ["stock-movements"] as const,
   },
 
   accounts: {

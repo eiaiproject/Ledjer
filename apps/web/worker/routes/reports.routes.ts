@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 import { badRequest } from "../http/errors";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import { getBalanceSheet, getGeneralLedger, getProfitLoss } from "../services/reports.service";
+import { getStockMovementReport } from "../services/products.service";
 
 export const reportsRoutes = new Hono<AppContext>();
 
@@ -53,6 +54,22 @@ reportsRoutes.get("/general-ledger", async (c) => {
   );
   c.res.headers.set("Cache-Control", "private, max-age=30");
   return c.json({ report });
+});
+
+reportsRoutes.get("/stock-movements", async (c) => {
+  const context = c.get("organizationContext");
+  const url = new URL(c.req.url);
+  const params = url.searchParams;
+  const productId = params.get("productId") || undefined;
+  const fromDate = requiredParam(params, "fromDate");
+  const toDate = requiredParam(params, "toDate");
+  const lines = await getStockMovementReport(c.env.DB, context.organization.id, {
+    productId,
+    fromDate,
+    toDate,
+  });
+  c.res.headers.set("Cache-Control", "private, max-age=30");
+  return c.json({ report: { fromDate, toDate, productId: productId ?? null, lines } });
 });
 
 function requiredParam(params: URLSearchParams, name: string): string {
