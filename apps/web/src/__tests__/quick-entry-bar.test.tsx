@@ -94,6 +94,15 @@ async function readyToSend() {
 }
 
 describe('QuickEntryBar', () => {
+  it('tombol Kirim menunjukkan loading saat katalog dimuat', async () => {
+    listProducts.mockImplementation(() => new Promise(() => {}));
+    listCashBankAccounts.mockResolvedValue([]);
+    listAccounts.mockResolvedValue([]);
+    renderBar();
+
+    expect(screen.getByRole('button', { name: /kirim/i })).toHaveAttribute('aria-busy', 'true');
+  });
+
   it('ketik jual → pratinjau tampil dengan tombol Catat', async () => {
     seedCatalog();
     renderBar();

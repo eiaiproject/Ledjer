@@ -232,7 +232,7 @@ export function QuickEntryBar() {
               className="text-base"
             />
           </div>
-          <Button type="submit" className="min-h-[44px] shrink-0" disabled={productsQuery.isLoading}>
+          <Button type="submit" className="min-h-[44px] shrink-0" disabled={productsQuery.isLoading} loading={productsQuery.isLoading}>
             Kirim
           </Button>
         </form>
