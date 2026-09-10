@@ -128,7 +128,7 @@ export function TransactionListPage() {
           {
             key: "new",
             children: (
-              <Link to="/transactions/new">
+              <Link to="/transactions/new" className="hidden lg:block">
                 <Button>
                   <Plus className="h-4 w-4" />
                   Transaksi Baru
@@ -141,7 +141,7 @@ export function TransactionListPage() {
 
       <Link
         to="/transactions/new"
-        className="sticky bottom-[calc(56px+env(safe-area-inset-bottom,0px)+12px)] z-[var(--z-sticky)] block lg:hidden"
+        className="sticky top-[calc(56px+env(safe-area-inset-top,0px)+8px)] z-[var(--z-sticky)] block lg:hidden"
       >
         <Button fullWidth className="shadow-lg">
           <Plus className="h-4 w-4" />
