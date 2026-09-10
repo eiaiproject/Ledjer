@@ -188,7 +188,8 @@ function parsePriceToken(token: string): number | null {
 
 export function parseQuickEntryText(text: string): QuickEntryParseResult {
   const normalized = text.toLowerCase().trim().replace(/\s+/g, " ");
-  const verbMatch = /^(jual|beli)\s+(.+)$/.exec(normalized);
+  // Spasi sudah dinormalisasi tunggal → pola spasi literal (linear, tanpa backtracking).
+  const verbMatch = /^(jual|beli) (.+)$/.exec(normalized);
   if (!verbMatch) return { ok: false, message: HELP };
   const kind = verbMatch[1] === "jual" ? "sale" : "purchase";
   const rest = verbMatch[2].replace(/^rp\s*/i, "");
