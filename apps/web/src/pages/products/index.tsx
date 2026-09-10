@@ -170,18 +170,11 @@ export function ProductsPage() {
       <PageHeader
         title="Produk"
         description="Kelola daftar produk untuk pembelian & penjualan barang (HPP dihitung otomatis dari stok)."
-        actions={[
-          {
-            key: "create",
-            children: (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4" />
-                Tambah Produk
-              </Button>
-            ),
-          },
-        ]}
       />
+      <Button onClick={() => setCreateOpen(true)} fullWidth className="sm:w-auto">
+        <Plus className="h-4 w-4" />
+        Tambah Produk
+      </Button>
 
       <Card elevated>
         <CardContent className="space-y-3 p-4">
