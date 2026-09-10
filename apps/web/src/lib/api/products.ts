@@ -32,6 +32,36 @@ export function listProducts(includeInactive = false): Promise<Product[]> {
   return apiRequest<ProductsResponse>(`/api/products${query}`).then((data) => data.products);
 }
 
+export type ProductListStatus = "all" | "active" | "inactive";
+export type ProductListStock = "all" | "in" | "out" | "low";
+export type ProductListSort = "name" | "stock_asc" | "value_desc";
+
+export interface ProductListParams {
+  status?: ProductListStatus;
+  search?: string;
+  stock?: ProductListStock;
+  sort?: ProductListSort;
+  limit?: number;
+  offset?: number;
+}
+
+interface ProductsPageResponse {
+  products: Product[];
+  total: number;
+}
+
+export function listProductsPage(params: ProductListParams): Promise<ProductsPageResponse> {
+  const query = new URLSearchParams();
+  if (params.status && params.status !== "all") query.set("status", params.status);
+  if (params.search) query.set("search", params.search);
+  if (params.stock && params.stock !== "all") query.set("stock", params.stock);
+  if (params.sort) query.set("sort", params.sort);
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.offset !== undefined) query.set("offset", String(params.offset));
+  const suffix = query.size > 0 ? `?${query}` : "";
+  return apiRequest<ProductsPageResponse>(`/api/products${suffix}`);
+}
+
 interface ProductMovementsResponse {
   movements: StockMovementReportLine[];
 }

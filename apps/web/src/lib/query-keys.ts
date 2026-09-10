@@ -28,6 +28,8 @@ export const queryKeys = {
 
   products: {
     all: (orgId: string | undefined) => ["products", orgId] as const,
+    page: (orgId: string | undefined, params: Record<string, string | number>) =>
+      ["products", orgId, "page", params.search ?? "", params.status ?? "", params.stock ?? "", params.sort ?? "", params.limit ?? 0, params.offset ?? 0] as const,
     movements: (orgId: string | undefined, productId: string) =>
       ["products", orgId, productId, "movements"] as const,
     allProducts: () => ["products"] as const,

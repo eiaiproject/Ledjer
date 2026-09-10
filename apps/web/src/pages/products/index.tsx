@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Edit, Plus, Power } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
-import { createProduct, getProductMovements, listProducts, patchProduct, type Product, type StockMovementReportLine } from "@/lib/api/products";
+import { createProduct, getProductMovements, listProductsPage, patchProduct, type Product, type ProductListSort, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,6 +16,18 @@ import { Modal, ModalContent, ModalFooter } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { formatIDR, formatDecimalIDR, formatQuantity, formatShortDate, cn } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
+
+const PAGE_SIZE = 25;
+
+type FilterChip = "all" | "active" | "inactive" | "low" | "out";
+
+const CHIPS: { key: FilterChip; label: string }[] = [
+  { key: "all", label: "Semua" },
+  { key: "active", label: "Aktif" },
+  { key: "inactive", label: "Nonaktif" },
+  { key: "low", label: "Menipis" },
+  { key: "out", label: "Habis" },
+];
 
 interface EditState {
   product: Product;
@@ -32,20 +45,42 @@ export function ProductsPage() {
   const [unit, setUnit] = useState("");
   const [sellingPriceIdr, setSellingPriceIdr] = useState("");
   const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const [chip, setChip] = useState<FilterChip>("all");
+  const [sort, setSort] = useState<ProductListSort>("name");
+  const [offset, setOffset] = useState(0);
 
+  const statusParam = chip === "active" || chip === "inactive" ? chip : undefined;
+  const stockParam = chip === "low" || chip === "out" ? chip : undefined;
   const query = useQuery({
-    queryKey: queryKeys.products.all(orgId),
+    queryKey: queryKeys.products.page(orgId, {
+      search: deferredSearch, status: statusParam ?? "", stock: stockParam ?? "",
+      sort, limit: PAGE_SIZE, offset,
+    }),
     queryFn: async () => {
       if (!orgId) throw new Error("No organization");
-      return listProducts(true);
+      return listProductsPage({
+        search: deferredSearch || undefined,
+        status: statusParam,
+        stock: stockParam,
+        sort,
+        limit: PAGE_SIZE,
+        offset,
+      });
     },
     enabled: !!orgId,
   });
 
-  const products = query.data ?? [];
+  const products = query.data?.products ?? [];
+  const total = query.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const filtering = deferredSearch !== "" || chip !== "all";
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.products.allProducts() });
@@ -72,6 +107,7 @@ export function ProductsPage() {
       setName("");
       setUnit("");
       setSellingPriceIdr("");
+      setCreateOpen(false);
       invalidate();
     } catch (err) {
       toast.error(translateError(err));
@@ -133,44 +169,66 @@ export function ProductsPage() {
       <PageHeader
         title="Produk"
         description="Kelola daftar produk untuk pembelian & penjualan barang (HPP dihitung otomatis dari stok)."
-      />
-
-      <Card elevated>
-        <CardContent className="p-4">
-          <form
-            className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleCreate();
-            }}
-          >
-            <Input
-              label="Nama Produk"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Kopi Bubuk 250g"
-            />
-            <Input
-              label="Satuan"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              placeholder="Contoh: bungkus, kg, pcs"
-            />
-            <Input
-              label="Harga Jual (Rp)"
-              isCurrency
-              inputMode="numeric"
-              value={sellingPriceIdr}
-              onChange={(e) => setSellingPriceIdr(e.target.value)}
-              placeholder="0"
-            />
-            <div className="flex justify-end lg:col-start-4">
-              <Button type="submit" loading={creating} fullWidth className="lg:w-auto">
+        actions={[
+          {
+            key: "create",
+            children: (
+              <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4" />
                 Tambah Produk
               </Button>
-            </div>
-          </form>
+            ),
+          },
+        ]}
+      />
+
+      <Card elevated>
+        <CardContent className="space-y-3 p-4">
+          <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
+            <Input
+              label="Cari produk"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setOffset(0);
+              }}
+              placeholder="Nama atau kode produk"
+            />
+            <Select
+              label="Urutkan"
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value as ProductListSort);
+                setOffset(0);
+              }}
+              options={[
+                { value: "name", label: "Nama A–Z" },
+                { value: "stock_asc", label: "Stok terendah" },
+                { value: "value_desc", label: "Nilai tertinggi" },
+              ]}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter produk">
+            {CHIPS.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                aria-pressed={chip === c.key}
+                onClick={() => {
+                  setChip(c.key);
+                  setOffset(0);
+                }}
+                className={cn(
+                  "min-h-[36px] rounded-full border px-3 text-sm font-medium transition-colors",
+                  chip === c.key
+                    ? "border-wood-700 bg-wood-700 text-cream-50"
+                    : "border-wood-300 text-wood-700 hover:bg-cream-100"
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -180,7 +238,14 @@ export function ProductsPage() {
         <Card elevated title="Daftar Produk">
           <CardContent className="p-0">
             {products.length === 0 ? (
-              <EmptyState title="Belum ada produk" description="Tambahkan produk untuk mulai mencatat pembelian & penjualan barang." />
+              <EmptyState
+                title={filtering ? "Tidak ada produk yang cocok" : "Belum ada produk"}
+                description={
+                  filtering
+                    ? "Coba kata kunci atau filter lain."
+                    : "Tambahkan produk untuk mulai mencatat pembelian & penjualan barang."
+                }
+              />
             ) : (
               <ul className="divide-y divide-wood-100">
                 {products.map((product) => {
@@ -255,6 +320,67 @@ export function ProductsPage() {
           </CardContent>
         </Card>
       )}
+
+      {query.data && total > PAGE_SIZE && (
+        <nav aria-label="Navigasi halaman" className="flex items-center justify-between gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage <= 1}
+            onClick={() => setOffset((currentPage - 2) * PAGE_SIZE)}
+          >
+            Sebelumnya
+          </Button>
+          <p className="text-sm text-text-secondary">
+            Halaman {currentPage} dari {totalPages}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage >= totalPages}
+            onClick={() => setOffset(currentPage * PAGE_SIZE)}
+          >
+            Berikutnya
+          </Button>
+        </nav>
+      )}
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tambah Produk" size="sm">
+        <ModalContent className="space-y-4">
+          <Input
+            id="create-nama-produk"
+            label="Nama Produk"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Contoh: Kopi Bubuk 250g"
+          />
+          <Input
+            id="create-satuan"
+            label="Satuan"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            placeholder="Contoh: bungkus, kg, pcs"
+          />
+          <Input
+            id="create-harga-jual"
+            label="Harga Jual (Rp)"
+            isCurrency
+            inputMode="numeric"
+            value={sellingPriceIdr}
+            onChange={(e) => setSellingPriceIdr(e.target.value)}
+            placeholder="0"
+          />
+        </ModalContent>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+            Batal
+          </Button>
+          <Button onClick={handleCreate} loading={creating}>
+            <Plus className="h-4 w-4" />
+            Simpan Produk
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       <Modal open={edit !== null} onClose={() => setEdit(null)} title="Edit Produk" size="sm">
         {edit && (

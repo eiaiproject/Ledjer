@@ -4,7 +4,8 @@ import type { AppContext } from "../env";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
-import { createProduct, getStockMovementReport, listProducts, patchProduct } from "../services/products.service";
+import { createProduct, getStockMovementReport, listProductsPage, patchProduct } from "../services/products.service";
+import type { ProductSort, ProductStockFilter } from "../services/products.service";
 
 const createProductSchema = z.object({
   code: z.string().min(1).max(40).optional(),
@@ -27,10 +28,23 @@ productsRoutes.use("*", loadCurrentOrganization());
 
 productsRoutes.get("/", requirePermission("products:read"), async (c) => {
   const context = c.get("organizationContext");
-  const products = await listProducts(c.env.DB, context.organization.id, {
-    includeInactive: c.req.query("includeInactive") === "true",
+  const params = new URL(c.req.url).searchParams;
+  const status = params.get("status");
+  const stock = params.get("stock") as ProductStockFilter | null;
+  const sort = params.get("sort") as ProductSort | null;
+  const limit = params.get("limit");
+  const offset = params.get("offset");
+  const { products, total } = await listProductsPage(c.env.DB, context.organization.id, {
+    // includeInactive lawas tetap didukung; status baru menang bila diisi.
+    includeInactive: status ? status !== "active" : c.req.query("includeInactive") === "true",
+    onlyInactive: status === "inactive",
+    search: params.get("search") || undefined,
+    stock: stock === "in" || stock === "out" || stock === "low" ? stock : undefined,
+    sort: sort === "name" || sort === "stock_asc" || sort === "value_desc" ? sort : undefined,
+    limit: limit !== null && Number.isInteger(Number(limit)) && Number(limit) > 0 ? Number(limit) : undefined,
+    offset: offset !== null && Number.isInteger(Number(offset)) && Number(offset) >= 0 ? Number(offset) : undefined,
   });
-  return c.json({ products });
+  return c.json({ products, total });
 });
 
 productsRoutes.post("/", requirePermission("products:write"), async (c) => {

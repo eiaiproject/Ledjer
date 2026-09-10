@@ -407,6 +407,57 @@ function productById(orgId: string, productId: string): SeedProduct | undefined 
   return allProducts(orgId).find((p) => p.id === productId);
 }
 
+/**
+ * Cermin filter/sort daftar produk (dipakai handleFirst utk count dan
+ * handleAll utk list): aktif, search nama/kode, stok, urutan.
+ */
+function selectProducts(sql: string, values: unknown[], orgId: string): SeedProduct[] {
+  const s = sql.toLowerCase();
+  let result = allProducts(orgId);
+  let idx = 1;
+  if (s.includes("is_active = 0")) {
+    result = result.filter((p) => p.is_active === 0);
+  } else if (s.includes("is_active = 1")) {
+    result = result.filter((p) => p.is_active === 1);
+  }
+  if (s.includes("like")) {
+    const needle = String(values[idx]).replace(/%/g, "").toLowerCase();
+    idx += 2;
+    result = result.filter(
+      (p) => p.name.toLowerCase().includes(needle) || p.code.toLowerCase().includes(needle),
+    );
+  }
+  if (s.includes("current_stock_milli = 0")) {
+    result = result.filter((p) => p.current_stock_milli === 0);
+  } else if (s.includes("current_stock_milli <= ?")) {
+    const bound = Number(values[idx]);
+    idx += 1;
+    result = result.filter((p) => p.current_stock_milli > 0 && p.current_stock_milli <= bound);
+  } else if (s.includes("current_stock_milli > 0")) {
+    result = result.filter((p) => p.current_stock_milli > 0);
+  }
+  const byName = (a: SeedProduct, b: SeedProduct) =>
+    a.name.localeCompare(b.name) || a.code.localeCompare(b.code);
+  if (s.includes("order by name")) result = [...result].sort(byName);
+  else if (s.includes("current_stock_milli asc")) {
+    result = [...result].sort(
+      (a, b) => a.current_stock_milli - b.current_stock_milli || byName(a, b),
+    );
+  } else if (s.includes("average_cost_minor) desc")) {
+    result = [...result].sort(
+      (a, b) =>
+        b.current_stock_milli * b.average_cost_minor - a.current_stock_milli * a.average_cost_minor ||
+        byName(a, b),
+    );
+  } else result = [...result].sort((a, b) => a.code.localeCompare(b.code));
+  if (s.includes("limit")) {
+    const limit = Number(values[idx]);
+    const offset = Number(values[idx + 1] ?? 0);
+    result = result.slice(offset, offset + limit);
+  }
+  return result;
+}
+
 function orgTransactions(orgId: string): SeedTransaction[] {
   return allTransactions(orgId);
 }
@@ -656,6 +707,11 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
 
   // Products
   if (s.includes("FROM products")) {
+    // Count daftar produk (listProductsPage total).
+    if (s.includes("products:count")) {
+      const orgId = values[0] as string;
+      return { total: selectProducts(s, values, orgId).length };
+    }
     // Name-taken lookups
     if (s.includes("name = ?")) {
       const orgId = values[0] as string;
@@ -936,12 +992,15 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
     return result;
   }
 
-  // Products list
+  // Products list (legacy tanpa marker + baru bermarker products:list).
   if (s.includes("FROM products") && !s.includes("JOIN")) {
     const orgId = values[0] as string;
-    let result = allProducts(orgId);
-    if (s.includes("is_active = 1")) result = result.filter((p) => p.is_active === 1);
-    return result.map((p) => ({ ...p }));
+    if (!s.includes("products:list") && !s.includes("products:count")) {
+      let result = allProducts(orgId);
+      if (s.includes("is_active = 1")) result = result.filter((p) => p.is_active === 1);
+      return result.map((p) => ({ ...p }));
+    }
+    return selectProducts(s, values, orgId).map((p) => ({ ...p }));
   }
 
   // Transaction items (getTransaction detail): stock_movements JOIN products

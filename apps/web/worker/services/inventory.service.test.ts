@@ -7,6 +7,7 @@ import {
   getStockMovementReport,
   computeNewWac,
   createProduct,
+  listProductsPage,
   getProduct,
   listProducts,
   patchProduct,
@@ -707,5 +708,66 @@ describe("getStockMovementReport (laporan mutasi stok)", () => {
       productId: FIXTURE_IDS.products.gulaA,
     });
     expect(gula).toHaveLength(0);
+  });
+});
+
+describe("listProductsPage (cari/filter/sort/paginasi)", () => {
+  async function makeProduct(d: D1Database, name: string, key: string): Promise<string> {
+    const created = await createProduct(d, ORG_A, OWNER_A, {
+      name,
+      unit: "pcs",
+      sellingPriceIdr: 10000,
+    });
+    void key;
+    return created.id;
+  }
+
+  async function buyStock(d: D1Database, productId: string, qty: number, key: string): Promise<void> {
+    await postTransaction(d, ORG_A, OWNER_A, {
+      transactionType: "purchase",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      description: "Beli stok uji",
+      idempotencyKey: key,
+      items: [{ productId, quantity: qty, unitCostIdr: 5000 }],
+    });
+  }
+
+  it("search + filter stok + sort + paginasi dengan total", async () => {
+    const d = db();
+    const apel = await makeProduct(d, "ZZ Apel Manila", "k-apel");
+    const mangga = await makeProduct(d, "ZZ Mangga Harum", "k-mangga");
+    await makeProduct(d, "ZZ Jeruk Bali", "k-jeruk");
+    await buyStock(d, apel, 10, "idem-pg-buy-apel");
+    await buyStock(d, mangga, 3, "idem-pg-buy-mangga");
+
+    // Search: hanya yang cocok (isolasi dari seed kopi/gula).
+    const found = await listProductsPage(d, ORG_A, { search: "zz apel" });
+    expect(found.total).toBe(1);
+    expect(found.products.map((p) => p.name)).toEqual(["ZZ Apel Manila"]);
+
+    // Stok habis: jeruk (0) — apel & mangga berstok.
+    const empty = await listProductsPage(d, ORG_A, { search: "zz ", stock: "out" });
+    expect(empty.products.map((p) => p.name)).toEqual(["ZZ Jeruk Bali"]);
+
+    // Stok menipis: mangga (3 ≤ 5), bukan apel (10).
+    const low = await listProductsPage(d, ORG_A, { search: "zz ", stock: "low" });
+    expect(low.products.map((p) => p.name)).toEqual(["ZZ Mangga Harum"]);
+
+    // Sort stok terendah: jeruk(0), mangga(3), apel(10).
+    const sorted = await listProductsPage(d, ORG_A, { search: "zz ", sort: "stock_asc" });
+    expect(sorted.products.map((p) => p.name)).toEqual([
+      "ZZ Jeruk Bali",
+      "ZZ Mangga Harum",
+      "ZZ Apel Manila",
+    ]);
+
+    // Paginasi: limit 2 → 2 baris + total 3; offset 2 → sisa 1.
+    const page1 = await listProductsPage(d, ORG_A, { search: "zz ", sort: "name", limit: 2, offset: 0 });
+    expect(page1.products).toHaveLength(2);
+    expect(page1.total).toBe(3);
+    const page2 = await listProductsPage(d, ORG_A, { search: "zz ", sort: "name", limit: 2, offset: 2 });
+    expect(page2.products).toHaveLength(1);
+    expect(page2.total).toBe(3);
   });
 });

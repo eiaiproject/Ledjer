@@ -121,22 +121,113 @@ export function stockValueFromMilliWac(stockMilli: number, wacMinor: number): nu
 
 // ── CRUD ────────────────────────────────────────────────────────
 
+/** Ambang "stok menipis" dalam satuan produk (heuristik lintas-satuan). */
+export const LOW_STOCK_UNITS = 5;
+
+export type ProductStockFilter = "all" | "in" | "out" | "low";
+export type ProductSort = "code" | "name" | "stock_asc" | "value_desc";
+
+export interface ListProductsOptions {
+  includeInactive?: boolean;
+  /** true → hanya nonaktif (menang atas includeInactive). */
+  onlyInactive?: boolean;
+  /** Cocok-sebagian nama/kode, case-insensitive. */
+  search?: string;
+  stock?: ProductStockFilter;
+  sort?: ProductSort;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ProductsPageResult {
+  products: PublicProduct[];
+  total: number;
+}
+
+/** Klausa WHERE bersama untuk list + count (satu sumber kebenaran). */
+function buildProductFilter(
+  options: ListProductsOptions,
+): { clauses: string[]; values: (string | number)[] } {
+  const clauses = ["organization_id = ?"];
+  const values: (string | number)[] = [];
+  if (options.onlyInactive) {
+    clauses.push("is_active = 0");
+  } else if (!options.includeInactive) {
+    clauses.push("is_active = 1");
+  }
+  const search = options.search?.trim().toLowerCase();
+  if (search) {
+    clauses.push("(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)");
+    values.push(`%${search}%`, `%${search}%`);
+  }
+  if (options.stock === "in") {
+    clauses.push("current_stock_milli > 0");
+  } else if (options.stock === "out") {
+    clauses.push("current_stock_milli = 0");
+  } else if (options.stock === "low") {
+    clauses.push("current_stock_milli > 0 AND current_stock_milli <= ?");
+    values.push(LOW_STOCK_UNITS * 1000);
+  }
+  return { clauses, values };
+}
+
+function productOrderBy(sort?: ProductSort): string {
+  if (sort === "name") return "ORDER BY name ASC, code ASC";
+  if (sort === "stock_asc") return "ORDER BY current_stock_milli ASC, name ASC";
+  if (sort === "value_desc") {
+    return "ORDER BY (current_stock_milli * average_cost_minor) DESC, name ASC";
+  }
+  return "ORDER BY code ASC";
+}
+
 export async function listProducts(
   db: D1Database,
   organizationId: string,
-  options: { includeInactive?: boolean } = {},
+  options: ListProductsOptions = {},
 ): Promise<PublicProduct[]> {
-  const conditions = ["organization_id = ?"];
-  const values: (string | number)[] = [organizationId];
-  if (!options.includeInactive) {
-    conditions.push("is_active = 1");
+  const { clauses, values } = buildProductFilter(options);
+  const params: (string | number)[] = [organizationId, ...values];
+  let limitClause = "";
+  if (options.limit !== undefined) {
+    limitClause = " LIMIT ? OFFSET ?";
+    params.push(options.limit, options.offset ?? 0);
   }
   const rows = await queryAll<ProductRow>(
     db,
-    `SELECT ${productColumns} FROM products WHERE ${conditions.join(" AND ")} ORDER BY code ASC`,
-    values,
+    `-- products:list
+     SELECT ${productColumns} FROM products
+     WHERE ${clauses.join(" AND ")}
+     ${productOrderBy(options.sort)}${limitClause}`,
+    params,
   );
   return rows.map(toPublicProduct);
+}
+
+export async function countProducts(
+  db: D1Database,
+  organizationId: string,
+  options: ListProductsOptions = {},
+): Promise<number> {
+  const { clauses, values } = buildProductFilter(options);
+  const row = await queryFirst<{ total: number }>(
+    db,
+    `-- products:count
+     SELECT COUNT(*) AS total FROM products WHERE ${clauses.join(" AND ")}`,
+    [organizationId, ...values],
+  );
+  return row?.total ?? 0;
+}
+
+export async function listProductsPage(
+  db: D1Database,
+  organizationId: string,
+  options: ListProductsOptions = {},
+): Promise<ProductsPageResult> {
+  const [products, total] = await Promise.all([
+    listProducts(db, organizationId, options),
+    countProducts(db, organizationId, options),
+  ]);
+  return { products, total };
 }
 
 export async function getProduct(

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Routes, Route } from 'react-router-dom';
-import { screen, within, fireEvent } from '@testing-library/react';
+import { screen, within, fireEvent, waitFor } from '@testing-library/react';
 import { ProductsPage } from '@/pages/products/index';
 import { renderWithProviders } from './test-utils';
 
@@ -14,12 +14,12 @@ vi.mock('@/hooks/useOrganization', async () => {
   return { useOrganization: () => orgStub };
 });
 
-const listProducts = vi.fn();
+const listProductsPage = vi.fn();
 const createProduct = vi.fn();
 const patchProduct = vi.fn();
 const getProductMovements = vi.fn();
 vi.mock('@/lib/api/products', () => ({
-  listProducts: (...args: unknown[]) => listProducts(...args),
+  listProductsPage: (...args: unknown[]) => listProductsPage(...args),
   createProduct: (...args: unknown[]) => createProduct(...args),
   patchProduct: (...args: unknown[]) => patchProduct(...args),
   getProductMovements: (...args: unknown[]) => getProductMovements(...args),
@@ -77,9 +77,22 @@ function renderPage() {
   );
 }
 
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+vi.mock('@/components/ui/toast', () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+  },
+}));
+
 describe('ProductsPage expandable rows', () => {
+  beforeEach(() => {
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
+  });
+
   it('tombol aksi ringkas berlabel aksesibel (ikon di mobile)', async () => {
-    listProducts.mockResolvedValue([product]);
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
     getProductMovements.mockResolvedValue([]);
     renderPage();
 
@@ -90,7 +103,7 @@ describe('ProductsPage expandable rows', () => {
   });
 
   it('info HPP/Jual pindah ke panel expand (baris ringkas)', async () => {
-    listProducts.mockResolvedValue([{ ...product, average_cost_idr: 30000, selling_price_idr: 50000 }]);
+    listProductsPage.mockResolvedValue({ products: [{ ...product, average_cost_idr: 30000, selling_price_idr: 50000 }], total: 1 });
     getProductMovements.mockResolvedValue(movements);
     renderPage();
 
@@ -103,7 +116,7 @@ describe('ProductsPage expandable rows', () => {
   });
 
   it('mengembangkan baris produk untuk menampilkan riwayat mutasi', async () => {
-    listProducts.mockResolvedValue([product]);
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
     getProductMovements.mockResolvedValue(movements);
     renderPage();
 
@@ -117,7 +130,7 @@ describe('ProductsPage expandable rows', () => {
   });
 
   it('ketuk area nama produk juga mengembangkan riwayat', async () => {
-    listProducts.mockResolvedValue([product]);
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
     getProductMovements.mockResolvedValue(movements);
     renderPage();
 
@@ -128,12 +141,84 @@ describe('ProductsPage expandable rows', () => {
   });
 
   it('menampilkan pesan kosong bila produk belum ada mutasi', async () => {
-    listProducts.mockResolvedValue([product]);
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
     getProductMovements.mockResolvedValue([]);
     renderPage();
 
     expect(await screen.findByText('Kopi')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /riwayat mutasi kopi/i }));
     expect(await screen.findByText(/belum ada mutasi/i)).toBeTruthy();
+  });
+});
+
+describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
+  beforeEach(() => {
+    listProductsPage.mockResolvedValue({ products: [product], total: 1 });
+  });
+
+  function renderList() {
+    return renderPage();
+  }
+
+  it('pencarian memfilter daftar', async () => {
+    renderList();
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/cari produk/i), { target: { value: 'kopi' } });
+    await waitFor(() => {
+      expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ search: 'kopi' }));
+    });
+  });
+
+  it('chip Habis dan Menipis memfilter stok', async () => {
+    renderList();
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Habis' }));
+    await waitFor(() => {
+      expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ stock: 'out' }));
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Menipis' }));
+    await waitFor(() => {
+      expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ stock: 'low' }));
+    });
+  });
+
+  it('paginasi tampil saat total melebihi halaman dan Berikutnya menambah offset', async () => {
+    listProductsPage.mockResolvedValue({ products: [product], total: 30 });
+    renderList();
+    expect(await screen.findByText(/Halaman 1 dari 2/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Berikutnya' }));
+    await waitFor(() => {
+      expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ offset: 25 }));
+    });
+  });
+
+  it('tambah produk lewat modal', async () => {
+    createProduct.mockResolvedValue({ ...product, name: 'Kopi Baru' });
+    window.HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    window.HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    };
+    renderList();
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Tambah Produk$/ }));
+    fireEvent.change(await screen.findByLabelText('Nama Produk'), { target: { value: 'Kopi Baru' } });
+    fireEvent.change(screen.getByLabelText('Satuan'), { target: { value: 'pcs' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Produk' }));
+    await waitFor(() => {
+      expect(createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Kopi Baru', unit: 'pcs' }),
+      );
+    });
+  });
+
+  it('urutkan memanggil dengan sort yang dipilih', async () => {
+    renderList();
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/urutkan/i), { target: { value: 'stock_asc' } });
+    await waitFor(() => {
+      expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ sort: 'stock_asc' }));
+    });
   });
 });
