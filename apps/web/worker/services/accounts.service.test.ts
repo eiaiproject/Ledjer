@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
 import type { D1Database } from "@cloudflare/workers-types";
 import {
+  createAccount,
   createCashBankAccount,
   listAccounts,
   nextCashBankCode,
@@ -123,6 +124,41 @@ describe("patchAccount", () => {
     const db = freshDb();
     await expect(
       patchAccount(db, ORG_A, FIXTURE_IDS.accounts.cashB, OWNER_A, { name: "X" }),
+    ).rejects.toThrowError(HttpError);
+  });
+});
+describe("createAccount (non-kas: pendapatan/beban)", () => {
+  it("creates an income account with the next 41xx code", async () => {
+    const db = freshDb();
+    const account = await createAccount(db, ORG_A, OWNER_A, {
+      accountClass: "income",
+      name: "Pendapatan Jasa",
+    });
+    expect(account.code).toBe("4130");
+    expect(account.account_class).toBe("income");
+    expect(account.account_subtype).toBeNull();
+    expect(account.is_system).toBe(0);
+    expect(account.is_active).toBe(1);
+  });
+
+  it("creates an expense account past the system HPP code", async () => {
+    const db = freshDb();
+    const first = await createAccount(db, ORG_A, OWNER_A, {
+      accountClass: "expense",
+      name: "Beban Iklan",
+    });
+    expect(first.code).toBe("6200");
+    const second = await createAccount(db, ORG_A, OWNER_A, {
+      accountClass: "expense",
+      name: "Beban Listrik",
+    });
+    expect(second.code).toBe("6210");
+  });
+
+  it("rejects a duplicate account name within the organization", async () => {
+    const db = freshDb();
+    await expect(
+      createAccount(db, ORG_A, OWNER_A, { accountClass: "expense", name: "Beban Sewa" }),
     ).rejects.toThrowError(HttpError);
   });
 });

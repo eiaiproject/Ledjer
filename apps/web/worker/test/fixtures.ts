@@ -678,11 +678,12 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
       const account = allAccounts(orgId).find((a) => a.code === code);
       return account ? { id: account.id } : null;
     }
-    // MAX(CAST(code AS INTEGER)) - next cash/bank code
+    // MAX(CAST(code AS INTEGER)) - next cash/bank code (atau blok klasifikasi bila ada LIKE prefix).
     if (s.includes("MAX(CAST(code AS INTEGER))")) {
       const orgId = values[0] as string;
+      const prefix = s.includes("code LIKE ?") ? String(values[1]).replace(/%/g, "") : null;
       const maxCode = allAccounts(orgId)
-        .filter((a) => a.account_subtype !== null)
+        .filter((a) => a.account_subtype !== null || (prefix !== null && a.code.startsWith(prefix)))
         .reduce((max, a) => Math.max(max, Number(a.code)), 0);
       return { max_code: maxCode };
     }
@@ -1185,8 +1186,25 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
         created_at: Number(values[8]),
         updated_at: Number(values[9]),
       });
+    } else if (s.includes("account_kind")) {
+      // createAccount (non-kas): class dinamis, subtype+kind NULL
+      // values: id, org, code, name, class, created, updated
+      accounts.push({
+        id: values[0] as string,
+        organization_id: values[1] as string,
+        code: values[2] as string,
+        name: values[3] as string,
+        account_class: values[4] as SeedAccount["account_class"],
+        account_subtype: null,
+        account_kind: null,
+        is_system: 0,
+        is_active: 1,
+        created_at: Number(values[5]),
+        updated_at: Number(values[6]),
+      });
     } else {
       // createCashBankAccount: 'asset', 0, 1 hardcoded in SQL
+      // values: id, org, code, name, subtype, created, updated
       accounts.push({
         id: values[0] as string,
         organization_id: values[1] as string,
