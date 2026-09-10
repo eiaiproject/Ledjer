@@ -150,22 +150,41 @@ export function parseQuickEntryText(text: string): QuickEntryParseResult {
   if (!verbMatch) return { ok: false, message: HELP };
   const kind = verbMatch[1] === "jual" ? "sale" : "purchase";
   const rest = verbMatch[2].replace(/^rp\s*/i, "");
-  const tailMatch = /^(.+?)\s+(\d+(?:[.,]\d+)?)\s*([a-z]*)\s+(.+?)\s*$/.exec(rest);
-  if (!tailMatch) return { ok: false, message: HELP };
-  const productQuery = tailMatch[1].trim();
-  const quantity = Number(tailMatch[2].replace(",", "."));
-  const unit = tailMatch[3] === "" ? undefined : tailMatch[3];
+  // Parse dari KANAN (right-anchored): nama produk boleh mengandung angka
+  // ("Produk QE 1788999999"), jadi harga = token terakhir, qty = sebelumnya.
+  const tokens = rest.split(" ").filter((t) => t !== "");
+  if (tokens.length < 3) return { ok: false, message: HELP };
+  // Harga dari kanan: "50000" (1 token), "50 ribu" / "total 500rb" (2 token).
+  let priceTokenCount = 1;
+  let totalIdr: number | undefined;
+  let unitPriceIdr: number | undefined;
+  if (tokens.length >= 2 && tokens[tokens.length - 2].toLowerCase() === "total") {
+    const parsed = parsePriceToken(tokens[tokens.length - 1]);
+    if (parsed === null || parsed <= 0) return { ok: false, message: HELP };
+    totalIdr = parsed;
+    priceTokenCount = 2;
+  } else {
+    const single = parsePriceToken(tokens[tokens.length - 1]);
+    if (single !== null && single > 0) {
+      unitPriceIdr = single;
+    } else if (tokens.length >= 2) {
+      const joined = parsePriceToken(`${tokens[tokens.length - 2]} ${tokens[tokens.length - 1]}`);
+      if (joined === null || joined <= 0) return { ok: false, message: HELP };
+      unitPriceIdr = joined;
+      priceTokenCount = 2;
+    } else {
+      return { ok: false, message: HELP };
+    }
+  }
+  const quantityToken = tokens[tokens.length - priceTokenCount - 1] ?? "";
+  const productTokens = tokens.slice(0, -priceTokenCount - 1);
+  const qtyMatch = /^(\d+(?:[.,]\d+)?)([a-z]*)$/.exec(quantityToken.toLowerCase());
+  if (!qtyMatch) return { ok: false, message: HELP };
+  const quantity = Number(qtyMatch[1].replace(",", "."));
+  const unit = qtyMatch[2] === "" ? undefined : qtyMatch[2];
+  const productQuery = productTokens.join(" ").trim();
   if (!productQuery || !Number.isFinite(quantity) || quantity <= 0) {
     return { ok: false, message: HELP };
   }
-  const pricePart = tailMatch[4].trim();
-  const totalMatch = /^total\s+(.+)$/i.exec(pricePart);
-  if (totalMatch) {
-    const totalIdr = parsePriceToken(totalMatch[1]);
-    if (totalIdr === null || totalIdr <= 0) return { ok: false, message: HELP };
-    return { ok: true, kind, productQuery, quantity, unit, unitPriceIdr: undefined, totalIdr };
-  }
-  const unitPriceIdr = parsePriceToken(pricePart);
-  if (unitPriceIdr === null || unitPriceIdr <= 0) return { ok: false, message: HELP };
-  return { ok: true, kind, productQuery, quantity, unit, unitPriceIdr, totalIdr: undefined };
+  return { ok: true, kind, productQuery, quantity, unit, unitPriceIdr, totalIdr };
 }

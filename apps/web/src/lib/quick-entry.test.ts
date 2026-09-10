@@ -97,3 +97,17 @@ describe("buildDraft", () => {
     });
   });
 });
+
+describe("parseQuickEntryText (nama berangka)", () => {
+  it("nama produk boleh mengandung angka", () => {
+    expect(parseQuickEntryText("jual produk qe 1788999999 2pcs 50000")).toMatchObject({
+      ok: true, kind: "sale", productQuery: "produk qe 1788999999",
+      quantity: 2, unit: "pcs", unitPriceIdr: 50000,
+    });
+  });
+  it("nama berakhiran kata total tetap utuh", () => {
+    expect(parseQuickEntryText("jual mie total 2pcs 50000")).toMatchObject({
+      ok: true, productQuery: "mie total", quantity: 2, unitPriceIdr: 50000,
+    });
+  });
+});
