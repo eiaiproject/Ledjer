@@ -188,54 +188,54 @@ export function ProductsPage() {
                   return (
                   <li key={product.id} className="px-5 py-3">
                     <div className="flex items-center justify-between gap-4">
-                    <div className="flex min-w-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(expanded ? null : product.id)}
-                        aria-expanded={expanded}
-                        aria-controls={`movements-${product.id}`}
-                        aria-label={`Riwayat mutasi ${product.name}`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors hover:bg-wood-100 hover:text-wood-700"
-                      >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(expanded ? null : product.id)}
+                      aria-expanded={expanded}
+                      aria-controls={`movements-${product.id}`}
+                      aria-label={`Riwayat mutasi ${product.name}`}
+                      className="group flex min-w-0 flex-1 items-center justify-between gap-4 rounded-lg text-left transition-colors hover:bg-cream-100/60"
+                    >
+                    <span className="flex min-w-0 items-center gap-1">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors group-hover:bg-wood-100">
                         <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
-                      </button>
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
                           {product.name}
                           {product.is_active !== 1 && (
                             <Badge variant="neutral" size="sm">
                               Nonaktif
                             </Badge>
                           )}
-                        </p>
-                        <p className="mt-0.5 text-xs text-text-tertiary">
+                        </span>
+                        <span className="mt-0.5 block text-xs text-text-tertiary">
                           {product.code} · Stok {formatQuantity(product.current_stock)} {product.unit}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-4">
-                      <div className="text-right">
-                        <p className="num-mono text-sm font-semibold text-text-primary">
-                          {formatIDR(product.stock_value_idr)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <Button variant="ghost" size="sm" aria-label={`Edit ${product.name}`} onClick={() => openEdit(product)}>
-                          <Edit className="h-4 w-4" />
-                          <span className="hidden sm:inline">Edit</span>
+                        </span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="num-mono block text-sm font-semibold text-text-primary">
+                        {formatIDR(product.stock_value_idr)}
+                      </span>
+                    </span>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+                      <Button variant="ghost" size="sm" aria-label={`Edit ${product.name}`} onClick={() => openEdit(product)}>
+                        <Edit className="h-4 w-4" />
+                        <span className="hidden sm:inline">Edit</span>
+                      </Button>
+                      {product.is_active === 1 ? (
+                        <Button variant="ghost" size="sm" aria-label={`Nonaktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
+                          <Power className="h-4 w-4" />
+                          <span className="hidden sm:inline">Nonaktifkan</span>
                         </Button>
-                        {product.is_active === 1 ? (
-                          <Button variant="ghost" size="sm" aria-label={`Nonaktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
-                            <Power className="h-4 w-4" />
-                            <span className="hidden sm:inline">Nonaktifkan</span>
-                          </Button>
-                        ) : (
-                          <Button variant="outline" size="sm" aria-label={`Aktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
-                            <Power className="h-4 w-4" />
-                            <span className="hidden sm:inline">Aktifkan</span>
-                          </Button>
-                        )}
-                      </div>
+                      ) : (
+                        <Button variant="outline" size="sm" aria-label={`Aktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
+                          <Power className="h-4 w-4" />
+                          <span className="hidden sm:inline">Aktifkan</span>
+                        </Button>
+                      )}
                     </div>
                     </div>
                     {expanded && (

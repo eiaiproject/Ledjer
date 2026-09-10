@@ -116,6 +116,17 @@ describe('ProductsPage expandable rows', () => {
     expect(getProductMovements).toHaveBeenCalledWith('p-kopi');
   });
 
+  it('ketuk area nama produk juga mengembangkan riwayat', async () => {
+    listProducts.mockResolvedValue([product]);
+    getProductMovements.mockResolvedValue(movements);
+    renderPage();
+
+    expect(await screen.findByText('Kopi')).toBeTruthy();
+    expect(screen.queryByText('TRX-20260610-AAAA')).toBeNull();
+    fireEvent.click(screen.getByText('Kopi'));
+    expect(await screen.findByText('TRX-20260610-AAAA')).toBeTruthy();
+  });
+
   it('menampilkan pesan kosong bila produk belum ada mutasi', async () => {
     listProducts.mockResolvedValue([product]);
     getProductMovements.mockResolvedValue([]);
