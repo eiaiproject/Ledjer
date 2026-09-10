@@ -5,6 +5,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { createProduct, getProductMovements, listProductsPage, patchProduct, type Product, type ProductListSort, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
+import { PaginationNav } from "@/components/ui/pagination-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -306,27 +307,12 @@ export function ProductsPage() {
       )}
 
       {query.data && total > PAGE_SIZE && (
-        <nav aria-label="Navigasi halaman" className="flex items-center justify-between gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage <= 1}
-            onClick={() => setOffset((currentPage - 2) * PAGE_SIZE)}
-          >
-            Sebelumnya
-          </Button>
-          <p className="text-sm text-text-secondary">
-            Halaman {currentPage} dari {totalPages}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage >= totalPages}
-            onClick={() => setOffset(currentPage * PAGE_SIZE)}
-          >
-            Berikutnya
-          </Button>
-        </nav>
+        <PaginationNav
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPrev={() => setOffset((currentPage - 2) * PAGE_SIZE)}
+          onNext={() => setOffset(currentPage * PAGE_SIZE)}
+        />
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tambah Produk" size="sm">

@@ -21,15 +21,6 @@ vi.mock('@/lib/api/accounts', () => ({
   createAccount: (...args: unknown[]) => createAccount(...args),
 }));
 
-const toastSuccess = vi.fn();
-const toastError = vi.fn();
-vi.mock('@/components/ui/toast', () => ({
-  toast: {
-    success: (...args: unknown[]) => toastSuccess(...args),
-    error: (...args: unknown[]) => toastError(...args),
-  },
-}));
-
 const accounts = [
   { id: 'a-kas', organization_id: 'o1', code: '1110', name: 'Kas', account_class: 'asset', account_subtype: 'cash', is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
   { id: 'a-modal', organization_id: 'o1', code: '3110', name: 'Modal Pemilik', account_class: 'equity', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },

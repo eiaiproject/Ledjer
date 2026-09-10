@@ -77,15 +77,6 @@ function renderPage() {
   );
 }
 
-const toastSuccess = vi.fn();
-const toastError = vi.fn();
-vi.mock('@/components/ui/toast', () => ({
-  toast: {
-    success: (...args: unknown[]) => toastSuccess(...args),
-    error: (...args: unknown[]) => toastError(...args),
-  },
-}));
-
 describe('ProductsPage expandable rows', () => {
   beforeEach(() => {
     listProductsPage.mockResolvedValue({ products: [product], total: 1 });

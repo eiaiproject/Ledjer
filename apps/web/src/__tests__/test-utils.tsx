@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
+import { ToastProvider } from "@/components/ui/toast";
 
 /**
  * Stub bersama untuk mock auth-context / useOrganization di test halaman.
@@ -25,14 +26,16 @@ export const orgStub = {
   },
 };
 
-/** Render dengan QueryClient (tanpa retry) + MemoryRouter. */
+/** Render dengan QueryClient (tanpa retry) + MemoryRouter + ToastProvider nyata. */
 export function renderWithProviders(routes: ReactNode, initialPath: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialPath]}>{routes}</MemoryRouter>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <ToastProvider>{routes}</ToastProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

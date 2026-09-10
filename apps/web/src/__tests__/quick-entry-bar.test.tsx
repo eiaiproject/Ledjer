@@ -31,15 +31,6 @@ vi.mock('@/lib/api/transactions', () => ({
   postTransaction: (...args: unknown[]) => postTransaction(...args),
 }));
 
-const toastSuccess = vi.fn();
-const toastError = vi.fn();
-vi.mock('@/components/ui/toast', () => ({
-  toast: {
-    success: (...args: unknown[]) => toastSuccess(...args),
-    error: (...args: unknown[]) => toastError(...args),
-  },
-}));
-
 const product = {
   id: 'p-kopi',
   code: 'PRD-0001',
@@ -124,7 +115,8 @@ describe('QuickEntryBar', () => {
     const catat = await screen.findByRole('button', { name: /^Catat$/ });
     fireEvent.click(catat);
 
-    await screen.findByText(/tercatat/i);
+    // Pesan inline + toast provider sungguhan (2 kemunculan).
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
     expect(postTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         transactionType: 'cash_in',

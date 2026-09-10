@@ -1,11 +1,11 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useAllAccounts } from "@/hooks/useAccounts";
 import {
   createAccount,
-  listAccounts,
   type Account,
   type CreatableAccountClass,
 } from "@/lib/api/accounts";
@@ -53,14 +53,7 @@ export function ChartOfAccountsPage() {
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<AccountClass>>(new Set());
 
-  const query = useQuery({
-    queryKey: queryKeys.accounts.fullList(orgId ?? ""),
-    queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
-      return listAccounts({ includeInactive: true });
-    },
-    enabled: !!orgId,
-  });
+  const query = useAllAccounts();
 
   const groups: AccountGroup[] = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -114,7 +107,7 @@ export function ChartOfAccountsPage() {
     }
   };
 
-  let groupsContent: ReactNode = null;
+  let groupsContent: ReactNode;
   if (query.isError) {
     groupsContent = (
       <ErrorState
