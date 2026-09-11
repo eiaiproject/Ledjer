@@ -4,8 +4,10 @@ import type { FakeD1Statement } from "../test/fake-d1";
 import type { D1Database } from "@cloudflare/workers-types";
 import { HttpError } from "../http/errors";
 import {
+  getStockMovementReport,
   computeNewWac,
   createProduct,
+  listProductsPage,
   getProduct,
   listProducts,
   patchProduct,
@@ -648,5 +650,124 @@ describe("WAC half-up rounding (anti truncation-drift)", () => {
         { quantity_milli: 4000, unit_cost_minor: 20000 * 10000 },
       ]).average_cost_minor,
     ).toBe(15000 * 10000);
+  });
+});
+
+describe("getStockMovementReport (laporan mutasi stok)", () => {
+  async function saleKopi(d: D1Database, qty: number, key: string, date: string) {
+    return postTransaction(d, ORG_A, OWNER_A, {
+      transactionType: "cash_in",
+      transactionDate: date,
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      counterAccountId: FIXTURE_IDS.accounts.revenueA,
+      description: `Jual ${qty} bungkus kopi`,
+      idempotencyKey: key,
+      items: [{ productId: FIXTURE_IDS.products.kopiA, quantity: qty, unitPriceIdr: 50000 }],
+    });
+  }
+
+  it("returns chronological lines with running stock, date filter, and excludes voided", async () => {
+    const d = db();
+    await purchaseKopi(d, 10, 30000, "idem-smr-buy-0001", "2026-06-10");
+    await saleKopi(d, 4, "idem-smr-sale-0001", "2026-06-15");
+    const voided = await saleKopi(d, 2, "idem-smr-sale-0002", "2026-07-02");
+    await voidTransaction(d, ORG_A, OWNER_A, voided.transaction_id, { reason: "Retur" });
+    await purchaseKopi(d, 5, 30000, "idem-smr-buy-0002", "2026-07-10");
+
+    const full = await getStockMovementReport(d, ORG_A, {
+      fromDate: "2026-06-01",
+      toDate: "2026-07-31",
+    });
+    const kopi = full.filter((l) => l.product_id === FIXTURE_IDS.products.kopiA);
+    expect(kopi).toHaveLength(3);
+    expect(kopi[0]).toMatchObject({
+      quantity_in_milli: 10000, quantity_out_milli: 0, running_stock_milli: 10000,
+    });
+    expect(kopi[1]).toMatchObject({
+      quantity_in_milli: 0, quantity_out_milli: 4000, running_stock_milli: 6000,
+    });
+    expect(kopi[2]).toMatchObject({
+      quantity_in_milli: 5000, quantity_out_milli: 0, running_stock_milli: 11000,
+    });
+    expect(kopi[0].transaction_number).toMatch(/^TRX-/);
+    expect(kopi[0].entry_date).toBe("2026-06-10");
+
+    // Filter Juli: penjualan void tak tampil, sisa berjalan tetap
+    // menghitung riwayat Juni (6000 + 5000 = 11000).
+    const july = await getStockMovementReport(d, ORG_A, {
+      fromDate: "2026-07-01",
+      toDate: "2026-07-31",
+    });
+    expect(july).toHaveLength(1);
+    expect(july[0]).toMatchObject({ quantity_in_milli: 5000, running_stock_milli: 11000 });
+
+    // Filter produk tanpa mutasi → kosong.
+    const gula = await getStockMovementReport(d, ORG_A, {
+      fromDate: "2026-06-01",
+      toDate: "2026-07-31",
+      productId: FIXTURE_IDS.products.gulaA,
+    });
+    expect(gula).toHaveLength(0);
+  });
+});
+
+describe("listProductsPage (cari/filter/sort/paginasi)", () => {
+  async function makeProduct(d: D1Database, name: string, key: string): Promise<string> {
+    const created = await createProduct(d, ORG_A, OWNER_A, {
+      name,
+      unit: "pcs",
+      sellingPriceIdr: 10000,
+    });
+    void key;
+    return created.id;
+  }
+
+  async function buyStock(d: D1Database, productId: string, qty: number, key: string): Promise<void> {
+    await postTransaction(d, ORG_A, OWNER_A, {
+      transactionType: "purchase",
+      transactionDate: "2026-06-15",
+      cashAccountId: FIXTURE_IDS.accounts.cashA,
+      description: "Beli stok uji",
+      idempotencyKey: key,
+      items: [{ productId, quantity: qty, unitCostIdr: 5000 }],
+    });
+  }
+
+  it("search + filter stok + sort + paginasi dengan total", async () => {
+    const d = db();
+    const apel = await makeProduct(d, "ZZ Apel Manila", "k-apel");
+    const mangga = await makeProduct(d, "ZZ Mangga Harum", "k-mangga");
+    await makeProduct(d, "ZZ Jeruk Bali", "k-jeruk");
+    await buyStock(d, apel, 10, "idem-pg-buy-apel");
+    await buyStock(d, mangga, 3, "idem-pg-buy-mangga");
+
+    // Search: hanya yang cocok (isolasi dari seed kopi/gula).
+    const found = await listProductsPage(d, ORG_A, { search: "zz apel" });
+    expect(found.total).toBe(1);
+    expect(found.products.map((p) => p.name)).toEqual(["ZZ Apel Manila"]);
+
+    // Stok habis: jeruk (0) — apel & mangga berstok.
+    const empty = await listProductsPage(d, ORG_A, { search: "zz ", stock: "out" });
+    expect(empty.products.map((p) => p.name)).toEqual(["ZZ Jeruk Bali"]);
+
+    // Stok menipis: mangga (3 ≤ 5), bukan apel (10).
+    const low = await listProductsPage(d, ORG_A, { search: "zz ", stock: "low" });
+    expect(low.products.map((p) => p.name)).toEqual(["ZZ Mangga Harum"]);
+
+    // Sort stok terendah: jeruk(0), mangga(3), apel(10).
+    const sorted = await listProductsPage(d, ORG_A, { search: "zz ", sort: "stock_asc" });
+    expect(sorted.products.map((p) => p.name)).toEqual([
+      "ZZ Jeruk Bali",
+      "ZZ Mangga Harum",
+      "ZZ Apel Manila",
+    ]);
+
+    // Paginasi: limit 2 → 2 baris + total 3; offset 2 → sisa 1.
+    const page1 = await listProductsPage(d, ORG_A, { search: "zz ", sort: "name", limit: 2, offset: 0 });
+    expect(page1.products).toHaveLength(2);
+    expect(page1.total).toBe(3);
+    const page2 = await listProductsPage(d, ORG_A, { search: "zz ", sort: "name", limit: 2, offset: 2 });
+    expect(page2.products).toHaveLength(1);
+    expect(page2.total).toBe(3);
   });
 });

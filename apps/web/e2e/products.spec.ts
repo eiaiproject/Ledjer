@@ -26,11 +26,18 @@ const DETAIL_URL = /\/transactions\/[0-9a-f-]{36}$/;
  * Same reload-then-assert pattern as accounts.spec.ts: the post-create list
  * refetch can hit a lagging D1 replica, so reload once before giving up.
  */
+async function openCreateModal(page: Page) {
+  await page.getByRole("button", { name: /^Tambah Produk$/ }).click();
+}
+
 async function expectProductVisible(page: Page, productName: string) {
+  // Pagination-safe: filter by unique name first.
+  await page.getByLabel("Cari produk").fill(productName);
   try {
     await expect(page.getByText(productName).first()).toBeVisible({ timeout: 8000 });
   } catch {
     await page.reload({ waitUntil: "load" });
+    await page.getByLabel("Cari produk").fill(productName);
     await expect(page.getByText(productName).first()).toBeVisible({ timeout: 20000 });
   }
 }
@@ -78,25 +85,29 @@ test.describe("Products page", () => {
   test("shows products page with create form", async ({ authPage }) => {
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
     await expect(authPage.getByRole("heading", { name: "Produk", exact: true })).toBeVisible({ timeout: 15000 });
-    await expect(authPage.getByLabel("Nama Produk").first()).toBeVisible({ timeout: 15000 });
-    await expect(authPage.getByLabel("Satuan").first()).toBeVisible({ timeout: 15000 });
-    await expect(authPage.getByRole("button", { name: /Tambah Produk/ })).toBeVisible();
+    await expect(authPage.getByRole("button", { name: /^Tambah Produk$/ })).toBeVisible();
+    await openCreateModal(authPage);
+    await expect(authPage.getByLabel("Nama Produk")).toBeVisible({ timeout: 15000 });
+    await expect(authPage.getByLabel("Satuan")).toBeVisible({ timeout: 15000 });
+    await expect(authPage.getByRole("button", { name: "Simpan Produk" })).toBeVisible();
   });
 
   test("rejects a product with empty name", async ({ authPage }) => {
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Satuan").first().fill("pcs");
-    await authPage.getByRole("button", { name: /Tambah Produk/ }).click();
+    await openCreateModal(authPage);
+    await authPage.getByLabel("Satuan").fill("pcs");
+    await authPage.getByRole("button", { name: "Simpan Produk" }).click();
 
     await expect(authPage.getByText("Nama produk harus diisi.")).toBeVisible({ timeout: 10000 });
   });
 
   test("creates a new product", async ({ authPage }) => {
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Nama Produk").first().fill(PRODUCT_NAME);
-    await authPage.getByLabel("Satuan").first().fill("pcs");
-    await authPage.getByLabel("Harga Jual (Rp)").first().fill("15000");
-    await authPage.getByRole("button", { name: /Tambah Produk/ }).click();
+    await openCreateModal(authPage);
+    await authPage.getByLabel("Nama Produk").fill(PRODUCT_NAME);
+    await authPage.getByLabel("Satuan").fill("pcs");
+    await authPage.getByLabel("Harga Jual (Rp)").fill("15000");
+    await authPage.getByRole("button", { name: "Simpan Produk" }).click();
 
     await expect(authPage.getByText("Produk berhasil dibuat.")).toBeVisible({ timeout: 10000 });
     await expectProductVisible(authPage, PRODUCT_NAME);
@@ -104,13 +115,14 @@ test.describe("Products page", () => {
 
   test("edits a product", async ({ authPage }) => {
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Nama Produk").first().fill(EDIT_PRODUCT_NAME);
-    await authPage.getByLabel("Satuan").first().fill("pcs");
-    await authPage.getByRole("button", { name: /Tambah Produk/ }).click();
+    await openCreateModal(authPage);
+    await authPage.getByLabel("Nama Produk").fill(EDIT_PRODUCT_NAME);
+    await authPage.getByLabel("Satuan").fill("pcs");
+    await authPage.getByRole("button", { name: "Simpan Produk" }).click();
     await expectProductVisible(authPage, EDIT_PRODUCT_NAME);
 
     const row = authPage.locator("li", { hasText: EDIT_PRODUCT_NAME });
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: /^Edit / }).click();
     await expect(authPage.getByText("Edit Produk")).toBeVisible({ timeout: 10000 });
     await authPage.getByLabel("Nama Produk").last().fill(EDIT_PRODUCT_NEW_NAME);
     await authPage.getByRole("button", { name: "Simpan" }).click();
@@ -121,9 +133,10 @@ test.describe("Products page", () => {
 
   test("deactivates and reactivates a product", async ({ authPage }) => {
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Nama Produk").first().fill(TOGGLE_PRODUCT_NAME);
-    await authPage.getByLabel("Satuan").first().fill("pcs");
-    await authPage.getByRole("button", { name: /Tambah Produk/ }).click();
+    await openCreateModal(authPage);
+    await authPage.getByLabel("Nama Produk").fill(TOGGLE_PRODUCT_NAME);
+    await authPage.getByLabel("Satuan").fill("pcs");
+    await authPage.getByRole("button", { name: "Simpan Produk" }).click();
     await expectProductVisible(authPage, TOGGLE_PRODUCT_NAME);
 
     const row = authPage.locator("li", { hasText: TOGGLE_PRODUCT_NAME });
@@ -141,9 +154,10 @@ test.describe("Inventory transactions", () => {
   test("creates a purchase (pembelian) with product items", async ({ authPage }) => {
     // Self-contained: create the product first, then buy it.
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Nama Produk").first().fill(PURCHASE_PRODUCT_NAME);
-    await authPage.getByLabel("Satuan").first().fill("pcs");
-    await authPage.getByRole("button", { name: /Tambah Produk/ }).click();
+    await openCreateModal(authPage);
+    await authPage.getByLabel("Nama Produk").fill(PURCHASE_PRODUCT_NAME);
+    await authPage.getByLabel("Satuan").fill("pcs");
+    await authPage.getByRole("button", { name: "Simpan Produk" }).click();
     await expectProductVisible(authPage, PURCHASE_PRODUCT_NAME);
     const productId = await getProductId(authPage, PURCHASE_PRODUCT_NAME);
 
@@ -166,10 +180,11 @@ test.describe("Inventory transactions", () => {
   test("creates a goods sale (penjualan) from purchased stock", async ({ authPage }) => {
     // Self-contained: create product + stock via API, then sell via UI.
     await authPage.goto("/products", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Nama Produk").first().fill(SALE_PRODUCT_NAME);
-    await authPage.getByLabel("Satuan").first().fill("pcs");
-    await authPage.getByLabel("Harga Jual (Rp)").first().fill("30000");
-    await authPage.getByRole("button", { name: /Tambah Produk/ }).click();
+    await openCreateModal(authPage);
+    await authPage.getByLabel("Nama Produk").fill(SALE_PRODUCT_NAME);
+    await authPage.getByLabel("Satuan").fill("pcs");
+    await authPage.getByLabel("Harga Jual (Rp)").fill("30000");
+    await authPage.getByRole("button", { name: "Simpan Produk" }).click();
     await expectProductVisible(authPage, SALE_PRODUCT_NAME);
     const productId = await getProductId(authPage, SALE_PRODUCT_NAME);
     await apiPurchase(authPage, productId, 5, 20000, `Stok E2E ${TS}`);

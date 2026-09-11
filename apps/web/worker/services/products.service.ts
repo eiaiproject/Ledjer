@@ -3,6 +3,10 @@ import { badRequest, conflict, notFound } from "../http/errors";
 import { writeAuditStatement } from "../http/audit";
 import { getAccountByKind } from "./accounts.service";
 import type { AccountRow } from "./accounts.service";
+import type {
+  GetStockMovementReportInput,
+  StockMovementReportLine,
+} from "./report-types";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -117,22 +121,113 @@ export function stockValueFromMilliWac(stockMilli: number, wacMinor: number): nu
 
 // ── CRUD ────────────────────────────────────────────────────────
 
+/** Ambang "stok menipis" dalam satuan produk (heuristik lintas-satuan). */
+export const LOW_STOCK_UNITS = 5;
+
+export type ProductStockFilter = "all" | "in" | "out" | "low";
+export type ProductSort = "code" | "name" | "stock_asc" | "value_desc";
+
+export interface ListProductsOptions {
+  includeInactive?: boolean;
+  /** true → hanya nonaktif (menang atas includeInactive). */
+  onlyInactive?: boolean;
+  /** Cocok-sebagian nama/kode, case-insensitive. */
+  search?: string;
+  stock?: ProductStockFilter;
+  sort?: ProductSort;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ProductsPageResult {
+  products: PublicProduct[];
+  total: number;
+}
+
+/** Klausa WHERE bersama untuk list + count (satu sumber kebenaran). */
+function buildProductFilter(
+  options: ListProductsOptions,
+): { clauses: string[]; values: (string | number)[] } {
+  const clauses = ["organization_id = ?"];
+  const values: (string | number)[] = [];
+  if (options.onlyInactive) {
+    clauses.push("is_active = 0");
+  } else if (!options.includeInactive) {
+    clauses.push("is_active = 1");
+  }
+  const search = options.search?.trim().toLowerCase();
+  if (search) {
+    clauses.push("(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)");
+    values.push(`%${search}%`, `%${search}%`);
+  }
+  if (options.stock === "in") {
+    clauses.push("current_stock_milli > 0");
+  } else if (options.stock === "out") {
+    clauses.push("current_stock_milli = 0");
+  } else if (options.stock === "low") {
+    clauses.push("current_stock_milli > 0 AND current_stock_milli <= ?");
+    values.push(LOW_STOCK_UNITS * 1000);
+  }
+  return { clauses, values };
+}
+
+function productOrderBy(sort?: ProductSort): string {
+  if (sort === "name") return "ORDER BY name ASC, code ASC";
+  if (sort === "stock_asc") return "ORDER BY current_stock_milli ASC, name ASC";
+  if (sort === "value_desc") {
+    return "ORDER BY (current_stock_milli * average_cost_minor) DESC, name ASC";
+  }
+  return "ORDER BY code ASC";
+}
+
 export async function listProducts(
   db: D1Database,
   organizationId: string,
-  options: { includeInactive?: boolean } = {},
+  options: ListProductsOptions = {},
 ): Promise<PublicProduct[]> {
-  const conditions = ["organization_id = ?"];
-  const values: (string | number)[] = [organizationId];
-  if (!options.includeInactive) {
-    conditions.push("is_active = 1");
+  const { clauses, values } = buildProductFilter(options);
+  const params: (string | number)[] = [organizationId, ...values];
+  let limitClause = "";
+  if (options.limit !== undefined) {
+    limitClause = " LIMIT ? OFFSET ?";
+    params.push(options.limit, options.offset ?? 0);
   }
   const rows = await queryAll<ProductRow>(
     db,
-    `SELECT ${productColumns} FROM products WHERE ${conditions.join(" AND ")} ORDER BY code ASC`,
-    values,
+    `-- products:list
+     SELECT ${productColumns} FROM products
+     WHERE ${clauses.join(" AND ")}
+     ${productOrderBy(options.sort)}${limitClause}`,
+    params,
   );
   return rows.map(toPublicProduct);
+}
+
+export async function countProducts(
+  db: D1Database,
+  organizationId: string,
+  options: ListProductsOptions = {},
+): Promise<number> {
+  const { clauses, values } = buildProductFilter(options);
+  const row = await queryFirst<{ total: number }>(
+    db,
+    `-- products:count
+     SELECT COUNT(*) AS total FROM products WHERE ${clauses.join(" AND ")}`,
+    [organizationId, ...values],
+  );
+  return row?.total ?? 0;
+}
+
+export async function listProductsPage(
+  db: D1Database,
+  organizationId: string,
+  options: ListProductsOptions = {},
+): Promise<ProductsPageResult> {
+  const [products, total] = await Promise.all([
+    listProducts(db, organizationId, options),
+    countProducts(db, organizationId, options),
+  ]);
+  return { products, total };
 }
 
 export async function getProduct(
@@ -322,6 +417,77 @@ export async function movementsForProduct(
      ORDER BY sm.created_at ASC, sm.rowid ASC`,
     [organizationId, productId],
   );
+}
+
+export type { GetStockMovementReportInput, StockMovementReportLine };
+
+/**
+ * Laporan mutasi stok per produk: hanya transaksi posted (void dikecualikan),
+ * urut produk lalu kronologis. Sisa berjalan dihitung dari seluruh riwayat
+ * s.d. toDate (pola yang sama dengan running balance Buku Besar) sehingga
+ * filter tanggal tidak mematahkan angka.
+ */
+export async function getStockMovementReport(
+  db: D1Database,
+  organizationId: string,
+  input: GetStockMovementReportInput,
+): Promise<StockMovementReportLine[]> {
+  const values: (string)[] = [organizationId, input.toDate];
+  let productFilter = "";
+  if (input.productId) {
+    productFilter = " AND sm.product_id = ?";
+    values.push(input.productId);
+  }
+  const rows = await queryAll<{
+    product_id: string;
+    product_name: string;
+    unit: string;
+    entry_date: string;
+    transaction_id: string;
+    transaction_number: string;
+    transaction_type: string;
+    description: string;
+    quantity_milli: number;
+    unit_cost_minor: number;
+    created_at: number;
+  }>(
+    db,
+    `-- report:stock-movements
+     SELECT p.id AS product_id, p.name AS product_name, p.unit,
+            t.transaction_date AS entry_date, t.id AS transaction_id,
+            t.transaction_number, t.transaction_type, t.description,
+            sm.quantity_milli, sm.unit_cost_minor, sm.created_at
+     FROM stock_movements sm
+     JOIN transactions t ON t.id = sm.transaction_id
+     JOIN products p ON p.id = sm.product_id
+     WHERE sm.organization_id = ? AND t.status = 'posted'
+       AND t.transaction_date <= ?${productFilter}
+     ORDER BY p.name ASC, p.id ASC, t.transaction_date ASC, sm.created_at ASC, sm.rowid ASC`,
+    values,
+  );
+
+  const running = new Map<string, number>();
+  const lines: StockMovementReportLine[] = [];
+  for (const row of rows) {
+    const next = (running.get(row.product_id) ?? 0) + row.quantity_milli;
+    running.set(row.product_id, next);
+    if (row.entry_date < input.fromDate) continue;
+    lines.push({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      unit: row.unit,
+      entry_date: row.entry_date,
+      transaction_id: row.transaction_id,
+      transaction_number: row.transaction_number,
+      transaction_type: row.transaction_type,
+      description: row.description,
+      quantity_in_milli: Math.max(row.quantity_milli, 0),
+      quantity_out_milli: Math.max(-row.quantity_milli, 0),
+      unit_cost_minor: row.unit_cost_minor,
+      running_stock_milli: next,
+    });
+  }
+  return lines;
 }
 
 /**

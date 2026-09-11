@@ -11,6 +11,7 @@ import { listProducts, type Product } from "@/lib/api/products";
 import { postTransaction, type TransactionType } from "@/lib/api/transactions";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
+import { QuickEntryBar } from "@/components/transactions/QuickEntryBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -269,6 +270,8 @@ export function NewTransactionPage() {
         title="Transaksi Baru"
         description="Catat uang masuk, uang keluar, transfer, modal, pembelian barang, atau pengambilan pemilik."
       />
+
+      <QuickEntryBar />
 
       {accountsQuery.isError && (
         <Callout variant="error">Gagal memuat daftar akun. Muat ulang halaman dan coba lagi.</Callout>

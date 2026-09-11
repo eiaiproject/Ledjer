@@ -55,6 +55,18 @@ export function createCashBankAccount(
   }).then((data) => data.account);
 }
 
+export type CreatableAccountClass = "income" | "expense";
+
+export function createAccount(
+  accountClass: CreatableAccountClass,
+  name: string,
+): Promise<Account> {
+  return apiRequest<AccountResponse>("/api/accounts", {
+    method: "POST",
+    body: JSON.stringify({ accountClass, name }),
+  }).then((data) => data.account);
+}
+
 export function patchAccount(
   accountId: string,
   input: { name?: string; isActive?: boolean },

@@ -72,15 +72,20 @@ export default defineConfig({
   plugins: [
     react(),
     cloudflare({
-      // Local E2E only: vite preview runs the worker with wrangler vars, where
-      // APP_ORIGIN=https://ledjer.id would reject localhost origins (CSRF).
-      // Only override vars when LEDJER_E2E_LOCAL=1 (set by playwright webServer).
-      // Production builds keep the real vars so `wrangler deploy` (which reads
-      // the built dist/ledjer/wrangler.json via .wrangler/deploy/config.json
-      // redirect) never deploys dev values.
+      // Local serving only: the in-process worker must accept localhost
+      // origins (CSRF) and behave as development. Applies to `vite dev`,
+      // `vite preview`, and LEDJER_E2E_LOCAL=1 (playwright webServer).
+      // `vite build` / `vitest` keep the file vars untouched, and
+      // `wrangler deploy` reads wrangler.jsonc (plus .dev.vars is ignored),
+      // so production deploys can never pick up these dev values.
       config: (cfg) => {
-        if (process.env.LEDJER_E2E_LOCAL === "1") {
-          cfg.vars = { APP_ENV: "development", APP_ORIGIN: "http://localhost:4173" };
+        const viteCmd = process.argv.slice(2).some((a) => a === "dev" || a === "preview" || a === "serve");
+        if (process.env.LEDJER_E2E_LOCAL === "1" || viteCmd) {
+          cfg.vars = {
+            APP_ENV: "development",
+            APP_ORIGIN:
+              "http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173",
+          };
         }
       },
     }),

@@ -407,6 +407,57 @@ function productById(orgId: string, productId: string): SeedProduct | undefined 
   return allProducts(orgId).find((p) => p.id === productId);
 }
 
+/**
+ * Cermin filter/sort daftar produk (dipakai handleFirst utk count dan
+ * handleAll utk list): aktif, search nama/kode, stok, urutan.
+ */
+function selectProducts(sql: string, values: unknown[], orgId: string): SeedProduct[] {
+  const s = sql.toLowerCase();
+  let result = allProducts(orgId);
+  let idx = 1;
+  if (s.includes("is_active = 0")) {
+    result = result.filter((p) => p.is_active === 0);
+  } else if (s.includes("is_active = 1")) {
+    result = result.filter((p) => p.is_active === 1);
+  }
+  if (s.includes("like")) {
+    const needle = String(values[idx]).replaceAll("%", "").toLowerCase();
+    idx += 2;
+    result = result.filter(
+      (p) => p.name.toLowerCase().includes(needle) || p.code.toLowerCase().includes(needle),
+    );
+  }
+  if (s.includes("current_stock_milli = 0")) {
+    result = result.filter((p) => p.current_stock_milli === 0);
+  } else if (s.includes("current_stock_milli <= ?")) {
+    const bound = Number(values[idx]);
+    idx += 1;
+    result = result.filter((p) => p.current_stock_milli > 0 && p.current_stock_milli <= bound);
+  } else if (s.includes("current_stock_milli > 0")) {
+    result = result.filter((p) => p.current_stock_milli > 0);
+  }
+  const byName = (a: SeedProduct, b: SeedProduct) =>
+    a.name.localeCompare(b.name) || a.code.localeCompare(b.code);
+  if (s.includes("order by name")) result = [...result].sort(byName);
+  else if (s.includes("current_stock_milli asc")) {
+    result = [...result].sort(
+      (a, b) => a.current_stock_milli - b.current_stock_milli || byName(a, b),
+    );
+  } else if (s.includes("average_cost_minor) desc")) {
+    result = [...result].sort(
+      (a, b) =>
+        b.current_stock_milli * b.average_cost_minor - a.current_stock_milli * a.average_cost_minor ||
+        byName(a, b),
+    );
+  } else result = [...result].sort((a, b) => a.code.localeCompare(b.code));
+  if (s.includes("limit")) {
+    const limit = Number(values[idx]);
+    const offset = Number(values[idx + 1] ?? 0);
+    result = result.slice(offset, offset + limit);
+  }
+  return result;
+}
+
 function orgTransactions(orgId: string): SeedTransaction[] {
   return allTransactions(orgId);
 }
@@ -627,11 +678,12 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
       const account = allAccounts(orgId).find((a) => a.code === code);
       return account ? { id: account.id } : null;
     }
-    // MAX(CAST(code AS INTEGER)) - next cash/bank code
+    // MAX(CAST(code AS INTEGER)) - next cash/bank code (atau blok klasifikasi bila ada LIKE prefix).
     if (s.includes("MAX(CAST(code AS INTEGER))")) {
       const orgId = values[0] as string;
+      const prefix = s.includes("code LIKE ?") ? String(values[1]).replaceAll("%", "") : null;
       const maxCode = allAccounts(orgId)
-        .filter((a) => a.account_subtype !== null)
+        .filter((a) => a.account_subtype !== null || (prefix !== null && a.code.startsWith(prefix)))
         .reduce((max, a) => Math.max(max, Number(a.code)), 0);
       return { max_code: maxCode };
     }
@@ -656,6 +708,11 @@ function handleFirst(sql: string, values: unknown[]): unknown { // NOSONAR:S3776
 
   // Products
   if (s.includes("FROM products")) {
+    // Count daftar produk (listProductsPage total).
+    if (s.includes("products:count")) {
+      const orgId = values[0] as string;
+      return { total: selectProducts(s, values, orgId).length };
+    }
     // Name-taken lookups
     if (s.includes("name = ?")) {
       const orgId = values[0] as string;
@@ -936,12 +993,15 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
     return result;
   }
 
-  // Products list
+  // Products list (legacy tanpa marker + baru bermarker products:list).
   if (s.includes("FROM products") && !s.includes("JOIN")) {
     const orgId = values[0] as string;
-    let result = allProducts(orgId);
-    if (s.includes("is_active = 1")) result = result.filter((p) => p.is_active === 1);
-    return result.map((p) => ({ ...p }));
+    if (!s.includes("products:list") && !s.includes("products:count")) {
+      let result = allProducts(orgId);
+      if (s.includes("is_active = 1")) result = result.filter((p) => p.is_active === 1);
+      return result.map((p) => ({ ...p }));
+    }
+    return selectProducts(s, values, orgId).map((p) => ({ ...p }));
   }
 
   // Transaction items (getTransaction detail): stock_movements JOIN products
@@ -982,6 +1042,45 @@ function handleAll(sql: string, values: unknown[]): unknown[] { // NOSONAR:S3776
           transactions.find((t) => t.id === m.transaction_id)?.status === "posted",
       )
       .map((m) => ({ ...m }));
+  }
+
+  // getStockMovementReport: mutasi + transaksi + produk, posted only, sisa berjalan.
+  if (s.includes("report:stock-movements")) {
+    const orgId = values[0] as string;
+    const toDate = values[1] as string;
+    const productId = values.length > 2 ? (values[2] as string) : undefined;
+    const lines = [];
+    for (const m of stockMovements) {
+      if (m.organization_id !== orgId) continue;
+      if (productId && m.product_id !== productId) continue;
+      const txn = transactions.find((t) => t.id === m.transaction_id);
+      if (txn?.status !== "posted") continue;
+      if (txn.transaction_date > toDate) continue;
+      const product = products.find((p) => p.id === m.product_id);
+      if (!product) continue;
+      lines.push({
+        product_id: product.id,
+        product_name: product.name,
+        unit: product.unit,
+        entry_date: txn.transaction_date,
+        transaction_id: txn.id,
+        transaction_number: txn.transaction_number,
+        transaction_type: txn.transaction_type,
+        description: txn.description,
+        quantity_milli: m.quantity_milli,
+        unit_cost_minor: m.unit_cost_minor,
+        created_at: m.created_at,
+      });
+    }
+    // Cermin ORDER BY SQL: nama produk, id, tanggal, created_at, urutan sisip.
+    lines.sort(
+      (a, b) =>
+        a.product_name.localeCompare(b.product_name) ||
+        a.product_id.localeCompare(b.product_id) ||
+        a.entry_date.localeCompare(b.entry_date) ||
+        a.created_at - b.created_at,
+    );
+    return lines;
   }
 
   // Dashboard cash flow: SELECT transaction_type, SUM(amount_idr) ... GROUP BY transaction_type
@@ -1087,8 +1186,25 @@ function handleRun(sql: string, values: unknown[]): D1Result { // NOSONAR:S3776 
         created_at: Number(values[8]),
         updated_at: Number(values[9]),
       });
+    } else if (s.includes("account_kind")) {
+      // createAccount (non-kas): class dinamis, subtype+kind NULL
+      // values: id, org, code, name, class, created, updated
+      accounts.push({
+        id: values[0] as string,
+        organization_id: values[1] as string,
+        code: values[2] as string,
+        name: values[3] as string,
+        account_class: values[4] as SeedAccount["account_class"],
+        account_subtype: null,
+        account_kind: null,
+        is_system: 0,
+        is_active: 1,
+        created_at: Number(values[5]),
+        updated_at: Number(values[6]),
+      });
     } else {
       // createCashBankAccount: 'asset', 0, 1 hardcoded in SQL
+      // values: id, org, code, name, subtype, created, updated
       accounts.push({
         id: values[0] as string,
         organization_id: values[1] as string,

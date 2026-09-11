@@ -85,3 +85,4 @@ graphify-out/
 
 # SonarScanner local analysis artifacts
 .scannerwork/
+release.md

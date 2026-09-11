@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -7,6 +7,7 @@ import { listTransactions, type Transaction } from "@/lib/api/transactions";
 import { downloadTransactionsCsv } from "@/lib/api/exports";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
+import { PaginationNav } from "@/components/ui/pagination-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -26,7 +27,11 @@ export function TransactionListPage() {
   const orgId = orgData?.organization?.id;
 
   const [search, setSearch] = useState("");
-  const [transactionType, setTransactionType] = useState("");
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get("type") ?? "";
+  const [transactionType, setTransactionType] = useState(
+    TRANSACTION_TYPES.includes(initialType as (typeof TRANSACTION_TYPES)[number]) ? initialType : "",
+  );
   const [status, setStatus] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -128,7 +133,7 @@ export function TransactionListPage() {
           {
             key: "new",
             children: (
-              <Link to="/transactions/new">
+              <Link to="/transactions/new" className="hidden lg:block">
                 <Button>
                   <Plus className="h-4 w-4" />
                   Transaksi Baru
@@ -138,6 +143,16 @@ export function TransactionListPage() {
           },
         ]}
       />
+
+      <Link
+        to="/transactions/new"
+        className="sticky top-[calc(56px+env(safe-area-inset-top,0px)+8px)] z-[var(--z-sticky)] block lg:hidden"
+      >
+        <Button fullWidth className="shadow-lg">
+          <Plus className="h-4 w-4" />
+          Transaksi Baru
+        </Button>
+      </Link>
 
       <Card elevated>
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
@@ -189,27 +204,12 @@ export function TransactionListPage() {
       </Card>
 
       {query.data && query.data.total > PAGE_SIZE && (
-        <nav aria-label="Navigasi halaman" className="flex items-center justify-between gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage <= 1}
-            onClick={() => setOffset((currentPage - 2) * PAGE_SIZE)}
-          >
-            Sebelumnya
-          </Button>
-          <p className="text-sm text-text-secondary">
-            Halaman {currentPage} dari {totalPages}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage >= totalPages}
-            onClick={() => setOffset(currentPage * PAGE_SIZE)}
-          >
-            Berikutnya
-          </Button>
-        </nav>
+        <PaginationNav
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPrev={() => setOffset((currentPage - 2) * PAGE_SIZE)}
+          onNext={() => setOffset(currentPage * PAGE_SIZE)}
+        />
       )}
     </div>
   );

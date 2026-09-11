@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Scale, Wallet } from "reicon-react";
+import { ArrowLeft, ArrowRight, Plus, Scale, Wallet } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { getDashboardAlerts, getDashboardSummary } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/query-keys";
@@ -44,7 +44,6 @@ export function DashboardPage() {
   // worker was still deployed, or an upstream shape change) so the page can
   // never crash on `.length` of undefined.
   const recentTransactions = summary?.recentTransactions ?? [];
-  const cashBankAccounts = summary?.cashBankAccounts ?? [];
   const negativeBalanceAccounts = alerts?.negativeBalanceAccounts ?? [];
 
   let recentTransactionsNode: ReactNode;
@@ -91,17 +90,13 @@ export function DashboardPage() {
       <PageHeader
         title={`Halo, ${orgData?.organization?.name ?? ""}`}
         description="Ringkasan keuangan usaha Anda."
-        actions={[
-          {
-            key: "new-transaction",
-            children: (
-              <Link to="/transactions/new">
-                <Button>Transaksi Baru</Button>
-              </Link>
-            ),
-          },
-        ]}
       />
+      <Link to="/transactions/new" className="block sm:w-fit">
+        <Button fullWidth className="sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Transaksi Baru
+        </Button>
+      </Link>
 
       {negativeBalanceAccounts.length > 0 && (
         <Card className="border-clay-200 bg-clay-50">
@@ -129,6 +124,7 @@ export function DashboardPage() {
           value={summary?.moneyIn}
           icon={ArrowRight}
           tone="honey"
+          href="/transactions?type=cash_in"
           ariaDescription="Total pendapatan bulan berjalan"
         />
         <StatCard
@@ -136,6 +132,7 @@ export function DashboardPage() {
           value={summary?.moneyOut}
           icon={ArrowLeft}
           tone="clay"
+          href="/transactions?type=cash_out"
           ariaDescription="Total beban bulan berjalan"
         />
         <StatCard
@@ -143,27 +140,10 @@ export function DashboardPage() {
           value={summary?.netIncome}
           icon={Scale}
           tone="wood"
+          href="/reports/profit-loss"
           ariaDescription="Pendapatan dikurangi beban bulan berjalan"
         />
       </div>
-
-      {cashBankAccounts.length > 0 && (
-        <Card elevated title="Rincian Kas & Bank">
-          <ul className="divide-y divide-wood-100">
-            {cashBankAccounts.map((account) => (
-              <li key={account.id} className="flex items-center justify-between gap-4 px-5 py-3">
-                <div className="min-w-0">
-                  <p className="break-words text-sm font-medium text-text-primary">{account.name}</p>
-                  <p className="text-xs text-text-tertiary">{account.code}</p>
-                </div>
-                <p className="num-mono shrink-0 text-sm font-semibold text-text-primary">
-                  {formatIDR(account.balance)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
 
       <Card elevated title="Transaksi Terbaru">
         <CardContent className="p-0">{recentTransactionsNode}</CardContent>

@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "reicon-react";
 import { useOrganization } from "@/hooks/useOrganization";
-import { createCashBankAccount, listAccounts, patchAccount, type CashBankSubtype } from "@/lib/api/accounts";
+import { useAllAccounts } from "@/hooks/useAccounts";
+import { createCashBankAccount, patchAccount, type CashBankSubtype } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -25,14 +27,7 @@ export function AccountsPage() {
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const query = useQuery({
-    queryKey: queryKeys.accounts.fullList(orgId ?? ""),
-    queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
-      return listAccounts({ includeInactive: true });
-    },
-    enabled: !!orgId,
-  });
+  const query = useAllAccounts();
 
   const cashAccounts = (query.data ?? []).filter((a) => a.account_subtype === "cash");
   const bankAccounts = (query.data ?? []).filter((a) => a.account_subtype === "bank");
@@ -73,6 +68,11 @@ export function AccountsPage() {
         title="Kas & Bank"
         description="Kelola akun kas dan rekening bank usaha Anda."
       />
+      <Link to="/accounts/chart" className="block sm:w-auto">
+        <Button variant="secondary" fullWidth className="sm:w-auto">
+          Bagan Akun
+        </Button>
+      </Link>
 
       <Card elevated>
         <CardContent className="p-4">

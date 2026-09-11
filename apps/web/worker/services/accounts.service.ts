@@ -155,11 +155,88 @@ export async function createCashBankAccount(
   throw badRequest("account_create_failed", "Gagal membuat akun.");
 }
 
+/** Klasifikasi yang boleh dibuat pengguna (kas/bank punya endpoint sendiri). */
+export type CreatableAccountClass = "income" | "expense";
+
+export interface CreateAccountInput {
+  accountClass: CreatableAccountClass;
+  name: string;
+}
+
+const ACCOUNT_CODE_PREFIX: Record<CreatableAccountClass, string> = {
+  income: "4",
+  expense: "6",
+};
+
+/** Kode berikutnya dalam blok klasifikasi (4130…, 6200…), lewati yang terpakai. */
+export async function nextAccountCode(
+  db: D1Database,
+  organizationId: string,
+  accountClass: CreatableAccountClass,
+): Promise<string> {
+  const prefix = ACCOUNT_CODE_PREFIX[accountClass];
+  const row = await queryFirst<{ max_code: number | null }>(
+    db,
+    `SELECT MAX(CAST(code AS INTEGER)) AS max_code
+     FROM accounts
+     WHERE organization_id = ? AND code LIKE ?`,
+    [organizationId, `${prefix}%`],
+  );
+  let next = (row?.max_code ?? Number(`${prefix}00`)) + 10;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (!String(next).startsWith(prefix)) {
+      throw badRequest("account_code_exhausted", "Blok kode akun habis. Hubungi dukungan.");
+    }
+    const existing = await queryFirst<{ id: string }>(
+      db,
+      "SELECT id FROM accounts WHERE organization_id = ? AND code = ?",
+      [organizationId, String(next)],
+    );
+    if (!existing) return String(next);
+    next += 10;
+  }
+  throw badRequest("account_code_exhausted", "Blok kode akun habis. Hubungi dukungan.");
+}
+
+export async function createAccount(
+  db: D1Database,
+  organizationId: string,
+  userId: string,
+  input: CreateAccountInput,
+): Promise<AccountRow> {
+  const name = await assertValidAccountName(db, organizationId, input.name);
+  const current = Date.now();
+  const accountId = crypto.randomUUID();
+
+  // Sama seperti kas/bank: retry bila kode yang dihitung menabrak tulisan paralel.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const attemptCode = await nextAccountCode(db, organizationId, input.accountClass);
+    const attemptId = attempt === 0 ? accountId : crypto.randomUUID();
+    try {
+      await execute(
+        db,
+        `INSERT INTO accounts (
+           id, organization_id, code, name, account_class, account_subtype,
+           account_kind, is_system, is_active, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, 1, ?, ?)`,
+        [attemptId, organizationId, attemptCode, name, input.accountClass, current, current],
+      );
+      await logAuthEvent(db, userId, organizationId, "account_created", { accountId: attemptId, code: attemptCode, name });
+      const account = await getAccount(db, organizationId, attemptId);
+      if (!account) throw badRequest("account_create_failed", "Gagal membuat akun.");
+      return account;
+    } catch (err) {
+      if (attempt < 2 && err instanceof Error && /unique|constraint/i.test(err.message)) continue;
+      throw err;
+    }
+  }
+  throw badRequest("account_create_failed", "Gagal membuat akun.");
+}
+
 export interface PatchAccountInput {
   name?: string;
   isActive?: boolean;
 }
-
 export async function patchAccount(
   db: D1Database,
   organizationId: string,

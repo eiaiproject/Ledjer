@@ -58,3 +58,26 @@ export interface GeneralLedgerReport {
   /** true bila jumlah baris dipotong batas internal (LIMIT). */
   truncated: boolean;
 }
+
+/** Satu baris laporan mutasi stok: qty masuk/keluar + sisa berjalan per produk. */
+export interface StockMovementReportLine {
+  product_id: string;
+  product_name: string;
+  unit: string;
+  entry_date: string;
+  transaction_id: string;
+  transaction_number: string;
+  transaction_type: string;
+  description: string;
+  quantity_in_milli: number;
+  quantity_out_milli: number;
+  unit_cost_minor: number;
+  /** Stok kumulatif produk ini s.d. baris ini (termasuk riwayat pra-periode). */
+  running_stock_milli: number;
+}
+
+export interface GetStockMovementReportInput {
+  productId?: string;
+  fromDate: string;
+  toDate: string;
+}
