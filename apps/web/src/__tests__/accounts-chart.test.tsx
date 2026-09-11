@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Routes, Route } from 'react-router-dom';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChartOfAccountsPage } from '@/pages/accounts/chart';
+import { renderWithProviders } from './test-utils';
 
 vi.mock('@/contexts/auth-context', async () => {
   const { authStub } = await import('./test-utils');
@@ -29,17 +29,11 @@ const accounts = [
 ];
 
 function renderPage() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/accounts/chart']}>
-        <Routes>
-          <Route path="/accounts/chart" element={<ChartOfAccountsPage />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  return renderWithProviders(
+    <Routes>
+      <Route path="/accounts/chart" element={<ChartOfAccountsPage />} />
+    </Routes>,
+    '/accounts/chart',
   );
 }
 
