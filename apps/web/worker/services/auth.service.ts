@@ -37,6 +37,8 @@ export async function registerUser(
 
   const existing = await findUserByEmail(db, email);
   if (existing) {
+    // Samakan biaya hashing agar register gagal ≈ sukses (mitigasi enumerasi via timing, #4).
+    await hashPassword(input.password, pepper);
     await logDuplicateRegistration(db, email, current);
     throw forbidden("email_taken", "Email sudah terdaftar.");
   }
@@ -73,7 +75,13 @@ export async function loginUser(
 ): Promise<CreatedSession> {
   const email = emailInput.trim().toLowerCase();
   const user = await findUserByEmail(db, email);
-  if (!user || !(await verifyPassword(password, user.password_hash, pepper))) {
+  if (!user) {
+    // Mitigasi timing side-channel (#5): user tidak ada tetap bakar biaya
+    // PBKDF2 agar waktu respons ≈ password salah (verifyPassword dummy).
+    await verifyPassword(password, "invalid-hash", pepper);
+    throw unauthorized("Email atau password salah.");
+  }
+  if (!(await verifyPassword(password, user.password_hash, pepper))) {
     throw unauthorized("Email atau password salah.");
   }
 

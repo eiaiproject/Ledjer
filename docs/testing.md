@@ -61,8 +61,13 @@ pnpm test:e2e:cross-browser-smoke
 Specs in `apps/web/e2e/`: `smoke`, `static-routes`, `security-public`,
 `csrf`, `security-headers`, `injection`, `auth`, `auth-flows`, and the
 authenticated specs (`new-transaction`, `accounts`, `exports`,
-`profit-loss`, `balance-sheet`, `settings-crud`, `tenant-isolation`) which use
+`profit-loss`, `balance-sheet`, `settings-crud`, `quick-entry`) which use
 the `authPage` fixture from `e2e/helpers/auth.ts`.
+
+> Cross-tenant isolation is covered at the service layer
+> (`worker/__tests__/tenant-isolation.test.ts`, `cross-tenant.test.ts`) plus
+> the org-scoping CI check — there is intentionally no e2e spec for it
+> (requires a two-org fixture that the shared staging DB cannot provide).
 
 ### Authenticated E2E (session token)
 

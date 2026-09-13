@@ -41,7 +41,7 @@ export function AuthBrandPanel({ title, description, entries, className }: AuthB
 
         <div className="ledger-mockup mt-10 rounded-xl bg-cream-50 p-4 text-left text-wood-900">
           <div className="flex items-center justify-between gap-4 border-b border-wood-100 pb-3">
-            <span className="text-sm font-semibold text-wood-800">Jurnal hari ini</span>
+            <span className="text-sm font-semibold text-wood-800">Contoh jurnal hari ini</span>
             <span className="rounded-full bg-leaf-100 px-2.5 py-1 text-xs font-medium text-leaf-700">
               Otomatis
             </span>
@@ -65,6 +65,7 @@ export function AuthBrandPanel({ title, description, entries, className }: AuthB
             <CheckCircle className="h-3.5 w-3.5" />
             Debet dan kredit seimbang
           </div>
+          <p className="mt-3 text-xs text-wood-500">Ilustrasi, bukan data sungguhan.</p>
         </div>
       </div>
     </div>

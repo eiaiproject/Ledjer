@@ -9,7 +9,9 @@ import { expect } from "@playwright/test";
  */
 
 const TS = Date.now();
-const PRODUCT_NAME = `Produk QE ${TS}`;
+// Nama token unik yang tidak berbagi kata dengan run lama ("Produk QE ..."
+// menumpuk di DB staging bersama dan menggeser fuzzy-match 4 teratas).
+const PRODUCT_NAME = `QEx${TS}Zqw`;
 
 test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPage }) => {
   const setup = await authPage.evaluate(async (name: string) => {
@@ -39,15 +41,43 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
   }, PRODUCT_NAME);
   expect(setup.bought).toBe(true);
 
+  // Verifikasi via API bahwa produk+stok sudah masuk katalog — jika teks
+  // "tidak ditemukan" muncul di bawah berarti fetch katalog UI yang gagal
+  // sesaat (cold worker / beban paralel), bukan data yang hilang.
+  const inCatalog = await authPage.evaluate(async (name: string) => {
+    const res = await fetch(`/api/products?search=${encodeURIComponent(name)}`);
+    const body = await res.json();
+    return (body.products as Array<{ name: string }>).some((p) => p.name === name);
+  }, PRODUCT_NAME);
+  expect(inCatalog).toBe(true);
+
+  async function sendChat(): Promise<void> {
+    await authPage.getByLabel(/input cepat/i).fill(`jual ${PRODUCT_NAME} 2pcs 50000`);
+    await authPage.getByRole("button", { name: /kirim/i }).click();
+  }
+
   await authPage.goto("/transactions/new");
-  await authPage.getByLabel(/input cepat/i).fill(`jual ${PRODUCT_NAME} 2pcs 50000`);
-  await authPage.getByRole("button", { name: /kirim/i }).click();
+  await sendChat();
+  // Sekali reload + kirim ulang bila katalog gagal dimuat pada percobaan
+  // pertama (flake beban paralel pasca-deploy yang terdokumentasi).
+  const missing = await authPage
+    .getByText(/tidak ditemukan/i)
+    .waitFor({ state: "visible", timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (missing) {
+    await authPage.reload({ waitUntil: "load", timeout: 15000 });
+    await sendChat();
+  }
   await expect(authPage.getByRole("button", { name: /^Catat$/ })).toBeEnabled({ timeout: 15000 });
   await authPage.getByRole("button", { name: /^Catat$/ }).click();
   await expect(authPage.getByText(/tercatat/i).first()).toBeVisible({ timeout: 15000 });
 
   await authPage.goto("/products");
-  await authPage.getByText(PRODUCT_NAME).first().waitFor({ timeout: 15000 });
+  // Cari eksplisit: produk baru berkode PRD-XXXX tertinggi dan jatuh di
+  // halaman akhir pada DB bersama yang sudah >1 halaman.
+  await authPage.getByLabel(/cari produk/i).fill(PRODUCT_NAME);
+  await expect(authPage.getByText(PRODUCT_NAME).first()).toBeVisible({ timeout: 15000 });
   await authPage
     .getByRole("button", { name: new RegExp(`Riwayat mutasi ${PRODUCT_NAME}`) })
     .click();

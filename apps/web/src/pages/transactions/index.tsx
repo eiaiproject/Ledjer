@@ -79,9 +79,10 @@ export function TransactionListPage() {
   let rowsContent: ReactNode;
   if (query.isLoading) {
     rowsContent = (
-      <div className="space-y-3 p-5">
+      <div className="space-y-3 p-5" role="status" aria-live="polite">
+        <span className="sr-only">Memuat daftar transaksi.</span>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-12 animate-pulse rounded-md bg-wood-100" />
+          <div key={i} aria-hidden="true" className="h-12 animate-pulse rounded-md bg-wood-100" />
         ))}
       </div>
     );

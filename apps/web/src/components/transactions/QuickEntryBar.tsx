@@ -97,7 +97,13 @@ export function QuickEntryBar() {
     setDoneMessage(null);
   };
 
+  // Katalog belum ada (orgId masih resolving → query disabled, atau fetch
+  // perdana) berarti Kirim tak boleh diklik: draft dari katalog kosong selalu
+  // "tidak ditemukan" walau produk sudah ada di server.
+  const catalogReady = productsQuery.data !== undefined;
+
   const handleSend = () => {
+    if (!catalogReady) return;
     setDoneMessage(null);
     const parsed = parseQuickEntryText(text);
     if (!parsed.ok) {
@@ -230,7 +236,7 @@ export function QuickEntryBar() {
               className="text-base"
             />
           </div>
-          <Button type="submit" className="min-h-[44px] shrink-0" disabled={productsQuery.isLoading} loading={productsQuery.isLoading}>
+          <Button type="submit" className="min-h-[44px] shrink-0" disabled={productsQuery.isLoading || !catalogReady} loading={productsQuery.isLoading}>
             Kirim
           </Button>
         </form>

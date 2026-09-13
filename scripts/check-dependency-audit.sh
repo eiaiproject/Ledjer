@@ -57,6 +57,7 @@ EXCEPTION_KEYS=""
 if [[ -f "$EXCEPTIONS_FILE" ]]; then
   EXCEPTION_COUNT=$(jq length "$EXCEPTIONS_FILE" 2>/dev/null || echo "0")
   echo "[audit] Found $EXCEPTION_COUNT dependency exception(s) in $EXCEPTIONS_FILE"
+  if [[ "$EXCEPTION_COUNT" -gt 0 ]]; then
   for i in $(seq 0 $((EXCEPTION_COUNT - 1))); do
     PACKAGE=$(jq -r ".[$i].package" "$EXCEPTIONS_FILE" 2>/dev/null || echo "")
     ADVISORY=$(jq -r ".[$i].advisoryId" "$EXCEPTIONS_FILE" 2>/dev/null || echo "")
@@ -73,6 +74,7 @@ if [[ -f "$EXCEPTIONS_FILE" ]]; then
       fi
     fi
   done
+  fi
 else
   echo "[audit] No exceptions file found at $EXCEPTIONS_FILE (all findings are blocking)"
 fi

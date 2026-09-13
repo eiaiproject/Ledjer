@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
+import { parseListLimit, parseListOffset, parseSearch } from "../http/params";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
 import { tooManyRequests } from "../http/errors";
@@ -44,17 +45,22 @@ export const transactionsRoutes = new Hono<AppContext>();
 transactionsRoutes.use("*", requireAuth());
 transactionsRoutes.use("*", loadCurrentOrganization());
 
+const LIST_TYPE_WHITELIST = new Set(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase"]);
+const LIST_STATUS_WHITELIST = new Set(["posted", "voided"]);
+
 transactionsRoutes.get("/", requirePermission("transactions:read"), async (c) => {
   const context = c.get("organizationContext");
   const url = new URL(c.req.url);
+  const rawType = url.searchParams.get("transactionType") ?? undefined;
+  const rawStatus = url.searchParams.get("status") ?? undefined;
   const filters = {
-    search: url.searchParams.get("search") ?? undefined,
-    transactionType: url.searchParams.get("transactionType") ?? undefined,
-    status: url.searchParams.get("status") ?? undefined,
+    search: parseSearch(url.searchParams.get("search")),
+    transactionType: rawType && LIST_TYPE_WHITELIST.has(rawType) ? rawType : undefined,
+    status: rawStatus && LIST_STATUS_WHITELIST.has(rawStatus) ? rawStatus : undefined,
     fromDate: url.searchParams.get("fromDate") ?? undefined,
     toDate: url.searchParams.get("toDate") ?? undefined,
-    limit: parseInteger(url.searchParams.get("limit")),
-    offset: parseInteger(url.searchParams.get("offset")),
+    limit: parseListLimit(url.searchParams.get("limit")),
+    offset: parseListOffset(url.searchParams.get("offset")),
   };
   const [transactions, total] = await Promise.all([
     listTransactions(c.env.DB, context.organization.id, filters),
@@ -107,8 +113,3 @@ transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:
   return c.json({ transaction });
 });
 
-function parseInteger(value: string | null): number | undefined {
-  if (!value) return undefined;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) ? parsed : undefined;
-}

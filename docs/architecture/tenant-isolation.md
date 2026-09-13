@@ -62,8 +62,11 @@ Shared across tenants - never tenant-scoped in queries:
   the `TenantScopedRepository` guard; `cross-tenant.test.ts` and service tests
   (e.g. `reports.service.test.ts`, `transactions.service.test.ts`) assert that
   Org B never sees Org A data.
-- E2E: `apps/web/e2e/tenant-isolation.spec.ts` verifies cross-tenant access is
-  rejected at the HTTP layer.
+- E2E: tenant isolation is covered indirectly — every authenticated e2e spec
+  (`accounts`, `products`, `new-transaction`, …) runs under an org-scoped
+  session and would surface leaks; a dedicated two-org spec was removed
+  because it tested non-existent surface (`x-org-id` header,
+  `GET /api/organizations`).
 - Permission matrix: `docs/architecture/permission-matrix.md` documents every
   route and its required middleware.
 
