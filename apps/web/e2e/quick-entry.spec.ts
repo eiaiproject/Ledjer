@@ -47,7 +47,10 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
   await expect(authPage.getByText(/tercatat/i).first()).toBeVisible({ timeout: 15000 });
 
   await authPage.goto("/products");
-  await authPage.getByText(PRODUCT_NAME).first().waitFor({ timeout: 15000 });
+  // Cari eksplisit: produk baru berkode PRD-XXXX tertinggi dan jatuh di
+  // halaman akhir pada DB bersama yang sudah >1 halaman.
+  await authPage.getByLabel(/cari produk/i).fill(PRODUCT_NAME);
+  await expect(authPage.getByText(PRODUCT_NAME).first()).toBeVisible({ timeout: 15000 });
   await authPage
     .getByRole("button", { name: new RegExp(`Riwayat mutasi ${PRODUCT_NAME}`) })
     .click();
