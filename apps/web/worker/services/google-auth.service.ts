@@ -1,6 +1,6 @@
 import { execute, queryFirst } from "../db/client";
-import { generateId, randomBytes } from "../auth/tokens";
-import { bytesToBase64 } from "../auth/encoding";
+import { generateId, generateToken, randomBytes } from "../auth/tokens";
+import { bytesToBase64, bytesToBase64Url, utf8 } from "../auth/encoding";
 import { createSession, type CreatedSession } from "./session.service";
 import { badRequest, conflict, unauthorized } from "../http/errors";
 import { hashPassword } from "../auth/password";
@@ -34,14 +34,25 @@ interface UserRow {
   status: string;
 }
 
+/** PKCE S256 challenge dari verifier (#6). */
+export async function pkceChallenge(verifier: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", utf8(verifier));
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+export function generatePkceVerifier(): string {
+  return generateToken(32);
+}
+
 /**
- * Generate the Google OAuth authorization URL.
- * State is stored in a short-lived cookie for CSRF protection.
+ * Generate the Google OAuth authorization URL (PKCE S256 + state).
+ * State + verifier disimpan di cookie short-lived untuk CSRF protection.
  */
 export function buildGoogleAuthUrl(
   clientId: string,
   redirectUri: string,
   state: string,
+  codeChallenge?: string,
 ): string {
   const params = new URLSearchParams({
     client_id: clientId,
@@ -52,6 +63,10 @@ export function buildGoogleAuthUrl(
     access_type: "offline",
     prompt: "consent",
   });
+  if (codeChallenge) {
+    params.set("code_challenge", codeChallenge);
+    params.set("code_challenge_method", "S256");
+  }
   return `${GOOGLE_AUTH_URL}?${params.toString()}`;
 }
 
@@ -63,17 +78,20 @@ async function exchangeCodeForUser(
   clientId: string,
   clientSecret: string,
   redirectUri: string,
+  codeVerifier?: string,
 ): Promise<GoogleUserInfo> {
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    grant_type: "authorization_code",
+    redirect_uri: redirectUri,
+  });
+  if (codeVerifier) body.set("code_verifier", codeVerifier);
   const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: redirectUri,
-    }),
+    body,
   });
 
   if (!tokenResponse.ok) {
@@ -217,8 +235,9 @@ export async function completeGoogleAuth(
   clientSecret: string,
   redirectUri: string,
   request: Request,
+  codeVerifier?: string,
 ): Promise<CreatedSession> {
-  const googleUser = await exchangeCodeForUser(code, clientId, clientSecret, redirectUri);
+  const googleUser = await exchangeCodeForUser(code, clientId, clientSecret, redirectUri, codeVerifier);
 
   if (!googleUser.email) {
     throw badRequest("oauth_no_email", "Google account does not have an email");

@@ -114,9 +114,9 @@ export function computeNewWac(
   );
 }
 
-/** Nilai persediaan (IDR) dari stok (milli) × WAC (minor). */
+/** Nilai persediaan (IDR) dari stok (milli) × WAC (minor), half-up (#15). */
 export function stockValueFromMilliWac(stockMilli: number, wacMinor: number): number {
-  return Number((BigInt(stockMilli) * BigInt(wacMinor)) / 10_000_000n);
+  return Number((BigInt(stockMilli) * BigInt(wacMinor) + 5_000_000n) / 10_000_000n);
 }
 
 // ── CRUD ────────────────────────────────────────────────────────

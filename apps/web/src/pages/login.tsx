@@ -164,7 +164,7 @@ export function LoginPage() {
           </Card>
 
           <p className="mt-6 text-center text-xs text-wood-500">
-            Koneksi terenkripsi. Data Anda aman.
+            Koneksi HTTPS terenkripsi. Sesi keluar otomatis saat lama tidak aktif.
           </p>
         </div>
       </div>

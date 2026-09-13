@@ -1,4 +1,4 @@
-import { execute, queryAll, queryFirst } from "../db/client";
+import { execute, executeBatch, queryAll, queryFirst, statement } from "../db/client";
 import type { AccountClass } from "../db/schema";
 import { badRequest } from "../http/errors";
 import { logAuthEvent } from "./auth-audit.service";
@@ -131,21 +131,23 @@ export async function createOrganizationWithOwner(
   }
 
   const organizationId = crypto.randomUUID();
-  await execute(
-    db,
-    `INSERT INTO organizations (id, name, base_currency, status, created_at, updated_at)
-     VALUES (?, ?, 'IDR', 'active', ?, ?)`,
-    [organizationId, organizationName, current, current],
-  );
-
-  await execute(
-    db,
-    `INSERT INTO memberships (id, user_id, organization_id, role, created_at)
-     VALUES (?, ?, ?, 'owner', ?)`,
-    [crypto.randomUUID(), userId, organizationId, current],
-  );
-
-  await createDefaultAccounts(db, organizationId, current);
+  // Satu batch atomik: org + membership + 16 akun default (#11).
+  // Crash di tengah tidak lagi menyisakan org setengah jadi.
+  await executeBatch(db, [
+    statement(
+      db,
+      `INSERT INTO organizations (id, name, base_currency, status, created_at, updated_at)
+       VALUES (?, ?, 'IDR', 'active', ?, ?)`,
+      [organizationId, organizationName, current, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO memberships (id, user_id, organization_id, role, created_at)
+       VALUES (?, ?, ?, 'owner', ?)`,
+      [crypto.randomUUID(), userId, organizationId, current],
+    ),
+    ...defaultAccountStatements(db, organizationId, current),
+  ]);
 
   return { id: organizationId, name: organizationName, base_currency: "IDR", status: "active", created_at: current };
 }
@@ -228,13 +230,9 @@ export const DEFAULT_ACCOUNTS: readonly DefaultAccount[] = [
   { code: "6190", name: "Harga Pokok Penjualan", accountClass: "expense", accountKind: "cogs", isSystem: true },
 ];
 
-export async function createDefaultAccounts(
-  db: D1Database,
-  organizationId: string,
-  current = Date.now(),
-): Promise<void> {
-  for (const account of DEFAULT_ACCOUNTS) {
-    await execute(
+function defaultAccountStatements(db: D1Database, organizationId: string, current: number) {
+  return DEFAULT_ACCOUNTS.map((account) =>
+    statement(
       db,
       `INSERT INTO accounts (
          id, organization_id, code, name, account_class, account_subtype,
@@ -252,6 +250,14 @@ export async function createDefaultAccounts(
         current,
         current,
       ],
-    );
-  }
+    ),
+  );
+}
+
+export async function createDefaultAccounts(
+  db: D1Database,
+  organizationId: string,
+  current = Date.now(),
+): Promise<void> {
+  await executeBatch(db, defaultAccountStatements(db, organizationId, current));
 }

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
+import { parseListLimit, parseListOffset, parseSearch } from "../http/params";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
@@ -38,11 +39,11 @@ productsRoutes.get("/", requirePermission("products:read"), async (c) => {
     // includeInactive lawas tetap didukung; status baru menang bila diisi.
     includeInactive: status ? status !== "active" : c.req.query("includeInactive") === "true",
     onlyInactive: status === "inactive",
-    search: params.get("search") || undefined,
+    search: parseSearch(params.get("search")),
     stock: stock === "in" || stock === "out" || stock === "low" ? stock : undefined,
     sort: sort === "name" || sort === "stock_asc" || sort === "value_desc" ? sort : undefined,
-    limit: limit !== null && Number.isInteger(Number(limit)) && Number(limit) > 0 ? Number(limit) : undefined,
-    offset: offset !== null && Number.isInteger(Number(offset)) && Number(offset) >= 0 ? Number(offset) : undefined,
+    limit: parseListLimit(limit),
+    offset: parseListOffset(offset),
   });
   return c.json({ products, total });
 });

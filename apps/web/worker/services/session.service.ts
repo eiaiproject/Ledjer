@@ -249,8 +249,8 @@ export async function revokeSessionToken(
   const tokenHash = await hashToken(token);
   await execute(
     db,
-    "UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL",
-    [Date.now(), tokenHash],
+    "UPDATE sessions SET revoked_at = ? WHERE (token_hash = ? OR previous_token_hash = ?) AND revoked_at IS NULL",
+    [Date.now(), tokenHash, tokenHash],
   );
 }
 

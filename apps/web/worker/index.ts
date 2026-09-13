@@ -35,12 +35,12 @@ app.use("/api/*", async (c, next) => {
   const method = c.req.method;
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
 
-  // Fail-closed in production: reject state-changing requests whose Origin is
-  // not in APP_ORIGIN, and Origin-less requests carrying a session cookie.
+  // Fail-closed: reject state-changing requests whose Origin is not in
+  // APP_ORIGIN (+ localhost di development), dan request tanpa Origin yang
+  // membawa session cookie (#1: tanpa bypass total di dev).
   const origin = c.req.header("Origin") || c.req.header("Referer");
   const allowed = c.env.APP_ORIGIN;
-
-  if (c.env.APP_ENV === "development") return next();
+  const isDev = c.env.APP_ENV !== "production";
 
   if (!origin) {
     const cookie = c.req.header("Cookie");
@@ -61,10 +61,13 @@ app.use("/api/*", async (c, next) => {
   }
 
   const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
-  const ok = allowedList.some((a) => {
-    if (origin === a) return true;
-    try { return new URL(origin).origin === a; } catch { return false; }
-  });
+  const ok =
+    allowedList.some((a) => {
+      if (origin === a) return true;
+      try { return new URL(origin).origin === a; } catch { return false; }
+    }) ||
+    // Dev-only: izinkan localhost/127.0.0.1 agar Vite dev tetap jalan (#1).
+    (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(origin));
   if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
   return next();
 });

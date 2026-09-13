@@ -44,7 +44,7 @@ function renderAction(action: ActionProp | undefined): React.ReactNode {
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn("flex min-w-0 flex-col items-center justify-center px-4 py-8 text-center sm:py-10", className)}>
-      <div className="ledger-soft-float mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-wood-100 bg-cream-100 sm:mb-4 sm:h-16 sm:w-16">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-wood-100 bg-cream-100 sm:mb-4 sm:h-16 sm:w-16">
         {renderIcon(icon)}
       </div>
       <h3 className="max-w-full break-words text-lg font-semibold text-text-primary">{title}</h3>

@@ -1,28 +1,12 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AppContext } from "../env";
+import { cookieName, cookieOptions, sessionCookieNames } from "../http/cookies";
 import { unauthorized } from "../http/errors";
 import {
   getSessionByToken,
   type CurrentSessionRow,
 } from "../services/session.service";
-
-function cookieName(c: Context): string {
-  return c.env.APP_ENV === "production" ? "__Host-ledjer_session" : "ledjer_session";
-}
-
-function cookieOptions(c: Context<AppContext>) {
-  const isHostPrefix = c.env.APP_ENV === "production";
-  const secure = isHostPrefix ? true : new URL(c.req.url).protocol === "https:";
-  return {
-    domain: isHostPrefix ? undefined : c.env.COOKIE_DOMAIN,
-    path: "/",
-    sameSite: "Lax" as const,
-    secure,
-    httpOnly: true,
-    partitioned: secure ? true : undefined,
-  };
-}
 
 export function requireAuth(): MiddlewareHandler<AppContext> {
   return async (c, next) => {
@@ -47,12 +31,8 @@ export async function getAuthenticatedSession(
 
   const session = await getSessionByToken(c.env.DB, token);
   if (!session) {
-    for (const name of ["__Host-ledjer_session", "ledjer_session"]) {
-      deleteCookie(c, name, {
-        domain: c.env.APP_ENV === "production" ? undefined : c.env.COOKIE_DOMAIN,
-        path: "/",
-        secure: true,
-      });
+    for (const name of sessionCookieNames()) {
+      deleteCookie(c, name, cookieOptions(c));
     }
     throw unauthorized();
   }

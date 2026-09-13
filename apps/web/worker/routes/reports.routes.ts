@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { badRequest } from "../http/errors";
+import { parseListLimit, parseListOffset } from "../http/params";
 import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import { getBalanceSheet, getGeneralLedger, getProfitLoss } from "../services/reports.service";
 
@@ -47,8 +48,8 @@ reportsRoutes.get("/general-ledger", async (c) => {
       accountId: params.get("accountId") || undefined,
       fromDate: requiredParam(params, "fromDate"),
       toDate: requiredParam(params, "toDate"),
-      limit: optionalInteger(params.get("limit")),
-      offset: optionalInteger(params.get("offset")),
+      limit: parseListLimit(params.get("limit"), 5000),
+      offset: parseListOffset(params.get("offset")),
     },
   );
   c.res.headers.set("Cache-Control", "private, max-age=30");
@@ -61,9 +62,3 @@ function requiredParam(params: URLSearchParams, name: string): string {
   return value;
 }
 
-function optionalInteger(value: string | null): number | undefined {
-  if (!value) return undefined;
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) return undefined;
-  return parsed;
-}

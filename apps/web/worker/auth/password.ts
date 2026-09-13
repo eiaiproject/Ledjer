@@ -42,16 +42,30 @@ export async function hashPassword(password: string, pepper?: string): Promise<s
   return `${FORMAT}$${ITERATIONS}$${bytesToBase64(salt)}$${bytesToBase64(hash)}`;
 }
 
+// Fixed dummy salt so malformed/unknown-user paths burn the same PBKDF2
+// cost as a real verification (timing side-channel mitigation, #5).
+const DUMMY_SALT = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+
+async function burnDummyWork(password: string, pepper?: string): Promise<void> {
+  await derive(password, DUMMY_SALT, pepper, ITERATIONS);
+}
+
 export async function verifyPassword(
   password: string,
   storedHash: string,
   pepper?: string,
 ): Promise<boolean> {
   const [format, iterations, salt, expected] = storedHash.split("$");
-  if (format !== FORMAT || !salt || !expected) return false;
+  if (format !== FORMAT || !salt || !expected) {
+    await burnDummyWork(password, pepper);
+    return false;
+  }
 
   const iters = Number(iterations);
-  if (iters !== ITERATIONS && iters !== LEGACY_ITERATIONS) return false;
+  if (iters !== ITERATIONS && iters !== LEGACY_ITERATIONS) {
+    await burnDummyWork(password, pepper);
+    return false;
+  }
 
   const actual = await derive(password, base64ToBytes(salt), pepper, iters);
   return timingSafeEqual(bytesToBase64(actual), expected);

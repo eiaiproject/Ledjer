@@ -85,7 +85,13 @@ export function StatCard({
   const accessibleLabel = [label, ariaDescription, displayValue, statusText].filter(Boolean).join(", ");
 
   const valueContent = (() => {
-    if (isLoading) return <div className="h-6 w-32 animate-pulse rounded bg-white/15" />;
+    if (isLoading)
+      return (
+        <>
+          <div aria-hidden="true" className="h-6 w-32 animate-pulse rounded bg-white/15" />
+          <span className="sr-only">Memuat nilai.</span>
+        </>
+      );
     // opacity-85 keeps the 12-14px edge-state text above WCAG AA (4.5:1) on
     // both white cards and the darker hero fills
     if (isError) return <span className="text-sm italic text-current opacity-85">Data belum tersedia</span>;

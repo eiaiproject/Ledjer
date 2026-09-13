@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Chart, Download, Receipt } from "reicon-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { TRAKTEER_URL } from "@/lib/external";
@@ -51,17 +52,35 @@ export function LandingPage() {
             </div>
           </div>
 
-          <div className="mx-auto mt-16 grid max-w-4xl gap-4 sm:grid-cols-3">
-            {[
-              { title: "6 jenis transaksi", description: "Uang masuk, uang keluar, transfer, modal masuk, pembelian barang, dan pengambilan pemilik." },
-              { title: "Laporan otomatis", description: "Laba rugi dan neraca tersusun sendiri dari jurnal yang seimbang." },
-              { title: "Data milik Anda", description: "Ekspor CSV kapan saja. Tidak ada iklan, tidak ada penjualan data." },
-            ].map((feature) => (
-              <div key={feature.title} className="rounded-xl border border-wood-200 bg-surface p-6">
-                <h2 className="text-base font-semibold text-wood-900">{feature.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-wood-600">{feature.description}</p>
+          {/* Hasil bisnis dulu (laporan), lalu cara dan jaminan. Satu unggulan melebar, dua pendukung sejajar. */}
+          <div className="mx-auto mt-16 grid max-w-4xl gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-wood-200 bg-surface p-6 sm:col-span-2 sm:flex sm:items-start sm:gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-leaf-100">
+                <Chart className="h-5 w-5 text-leaf-600" aria-hidden="true" />
               </div>
-            ))}
+              <div className="mt-3 sm:mt-0">
+                <h2 className="text-base font-semibold text-wood-900">Laporan otomatis</h2>
+                <p className="mt-2 text-sm leading-relaxed text-wood-600">Laba rugi dan neraca tersusun sendiri dari jurnal yang seimbang.</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-wood-200 bg-surface p-6 sm:flex sm:items-start sm:gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-wood-100">
+                <Receipt className="h-5 w-5 text-wood-600" aria-hidden="true" />
+              </div>
+              <div className="mt-3 sm:mt-0">
+                <h2 className="text-base font-semibold text-wood-900">6 jenis transaksi</h2>
+                <p className="mt-2 text-sm leading-relaxed text-wood-600">Uang masuk, uang keluar, transfer, modal masuk, pembelian barang, dan pengambilan pemilik.</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-wood-200 bg-surface p-6 sm:flex sm:items-start sm:gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100">
+                <Download className="h-5 w-5 text-sky-600" aria-hidden="true" />
+              </div>
+              <div className="mt-3 sm:mt-0">
+                <h2 className="text-base font-semibold text-wood-900">Data milik Anda</h2>
+                <p className="mt-2 text-sm leading-relaxed text-wood-600">Ekspor CSV kapan saja. Tidak ada iklan, tidak ada penjualan data.</p>
+              </div>
+            </div>
           </div>
         </section>
       </main>
