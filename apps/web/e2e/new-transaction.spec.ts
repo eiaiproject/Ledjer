@@ -173,6 +173,9 @@ test.describe("New Transaction", () => {
     });
 
     await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
+    // Cari eksplisit: tanggal uji ditetapkan di masa lalu sehingga baris
+    // baru tidak dijamin tampil di halaman 1 pada DB bersama yang menumpuk.
+    await authPage.getByLabel("Cari", { exact: true }).fill(desc);
     await expect(authPage.getByText(desc)).toBeVisible({ timeout: 15000 });
   });
 });

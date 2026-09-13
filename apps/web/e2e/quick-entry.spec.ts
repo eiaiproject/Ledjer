@@ -9,7 +9,9 @@ import { expect } from "@playwright/test";
  */
 
 const TS = Date.now();
-const PRODUCT_NAME = `Produk QE ${TS}`;
+// Nama token unik yang tidak berbagi kata dengan run lama ("Produk QE ..."
+// menumpuk di DB staging bersama dan menggeser fuzzy-match 4 teratas).
+const PRODUCT_NAME = `QEx${TS}Zqw`;
 
 test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPage }) => {
   const setup = await authPage.evaluate(async (name: string) => {
