@@ -19,5 +19,5 @@ export function parseListOffset(value: string | null): number | undefined {
 export function parseSearch(value: string | null, max = MAX_SEARCH_LENGTH): string | undefined {
   if (value === null) return undefined;
   const trimmed = value.trim().slice(0, max);
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 }
