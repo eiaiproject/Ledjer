@@ -51,8 +51,8 @@ importers:
         specifier: ^7.18.3
         version: 7.18.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       reicon-react:
-        specifier: ^1.2.3
-        version: 1.2.3(react@19.3.0)
+        specifier: ^1.2.5
+        version: 1.2.5(react@19.3.0)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -2270,8 +2270,8 @@ packages:
     resolution: {integrity: sha512-6tDA8g98We0zd0GvVeMT9arEOnTw9qM03L9cJXaCjrip1OO764RDBLBfrB4cwzNGDj5OA5ioymC9GkizgWJDUg==}
     engines: {node: '>=8'}
 
-  reicon-react@1.2.3:
-    resolution: {integrity: sha512-XqQSc7uanvl3WlAgbmJOPf7whRsHyGWI3Mn0S8Gqmt0FlQ2a8joaci3pKksfT/PK1cnYVOvfZ3WTJujvlGc94Q==}
+  reicon-react@1.2.5:
+    resolution: {integrity: sha512-+gAKb9k0y/c0t6/l8qiTspxf4RU3omXirr/4/io7Cwp+RCr4FnrxIWKhSSu367BpGyLP745nJ2CmusxWnpOu8g==}
     peerDependencies:
       react: '>=16.8.0'
 
@@ -4413,7 +4413,7 @@ snapshots:
       indent-string: 4.0.0
       strip-indent: 3.0.0
 
-  reicon-react@1.2.3(react@19.3.0):
+  reicon-react@1.2.5(react@19.3.0):
     dependencies:
       react: 19.3.0
 
