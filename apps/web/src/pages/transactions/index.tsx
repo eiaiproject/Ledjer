@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { listTransactions, type Transaction } from "@/lib/api/transactions";
 import { downloadTransactionsCsv } from "@/lib/api/exports";
 import { queryKeys } from "@/lib/query-keys";
@@ -23,8 +23,7 @@ import { getStatus } from "@/lib/status-registry";
 const PAGE_SIZE = 25;
 
 export function TransactionListPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
 
   const [search, setSearch] = useState("");
   const [searchParams] = useSearchParams();
@@ -52,12 +51,12 @@ export function TransactionListPage() {
   );
 
   const query = useQuery({
-    queryKey: queryKeys.transactions.list(orgId, filters),
+    queryKey: queryKeys.transactions.list(userId, filters),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listTransactions(filters);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const handleExport = async () => {

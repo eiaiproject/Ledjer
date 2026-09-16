@@ -42,11 +42,8 @@ function makeSchemaOnlyDb(): Promise<D1Database> {
  * drill read from these, so a backup must include them all to be "complete".
  */
 const SNAPSHOT_TABLES = [
-  "users", "sessions", "email_verifications", "password_reset_tokens", "login_attempts", "oauth_accounts",
-  "organizations", "organization_members", "organization_invitations", "accounts", "parties", "products",
-  "transactions", "transaction_lines", "journal_entries", "journal_lines", "stock_movements", "period_locks",
-  "organization_document_counters", "audit_logs", "attachments", "bank_statements", "bank_statement_lines",
-  "reconciliation_matches", "invoices", "invoice_lines", "payment_allocations",
+  "app_metadata", "users", "sessions", "rate_limits", "oauth_accounts", "accounts", "products",
+  "transactions", "journal_entries", "journal_lines", "stock_movements", "audit_logs",
 ];
 
 /** Seed empty snapshot files for every table (the rest of a backup is empty). */
@@ -135,14 +132,10 @@ describe("Backup Service", () => {
 
     const dateStr = "2026-06-15";
     await bucket.put(
-      `backups/${dateStr}/organizations.json`,
-      JSON.stringify([{ id: "org-1", name: "Org 1", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: "user-1", created_at: Date.now(), updated_at: Date.now() }]),
-    );
-    await bucket.put(
       `backups/${dateStr}/users.json`,
       JSON.stringify([{ id: "user-1", email: "test@test.com", password_hash: "", full_name: "Test", status: "active", email_verified_at: Date.now(), created_at: Date.now(), updated_at: Date.now() }]),
     );
-    await putManifest(bucket, dateStr, { organizations: { rowCount: 1 }, users: { rowCount: 1 } });
+    await putManifest(bucket, dateStr, { users: { rowCount: 1 } });
 
     const db = new FakeD1Database({
       run: () => ({ success: true, meta: { changes: 1 } }) as D1Result,
@@ -152,7 +145,6 @@ describe("Backup Service", () => {
     const result = await restoreBackup(db as unknown as D1Database, bucket as unknown as R2Bucket, dateStr);
 
     expect(result.success).toBe(true);
-    expect(result.tables.organizations.restored).toBe(1);
     expect(result.tables.users.restored).toBe(1);
     expect(result.completedAt).toBeGreaterThanOrEqual(result.startedAt);
   });
@@ -175,14 +167,13 @@ describe("Backup Service", () => {
 
     // Pre-populate backup with valid data
     const dateStr = "2026-07-01";
-    await bucket.put(`backups/${dateStr}/organizations.json`, JSON.stringify([]));
     await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify([]));
-    await putManifest(bucket, dateStr, { organizations: { rowCount: 0 }, users: { rowCount: 0 } });
+    await putManifest(bucket, dateStr, { users: { rowCount: 0 } });
 
     // FakeD1 that reports existing data
     const db = new (await import("../test/fake-d1")).FakeD1Database({
       first: async (sql: string) => {
-        if (sql.includes("COUNT(*)") && sql.includes("organizations")) return { count: 3 };
+        if (sql.includes("COUNT(*)") && sql.includes("FROM users")) return { count: 3 };
         return null;
       },
     });
@@ -205,7 +196,7 @@ describe("Backup Service", () => {
         if (s.includes("LEFT JOIN") && s.includes("WHERE je.id IS NULL")) return { count: 0 };
         // Simple COUNT queries (no JOIN)
         if (!s.includes("LEFT JOIN")) {
-          if (s.includes("COUNT(*)") && s.includes("FROM organizations")) return { count: 2 };
+          if (s.includes("COUNT(*)") && s.includes("FROM users")) return { count: 2 };
           if (s.includes("COUNT(*)") && s.includes("FROM transactions")) return { count: 5 };
           if (s.includes("COUNT(*)") && s.includes("FROM journal_lines")) return { count: 12 };
           // Schema check: queries with quoted table names
@@ -230,7 +221,7 @@ describe("Backup Service", () => {
     expect(result.errors).toEqual([]);
     expect(result.valid).toBe(true);
     expect(result.schemaValid).toBe(true);
-    expect(result.organizationCount).toBe(2);
+    expect(result.userCount).toBe(2);
     expect(result.transactionCount).toBe(5);
     expect(result.journalLineCount).toBe(12);
     expect(result.balancedJournals).toBe(true);
@@ -247,7 +238,7 @@ describe("Backup Service", () => {
         if (s.includes("SUM(debit_minor)")) return { total_debit: 100, total_credit: 50 };
         if (s.includes("LEFT JOIN") && s.includes("WHERE je.id IS NULL")) return { count: 0 };
         if (!s.includes("LEFT JOIN")) {
-          if (s.includes("COUNT(*)") && s.includes("FROM organizations")) return { count: 1 };
+          if (s.includes("COUNT(*)") && s.includes("FROM users")) return { count: 1 };
           if (s.includes("COUNT(*)") && s.includes("FROM transactions")) return { count: 1 };
           if (s.includes("COUNT(*)") && s.includes("FROM journal_lines")) return { count: 2 };
           for (const t of CORE_TABLES) {
@@ -304,17 +295,14 @@ describe("Backup Service", () => {
     // overwrite the tables that carry the rows exercised by the drill.
     const dateStr = "2026-07-01";
     await putEmptySnapshots(bucket, dateStr);
-    await bucket.put(`backups/${dateStr}/organizations.json`, JSON.stringify([
-      { id: "org-1", name: "Org 1", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: "user-1", created_at: 1750000000000, updated_at: 1750000000000 },
-    ]));
     await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify([
       { id: "user-1", email: "test@test.com", full_name: "Test", status: "active" },
     ]));
     await bucket.put(`backups/${dateStr}/transactions.json`, JSON.stringify([
-      { id: "txn-1", organization_id: "org-1", transaction_number: "TRX-001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted" },
+      { id: "txn-1", user_id: "user-1", transaction_number: "TRX-001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted" },
     ]));
     await bucket.put(`backups/${dateStr}/journal_entries.json`, JSON.stringify([
-      { id: "je-1", organization_id: "org-1", entry_number: "JE-001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: "txn-1", status: "posted" },
+      { id: "je-1", user_id: "user-1", entry_number: "JE-001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: "txn-1", status: "posted" },
     ]));
     await bucket.put(`backups/${dateStr}/journal_lines.json`, JSON.stringify([
       { id: "jl-1", journal_entry_id: "je-1", account_id: "acct-1", debit_idr: 500000, credit_idr: 0, line_order: 1 },
@@ -323,9 +311,6 @@ describe("Backup Service", () => {
     await bucket.put(`backups/${dateStr}/accounts.json`, JSON.stringify([
       { id: "acct-1", code: "1110", name: "Kas", account_type: "asset", normal_balance: "debit", is_active: 1 },
       { id: "acct-2", code: "4100", name: "Pendapatan", account_type: "revenue", normal_balance: "credit", is_active: 1 },
-    ]));
-    await bucket.put(`backups/${dateStr}/organization_members.json`, JSON.stringify([
-      { id: "mem-1", organization_id: "org-1", user_id: "user-1", role: "owner" },
     ]));
 
     await putManifest(bucket, dateStr, await countSnapshotRows(bucket, dateStr));
@@ -351,16 +336,15 @@ describe("Backup Service", () => {
     // Only create manifest and journal_lines with unbalanced data
     await putEmptySnapshots(bucket, dateStr);
     await bucket.put(`backups/${dateStr}/transactions.json`, JSON.stringify([
-      { id: "txn-1", organization_id: "org-1", transaction_number: "TRX-001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted" },
+      { id: "txn-1", user_id: "user-1", transaction_number: "TRX-001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted" },
     ]));
     await bucket.put(`backups/${dateStr}/journal_entries.json`, JSON.stringify([
-      { id: "je-1", organization_id: "org-1", entry_number: "JE-001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: "txn-1", status: "posted" },
+      { id: "je-1", user_id: "user-1", entry_number: "JE-001", entry_date: "2026-01-15", entry_type: "normal", transaction_id: "txn-1", status: "posted" },
     ]));
     await bucket.put(`backups/${dateStr}/journal_lines.json`, JSON.stringify([
       { id: "jl-1", journal_entry_id: "je-1", account_id: "acct-1", debit_idr: 500000, credit_idr: 0, line_order: 1 },
       { id: "jl-2", journal_entry_id: "je-1", account_id: "acct-2", debit_idr: 0, credit_idr: 300000, line_order: 2 },
     ]));
-    await bucket.put(`backups/${dateStr}/organizations.json`, JSON.stringify([]));
     await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify([]));
     await bucket.put(`backups/${dateStr}/accounts.json`, JSON.stringify([]));
     await putManifest(bucket, dateStr, await countSnapshotRows(bucket, dateStr));
@@ -377,27 +361,21 @@ describe("Backup Service", () => {
     const bucket = new FakeR2Bucket();
 
     // Build a backup of seed fixture data from golden-accounting scenario
-    const organizations = [
-      { id: "org-a-test-fixture-0001", name: "PT Organisasi A", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: "user-orga-owner-00001", created_at: 1750000000000, updated_at: 1750000000000 },
-      { id: "org-b-test-fixture-0001", name: "CV Organisasi B", business_type: "service", base_currency: "IDR", books_start_date: "2026-01-01", onboarding_status: "completed", created_by: "user-orgb-owner-00001", created_at: 1750000000000, updated_at: 1750000000000 },
-      { id: "org-empty-test-000001", name: "Empty Organization", business_type: "simple_trading", base_currency: "IDR", books_start_date: "2026-06-01", onboarding_status: "pending", created_by: "user-empty-owner-00001", created_at: 1750000000000, updated_at: 1750000000000 },
-    ];
     const users = [
       { id: "user-orga-owner-00001", email: "owner@orga.test", full_name: "Owner A", status: "active" },
       { id: "user-orgb-owner-00001", email: "owner@orgb.test", full_name: "Owner B", status: "active" },
       { id: "user-empty-owner-00001", email: "owner@empty.test", full_name: "Owner Empty", status: "active" },
     ];
     const transactions = [
-      { id: "txn-orga-cshsl-0001", organization_id: "org-a-test-fixture-0001", transaction_number: "TRX-202601-000001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted", idempotency_key: "idem-cashsale-orga-01", posted_at: 1750000000000, created_by: "user-orga-owner-00001", created_at: 1750000000000, updated_at: 1750000000000 },
-      { id: "txn-orga-crdsl-0001", organization_id: "org-a-test-fixture-0001", transaction_number: "TRX-202601-000002", transaction_date: "2026-01-20", transaction_type: "credit_sale", amount_minor: 750000, status: "posted", idempotency_key: "idem-crdsale-orga-01", posted_at: 1750000000000, created_by: "user-orga-owner-00001", created_at: 1750000000000, updated_at: 1750000000000 },
+      { id: "txn-orga-cshsl-0001", user_id: "user-orga-owner-00001", transaction_number: "TRX-202601-000001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted", idempotency_key: "idem-cashsale-orga-01", posted_at: 1750000000000, created_at: 1750000000000, updated_at: 1750000000000 },
+      { id: "txn-orga-crdsl-0001", user_id: "user-orga-owner-00001", transaction_number: "TRX-202601-000002", transaction_date: "2026-01-20", transaction_type: "credit_sale", amount_minor: 750000, status: "posted", idempotency_key: "idem-crdsale-orga-01", posted_at: 1750000000000, created_at: 1750000000000, updated_at: 1750000000000 },
     ];
 
     const dateStr = "2026-06-30";
-    for (const [table, rows] of Object.entries({ organizations, users, transactions })) {
+    for (const [table, rows] of Object.entries({ users, transactions })) {
       await bucket.put(`backups/${dateStr}/${table}.json`, JSON.stringify(rows));
     }
     await putManifest(bucket, dateStr, {
-      organizations: { rowCount: organizations.length },
       users: { rowCount: users.length },
       transactions: { rowCount: transactions.length },
     });
@@ -410,14 +388,14 @@ describe("Backup Service", () => {
         if (sql.includes("LEFT JOIN")) return null;
         // Schema + count queries: known seed-data counts.
         const counts: Record<string, number> = {
-          organizations: 3, transactions: 2,
+          users: 3, transactions: 2,
         };
         // Quoted (schema check): `FROM "table"`
         for (const t of CORE_TABLES) {
           if (sql.includes(`FROM "${t}"`)) return { count: counts[t] ?? 0 };
         }
         // Unquoted (count queries at start of verifyRestore)
-        if (sql.includes("FROM organizations")) return { count: 3 };
+        if (sql.includes("FROM users")) return { count: 3 };
         if (sql.includes("FROM transactions") && !sql.includes("LEFT JOIN")) return { count: 2 };
         if (sql.includes("FROM journal_lines")) return { count: 0 };
         // SUM queries (trial balance)
@@ -434,13 +412,12 @@ describe("Backup Service", () => {
       dateStr,
     );
     expect(restoreResult.success).toBe(true);
-    expect(restoreResult.tables.organizations.restored).toBe(organizations.length);
     expect(restoreResult.tables.users.restored).toBe(users.length);
     expect(restoreResult.tables.transactions.restored).toBe(transactions.length);
 
     const verifyResult = await verifyRestore(db as unknown as D1Database);
     expect(verifyResult.valid).toBe(true);
-    expect(verifyResult.organizationCount).toBe(3);
+    expect(verifyResult.userCount).toBe(3);
     expect(verifyResult.transactionCount).toBe(2);
     expect(verifyResult.schemaValid).toBe(true);
   });

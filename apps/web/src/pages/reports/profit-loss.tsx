@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { getProfitLoss } from "@/lib/api/reports";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,8 +12,7 @@ import { formatIDR, formatDateLong, monthRange } from "@/lib/utils";
 import { ReportSection } from "./report-section";
 
 export function ProfitLossPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const initialRange = monthRange();
 
   const [fromDate, setFromDate] = useState(initialRange.from);
@@ -22,12 +21,12 @@ export function ProfitLossPage() {
   const [submittedTo, setSubmittedTo] = useState(initialRange.to);
 
   const query = useQuery({
-    queryKey: queryKeys.reports.profitLoss(orgId, submittedFrom, submittedTo),
+    queryKey: queryKeys.reports.profitLoss(userId, submittedFrom, submittedTo),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getProfitLoss(submittedFrom, submittedTo);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const report = query.data;

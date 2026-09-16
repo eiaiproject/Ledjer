@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import { createSeedFixtures } from "../test/fixtures";
 import type { D1Database } from "@cloudflare/workers-types";
 import { registerUser } from "./auth.service";
-import { DEFAULT_ACCOUNTS } from "./organization.service";
+import { DEFAULT_ACCOUNTS } from "./ledger.service";
 
 /**
  * Register integration tests (PRD test plan 21.2 #1):
- * registerUser creates the user, an organization owned by them, and the
- * default MVP chart of accounts.
+ * registerUser creates the user (with their book name) and the default MVP
+ * chart of accounts in one call.
  */
 
 describe("registerUser", () => {
-  it("creates user + organization + default COA in one call", async () => {
+  it("creates user + default COA in one call", async () => {
     const { db, password, pepper } = createSeedFixtures();
     const result = await registerUser(
       db as unknown as D1Database,
@@ -19,37 +19,28 @@ describe("registerUser", () => {
         email: "new-owner@test.com",
         password,
         fullName: "Owner Baru",
-        organizationName: "Toko Baru",
+        businessName: "Toko Baru",
       },
       new Request("http://localhost"),
       pepper,
     );
 
     expect(result.userId).toBeTruthy();
-    expect(result.organization.name).toBe("Toko Baru");
-    expect(result.organization.status).toBe("active");
+    expect(result.businessName).toBe("Toko Baru");
     expect(result.session.token).toBeTruthy();
-
-    // Session points at the new organization.
     expect(result.session.expiresAt).toBeGreaterThan(Date.now());
 
-    // The new org exists and is owned by the new user.
-    const orgRow = await (db as unknown as { first<T>(sql: string, values: unknown[]): Promise<T | null> }).first<{ name: string }>(
-      "SELECT name FROM organizations WHERE id = ?",
-      [result.organization.id],
+    // Nama usaha tersimpan pada user (1 user = 1 buku).
+    const userRow = await (db as unknown as { first<T>(sql: string, values: unknown[]): Promise<T | null> }).first<{ business_name: string }>(
+      "SELECT business_name FROM users WHERE id = ?",
+      [result.userId],
     );
-    expect(orgRow?.name).toBe("Toko Baru");
+    expect(userRow?.business_name).toBe("Toko Baru");
 
-    const memberRow = await (db as unknown as { first<T>(sql: string, values: unknown[]): Promise<T | null> }).first<{ role: string }>(
-      "SELECT role FROM memberships WHERE organization_id = ? AND user_id = ?",
-      [result.organization.id, result.userId],
-    );
-    expect(memberRow?.role).toBe("owner");
-
-    // Default COA: 14 seeded accounts for the new org.
+    // Default COA: 16 akun standar untuk buku baru.
     const accountRows = await (db as unknown as { all<T>(sql: string, values: unknown[]): Promise<T[]> }).all<{ code: string; name: string; account_class: string }>(
-      "SELECT code, name, account_class FROM accounts WHERE organization_id = ?",
-      [result.organization.id],
+      "SELECT code, name, account_class FROM accounts WHERE user_id = ?",
+      [result.userId],
     );
     expect(accountRows).toHaveLength(DEFAULT_ACCOUNTS.length);
     expect(accountRows.map((a) => a.code)).toEqual(
@@ -66,10 +57,10 @@ describe("registerUser", () => {
       registerUser(
         db as unknown as D1Database,
         {
-          email: "owner@orga.test", // already seeded
+          email: "owner@booka.test", // already seeded
           password,
           fullName: "Dup",
-          organizationName: "Toko Dup",
+          businessName: "Toko Dup",
         },
         new Request("http://localhost"),
         pepper,
@@ -100,7 +91,7 @@ function isLockedOut(failureCount: number): boolean {
 
 describe("login rate limiting behavior", () => {
   it("rejects when failure count reaches MAX_FAILURES", () => {
-    // Simulate: 5 failures → locked
+    // Simulasi: 5 kegagalan → terkunci
     const failures = Array.from({ length: LOGIN_MAX_FAILURES }, (_, i) => ({
       id: `attempt-${i}`,
     }));
@@ -150,7 +141,7 @@ describe("login rate limiting behavior", () => {
       { email: "other3@example.com", ip_address: "10.0.0.3", success: 0 },
     ];
 
-    // The SQL query checks: (email = ? OR (ip IS NOT NULL AND ip = ?))
+    // Query SQL memeriksa: (email = ? OR (ip IS NOT NULL AND ip = ?))
     // So for email "test@example.com" with IP "192.168.1.1", it matches:
     // - attempts 0,1 (by email)
     // - attempts 2,3 (by IP)

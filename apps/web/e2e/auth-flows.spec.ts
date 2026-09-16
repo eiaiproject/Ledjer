@@ -57,9 +57,9 @@ test.describe("Authenticated API Flows", () => {
     expect(typeof res.body.report.balanced).toBe("boolean");
   });
 
-  test("GET /api/organizations/current returns org details", async ({ authPage }) => {
-    const res = await apiGet(authPage, "/api/organizations/current");
+  test("GET /api/auth/me returns the book profile", async ({ authPage }) => {
+    const res = await apiGet(authPage, "/api/auth/me");
     expect(res.ok).toBe(true);
-    expect(res.body.organization?.name || res.body.name).toBeDefined();
+    expect(res.body.businessName ?? res.body.user?.business_name).toBeDefined();
   });
 });

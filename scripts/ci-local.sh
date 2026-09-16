@@ -27,13 +27,13 @@ section "Install"
 pnpm install --frozen-lockfile --ignore-scripts
 
 # Mirror the GitHub Actions "quality" job (.github/workflows/ci.yml):
-# dependency audit and org-scoping checks run right after install,
+# dependency audit and user-scoping checks run right after install,
 # build-output secret scan and migration-naming guard after the build.
 section "Dependency audit"
 bash "${ROOT}/scripts/check-dependency-audit.sh"
 
-section "Org-scoping check"
-bash "${ROOT}/scripts/check-org-scoping.sh"
+section "User-scoping check"
+bash "${ROOT}/scripts/check-user-scoping.sh"
 
 section "Typecheck"
 pnpm --filter web typecheck

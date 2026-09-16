@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { readJson } from "../http/json";
-import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import {
   createAccount,
   createCashBankAccount,
@@ -29,51 +28,35 @@ const patchAccountSchema = z.object({
 export const accountsRoutes = new Hono<AppContext>();
 
 accountsRoutes.use("*", requireAuth());
-accountsRoutes.use("*", loadCurrentOrganization());
 
-accountsRoutes.get("/", requirePermission("accounts:read"), async (c) => {
-  const context = c.get("organizationContext");
+accountsRoutes.get("/", async (c) => {
   const url = new URL(c.req.url);
   const subtype = url.searchParams.get("subtype");
-  const accounts = await listAccounts(c.env.DB, context.organization.id, {
+  const accounts = await listAccounts(c.env.DB, c.get("user").id, {
     includeInactive: url.searchParams.get("includeInactive") === "true",
     subtype: subtype === "cash" || subtype === "bank" ? subtype : undefined,
   });
   return c.json({ accounts });
 });
 
-accountsRoutes.post("/cash-bank", requirePermission("accounts:write"), async (c) => {
-  const context = c.get("organizationContext");
+accountsRoutes.post("/cash-bank", async (c) => {
   const body = await readJson(c, createCashBankSchema);
-  const account = await createCashBankAccount(
-    c.env.DB,
-    context.organization.id,
-    context.member.user_id,
-    body,
-  );
+  const account = await createCashBankAccount(c.env.DB, c.get("user").id, body);
   return c.json({ account });
 });
 
-accountsRoutes.post("/", requirePermission("accounts:write"), async (c) => {
-  const context = c.get("organizationContext");
+accountsRoutes.post("/", async (c) => {
   const body = await readJson(c, createAccountSchema);
-  const account = await createAccount(
-    c.env.DB,
-    context.organization.id,
-    context.member.user_id,
-    body,
-  );
+  const account = await createAccount(c.env.DB, c.get("user").id, body);
   return c.json({ account });
 });
 
-accountsRoutes.patch("/:accountId", requirePermission("accounts:write"), async (c) => {
-  const context = c.get("organizationContext");
+accountsRoutes.patch("/:accountId", async (c) => {
   const body = await readJson(c, patchAccountSchema);
   const account = await patchAccount(
     c.env.DB,
-    context.organization.id,
+    c.get("user").id,
     c.req.param("accountId"),
-    context.member.user_id,
     body,
   );
   return c.json({ account });

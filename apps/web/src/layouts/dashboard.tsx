@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Chart, Heart, Home, Logout, Menu, Package, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
@@ -37,7 +37,7 @@ const BOTTOM_NAV_ITEMS = NAV_ITEMS.filter((item) =>
 export function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data: orgData } = useOrganization();
+  const { businessName } = useBook();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["Laporan"]);
@@ -86,7 +86,7 @@ export function DashboardLayout() {
   };
 
   const showBottomNav = location.pathname !== "/transactions/new";
-  const orgInitial = orgData?.organization?.name?.charAt(0)?.toUpperCase() || "L";
+  const bookInitial = businessName?.charAt(0)?.toUpperCase() || "L";
 
   return (
     <div className="ledger-min-dvh bg-background">
@@ -197,11 +197,11 @@ export function DashboardLayout() {
           </a>
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wood-500 text-sm font-medium text-cream-50">
-              {orgInitial}
+              {bookInitial}
             </div>
             <div className="min-w-0 flex-1">
               <p className="break-words text-sm font-medium text-cream-50">
-                {orgData?.organization?.name || "Organisasi"}
+                {businessName || "Usaha Saya"}
               </p>
             </div>
             <button
@@ -367,11 +367,11 @@ export function DashboardLayout() {
             </a>
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wood-500 text-sm font-medium text-cream-50">
-                {orgInitial}
+                {bookInitial}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="break-words text-sm font-medium text-cream-50">
-                  {orgData?.organization?.name || "Organisasi"}
+                  {businessName || "Usaha Saya"}
                 </p>
               </div>
               <button

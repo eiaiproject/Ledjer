@@ -3,8 +3,8 @@
 ## Live API
 
 [openapi.yaml](openapi.yaml) - OpenAPI 3.1 spec covering the **currently
-implemented MVP endpoints** (auth, organizations, accounts, products,
-transactions, reports, dashboard, exports).
+implemented MVP endpoints** (auth, accounts, products, transactions, reports,
+dashboard, exports).
 
 ## P1 Roadmap (not implemented)
 

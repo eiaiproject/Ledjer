@@ -255,9 +255,8 @@ function screenshotName(vp, slug) {
 const report = { baseUrl, generatedAt: new Date().toISOString(), viewports: VIEWPORTS.map((v) => v.name), results: [] };
 
 async function seedAuditTransaction(context, vp, txnId) {
-  const org = await (await context.request.get(`${baseUrl}/api/organizations/current`)).json();
-  const orgId = org?.organization?.id;
-  if (!orgId) return null;
+  const me = await (await context.request.get(`${baseUrl}/api/auth/me`)).json();
+  if (!me?.user) return null;
   const accounts = (await (await context.request.get(`${baseUrl}/api/accounts`)).json()).accounts;
   const cash = accounts.find((a) => a.code === "1110");
   const equity = accounts.find((a) => a.code === "3110");

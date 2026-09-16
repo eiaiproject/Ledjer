@@ -16,7 +16,7 @@ test.describe("Settings page", () => {
     await expect(authPage.getByText("Email")).toBeVisible();
   });
 
-  test("renames the organization", async ({ authPage }) => {
+  test("renames the business profile", async ({ authPage }) => {
     await authPage.goto("/settings", { waitUntil: "load", timeout: 15000 });
 
     const nameInput = authPage.getByLabel("Nama Usaha");

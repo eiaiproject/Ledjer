@@ -48,8 +48,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, []);
 
   const signUp = useCallback(
-    async (email: string, password: string, fullName: string, organizationName: string) => {
-      await register(email, password, fullName, organizationName);
+    async (email: string, password: string, fullName: string, businessName: string) => {
+      await register(email, password, fullName, businessName);
       const next = await getMe();
       setSession(next.session);
       setUser(next.user);

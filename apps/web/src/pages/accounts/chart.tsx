@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ChevronDown, Plus } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import {
   createAccount,
@@ -42,8 +42,7 @@ interface AccountGroup {
 }
 
 export function ChartOfAccountsPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const queryClient = useQueryClient();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -99,7 +98,7 @@ export function ChartOfAccountsPage() {
       toast.success(`Akun ${created.code} berhasil dibuat.`);
       setName("");
       setCreateOpen(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId ?? "") });
     } catch (err) {
       toast.error(translateError(err));
     } finally {

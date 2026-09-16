@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { getBalanceSheet } from "@/lib/api/reports";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,19 +13,18 @@ import { formatIDR, formatDateLong, localDate } from "@/lib/utils";
 import { ReportSection } from "./report-section";
 
 export function BalanceSheetPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
 
   const [asOfDate, setAsOfDate] = useState(localDate());
   const [submittedDate, setSubmittedDate] = useState(localDate());
 
   const query = useQuery({
-    queryKey: queryKeys.reports.balanceSheet(orgId, submittedDate),
+    queryKey: queryKeys.reports.balanceSheet(userId, submittedDate),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getBalanceSheet(submittedDate);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const report = query.data;

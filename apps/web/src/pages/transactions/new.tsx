@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { listAccounts, type Account } from "@/lib/api/accounts";
 import { listProducts, type Product } from "@/lib/api/products";
 import { postTransaction, type TransactionType } from "@/lib/api/transactions";
@@ -49,25 +49,24 @@ interface FormItem {
 export function NewTransactionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
 
   const accountsQuery = useQuery({
-    queryKey: queryKeys.accounts.fullList(orgId ?? ""),
+    queryKey: queryKeys.accounts.fullList(userId ?? ""),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listAccounts({ includeInactive: false });
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const productsQuery = useQuery({
-    queryKey: queryKeys.products.all(orgId),
+    queryKey: queryKeys.products.all(userId),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listProducts(false);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const idempotencyKeyRef = useRef(createClientToken());
@@ -202,7 +201,7 @@ export function NewTransactionPage() {
   };
 
   const onSubmit = async (data: TransactionForm) => {
-    if (!orgId) return;
+    if (!userId) return;
 
     const isPurchaseSubmit = data.transactionType === "purchase";
     const withItems = isPurchaseSubmit || (data.transactionType === "cash_in" && goodsSale);
@@ -245,7 +244,7 @@ export function NewTransactionPage() {
             }))
           : undefined,
       });
-      invalidateTransactionFinancialCaches(queryClient, orgId);
+      invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success(result.replayed ? "Transaksi sudah tercatat sebelumnya." : "Transaksi berhasil dicatat.");
       navigate(`/transactions/${result.transaction_id}`);
     } catch (err) {
@@ -434,7 +433,7 @@ export function NewTransactionPage() {
               <Button
                 type="submit"
                 loading={isSubmitting}
-                disabled={!orgId || accountsQuery.isLoading || productsQuery.isLoading}
+                disabled={!userId || accountsQuery.isLoading || productsQuery.isLoading}
               >
                 Simpan Transaksi
               </Button>

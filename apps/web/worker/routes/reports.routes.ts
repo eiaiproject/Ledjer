@@ -3,21 +3,17 @@ import type { AppContext } from "../env";
 import { requireAuth } from "../middleware/auth.middleware";
 import { badRequest } from "../http/errors";
 import { parseListLimit, parseListOffset } from "../http/params";
-import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import { getBalanceSheet, getGeneralLedger, getProfitLoss } from "../services/reports.service";
 
 export const reportsRoutes = new Hono<AppContext>();
 
 reportsRoutes.use("*", requireAuth());
-reportsRoutes.use("*", loadCurrentOrganization());
-reportsRoutes.use("*", requirePermission("reports:read"));
 
 reportsRoutes.get("/profit-loss", async (c) => {
-  const context = c.get("organizationContext");
   const url = new URL(c.req.url);
   const report = await getProfitLoss(
     c.env.DB,
-    context.organization.id,
+    c.get("user").id,
     requiredParam(url.searchParams, "fromDate"),
     requiredParam(url.searchParams, "toDate"),
   );
@@ -26,11 +22,10 @@ reportsRoutes.get("/profit-loss", async (c) => {
 });
 
 reportsRoutes.get("/balance-sheet", async (c) => {
-  const context = c.get("organizationContext");
   const url = new URL(c.req.url);
   const report = await getBalanceSheet(
     c.env.DB,
-    context.organization.id,
+    c.get("user").id,
     requiredParam(url.searchParams, "asOfDate"),
   );
   c.res.headers.set("Cache-Control", "private, max-age=30");
@@ -38,12 +33,11 @@ reportsRoutes.get("/balance-sheet", async (c) => {
 });
 
 reportsRoutes.get("/general-ledger", async (c) => {
-  const context = c.get("organizationContext");
   const url = new URL(c.req.url);
   const params = url.searchParams;
   const report = await getGeneralLedger(
     c.env.DB,
-    context.organization.id,
+    c.get("user").id,
     {
       accountId: params.get("accountId") || undefined,
       fromDate: requiredParam(params, "fromDate"),
@@ -61,4 +55,3 @@ function requiredParam(params: URLSearchParams, name: string): string {
   if (!value) throw badRequest("missing_query_param", `${name} is required`);
   return value;
 }
-

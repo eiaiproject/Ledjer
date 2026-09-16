@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Undo } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { getTransaction, voidTransaction } from "@/lib/api/transactions";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
@@ -20,8 +20,7 @@ import { getStatus } from "@/lib/status-registry";
 export function TransactionDetailPage() {
   const { id = "" } = useParams();
   const queryClient = useQueryClient();
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const [voidOpen, setVoidOpen] = useState(false);
   const [voiding, setVoiding] = useState(false);
 
@@ -41,7 +40,7 @@ export function TransactionDetailPage() {
     setVoiding(true);
     try {
       await voidTransaction(transaction.id, null);
-      invalidateTransactionFinancialCaches(queryClient, orgId);
+      invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success("Transaksi berhasil dibatalkan.");
       setVoidOpen(false);
       query.refetch();

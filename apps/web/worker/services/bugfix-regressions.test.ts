@@ -8,7 +8,6 @@ import { createSeedFixtures, FIXTURE_IDS } from "../test/fixtures";
 import { HttpError } from "../http/errors";
 import { normalizeDate } from "../http/date";
 
-const ORG_A = FIXTURE_IDS.orgs.a;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
 
 function emptyD1(): D1Database {
@@ -31,30 +30,26 @@ describe("M1: normalizeDate rejects impossible calendar dates", () => {
   });
 });
 
-describe("M2: updateOrganization validates the name", () => {
+describe("M2: updateBusinessName validates the name", () => {
   it("rejects a blank name without writing", async () => {
-    const { getOrganizationContextForUser } = await import("./organization.service");
-    const { updateOrganization } = await import("./organization.service");
+    const { updateBusinessName } = await import("./auth.service");
     const { db } = createSeedFixtures();
     const d1 = db as unknown as D1Database;
-    await expect(updateOrganization(d1, ORG_A, OWNER_A, "   ")).rejects.toThrowError(HttpError);
-    const ctx = await getOrganizationContextForUser(d1, OWNER_A, ORG_A);
-    expect(ctx?.organization.name).not.toBe("");
+    await expect(updateBusinessName(d1, OWNER_A, "   ")).rejects.toThrowError(HttpError);
   });
   it("rejects names over 120 chars", async () => {
-    const { updateOrganization } = await import("./organization.service");
+    const { updateBusinessName } = await import("./auth.service");
     const { db } = createSeedFixtures();
-    await expect(updateOrganization(db as unknown as D1Database, ORG_A, OWNER_A, "x".repeat(121))).rejects.toThrowError(
-      HttpError,
-    );
+    await expect(
+      updateBusinessName(db as unknown as D1Database, OWNER_A, "x".repeat(121)),
+    ).rejects.toThrowError(HttpError);
   });
   it("persists a valid rename", async () => {
-    const { getOrganizationContextForUser, updateOrganization } = await import("./organization.service");
+    const { updateBusinessName } = await import("./auth.service");
     const { db } = createSeedFixtures();
-    const d1 = db as unknown as D1Database;
-    await updateOrganization(d1, ORG_A, OWNER_A, "Warung Baru");
-    const ctx = await getOrganizationContextForUser(d1, OWNER_A, ORG_A);
-    expect(ctx?.organization.name).toBe("Warung Baru");
+    await expect(
+      updateBusinessName(db as unknown as D1Database, OWNER_A, "Warung Baru"),
+    ).resolves.toBe("Warung Baru");
   });
 });
 
@@ -70,7 +65,7 @@ describe("H1: transaction CSV export counts before materializing rows", () => {
         throw new Error("must not fetch rows when over limit");
       },
     }) as unknown as D1Database;
-    const err = await exportTransactionsCsv(db, "org-1", {}).then(
+    const err = await exportTransactionsCsv(db, "user-1", {}).then(
       () => null,
       (e: unknown) => e as HttpError,
     );
@@ -84,41 +79,41 @@ describe("L5c: transaction search escapes LIKE wildcards", () => {
     const sqlite = new DatabaseSync(":memory:");
     const db = new SqliteD1(sqlite);
     db.exec(`CREATE TABLE accounts (
-      id TEXT PRIMARY KEY, organization_id TEXT NOT NULL, code TEXT NOT NULL,
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, code TEXT NOT NULL,
       name TEXT NOT NULL, account_class TEXT NOT NULL, account_subtype TEXT
     );`);
     db.exec(`CREATE TABLE transactions (
-      id TEXT PRIMARY KEY, organization_id TEXT NOT NULL, transaction_number TEXT NOT NULL,
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, transaction_number TEXT NOT NULL,
       transaction_type TEXT NOT NULL, transaction_date TEXT NOT NULL, description TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'posted', amount_idr INTEGER NOT NULL,
-      cash_account_id TEXT, counter_account_id TEXT, created_by TEXT NOT NULL,
+      cash_account_id TEXT, counter_account_id TEXT,
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
       voided_at INTEGER, void_reason TEXT
     );`);
-    db.exec(`INSERT INTO accounts (id, organization_id, code, name, account_class, account_subtype)
-             VALUES ('acct-cash', 'org-1', '1110', 'Kas', 'asset', 'cash'),
-                    ('acct-rev', 'org-1', '4110', 'Pendapatan', 'income', NULL)`);
-    const cols = `id, organization_id, transaction_number, transaction_type, transaction_date,
-      description, status, amount_idr, cash_account_id, counter_account_id, created_by, created_at, updated_at`;
+    db.exec(`INSERT INTO accounts (id, user_id, code, name, account_class, account_subtype)
+             VALUES ('acct-cash', 'user-1', '1110', 'Kas', 'asset', 'cash'),
+                    ('acct-rev', 'user-1', '4110', 'Pendapatan', 'income', NULL)`);
+    const cols = `id, user_id, transaction_number, transaction_type, transaction_date,
+      description, status, amount_idr, cash_account_id, counter_account_id, created_at, updated_at`;
     for (const [id, num, desc] of [
       ["t1", "TRX-000001", "Diskon 100% khusus"],
       ["t2", "TRX-000002", "gaji_bulanan"],
       ["t3", "TRX-000003", "gaji bulanan"],
     ] as const) {
       sqlite
-        .prepare(`INSERT INTO transactions (${cols}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .run(id, "org-1", num, "cash_in", "2026-06-01", desc, "posted", 1000, "acct-cash", "acct-rev", "u1", 1, 1);
+        .prepare(`INSERT INTO transactions (${cols}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(id, "user-1", num, "cash_in", "2026-06-01", desc, "posted", 1000, "acct-cash", "acct-rev", 1, 1);
     }
     return db;
   }
   it("treats _ as a literal character", async () => {
     const { listTransactions } = await import("./transactions.service");
-    const rows = await listTransactions(seedDb() as unknown as D1Database, "org-1", { search: "_" });
+    const rows = await listTransactions(seedDb() as unknown as D1Database, "user-1", { search: "_" });
     expect(rows.map((r) => r.id)).toEqual(["t2"]);
   });
   it("treats % as a literal character", async () => {
     const { listTransactions } = await import("./transactions.service");
-    const rows = await listTransactions(seedDb() as unknown as D1Database, "org-1", { search: "100%" });
+    const rows = await listTransactions(seedDb() as unknown as D1Database, "user-1", { search: "100%" });
     expect(rows.map((r) => r.id)).toEqual(["t1"]);
   });
 });
@@ -137,8 +132,8 @@ describe("M4: idempotency keys are bound to their payload", () => {
     const { postTransaction } = await import("./transactions.service");
     const { db } = createSeedFixtures();
     const d1 = db as unknown as D1Database;
-    await postTransaction(d1, ORG_A, OWNER_A, base);
-    const err = await postTransaction(d1, ORG_A, OWNER_A, { ...base, amountIdr: 999999 }).then(
+    await postTransaction(d1, OWNER_A, base);
+    const err = await postTransaction(d1, OWNER_A, { ...base, amountIdr: 999999 }).then(
       () => null,
       (e: unknown) => e as HttpError,
     );
@@ -149,8 +144,8 @@ describe("M4: idempotency keys are bound to their payload", () => {
     const { postTransaction } = await import("./transactions.service");
     const { db } = createSeedFixtures();
     const d1 = db as unknown as D1Database;
-    const first = await postTransaction(d1, ORG_A, OWNER_A, { ...base, idempotencyKey: "idem-repro-same-01" });
-    const replay = await postTransaction(d1, ORG_A, OWNER_A, { ...base, idempotencyKey: "idem-repro-same-01" });
+    const first = await postTransaction(d1, OWNER_A, { ...base, idempotencyKey: "idem-repro-same-01" });
+    const replay = await postTransaction(d1, OWNER_A, { ...base, idempotencyKey: "idem-repro-same-01" });
     expect(replay.transaction_id).toBe(first.transaction_id);
     expect(replay.replayed).toBe(true);
   });
@@ -184,12 +179,11 @@ describe("M5: restore writes in bounded batches", () => {
     const { restoreBackup } = await import("./backup.service");
     const bucket = new FakeR2Bucket();
     const dateStr = "2026-06-15";
-    const orgs = Array.from({ length: 250 }, (_, i) => ({ id: `org-${i}` }));
-    await bucket.put(`backups/${dateStr}/organizations.json`, JSON.stringify(orgs));
-    await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify([]));
+    const users = Array.from({ length: 250 }, (_, i) => ({ id: `user-${i}` }));
+    await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify(users));
     await bucket.put(
       `backups/${dateStr}/manifest.json`,
-      JSON.stringify({ startedAt: 1, completedAt: 2, version: 1, tables: { organizations: { rowCount: 250 }, users: { rowCount: 0 } }, sha256: "" }),
+      JSON.stringify({ startedAt: 1, completedAt: 2, version: 1, tables: { users: { rowCount: 250 } }, sha256: "" }),
     );
     const batchSizes: number[] = [];
     const db = new FakeD1Database({
@@ -201,7 +195,7 @@ describe("M5: restore writes in bounded batches", () => {
     }) as unknown as D1Database;
     const result = await restoreBackup(db, bucket as unknown as R2Bucket, dateStr);
     expect(result.success).toBe(true);
-    expect(result.tables.organizations.restored).toBe(250);
+    expect(result.tables.users.restored).toBe(250);
     expect(Math.max(...batchSizes)).toBeLessThanOrEqual(200);
   });
 });
@@ -212,12 +206,12 @@ describe("L5a: account usage ignores voided transactions", () => {
     const sqlite = new DatabaseSync(":memory:");
     const db = new SqliteD1(sqlite);
     db.exec(`CREATE TABLE transactions (
-      organization_id TEXT NOT NULL, cash_account_id TEXT, counter_account_id TEXT, status TEXT NOT NULL
+      user_id TEXT NOT NULL, cash_account_id TEXT, counter_account_id TEXT, status TEXT NOT NULL
     );`);
-    sqlite.prepare(`INSERT INTO transactions VALUES (?,?,?,?)`).run("org-1", "acct-x", "acct-y", "voided");
-    expect(await accountIsUsed(db as unknown as D1Database, "org-1", "acct-x")).toBe(false);
-    sqlite.prepare(`INSERT INTO transactions VALUES (?,?,?,?)`).run("org-1", "acct-x", "acct-y", "posted");
-    expect(await accountIsUsed(db as unknown as D1Database, "org-1", "acct-x")).toBe(true);
+    sqlite.prepare(`INSERT INTO transactions VALUES (?,?,?,?)`).run("user-1", "acct-x", "acct-y", "voided");
+    expect(await accountIsUsed(db as unknown as D1Database, "user-1", "acct-x")).toBe(false);
+    sqlite.prepare(`INSERT INTO transactions VALUES (?,?,?,?)`).run("user-1", "acct-x", "acct-y", "posted");
+    expect(await accountIsUsed(db as unknown as D1Database, "user-1", "acct-x")).toBe(true);
   });
 });
 
@@ -226,7 +220,7 @@ describe("L3: session reads throttle last_used_at writes", () => {
     const now = Date.now();
     return {
       session_id: "session-1", user_id: "user-1", expires_at: now + 86_400_000,
-      current_organization_id: null, email: "t@t.co", full_name: "T",
+      email: "t@t.co", full_name: "T", business_name: "T",
       last_used_at: now, created_at: now, ...overrides,
     };
   }
@@ -255,19 +249,19 @@ describe("L5b: cash/bank creation retries on code collision", () => {
       first: async (sql: string) => {
         if (String(sql).includes("MAX(")) return { max_code: 1120 };
         if (String(sql).includes("FROM accounts WHERE id")) {
-          return { id: "a1", organization_id: "org-1", code: "1130", name: "Kas Baru", account_class: "asset", account_subtype: "bank", is_system: 0, is_active: 1, created_at: 1, updated_at: 1 };
+          return { id: "a1", user_id: "user-1", code: "1130", name: "Kas Baru", account_class: "asset", account_subtype: "bank", is_system: 0, is_active: 1, created_at: 1, updated_at: 1 };
         }
         return null;
       },
       run: async (sql: string) => {
         if (String(sql).includes("INSERT INTO accounts")) {
           inserts += 1;
-          if (inserts === 1) throw new Error("UNIQUE constraint failed: accounts.organization_id, accounts.code");
+          if (inserts === 1) throw new Error("UNIQUE constraint failed: accounts.user_id, accounts.code");
         }
         return { success: true, meta: { changes: 1 } } as D1Result;
       },
     }) as unknown as D1Database;
-    const account = await createCashBankAccount(db, "org-1", "user-1", { subtype: "bank", name: "Kas Baru" });
+    const account = await createCashBankAccount(db, "user-1", { subtype: "bank", name: "Kas Baru" });
     expect(account.code).toBe("1130");
     expect(inserts).toBe(2);
   });

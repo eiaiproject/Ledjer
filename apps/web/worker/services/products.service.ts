@@ -12,7 +12,7 @@ import type {
 
 export interface ProductRow {
   id: string;
-  organization_id: string;
+  user_id: string;
   code: string;
   name: string;
   unit: string;
@@ -43,7 +43,7 @@ export interface PublicProduct {
 
 export interface StockMovementRow {
   id: string;
-  organization_id: string;
+  user_id: string;
   transaction_id: string;
   product_id: string;
   quantity_milli: number;
@@ -52,7 +52,7 @@ export interface StockMovementRow {
   created_at: number;
 }
 
-const productColumns = "id, organization_id, code, name, unit, selling_price_idr, current_stock_milli, average_cost_minor, is_active, created_at, updated_at";
+const productColumns = "id, user_id, code, name, unit, selling_price_idr, current_stock_milli, average_cost_minor, is_active, created_at, updated_at";
 
 export const MAX_PRODUCT_QUANTITY_MILLI = 1_000_000_000; // 1 juta satuan per item
 
@@ -148,7 +148,7 @@ export interface ProductsPageResult {
 function buildProductFilter(
   options: ListProductsOptions,
 ): { clauses: string[]; values: (string | number)[] } {
-  const clauses = ["organization_id = ?"];
+  const clauses = ["user_id = ?"];
   const values: (string | number)[] = [];
   if (options.onlyInactive) {
     clauses.push("is_active = 0");
@@ -182,11 +182,11 @@ function productOrderBy(sort?: ProductSort): string {
 
 export async function listProducts(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   options: ListProductsOptions = {},
 ): Promise<PublicProduct[]> {
   const { clauses, values } = buildProductFilter(options);
-  const params: (string | number)[] = [organizationId, ...values];
+  const params: (string | number)[] = [userId, ...values];
   let limitClause = "";
   if (options.limit !== undefined) {
     limitClause = " LIMIT ? OFFSET ?";
@@ -205,7 +205,7 @@ export async function listProducts(
 
 export async function countProducts(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   options: ListProductsOptions = {},
 ): Promise<number> {
   const { clauses, values } = buildProductFilter(options);
@@ -213,32 +213,32 @@ export async function countProducts(
     db,
     `-- products:count
      SELECT COUNT(*) AS total FROM products WHERE ${clauses.join(" AND ")}`,
-    [organizationId, ...values],
+    [userId, ...values],
   );
   return row?.total ?? 0;
 }
 
 export async function listProductsPage(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   options: ListProductsOptions = {},
 ): Promise<ProductsPageResult> {
   const [products, total] = await Promise.all([
-    listProducts(db, organizationId, options),
-    countProducts(db, organizationId, options),
+    listProducts(db, userId, options),
+    countProducts(db, userId, options),
   ]);
   return { products, total };
 }
 
 export async function getProduct(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   productId: string,
 ): Promise<ProductRow | null> {
   return queryFirst<ProductRow>(
     db,
-    `SELECT ${productColumns} FROM products WHERE id = ? AND organization_id = ?`,
-    [productId, organizationId],
+    `SELECT ${productColumns} FROM products WHERE id = ? AND user_id = ?`,
+    [productId, userId],
   );
 }
 
@@ -251,34 +251,33 @@ export interface CreateProductInput {
 
 export async function createProduct(
   db: D1Database,
-  organizationId: string,
   userId: string,
   input: CreateProductInput,
   requestId?: string,
 ): Promise<PublicProduct> {
-  const name = await assertValidProductName(db, organizationId, input.name);
+  const name = await assertValidProductName(db, userId, input.name);
   const unit = normalizeUnit(input.unit);
   const sellingPriceIdr = normalizePrice(input.sellingPriceIdr ?? 0);
   const current = Date.now();
 
   const productId = crypto.randomUUID();
-  const code = input.code?.trim() ? input.code.trim() : await nextProductCode(db, organizationId);
+  const code = input.code?.trim() ? input.code.trim() : await nextProductCode(db, userId);
 
   // Dua create paralel dapat menghitung kode yang sama; retry dengan kode baru.
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const attemptCode = attempt === 0 ? code : await nextProductCode(db, organizationId);
+    const attemptCode = attempt === 0 ? code : await nextProductCode(db, userId);
     const attemptId = attempt === 0 ? productId : crypto.randomUUID();
     try {
       await execute(
         db,
         `INSERT INTO products (
-           id, organization_id, code, name, unit, selling_price_idr,
+           id, user_id, code, name, unit, selling_price_idr,
            current_stock_milli, average_cost_minor, is_active, created_at, updated_at
          ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?)`,
-        [attemptId, organizationId, attemptCode, name, unit, sellingPriceIdr, current, current],
+        [attemptId, userId, attemptCode, name, unit, sellingPriceIdr, current, current],
       );
       await writeAuditStatement(db, {
-        organizationId,
+        userId,
         actorUserId: userId,
         entityType: "product",
         entityId: attemptId,
@@ -287,7 +286,7 @@ export async function createProduct(
         requestId,
         current,
       });
-      const product = await getProduct(db, organizationId, attemptId);
+      const product = await getProduct(db, userId, attemptId);
       if (!product) throw badRequest("product_create_failed", "Gagal membuat produk.");
       return toPublicProduct(product);
     } catch (err) {
@@ -307,13 +306,12 @@ export interface PatchProductInput {
 
 export async function patchProduct(
   db: D1Database,
-  organizationId: string,
   userId: string,
   productId: string,
   input: PatchProductInput,
   requestId?: string,
 ): Promise<PublicProduct> {
-  const product = await getProduct(db, organizationId, productId);
+  const product = await getProduct(db, userId, productId);
   if (!product) throw notFound("product_not_found", "Produk tidak ditemukan.");
 
   const current = Date.now();
@@ -321,7 +319,7 @@ export async function patchProduct(
   const values: (string | number)[] = [];
 
   if (input.name !== undefined) {
-    const name = await assertValidProductName(db, organizationId, input.name, productId);
+    const name = await assertValidProductName(db, userId, input.name, productId);
     updates.push("name = ?");
     values.push(name);
   }
@@ -334,7 +332,7 @@ export async function patchProduct(
     values.push(normalizePrice(input.sellingPriceIdr));
   }
   if (input.isActive !== undefined) {
-    if (!input.isActive && (await productIsUsed(db, organizationId, productId))) {
+    if (!input.isActive && (await productIsUsed(db, userId, productId))) {
       throw conflict("product_in_use", "Produk sudah dipakai transaksi dan tidak dapat dinonaktifkan.");
     }
     updates.push("is_active = ?");
@@ -343,14 +341,14 @@ export async function patchProduct(
 
   if (updates.length === 0) return toPublicProduct(product);
 
-  values.push(current, productId, organizationId);
+  values.push(current, productId, userId);
   await execute(
     db,
-    `UPDATE products SET ${updates.join(", ")}, updated_at = ? WHERE id = ? AND organization_id = ?`,
+    `UPDATE products SET ${updates.join(", ")}, updated_at = ? WHERE id = ? AND user_id = ?`,
     values,
   );
   await writeAuditStatement(db, {
-    organizationId,
+    userId,
     actorUserId: userId,
     entityType: "product",
     entityId: productId,
@@ -360,14 +358,14 @@ export async function patchProduct(
     current,
   });
 
-  const updated = await getProduct(db, organizationId, productId);
+  const updated = await getProduct(db, userId, productId);
   if (!updated) throw notFound("product_not_found", "Produk tidak ditemukan.");
   return toPublicProduct(updated);
 }
 
 export async function productIsUsed(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   productId: string,
 ): Promise<boolean> {
   const row = await queryFirst<{ c: number }>(
@@ -375,8 +373,8 @@ export async function productIsUsed(
     `SELECT COUNT(*) AS c
      FROM stock_movements sm
      JOIN transactions t ON t.id = sm.transaction_id
-     WHERE sm.organization_id = ? AND sm.product_id = ? AND t.status = 'posted'`,
-    [organizationId, productId],
+     WHERE sm.user_id = ? AND sm.product_id = ? AND t.status = 'posted'`,
+    [userId, productId],
   );
   return (row?.c ?? 0) > 0;
 }
@@ -386,17 +384,17 @@ export async function productIsUsed(
 /** Akun Persediaan (account_kind = 'inventory') yang aktif milik organisasi. */
 export async function resolveInventoryAccount(
   db: D1Database,
-  organizationId: string,
+  userId: string,
 ): Promise<AccountRow | null> {
-  return getAccountByKind(db, organizationId, "inventory");
+  return getAccountByKind(db, userId, "inventory");
 }
 
 /** Akun HPP (account_kind = 'cogs') yang aktif milik organisasi. */
 export async function resolveCogsAccount(
   db: D1Database,
-  organizationId: string,
+  userId: string,
 ): Promise<AccountRow | null> {
-  return getAccountByKind(db, organizationId, "cogs");
+  return getAccountByKind(db, userId, "cogs");
 }
 
 // ── Stok & WAC ──────────────────────────────────────────────────
@@ -404,18 +402,18 @@ export async function resolveCogsAccount(
 /** Semua pergerakan stok produk dari transaksi posted, urut kronologis. */
 export async function movementsForProduct(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   productId: string,
 ): Promise<StockMovementRow[]> {
   return queryAll<StockMovementRow>(
     db,
-    `SELECT sm.id, sm.organization_id, sm.transaction_id, sm.product_id,
+    `SELECT sm.id, sm.user_id, sm.transaction_id, sm.product_id,
             sm.quantity_milli, sm.unit_cost_minor, sm.cost_total_idr, sm.created_at
      FROM stock_movements sm
      JOIN transactions t ON t.id = sm.transaction_id
-     WHERE sm.organization_id = ? AND sm.product_id = ? AND t.status = 'posted'
+     WHERE sm.user_id = ? AND sm.product_id = ? AND t.status = 'posted'
      ORDER BY sm.created_at ASC, sm.rowid ASC`,
-    [organizationId, productId],
+    [userId, productId],
   );
 }
 
@@ -429,10 +427,10 @@ export type { GetStockMovementReportInput, StockMovementReportLine };
  */
 export async function getStockMovementReport(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   input: GetStockMovementReportInput,
 ): Promise<StockMovementReportLine[]> {
-  const values: (string)[] = [organizationId, input.toDate];
+  const values: (string)[] = [userId, input.toDate];
   let productFilter = "";
   if (input.productId) {
     productFilter = " AND sm.product_id = ?";
@@ -460,7 +458,7 @@ export async function getStockMovementReport(
      FROM stock_movements sm
      JOIN transactions t ON t.id = sm.transaction_id
      JOIN products p ON p.id = sm.product_id
-     WHERE sm.organization_id = ? AND t.status = 'posted'
+     WHERE sm.user_id = ? AND t.status = 'posted'
        AND t.transaction_date <= ?${productFilter}
      ORDER BY p.name ASC, p.id ASC, t.transaction_date ASC, sm.created_at ASC, sm.rowid ASC`,
     values,
@@ -521,16 +519,16 @@ export function summarizeMovements(
  */
 export async function recalculateProductCosts(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   productId: string,
 ): Promise<{ current_stock_milli: number; average_cost_minor: number }> {
-  const movements = await movementsForProduct(db, organizationId, productId);
+  const movements = await movementsForProduct(db, userId, productId);
   const { current_stock_milli, average_cost_minor } = summarizeMovements(movements);
   await execute(
     db,
     `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-     WHERE id = ? AND organization_id = ?`,
-    [current_stock_milli, average_cost_minor, Date.now(), productId, organizationId],
+     WHERE id = ? AND user_id = ?`,
+    [current_stock_milli, average_cost_minor, Date.now(), productId, userId],
   );
   return { current_stock_milli, average_cost_minor };
 }
@@ -542,12 +540,12 @@ export async function recalculateProductCosts(
  */
 export async function updateProductStockWac(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   productId: string,
   apply: (current: { stockMilli: number; wacMinor: number }) => { stockMilli: number; wacMinor: number },
 ): Promise<void> {
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const product = await getProduct(db, organizationId, productId);
+    const product = await getProduct(db, userId, productId);
     if (!product) throw badRequest("product_not_found", "Produk tidak ditemukan.");
     const next = apply({
       stockMilli: product.current_stock_milli,
@@ -560,11 +558,11 @@ export async function updateProductStockWac(
       db,
       `UPDATE products
        SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-       WHERE id = ? AND organization_id = ?
+       WHERE id = ? AND user_id = ?
          AND current_stock_milli = ? AND average_cost_minor = ?`,
       [
         next.stockMilli, next.wacMinor, Date.now(),
-        productId, organizationId,
+        productId, userId,
         product.current_stock_milli, product.average_cost_minor,
       ],
     );
@@ -593,7 +591,7 @@ function toPublicProduct(row: ProductRow): PublicProduct {
 
 async function assertValidProductName(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   rawName: string,
   excludeProductId?: string,
 ): Promise<string> {
@@ -604,9 +602,9 @@ async function assertValidProductName(
   const existing = await queryFirst<{ id: string }>(
     db,
     excludeProductId
-      ? "SELECT id FROM products WHERE organization_id = ? AND name = ? AND id != ?"
-      : "SELECT id FROM products WHERE organization_id = ? AND name = ?",
-    excludeProductId ? [organizationId, name, excludeProductId] : [organizationId, name],
+      ? "SELECT id FROM products WHERE user_id = ? AND name = ? AND id != ?"
+      : "SELECT id FROM products WHERE user_id = ? AND name = ?",
+    excludeProductId ? [userId, name, excludeProductId] : [userId, name],
   );
   if (existing) throw badRequest("product_name_taken", "Nama produk sudah dipakai dalam organisasi ini.");
   return name;
@@ -626,20 +624,20 @@ function normalizePrice(value: number): number {
 }
 
 /** Kode produk otomatis: PRD-XXXX (X = nomor urut). */
-async function nextProductCode(db: D1Database, organizationId: string): Promise<string> {
+async function nextProductCode(db: D1Database, userId: string): Promise<string> {
   const row = await queryFirst<{ max_seq: number | null }>(
     db,
     `SELECT MAX(CAST(SUBSTR(code, 5) AS INTEGER)) AS max_seq
-     FROM products WHERE organization_id = ? AND code LIKE 'PRD-%'`,
-    [organizationId],
+     FROM products WHERE user_id = ? AND code LIKE 'PRD-%'`,
+    [userId],
   );
   let seq = (row?.max_seq ?? 0) + 1;
   for (;;) {
     const code = `PRD-${String(seq).padStart(4, "0")}`;
     const existing = await queryFirst<{ id: string }>(
       db,
-      "SELECT id FROM products WHERE organization_id = ? AND code = ?",
-      [organizationId, code],
+      "SELECT id FROM products WHERE user_id = ? AND code = ?",
+      [userId, code],
     );
     if (!existing) return code;
     seq += 1;

@@ -25,7 +25,7 @@ const registerSchema = z
   .object({
     fullName: z.string().min(2, "Nama harus minimal 2 karakter"),
     email: z.string().email("Email tidak valid"),
-    organizationName: z.string().min(1, "Nama usaha harus diisi"),
+    businessName: z.string().min(1, "Nama usaha harus diisi"),
     password: passwordSchema,
     confirmPassword: z.string(),
   })
@@ -74,7 +74,7 @@ export function RegisterPage() {
         data.email.trim().toLowerCase(),
         data.password,
         data.fullName,
-        data.organizationName,
+        data.businessName,
       );
       navigate("/dashboard");
     } catch (err) {
@@ -151,11 +151,11 @@ export function RegisterPage() {
                 />
 
                 <Input
-                  {...register("organizationName")}
+                  {...register("businessName")}
                   label="Nama usaha"
                   placeholder="Contoh: Toko Sumber Rejeki"
                   prefix={<Store className="h-4 w-4 text-wood-500" />}
-                  error={errors.organizationName?.message}
+                  error={errors.businessName?.message}
                   autoComplete="organization"
                 />
 

@@ -16,16 +16,18 @@ test.describe("CSRF Protection", () => {
     expect(response.status()).toBeLessThan(500);
   });
 
+  // The local worker runs with APP_ENV=development, so the session cookie is
+  // `ledjer_session`, not the production `__Host-ledjer_session`. Chromium also
+  // rejects a `__Host-` cookie sent over http with a domain attribute, which is
+  // why these local branches must use the dev name and a url.
   test("POST with invalid Origin and session cookie is rejected with 403", async ({ request, context }) => {
-    // This test requires setting a cookie on the correct domain
     const hostname = new URL(API_BASE).hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       await context.addCookies([
         {
-          name: "__Host-ledjer_session",
+          name: "ledjer_session",
           value: "fake-session-token-abc123",
-          domain: hostname,
-          path: "/",
+          url: API_BASE,
         },
       ]);
       const response = await request.post(`${API_BASE}/api/auth/logout`, {
@@ -40,21 +42,20 @@ test.describe("CSRF Protection", () => {
     // On staging Worker, cookie domain restrictions prevent this test
   });
 
-  test("POST with missing Origin and session cookie is rejected", async ({ request, context }) => {
+  test("POST with missing Origin and session cookie is rejected", async ({ request }) => {
     const hostname = new URL(API_BASE).hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      await context.addCookies([
-        {
-          name: "__Host-ledjer_session",
-          value: "fake-session-token-abc123",
-          domain: hostname,
-          path: "/",
-        },
-      ]);
+      // The `request` fixture does not share the browser context's cookie jar,
+      // so the session cookie is sent explicitly. Without it the middleware
+      // treats the call as a public endpoint and lets it through.
       const response = await request.post(`${API_BASE}/api/auth/logout`, {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: "ledjer_session=fake-session-token-abc123",
+        },
       });
-      expect([401, 403]).toContain(response.status());
+      expect(response.status()).toBe(403);
+      expect((await response.json()).error.code).toBe("csrf_invalid");
     }
   });
 
@@ -79,19 +80,21 @@ test.describe("CSRF Protection", () => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       await context.addCookies([
         {
-          name: "__Host-ledjer_session",
+          name: "ledjer_session",
           value: "fake-session-token-abc123",
-          domain: hostname,
-          path: "/",
+          url: API_BASE,
         },
       ]);
+      // Same-origin, so CSRF must NOT block it: the request reaches the
+      // session layer (401 for the bogus token, or 200 for idempotent logout).
       const response = await request.post(`${API_BASE}/api/auth/logout`, {
         headers: {
           "Content-Type": "application/json",
           "Origin": TEST_ORIGIN,
         },
       });
-      expect([401, 403]).toContain(response.status());
+      expect(response.status()).not.toBe(403);
+      expect(response.status()).toBeLessThan(500);
     }
   });
 });

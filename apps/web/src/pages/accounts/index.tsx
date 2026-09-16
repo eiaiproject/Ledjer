@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import { createCashBankAccount, patchAccount, type CashBankSubtype } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
@@ -19,8 +19,7 @@ import { formatIDR } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 
 export function AccountsPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const queryClient = useQueryClient();
 
   const [subtype, setSubtype] = useState<CashBankSubtype>("cash");
@@ -44,7 +43,7 @@ export function AccountsPage() {
       await createCashBankAccount(subtype, trimmed);
       toast.success("Akun berhasil dibuat.");
       setName("");
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId ?? "") });
     } catch (err) {
       toast.error(translateError(err));
     } finally {
@@ -56,7 +55,7 @@ export function AccountsPage() {
     try {
       await patchAccount(accountId, { isActive: !isActive });
       toast.success(isActive ? "Akun dinonaktifkan." : "Akun diaktifkan.");
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId ?? "") });
     } catch (err) {
       toast.error(translateError(err));
     }

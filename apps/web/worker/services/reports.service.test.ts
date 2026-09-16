@@ -4,7 +4,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { getBalanceSheet, getGeneralLedger, getProfitLoss } from "./reports.service";
 import { HttpError } from "../http/errors";
 
-const ORG_A = FIXTURE_IDS.orgs.a;
+const OWNER_A = FIXTURE_IDS.users.ownerA;
 
 function freshDb(): D1Database {
   return createSeedFixtures().db as unknown as D1Database;
@@ -12,9 +12,9 @@ function freshDb(): D1Database {
 
 describe("getProfitLoss", () => {
   it("computes income, expense, and net income for June 2026", async () => {
-    const report = await getProfitLoss(freshDb(), ORG_A, "2026-06-01", "2026-06-30");
+    const report = await getProfitLoss(freshDb(), OWNER_A, "2026-06-01", "2026-06-30");
 
-    // Org A June: cash_in 2.000.000 (income); cash_out 1.200.000 (expense).
+    // Buku A Juni: cash_in 2.000.000 (income); cash_out 1.200.000 (expense).
     expect(report.income.total).toBe(2000000);
     expect(report.expense.total).toBe(1200000);
     expect(report.netIncome).toBe(800000);
@@ -24,16 +24,16 @@ describe("getProfitLoss", () => {
   });
 
   it("excludes voided transactions from the report", async () => {
-    const report = await getProfitLoss(freshDb(), ORG_A, "2026-07-01", "2026-07-31");
+    const report = await getProfitLoss(freshDb(), OWNER_A, "2026-07-01", "2026-07-31");
     // July: cash_in 800.000; the voided 100.000 cash_out must be excluded.
     expect(report.income.total).toBe(800000);
     expect(report.expense.total).toBe(0);
     expect(report.netIncome).toBe(800000);
   });
 
-  it("isolates organizations: org B only sees its own transactions", async () => {
-    const report = await getProfitLoss(freshDb(), FIXTURE_IDS.orgs.b, "2026-06-01", "2026-06-30");
-    // Org B June: cash_in 1.000.000 only (deposit is equity, not income).
+  it("isolates books: org B only sees its own transactions", async () => {
+    const report = await getProfitLoss(freshDb(), FIXTURE_IDS.users.ownerB, "2026-06-01", "2026-06-30");
+    // Buku B Juni: cash_in 1.000.000 saja (deposit adalah ekuitas, bukan income).
     expect(report.income.total).toBe(1000000);
     expect(report.expense.total).toBe(0);
     expect(report.netIncome).toBe(1000000);
@@ -41,14 +41,14 @@ describe("getProfitLoss", () => {
 
   it("rejects an invalid date range", async () => {
     await expect(
-      getProfitLoss(freshDb(), ORG_A, "2026-06-30", "2026-06-01"),
+      getProfitLoss(freshDb(), OWNER_A, "2026-06-30", "2026-06-01"),
     ).rejects.toThrowError(HttpError);
   });
 });
 
 describe("getBalanceSheet", () => {
   it("balances: total assets = liabilities + equity (incl. laba berjalan)", async () => {
-    const report = await getBalanceSheet(freshDb(), ORG_A, "2026-06-30");
+    const report = await getBalanceSheet(freshDb(), OWNER_A, "2026-06-30");
 
     // Assets: Kas 5jt + 2jt - 1.2jt - 0.5jt = 5.3jt; Bank 500rb.
     expect(report.totalAssets).toBe(5800000);
@@ -63,15 +63,15 @@ describe("getBalanceSheet", () => {
   });
 
   it("reflects only posted transactions up to the as-of date", async () => {
-    const report = await getBalanceSheet(freshDb(), ORG_A, "2026-06-10");
+    const report = await getBalanceSheet(freshDb(), OWNER_A, "2026-06-10");
     // Up to 10 June: deposit 5jt + cash_in 2jt → Kas 7jt.
     expect(report.totalAssets).toBe(7000000);
     expect(report.balanced).toBe(true);
   });
 
-  it("isolates organizations on the balance sheet", async () => {
-    const report = await getBalanceSheet(freshDb(), FIXTURE_IDS.orgs.b, "2026-06-30");
-    // Org B: Kas = 3jt + 1jt = 4jt; equity = modal 3jt + laba berjalan 1jt.
+  it("isolates books on the balance sheet", async () => {
+    const report = await getBalanceSheet(freshDb(), FIXTURE_IDS.users.ownerB, "2026-06-30");
+    // Buku B: Kas = 3jt + 1jt = 4jt; equity = modal 3jt + laba berjalan 1jt.
     expect(report.totalAssets).toBe(4000000);
     expect(report.totalEquity).toBe(4000000);
     expect(report.balanced).toBe(true);
@@ -80,7 +80,7 @@ describe("getBalanceSheet", () => {
 
 describe("getGeneralLedger", () => {
   it("lists every journal line of posted transactions per account with a running balance", async () => {
-    const report = await getGeneralLedger(freshDb(), ORG_A, {
+    const report = await getGeneralLedger(freshDb(), OWNER_A, {
       fromDate: "2026-06-01",
       toDate: "2026-06-30",
     });
@@ -114,7 +114,7 @@ describe("getGeneralLedger", () => {
   });
 
   it("shows voided lines marked as void without moving running balances", async () => {
-    const report = await getGeneralLedger(freshDb(), ORG_A, {
+    const report = await getGeneralLedger(freshDb(), OWNER_A, {
       fromDate: "2026-07-01",
       toDate: "2026-07-31",
     });
@@ -136,7 +136,7 @@ describe("getGeneralLedger", () => {
   });
 
   it("filters by account and carries the opening balance into the range", async () => {
-    const report = await getGeneralLedger(freshDb(), ORG_A, {
+    const report = await getGeneralLedger(freshDb(), OWNER_A, {
       accountId: FIXTURE_IDS.accounts.cashA,
       fromDate: "2026-06-10",
       toDate: "2026-06-30",
@@ -154,12 +154,12 @@ describe("getGeneralLedger", () => {
     expect(report.entries.at(-1)!.running_balance_idr).toBe(5300000);
   });
 
-  it("isolates organizations on the ledger", async () => {
-    const report = await getGeneralLedger(freshDb(), FIXTURE_IDS.orgs.b, {
+  it("isolates books on the ledger", async () => {
+    const report = await getGeneralLedger(freshDb(), FIXTURE_IDS.users.ownerB, {
       fromDate: "2026-06-01",
       toDate: "2026-06-30",
     });
-    // Org B June: deposit 3jt + cash_in 1jt = 4 lines.
+    // Buku B Juni: deposit 3jt + cash_in 1jt = 4 baris.
     expect(report.entries).toHaveLength(4);
     for (const entry of report.entries) {
       expect(entry.account_id).not.toBe(FIXTURE_IDS.accounts.cashA);
@@ -168,7 +168,7 @@ describe("getGeneralLedger", () => {
 
   it("rejects an invalid date range", async () => {
     await expect(
-      getGeneralLedger(freshDb(), ORG_A, {
+      getGeneralLedger(freshDb(), OWNER_A, {
         fromDate: "2026-06-30",
         toDate: "2026-06-01",
       }),

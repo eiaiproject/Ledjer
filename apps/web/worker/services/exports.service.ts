@@ -82,7 +82,7 @@ function throwExportTooLarge(): never {
 /** Export transaksi sebagai CSV UTF-8 dengan BOM (PRD EXP-01). */
 export async function exportTransactionsCsv(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   filters: TransactionExportFilters = {},
 ): Promise<ExportResponse> {
   // Tanpa filter status, ekspor SEMUA status (posted + voided) - konsisten
@@ -92,10 +92,10 @@ export async function exportTransactionsCsv(
 
   // Count first so over-limit exports are rejected without materializing
   // tens of thousands of rows into Worker memory (OOM guard).
-  const total = await countTransactionsForExport(db, organizationId, effective);
+  const total = await countTransactionsForExport(db, userId, effective);
   if (total > MAX_EXPORT_ROWS) throwExportTooLarge();
 
-  const rows = await listTransactionsForExport(db, organizationId, effective);
+  const rows = await listTransactionsForExport(db, userId, effective);
 
   // Defense in depth: the bounded query below can never exceed MAX+1 rows.
   if (rows.length > MAX_EXPORT_ROWS) throwExportTooLarge();
@@ -152,11 +152,11 @@ const LIKE_ESCAPE_CHAR = String.fromCodePoint(92);
 
 /** Shared WHERE clause for the export count + list queries. */
 function buildExportFilter(
-  organizationId: string,
+  userId: string,
   filters: TransactionExportFilters,
 ): ExportFilterQuery {
-  const conditions = ["t.organization_id = ?"];
-  const values: D1Input[] = [organizationId];
+  const conditions = ["t.user_id = ?"];
+  const values: D1Input[] = [userId];
 
   if (filters.fromDate) {
     conditions.push("t.transaction_date >= ?");
@@ -189,10 +189,10 @@ function buildExportFilter(
 
 async function countTransactionsForExport(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   filters: TransactionExportFilters,
 ): Promise<number> {
-  const { conditions, values } = buildExportFilter(organizationId, filters);
+  const { conditions, values } = buildExportFilter(userId, filters);
   const row = await queryFirst<{ c: number }>(
     db,
     `SELECT COUNT(*) AS c FROM transactions t WHERE ${conditions.join(" AND ")}`,
@@ -203,10 +203,10 @@ async function countTransactionsForExport(
 
 async function listTransactionsForExport(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   filters: TransactionExportFilters,
 ): Promise<ExportTransactionRow[]> {
-  const { conditions, values } = buildExportFilter(organizationId, filters);
+  const { conditions, values } = buildExportFilter(userId, filters);
   // Bounded: at most MAX_EXPORT_ROWS + 1 rows ever enter Worker memory.
   const bounded = [...values, MAX_EXPORT_ROWS + 1];
 

@@ -23,7 +23,6 @@ legacy `/api/*` routes during a transition window.
 Legacy              →  Stable
 /api/health         →  /api/v1/health (no auth)
 /api/auth/*         →  /api/v1/auth/*
-/api/organizations/* → /api/v1/organizations/*
 /api/accounts       →  /api/v1/accounts
 /api/transactions   →  /api/v1/transactions
 /api/reports/*      →  /api/v1/reports/*

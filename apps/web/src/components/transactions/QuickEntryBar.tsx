@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import {
   buildDraft,
   matchProducts,
@@ -34,8 +34,7 @@ function toProductLite(p: {
 }
 
 export function QuickEntryBar() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const queryClient = useQueryClient();
 
   const [text, setText] = useState("");
@@ -54,29 +53,29 @@ export function QuickEntryBar() {
   const [incomeAccountId, setIncomeAccountId] = useState("");
 
   const productsQuery = useQuery({
-    queryKey: queryKeys.products.all(orgId),
+    queryKey: queryKeys.products.all(userId),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listProducts(true);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
   const cashQuery = useQuery({
-    queryKey: queryKeys.accounts.all(orgId ?? ""),
+    queryKey: queryKeys.accounts.all(userId ?? ""),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listCashBankAccounts();
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
   const incomeQuery = useQuery({
-    queryKey: [...queryKeys.accounts.all(orgId ?? ""), "income"],
+    queryKey: [...queryKeys.accounts.all(userId ?? ""), "income"],
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       const accounts = await listAccounts();
       return accounts.filter((a) => a.account_class === "income" && a.is_active === 1);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const catalog: ProductLite[] = useMemo(
@@ -97,7 +96,7 @@ export function QuickEntryBar() {
     setDoneMessage(null);
   };
 
-  // Katalog belum ada (orgId masih resolving → query disabled, atau fetch
+  // Katalog belum ada (userId masih resolving → query disabled, atau fetch
   // perdana) berarti Kirim tak boleh diklik: draft dari katalog kosong selalu
   // "tidak ditemukan" walau produk sudah ada di server.
   const catalogReady = productsQuery.data !== undefined;

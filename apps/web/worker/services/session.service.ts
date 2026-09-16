@@ -33,13 +33,13 @@ export interface SessionUser {
   id: string;
   email: string;
   full_name: string;
+  business_name: string;
 }
 
 export interface AuthSession {
   id: string;
   user_id: string;
   expires_at: number;
-  current_organization_id: string | null;
 }
 
 interface SessionRow extends AuthSession {
@@ -50,9 +50,9 @@ interface CurrentSessionRow {
   session_id: string;
   user_id: string;
   expires_at: number;
-  current_organization_id: string | null;
   email: string;
   full_name: string;
+  business_name: string;
 }
 
 interface SessionLookupRow extends CurrentSessionRow {
@@ -72,27 +72,27 @@ export async function createSession(
   db: D1Database,
   userId: string,
   request: Request,
-  organizationId?: string,
 ): Promise<CreatedSession> {
   const token = generateToken();
   const tokenHash = await hashToken(token);
   const createdAt = Date.now();
   const expiresAt = createdAt + SESSION_TTL_MS;
 
-  // Include current_organization_id in INSERT if organizationId provided
-  const hasOrg = organizationId !== undefined;
   await execute(
     db,
-    hasOrg
-      ? `INSERT INTO sessions (
-         id, user_id, token_hash, ip_address, user_agent, current_organization_id, expires_at, last_used_at, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      : `INSERT INTO sessions (
-         id, user_id, token_hash, ip_address, user_agent, expires_at, last_used_at, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    hasOrg
-      ? [generateId(), userId, tokenHash, request.headers.get("CF-Connecting-IP"), request.headers.get("User-Agent"), organizationId, expiresAt, createdAt, createdAt]
-      : [generateId(), userId, tokenHash, request.headers.get("CF-Connecting-IP"), request.headers.get("User-Agent"), expiresAt, createdAt, createdAt],
+    `INSERT INTO sessions (
+       id, user_id, token_hash, ip_address, user_agent, expires_at, last_used_at, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      generateId(),
+      userId,
+      tokenHash,
+      request.headers.get("CF-Connecting-IP"),
+      request.headers.get("User-Agent"),
+      expiresAt,
+      createdAt,
+      createdAt,
+    ],
   );
 
   return { token, expiresAt };
@@ -112,9 +112,9 @@ export async function getSessionByToken(
        s.id AS session_id,
        s.user_id,
        s.expires_at,
-       s.current_organization_id,
        u.email,
        u.full_name,
+       u.business_name,
        s.last_used_at,
        s.last_rotated_at,
        s.created_at,
@@ -156,9 +156,9 @@ export async function getSessionByToken(
       session_id: row.session_id,
       user_id: row.user_id,
       expires_at: row.expires_at,
-      current_organization_id: row.current_organization_id,
       email: row.email,
       full_name: row.full_name,
+      business_name: row.business_name,
     };
   }
 
@@ -203,9 +203,9 @@ export async function getSessionByToken(
          s.id AS session_id,
          s.user_id,
          s.expires_at,
-         s.current_organization_id,
          u.email,
          u.full_name,
+         u.business_name,
          s.last_used_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
@@ -262,18 +262,6 @@ export async function revokeAllUserSessions(
     db,
     "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
     [Date.now(), userId],
-  );
-}
-
-export async function setSessionCurrentOrganization(
-  db: D1Database,
-  sessionId: string,
-  organizationId: string | null,
-): Promise<void> {
-  await execute(
-    db,
-    "UPDATE sessions SET current_organization_id = ? WHERE id = ? AND revoked_at IS NULL",
-    [organizationId, sessionId],
   );
 }
 

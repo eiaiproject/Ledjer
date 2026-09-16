@@ -18,7 +18,16 @@ export function cookieOptions(c: Context) {
   };
 }
 
-/** Hapus kedua varian cookie dengan atribut yang sama seperti saat set. */
-export function sessionCookieNames(): readonly string[] {
-  return ["__Host-ledjer_session", "ledjer_session"] as const;
+/**
+ * Nama cookie sesi yang perlu dihapus (logout / sesi tidak valid).
+ *
+ * Varian `__Host-` hanya boleh dikirim saat produksi: prefix itu mewajibkan
+ * atribut Secure, dan mengirimnya lewat http (dev) melempar error sehingga
+ * request gagal 500. Produksi tetap menghapus keduanya agar cookie dev yang
+ * tersisa dari sebelum rename ikut bersih.
+ */
+export function sessionCookieNames(isProduction: boolean): readonly string[] {
+  return isProduction
+    ? (["__Host-ledjer_session", "ledjer_session"] as const)
+    : (["ledjer_session"] as const);
 }

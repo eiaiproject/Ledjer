@@ -1,8 +1,11 @@
 # ADR 0001: Tenant-Scoped Repository
 
 **Date:** 2026-07-17
-**Status:** Accepted
+**Status:** Superseded by [ADR 0004](0004-single-user-book-scoping.md)
 **Deciders:** Engineering team
+
+> Kept for history. The wrapper still exists, renamed `UserScopedRepository`,
+> and now asserts `user_id` instead of `organization_id`.
 
 ## Context
 

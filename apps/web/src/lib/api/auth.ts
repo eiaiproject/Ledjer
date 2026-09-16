@@ -4,13 +4,13 @@ export interface AuthUser {
   id: string;
   email: string;
   full_name: string;
+  business_name: string;
 }
 
 export interface AuthSession {
   id: string;
   user_id: string;
   expires_at: number;
-  current_organization_id: string | null;
 }
 
 export interface AuthMeResponse {
@@ -23,11 +23,19 @@ export interface RegisterResponse {
     id: string;
     email: string;
     fullName: string;
+    businessName: string;
   };
-  organization: {
-    id: string;
-    name: string;
-  };
+}
+
+export interface UpdateProfileResponse {
+  businessName: string;
+}
+
+export function updateBusinessName(businessName: string): Promise<UpdateProfileResponse> {
+  return apiRequest<UpdateProfileResponse>("/api/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify({ businessName }),
+  });
 }
 
 export function getMe(): Promise<AuthMeResponse> {
@@ -45,11 +53,11 @@ export function register(
   email: string,
   password: string,
   fullName: string,
-  organizationName: string,
+  businessName: string,
 ): Promise<RegisterResponse> {
   return apiRequest<RegisterResponse>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password, fullName, organizationName }),
+    body: JSON.stringify({ email, password, fullName, businessName }),
   });
 }
 

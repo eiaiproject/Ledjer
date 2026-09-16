@@ -13,7 +13,7 @@
 | Boundary | Trust Level | Notes |
 |----------|-------------|-------|
 | Browser ⇔ Cloudflare CDN | Low | TLS, CSP, CSRF protect this boundary |
-| CDN ⇔ Worker | Medium | Cloudflare controls edge, Worker is tenant code |
+| CDN ⇔ Worker | Medium | Cloudflare controls edge, Worker runs our code |
 | Worker ⇔ D1 | High | Same Cloudflare account, not exposed to internet |
 | Worker ⇔ Sentry | Low | Error data sent externally |
 | Browser ⇔ Google OAuth | Low | Short-lived state cookie protects this |
@@ -25,7 +25,7 @@
 | User credentials (password hashes) | Critical | D1 (sessions, users tables) |
 | Session tokens | Critical | D1 (sessions table) |
 | Financial transactions | High | D1 (transactions, journals) |
-| Organization data | High | D1 (all tenant tables) |
+| Book data (accounts, transactions, journals) | High | D1 (all book-scoped tables) |
 | Personal data (email, name) | Medium | D1 (users, oauth_accounts) |
 | Auth tokens (Google OAuth) | Medium | D1 (sessions, transient) |
 
@@ -35,11 +35,10 @@
 
 | Threat | Risk | Mitigation |
 |--------|------|------------|
-| Cross-tenant data access | **Critical** | `TenantScopedRepository` + org middleware |
+| Cross-user data access | **Critical** | `UserScopedRepository` + `user_id = ?` on every query |
 | SQL injection | **High** | All queries use prepared statements |
 | Session hijacking | **High** | HttpOnly/Secure/SameSite cookies, hashed tokens |
 | CSRF | **High** | Origin/Referer validation via URL.origin on all state changes (exact match, comma-separated) |
-| Privilege escalation | **High** | Permission check on every protected route |
 | Rate limit bypass | Medium | Atomic D1 conditional INSERT `COUNT(*) < max` per bucket_key (was SELECT+INSERT TOCTOU) |
 | Idempotency-key reuse | Medium | Key bound to SHA-256 payload hash; replay with a different payload rejected |
 
@@ -80,7 +79,7 @@
 ## Incident Response
 
 See [incident-response.md](../production/incident-response.md) for:
-- Cross-tenant data access
+- Cross-user data access
 - Data breach
 - Auth compromise
 - Database corruption

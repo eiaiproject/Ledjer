@@ -30,11 +30,11 @@ export function currentMonthPeriod(date = new Date()): { from: string; to: strin
 
 export async function getDashboardSummary(
   db: D1Database,
-  organizationId: string,
+  userId: string,
 ): Promise<DashboardSummary> {
-  const cashAccounts = await listAccounts(db, organizationId, { subtype: "cash" });
-  const bankAccounts = await listAccounts(db, organizationId, { subtype: "bank" });
-  const balances = await balancesByAccount(db, organizationId);
+  const cashAccounts = await listAccounts(db, userId, { subtype: "cash" });
+  const bankAccounts = await listAccounts(db, userId, { subtype: "bank" });
+  const balances = await balancesByAccount(db, userId);
 
   const cashBankAccounts = [...cashAccounts, ...bankAccounts].map((a) => ({
     id: a.id,
@@ -45,9 +45,9 @@ export async function getDashboardSummary(
   const cashBankBalance = cashBankAccounts.reduce((s, a) => s + a.balance, 0);
 
   const month = currentMonthPeriod();
-  const pl = await getProfitLoss(db, organizationId, month.from, month.to);
-  const recentTransactions = await listTransactions(db, organizationId, { limit: 5 });
-  const { moneyIn, moneyOut } = await cashFlowByType(db, organizationId, month.from, month.to);
+  const pl = await getProfitLoss(db, userId, month.from, month.to);
+  const recentTransactions = await listTransactions(db, userId, { limit: 5 });
+  const { moneyIn, moneyOut } = await cashFlowByType(db, userId, month.from, month.to);
 
   return {
     cashBankBalance,
@@ -67,7 +67,7 @@ export async function getDashboardSummary(
  */
 async function cashFlowByType(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   fromDate: string,
   toDate: string,
 ): Promise<{ moneyIn: number; moneyOut: number }> {
@@ -75,10 +75,10 @@ async function cashFlowByType(
     db,
     `SELECT transaction_type, COALESCE(SUM(amount_idr), 0) AS total
      FROM transactions
-     WHERE organization_id = ? AND status = 'posted'
+     WHERE user_id = ? AND status = 'posted'
        AND transaction_date >= ? AND transaction_date <= ?
      GROUP BY transaction_type`,
-    [organizationId, fromDate, toDate],
+    [userId, fromDate, toDate],
   );
   const byType = new Map(rows.map((r) => [r.transaction_type, r.total ?? 0]));
   const moneyInTypes = ["cash_in", "owner_deposit"];
@@ -91,10 +91,10 @@ async function cashFlowByType(
 /** Alerts ringan untuk dashboard: akun kas/bank bersaldo negatif. */
 export async function getDashboardAlerts(
   db: D1Database,
-  organizationId: string,
+  userId: string,
 ): Promise<{ negativeBalanceAccounts: { id: string; name: string; balance: number }[] }> {
-  const accounts = await listAccounts(db, organizationId);
-  const balances = await balancesByAccount(db, organizationId);
+  const accounts = await listAccounts(db, userId);
+  const balances = await balancesByAccount(db, userId);
   const negativeBalanceAccounts = accounts
     .filter((a) => a.account_subtype !== null && (balances.get(a.id) ?? 0) < 0)
     .map((a) => ({ id: a.id, name: a.name, balance: balances.get(a.id) ?? 0 }));

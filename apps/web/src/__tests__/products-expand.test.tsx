@@ -9,9 +9,9 @@ vi.mock('@/contexts/auth-context', async () => {
   return { useAuth: () => authStub };
 });
 
-vi.mock('@/hooks/useOrganization', async () => {
-  const { orgStub } = await import('./test-utils');
-  return { useOrganization: () => orgStub };
+vi.mock('@/hooks/useBook', async () => {
+  const { bookStub } = await import('./test-utils');
+  return { useBook: () => bookStub };
 });
 
 const listProductsPage = vi.fn();

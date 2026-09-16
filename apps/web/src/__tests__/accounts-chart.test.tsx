@@ -9,9 +9,9 @@ vi.mock('@/contexts/auth-context', async () => {
   return { useAuth: () => authStub };
 });
 
-vi.mock('@/hooks/useOrganization', async () => {
-  const { orgStub } = await import('./test-utils');
-  return { useOrganization: () => orgStub };
+vi.mock('@/hooks/useBook', async () => {
+  const { bookStub } = await import('./test-utils');
+  return { useBook: () => bookStub };
 });
 
 const listAccounts = vi.fn();
@@ -22,10 +22,10 @@ vi.mock('@/lib/api/accounts', () => ({
 }));
 
 const accounts = [
-  { id: 'a-kas', organization_id: 'o1', code: '1110', name: 'Kas', account_class: 'asset', account_subtype: 'cash', is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
-  { id: 'a-modal', organization_id: 'o1', code: '3110', name: 'Modal Pemilik', account_class: 'equity', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
-  { id: 'a-rev', organization_id: 'o1', code: '4110', name: 'Pendapatan Usaha', account_class: 'income', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
-  { id: 'a-beban', organization_id: 'o1', code: '6120', name: 'Beban Sewa', account_class: 'expense', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
+  { id: 'a-kas', user_id: 'o1', code: '1110', name: 'Kas', account_class: 'asset', account_subtype: 'cash', is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
+  { id: 'a-modal', user_id: 'o1', code: '3110', name: 'Modal Pemilik', account_class: 'equity', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
+  { id: 'a-rev', user_id: 'o1', code: '4110', name: 'Pendapatan Usaha', account_class: 'income', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
+  { id: 'a-beban', user_id: 'o1', code: '6120', name: 'Beban Sewa', account_class: 'expense', account_subtype: null, is_system: 1, is_active: 1, created_at: 0, updated_at: 0 },
 ];
 
 function renderPage() {

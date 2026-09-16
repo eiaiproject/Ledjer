@@ -7,7 +7,7 @@ import { cookieName, cookieOptions, sessionCookieNames } from "../http/cookies";
 import { tooManyRequests, unauthorized } from "../http/errors";
 import { execute } from "../db/client";
 import { readJson } from "../http/json";
-import { loginUser, registerUser } from "../services/auth.service";
+import { loginUser, registerUser, updateBusinessName } from "../services/auth.service";
 import { buildGoogleAuthUrl, completeGoogleAuth, generatePkceVerifier, pkceChallenge } from "../services/google-auth.service";
 import { checkRateLimit } from "../services/rate-limit.service";
 import { getSessionByToken } from "../services/session.service";
@@ -27,7 +27,7 @@ const COMMON_PASSWORDS = new Set(["password", "password1", "12345678", "qwerty12
 const passwordSchema = z.string().min(8).max(72).regex(/[A-Za-z]/, "Password harus mengandung huruf").regex(/\d/, "Password harus mengandung angka").refine((v) => !COMMON_PASSWORDS.has(v.toLowerCase()), "Password terlalu umum, pilih yang lebih kuat.");
 
 function clearSessionCookies(c: Context): void {
-  for (const name of sessionCookieNames()) {
+  for (const name of sessionCookieNames(c.env.APP_ENV === "production")) {
     deleteCookie(c, name, cookieOptions(c));
   }
 }
@@ -36,7 +36,11 @@ const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   fullName: z.string().min(2).max(160),
-  organizationName: z.string().min(1).max(120),
+  businessName: z.string().min(1).max(120),
+});
+
+const updateProfileSchema = z.object({
+  businessName: z.string().min(1).max(120),
 });
 
 const loginSchema = z.object({
@@ -61,8 +65,12 @@ authRoutes.post("/register", async (c) => {
   });
 
   return c.json({
-    user: { id: result.userId, email: body.email, fullName: body.fullName },
-    organization: result.organization,
+    user: {
+      id: result.userId,
+      email: body.email,
+      fullName: body.fullName,
+      businessName: result.businessName,
+    },
   });
 });
 
@@ -91,7 +99,7 @@ authRoutes.post("/logout", async (c) => {
     const row = await getSessionByToken(c.env.DB, token);
     if (row) {
       await execute(c.env.DB, "UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL", [Date.now(), row.session_id]);
-      await logAuthEvent(c.env.DB, row.user_id, row.user_id, "logout", {});
+      await logAuthEvent(c.env.DB, row.user_id, "logout", {});
     }
   }
   clearSessionCookies(c);
@@ -208,14 +216,22 @@ authRoutes.get("/me", async (c) => {
       id: row.user_id,
       email: row.email,
       full_name: row.full_name,
+      business_name: row.business_name,
     },
     session: {
       id: row.session_id,
       user_id: row.user_id,
       expires_at: row.expires_at,
-      current_organization_id: row.current_organization_id,
     },
   });
+});
+
+// Nama usaha menggantikan organization.name: satu akun = satu buku.
+authRoutes.patch("/me", async (c) => {
+  const session = await requireSession(c);
+  const body = await readJson(c, updateProfileSchema);
+  const businessName = await updateBusinessName(c.env.DB, session.user_id, body.businessName);
+  return c.json({ businessName });
 });
 
 export { cookieName, cookieOptions } from "../http/cookies";

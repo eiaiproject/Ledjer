@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
-import { useOrganization } from "@/hooks/useOrganization";
-import { updateOrganization } from "@/lib/api/organizations";
-import { queryKeys } from "@/lib/query-keys";
+import { updateBusinessName } from "@/lib/api/auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,24 +9,20 @@ import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 
 export function SettingsPage() {
-  const { data: orgData } = useOrganization();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, refreshSession } = useAuth();
 
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  // Once the user edits the field, the org query must never clobber their
-  // input - it can resolve late (or refetch after a save) with an older value.
+  // Once the user edits the field, a late /me response must never clobber
+  // their input.
   const touchedRef = useRef(false);
 
-  // Prefill the field once the org query resolves (it is async, so the
-  // initial render cannot seed the state).
   useEffect(() => {
-    const orgName = orgData?.organization?.name;
-    if (orgName != null && !touchedRef.current) {
-      setName(orgName);
+    const current = user?.business_name;
+    if (current != null && !touchedRef.current) {
+      setName(current);
     }
-  }, [orgData?.organization?.name]);
+  }, [user?.business_name]);
 
   const handleSave = async () => {
     if (saving) return;
@@ -40,9 +33,10 @@ export function SettingsPage() {
     }
     setSaving(true);
     try {
-      await updateOrganization(trimmed);
+      await updateBusinessName(trimmed);
       toast.success("Profil usaha diperbarui.");
-      queryClient.invalidateQueries({ queryKey: queryKeys.allOrganization() });
+      // Nama usaha hidup di profil user, jadi segarkan /me — bukan query terpisah.
+      await refreshSession();
     } catch (err) {
       toast.error(translateError(err));
     } finally {

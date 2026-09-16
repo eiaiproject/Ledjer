@@ -6,7 +6,6 @@ import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
 import { tooManyRequests } from "../http/errors";
 import { checkRateLimit } from "../services/rate-limit.service";
-import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import {
   countTransactions,
   getTransaction,
@@ -43,13 +42,12 @@ const voidTransactionSchema = z.object({
 export const transactionsRoutes = new Hono<AppContext>();
 
 transactionsRoutes.use("*", requireAuth());
-transactionsRoutes.use("*", loadCurrentOrganization());
 
 const LIST_TYPE_WHITELIST = new Set(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase"]);
 const LIST_STATUS_WHITELIST = new Set(["posted", "voided"]);
 
-transactionsRoutes.get("/", requirePermission("transactions:read"), async (c) => {
-  const context = c.get("organizationContext");
+transactionsRoutes.get("/", async (c) => {
+  const userId = c.get("user").id;
   const url = new URL(c.req.url);
   const rawType = url.searchParams.get("transactionType") ?? undefined;
   const rawStatus = url.searchParams.get("status") ?? undefined;
@@ -63,53 +61,44 @@ transactionsRoutes.get("/", requirePermission("transactions:read"), async (c) =>
     offset: parseListOffset(url.searchParams.get("offset")),
   };
   const [transactions, total] = await Promise.all([
-    listTransactions(c.env.DB, context.organization.id, filters),
-    countTransactions(c.env.DB, context.organization.id, filters),
+    listTransactions(c.env.DB, userId, filters),
+    countTransactions(c.env.DB, userId, filters),
   ]);
   return c.json({ transactions, total });
 });
 
-transactionsRoutes.post("/", requirePermission("transactions:create"), async (c) => {
-  const context = c.get("organizationContext");
-  if (await checkRateLimit(c.env.DB, "transactions_create", context.member.user_id, { max: 60, windowMs: 60000 })) {
+transactionsRoutes.post("/", async (c) => {
+  const userId = c.get("user").id;
+  if (await checkRateLimit(c.env.DB, "transactions_create", userId, { max: 60, windowMs: 60000 })) {
     throw tooManyRequests("Terlalu banyak permintaan. Coba lagi nanti.");
   }
   const body = await readJson(c, postTransactionSchema);
-  const result = await postTransaction(
-    c.env.DB,
-    context.organization.id,
-    context.member.user_id,
-    body,
-    c.get("requestId"),
-  );
+  const result = await postTransaction(c.env.DB, userId, body, c.get("requestId"));
   if (result.replayed) c.header("Idempotent-Replay", "true");
   return c.json(result);
 });
 
-transactionsRoutes.get("/:transactionId", requirePermission("transactions:read"), async (c) => {
-  const context = c.get("organizationContext");
+transactionsRoutes.get("/:transactionId", async (c) => {
   const transaction = await getTransaction(
     c.env.DB,
-    context.organization.id,
+    c.get("user").id,
     c.req.param("transactionId"),
   );
   return c.json({ transaction });
 });
 
-transactionsRoutes.post("/:transactionId/void", requirePermission("transactions:void"), async (c) => {
-  const context = c.get("organizationContext");
-  if (await checkRateLimit(c.env.DB, "transactions_void", context.member.user_id, { max: 20, windowMs: 60000 })) {
+transactionsRoutes.post("/:transactionId/void", async (c) => {
+  const userId = c.get("user").id;
+  if (await checkRateLimit(c.env.DB, "transactions_void", userId, { max: 20, windowMs: 60000 })) {
     throw tooManyRequests("Terlalu banyak permintaan. Coba lagi nanti.");
   }
   const body = await readJson(c, voidTransactionSchema);
   const transaction = await voidTransaction(
     c.env.DB,
-    context.organization.id,
-    context.member.user_id,
+    userId,
     c.req.param("transactionId"),
     body,
     c.get("requestId"),
   );
   return c.json({ transaction });
 });
-

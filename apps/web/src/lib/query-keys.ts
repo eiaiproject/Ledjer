@@ -1,55 +1,52 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 export const queryKeys = {
-  organization: (userId: string | undefined) => ["organization", userId] as const,
-  allOrganization: () => ["organization"] as const,
-
-  dashboard: (orgId: string | undefined) => ["dashboard", orgId] as const,
+  dashboard: (userId: string | undefined) => ["dashboard", userId] as const,
   allDashboard: () => ["dashboard"] as const,
-  dashboardSummary: (orgId: string | undefined) => ["dashboard", orgId, "summary"] as const,
-  dashboardAlerts: (orgId: string | undefined) => ["dashboard", orgId, "alerts"] as const,
+  dashboardSummary: (userId: string | undefined) => ["dashboard", userId, "summary"] as const,
+  dashboardAlerts: (userId: string | undefined) => ["dashboard", userId, "alerts"] as const,
 
   reports: {
-    profitLoss: (orgId: string | undefined, fromDate: string, toDate: string) =>
-      ["profit-loss", orgId, fromDate, toDate] as const,
-    balanceSheet: (orgId: string | undefined, asOfDate: string) =>
-      ["balance-sheet", orgId, asOfDate] as const,
-    generalLedger: (orgId: string | undefined, fromDate: string, toDate: string, accountId?: string) =>
-      ["general-ledger", orgId, fromDate, toDate, accountId ?? ""] as const,
+    profitLoss: (userId: string | undefined, fromDate: string, toDate: string) =>
+      ["profit-loss", userId, fromDate, toDate] as const,
+    balanceSheet: (userId: string | undefined, asOfDate: string) =>
+      ["balance-sheet", userId, asOfDate] as const,
+    generalLedger: (userId: string | undefined, fromDate: string, toDate: string, accountId?: string) =>
+      ["general-ledger", userId, fromDate, toDate, accountId ?? ""] as const,
     allProfitLoss: () => ["profit-loss"] as const,
     allBalanceSheet: () => ["balance-sheet"] as const,
     allGeneralLedger: () => ["general-ledger"] as const,
   },
 
   accounts: {
-    fullList: (orgId: string) => ["accounts", orgId, "list"] as const,
-    all: (orgId: string) => ["accounts", orgId] as const,
+    fullList: (userId: string) => ["accounts", userId, "list"] as const,
+    all: (userId: string) => ["accounts", userId] as const,
   },
 
   products: {
-    all: (orgId: string | undefined) => ["products", orgId] as const,
-    page: (orgId: string | undefined, params: Record<string, string | number>) =>
-      ["products", orgId, "page", params.search ?? "", params.status ?? "", params.stock ?? "", params.sort ?? "", params.limit ?? 0, params.offset ?? 0] as const,
-    movements: (orgId: string | undefined, productId: string) =>
-      ["products", orgId, productId, "movements"] as const,
+    all: (userId: string | undefined) => ["products", userId] as const,
+    page: (userId: string | undefined, params: Record<string, string | number>) =>
+      ["products", userId, "page", params.search ?? "", params.status ?? "", params.stock ?? "", params.sort ?? "", params.limit ?? 0, params.offset ?? 0] as const,
+    movements: (userId: string | undefined, productId: string) =>
+      ["products", userId, productId, "movements"] as const,
     allProducts: () => ["products"] as const,
   },
 
   transactions: {
     all: () => ["transactions"] as const,
-    list: (orgId: string | undefined, ...filters: unknown[]) =>
-      ["transactions", orgId, ...filters] as const,
+    list: (userId: string | undefined, ...filters: unknown[]) =>
+      ["transactions", userId, ...filters] as const,
     detail: (id: string) => ["transaction", id] as const,
     allDetails: () => ["transaction"] as const,
   },
 } as const;
 
 /** Invalidate every cache key touched by a financial mutation. */
-export function invalidateTransactionFinancialCaches(qc: QueryClient, orgId = "") {
+export function invalidateTransactionFinancialCaches(qc: QueryClient, userId = "") {
   const keys = [
     queryKeys.transactions.all(),
     queryKeys.allDashboard(),
-    queryKeys.accounts.all(orgId),
+    queryKeys.accounts.all(userId),
     queryKeys.products.allProducts(),
     queryKeys.reports.allProfitLoss(),
     queryKeys.reports.allBalanceSheet(),

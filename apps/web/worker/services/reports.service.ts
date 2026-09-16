@@ -40,12 +40,12 @@ function assertDateRange(fromDate: string, toDate: string): void {
 /** Account totals from journal lines of posted transactions within a date range. */
 async function accountTotals(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   fromDate: string | null,
   toDate: string,
 ): Promise<AccountTotalRow[]> {
-  const conditions = ["jl.organization_id = ?", "t.status = 'posted'", "t.transaction_date <= ?"];
-  const values: (string | number)[] = [organizationId, toDate];
+  const conditions = ["jl.user_id = ?", "t.status = 'posted'", "t.transaction_date <= ?"];
+  const values: (string | number)[] = [userId, toDate];
   if (fromDate) {
     conditions.push("t.transaction_date >= ?");
     values.push(fromDate);
@@ -68,12 +68,12 @@ async function accountTotals(
 
 export async function getProfitLoss(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   fromDate: string,
   toDate: string,
 ): Promise<ProfitLossReport> {
   assertDateRange(fromDate, toDate);
-  const rows = await accountTotals(db, organizationId, fromDate, toDate);
+  const rows = await accountTotals(db, userId, fromDate, toDate);
 
   const incomeAccounts: ReportAccountLine[] = [];
   const expenseAccounts: ReportAccountLine[] = [];
@@ -102,11 +102,11 @@ export async function getProfitLoss(
 
 export async function getBalanceSheet(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   asOfDate: string,
 ): Promise<BalanceSheetReport> {
   if (!asOfDate) throw badRequest("invalid_date", "Tanggal laporan harus diisi.");
-  const rows = await accountTotals(db, organizationId, null, asOfDate);
+  const rows = await accountTotals(db, userId, null, asOfDate);
 
   const assets: ReportAccountLine[] = [];
   const liabilities: ReportAccountLine[] = [];
@@ -199,7 +199,7 @@ export interface GetGeneralLedgerInput {
  */
 export async function getGeneralLedger(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   input: GetGeneralLedgerInput,
 ): Promise<GeneralLedgerReport> {
   assertDateRange(input.fromDate, input.toDate);
@@ -207,7 +207,7 @@ export async function getGeneralLedger(
   const limit = Math.min(Math.max(input.limit ?? MAX_GL_ROWS, 1), MAX_GL_ROWS);
   const offset = Math.max(input.offset ?? 0, 0);
 
-  const values: (string | number)[] = [organizationId, input.toDate];
+  const values: (string | number)[] = [userId, input.toDate];
   if (input.accountId) values.push(input.accountId);
   values.push(input.fromDate, limit, offset);
 
@@ -215,7 +215,7 @@ export async function getGeneralLedger(
     db,
     `WITH ledger_base AS (
        SELECT
-         jl.organization_id,
+         jl.user_id,
          jl.account_id,
          a.code AS account_code,
          a.name AS account_name,
@@ -238,10 +238,10 @@ export async function getGeneralLedger(
            ELSE jl.credit_idr - jl.debit_idr
          END AS signed_amount
        FROM journal_lines jl
-       JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.organization_id = jl.organization_id
-       JOIN transactions t ON t.id = je.transaction_id AND t.organization_id = jl.organization_id
-       JOIN accounts a ON a.id = jl.account_id AND a.organization_id = jl.organization_id
-       WHERE jl.organization_id = ?
+       JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.user_id = jl.user_id
+       JOIN transactions t ON t.id = je.transaction_id AND t.user_id = jl.user_id
+       JOIN accounts a ON a.id = jl.account_id AND a.user_id = jl.user_id
+       WHERE jl.user_id = ?
          AND t.status IN ('posted', 'voided')
          AND t.transaction_date <= ?
          ${accountFilter}

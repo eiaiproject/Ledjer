@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Plus, Scale, Wallet } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { getDashboardAlerts, getDashboardSummary } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
@@ -18,22 +18,22 @@ import { getStatus } from "@/lib/status-registry";
 import type { Transaction } from "@/lib/api/transactions";
 
 export function DashboardPage() {
-  const { data: orgData } = useOrganization();
+  const { userId, businessName } = useBook();
   const summaryQuery = useQuery({
-    queryKey: queryKeys.dashboardSummary(orgData?.organization?.id),
+    queryKey: queryKeys.dashboardSummary(userId),
     queryFn: async () => {
-      if (!orgData?.organization?.id) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getDashboardSummary();
     },
-    enabled: !!orgData?.organization?.id,
+    enabled: !!userId,
   });
   const alertsQuery = useQuery({
-    queryKey: queryKeys.dashboardAlerts(orgData?.organization?.id),
+    queryKey: queryKeys.dashboardAlerts(userId),
     queryFn: async () => {
-      if (!orgData?.organization?.id) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getDashboardAlerts();
     },
-    enabled: !!orgData?.organization?.id,
+    enabled: !!userId,
   });
 
   const summary = summaryQuery.data;
@@ -89,7 +89,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={`Halo, ${orgData?.organization?.name ?? ""}`}
+        title={`Halo, ${businessName ?? ""}`}
         description="Ringkasan keuangan usaha Anda."
       />
       <Link to="/transactions/new" className="block sm:w-fit">

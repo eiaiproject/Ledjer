@@ -35,7 +35,7 @@
 ### Technical Controls
 - **Encryption at rest**: D1 encrypts data at rest (Cloudflare infrastructure).
 - **Encryption in transit**: TLS 1.3 for all API traffic.
-- **Access control**: Role-based (owner/admin/member/viewer) plus organization scoping.
+- **Access control**: Single-user accounts — every book-scoped query filters by `user_id`, enforced by `UserScopedRepository` and the `check-user-scoping.sh` CI guard. No role layer.
 - **Authentication**: Password (PBKDF2-SHA256, peppered) or Google OAuth.
 - **Session management**: HttpOnly, Secure, SameSite cookies with 30-day expiry.
 - **Rate limiting**: Login attempts (5 per 15 min), registration (5 per hour).

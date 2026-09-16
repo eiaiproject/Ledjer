@@ -16,7 +16,6 @@ servers:
 tags:
   - name: Health
   - name: Auth
-  - name: Organizations
   - name: Accounts
   - name: Transactions
   - name: Reports
@@ -55,19 +54,19 @@ paths:
   /api/auth/register:
     post:
       tags: [Auth]
-      summary: Register a user, creating their first organization + default COA
+      summary: Register a user, creating their book + default COA
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, password, fullName, organizationName]
+              required: [email, password, fullName, businessName]
               properties:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 8, maxLength: 72 }
                 fullName: { type: string, minLength: 2, maxLength: 160 }
-                organizationName: { type: string, minLength: 1, maxLength: 120 }
+                businessName: { type: string, minLength: 1, maxLength: 120 }
       responses:
         "200":
           description: Registered; session cookie set
@@ -127,13 +126,31 @@ paths:
                       id: { type: string }
                       email: { type: string }
                       full_name: { type: string }
+                      business_name: { type: string }
                   session:
                     type: [object, "null"]
                     properties:
                       id: { type: string }
                       user_id: { type: string }
                       expires_at: { type: integer }
-                      current_organization_id: { type: [string, "null"] }
+    patch:
+      tags: [Auth]
+      security: [{ cookieAuth: [] }]
+      summary: Rename the book (business_name on the user profile)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [businessName]
+              properties:
+                businessName: { type: string, minLength: 1, maxLength: 120 }
+      responses:
+        "200":
+          description: Updated business name
+        "401":
+          description: Not authenticated
   /api/auth/google/start:
     get:
       tags: [Auth]
@@ -159,34 +176,6 @@ paths:
       responses:
         "302":
           description: Redirect (dashboard on success, /login?error=... on failure)
-  /api/organizations/current:
-    get:
-      tags: [Organizations]
-      security: [{ cookieAuth: [] }]
-      summary: Current organization + owner membership
-      responses:
-        "200":
-          description: Organization context
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrganizationState"
-    patch:
-      tags: [Organizations]
-      security: [{ cookieAuth: [] }]
-      summary: Rename the current organization
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string, minLength: 1, maxLength: 120 }
-      responses:
-        "200":
-          description: Updated organization state
   /api/accounts:
     get:
       tags: [Accounts]
@@ -429,7 +418,7 @@ paths:
                 properties:
                   transaction: { $ref: "#/components/schemas/Transaction" }
         "404":
-          description: Not found in current organization
+          description: Not found in this book
   /api/transactions/{transactionId}/void:
     post:
       tags: [Transactions]
@@ -627,7 +616,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        organization_id: { type: string }
+        user_id: { type: string }
         code: { type: string }
         name: { type: string }
         account_class: { $ref: "#/components/schemas/AccountClass" }
@@ -650,7 +639,7 @@ components:
         cash_bank_account: { type: [string, "null"] }
         counter_account: { type: [string, "null"] }
         direction: { type: string, enum: [in, out, neutral] }
-        created_by: { type: string }
+        user_id: { type: string }
         created_at: { type: integer }
         voided_at: { type: [integer, "null"] }
         void_reason: { type: [string, "null"] }
@@ -694,24 +683,3 @@ components:
         accounts:
           type: array
           items: { $ref: "#/components/schemas/ReportLine" }
-    OrganizationState:
-      type: object
-      properties:
-        organization:
-          type: [object, "null"]
-          properties:
-            id: { type: string }
-            name: { type: string }
-            base_currency: { type: string, enum: [IDR] }
-            status: { type: string, enum: [active] }
-        member:
-          type: [object, "null"]
-          properties:
-            role: { type: string, enum: [owner] }
-            can_create_transaction: { type: boolean }
-            can_view_reports: { type: boolean }
-            can_manage_accounts: { type: boolean }
-            can_void_transaction: { type: boolean }
-        needsOnboarding:
-          type: boolean
-          description: Always false in the MVP (no onboarding flow)

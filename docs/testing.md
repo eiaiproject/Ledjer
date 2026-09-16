@@ -14,7 +14,7 @@ Local CI wrapper (`scripts/ci-local.sh` mirrors the GitHub Actions quality
 job):
 
 ```bash
-pnpm ci:local            # dependency audit, org-scoping, typecheck, lint, test, build, secret scan
+pnpm ci:local            # dependency audit, user-scoping, typecheck, lint, test, build, secret scan
 pnpm ci:local:full       # + fresh D1 migration apply + seed + public Playwright E2E
 ```
 
@@ -29,9 +29,9 @@ Two suites, one runner (`vitest run` covers `src/**/*.{test,spec}.{ts,tsx}` and
   guards. Worker tests do not hit a real D1: they run against
   `worker/test/fake-d1.ts`, an in-memory `FakeD1Database` that mirrors the SQL
   shapes the services emit, seeded deterministically by
-  `worker/test/fixtures.ts` (two orgs + an empty org, full COA, posted and
-  voided transactions, pre-hashed sessions). Functional areas covered:
-  accounting invariants, tenant isolation, CSRF/security/error redaction,
+  `worker/test/fixtures.ts` (three users, each with their own book, full COA,
+  posted and voided transactions, pre-hashed sessions). Functional areas covered:
+  accounting invariants, user isolation, CSRF/security/error redaction,
   reports, exports, sessions, rate limits, backup/restore.
 
 Coverage thresholds (lines 80%, branches 75%) apply to worker services,
@@ -64,10 +64,10 @@ authenticated specs (`new-transaction`, `accounts`, `exports`,
 `profit-loss`, `balance-sheet`, `settings-crud`, `quick-entry`) which use
 the `authPage` fixture from `e2e/helpers/auth.ts`.
 
-> Cross-tenant isolation is covered at the service layer
-> (`worker/__tests__/tenant-isolation.test.ts`, `cross-tenant.test.ts`) plus
-> the org-scoping CI check — there is intentionally no e2e spec for it
-> (requires a two-org fixture that the shared staging DB cannot provide).
+> Cross-user isolation is covered at the service layer
+> (`worker/__tests__/user-isolation.test.ts`, `cross-user.test.ts`) plus
+> the user-scoping CI check — there is intentionally no e2e spec for it
+> (requires a second seeded account that the shared staging DB cannot provide).
 
 ### Authenticated E2E (session token)
 
@@ -104,7 +104,7 @@ forbidden list) and that numbering stays sequential 0001-0006.
 
 ## CI
 
-`.github/workflows/ci.yml` runs: dependency audit → org-scoping check →
+`.github/workflows/ci.yml` runs: dependency audit → user-scoping check →
 typecheck → lint → unit tests → production build (with secret scan) →
 migration naming guard; a second job applies D1 migrations from an empty local
 database. Public Playwright smoke and cross-browser checks run in their own

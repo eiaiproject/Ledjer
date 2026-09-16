@@ -4,7 +4,6 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { currentMonthPeriod, getDashboardAlerts, getDashboardSummary } from "./dashboard.service";
 import { postTransaction } from "./transactions.service";
 
-const ORG_A = FIXTURE_IDS.orgs.a;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
 
 function freshDb(): D1Database {
@@ -22,7 +21,7 @@ describe("currentMonthPeriod", () => {
 
 describe("getDashboardSummary", () => {
   it("computes the total cash & bank balance from posted journals", async () => {
-    const summary = await getDashboardSummary(freshDb(), ORG_A);
+    const summary = await getDashboardSummary(freshDb(), OWNER_A);
 
     // Kas = 5jt + 2jt - 1.2jt - 0.5jt + 0.8jt (Juli) = 6.1jt; Bank = 500rb.
     expect(summary.cashBankBalance).toBe(6600000);
@@ -34,19 +33,19 @@ describe("getDashboardSummary", () => {
   });
 
   it("includes recent transactions in the summary", async () => {
-    const summary = await getDashboardSummary(freshDb(), ORG_A);
+    const summary = await getDashboardSummary(freshDb(), OWNER_A);
     expect(summary.recentTransactions.length).toBeGreaterThan(0);
     expect(summary.recentTransactions[0].transaction_number).toMatch(/^TRX-/);
   });
 
   it("reflects a newly posted cash_in in the balance and month totals", async () => {
     const db = freshDb();
-    const before = await getDashboardSummary(db, ORG_A);
+    const before = await getDashboardSummary(db, OWNER_A);
 
     // Post on the 1st of the current month (never in the future, always in
     // the current month) so moneyIn/netIncome deltas are deterministic.
     const { from } = currentMonthPeriod();
-    await postTransaction(db, ORG_A, OWNER_A, {
+    await postTransaction(db, OWNER_A, {
       transactionType: "cash_in",
       transactionDate: from,
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -56,7 +55,7 @@ describe("getDashboardSummary", () => {
       idempotencyKey: "idem-dash-cashin-0001",
     });
 
-    const after = await getDashboardSummary(db, ORG_A);
+    const after = await getDashboardSummary(db, OWNER_A);
     expect(after.cashBankBalance).toBe(before.cashBankBalance + 1000000);
     expect(after.moneyIn).toBe(before.moneyIn + 1000000);
     expect(after.netIncome).toBe(before.netIncome + 1000000);
@@ -64,15 +63,15 @@ describe("getDashboardSummary", () => {
 });
 
 describe("getDashboardAlerts", () => {
-  it("reports no negative balances for a healthy org", async () => {
-    const alerts = await getDashboardAlerts(freshDb(), ORG_A);
+  it("reports no negative balances for a healthy book", async () => {
+    const alerts = await getDashboardAlerts(freshDb(), OWNER_A);
     expect(alerts.negativeBalanceAccounts).toEqual([]);
   });
 
   it("flags a cash/bank account with a negative balance", async () => {
     const db = freshDb();
     // Drain Kas with a large cash_out (debit expense, credit cash).
-    await postTransaction(db, ORG_A, OWNER_A, {
+    await postTransaction(db, OWNER_A, {
       transactionType: "cash_out",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -82,7 +81,7 @@ describe("getDashboardAlerts", () => {
       idempotencyKey: "idem-dash-negative-0001",
     });
 
-    const alerts = await getDashboardAlerts(db, ORG_A);
+    const alerts = await getDashboardAlerts(db, OWNER_A);
     expect(alerts.negativeBalanceAccounts).toHaveLength(1);
     expect(alerts.negativeBalanceAccounts[0].name).toBe("Kas");
     expect(alerts.negativeBalanceAccounts[0].balance).toBeLessThan(0);

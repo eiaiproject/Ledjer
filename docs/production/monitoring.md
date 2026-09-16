@@ -80,6 +80,6 @@ Create a Cloudflare Dashboard or Grafana dashboard with:
 2. p50/p95/p99 latency
 3. Error rate by status code
 4. Auth success vs failure
-5. Active organizations
+5. Active books (users with at least one transaction)
 6. Export volume
 7. Backup age

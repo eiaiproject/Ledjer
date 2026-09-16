@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { getGeneralLedger, type GeneralLedgerEntry } from "@/lib/api/reports";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
@@ -23,8 +23,7 @@ interface LedgerGroup {
 }
 
 export function GeneralLedgerPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const initialRange = monthRange();
 
   const [fromDate, setFromDate] = useState(initialRange.from);
@@ -37,30 +36,30 @@ export function GeneralLedgerPage() {
   });
 
   const accountsQuery = useQuery({
-    queryKey: queryKeys.accounts.fullList(orgId ?? ""),
+    queryKey: queryKeys.accounts.fullList(userId ?? ""),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listAccounts();
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const query = useQuery({
     queryKey: queryKeys.reports.generalLedger(
-      orgId,
+      userId,
       submitted.fromDate,
       submitted.toDate,
       submitted.accountId || undefined,
     ),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getGeneralLedger(
         submitted.fromDate,
         submitted.toDate,
         submitted.accountId || undefined,
       );
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const report = query.data;

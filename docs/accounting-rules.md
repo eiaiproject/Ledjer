@@ -45,10 +45,10 @@ Validation rules enforced by `transactions.service.ts` (`validateTransaction`):
 ## Chart of Accounts
 
 16 default accounts are created automatically on registration
-(`DEFAULT_ACCOUNTS` in `organization.service.ts`). `Persediaan` (asset) dan
+(`DEFAULT_ACCOUNTS` in `ledger.service.ts`). `Persediaan` (asset) dan
 `Harga Pokok Penjualan` (expense) ditandai dengan `account_kind`
 (`inventory` / `cogs`) sehingga service bisa menemukannya walau diganti nama;
-keduanya juga di-backfill untuk organisasi lama oleh migrasi 0006.
+keduanya juga di-backfill untuk buku lama oleh migrasi 0006.
 
 | Code | Name | Class | Subtype | Kind |
 |------|------|-------|---------|------|
@@ -153,7 +153,7 @@ with their journal intact for audit.
 ## Reports
 
 All reports read journal lines of `posted` transactions only, scoped to the
-current organization:
+signed-in user's book:
 
 - **Laba Rugi (P&L)** - `income` accounts (credit − debit) and `expense`
   accounts (debit − credit) within a date range; `netIncome = income − expense`.
@@ -177,17 +177,17 @@ CSV export of transactions (`GET /api/exports/transactions.csv`):
 - Hard cap of 50,000 rows (`export_too_large` otherwise) to protect Worker
   memory; count is checked before materializing rows.
 
-## Organization / Multi-tenancy
+## Single-User Book Scoping
 
-Every account, transaction, journal entry, journal line, membership, and audit
-log row carries `organization_id` and every query filters by it. The active
-organization is resolved from the session; access requires an `owner`
-membership (the only role in the MVP). See
-[docs/architecture/tenant-isolation.md](architecture/tenant-isolation.md).
+Satu akun = satu buku. Every account, product, transaction, journal entry,
+journal line, stock movement, and audit log row carries `user_id` and every
+query filters by it. The scope comes from the session (`session.user_id`);
+there is no organization or role layer. See
+[docs/architecture/single-user-book.md](architecture/single-user-book.md).
 
 ## Audit Log
 
 User actions are recorded in `audit_logs`: registration/login/logout (auth
-events), organization updates, account create/update, and transaction
+events), profile updates, account create/update, and transaction
 create/void. Rows are retained 7 years by the daily cleanup cron (see
 `maintenance.service.ts`).

@@ -118,7 +118,7 @@ For a full end-to-end restore test against an isolated database:
 wrangler d1 execute ledjer-dev --file=<backup-file> --local
 # 2. Run verifyRestore via the Worker (requires calling the function directly)
 #    or run manual SQL checks:
-wrangler d1 execute ledjer-dev --command="SELECT COUNT(*) FROM organizations" --local
+wrangler d1 execute ledjer-dev --command="SELECT COUNT(*) FROM users" --local
 wrangler d1 execute ledjer-dev --command="SELECT COUNT(*) FROM transactions" --local
 wrangler d1 execute ledjer-dev --command="SELECT COUNT(*) FROM journal_entries" --local
 ```

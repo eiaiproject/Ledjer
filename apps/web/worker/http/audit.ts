@@ -2,7 +2,7 @@ import { statement } from "../db/client";
 import { generateId } from "../auth/tokens";
 
 export interface WriteAuditInput {
-  organizationId: string | null;
+  userId: string | null;
   actorUserId: string;
   entityType: string;
   entityId: string;
@@ -23,12 +23,12 @@ export function writeAuditStatement(
   return statement(
     db,
     `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
+       id, user_id, actor_user_id, entity_type, entity_id, action,
        before_json, after_json, reason, request_id, created_at
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       generateId(),
-      input.organizationId,
+      input.userId,
       input.actorUserId,
       input.entityType,
       input.entityId,

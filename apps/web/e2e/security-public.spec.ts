@@ -216,7 +216,7 @@ test.describe("API-level authorization", () => {
       "/api/reports/profit-loss?fromDate=2026-01-01&toDate=2026-12-31",
       "/api/reports/balance-sheet?asOfDate=2026-01-01",
       "/api/exports/transactions.csv",
-      "/api/organizations/current",
+      "/api/products",
     ];
 
     for (const endpoint of sensitiveEndpoints) {

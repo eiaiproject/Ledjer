@@ -1,69 +1,51 @@
-# Permission Matrix (MVP)
+# Route Protection Matrix (MVP)
 
-## Roles
+## Authorization Model
 
-The MVP has a single role: **`owner`**. `owner` holds every permission; the
-membership row also exposes boolean capability flags (`can_create_transaction`,
-`can_view_reports`, `can_manage_accounts`, `can_void_transaction`) that the
-frontend reads for UI gating - all true for `owner`.
-
-Permissions are defined as a `Permission` union in
-`worker/services/organization.service.ts` (`ROLE_PERMISSIONS`) and enforced by
-the `requirePermission(...)` middleware:
-
-| Permission | Owner |
-|------------|-------|
-| organization:read | ✓ |
-| organization:update | ✓ |
-| accounts:read | ✓ |
-| accounts:write | ✓ |
-| products:read | ✓ |
-| products:write | ✓ |
-| transactions:read | ✓ |
-| transactions:create | ✓ |
-| transactions:void | ✓ |
-| reports:read | ✓ |
-| exports:create | ✓ |
+Satu akun = satu buku. There is **no role system**: the signed-in user owns
+their book outright, so there is no membership, no `ROLE_PERMISSIONS` table, and
+no `organization:*` permission. Anything the API exposes under `/api/*` is
+authorized by authentication plus `user_id` scoping — see
+[single-user-book.md](single-user-book.md).
 
 ## Route Protection Audit
 
 Every route under `/api/*` first passes the CSRF origin check
-(`worker/index.ts`, see [csrf](../security/csrf.md)) and then the middleware
-below. Order per route group: `requireAuth()` →
-`loadCurrentOrganization()` → `requirePermission(...)`.
+(`worker/index.ts`, see [csrf](../security/csrf.md)) and then
+`requireAuth()` where listed. Actions further scope queries to
+`session.user_id`.
 
-| Route | Auth | Org | Permission | Notes |
-|-------|------|-----|------------|-------|
-| GET /api/health, /api/health/ready | - | - | - | Public |
-| GET /api/metrics, /api/metrics/detailed | - | - | - | Public, in-memory counters |
-| POST /api/auth/register | - | - | - | Rate-limited (5/15 min/IP) |
-| POST /api/auth/login | - | - | - | Rate-limited (10/15 min/IP+email) |
-| POST /api/auth/logout | - | - | - | Revokes session if present |
-| GET /api/auth/me | - | - | - | Session read; returns null when absent |
-| GET /api/auth/google/start | - | - | - | OAuth entry; requires GOOGLE_CLIENT_ID/SECRET |
-| GET /api/auth/google/callback | - | - | - | OAuth callback (state-cookie CSRF) |
-| GET /api/organizations/current | ✓ | - | - | Resolves session org manually |
-| PATCH /api/organizations/current | ✓ | ✓ | organization:update | |
-| GET /api/accounts | ✓ | ✓ | accounts:read | `includeInactive`, `subtype` filters |
-| POST /api/accounts/cash-bank | ✓ | ✓ | accounts:write | Create cash/bank account |
-| PATCH /api/accounts/:id | ✓ | ✓ | accounts:write | Rename / toggle active |
-| GET /api/products | ✓ | ✓ | products:read | List (active only by default) |
-| POST /api/products | ✓ | ✓ | products:write | Create product |
-| PATCH /api/products/:id | ✓ | ✓ | products:write | Rename / price / toggle active |
-| GET /api/transactions | ✓ | ✓ | transactions:read | List + count, filters |
-| POST /api/transactions | ✓ | ✓ | transactions:create | Idempotency key; rate-limited |
-| GET /api/transactions/:id | ✓ | ✓ | transactions:read | |
-| POST /api/transactions/:id/void | ✓ | ✓ | transactions:void | Rate-limited |
-| GET /api/reports/profit-loss | ✓ | ✓ | reports:read | Date range required |
-| GET /api/reports/balance-sheet | ✓ | ✓ | reports:read | As-of date required |
-| GET /api/reports/general-ledger | ✓ | ✓ | reports:read | Date range; optional accountId |
-| GET /api/dashboard/summary | ✓ | ✓ | reports:read | |
-| GET /api/dashboard/alerts | ✓ | ✓ | reports:read | Negative cash/bank balances |
-| GET /api/exports/transactions.csv | ✓ | ✓ | exports:create | CSV, 50k row cap |
+| Route | Auth | Notes |
+|-------|------|-------|
+| GET /api/health, /api/health/ready | - | Public |
+| GET /api/metrics, /api/metrics/detailed | - | Public, in-memory counters |
+| POST /api/auth/register | - | Rate-limited (5/15 min/IP); creates user + default COA |
+| POST /api/auth/login | - | Rate-limited (10/15 min/IP+email) |
+| POST /api/auth/logout | - | Revokes session if present |
+| GET /api/auth/me | - | Session read; returns `null` when absent |
+| PATCH /api/auth/me | ✓ | Update `business_name` (dulu `organization.name`) |
+| GET /api/auth/google/start | - | OAuth entry; requires GOOGLE_CLIENT_ID/SECRET |
+| GET /api/auth/google/callback | - | OAuth callback (state-cookie CSRF) |
+| GET /api/accounts | ✓ | `includeInactive`, `subtype` filters |
+| POST /api/accounts/cash-bank | ✓ | Create cash/bank account |
+| PATCH /api/accounts/:id | ✓ | Rename / toggle active |
+| GET /api/products | ✓ | List (active only by default) |
+| POST /api/products | ✓ | Create product |
+| PATCH /api/products/:id | ✓ | Rename / price / toggle active |
+| GET /api/transactions | ✓ | List + count, filters |
+| POST /api/transactions | ✓ | Idempotency key; rate-limited |
+| GET /api/transactions/:id | ✓ | |
+| POST /api/transactions/:id/void | ✓ | Rate-limited |
+| GET /api/reports/profit-loss | ✓ | Date range required |
+| GET /api/reports/balance-sheet | ✓ | As-of date required |
+| GET /api/reports/general-ledger | ✓ | Date range; optional accountId |
+| GET /api/dashboard/summary | ✓ | |
+| GET /api/dashboard/alerts | ✓ | Negative cash/bank balances |
+| GET /api/exports/transactions.csv | ✓ | CSV, 50k row cap |
 
-> Routes removed with the pre-MVP scope (products, parties, inventory, team,
-> invitations, period locks, audit logs, attachments, imports, push) do not
-> exist; requests hit the 404 handler.
+> Routes that never existed in the MVP scope (organizations, memberships, team,
+> invitations, period locks, parties, attachments, imports, push) do not exist;
+> requests hit the 404 handler.
 
 ## Middleware Semantics
 
@@ -71,17 +53,11 @@ below. Order per route group: `requireAuth()` →
   production, `ledjer_session` otherwise). Returns 401 when missing, revoked, or
   expired; sets `c.get("session")` and `c.get("user")`. Session tokens are
   rotated server-side after 7 days (new token set as a cookie).
-- `loadCurrentOrganization()`: resolves the membership from the session's
-  `current_organization_id`. Returns 403 `organization_required` when the user
-  has no membership.
-- `requirePermission(p)`: checks `ROLE_PERMISSIONS[member.role]`. Returns 400
-  `permission_denied` when absent (single-role MVP: never fires for owners).
 
 ### Error Responses
 
 - 401: `{ error: { code: "unauthorized", message, requestId } }`
-- 403: `{ error: { code: "organization_required" | "csrf_invalid", ... } }`
-- 400: `{ error: { code: "permission_denied", ... } }`
+- 403: `{ error: { code: "csrf_invalid", ... } }`
 
 All errors share one envelope: `{ error: { code, message, requestId } }`
 (`worker/http/errors.ts` + `middleware/error.middleware.ts`).

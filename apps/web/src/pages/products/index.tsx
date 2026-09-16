@@ -1,7 +1,7 @@
 import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Edit, Plus, Power } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { createProduct, getProductMovements, listProductsPage, patchProduct, type Product, type ProductListSort, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,8 +38,7 @@ interface EditState {
 }
 
 export function ProductsPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
@@ -60,12 +59,12 @@ export function ProductsPage() {
     chip === "active" || chip === "inactive" ? chip : "all";
   const stockParam = chip === "low" || chip === "out" ? chip : undefined;
   const query = useQuery({
-    queryKey: queryKeys.products.page(orgId, {
+    queryKey: queryKeys.products.page(userId, {
       search: deferredSearch, status: statusParam ?? "", stock: stockParam ?? "",
       sort, limit: PAGE_SIZE, offset,
     }),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listProductsPage({
         search: deferredSearch || undefined,
         status: statusParam,
@@ -75,7 +74,7 @@ export function ProductsPage() {
         offset,
       });
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const products = query.data?.products ?? [];
@@ -401,15 +400,14 @@ function parseAmount(raw: string): number {
 
 /** Riwayat mutasi satu produk: dimuat malas saat baris dikembangkan. */
 function ProductMovementHistory({ productId, unit }: { readonly productId: string; readonly unit: string }) {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const query = useQuery({
-    queryKey: queryKeys.products.movements(orgId, productId),
+    queryKey: queryKeys.products.movements(userId, productId),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getProductMovements(productId);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   if (query.isLoading) {
