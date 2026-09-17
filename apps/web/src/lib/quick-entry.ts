@@ -379,6 +379,34 @@ function splitParty(tokens: string[]): { head: string[]; partyQuery?: string } {
 /** Kata pengisi yang diabaikan dalam urutan nominal-dulu ("dapat 251 butir"). */
 const FILLER_TOKENS = new Set(["dapat", "dpt"]);
 
+/** Badan usaha yang selalu huruf besar semua bila diketik kecil. */
+const PARTY_ACRONYMS = new Set(["pt", "cv", "ud", "pd", "fa", "tbk"]);
+
+/**
+ * Ambil ejaan asli pihak dari teks ketikan (parser bekerja lowercase sehingga
+ * partyQuery selalu kecil). Cari dari penanda ke/dari terakhir agar kemunculan
+ * di nama produk tidak ikut terambil. Fallback ke query bila tak cocok
+ * (spasi ganda / Unicode panjang-berubah seperti İ).
+ */
+export function extractOriginalParty(text: string, partyQueryLower: string): string {
+  const lowered = text.toLowerCase();
+  const markerIdx = Math.max(lowered.lastIndexOf(" ke "), lowered.lastIndexOf(" dari "));
+  const from = markerIdx >= 0 ? markerIdx : 0;
+  const idx = lowered.indexOf(partyQueryLower, from);
+  if (idx < 0) return partyQueryLower;
+  const slice = text.slice(idx, idx + partyQueryLower.length);
+  if (slice.toLowerCase() !== partyQueryLower) return partyQueryLower;
+  return slice;
+}
+
+/** Pertahankan kapital ketikan, tapi paksa akronim badan usaha jadi kapital semua. */
+export function normalizePartyName(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => (PARTY_ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w))
+    .join(" ");
+}
+
 /** Sufiks yang bermakna nominal — tidak boleh dibaca sebagai satuan qty. */
 const PRICE_SUFFIXES = new Set(Object.keys(PRICE_MULTIPLIERS));
 

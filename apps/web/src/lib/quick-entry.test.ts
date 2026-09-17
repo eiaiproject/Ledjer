@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDraft, matchProducts, parseQuickEntryText } from "./quick-entry";
+import { buildDraft, extractOriginalParty, matchProducts, normalizePartyName, parseQuickEntryText } from "./quick-entry";
 
 describe("parseQuickEntryText (inti)", () => {
   it("memahami jual dengan qty dan nominal total", () => {
@@ -162,6 +162,23 @@ describe("parseQuickEntryText (urutan kata fleksibel)", () => {
     expect(parseQuickEntryText("jual telur ke Nadia 81rb")).toEqual({
       ok: false, message: "Tulis jumlah dan nominalnya, contoh: jual telur 30 butir 81rb",
     });
+  });
+});
+
+describe("extractOriginalParty + normalizePartyName", () => {
+  it("mempertahankan kapital ketikan", () => {
+    expect(extractOriginalParty("beli Telur Dari Budi 495000 dapat 251 butir", "budi")).toBe("Budi");
+  });
+  it("mempertahankan kapital multi-kata", () => {
+    expect(extractOriginalParty("jual telur ke Budi Santoso 30 butir 81rb", "budi santoso")).toBe("Budi Santoso");
+  });
+  it("fallback bila tak ditemukan", () => {
+    expect(extractOriginalParty("jual telur 30 butir 81rb", "nadia")).toBe("nadia");
+  });
+  it("akronim jadi kapital semua", () => {
+    expect(normalizePartyName("pt maju")).toBe("PT maju");
+    expect(normalizePartyName("Budi")).toBe("Budi");
+    expect(normalizePartyName("UD Sumber Makmur")).toBe("UD Sumber Makmur");
   });
 });
 

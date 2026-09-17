@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBook } from "@/hooks/useBook";
 import {
   buildDraft,
+  extractOriginalParty,
   matchProducts,
+  normalizePartyName,
   parseQuickEntryText,
   type ProductLite,
   type QuickEntryDraft,
@@ -188,6 +190,11 @@ export function QuickEntryBar() {
       return;
     }
     startDraft(built);
+    // Kembalikan ejaan asli pihak dari ketikan (parser bekerja lowercase)
+    // agar "Budi"/"PT Maju" tersimpan sebagaimana diketik, bukan kecil semua.
+    if ("partyQuery" in built && typeof built.partyQuery === "string" && built.partyQuery) {
+      setPartyName(normalizePartyName(extractOriginalParty(text, built.partyQuery)));
+    }
     if ((built.candidates?.length ?? 0) > 1) {
       // Biarkan pengguna memilih lewat dropdown kandidat.
     }
