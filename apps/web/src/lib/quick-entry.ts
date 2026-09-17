@@ -399,6 +399,19 @@ export function normalizePartyName(name: string): string {
     .join(" ");
 }
 
+/**
+ * Ambil ejaan asli potongan query dari teks ketikan (tanpa patokan penanda).
+ * Dipakai untuk nama produk baru agar "Kopi" tidak tersimpan "kopi".
+ */
+export function extractOriginalText(text: string, queryLower: string, from = 0): string {
+  const lowered = text.toLowerCase();
+  const idx = lowered.indexOf(queryLower, from);
+  if (idx < 0) return queryLower;
+  const slice = text.slice(idx, idx + queryLower.length);
+  if (slice.toLowerCase() !== queryLower) return queryLower;
+  return slice;
+}
+
 /** Sufiks yang bermakna nominal — tidak boleh dibaca sebagai satuan qty. */
 const PRICE_SUFFIXES = new Set(Object.keys(PRICE_MULTIPLIERS));
 

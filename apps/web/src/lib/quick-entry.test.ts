@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDraft, extractOriginalParty, matchProducts, normalizePartyName, parseQuickEntryText } from "./quick-entry";
+import { buildDraft, extractOriginalParty, extractOriginalText, matchProducts, normalizePartyName, parseQuickEntryText } from "./quick-entry";
 
 describe("parseQuickEntryText (inti)", () => {
   it("memahami jual dengan qty dan nominal total", () => {
@@ -174,6 +174,10 @@ describe("extractOriginalParty + normalizePartyName", () => {
   });
   it("fallback bila tak ditemukan", () => {
     expect(extractOriginalParty("jual telur 30 butir 81rb", "nadia")).toBe("nadia");
+  });
+  it("extractOriginalText mengambil ejaan asli tanpa penanda", () => {
+    expect(extractOriginalText("beli Kopi Tubruk 5 bungkus 50000", "kopi tubruk")).toBe("Kopi Tubruk");
+    expect(extractOriginalText("beli kopi 5 20000", "teh")).toBe("teh");
   });
   it("akronim jadi kapital semua", () => {
     expect(normalizePartyName("pt maju")).toBe("PT maju");

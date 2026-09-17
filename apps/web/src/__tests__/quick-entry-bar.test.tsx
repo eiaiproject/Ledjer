@@ -18,8 +18,10 @@ vi.mock('@/lib/db/provider', () => ({
 }));
 
 const listProducts = vi.fn();
+const createProduct = vi.fn();
 vi.mock('@/lib/api/products', () => ({
   listProducts: (...args: unknown[]) => listProducts(...args),
+  createProduct: (...args: unknown[]) => createProduct(...args),
 }));
 
 const listCashBankAccounts = vi.fn();
@@ -243,6 +245,110 @@ describe('QuickEntryBar', () => {
     fireEvent.click(kirim);
 
     expect(await screen.findByRole('button', { name: /^Catat$/ })).toBeEnabled();
+  });
+
+  it('beli tak dikenal menawarkan panel produk baru, bukan error', async () => {
+    seedCatalog();
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli Kopi Baru 5 bungkus 50000' } });
+    fireEvent.click(kirim);
+
+    expect(await screen.findByText(/Produk baru: Kopi Baru/)).toBeTruthy();
+    expect(screen.getByText(/akan dibuat/)).toBeTruthy();
+    expect(createProduct).not.toHaveBeenCalled();
+    expect(postTransaction).not.toHaveBeenCalled();
+  });
+
+  it('buat dan catat membuat produk lalu pembelian berurutan', async () => {
+    seedCatalog();
+    listCashBankAccounts.mockResolvedValue([{ id: 'kas-1', name: 'Kas', balance_idr: 1000000 }]);
+    createProduct.mockResolvedValue({ id: 'p-baru', name: 'Kopi Baru' });
+    postTransaction.mockResolvedValue({ transaction_id: 't-5', transaction_number: 'TRX-N', status: 'posted' });
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli Kopi Baru 5 bungkus 50000' } });
+    fireEvent.click(kirim);
+    await screen.findByText(/Produk baru: Kopi Baru/);
+
+    fireEvent.click(screen.getByRole('button', { name: /buat.*catat/i }));
+
+    await waitFor(() => expect(createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Kopi Baru', unit: 'bungkus', sellingPriceIdr: 0 }),
+    ));
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'purchase', amountIdr: 50000 }),
+    );
+    // Urutan: produk dulu, pembelian sesudahnya.
+    expect(createProduct.mock.invocationCallOrder[0]).toBeLessThan(
+      postTransaction.mock.invocationCallOrder[postTransaction.mock.invocationCallOrder.length - 1],
+    );
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+  });
+
+  it('typo dekat menampilkan kandidat, bukan panel buat-baru', async () => {
+    seedCatalog();
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli kopy 5pcs 50000' } });
+    fireEvent.click(kirim);
+
+    expect(await screen.findByRole('button', { name: /^Catat$/ })).toBeTruthy();
+    expect(screen.queryByText(/Produk baru:/)).toBeNull();
+  });
+
+  it('ambigu pilih Stok produk tak dikenal masuk panel dengan satuan wajib isi', async () => {
+    seedCatalog();
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli mika telur 34500' } });
+    fireEvent.click(kirim);
+    fireEvent.click(await screen.findByRole('button', { name: /^Stok$/ }));
+
+    expect(await screen.findByText(/Produk baru: mika telur/)).toBeTruthy();
+    // Satuan kosong → tombol mati.
+    expect(screen.getByRole('button', { name: /buat.*catat/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/^Satuan$/), { target: { value: 'pcs' } });
+    fireEvent.change(screen.getByLabelText(/^Jumlah$/), { target: { value: '10' } });
+    expect(screen.getByRole('button', { name: /buat.*catat/i })).toBeEnabled();
+  });
+
+  it('gagal langkah pembelian jujur bahwa produk sudah dibuat', async () => {
+    seedCatalog();
+    listCashBankAccounts.mockResolvedValue([{ id: 'kas-1', name: 'Kas', balance_idr: 1000000 }]);
+    createProduct.mockResolvedValue({ id: 'p-baru2', name: 'Kopi Lagi' });
+    const { ApiError } = await import('@/lib/api/client');
+    postTransaction.mockRejectedValueOnce(new ApiError(400, 'counter_account_required', 'Akun lawan harus diisi.'));
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli Kopi Lagi 5 bungkus 50000' } });
+    fireEvent.click(kirim);
+    await screen.findByText(/Produk baru: Kopi Lagi/);
+    fireEvent.click(screen.getByRole('button', { name: /buat.*catat/i }));
+
+    expect(await screen.findByText(/sudah dibuat, pembelian gagal/)).toBeTruthy();
+  });
+
+  it('offline mematikan buat produk baru dengan alasan', async () => {
+    seedCatalog();
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      renderBar();
+      const kirim = await readyToSend();
+
+      fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli Kopi Baru 5 bungkus 50000' } });
+      fireEvent.click(kirim);
+
+      expect(await screen.findByText(/Butuh koneksi internet/)).toBeTruthy();
+      expect(screen.getByRole('button', { name: /buat.*catat/i })).toBeDisabled();
+    } finally {
+      online.mockRestore();
+    }
   });
 
   it('tombol Catat mati bila akun ekuitas hilang', async () => {
