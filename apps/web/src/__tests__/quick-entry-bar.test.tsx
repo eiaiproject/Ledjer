@@ -30,8 +30,10 @@ vi.mock('@/lib/api/accounts', () => ({
 }));
 
 const postTransaction = vi.fn();
+const listTransactions = vi.fn();
 vi.mock('@/lib/api/transactions', () => ({
   postTransaction: (...args: unknown[]) => postTransaction(...args),
+  listTransactions: (...args: unknown[]) => listTransactions(...args),
 }));
 const product = {
   id: 'p-kopi',
@@ -210,6 +212,37 @@ describe('QuickEntryBar', () => {
 
     expect(await screen.findByText(/Kas tidak cukup/)).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
+  });
+
+  it('tombol Catat mati bila tanggal lebih tua dari catatan terakhir', async () => {
+    seedCatalog();
+    const today = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const yesterday = fmt(new Date(today.getTime() - 86400000));
+    listTransactions.mockResolvedValue({ transactions: [{ transaction_date: fmt(today) }], total: 1 });
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'transfer 200rb' } });
+    fireEvent.click(kirim);
+    await screen.findByRole('button', { name: /^Catat$/ });
+    fireEvent.change(screen.getByLabelText(/^Tanggal$/), { target: { value: yesterday } });
+
+    expect(await screen.findByText(/Catatan terakhir/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
+  });
+
+  it('tanggal sama dengan catatan terakhir tetap bisa dicatat', async () => {
+    seedCatalog();
+    const today = new Date().toISOString().slice(0, 10);
+    listTransactions.mockResolvedValue({ transactions: [{ transaction_date: today }], total: 1 });
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'transfer 200rb' } });
+    fireEvent.click(kirim);
+
+    expect(await screen.findByRole('button', { name: /^Catat$/ })).toBeEnabled();
   });
 
   it('tombol Catat mati bila akun ekuitas hilang', async () => {

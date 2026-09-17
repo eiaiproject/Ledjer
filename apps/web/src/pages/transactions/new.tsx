@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "reicon-react";
 import { useBook } from "@/hooks/useBook";
+import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
 import { listAccounts, type Account } from "@/lib/api/accounts";
 import { listProducts, type Product } from "@/lib/api/products";
 import { postTransaction, type TransactionType } from "@/lib/api/transactions";
@@ -75,11 +76,14 @@ export function NewTransactionPage() {
   const [goodsSale, setGoodsSale] = useState(false);
   const [items, setItems] = useState<FormItem[]>([]);
 
+  const maxDate = useMaxTransactionDate();
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema),
@@ -95,6 +99,10 @@ export function NewTransactionPage() {
 
   const watchType = watch("transactionType");
   const watchCashAccountId = watch("cashAccountId");
+  const watchDate = watch("transactionDate");
+  // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
+  // yang lebih baru (maxDate null = belum ada catatan / unknown → bebas).
+  const tooOld = maxDate !== null && watchDate !== "" && watchDate < maxDate;
 
   useEffect(() => {
     setSelectedType(watchType);
@@ -203,6 +211,15 @@ export function NewTransactionPage() {
   const onSubmit = async (data: TransactionForm) => {
     if (!userId) return;
 
+    // Backstop client untuk aturan server (server tetap menolak 400 bila lolos).
+    if (maxDate !== null && data.transactionDate < maxDate) {
+      setError("transactionDate", {
+        type: "validate",
+        message: `Catatan terakhir tanggal ${maxDate}. Void dulu transaksi tanggal itu untuk mencatat tanggal ini.`,
+      });
+      return;
+    }
+
     const isPurchaseSubmit = data.transactionType === "purchase";
     const withItems = isPurchaseSubmit || (data.transactionType === "cash_in" && goodsSale);
 
@@ -298,6 +315,14 @@ export function NewTransactionPage() {
               error={errors.transactionDate?.message}
               {...register("transactionDate")}
             />
+            {tooOld && maxDate && (
+              <p className="-mt-2 text-sm font-medium text-error">
+                Catatan terakhir tanggal {maxDate}. Untuk mencatat {watchDate}, void dulu transaksi tanggal {maxDate} lalu catat ulang.{" "}
+                <Link to={`/transactions?fromDate=${maxDate}&toDate=${maxDate}`} className="underline underline-offset-2">
+                  Lihat transaksi tanggal itu
+                </Link>
+              </p>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Select
@@ -433,7 +458,7 @@ export function NewTransactionPage() {
               <Button
                 type="submit"
                 loading={isSubmitting}
-                disabled={!userId || accountsQuery.isLoading || productsQuery.isLoading}
+                disabled={!userId || accountsQuery.isLoading || productsQuery.isLoading || tooOld}
               >
                 Simpan Transaksi
               </Button>

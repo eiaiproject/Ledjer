@@ -137,6 +137,54 @@ describe("postTransaction writes against real SQLite", () => {
     expect(product.average_cost_idr).toBe(20_000);
   });
 
+  describe("chronological append-only", () => {
+    async function postOn(date: string, key: string) {
+      return postTransaction(d1(), USER, {
+        transactionType: "owner_deposit",
+        transactionDate: date,
+        cashAccountId: CASH,
+        counterAccountId: EQUITY,
+        amountIdr: 10_000,
+        description: `Setor ${date}`,
+        idempotencyKey: key,
+      });
+    }
+
+    it("rejects a transaction older than the latest posted date", async () => {
+      // Max posted di DB ini: 2026-09-03 (dari test di atas).
+      const err = await postOn("2026-09-02", "sql-chrono-backdate-1").then(
+        () => null,
+        (e: unknown) => e as { code?: string; message?: string },
+      );
+      expect(err?.code ?? err?.message).toMatch(/backdate_not_allowed|lebih tua dari catatan terakhir/);
+    });
+
+    it("rejects a backdated purchase too", async () => {
+      const err = await postTransaction(d1(), USER, {
+        transactionType: "purchase",
+        transactionDate: "2026-09-01",
+        cashAccountId: CASH,
+        description: "Beli susulan",
+        idempotencyKey: "sql-chrono-purchase-1",
+        items: [{ productId: PRODUCT, quantity: 1, unitCostIdr: 20_000 }],
+      }).then(
+        () => null,
+        (e: unknown) => e as { code?: string; message?: string },
+      );
+      expect(err?.code ?? err?.message).toMatch(/backdate_not_allowed|lebih tua dari catatan terakhir/);
+    });
+
+    it("allows the same day as the latest record", async () => {
+      const created = await postOn("2026-09-03", "sql-chrono-sameday-1");
+      expect(row(created.transaction_id).status).toBe("posted");
+    });
+
+    it("allows a newer date", async () => {
+      const created = await postOn("2026-09-04", "sql-chrono-newer-1");
+      expect(row(created.transaction_id).status).toBe("posted");
+    });
+  });
+
   it("leaves every committed journal entry balanced", () => {
     const unbalanced = sqlite
       .prepare(

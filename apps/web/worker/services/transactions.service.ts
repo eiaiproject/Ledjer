@@ -244,6 +244,7 @@ export async function postTransaction(
   if (replay) return replay;
 
   await assertDateNotFuture(transactionDate);
+  await assertChronological(db, userId, transactionDate);
   const current = Date.now();
 
   const cashAccount = await getAccount(db, userId, input.cashAccountId);
@@ -552,6 +553,7 @@ async function postPurchase(
   if (replay) return replay;
 
   await assertDateNotFuture(input.transactionDate);
+  await assertChronological(db, userId, input.transactionDate);
   const current = Date.now();
 
   const cashAccount = await getAccount(db, userId, input.cashAccountId);
@@ -703,6 +705,7 @@ async function postGoodsSale(
   if (replay) return replay;
 
   await assertDateNotFuture(input.transactionDate);
+  await assertChronological(db, userId, input.transactionDate);
   const current = Date.now();
 
   const { cashAccount, incomeAccount, hppAccount, inventoryAccount } = await resolveSaleAccounts(
@@ -1056,6 +1059,27 @@ async function assertDateNotFuture(transactionDate: string): Promise<void> {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
   if (transactionDate > today) {
     throw badRequest("future_date_not_allowed", "Tanggal transaksi tidak boleh lebih dari hari ini.");
+  }
+}
+
+/**
+ * Append-only kronologis: tanggal baru tak boleh lebih tua dari catatan
+ * terakhir yang posted (void dikecualikan). Ini yang menjaga WAC/HPP benar
+ * tanpa mesin revaluasi — "stok berjalan" selalu sama dengan "stok kronologis".
+ * Tanggal yang sama boleh (beberapa transaksi sehari).
+ */
+async function assertChronological(db: D1Database, userId: string, transactionDate: string): Promise<void> {
+  const row = await queryFirst<{ max_date: string | null }>(
+    db,
+    `SELECT MAX(transaction_date) AS max_date FROM transactions WHERE user_id = ? AND status = 'posted'`,
+    [userId],
+  );
+  const maxDate = row?.max_date ?? null;
+  if (maxDate !== null && transactionDate < maxDate) {
+    throw badRequest(
+      "backdate_not_allowed",
+      `Tanggal ${transactionDate} lebih tua dari catatan terakhir (${maxDate}). Void dulu transaksi tanggal ${maxDate} bila ingin mencatat tanggal ini, lalu catat ulang.`,
+    );
   }
 }
 

@@ -22,6 +22,11 @@ import { getStatus } from "@/lib/status-registry";
 
 const PAGE_SIZE = 25;
 
+/** Tanggal dari URL (deep-link "lihat transaksi tanggal itu") — invalid → "". */
+function sanitizeDateParam(value: string | null): string {
+  return value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+}
+
 export function TransactionListPage() {
   const { userId } = useBook();
 
@@ -32,9 +37,21 @@ export function TransactionListPage() {
     TRANSACTION_TYPES.includes(initialType as (typeof TRANSACTION_TYPES)[number]) ? initialType : "",
   );
   const [status, setStatus] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  // Deep-link tanggal (mis. dari peringatan backdate di form/chat): selaraskan
+  // state saat query URL berubah (pola adjust-during-render, tanpa effect).
+  const qpFromDate = sanitizeDateParam(searchParams.get("fromDate"));
+  const qpToDate = sanitizeDateParam(searchParams.get("toDate"));
+  const [fromDate, setFromDate] = useState(qpFromDate);
+  const [toDate, setToDate] = useState(qpToDate);
   const [offset, setOffset] = useState(0);
+  const [prevDateParams, setPrevDateParams] = useState(`${qpFromDate}|${qpToDate}`);
+  const dateParamsKey = `${qpFromDate}|${qpToDate}`;
+  if (dateParamsKey !== prevDateParams) {
+    setPrevDateParams(dateParamsKey);
+    setFromDate(qpFromDate);
+    setToDate(qpToDate);
+    setOffset(0);
+  }
   const [exporting, setExporting] = useState(false);
 
   const filters = useMemo(

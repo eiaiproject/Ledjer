@@ -53,4 +53,6 @@ export function invalidateTransactionFinancialCaches(qc: QueryClient, userId = "
     queryKeys.reports.allGeneralLedger(),
   ];
   keys.forEach((k) => qc.invalidateQueries({ queryKey: k, refetchType: "all" }));
+  // Append-only kronologis: max-date ikut segar setiap tulis/void.
+  qc.invalidateQueries({ queryKey: ["max-transaction-date"], refetchType: "all" });
 }

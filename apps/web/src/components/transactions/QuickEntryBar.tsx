@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBook } from "@/hooks/useBook";
 import {
@@ -15,6 +16,7 @@ import { listAccounts, listCashBankAccounts } from "@/lib/api/accounts";
 import { postTransaction } from "@/lib/api/transactions";
 import { isApiError } from "@/lib/api/client";
 import { useLocalDb } from "@/lib/db/provider";
+import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
 import { getAllParties, getProductById, createPartyLocal, postTransactionLocal } from "@/lib/db/repos";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
-import { formatDateInputValue, formatIDR, formatQuantity } from "@/lib/utils";
+import { formatDateInputValue, formatIDR, formatQuantity, formatShortDate } from "@/lib/utils";
 
 const GUIDE_GROUPS: { title: string; note?: string; examples: string[] }[] = [
   {
@@ -95,6 +97,9 @@ export function QuickEntryBar() {
   // Tutorial selalu tertutup tiap buka halaman — tanpa ingatan antar-sesi.
   const [showGuide, setShowGuide] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Tanggal catat: default hari ini, bisa mundur (aturan append-only di bawah).
+  const [txDate, setTxDate] = useState(formatDateInputValue());
+  const maxDate = useMaxTransactionDate();
   const productsQuery = useQuery({
     queryKey: queryKeys.products.all(userId),
     queryFn: async () => {
@@ -163,6 +168,7 @@ export function QuickEntryBar() {
     setExpenseAccountId("");
     setPartyName(seed.partyQuery ?? "");
     setAmbiguousChoice(null);
+    setTxDate(formatDateInputValue());
     setDraftError(null);
     setDoneMessage(null);
   };
@@ -229,10 +235,16 @@ export function QuickEntryBar() {
     }
   })();
   const insufficientCash = outflowAmount !== null && cashBalance !== null && cashBalance < outflowAmount;
+  // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
+  // yang lebih baru. maxDate null = belum ada catatan / unknown (offline) → bebas.
+  const todayStr = formatDateInputValue();
+  const isFuture = txDate > todayStr;
+  const tooOld = maxDate !== null && txDate < maxDate;
   const valid = (() => {
     if (draft === null || posting) return false;
     if (!hasCash) return false;
     if (insufficientCash) return false;
+    if (isFuture || tooOld) return false;
     if (draft.kind === "sale" || draft.kind === "purchase") {
       return productId !== "" &&
         Number.isFinite(qty) && qty > 0 &&
@@ -298,7 +310,7 @@ export function QuickEntryBar() {
     if (!valid || !draft || !userId) return;
     setPosting(true);
     try {
-      const date = formatDateInputValue();
+      const date = txDate;
       let description = "";
       let postedTotal = totalNum;
       // Local-first: tulis ke SQLite perangkat dulu (offline), sync jalan di background.
@@ -496,6 +508,7 @@ export function QuickEntryBar() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.allProducts() });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
+      queryClient.invalidateQueries({ queryKey: ["max-transaction-date"] });
       toast.success("Transaksi tercatat.");
       setDoneMessage(`Transaksi tercatat: ${description} = ${formatIDR(postedTotal)}.`);
       setText("");
@@ -673,7 +686,27 @@ export function QuickEntryBar() {
                   Akun {draft?.kind === "deposit" ? "Modal Pemilik (3110)" : "Pengambilan Pemilik (3120)"} tidak ditemukan. Pulihkan bagan akun di halaman Akun.
                 </p>
               )}
+              {isFuture && (
+                <p className="text-sm font-medium text-error">
+                  Tanggal tidak boleh lebih dari hari ini.
+                </p>
+              )}
+              {tooOld && maxDate && (
+                <p className="text-sm font-medium text-error">
+                  Catatan terakhir tanggal {formatShortDate(maxDate)}. Untuk mencatat {formatShortDate(txDate)}, void dulu transaksi tanggal {formatShortDate(maxDate)} lalu catat ulang.{" "}
+                  <Link to={`/transactions?fromDate=${maxDate}&toDate=${maxDate}`} className="underline underline-offset-2">
+                    Lihat transaksi tanggal itu
+                  </Link>
+                </p>
+              )}
               <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  label="Tanggal"
+                  type="date"
+                  value={txDate}
+                  max={todayStr}
+                  onChange={(e) => setTxDate(e.target.value)}
+                />
                 {(draft.kind === "sale" || draft.kind === "purchase" || draft.kind === "stock_loss") && (
                   <Select
                     label="Produk"
