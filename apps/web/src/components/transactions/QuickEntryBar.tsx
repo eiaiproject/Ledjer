@@ -203,9 +203,28 @@ export function QuickEntryBar() {
   const equityDepositId = equityQuery.data?.find((a) => a.code === "3110")?.id ?? "";
   const equityWithdrawalId = equityQuery.data?.find((a) => a.code === "3120")?.id ?? "";
   const insufficient = (draft?.kind === "sale" || draft?.kind === "stock_loss") && Number.isFinite(qty) && qty > stock;
+  // Kecukupan kas sumber untuk arus keluar. Saldo unknown (offline/query gagal)
+  // berarti tidak diblokir — local-first tetap bisa mencatat tanpa koneksi.
+  const cashBalance = cashQuery.data?.find((a) => a.id === effectiveCashId)?.balance_idr ?? null;
+  const outflowAmount = (() => {
+    if (!draft || !Number.isInteger(totalNum) || totalNum <= 0) return null;
+    switch (draft.kind) {
+      case "purchase":
+      case "expense":
+      case "withdrawal":
+      case "transfer":
+        return totalNum;
+      case "ambiguous_buy":
+        return ambiguousChoice === null ? null : totalNum;
+      default:
+        return null;
+    }
+  })();
+  const insufficientCash = outflowAmount !== null && cashBalance !== null && cashBalance < outflowAmount;
   const valid = (() => {
     if (draft === null || posting) return false;
     if (!hasCash) return false;
+    if (insufficientCash) return false;
     if (draft.kind === "sale" || draft.kind === "purchase") {
       return productId !== "" &&
         Number.isFinite(qty) && qty > 0 &&
@@ -634,6 +653,11 @@ export function QuickEntryBar() {
               {insufficient && (
                 <p className="text-sm font-medium text-error">
                   Stok tidak cukup (tersedia {formatQuantity(stock)} {selectedProduct?.unit ?? ""}).
+                </p>
+              )}
+              {insufficientCash && cashBalance !== null && outflowAmount !== null && (
+                <p className="text-sm font-medium text-error">
+                  Kas tidak cukup (saldo {formatIDR(cashBalance)}, butuh {formatIDR(outflowAmount)}).
                 </p>
               )}
               {missingEquity && (

@@ -219,12 +219,15 @@ export function buildDraft(
 }
 
 interface TakenPrice {
-  unitPriceIdr?: number;
   totalIdr?: number;
   count: number;
 }
 
-/** Ambil harga dari ujung kanan: "50000" (1 token) atau "50 ribu"/"total 500rb" (2 token). */
+/**
+ * Ambil nominal TOTAL dari ujung kanan: "50000" (1 token) atau
+ * "50 ribu"/"total 500rb" (2 token). Nominal polos selalu dibaca sebagai
+ * total transaksi; harga satuan = total / jumlah (dihitung di buildDraft).
+ */
 function takePriceFromEnd(tokens: string[]): (TakenPrice & { ok: true }) | { ok: false } {
   const last = tokens.at(-1) ?? "";
   if (tokens.at(-2)?.toLowerCase() === "total") {
@@ -232,11 +235,11 @@ function takePriceFromEnd(tokens: string[]): (TakenPrice & { ok: true }) | { ok:
     return total === null ? { ok: false } : { ok: true, totalIdr: total, count: 2 };
   }
   const single = parsePriceToken(last);
-  if (single !== null) return { ok: true, unitPriceIdr: single, count: 1 };
+  if (single !== null) return { ok: true, totalIdr: single, count: 1 };
   const prev = tokens.at(-2);
   if (prev === undefined) return { ok: false };
   const joined = parsePriceToken(`${prev} ${last}`);
-  return joined === null ? { ok: false } : { ok: true, unitPriceIdr: joined, count: 2 };
+  return joined === null ? { ok: false } : { ok: true, totalIdr: joined, count: 2 };
 }
 
 /** Urai token qty: angka (desimal koma) + satuan opsional. */
@@ -386,7 +389,7 @@ function parseGoods(kind: "sale" | "purchase", rest: string): QuickEntryParseRes
   return {
     ok: true, kind, productQuery, partyQuery,
     quantity: parsedQty.quantity, unit: parsedQty.unit,
-    unitPriceIdr: taken.unitPriceIdr, totalIdr: taken.totalIdr,
+    unitPriceIdr: undefined, totalIdr: taken.totalIdr,
   };
 }
 
@@ -396,7 +399,7 @@ function parseExpense(rest: string): QuickEntryParseResult {
   if (tokens.length < 2) return { ok: false, message: HELP };
   const taken = takePriceFromEnd(tokens);
   if (!taken.ok) return { ok: false, message: HELP };
-  const amountIdr = taken.unitPriceIdr ?? taken.totalIdr;
+  const amountIdr = taken.totalIdr;
   if (amountIdr === undefined) return { ok: false, message: HELP };
   const description = tokens.slice(0, -taken.count).join(" ").trim();
   if (!description) return { ok: false, message: HELP };
@@ -409,7 +412,7 @@ function parseMoneyOnly(rest: string, kind: "transfer" | "deposit" | "withdrawal
   if (tokens.length < 1) return { ok: false, message: HELP };
   const taken = takePriceFromEnd(tokens);
   if (!taken.ok) return { ok: false, message: HELP };
-  const amountIdr = taken.unitPriceIdr ?? taken.totalIdr;
+  const amountIdr = taken.totalIdr;
   if (amountIdr === undefined) return { ok: false, message: HELP };
   const note = tokens.slice(0, -taken.count).join(" ").trim() || undefined;
   return { ok: true, kind, amountIdr, note };

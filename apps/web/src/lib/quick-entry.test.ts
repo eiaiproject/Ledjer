@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import { buildDraft, matchProducts, parseQuickEntryText } from "./quick-entry";
 
 describe("parseQuickEntryText (inti)", () => {
-  it("memahami jual dengan qty dan harga satuan", () => {
+  it("memahami jual dengan qty dan nominal total", () => {
     expect(parseQuickEntryText("jual kopi 10pcs 50000")).toEqual({
       ok: true, kind: "sale", productQuery: "kopi",
-      quantity: 10, unit: "pcs", unitPriceIdr: 50000, totalIdr: undefined,
+      quantity: 10, unit: "pcs", unitPriceIdr: undefined, totalIdr: 50000,
     });
   });
   it("memahami beli tanpa satuan", () => {
     expect(parseQuickEntryText("Beli gula 5 20000")).toEqual({
       ok: true, kind: "purchase", productQuery: "gula",
-      quantity: 5, unit: undefined, unitPriceIdr: 20000, totalIdr: undefined,
+      quantity: 5, unit: undefined, unitPriceIdr: undefined, totalIdr: 20000,
     });
   });
   it("menolak kata kerja asing dengan pesan contoh", () => {
@@ -33,11 +33,11 @@ describe("parseQuickEntryText (varian harga)", () => {
     ["beli gula 5kg 1juta", 1000000],
   ])("memahami %s", (text, price) => {
     const result = parseQuickEntryText(text);
-    expect(result).toMatchObject({ ok: true, unitPriceIdr: price });
+    expect(result).toMatchObject({ ok: true, totalIdr: price });
   });
   it("memahami qty desimal koma", () => {
     expect(parseQuickEntryText("beli gula 2,5kg 20000")).toMatchObject({
-      ok: true, quantity: 2.5, unit: "kg", unitPriceIdr: 20000,
+      ok: true, quantity: 2.5, unit: "kg", totalIdr: 20000,
     });
   });
   it("memahami keyword total", () => {
@@ -68,7 +68,7 @@ describe("matchProducts", () => {
 });
 
 describe("buildDraft", () => {
-  it("menghitung total dari satuan dan menandai mismatch satuan", () => {
+  it("menurunkan satuan dari total dan menandai mismatch satuan", () => {
     const parsed = parseQuickEntryText("jual kopi 10kg 50000");
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
@@ -76,8 +76,8 @@ describe("buildDraft", () => {
       { id: "p1", name: "Kopi", unit: "pcs", is_active: 1, current_stock: 14 },
     ]);
     expect(draft).toMatchObject({
-      productId: "p1", quantity: 10, unitPriceIdr: 50000,
-      totalIdr: 500000, unitMismatch: true,
+      productId: "p1", quantity: 10, unitPriceIdr: 5000,
+      totalIdr: 50000, unitMismatch: true,
     });
   });
   it("total eksplisit dipecah ke satuan dengan pembulatan", () => {
@@ -102,27 +102,27 @@ describe("parseQuickEntryText (nama berangka)", () => {
   it("nama produk boleh mengandung angka", () => {
     expect(parseQuickEntryText("jual produk qe 1788999999 2pcs 50000")).toMatchObject({
       ok: true, kind: "sale", productQuery: "produk qe 1788999999",
-      quantity: 2, unit: "pcs", unitPriceIdr: 50000,
+      quantity: 2, unit: "pcs", totalIdr: 50000,
     });
   });
   it("nama berakhiran kata total tetap utuh", () => {
     expect(parseQuickEntryText("jual mie total 2pcs 50000")).toMatchObject({
-      ok: true, productQuery: "mie total", quantity: 2, unitPriceIdr: 50000,
+      ok: true, productQuery: "mie total", quantity: 2, totalIdr: 50000,
     });
   });
 });
 
 describe("parseQuickEntryText (Ohmega chat-first)", () => {
-  it("jual ke pihak dengan sejumlah nominal", () => {
+  it("jual ke pihak dengan sejumlah nominal total", () => {
     expect(parseQuickEntryText("jual telur 30 butir ke Nadia 81rb")).toMatchObject({
       ok: true, kind: "sale", productQuery: "telur",
-      quantity: 30, unit: "butir", partyQuery: "nadia", unitPriceIdr: 81000,
+      quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000,
     });
   });
   it("beli dari supplier dengan total nominal", () => {
     expect(parseQuickEntryText("beli telur 251 butir dari Vitantri 495rb")).toMatchObject({
       ok: true, kind: "purchase", productQuery: "telur",
-      quantity: 251, unit: "butir", partyQuery: "vitantri", unitPriceIdr: 495000,
+      quantity: 251, unit: "butir", partyQuery: "vitantri", totalIdr: 495000,
     });
   });
   it("bayar beban tanpa produk", () => {

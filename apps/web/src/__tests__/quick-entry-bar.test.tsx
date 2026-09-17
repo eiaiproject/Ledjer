@@ -88,9 +88,9 @@ describe('QuickEntryBar', () => {
     fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'jual kopi 10pcs 50000' } });
     fireEvent.click(kirim);
 
-    // Satuan Rp 50.000 (@...) dan total Rp 500.000 (=...).
-    expect(await screen.findAllByText(/Rp 50\.000/)).toHaveLength(1);
-    expect(screen.getAllByText(/Rp 500\.000/)).toHaveLength(1);
+    // Nominal polos dibaca sebagai total Rp 50.000, satuan diturunkan Rp 5.000.
+    expect(await screen.findAllByText(/Rp 5\.000/)).toHaveLength(1);
+    expect(screen.getAllByText(/Rp 50\.000/)).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Catat$/ })).toBeEnabled();
   });
 
@@ -123,8 +123,8 @@ describe('QuickEntryBar', () => {
       expect.objectContaining({
         transactionType: 'cash_in',
         counterAccountId: 'rev-1',
-        amountIdr: 500000,
-        items: [{ productId: 'p-kopi', quantity: 10, unitPriceIdr: 50000 }],
+        amountIdr: 50000,
+        items: [{ productId: 'p-kopi', quantity: 10, unitPriceIdr: 5000 }],
       }),
     );
   });
@@ -194,6 +194,22 @@ describe('QuickEntryBar', () => {
     expect(postTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ transactionType: 'owner_withdrawal', counterAccountId: 'eq-3120', amountIdr: 300000 }),
     );
+  });
+
+  it('tombol Catat mati bila kas tidak cukup', async () => {
+    seedCatalog();
+    listCashBankAccounts.mockResolvedValue([{ id: 'kas-1', name: 'Kas', balance_idr: 1000000 }]);
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+    ]);
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'beli kopi 100 butir 40jt' } });
+    fireEvent.click(kirim);
+
+    expect(await screen.findByText(/Kas tidak cukup/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
   });
 
   it('tombol Catat mati bila akun ekuitas hilang', async () => {
