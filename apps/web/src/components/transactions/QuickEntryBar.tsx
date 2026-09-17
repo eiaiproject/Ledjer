@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBook } from "@/hooks/useBook";
 import {
@@ -11,6 +11,7 @@ import {
 import { listProducts } from "@/lib/api/products";
 import { listAccounts, listCashBankAccounts } from "@/lib/api/accounts";
 import { postTransaction } from "@/lib/api/transactions";
+import { isApiError } from "@/lib/api/client";
 import { useLocalDb } from "@/lib/db/provider";
 import { getAllParties, getProductById, createPartyLocal, postTransactionLocal } from "@/lib/db/repos";
 import { queryKeys } from "@/lib/query-keys";
@@ -23,12 +24,29 @@ import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { formatDateInputValue, formatIDR, formatQuantity } from "@/lib/utils";
 
-const HELP_EXAMPLES = [
-  "jual telur 30 butir ke Nadia 81rb",
-  "beli telur 251 butir dari Vitantri 495rb",
-  "bayar stiker brand 16rb",
-  "telur pecah 11 butir",
+const GUIDE_GROUPS: { title: string; note?: string; examples: string[] }[] = [
+  {
+    title: "Stok",
+    note: "Produk dibuat dulu di halaman Produk. Jual dan susut butuh stok.",
+    examples: [
+      "jual kopi 10 butir 50rb",
+      "beli kopi 100 butir 400rb",
+      "kopi pecah 2 butir",
+    ],
+  },
+  {
+    title: "Uang",
+    note: "Tanpa produk. Nama kas atau bank yang diketik tidak memilih akun.",
+    examples: [
+      "bayar sewa 500rb",
+      "transfer 200rb",
+      "setor modal awal 1jt",
+      "ambil prive 300rb",
+    ],
+  },
 ];
+
+const HELP_EXAMPLES = GUIDE_GROUPS.flatMap((g) => g.examples).slice(0, 4);
 
 const DRAFT_LABEL: Record<string, string> = {
   sale: "Penjualan",
@@ -71,6 +89,9 @@ export function QuickEntryBar() {
   const [expenseAccountId, setExpenseAccountId] = useState("");
   const [partyName, setPartyName] = useState("");
   const [ambiguousChoice, setAmbiguousChoice] = useState<"purchase" | "expense" | null>(null);
+  // Tutorial selalu tertutup tiap buka halaman — tanpa ingatan antar-sesi.
+  const [showGuide, setShowGuide] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const productsQuery = useQuery({
     queryKey: queryKeys.products.all(userId),
     queryFn: async () => {
@@ -102,6 +123,18 @@ export function QuickEntryBar() {
       if (!userId) throw new Error("Not authenticated");
       const accounts = await listAccounts();
       return accounts.filter((a) => a.account_class === "expense" && a.is_active === 1);
+    },
+    enabled: !!userId,
+  });
+  // Lawan akun setor/ambil: Modal (3110) dan Prive (3120). Server mewajibkan
+  // counter ekuitas (counter_account_required), jadi chat harus mengirimnya —
+  // tanpanya transaksi ditolak 400 dan hilang dari semua daftar.
+  const equityQuery = useQuery({
+    queryKey: [...queryKeys.accounts.all(userId ?? ""), "equity"],
+    queryFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
+      const accounts = await listAccounts();
+      return accounts.filter((a) => a.account_class === "equity" && a.is_active === 1);
     },
     enabled: !!userId,
   });
@@ -167,6 +200,8 @@ export function QuickEntryBar() {
   const effectiveCashId = cashAccountId !== "" ? cashAccountId : (cashQuery.data?.[0]?.id ?? "");
   const effectiveIncomeId = incomeAccountId !== "" ? incomeAccountId : (incomeQuery.data?.[0]?.id ?? "");
   const effectiveExpenseId = expenseAccountId !== "" ? expenseAccountId : (expenseQuery.data?.[0]?.id ?? "");
+  const equityDepositId = equityQuery.data?.find((a) => a.code === "3110")?.id ?? "";
+  const equityWithdrawalId = equityQuery.data?.find((a) => a.code === "3120")?.id ?? "";
   const insufficient = (draft?.kind === "sale" || draft?.kind === "stock_loss") && Number.isFinite(qty) && qty > stock;
   const valid = (() => {
     if (draft === null || posting) return false;
@@ -198,8 +233,17 @@ export function QuickEntryBar() {
       }
       return false;
     }
+    if (draft.kind === "deposit") {
+      return Number.isInteger(totalNum) && totalNum > 0 && equityDepositId !== "";
+    }
+    if (draft.kind === "withdrawal") {
+      return Number.isInteger(totalNum) && totalNum > 0 && equityWithdrawalId !== "";
+    }
     return Number.isInteger(totalNum) && totalNum > 0;
   })();
+  const missingEquity =
+    (draft?.kind === "deposit" && equityDepositId === "") ||
+    (draft?.kind === "withdrawal" && equityWithdrawalId === "");
 
   /** Satu handler untuk qty/harga/total: field yang diubah menghitung ulang pasangannya. */
   const handleAmountChange = (field: "quantity" | "unitPrice" | "total", value: string) => {
@@ -274,8 +318,10 @@ export function QuickEntryBar() {
           if (input.items) serverInput.items = input.items;
           await postTransaction(serverInput as unknown as Parameters<typeof postTransaction>[0]);
         } catch (err) {
-          // Offline / server mati: outbox menyimpan op untuk sync berikutnya.
-          if (localDb) return;
+          // Hanya kegagalan jaringan/server (bukan validasi) yang boleh optimis:
+          // outbox menyimpan op untuk sync berikutnya. Error validasi 4xx
+          // (mis. akun lawan hilang) harus terlihat agar tidak dikira tercatat.
+          if (localDb && (!isApiError(err) || err.status >= 500 || err.status === 408 || err.status === 429)) return;
           throw err;
         }
       };
@@ -395,21 +441,25 @@ export function QuickEntryBar() {
           amountIdr: postedTotal,
         });
       } else if (draft.kind === "deposit") {
+        if (!equityDepositId) return;
         description = draft.description ? `Setor ${draft.description} ${formatIDR(totalNum)} (via cepat)` : `Setor modal ${formatIDR(totalNum)} (via cepat)`;
         postedTotal = totalNum;
         await postLocalThenServer({
           transactionType: "owner_deposit",
           description,
           cashAccountId: effectiveCashId,
+          counterAccountId: equityDepositId,
           amountIdr: postedTotal,
         });
       } else if (draft.kind === "withdrawal") {
+        if (!equityWithdrawalId) return;
         description = draft.description ? `Ambil ${draft.description} ${formatIDR(totalNum)} (via cepat)` : `Ambil prive ${formatIDR(totalNum)} (via cepat)`;
         postedTotal = totalNum;
         await postLocalThenServer({
           transactionType: "owner_withdrawal",
           description,
           cashAccountId: effectiveCashId,
+          counterAccountId: equityWithdrawalId,
           amountIdr: postedTotal,
         });
       } else {
@@ -452,6 +502,7 @@ export function QuickEntryBar() {
         >
           <div className="min-w-0 flex-1">
             <Input
+              ref={inputRef}
               label="Input cepat"
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -465,6 +516,47 @@ export function QuickEntryBar() {
             Kirim
           </Button>
         </form>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowGuide((v) => !v)}
+            aria-expanded={showGuide}
+            aria-controls="quick-entry-guide"
+            className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+          >
+            {showGuide ? "Sembunyikan contoh dan cara pakai" : "Lihat contoh dan cara pakai"}
+          </button>
+          {showGuide && (
+            <div id="quick-entry-guide" className="space-y-3 rounded-lg border border-wood-200 px-3 py-3">
+              {GUIDE_GROUPS.map((group) => (
+                <div key={group.title} className="space-y-1.5">
+                  <p className="text-sm font-semibold text-text-primary">{group.title}</p>
+                  {group.note && <p className="text-xs text-text-tertiary">{group.note}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    {group.examples.map((example) => (
+                      <button
+                        key={example}
+                        type="button"
+                        onClick={() => {
+                          setText(example);
+                          setShowGuide(false);
+                          inputRef.current?.focus();
+                        }}
+                        className="rounded-md border border-wood-300 px-2 py-1 font-mono text-xs text-wood-700 hover:bg-cream-100"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-text-tertiary">
+                Pastikan dropdown Kas dan kategori di pratinjau sudah benar sebelum menekan Catat.
+              </p>
+            </div>
+          )}
+        </div>
 
         <div aria-live="polite">
           {parseError && (
@@ -542,6 +634,11 @@ export function QuickEntryBar() {
               {insufficient && (
                 <p className="text-sm font-medium text-error">
                   Stok tidak cukup (tersedia {formatQuantity(stock)} {selectedProduct?.unit ?? ""}).
+                </p>
+              )}
+              {missingEquity && (
+                <p className="text-sm font-medium text-error">
+                  Akun {draft?.kind === "deposit" ? "Modal Pemilik (3110)" : "Pengambilan Pemilik (3120)"} tidak ditemukan. Pulihkan bagan akun di halaman Akun.
                 </p>
               )}
               <div className="grid gap-2 sm:grid-cols-2">

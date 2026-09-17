@@ -129,6 +129,88 @@ describe('QuickEntryBar', () => {
     );
   });
 
+  it('panduan tertutup default, terbuka setelah tombol diklik', async () => {
+    seedCatalog();
+    renderBar();
+    await readyToSend();
+
+    expect(screen.queryByText('jual kopi 10 butir 50rb')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /contoh dan cara pakai/i }));
+    expect(await screen.findByText('jual kopi 10 butir 50rb')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /sembunyikan/i })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('ketuk contoh mengisi input dan menutup panduan', async () => {
+    seedCatalog();
+    renderBar();
+    await readyToSend();
+
+    fireEvent.click(screen.getByRole('button', { name: /contoh dan cara pakai/i }));
+    fireEvent.click(await screen.findByText('bayar sewa 500rb'));
+
+    expect((screen.getByLabelText(/cepat/i) as HTMLInputElement).value).toBe('bayar sewa 500rb');
+    expect(screen.queryByText('jual kopi 10 butir 50rb')).toBeNull();
+  });
+
+  it('setor modal mengirim counter Modal 3110', async () => {
+    seedCatalog();
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+      { id: 'eq-3110', name: 'Modal Pemilik', code: '3110', account_class: 'equity', is_active: 1 },
+      { id: 'eq-3120', name: 'Pengambilan Pemilik', code: '3120', account_class: 'equity', is_active: 1 },
+    ]);
+    postTransaction.mockResolvedValue({ transaction_id: 't-3', transaction_number: 'TRX-Z', status: 'posted' });
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'setor modal awal 1jt' } });
+    fireEvent.click(kirim);
+    const catat = await screen.findByRole('button', { name: /^Catat$/ });
+    fireEvent.click(catat);
+
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'owner_deposit', counterAccountId: 'eq-3110', amountIdr: 1000000 }),
+    );
+  });
+
+  it('ambil prive mengirim counter 3120', async () => {
+    seedCatalog();
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+      { id: 'eq-3110', name: 'Modal Pemilik', code: '3110', account_class: 'equity', is_active: 1 },
+      { id: 'eq-3120', name: 'Pengambilan Pemilik', code: '3120', account_class: 'equity', is_active: 1 },
+    ]);
+    postTransaction.mockResolvedValue({ transaction_id: 't-4', transaction_number: 'TRX-W', status: 'posted' });
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'ambil prive 300rb' } });
+    fireEvent.click(kirim);
+    const catat = await screen.findByRole('button', { name: /^Catat$/ });
+    fireEvent.click(catat);
+
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'owner_withdrawal', counterAccountId: 'eq-3120', amountIdr: 300000 }),
+    );
+  });
+
+  it('tombol Catat mati bila akun ekuitas hilang', async () => {
+    seedCatalog();
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+    ]);
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'setor modal awal 1jt' } });
+    fireEvent.click(kirim);
+
+    expect(await screen.findByText(/3110/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
+  });
+
   it('bayar beban meminta kategori lalu memanggil cash_out', async () => {
     seedCatalog();
     listAccounts.mockResolvedValue([
