@@ -321,7 +321,15 @@ export function parseQuickEntryText(text: string): QuickEntryParseResult {
     // "beli X nominal" tanpa qty: ambigu produk vs beban → tanya, jangan tebak.
     return parseAmbiguousBuy(rest);
   }
-  return parseGoods("sale", rest);
+  const goods = parseGoods("sale", rest);
+  if (goods.ok) return goods;
+  // Jual tanpa qty tapi ada nominal (mis. "jual telur ke Nadia 81rb"): tolak
+  // dengan pesan spesifik — qty dan nominal wajib untuk harga satuan.
+  const maybePrice = takePriceFromEnd(rest.split(" ").filter((t) => t !== ""));
+  if (maybePrice.ok) {
+    return { ok: false, message: "Tulis jumlah dan nominalnya, contoh: jual telur 30 butir 81rb" };
+  }
+  return goods;
 }
 
 /**
@@ -368,29 +376,168 @@ function splitParty(tokens: string[]): { head: string[]; partyQuery?: string } {
   return { head: tokens.slice(0, idx), partyQuery: tokens.slice(idx + 1).join(" ") };
 }
 
-/** Parser jual/beli: [produk] [qty] [unit] [ke/dari pihak] [sejumlah|total] [nominal]. */
+/** Kata pengisi yang diabaikan dalam urutan nominal-dulu ("dapat 251 butir"). */
+const FILLER_TOKENS = new Set(["dapat", "dpt"]);
+
+/** Sufiks yang bermakna nominal — tidak boleh dibaca sebagai satuan qty. */
+const PRICE_SUFFIXES = new Set(Object.keys(PRICE_MULTIPLIERS));
+
+/**
+ * Pecah klausa pihak secara ketat: ke/dari harus punya tetangga di kedua sisi.
+ * Beda dengan splitParty (longgar, untuk urutan kanonik): versi ini mengembalikan
+ * null bila tidak ada pihak di tengah, agar urutan lain bisa dicoba.
+ */
+function splitPartyStrict(tokens: string[]): { product: string; partyQuery: string; index: number } | null {
+  const idxKe = tokens.lastIndexOf("ke");
+  const idxDari = tokens.lastIndexOf("dari");
+  const idx = Math.max(idxKe, idxDari);
+  if (idx <= 0 || idx === tokens.length - 1) return null;
+  const product = tokens.slice(0, idx).join(" ").trim();
+  const partyQuery = tokens.slice(idx + 1).join(" ").trim();
+  if (!product || !partyQuery) return null;
+  return { product, partyQuery, index: idx };
+}
+
+function makeGoods(
+  kind: "sale" | "purchase",
+  productQuery: string,
+  partyQuery: string | undefined,
+  quantity: number,
+  unit: string | undefined,
+  totalIdr: number,
+): SalePurchaseParse {
+  return { ok: true, kind, productQuery, partyQuery, quantity, unit, unitPriceIdr: undefined, totalIdr };
+}
+
+/** A (kanonik): [produk] [qty] [unit] [ke/dari pihak] [nominal]. */
+function tryCanonical(kind: "sale" | "purchase", tokens: string[]): SalePurchaseParse | null {
+  const taken = takePriceFromEnd(tokens);
+  if (!taken.ok) return null;
+  const beforePrice = tokens.slice(0, -taken.count);
+  const { head, partyQuery } = splitParty(beforePrice);
+  if (head.length < 2) return null;
+  const parsedQty = takeQtyFromEnd(head);
+  if (!parsedQty.ok) return null;
+  const productQuery = head.slice(0, -parsedQty.count).join(" ").trim();
+  if (!productQuery || taken.totalIdr === undefined) return null;
+  return makeGoods(kind, productQuery, partyQuery, parsedQty.quantity, parsedQty.unit, taken.totalIdr);
+}
+
+/** D (pihak di ujung): [produk] [qty] [unit] [nominal] ke/dari [pihak]. */
+function tryPartyLast(kind: "sale" | "purchase", tokens: string[]): SalePurchaseParse | null {
+  const split = splitPartyStrict(tokens);
+  if (!split) return null;
+  const front = tokens.slice(0, split.index);
+  const taken = takePriceFromEnd(front);
+  if (!taken.ok || taken.totalIdr === undefined) return null;
+  const beforePrice = front.slice(0, -taken.count);
+  if (beforePrice.length < 2) return null;
+  const parsedQty = takeQtyFromEnd(beforePrice);
+  if (!parsedQty.ok) return null;
+  const productQuery = beforePrice.slice(0, -parsedQty.count).join(" ").trim();
+  if (!productQuery) return null;
+  return makeGoods(kind, productQuery, split.partyQuery, parsedQty.quantity, parsedQty.unit, taken.totalIdr);
+}
+
+/** C (pihak di tengah, nominal di ujung): [produk] ke/dari [pihak] [qty] [unit] [nominal]. */
+function tryPriceLastMiddleParty(kind: "sale" | "purchase", tokens: string[]): SalePurchaseParse | null {
+  const taken = takePriceFromEnd(tokens);
+  if (!taken.ok || taken.totalIdr === undefined) return null;
+  const mid = tokens.slice(0, -taken.count);
+  const parsedQty = takeQtyFromEnd(mid);
+  if (!parsedQty.ok) return null;
+  const front = mid.slice(0, -parsedQty.count);
+  const split = splitPartyStrict(front);
+  if (!split) return null;
+  return makeGoods(kind, split.product, split.partyQuery, parsedQty.quantity, parsedQty.unit, taken.totalIdr);
+}
+
+/** B (nominal di tengah, qty di ujung): [produk] [ke/dari pihak] [nominal] [qty] [unit]. */
+function tryQtyLast(kind: "sale" | "purchase", tokens: string[]): SalePurchaseParse | null {
+  const parsedQty = takeQtyFromEnd(tokens);
+  if (!parsedQty.ok) return null;
+  // "81rb" di ujung adalah nominal, bukan qty 81 "rb".
+  if (parsedQty.unit !== undefined && PRICE_SUFFIXES.has(parsedQty.unit)) return null;
+  // Qty tanpa satuan ("... 495000 251") tak bisa dibedakan dari nominal —
+  // ordo ini wajib menulis satuannya ("dapat 251 butir").
+  if (parsedQty.unit === undefined) return null;
+  const mid = tokens.slice(0, -parsedQty.count);
+  const taken = takePriceFromEnd(mid);
+  if (!taken.ok || taken.totalIdr === undefined) return null;
+  const front = mid.slice(0, -taken.count);
+  if (front.length === 0) return null;
+  const split = splitPartyStrict(front);
+  const productQuery = (split ? split.product : front.join(" ")).trim();
+  if (!productQuery) return null;
+  return makeGoods(kind, productQuery, split?.partyQuery, parsedQty.quantity, parsedQty.unit, taken.totalIdr);
+}
+
+/** Ambil qty dari depan: "250" (1 token) atau "250 butir" (2 token). */
+function takeQtyFromFront(tokens: string[]): ({ quantity: number; unit?: string; count: number } & { ok: true }) | { ok: false } {
+  if (tokens.length === 0) return { ok: false };
+  const single = parseQtyToken(tokens[0]);
+  if (!single) return { ok: false };
+  if (single.unit !== undefined) return { ok: true, quantity: single.quantity, unit: single.unit, count: 1 };
+  if (tokens.length >= 2 && /^[a-z]+$/.test(tokens[1]) && !PRICE_SUFFIXES.has(tokens[1])) {
+    return { ok: true, quantity: single.quantity, unit: tokens[1], count: 2 };
+  }
+  return { ok: true, quantity: single.quantity, unit: undefined, count: 1 };
+}
+
+/** E (qty di depan): [qty] [unit] [produk] [ke/dari pihak] [nominal]. */
+function tryQtyFirst(kind: "sale" | "purchase", tokens: string[]): SalePurchaseParse | null {
+  const parsedQty = takeQtyFromFront(tokens);
+  if (!parsedQty.ok) return null;
+  const rest = tokens.slice(parsedQty.count);
+  const taken = takePriceFromEnd(rest);
+  if (!taken.ok || taken.totalIdr === undefined) return null;
+  const front = rest.slice(0, -taken.count);
+  if (front.length === 0) return null;
+  const split = splitPartyStrict(front);
+  const productQuery = (split ? split.product : front.join(" ")).trim();
+  if (!productQuery) return null;
+  return makeGoods(kind, productQuery, split?.partyQuery, parsedQty.quantity, parsedQty.unit, taken.totalIdr);
+}
+
+/** F (pihak di depan, 1 kata): ke/dari [pihak] [produk] [qty] [unit] [nominal]. */
+function tryPartyFirst(kind: "sale" | "purchase", tokens: string[]): SalePurchaseParse | null {
+  const partyQuery = tokens[1]?.trim();
+  const rest = tokens.slice(2);
+  if (!partyQuery || rest.length < 3) return null;
+  const taken = takePriceFromEnd(rest);
+  if (!taken.ok || taken.totalIdr === undefined) return null;
+  const mid = rest.slice(0, -taken.count);
+  if (mid.length < 2) return null;
+  const parsedQty = takeQtyFromEnd(mid);
+  if (!parsedQty.ok) return null;
+  const productQuery = mid.slice(0, -parsedQty.count).join(" ").trim();
+  if (!productQuery) return null;
+  return makeGoods(kind, productQuery, partyQuery, parsedQty.quantity, parsedQty.unit, taken.totalIdr);
+}
+
+/**
+ * Parser jual/beli — mencoba beberapa urutan kata (A kanonik dulu agar nama
+ * produk berangka tetap aman, lalu D, C, B, E; F khusus pihak-di-depan).
+ * Nominal polos selalu total; satuan = total / jumlah.
+ */
 function parseGoods(kind: "sale" | "purchase", rest: string): QuickEntryParseResult {
   // Nominal boleh didahului "sejumlah"/"total"/"rp"/"seharga" — samakan jadi "total".
   const prepared = rest.replace(/\b(sejumlah|seharga|senilai|rp)\b/g, "total");
-  // Parse dari KANAN (right-anchored): nama produk boleh mengandung angka
-  // ("Produk QE 1788999999"), jadi harga = token terakhir, qty = sebelumnya.
-  const tokens = prepared.split(" ").filter((t) => t !== "");
+  const raw = prepared.split(" ").filter((t) => t !== "");
+  if (raw.length < 3) return { ok: false, message: HELP };
+  const tokens = raw.filter((t) => !FILLER_TOKENS.has(t));
   if (tokens.length < 3) return { ok: false, message: HELP };
-  // Harga dan qty dari kanan via helper (complexity rendah, regex linear).
-  const taken = takePriceFromEnd(tokens);
-  if (!taken.ok) return { ok: false, message: HELP };
-  const beforePrice = tokens.slice(0, -taken.count);
-  const { head, partyQuery } = splitParty(beforePrice);
-  if (head.length < 2) return { ok: false, message: HELP };
-  const parsedQty = takeQtyFromEnd(head);
-  if (!parsedQty.ok) return { ok: false, message: HELP };
-  const productQuery = head.slice(0, -parsedQty.count).join(" ").trim();
-  if (!productQuery) return { ok: false, message: HELP };
-  return {
-    ok: true, kind, productQuery, partyQuery,
-    quantity: parsedQty.quantity, unit: parsedQty.unit,
-    unitPriceIdr: undefined, totalIdr: taken.totalIdr,
-  };
+  // Pihak di depan ("dari Budi telur ...") ditangani jalurnya sendiri karena
+  // urutan kanonik akan menelannya jadi nama produk.
+  if (tokens[0] === "ke" || tokens[0] === "dari") {
+    return tryPartyFirst(kind, tokens) ?? { ok: false, message: HELP };
+  }
+  return tryCanonical(kind, tokens)
+    ?? tryPartyLast(kind, tokens)
+    ?? tryPriceLastMiddleParty(kind, tokens)
+    ?? tryQtyLast(kind, tokens)
+    ?? tryQtyFirst(kind, tokens)
+    ?? { ok: false, message: HELP };
 }
 
 /** Parser beban: "bayar [keterangan] [nominal]" atau "beli [non-produk] [nominal]". */

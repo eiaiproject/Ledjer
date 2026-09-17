@@ -32,6 +32,7 @@ const GUIDE_GROUPS: { title: string; note?: string; examples: string[] }[] = [
       "jual kopi 10 butir 50rb",
       "beli kopi 100 butir 400rb",
       "kopi pecah 2 butir",
+      "beli kopi dari supplier 400rb dapat 100 butir",
     ],
   },
   {

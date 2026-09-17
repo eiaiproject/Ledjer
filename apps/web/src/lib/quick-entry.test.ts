@@ -112,6 +112,59 @@ describe("parseQuickEntryText (nama berangka)", () => {
   });
 });
 
+describe("parseQuickEntryText (urutan kata fleksibel)", () => {
+  it("B: nominal tengah qty ujung + dapat", () => {
+    expect(parseQuickEntryText("beli telur dari Budi 495000 dapat 251 butir")).toMatchObject({
+      ok: true, kind: "purchase", productQuery: "telur",
+      quantity: 251, unit: "butir", partyQuery: "budi", totalIdr: 495000,
+    });
+  });
+  it("B: tanpa kata dapat", () => {
+    expect(parseQuickEntryText("beli telur dari vitantri 495rb 251 butir")).toMatchObject({
+      ok: true, kind: "purchase", productQuery: "telur",
+      quantity: 251, unit: "butir", partyQuery: "vitantri", totalIdr: 495000,
+    });
+  });
+  it("B: sale nominal tengah qty ujung", () => {
+    expect(parseQuickEntryText("jual telur ke nadia 81rb dapat 30 butir")).toMatchObject({
+      ok: true, kind: "sale", productQuery: "telur",
+      quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000,
+    });
+  });
+  it("C: pihak tengah nominal ujung", () => {
+    expect(parseQuickEntryText("jual telur ke Nadia 30 butir 81rb")).toMatchObject({
+      ok: true, kind: "sale", productQuery: "telur",
+      quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000,
+    });
+  });
+  it("D: pihak di ujung", () => {
+    expect(parseQuickEntryText("jual telur 30 butir 81rb ke Nadia")).toMatchObject({
+      ok: true, kind: "sale", productQuery: "telur",
+      quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000,
+    });
+  });
+  it("E: qty di depan", () => {
+    expect(parseQuickEntryText("beli 251 butir telur dari Budi 495000")).toMatchObject({
+      ok: true, kind: "purchase", productQuery: "telur",
+      quantity: 251, unit: "butir", partyQuery: "budi", totalIdr: 495000,
+    });
+  });
+  it("F: pihak di depan (1 kata)", () => {
+    expect(parseQuickEntryText("beli dari Budi telur 251 495rb")).toMatchObject({
+      ok: true, kind: "purchase", productQuery: "telur",
+      quantity: 251, unit: undefined, partyQuery: "budi", totalIdr: 495000,
+    });
+  });
+  it("F tanpa qty dan nominal gagal aman", () => {
+    expect(parseQuickEntryText("jual ke Nadia telur").ok).toBe(false);
+  });
+  it("jual tanpa qty ditolak dengan pesan spesifik", () => {
+    expect(parseQuickEntryText("jual telur ke Nadia 81rb")).toEqual({
+      ok: false, message: "Tulis jumlah dan nominalnya, contoh: jual telur 30 butir 81rb",
+    });
+  });
+});
+
 describe("parseQuickEntryText (Ohmega chat-first)", () => {
   it("jual ke pihak dengan sejumlah nominal total", () => {
     expect(parseQuickEntryText("jual telur 30 butir ke Nadia 81rb")).toMatchObject({
