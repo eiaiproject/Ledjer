@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
@@ -51,6 +51,10 @@ export function NewTransactionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { userId } = useBook();
+  const [searchParams] = useSearchParams();
+  // Form manual sekunder di balik toggle (chat di atas selalu penuh).
+  // ?mode=manual membuka langsung — dipakai deep-link dan E2E.
+  const [manualOpen, setManualOpen] = useState(() => searchParams.get("mode") === "manual");
 
   const accountsQuery = useQuery({
     queryKey: queryKeys.accounts.fullList(userId ?? ""),
@@ -289,12 +293,31 @@ export function NewTransactionPage() {
 
       <QuickEntryBar />
 
+      <div>
+        <button
+          type="button"
+          onClick={() => setManualOpen((v) => !v)}
+          aria-expanded={manualOpen}
+          aria-controls="manual-form"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          {manualOpen ? "Sembunyikan form manual" : "Form manual — multi-produk & akun spesifik"}
+        </button>
+        {!manualOpen && (
+          <p className="text-xs text-text-tertiary">
+            Butuh jual/beli beberapa produk sekaligus atau transfer ke akun tertentu? Buka form manual.
+          </p>
+        )}
+      </div>
+
       {accountsQuery.isError && (
         <Callout variant="error">Gagal memuat daftar akun. Muat ulang halaman dan coba lagi.</Callout>
       )}
 
+      {manualOpen && (
       <Card elevated>
         <CardContent>
+          <div id="manual-form">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Select
               label="Jenis Transaksi"
@@ -465,8 +488,10 @@ export function NewTransactionPage() {
               </Button>
             </div>
           </form>
+          </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

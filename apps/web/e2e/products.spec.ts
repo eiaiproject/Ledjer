@@ -1,5 +1,6 @@
 import { test } from "./helpers/auth";
 import { expect, type Page } from "@playwright/test";
+import { todayJakarta } from "./helpers/dates";
 
 /**
  * Products + inventory flows E2E (F-03): product CRUD via the /products UI,
@@ -57,7 +58,7 @@ async function getProductId(page: Page, productName: string): Promise<string> {
 /** Build stock for the sale test without depending on other tests. */
 async function apiPurchase(page: Page, productId: string, qty: number, unitCost: number, description: string) {
   const ok = await page.evaluate(
-    async (args: { productId: string; qty: number; unitCost: number; description: string }) => {
+    async (args: { productId: string; qty: number; unitCost: number; description: string; date: string }) => {
       const accRes = await fetch("/api/accounts");
       const accBody = await accRes.json();
       const kas = (accBody.accounts as Array<{ id: string; code: string }>).find((a) => a.code === "1110");
@@ -67,7 +68,7 @@ async function apiPurchase(page: Page, productId: string, qty: number, unitCost:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transactionType: "purchase",
-          transactionDate: "2026-08-01",
+          transactionDate: args.date,
           cashAccountId: kas.id,
           description: args.description,
           idempotencyKey: `e2e-sale-stock-${Date.now()}-abcdef`,
@@ -76,7 +77,7 @@ async function apiPurchase(page: Page, productId: string, qty: number, unitCost:
       });
       return res.ok;
     },
-    { productId, qty, unitCost, description },
+    { productId, qty, unitCost, description, date: todayJakarta() },
   );
   expect(ok).toBe(true);
 }
@@ -161,8 +162,8 @@ test.describe("Inventory transactions", () => {
     await expectProductVisible(authPage, PURCHASE_PRODUCT_NAME);
     const productId = await getProductId(authPage, PURCHASE_PRODUCT_NAME);
 
-    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Tanggal").fill("2026-08-01");
+    await authPage.goto("/transactions/new?mode=manual", { waitUntil: "load", timeout: 15000 });
+    await authPage.getByLabel("Tanggal").fill(todayJakarta());
     await authPage.getByLabel("Jenis Transaksi").selectOption("purchase");
     await authPage.getByLabel("Akun Kas/Bank Sumber").selectOption({ label: "1110 · Kas" });
     await authPage.getByRole("button", { name: /Tambah Baris/ }).click();
@@ -189,8 +190,8 @@ test.describe("Inventory transactions", () => {
     const productId = await getProductId(authPage, SALE_PRODUCT_NAME);
     await apiPurchase(authPage, productId, 5, 20000, `Stok E2E ${TS}`);
 
-    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Tanggal").fill("2026-08-01");
+    await authPage.goto("/transactions/new?mode=manual", { waitUntil: "load", timeout: 15000 });
+    await authPage.getByLabel("Tanggal").fill(todayJakarta());
     await authPage.getByLabel("Jenis Transaksi").selectOption("cash_in");
     await authPage.getByLabel("Akun Kas/Bank Tujuan").selectOption({ label: "1110 · Kas" });
     await authPage.getByLabel("Kategori Pendapatan").selectOption({ label: "4110 · Pendapatan Usaha" });

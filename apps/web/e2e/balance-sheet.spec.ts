@@ -1,5 +1,6 @@
 import { test } from "./helpers/auth";
 import { expect } from "@playwright/test";
+import { todayJakarta } from "./helpers/dates";
 
 /**
  * Balance Sheet (Neraca) E2E for the MVP report page.
@@ -47,13 +48,13 @@ test.describe("Balance Sheet report", () => {
     });
 
     const posted = await authPage.evaluate(
-      async ({ cashId, equityId }: { cashId: string; equityId: string }) => {
+      async ({ cashId, equityId, date }: { cashId: string; equityId: string; date: string }) => {
         const res = await fetch("/api/transactions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             transactionType: "owner_deposit",
-            transactionDate: "2026-06-10",
+            transactionDate: date,
             cashAccountId: cashId,
             counterAccountId: equityId,
             description: `[E2E] Neraca ${Date.now()}`,
@@ -63,12 +64,12 @@ test.describe("Balance Sheet report", () => {
         });
         return res.ok;
       },
-      accountIds,
+      { ...accountIds, date: todayJakarta() },
     );
     expect(posted).toBe(true);
 
     await authPage.goto("/reports/balance-sheet", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Tanggal").fill(AS_OF);
+    await authPage.getByLabel("Tanggal").fill(todayJakarta());
     await authPage.getByRole("button", { name: "Tampilkan" }).click();
 
     // Modal Pemilik holds this org's accumulated owner deposits, so the row
