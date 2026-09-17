@@ -290,7 +290,7 @@ describe("postTransaction", () => {
         }
         if (prop === "batch") {
           return async () => {
-            throw new Error("D1_ERROR: UNIQUE constraint failed: idx_transactions_org_idempotency");
+            throw new Error("D1_ERROR: UNIQUE constraint failed: idx_transactions_user_idempotency");
           };
         }
         return Reflect.get(target, prop, receiver);
@@ -305,7 +305,7 @@ describe("postTransaction", () => {
 });
 
 describe("listTransactions / getTransaction", () => {
-  it("lists all posted and voided transactions for the org", async () => {
+  it("lists all posted and voided transactions for the book", async () => {
     const { db } = fresh();
     const transactions = await listTransactions(db as unknown as D1Database, OWNER_A, {});
     const total = await countTransactions(db as unknown as D1Database, OWNER_A, {});
@@ -345,7 +345,7 @@ describe("listTransactions / getTransaction", () => {
     expect(txn.counter_account).toBe("Pendapatan Usaha");
   });
 
-  it("throws not found for a transaction outside the org", async () => {
+  it("throws not found for a transaction outside the book", async () => {
     const { db } = fresh();
     await expect(
       getTransaction(db as unknown as D1Database, OWNER_A, FIXTURE_IDS.transactions.cashInB),
@@ -379,7 +379,7 @@ describe("voidTransaction", () => {
     ).rejects.toThrowError(HttpError);
   });
 
-  it("rejects voiding a transaction from another org", async () => {
+  it("rejects voiding a transaction from another user", async () => {
     const { db } = fresh();
     await expect(
       voidTransaction(
@@ -392,10 +392,10 @@ describe("voidTransaction", () => {
   });
 });
 describe("generateTransactionNumber", () => {
-  it("scopes uniqueness per organization (no cross-tenant collision)", async () => {
+  it("scopes uniqueness per user (no cross-user collision)", async () => {
     const { db } = fresh();
     const d = db as unknown as D1Database;
-    // Org B memegang TRX-20260615-AAAA (suffix generator dipaksa ke AAAA:
+    // User B memegang TRX-20260615-AAAA (suffix generator dipaksa ke AAAA:
     // byte 0 -> alfabet[0] = 'A').
     const spy = vi
       .spyOn(crypto, "getRandomValues")
@@ -411,11 +411,11 @@ describe("generateTransactionNumber", () => {
         counterAccountId: FIXTURE_IDS.accounts.revenueB,
         amountIdr: 100000,
         description: "Penjualan B",
-        idempotencyKey: "idem-collision-orgb-0001",
+        idempotencyKey: "idem-collision-userb-0001",
       });
 
-      // Org A boleh memakai nomor yang sama: tabrakan suffix lintas tenant
-      // tidak boleh menggagalkan transaksi org lain.
+      // User A boleh memakai nomor yang sama: tabrakan suffix lintas pengguna
+      // tidak boleh menggagalkan transaksi pengguna lain.
       const number = await generateTransactionNumber(d, OWNER_A, "2026-06-15");
       expect(number).toBe("TRX-20260615-AAAA");
     } finally {

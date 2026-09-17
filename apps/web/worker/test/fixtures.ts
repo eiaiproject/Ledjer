@@ -26,37 +26,37 @@ export const FIXTURE_IDS = {
     ownerEmpty: "user-empty-owner-00001",
   },
   accounts: {
-    cashA: "acct-orga-cash-000001",
-    bankA: "acct-orga-bank-000001",
-    inventoryA: "acct-orga-inv-000001",
-    cogsA: "acct-orga-cogs-000001",
-    equityA: "acct-orga-eq-0000001",
-    drawA: "acct-orga-draw-000001",
-    revenueA: "acct-orga-rev-0000001",
-    otherRevenueA: "acct-orga-rev2-000001",
-    expenseSalaryA: "acct-orga-exp1-000001",
-    expenseRentA: "acct-orga-exp2-000001",
-    cashB: "acct-orgb-cash-000001",
-    inventoryB: "acct-orgb-inv-000001",
-    cogsB: "acct-orgb-cogs-000001",
-    equityB: "acct-orgb-eq-0000001",
-    revenueB: "acct-orgb-rev-0000001",
-    expenseB: "acct-orgb-exp-0000001",
+    cashA: "acct-booka-cash-000001",
+    bankA: "acct-booka-bank-000001",
+    inventoryA: "acct-booka-inv-000001",
+    cogsA: "acct-booka-cogs-000001",
+    equityA: "acct-booka-eq-0000001",
+    drawA: "acct-booka-draw-000001",
+    revenueA: "acct-booka-rev-0000001",
+    otherRevenueA: "acct-booka-rev2-000001",
+    expenseSalaryA: "acct-booka-exp1-000001",
+    expenseRentA: "acct-booka-exp2-000001",
+    cashB: "acct-bookb-cash-000001",
+    inventoryB: "acct-bookb-inv-000001",
+    cogsB: "acct-bookb-cogs-000001",
+    equityB: "acct-bookb-eq-0000001",
+    revenueB: "acct-bookb-rev-0000001",
+    expenseB: "acct-bookb-exp-0000001",
   },
   products: {
-    kopiA: "prod-orga-kopi-00001",
-    gulaA: "prod-orga-gula-00001",
-    kopiB: "prod-orgb-kopi-00001",
+    kopiA: "prod-booka-kopi-00001",
+    gulaA: "prod-booka-gula-00001",
+    kopiB: "prod-bookb-kopi-00001",
   },
   transactions: {
-    depositA: "txn-orga-deposit-0001",
-    cashInA: "txn-orga-cshin-00001",
-    cashOutA: "txn-orga-cshout-00001",
-    transferA: "txn-orga-trsfr-00001",
-    cashInB1: "txn-orga-cshin-00002",
-    voidedOutA: "txn-orga-voided-0001",
-    cashInB: "txn-orgb-cshin-00001",
-    depositB: "txn-orgb-deposit-0001",
+    depositA: "txn-booka-deposit-0001",
+    cashInA: "txn-booka-cshin-00001",
+    cashOutA: "txn-booka-cshout-00001",
+    transferA: "txn-booka-trsfr-00001",
+    cashInB1: "txn-booka-cshin-00002",
+    voidedOutA: "txn-booka-voided-0001",
+    cashInB: "txn-bookb-cshin-00001",
+    depositB: "txn-bookb-deposit-0001",
   },
 } as const;
 
@@ -188,8 +188,8 @@ const SEED_USERS: SeedUser[] = [
 // getSessionByToken (which hashes the incoming token) resolves correctly.
 // Timestamps are filled relative to load time in buildSessions().
 const SEED_SESSIONS: SeedSession[] = [
-  { id: "session-orga-owner-1", user_id: FIXTURE_IDS.users.ownerA, token_hash: "", expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
-  { id: "session-orgb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
+  { id: "session-booka-owner-1", user_id: FIXTURE_IDS.users.ownerA, token_hash: "", expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
+  { id: "session-bookb-owner-1", user_id: FIXTURE_IDS.users.ownerB, token_hash: "", expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
   { id: "session-empty-owner-1", user_id: FIXTURE_IDS.users.ownerEmpty, token_hash: "", expires_at: 0, last_used_at: 0, last_rotated_at: null, created_at: 0, revoked_at: null, previous_token_hash: null, previous_token_expires_at: null },
 ];
 
@@ -220,13 +220,13 @@ const SEED_PRODUCTS: SeedProduct[] = [
 ];
 
 const SEED_TRANSACTIONS: SeedTransaction[] = [
-  // Org A — June 2026
+  // User A — June 2026
   {
     id: FIXTURE_IDS.transactions.depositA, user_id: FIXTURE_IDS.users.ownerA,
     transaction_number: "TRX-20260605-AB12", transaction_type: "owner_deposit",
     transaction_date: "2026-06-05", description: "Setoran modal awal",
     status: "posted", amount_idr: 5000000, cash_account_id: FIXTURE_IDS.accounts.cashA,
-    counter_account_id: FIXTURE_IDS.accounts.equityA, idempotency_key: "idem-deposit-orga-01",
+    counter_account_id: FIXTURE_IDS.accounts.equityA, idempotency_key: "idem-deposit-booka-01",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
   {
@@ -234,7 +234,7 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
     transaction_number: "TRX-20260610-CD34", transaction_type: "cash_in",
     transaction_date: "2026-06-10", description: "Penjualan tunai",
     status: "posted", amount_idr: 2000000, cash_account_id: FIXTURE_IDS.accounts.cashA,
-    counter_account_id: FIXTURE_IDS.accounts.revenueA, idempotency_key: "idem-cshin-orga-01",
+    counter_account_id: FIXTURE_IDS.accounts.revenueA, idempotency_key: "idem-cshin-booka-01",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
   {
@@ -242,7 +242,7 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
     transaction_number: "TRX-20260615-EF56", transaction_type: "cash_out",
     transaction_date: "2026-06-15", description: "Bayar sewa ruko",
     status: "posted", amount_idr: 1200000, cash_account_id: FIXTURE_IDS.accounts.cashA,
-    counter_account_id: FIXTURE_IDS.accounts.expenseRentA, idempotency_key: "idem-cshout-orga-01",
+    counter_account_id: FIXTURE_IDS.accounts.expenseRentA, idempotency_key: "idem-cshout-booka-01",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
   {
@@ -250,16 +250,16 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
     transaction_number: "TRX-20260620-GH78", transaction_type: "transfer",
     transaction_date: "2026-06-20", description: "Pindah ke bank",
     status: "posted", amount_idr: 500000, cash_account_id: FIXTURE_IDS.accounts.cashA,
-    counter_account_id: FIXTURE_IDS.accounts.bankA, idempotency_key: "idem-trsfr-orga-01",
+    counter_account_id: FIXTURE_IDS.accounts.bankA, idempotency_key: "idem-trsfr-booka-01",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
-  // Org A — July 2026 (for period-filtered report tests)
+  // User A — July 2026 (for period-filtered report tests)
   {
     id: FIXTURE_IDS.transactions.cashInB1, user_id: FIXTURE_IDS.users.ownerA,
     transaction_number: "TRX-20260702-JK90", transaction_type: "cash_in",
     transaction_date: "2026-07-02", description: "Penjualan tunai Juli",
     status: "posted", amount_idr: 800000, cash_account_id: FIXTURE_IDS.accounts.cashA,
-    counter_account_id: FIXTURE_IDS.accounts.revenueA, idempotency_key: "idem-cshin-orga-02",
+    counter_account_id: FIXTURE_IDS.accounts.revenueA, idempotency_key: "idem-cshin-booka-02",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
   // Voided transaction - must be excluded from reports and balances
@@ -268,16 +268,16 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
     transaction_number: "TRX-20260705-LM12", transaction_type: "cash_out",
     transaction_date: "2026-07-05", description: "Beban dibatalkan",
     status: "voided", amount_idr: 100000, cash_account_id: FIXTURE_IDS.accounts.cashA,
-    counter_account_id: FIXTURE_IDS.accounts.expenseSalaryA, idempotency_key: "idem-voided-orga-01",
+    counter_account_id: FIXTURE_IDS.accounts.expenseSalaryA, idempotency_key: "idem-voided-booka-01",
     created_at: NOW, voided_at: NOW, void_reason: "Salah input", updated_at: NOW,
   },
-  // Org B — June 2026
+  // User B — June 2026
   {
     id: FIXTURE_IDS.transactions.depositB, user_id: FIXTURE_IDS.users.ownerB,
     transaction_number: "TRX-20260601-AB11", transaction_type: "owner_deposit",
     transaction_date: "2026-06-01", description: "Setoran modal",
     status: "posted", amount_idr: 3000000, cash_account_id: FIXTURE_IDS.accounts.cashB,
-    counter_account_id: FIXTURE_IDS.accounts.equityB, idempotency_key: "idem-deposit-orgb-01",
+    counter_account_id: FIXTURE_IDS.accounts.equityB, idempotency_key: "idem-deposit-bookb-01",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
   {
@@ -285,7 +285,7 @@ const SEED_TRANSACTIONS: SeedTransaction[] = [
     transaction_number: "TRX-20260612-CD33", transaction_type: "cash_in",
     transaction_date: "2026-06-12", description: "Penjualan tunai B",
     status: "posted", amount_idr: 1000000, cash_account_id: FIXTURE_IDS.accounts.cashB,
-    counter_account_id: FIXTURE_IDS.accounts.revenueB, idempotency_key: "idem-cshin-orgb-01",
+    counter_account_id: FIXTURE_IDS.accounts.revenueB, idempotency_key: "idem-cshin-bookb-01",
     created_at: NOW, voided_at: null, void_reason: null, updated_at: NOW,
   },
 ];
@@ -450,7 +450,7 @@ function norm(sql: string): string {
 }
 
 /**
- * Apply the org-scoped transaction filters (date range, type, status, search)
+ * Apply the user-scoped transaction filters (date range, type, status, search)
  * that listTransactions/countTransactions build, in builder order. `prefix` is
  * "t." for aliased selects and "" for plain COUNT(*) queries; filter values
  * start at index 1 (index 0 is the user id).
@@ -1346,7 +1346,7 @@ export interface SeedFixture {
 }
 
 async function buildSessions(): Promise<void> {
-  const tokens = ["session-token-orga-000001", "session-token-orgb-000001", "session-token-empty-000001"];
+  const tokens = ["session-token-booka-000001", "session-token-bookb-000001", "session-token-empty-000001"];
   const now = Date.now();
   const hashes = await Promise.all(tokens.map((t) => hashToken(t)));
   SEED_SESSIONS[0].token_hash = hashes[0];
@@ -1379,8 +1379,8 @@ export function createSeedFixtures(): SeedFixture {
   return {
     db: db as unknown as FakeD1Database,
     tokens: {
-      ownerA: "session-token-orga-000001",
-      ownerB: "session-token-orgb-000001",
+    ownerA: "session-token-booka-000001",
+    ownerB: "session-token-bookb-000001",
       ownerEmpty: "session-token-empty-000001",
     },
     password: TEST_PASSWORD,

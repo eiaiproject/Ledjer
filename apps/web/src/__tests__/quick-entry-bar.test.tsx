@@ -13,6 +13,9 @@ vi.mock('@/hooks/useBook', async () => {
   const { bookStub } = await import('./test-utils');
   return { useBook: () => bookStub };
 });
+vi.mock('@/lib/db/provider', () => ({
+  useLocalDb: () => null,
+}));
 
 const listProducts = vi.fn();
 vi.mock('@/lib/api/products', () => ({
@@ -30,7 +33,6 @@ const postTransaction = vi.fn();
 vi.mock('@/lib/api/transactions', () => ({
   postTransaction: (...args: unknown[]) => postTransaction(...args),
 }));
-
 const product = {
   id: 'p-kopi',
   code: 'PRD-0001',
@@ -124,6 +126,27 @@ describe('QuickEntryBar', () => {
         amountIdr: 500000,
         items: [{ productId: 'p-kopi', quantity: 10, unitPriceIdr: 50000 }],
       }),
+    );
+  });
+
+  it('bayar beban meminta kategori lalu memanggil cash_out', async () => {
+    seedCatalog();
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', account_class: 'income', is_active: 1 },
+      { id: 'exp-1', name: 'Beban Lain-lain', account_class: 'expense', is_active: 1 },
+    ]);
+    postTransaction.mockResolvedValue({ transaction_id: 't-2', transaction_number: 'TRX-Y', status: 'posted' });
+    renderBar();
+    const kirim = await readyToSend();
+
+    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'bayar stiker brand 16rb' } });
+    fireEvent.click(kirim);
+    const catat = await screen.findByRole('button', { name: /^Catat$/ });
+    fireEvent.click(catat);
+
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'cash_out', amountIdr: 16000 }),
     );
   });
 });

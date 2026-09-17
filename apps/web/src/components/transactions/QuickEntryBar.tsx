@@ -11,6 +11,8 @@ import {
 import { listProducts } from "@/lib/api/products";
 import { listAccounts, listCashBankAccounts } from "@/lib/api/accounts";
 import { postTransaction } from "@/lib/api/transactions";
+import { useLocalDb } from "@/lib/db/provider";
+import { getAllParties, getProductById, createPartyLocal, postTransactionLocal } from "@/lib/db/repos";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +23,23 @@ import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 import { formatDateInputValue, formatIDR, formatQuantity } from "@/lib/utils";
 
-const HELP_EXAMPLES = ["jual kopi 10pcs 50000", "beli gula 5kg 20000"];
+const HELP_EXAMPLES = [
+  "jual telur 30 butir ke Nadia 81rb",
+  "beli telur 251 butir dari Vitantri 495rb",
+  "bayar stiker brand 16rb",
+  "telur pecah 11 butir",
+];
 
+const DRAFT_LABEL: Record<string, string> = {
+  sale: "Penjualan",
+  purchase: "Pembelian",
+  expense: "Beban",
+  transfer: "Transfer",
+  deposit: "Setoran modal",
+  withdrawal: "Pengambilan pemilik",
+  stock_loss: "Susut stok",
+  ambiguous_buy: "Beli — pilih jenis",
+};
 function toProductLite(p: {
   id: string;
   name: string;
@@ -36,7 +53,7 @@ function toProductLite(p: {
 export function QuickEntryBar() {
   const { userId } = useBook();
   const queryClient = useQueryClient();
-
+  const localDb = useLocalDb();
   const [text, setText] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const [draft, setDraft] = useState<QuickEntryDraft | null>(null);
@@ -51,7 +68,9 @@ export function QuickEntryBar() {
   const [total, setTotal] = useState("");
   const [cashAccountId, setCashAccountId] = useState("");
   const [incomeAccountId, setIncomeAccountId] = useState("");
-
+  const [expenseAccountId, setExpenseAccountId] = useState("");
+  const [partyName, setPartyName] = useState("");
+  const [ambiguousChoice, setAmbiguousChoice] = useState<"purchase" | "expense" | null>(null);
   const productsQuery = useQuery({
     queryKey: queryKeys.products.all(userId),
     queryFn: async () => {
@@ -77,6 +96,15 @@ export function QuickEntryBar() {
     },
     enabled: !!userId,
   });
+  const expenseQuery = useQuery({
+    queryKey: [...queryKeys.accounts.all(userId ?? ""), "expense"],
+    queryFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
+      const accounts = await listAccounts();
+      return accounts.filter((a) => a.account_class === "expense" && a.is_active === 1);
+    },
+    enabled: !!userId,
+  });
 
   const catalog: ProductLite[] = useMemo(
     () => (productsQuery.data ?? []).map(toProductLite),
@@ -88,10 +116,17 @@ export function QuickEntryBar() {
 
   const startDraft = (seed: QuickEntryDraft) => {
     setDraft(seed);
-    setProductId(seed.productId);
-    setQuantity(String(seed.quantity));
-    setUnitPrice(String(seed.unitPriceIdr));
-    setTotal(String(seed.totalIdr));
+    setProductId(seed.productId ?? "");
+    setQuantity(seed.quantity !== undefined ? String(seed.quantity) : "");
+    setUnitPrice(seed.unitPriceIdr !== undefined ? String(seed.unitPriceIdr) : "");
+    setTotal(
+      seed.totalIdr !== undefined ? String(seed.totalIdr)
+        : seed.amountIdr !== undefined ? String(seed.amountIdr)
+        : "",
+    );
+    setExpenseAccountId("");
+    setPartyName(seed.partyQuery ?? "");
+    setAmbiguousChoice(null);
     setDraftError(null);
     setDoneMessage(null);
   };
@@ -119,7 +154,7 @@ export function QuickEntryBar() {
       return;
     }
     startDraft(built);
-    if (built.candidates.length > 1) {
+    if ((built.candidates?.length ?? 0) > 1) {
       // Biarkan pengguna memilih lewat dropdown kandidat.
     }
   };
@@ -128,19 +163,43 @@ export function QuickEntryBar() {
   const price = Number(unitPrice);
   const totalNum = Number(total);
   const stock = selectedProduct?.current_stock ?? 0;
+  const hasCash = cashAccountId !== "" || (cashQuery.data?.length ?? 0) > 0;
   const effectiveCashId = cashAccountId !== "" ? cashAccountId : (cashQuery.data?.[0]?.id ?? "");
   const effectiveIncomeId = incomeAccountId !== "" ? incomeAccountId : (incomeQuery.data?.[0]?.id ?? "");
-  const insufficient = draft?.kind === "sale" && Number.isFinite(qty) && qty > stock;
-  const valid =
-    draft !== null &&
-    productId !== "" &&
-    Number.isFinite(qty) && qty > 0 &&
-    Number.isInteger(price) && price > 0 &&
-    Number.isInteger(totalNum) && totalNum > 0 &&
-    (cashAccountId !== "" || (cashQuery.data?.length ?? 0) > 0) &&
-    (draft.kind === "purchase" || incomeAccountId !== "" || (incomeQuery.data?.length ?? 0) > 0) &&
-    !insufficient &&
-    !posting;
+  const effectiveExpenseId = expenseAccountId !== "" ? expenseAccountId : (expenseQuery.data?.[0]?.id ?? "");
+  const insufficient = (draft?.kind === "sale" || draft?.kind === "stock_loss") && Number.isFinite(qty) && qty > stock;
+  const valid = (() => {
+    if (draft === null || posting) return false;
+    if (!hasCash) return false;
+    if (draft.kind === "sale" || draft.kind === "purchase") {
+      return productId !== "" &&
+        Number.isFinite(qty) && qty > 0 &&
+        Number.isInteger(price) && price > 0 &&
+        Number.isInteger(totalNum) && totalNum > 0 &&
+        (draft.kind === "purchase" || incomeAccountId !== "" || (incomeQuery.data?.length ?? 0) > 0) &&
+        !insufficient;
+    }
+    if (draft.kind === "stock_loss") {
+      return productId !== "" && Number.isFinite(qty) && qty > 0 && !insufficient;
+    }
+    if (draft.kind === "expense") {
+      return Number.isInteger(totalNum) && totalNum > 0 &&
+        (expenseAccountId !== "" || (expenseQuery.data?.length ?? 0) > 0);
+    }
+    if (draft.kind === "ambiguous_buy") {
+      // Wajib pilih eksplisit dulu; tiap pilihan punya syaratnya sendiri.
+      if (ambiguousChoice === "expense") {
+        return Number.isInteger(totalNum) && totalNum > 0 &&
+          (expenseAccountId !== "" || (expenseQuery.data?.length ?? 0) > 0);
+      }
+      if (ambiguousChoice === "purchase") {
+        return productId !== "" && Number.isFinite(qty) && qty > 0 &&
+          Number.isInteger(price) && price > 0 && Number.isInteger(totalNum) && totalNum > 0;
+      }
+      return false;
+    }
+    return Number.isInteger(totalNum) && totalNum > 0;
+  })();
 
   /** Satu handler untuk qty/harga/total: field yang diubah menghitung ulang pasangannya. */
   const handleAmountChange = (field: "quantity" | "unitPrice" | "total", value: string) => {
@@ -165,37 +224,203 @@ export function QuickEntryBar() {
   };
 
   const handleConfirm = async () => {
-    if (!valid || !draft || !selectedProduct) return;
+    if (!valid || !draft || !userId) return;
     setPosting(true);
     try {
-      const isSale = draft.kind === "sale";
-      const description = `${isSale ? "Jual" : "Beli"} ${qty} ${selectedProduct.unit} ${selectedProduct.name} (via cepat)`;
-      const base = {
-        transactionDate: formatDateInputValue(),
-        cashAccountId: effectiveCashId,
-        description,
-        idempotencyKey: crypto.randomUUID(),
+      const date = formatDateInputValue();
+      let description = "";
+      let postedTotal = totalNum;
+      // Local-first: tulis ke SQLite perangkat dulu (offline), sync jalan di background.
+      // Server tetap dipanggil bila reachable agar backup/cross-device tidak tertinggal;
+      // kegagalan jaringan bukan kegagalan pencatatan.
+      const postLocalThenServer = async (input: {
+        transactionType: "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase";
+        description: string;
+        cashAccountId: string;
+        counterAccountId?: string;
+        amountIdr: number;
+        partyId?: string | null;
+        productId?: string | null;
+        quantityMilli?: number;
+        unitCostMinor?: number;
+        stockLoss?: boolean;
+        items?: Array<{ productId: string; quantity: number; unitPriceIdr?: number; unitCostIdr?: number }>;
+      }) => {
+        if (localDb) {
+          postTransactionLocal(localDb, userId, {
+            transactionType: input.transactionType,
+            transactionDate: date,
+            description: input.description,
+            partyId: input.partyId,
+            productId: input.productId,
+            cashAccountId: input.cashAccountId,
+            counterAccountId: input.counterAccountId,
+            amountIdr: input.amountIdr,
+            quantityMilli: input.quantityMilli,
+            unitCostMinor: input.unitCostMinor,
+            stockLoss: input.stockLoss,
+          });
+        }
+        try {
+          const serverInput: Record<string, unknown> = {
+            transactionType: input.transactionType,
+            transactionDate: date,
+            cashAccountId: input.cashAccountId,
+            description: input.description,
+            idempotencyKey: crypto.randomUUID(),
+          };
+          if (input.counterAccountId) serverInput.counterAccountId = input.counterAccountId;
+          if (input.amountIdr > 0) serverInput.amountIdr = input.amountIdr;
+          if (input.items) serverInput.items = input.items;
+          await postTransaction(serverInput as unknown as Parameters<typeof postTransaction>[0]);
+        } catch (err) {
+          // Offline / server mati: outbox menyimpan op untuk sync berikutnya.
+          if (localDb) return;
+          throw err;
+        }
       };
-      if (isSale) {
-        await postTransaction({
-          ...base,
-          transactionType: "cash_in",
-          counterAccountId: effectiveIncomeId,
-          amountIdr: totalNum,
-          items: [{ productId, quantity: qty, unitPriceIdr: price }],
+      const resolvePartyId = (name: string, type: "customer" | "supplier"): string | null => {
+        if (!localDb || !name.trim()) return null;
+        const needle = name.trim().toLowerCase();
+        const existing = getAllParties(localDb, userId).find((p) => p.name.toLowerCase() === needle);
+        if (existing) return existing.id;
+        return createPartyLocal(localDb, userId, { name: name.trim(), partyType: type }).id;
+      };
+      if (draft.kind === "sale" || draft.kind === "purchase") {
+        if (!selectedProduct) return;
+        const isSale = draft.kind === "sale";
+        const partyText = partyName.trim() || draft.partyQuery?.trim() || "";
+        const party = partyText ? (isSale ? ` ke ${partyText}` : ` dari ${partyText}`) : "";
+        description = `${isSale ? "Jual" : "Beli"} ${qty} ${selectedProduct.unit} ${selectedProduct.name}${party} (via cepat)`;
+        // Local stock math butuh milli + minor (sama seperti Fase 2).
+        const quantityMilli = Math.round(qty * 1000);
+        const unitMinor = price * 10_000;
+        const partyId = partyText ? resolvePartyId(partyText, isSale ? "customer" : "supplier") : null;
+        if (isSale) {
+          await postLocalThenServer({
+            transactionType: "cash_in",
+            description,
+            cashAccountId: effectiveCashId,
+            counterAccountId: effectiveIncomeId,
+            amountIdr: totalNum,
+            partyId,
+            productId,
+            quantityMilli,
+            unitCostMinor: unitMinor,
+            items: [{ productId, quantity: qty, unitPriceIdr: price }],
+          });
+        } else {
+          await postLocalThenServer({
+            transactionType: "purchase",
+            description,
+            cashAccountId: effectiveCashId,
+            amountIdr: totalNum,
+            partyId,
+            productId,
+            quantityMilli,
+            unitCostMinor: unitMinor,
+            items: [{ productId, quantity: qty, unitCostIdr: price }],
+          });
+        }
+      } else if (draft.kind === "expense") {
+        description = `Bayar ${draft.description ?? "beban"} (via cepat)`;
+        postedTotal = Number(total);
+        await postLocalThenServer({
+          transactionType: "cash_out",
+          description,
+          cashAccountId: effectiveCashId,
+          counterAccountId: effectiveExpenseId,
+          amountIdr: postedTotal,
+        });
+      } else if (draft.kind === "ambiguous_buy") {
+        // Pilihan eksplisit pengguna — tidak ada tebakan diam-diam.
+        if (ambiguousChoice === "expense") {
+          description = `Bayar ${draft.description ?? "beban"} (via cepat)`;
+          postedTotal = Number(total);
+          await postLocalThenServer({
+            transactionType: "cash_out",
+            description,
+            cashAccountId: effectiveCashId,
+            counterAccountId: effectiveExpenseId,
+            amountIdr: postedTotal,
+          });
+        } else {
+          if (!selectedProduct) return;
+          const partyText = partyName.trim();
+          const party = partyText ? ` dari ${partyText}` : "";
+          description = `Beli ${qty} ${selectedProduct.unit} ${selectedProduct.name}${party} (via cepat)`;
+          const quantityMilli = Math.round(qty * 1000);
+          const unitMinor = price * 10_000;
+          await postLocalThenServer({
+            transactionType: "purchase",
+            description,
+            cashAccountId: effectiveCashId,
+            amountIdr: totalNum,
+            partyId: partyText ? resolvePartyId(partyText, "supplier") : null,
+            productId,
+            quantityMilli,
+            unitCostMinor: unitMinor,
+            items: [{ productId, quantity: qty, unitCostIdr: price }],
+          });
+        }
+      } else if (draft.kind === "stock_loss") {
+        if (!selectedProduct) return;
+        description = `${selectedProduct.name} ${draft.reason ?? "pecah"} ${qty} ${selectedProduct.unit} (via cepat)`;
+        postedTotal = 0;
+        // Jurnal susut = HPP DR / Persediaan CR dari movement "loss" (Fase 2);
+        // WAC dibaca dari produk lokal (sumber kebenaran); fallback harga input.
+        const localProduct = localDb ? getProductById(localDb, productId) : null;
+        const lossWacMinor = localProduct && localProduct.average_cost_minor > 0
+          ? localProduct.average_cost_minor
+          : price * 10_000;
+        await postLocalThenServer({
+          transactionType: "cash_out",
+          description,
+          cashAccountId: effectiveCashId,
+          amountIdr: 1,
+          productId,
+          quantityMilli: Math.round(qty * 1000),
+          unitCostMinor: lossWacMinor,
+          stockLoss: true,
+        });
+      } else if (draft.kind === "transfer") {
+        description = draft.description ? `Transfer ${draft.description} ${formatIDR(totalNum)} (via cepat)` : `Transfer ${formatIDR(totalNum)} (via cepat)`;
+        postedTotal = totalNum;
+        const targetCashId = cashQuery.data?.find((a) => a.id !== effectiveCashId)?.id ?? effectiveCashId;
+        await postLocalThenServer({
+          transactionType: "transfer",
+          description,
+          cashAccountId: effectiveCashId,
+          counterAccountId: targetCashId,
+          amountIdr: postedTotal,
+        });
+      } else if (draft.kind === "deposit") {
+        description = draft.description ? `Setor ${draft.description} ${formatIDR(totalNum)} (via cepat)` : `Setor modal ${formatIDR(totalNum)} (via cepat)`;
+        postedTotal = totalNum;
+        await postLocalThenServer({
+          transactionType: "owner_deposit",
+          description,
+          cashAccountId: effectiveCashId,
+          amountIdr: postedTotal,
+        });
+      } else if (draft.kind === "withdrawal") {
+        description = draft.description ? `Ambil ${draft.description} ${formatIDR(totalNum)} (via cepat)` : `Ambil prive ${formatIDR(totalNum)} (via cepat)`;
+        postedTotal = totalNum;
+        await postLocalThenServer({
+          transactionType: "owner_withdrawal",
+          description,
+          cashAccountId: effectiveCashId,
+          amountIdr: postedTotal,
         });
       } else {
-        await postTransaction({
-          ...base,
-          transactionType: "purchase",
-          items: [{ productId, quantity: qty, unitCostIdr: price }],
-        });
+        const label = DRAFT_LABEL[draft.kind] ?? draft.kind;
+        description = `${label} ${formatIDR(totalNum)} (via cepat)`;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.products.allProducts() });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
       toast.success("Transaksi tercatat.");
-      setDoneMessage(`Transaksi tercatat: ${description} = ${formatIDR(totalNum)}.`);
+      setDoneMessage(`Transaksi tercatat: ${description} = ${formatIDR(postedTotal)}.`);
       setText("");
       setDraft(null);
       setParseError(null);
@@ -211,7 +436,8 @@ export function QuickEntryBar() {
     if (!text.trim()) return [];
     const probe = parseQuickEntryText(text);
     if (!probe.ok || draft) return [];
-    return matchProducts(probe.productQuery, catalog, probe.kind).slice(0, 4);
+    if (probe.kind !== "sale" && probe.kind !== "purchase" && probe.kind !== "stock_loss") return [];
+    return matchProducts(probe.productQuery, catalog, "purchase").slice(0, 4);
   }, [text, catalog, draft]);
 
   return (
@@ -269,8 +495,9 @@ export function QuickEntryBar() {
                       key={s.id}
                       type="button"
                       onClick={() => {
+                        if (draft?.kind !== "sale" && draft?.kind !== "purchase" && draft?.kind !== "stock_loss") return;
                         const rebuilt = buildDraft(
-                          { ok: true, kind: draft?.kind ?? "sale", productQuery: s.name, quantity: 1, unitPriceIdr: 1 },
+                          { ok: true, kind: "sale", productQuery: s.name, quantity: 1, unitPriceIdr: 1 },
                           catalog,
                         );
                         if (!("error" in rebuilt)) {
@@ -289,12 +516,21 @@ export function QuickEntryBar() {
             </div>
           )}
 
-          {draft && selectedProduct && (
+          {draft && (draft.kind === "sale" || draft.kind === "purchase" || draft.kind === "stock_loss" ? selectedProduct : true) && (
             <div className="space-y-3 rounded-lg border border-wood-200 px-3 py-3">
               <p className="text-sm font-medium text-text-primary">
-                {draft.kind === "sale" ? "Jual" : "Beli"} {selectedProduct.name} ×{formatQuantity(qty)} @
-                {formatIDR(Number.isInteger(price) ? price : 0)} = {formatIDR(Number.isInteger(totalNum) ? totalNum : 0)}
-                {draft.kind === "sale" && Number.isFinite(qty) && (
+                {DRAFT_LABEL[draft.kind] ?? draft.kind}
+                {selectedProduct && (draft.kind === "sale" || draft.kind === "purchase") && (
+                  <> {selectedProduct.name} ×{formatQuantity(qty)} @
+                  {formatIDR(Number.isInteger(price) ? price : 0)} = {formatIDR(Number.isInteger(totalNum) ? totalNum : 0)}</>
+                )}
+                {selectedProduct && draft.kind === "stock_loss" && (
+                  <> {selectedProduct.name} ×{formatQuantity(qty)} {selectedProduct.unit} ({draft.reason})</>
+                )}
+                {(draft.kind === "expense" || draft.kind === "transfer" || draft.kind === "deposit" || draft.kind === "withdrawal") && (
+                  <> {formatIDR(Number.isInteger(totalNum) ? totalNum : 0)}{draft.description ? ` · ${draft.description}` : ""}</>
+                )}
+                {draft.kind === "sale" && Number.isFinite(qty) && selectedProduct && (
                   <span className="text-text-tertiary"> · stok {formatQuantity(stock)}→{formatQuantity(stock - qty)}</span>
                 )}
               </p>
@@ -305,23 +541,37 @@ export function QuickEntryBar() {
               ))}
               {insufficient && (
                 <p className="text-sm font-medium text-error">
-                  Stok tidak cukup (tersedia {formatQuantity(stock)} {selectedProduct.unit}).
+                  Stok tidak cukup (tersedia {formatQuantity(stock)} {selectedProduct?.unit ?? ""}).
                 </p>
               )}
               <div className="grid gap-2 sm:grid-cols-2">
-                <Select
-                  label="Produk"
-                  value={productId}
-                  onChange={(e) => {
-                    const next = catalog.find((p) => p.id === e.target.value);
-                    if (!next) return;
-                    setProductId(next.id);
-                  }}
-                  options={draft.candidates.map((c) => ({ value: c.id, label: c.name }))}
-                />
-                <Input label="Jumlah" inputMode="decimal" value={quantity} onChange={(e) => handleAmountChange("quantity", e.target.value)} />
-                <Input label="Harga satuan (Rp)" inputMode="numeric" value={unitPrice} onChange={(e) => handleAmountChange("unitPrice", e.target.value)} />
-                <Input label="Total (Rp)" inputMode="numeric" value={total} onChange={(e) => handleAmountChange("total", e.target.value)} />
+                {(draft.kind === "sale" || draft.kind === "purchase" || draft.kind === "stock_loss") && (
+                  <Select
+                    label="Produk"
+                    value={productId}
+                    onChange={(e) => {
+                      const next = catalog.find((p) => p.id === e.target.value);
+                      if (!next) return;
+                      setProductId(next.id);
+                    }}
+                    options={(draft.candidates ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                  />
+                )}
+                {(draft.kind === "sale" || draft.kind === "purchase" || draft.kind === "stock_loss") && (
+                  <Input label="Jumlah" inputMode="decimal" value={quantity} onChange={(e) => handleAmountChange("quantity", e.target.value)} />
+                )}
+                {(draft.kind === "sale" || draft.kind === "purchase") && (
+                  <>
+                    <Input label="Harga satuan (Rp)" inputMode="numeric" value={unitPrice} onChange={(e) => handleAmountChange("unitPrice", e.target.value)} />
+                    <Input label="Total (Rp)" inputMode="numeric" value={total} onChange={(e) => handleAmountChange("total", e.target.value)} />
+                  </>
+                )}
+                {(draft.kind === "expense" || draft.kind === "transfer" || draft.kind === "deposit" || draft.kind === "withdrawal") && (
+                  <Input label="Nominal (Rp)" inputMode="numeric" value={total} onChange={(e) => setTotal(e.target.value)} />
+                )}
+                {(draft.kind === "sale" || draft.kind === "purchase") && (
+                  <Input label={draft.kind === "sale" ? "Pelanggan (ke)" : "Supplier (dari)"} value={partyName} onChange={(e) => setPartyName(e.target.value)} placeholder={draft.kind === "sale" ? "cth: Nadia" : "cth: Vitantri"} />
+                )}
                 <Select
                   label="Kas"
                   value={effectiveCashId}
@@ -339,6 +589,17 @@ export function QuickEntryBar() {
                     options={[
                       { value: "", label: "Pilih pendapatan" },
                       ...(incomeQuery.data ?? []).map((a) => ({ value: a.id, label: a.name })),
+                    ]}
+                  />
+                )}
+                {draft.kind === "expense" && (
+                  <Select
+                    label="Kategori beban"
+                    value={expenseAccountId !== "" ? expenseAccountId : (expenseQuery.data?.[0]?.id ?? "")}
+                    onChange={(e) => setExpenseAccountId(e.target.value)}
+                    options={[
+                      { value: "", label: "Pilih beban" },
+                      ...(expenseQuery.data ?? []).map((a) => ({ value: a.id, label: a.name })),
                     ]}
                   />
                 )}

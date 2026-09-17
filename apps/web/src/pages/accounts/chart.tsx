@@ -119,7 +119,7 @@ export function ChartOfAccountsPage() {
     groupsContent = (
       <EmptyState
         title="Belum ada akun"
-        description="Akun bawaan dibuat otomatis saat organisasi dibuat."
+        description="Akun bawaan dibuat otomatis saat buku dibuat."
       />
     );
   } else {

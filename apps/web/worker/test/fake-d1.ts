@@ -11,12 +11,10 @@ interface FakeD1Handlers {
 // Exported so seed-fixture handlers can call it too (they bypass .run via batch/run handlers).
 export function validateJournalLine(sql: string, values: unknown[]): void {
   if (!sql.toLowerCase().includes("insert into journal_lines")) return;
-  // VALUES have either 9 params (no party_id) or 10 params (with party_id)
-  // [0:id, 1:orgId, 2:entryId, 3:acctId, ...]
-  // If values has 10 items, index 4 = partyId, 5 = debit, 6 = credit
-  // If values has 9 items, index 4 = debit, 5 = credit
-  const debitIdx = values.length === 10 ? 5 : 4;
-  const creditIdx = values.length === 10 ? 6 : 5;
+  // VALUES: [id, userId, entryId, acctId, debit, credit, createdAt]
+  // journal_lines has no party_id column — 7 params, debit at 4, credit at 5.
+  const debitIdx = 4;
+  const creditIdx = 5;
   const debit = Number(values[debitIdx] ?? 0);
   const credit = Number(values[creditIdx] ?? 0);
   if (debit > 0 && credit > 0) {

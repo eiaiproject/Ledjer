@@ -1094,7 +1094,7 @@ function normalizeRequiredText(value: string, maxLength: number, code: string): 
   return text;
 }
 
-/** TRX-YYYYMMDD-XXXX — unik per organisasi (bukan global), human-readable (PRD TRX-08). */
+/** TRX-YYYYMMDD-XXXX — unik per pengguna (bukan global), human-readable (PRD TRX-08). */
 export async function generateTransactionNumber(
   db: D1Database,
   userId: string,

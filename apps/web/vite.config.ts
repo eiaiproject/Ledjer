@@ -106,6 +106,9 @@ export default defineConfig({
     // MUST run last - replaces any Sentry-injected CSP with clean dev CSP
     relaxCspForDev(),
   ],
+  optimizeDeps: {
+    exclude: ["@sqlite.org/sqlite-wasm"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -381,7 +381,7 @@ export async function productIsUsed(
 
 // ── Akun Persediaan & HPP ───────────────────────────────────────
 
-/** Akun Persediaan (account_kind = 'inventory') yang aktif milik organisasi. */
+/** Akun Persediaan (account_kind = 'inventory') yang aktif milik buku ini. */
 export async function resolveInventoryAccount(
   db: D1Database,
   userId: string,
@@ -389,7 +389,7 @@ export async function resolveInventoryAccount(
   return getAccountByKind(db, userId, "inventory");
 }
 
-/** Akun HPP (account_kind = 'cogs') yang aktif milik organisasi. */
+/** Akun HPP (account_kind = 'cogs') yang aktif milik buku ini. */
 export async function resolveCogsAccount(
   db: D1Database,
   userId: string,
@@ -606,7 +606,7 @@ async function assertValidProductName(
       : "SELECT id FROM products WHERE user_id = ? AND name = ?",
     excludeProductId ? [userId, name, excludeProductId] : [userId, name],
   );
-  if (existing) throw badRequest("product_name_taken", "Nama produk sudah dipakai dalam organisasi ini.");
+  if (existing) throw badRequest("product_name_taken", "Nama produk sudah dipakai di buku ini.");
   return name;
 }
 

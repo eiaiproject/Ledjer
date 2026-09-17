@@ -16,7 +16,7 @@ describe("parseQuickEntryText (inti)", () => {
   });
   it("menolak kata kerja asing dengan pesan contoh", () => {
     expect(parseQuickEntryText("makan kopi 10 50000")).toEqual({
-      ok: false, message: "Contoh: jual kopi 10pcs 50000",
+      ok: false, message: "Contoh: jual telur 30 butir ke Nadia 81rb",
     });
   });
   it("menolak qty nol", () => {
@@ -109,5 +109,45 @@ describe("parseQuickEntryText (nama berangka)", () => {
     expect(parseQuickEntryText("jual mie total 2pcs 50000")).toMatchObject({
       ok: true, productQuery: "mie total", quantity: 2, unitPriceIdr: 50000,
     });
+  });
+});
+
+describe("parseQuickEntryText (Ohmega chat-first)", () => {
+  it("jual ke pihak dengan sejumlah nominal", () => {
+    expect(parseQuickEntryText("jual telur 30 butir ke Nadia 81rb")).toMatchObject({
+      ok: true, kind: "sale", productQuery: "telur",
+      quantity: 30, unit: "butir", partyQuery: "nadia", unitPriceIdr: 81000,
+    });
+  });
+  it("beli dari supplier dengan total nominal", () => {
+    expect(parseQuickEntryText("beli telur 251 butir dari Vitantri 495rb")).toMatchObject({
+      ok: true, kind: "purchase", productQuery: "telur",
+      quantity: 251, unit: "butir", partyQuery: "vitantri", unitPriceIdr: 495000,
+    });
+  });
+  it("bayar beban tanpa produk", () => {
+    expect(parseQuickEntryText("bayar stiker brand 16rb")).toMatchObject({
+      ok: true, kind: "expense", description: "stiker brand", amountIdr: 16000,
+    });
+  });
+  it("beli non-produk tanpa qty meminta pilihan eksplisit, bukan menebak", () => {
+    expect(parseQuickEntryText("beli mika telur 34500")).toMatchObject({
+      ok: true, kind: "ambiguous_buy", description: "mika telur", amountIdr: 34500,
+    });
+  });
+  it("susut non-kas tanpa nominal", () => {
+    expect(parseQuickEntryText("telur pecah 11 butir")).toMatchObject({
+      ok: true, kind: "stock_loss", productQuery: "telur",
+      quantity: 11, unit: "butir",
+    });
+  });
+  it("transfer setor ambil hanya butuh nominal", () => {
+    expect(parseQuickEntryText("transfer 500rb")).toMatchObject({ ok: true, kind: "transfer", amountIdr: 500000 });
+    expect(parseQuickEntryText("setor 1jt")).toMatchObject({ ok: true, kind: "deposit", amountIdr: 1000000 });
+    expect(parseQuickEntryText("ambil 250rb")).toMatchObject({ ok: true, kind: "withdrawal", amountIdr: 250000 });
+  });
+  it("beli ambigu tanpa harga cukup jelas untuk ditanya, bukan ditebak", () => {
+    const result = parseQuickEntryText("beli telur");
+    expect(result.ok).toBe(false);
   });
 });

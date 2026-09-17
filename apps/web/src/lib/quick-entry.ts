@@ -1,19 +1,61 @@
-export type QuickEntryParseResult =
-  | {
-      ok: true;
-      kind: "sale" | "purchase";
-      productQuery: string;
-      quantity: number;
-      unit?: string;
-      unitPriceIdr?: number;
-      totalIdr?: number;
-    }
-  | { ok: false; message: string };
+export type QuickEntryKind = "sale" | "purchase" | "expense" | "transfer" | "deposit" | "withdrawal" | "stock_loss";
 
-const HELP = "Contoh: jual kopi 10pcs 50000";
+export interface SalePurchaseParse {
+  ok: true;
+  kind: "sale" | "purchase";
+  productQuery: string;
+  quantity: number;
+  unit?: string;
+  unitPriceIdr?: number;
+  totalIdr?: number;
+  partyQuery?: string;
+}
+
+export interface ExpenseParse {
+  ok: true;
+  kind: "expense";
+  description: string;
+  amountIdr: number;
+}
+
+export interface MoneyParse {
+  ok: true;
+  kind: "transfer" | "deposit" | "withdrawal";
+  amountIdr: number;
+  note?: string;
+}
+
+export interface StockLossParse {
+  ok: true;
+  kind: "stock_loss";
+  productQuery: string;
+  quantity: number;
+  unit?: string;
+  reason: string;
+}
+
+/** "beli X nominal" tanpa qty: ambigu stok vs beban — UI wajib bertanya. */
+export interface AmbiguousBuyParse {
+  ok: true;
+  kind: "ambiguous_buy";
+  description: string;
+  amountIdr: number;
+}
+
+export type QuickEntryParsed =
+  | SalePurchaseParse
+  | ExpenseParse
+  | MoneyParse
+  | StockLossParse
+  | AmbiguousBuyParse;
+
+export type QuickEntryParseResult = QuickEntryParsed | { ok: false; message: string };
+
+const HELP = "Contoh: jual telur 30 butir ke Nadia 81rb";
 
 /** Pengali sufiks harga, tanpa nested-ternary. */
 const PRICE_MULTIPLIERS: Record<string, number> = {
+  k: 1_000,
   rb: 1_000,
   ribu: 1_000,
   jt: 1_000_000,
@@ -28,15 +70,23 @@ export interface ProductLite {
   current_stock: number;
 }
 
+export type QuickEntryDraftKind =
+  | "sale" | "purchase" | "expense" | "transfer" | "deposit" | "withdrawal" | "stock_loss"
+  | "ambiguous_buy";
+
 export interface QuickEntryDraft {
-  kind: "sale" | "purchase";
-  productId: string;
-  candidates: { id: string; name: string }[];
-  quantity: number;
+  kind: QuickEntryDraftKind;
+  productId?: string;
+  candidates?: { id: string; name: string }[];
+  partyQuery?: string;
+  quantity?: number;
   unit?: string;
-  unitMismatch: boolean;
-  unitPriceIdr: number;
-  totalIdr: number;
+  unitMismatch?: boolean;
+  unitPriceIdr?: number;
+  totalIdr?: number;
+  amountIdr?: number;
+  description?: string;
+  reason?: string;
   warnings: string[];
 }
 
@@ -88,11 +138,50 @@ export function matchProducts(
   scored.sort((a, b) => a.rank - b.rank);
   return scored.map((s) => ({ id: s.product.id, name: s.product.name }));
 }
-
+/**
+ * Bangun draft pratinjau dari hasil parse.
+ * sale/purchase: fuzzy-match produk, hitung total, tandai mismatch satuan.
+ * expense/transfer/deposit/withdrawal/stock_loss: teruskan nominal/deskripsi
+ * (pratinjau bisa dikonfirmasi langsung, tanpa katalog).
+ */
 export function buildDraft(
-  parsed: Extract<QuickEntryParseResult, { ok: true }>,
+  parsed: QuickEntryParsed,
   products: ProductLite[],
 ): QuickEntryDraft | { error: string } {
+  if (parsed.kind === "expense") {
+    return { kind: "expense", amountIdr: parsed.amountIdr, description: parsed.description, warnings: [] };
+  }
+  if (parsed.kind === "ambiguous_buy") {
+    return {
+      kind: "ambiguous_buy",
+      amountIdr: parsed.amountIdr,
+      description: parsed.description,
+      warnings: ["\"Beli\" tanpa jumlah — pilih Stok bila barang dagangan, Beban bila sekali pakai."],
+    };
+  }
+  if (parsed.kind === "stock_loss") {
+    const lossCandidates = matchProducts(parsed.productQuery, products, "sale");
+    if (lossCandidates.length === 0) {
+      return { error: `Produk '${parsed.productQuery}' tidak ditemukan. Buat dulu di halaman Produk.` };
+    }
+    const lossProduct = products.find((p) => p.id === lossCandidates[0].id)!;
+    const lossWarnings: string[] = [];
+    const lossMismatch = parsed.unit !== undefined && parsed.unit !== lossProduct.unit;
+    if (lossMismatch) {
+      lossWarnings.push(`Satuan diketik '${parsed.unit}', produk memakai '${lossProduct.unit}'.`);
+    }
+    return {
+      kind: "stock_loss", productId: lossProduct.id, candidates: lossCandidates,
+      quantity: parsed.quantity, unit: parsed.unit, unitMismatch: lossMismatch,
+      reason: parsed.reason, warnings: lossWarnings,
+    };
+  }
+  if (parsed.kind === "transfer" || parsed.kind === "deposit" || parsed.kind === "withdrawal") {
+    return { kind: parsed.kind, amountIdr: parsed.amountIdr, description: parsed.note, warnings: [] };
+  }
+  if (parsed.kind !== "sale" && parsed.kind !== "purchase") {
+    throw new Error(`buildDraft goods dipanggil untuk kind ${parsed.kind}`);
+  }
   const candidates = matchProducts(parsed.productQuery, products, parsed.kind);
   if (candidates.length === 0) {
     return { error: `Produk '${parsed.productQuery}' tidak ditemukan. Buat dulu di halaman Produk.` };
@@ -119,6 +208,7 @@ export function buildDraft(
     kind: parsed.kind,
     productId: product.id,
     candidates,
+    partyQuery: parsed.partyQuery,
     quantity: parsed.quantity,
     unit: parsed.unit,
     unitMismatch,
@@ -160,6 +250,25 @@ function parseQtyToken(token: string): { quantity: number; unit?: string } | nul
   return { quantity, unit: unit === "" ? undefined : unit };
 }
 
+/**
+ * Ambil qty dari ujung kanan head: "10pcs" (1 token) atau "30 butir" (2 token).
+ * Varian dua-token menangani "jual telur 30 butir ke Nadia 81rb".
+ */
+function takeQtyFromEnd(head: string[]): ({ quantity: number; unit?: string; count: number } & { ok: true }) | { ok: false } {
+  const last = head.at(-1);
+  if (last === undefined) return { ok: false };
+  const single = parseQtyToken(last);
+  if (single) return { ok: true, quantity: single.quantity, unit: single.unit, count: 1 };
+  if (head.length >= 2) {
+    const prev = head.at(-2) ?? "";
+    const prevParsed = parseQtyToken(prev);
+    if (prevParsed && prevParsed.unit === undefined && /^[a-z]+$/.test(last)) {
+      return { ok: true, quantity: prevParsed.quantity, unit: last, count: 2 };
+    }
+  }
+  return { ok: false };
+}
+
 function parsePriceToken(token: string): number | null {
   const cleaned = token.toLowerCase().replace(/\s+/g, "");
   // Regex linear (tanpa nested quantifier): digit lalu sisa huruf.
@@ -188,25 +297,132 @@ function parsePriceToken(token: string): number | null {
 
 export function parseQuickEntryText(text: string): QuickEntryParseResult {
   const normalized = text.toLowerCase().trim().replace(/\s+/g, " ");
+  // Susut infix ("telur pecah 11 butir") dideteksi dulu sebelum kata kerja awal.
+  const infixLoss = parseInfixStockLoss(normalized);
+  if (infixLoss) return infixLoss;
   // Spasi sudah dinormalisasi tunggal → pola spasi literal (linear, tanpa backtracking).
-  const verbMatch = /^(jual|beli) (.+)$/.exec(normalized);
+  const verbMatch = /^(jual|beli|bayar|transfer|setor|ambil|pecah|rusak|konsumsi|hilang) (.+)$/.exec(normalized);
   if (!verbMatch) return { ok: false, message: HELP };
-  const kind = verbMatch[1] === "jual" ? "sale" : "purchase";
+  const verb = verbMatch[1];
   const rest = verbMatch[2].replace(/^rp\s*/i, "");
+  if (verb === "bayar") return parseExpense(rest);
+  if (verb === "transfer") return parseMoneyOnly(rest, "transfer");
+  if (verb === "setor") return parseMoneyOnly(rest, "deposit");
+  if (verb === "ambil") return parseMoneyOnly(rest, "withdrawal");
+  if (verb === "pecah" || verb === "rusak" || verb === "konsumsi" || verb === "hilang") {
+    return parseStockLoss(verb, rest);
+  }
+  if (verb === "beli") {
+    const goods = parseGoods("purchase", rest);
+    if (goods.ok) return goods;
+    // "beli X nominal" tanpa qty: ambigu produk vs beban → tanya, jangan tebak.
+    return parseAmbiguousBuy(rest);
+  }
+  return parseGoods("sale", rest);
+}
+
+/**
+ * Susut infix: "[produk] pecah|rusak|konsumsi|hilang [qty] [unit]".
+ * Contoh Ohmega: "telur pecah 11 butir".
+ */
+function parseInfixStockLoss(normalized: string): QuickEntryParseResult | null {
+  const match = /^(.+) (pecah|rusak|konsumsi|hilang) (.+)$/.exec(normalized);
+  if (!match) return null;
+  const [, productQuery, verb, tail] = match;
+  if (!productQuery.trim() || !tail.trim()) return null;
+  const loss = parseStockLoss(verb, `${productQuery} ${tail}`);
+  if (!loss.ok || loss.kind !== "stock_loss") return null;
+  // parseStockLoss mengira kata kerja infix sebagai bagian produk ("telur pecah");
+  // kupas kata kerja itu bila menempel di akhir query.
+  if (loss.productQuery.endsWith(` ${verb}`)) {
+    return { ...loss, productQuery: loss.productQuery.slice(0, -(verb.length + 1)) };
+  }
+  return loss;
+}
+
+/**
+ * "beli mika telur 34500": tak ada qty → bukan pembelian stok.
+ * Kembalikan ambiguous_buy agar UI menampilkan pilihan eksplisit
+ * (stok vs beban) sebelum simpan — jangan menebak diam-diam.
+ */
+function parseAmbiguousBuy(rest: string): QuickEntryParseResult {
+  const expense = parseExpense(rest);
+  if (!expense.ok || expense.kind !== "expense") return { ok: false, message: HELP };
+  return { ok: true, kind: "ambiguous_buy", description: expense.description, amountIdr: expense.amountIdr };
+}
+
+/**
+ * Pisahkan klausa pihak dari kanan: "… ke Nadia" / "… dari Vitantri".
+ * Mengembalikan sisa token + nama pihak (atau undefined bila tak ada).
+ */
+function splitParty(tokens: string[]): { head: string[]; partyQuery?: string } {
+  const idxKe = tokens.lastIndexOf("ke");
+  const idxDari = tokens.lastIndexOf("dari");
+  const idx = Math.max(idxKe, idxDari);
+  if (idx < 0 || idx === tokens.length - 1) return { head: tokens };
+  // "ke"/"dari" di awal berarti bukan klausa pihak (tak ada subjek produk).
+  if (idx === 0) return { head: tokens };
+  return { head: tokens.slice(0, idx), partyQuery: tokens.slice(idx + 1).join(" ") };
+}
+
+/** Parser jual/beli: [produk] [qty] [unit] [ke/dari pihak] [sejumlah|total] [nominal]. */
+function parseGoods(kind: "sale" | "purchase", rest: string): QuickEntryParseResult {
+  // Nominal boleh didahului "sejumlah"/"total"/"rp"/"seharga" — samakan jadi "total".
+  const prepared = rest.replace(/\b(sejumlah|seharga|senilai|rp)\b/g, "total");
   // Parse dari KANAN (right-anchored): nama produk boleh mengandung angka
   // ("Produk QE 1788999999"), jadi harga = token terakhir, qty = sebelumnya.
-  const tokens = rest.split(" ").filter((t) => t !== "");
+  const tokens = prepared.split(" ").filter((t) => t !== "");
   if (tokens.length < 3) return { ok: false, message: HELP };
   // Harga dan qty dari kanan via helper (complexity rendah, regex linear).
   const taken = takePriceFromEnd(tokens);
   if (!taken.ok) return { ok: false, message: HELP };
-  const parsedQty = parseQtyToken(tokens.at(-taken.count - 1) ?? "");
-  if (!parsedQty) return { ok: false, message: HELP };
-  const productQuery = tokens.slice(0, -taken.count - 1).join(" ").trim();
+  const beforePrice = tokens.slice(0, -taken.count);
+  const { head, partyQuery } = splitParty(beforePrice);
+  if (head.length < 2) return { ok: false, message: HELP };
+  const parsedQty = takeQtyFromEnd(head);
+  if (!parsedQty.ok) return { ok: false, message: HELP };
+  const productQuery = head.slice(0, -parsedQty.count).join(" ").trim();
   if (!productQuery) return { ok: false, message: HELP };
   return {
-    ok: true, kind, productQuery,
+    ok: true, kind, productQuery, partyQuery,
     quantity: parsedQty.quantity, unit: parsedQty.unit,
     unitPriceIdr: taken.unitPriceIdr, totalIdr: taken.totalIdr,
   };
+}
+
+/** Parser beban: "bayar [keterangan] [nominal]" atau "beli [non-produk] [nominal]". */
+function parseExpense(rest: string): QuickEntryParseResult {
+  const tokens = rest.split(" ").filter((t) => t !== "");
+  if (tokens.length < 2) return { ok: false, message: HELP };
+  const taken = takePriceFromEnd(tokens);
+  if (!taken.ok) return { ok: false, message: HELP };
+  const amountIdr = taken.unitPriceIdr ?? taken.totalIdr;
+  if (amountIdr === undefined) return { ok: false, message: HELP };
+  const description = tokens.slice(0, -taken.count).join(" ").trim();
+  if (!description) return { ok: false, message: HELP };
+  return { ok: true, kind: "expense", description, amountIdr };
+}
+
+/** Parser kas: "transfer/setor/ambil [keterangan?] [nominal]". */
+function parseMoneyOnly(rest: string, kind: "transfer" | "deposit" | "withdrawal"): QuickEntryParseResult {
+  const tokens = rest.split(" ").filter((t) => t !== "");
+  if (tokens.length < 1) return { ok: false, message: HELP };
+  const taken = takePriceFromEnd(tokens);
+  if (!taken.ok) return { ok: false, message: HELP };
+  const amountIdr = taken.unitPriceIdr ?? taken.totalIdr;
+  if (amountIdr === undefined) return { ok: false, message: HELP };
+  const note = tokens.slice(0, -taken.count).join(" ").trim() || undefined;
+  return { ok: true, kind, amountIdr, note };
+}
+
+/** Parser susut: "[produk] pecah/rusak [qty] [unit]" atau "pecah [produk] [qty]". */
+function parseStockLoss(verb: string, rest: string): QuickEntryParseResult {
+  const tokens = rest.split(" ").filter((t) => t !== "");
+  if (tokens.length < 2) return { ok: false, message: HELP };
+  const parsedQty = takeQtyFromEnd(tokens);
+  if (!parsedQty.ok) return { ok: false, message: HELP };
+  const productQuery = tokens.slice(0, -parsedQty.count).join(" ").trim();
+  if (!productQuery) return { ok: false, message: HELP };
+  const reason = verb === "pecah" ? "pecah" : verb;
+  return { ok: true, kind: "stock_loss", productQuery, quantity: parsedQty.quantity, unit: parsedQty.unit, reason };
 }

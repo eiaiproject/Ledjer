@@ -64,7 +64,7 @@ async function purchaseKopi(
 }
 
 describe("resolveInventoryAccount / resolveCogsAccount", () => {
-  it("resolves the Persediaan & HPP accounts of the organization", async () => {
+    it("resolves the Persediaan & HPP accounts of the user's book", async () => {
     const d = db();
     const inventory = await resolveInventoryAccount(d, OWNER_A);
     const cogs = await resolveCogsAccount(d, OWNER_A);
@@ -399,8 +399,8 @@ describe("products CRUD", () => {
   });
 });
 
-describe("tenant isolation for inventory", () => {
-  it("scopes products to their organization", async () => {
+describe("user isolation for inventory", () => {
+  it("scopes products to their user", async () => {
     const d = db();
     const productsA = await listProducts(d, OWNER_A, { includeInactive: true });
     const productsB = await listProducts(d, OWNER_B, { includeInactive: true });
@@ -408,7 +408,7 @@ describe("tenant isolation for inventory", () => {
     expect(productsB.map((p) => p.id)).toEqual([FIXTURE_IDS.products.kopiB]);
   });
 
-  it("posts an Org B purchase against Org B products and accounts", async () => {
+    it("posts a user B purchase against user B products and accounts", async () => {
     const f = fresh();
     const d = db(f);
     await postTransaction(d, OWNER_B, {
@@ -416,13 +416,13 @@ describe("tenant isolation for inventory", () => {
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashB,
       description: "Beli kopi B",
-      idempotencyKey: "idem-inv-orgb-0001",
+      idempotencyKey: "idem-inv-userb-0001",
       items: [{ productId: FIXTURE_IDS.products.kopiB, quantity: 2, unitCostIdr: 40000 }],
     });
 
     const product = await getProduct(d, OWNER_B, FIXTURE_IDS.products.kopiB);
     expect(product?.current_stock_milli).toBe(2000);
-    // Produk Org A tidak terpengaruh.
+    // Produk user A tidak terpengaruh.
     const productA = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(productA?.current_stock_milli).toBe(0);
 
@@ -433,13 +433,13 @@ describe("tenant isolation for inventory", () => {
     expect(journalLineInserts[1].values[3]).toBe(FIXTURE_IDS.accounts.cashB);
   });
 
-  it("rejects a purchase referencing another org's product", async () => {
+    it("rejects a purchase referencing another user's product", async () => {
     await expectHttpCode(
       postTransaction(db(), OWNER_A, {
         transactionType: "purchase",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
-        description: "Beli produk org lain",
+        description: "Beli produk pengguna lain",
         idempotencyKey: "idem-inv-cross-0001",
         items: [{ productId: FIXTURE_IDS.products.kopiB, quantity: 1, unitCostIdr: 10000 }],
       }),
@@ -507,7 +507,7 @@ describe("guarded stock UPDATE honesty (retry signal)", () => {
     const res = await d
       .prepare(
         `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-         WHERE id = ? AND organization_id = ? AND current_stock_milli = ? AND average_cost_minor = ?`,
+         WHERE id = ? AND user_id = ? AND current_stock_milli = ? AND average_cost_minor = ?`,
       )
       .bind(
         999,
@@ -537,7 +537,7 @@ describe("concurrent writer during commit", () => {
         await d
           .prepare(
             `INSERT INTO stock_movements (
-               id, organization_id, transaction_id, product_id, quantity_milli,
+               id, user_id, transaction_id, product_id, quantity_milli,
                unit_cost_minor, cost_total_idr, created_at
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           )
@@ -555,7 +555,7 @@ describe("concurrent writer during commit", () => {
         await d
           .prepare(
             `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-             WHERE id = ? AND organization_id = ?`,
+             WHERE id = ? AND user_id = ?`,
           )
           .bind(5000, 200000000, Date.now(), FIXTURE_IDS.products.kopiA, OWNER_A)
           .run();

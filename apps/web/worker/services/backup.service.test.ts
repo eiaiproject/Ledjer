@@ -209,8 +209,8 @@ describe("Backup Service", () => {
       },
       all: async (sql: string) => {
         const s = sql.replace(/\s+/g, " ");
-        if (s.includes("GROUP BY o.id")) {
-          return [{ org_id: "org-1", member_count: 3 }, { org_id: "org-2", member_count: 1 }];
+        if (s.includes("GROUP BY u.id")) {
+          return [{ user_id: "user-1", account_count: 3 }, { user_id: "user-2", account_count: 1 }];
         }
         return [];
       },
@@ -249,8 +249,8 @@ describe("Backup Service", () => {
       },
       all: async (sql: string) => {
         const s = sql.replace(/\s+/g, " ");
-        if (s.includes("GROUP BY o.id")) {
-          return [{ org_id: "org-1", member_count: 1 }];
+        if (s.includes("GROUP BY u.id")) {
+          return [{ user_id: "user-1", account_count: 1 }];
         }
         if (s.includes("HAVING total_debit")) {
           return [{ id: "je-1", total_debit: 100, total_credit: 50 }];
@@ -362,13 +362,13 @@ describe("Backup Service", () => {
 
     // Build a backup of seed fixture data from golden-accounting scenario
     const users = [
-      { id: "user-orga-owner-00001", email: "owner@orga.test", full_name: "Owner A", status: "active" },
-      { id: "user-orgb-owner-00001", email: "owner@orgb.test", full_name: "Owner B", status: "active" },
+      { id: "user-booka-owner-00001", email: "owner@booka.test", full_name: "Owner A", status: "active" },
+      { id: "user-bookb-owner-00001", email: "owner@bookb.test", full_name: "Owner B", status: "active" },
       { id: "user-empty-owner-00001", email: "owner@empty.test", full_name: "Owner Empty", status: "active" },
     ];
     const transactions = [
-      { id: "txn-orga-cshsl-0001", user_id: "user-orga-owner-00001", transaction_number: "TRX-202601-000001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted", idempotency_key: "idem-cashsale-orga-01", posted_at: 1750000000000, created_at: 1750000000000, updated_at: 1750000000000 },
-      { id: "txn-orga-crdsl-0001", user_id: "user-orga-owner-00001", transaction_number: "TRX-202601-000002", transaction_date: "2026-01-20", transaction_type: "credit_sale", amount_minor: 750000, status: "posted", idempotency_key: "idem-crdsale-orga-01", posted_at: 1750000000000, created_at: 1750000000000, updated_at: 1750000000000 },
+      { id: "txn-booka-cshsl-0001", user_id: "user-booka-owner-00001", transaction_number: "TRX-202601-000001", transaction_date: "2026-01-15", transaction_type: "cash_sale", amount_minor: 500000, status: "posted", idempotency_key: "idem-cashsale-booka-01", posted_at: 1750000000000, created_at: 1750000000000, updated_at: 1750000000000 },
+      { id: "txn-booka-crdsl-0001", user_id: "user-booka-owner-00001", transaction_number: "TRX-202601-000002", transaction_date: "2026-01-20", transaction_type: "credit_sale", amount_minor: 750000, status: "posted", idempotency_key: "idem-crdsale-booka-01", posted_at: 1750000000000, created_at: 1750000000000, updated_at: 1750000000000 },
     ];
 
     const dateStr = "2026-06-30";
