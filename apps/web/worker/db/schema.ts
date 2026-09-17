@@ -5,12 +5,15 @@ export const CORE_TABLES = [
   "rate_limits",
   "accounts",
   "products",
+  "parties",
   "transactions",
   "journal_entries",
   "journal_lines",
   "stock_movements",
   "audit_logs",
   "oauth_accounts",
+  "sync_devices",
+  "sync_ops",
 ] as const;
 
 /**
@@ -21,11 +24,14 @@ export const CORE_TABLES = [
 export const USER_SCOPED_TABLES = [
   "accounts",
   "products",
+  "parties",
   "transactions",
   "journal_entries",
   "journal_lines",
   "stock_movements",
   "audit_logs",
+  "sync_devices",
+  "sync_ops",
 ] as const;
 
 export const CORE_INDEXES = [
@@ -42,6 +48,8 @@ export const CORE_INDEXES = [
   "idx_products_user_code",
   "idx_products_user_name",
   "idx_products_user_active",
+  "idx_parties_user_name",
+  "idx_parties_user_active",
   "idx_transactions_user_number",
   "idx_transactions_user_idempotency",
   "idx_transactions_user_date",
@@ -57,6 +65,12 @@ export const CORE_INDEXES = [
   "idx_stock_movements_product",
   "idx_audit_logs_user_created",
   "idx_audit_logs_entity",
+  "idx_sync_devices_user",
+  "idx_sync_devices_token_hash",
+  "idx_sync_devices_last_seen",
+  "idx_sync_ops_user_hlc",
+  "idx_sync_ops_user_entity",
+  "idx_sync_ops_created",
 ] as const;
 
 export const ACCOUNT_CLASS_VALUES = [

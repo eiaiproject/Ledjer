@@ -12,6 +12,7 @@ import { exportsRoutes } from "./routes/exports.routes";
 import { healthRoutes } from "./routes/health.routes";
 import { productsRoutes } from "./routes/products.routes";
 import { reportsRoutes } from "./routes/reports.routes";
+import { syncRoutes } from "./routes/sync.routes";
 import { transactionsRoutes } from "./routes/transactions.routes";
 import { createBackup, runRestoreDrill } from "./services/backup.service";
 import { cleanupExpiredRows } from "./services/maintenance.service";
@@ -81,6 +82,7 @@ app.route("/api/transactions", transactionsRoutes);
 app.route("/api/reports", reportsRoutes);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/exports", exportsRoutes);
+app.route("/api/sync", syncRoutes);
 
 app.notFound((c) => {
   const path = new URL(c.req.url).pathname;

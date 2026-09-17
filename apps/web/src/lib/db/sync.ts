@@ -237,3 +237,49 @@ export function onSyncStatus(listener: SyncStatusListener): () => void {
 export function getSyncStatus(): SyncStatus {
   return { ...currentStatus };
 }
+
+// ── Pull / Restore (Fase 5) ───────────────────────────────────────────
+
+/**
+ * Pull ops dari server (untuk sync antar-perangkat / restore device baru).
+ * Dipanggil saat login Google di device baru: tarik snapshot/op-log → bangun ulang DB lokal.
+ */
+export async function pullRemoteOps(sinceHlc?: string): Promise<unknown[]> {
+  try {
+    const url = sinceHlc ? `/api/sync/pull?since=${encodeURIComponent(sinceHlc)}` : "/api/sync/pull";
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { ops?: unknown[] };
+    return data.ops ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Restore device baru dari snapshot server.
+ * Fetch /api/sync/snapshot lalu kembalikan ops untuk di-replay ke DB lokal.
+ */
+export async function fetchSnapshot(): Promise<{ user?: unknown; ops: unknown[] }> {
+  try {
+    const res = await fetch("/api/sync/snapshot", { credentials: "include" });
+    if (!res.ok) return { ops: [] };
+    const data = (await res.json()) as { user?: unknown; ops?: unknown[] };
+    return { user: data.user, ops: data.ops ?? [] };
+  } catch {
+    return { ops: [] };
+  }
+}
+
+/**
+ * Buat snapshot per-user ke R2 (backup tipis).
+ * Dipanggil manual atau on-demand; server daily backup sudah jalan via cron.
+ */
+export async function createSnapshot(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/sync/snapshot", { method: "POST", credentials: "include" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
