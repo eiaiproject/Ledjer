@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Routes, Route } from 'react-router-dom';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { DashboardPage } from '@/pages/dashboard';
 import { renderWithProviders } from './test-utils';
 
@@ -31,7 +31,7 @@ function renderDashboard() {
 }
 
 describe('DashboardPage', () => {
-  it('kartu statistik tertaut ke halaman detail dan rincian kas dihapus', async () => {
+  it('hero saldo selalu tampil, ringkasan bulanan tertutup lalu terbuka via toggle', async () => {
     getDashboardSummary.mockResolvedValue({
       cashBankBalance: 1000000,
       cashBankAccounts: [{ id: 'a1', code: '1110', name: 'Kas', balance: 1000000 }],
@@ -47,6 +47,14 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText(/belum ada transaksi/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: /saldo kas & bank/i })).toHaveAttribute('href', '/accounts');
+    // Ringkasan bulanan: tertutup default.
+    expect(screen.queryByRole('link', { name: /uang masuk bulan ini/i })).toBeNull();
+    const toggle = screen.getByRole('button', { name: /ringkasan bulan ini/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: /uang masuk bulan ini/i })).toHaveAttribute(
       'href',
       '/transactions?type=cash_in',
