@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
-import { formatDateInputValue, formatIDR, formatQuantity, formatShortDate } from "@/lib/utils";
+import { formatDateInputValue, formatDecimalIDR, formatIDR, formatQuantity, formatShortDate } from "@/lib/utils";
 
 const GUIDE_GROUPS: { title: string; note?: string; examples: string[] }[] = [
   {
@@ -248,7 +248,7 @@ export function QuickEntryBar() {
     if (draft.kind === "sale" || draft.kind === "purchase") {
       return productId !== "" &&
         Number.isFinite(qty) && qty > 0 &&
-        Number.isInteger(price) && price > 0 &&
+        Number.isFinite(price) && price > 0 &&
         Number.isInteger(totalNum) && totalNum > 0 &&
         (draft.kind === "purchase" || incomeAccountId !== "" || (incomeQuery.data?.length ?? 0) > 0) &&
         !insufficient;
@@ -268,7 +268,7 @@ export function QuickEntryBar() {
       }
       if (ambiguousChoice === "purchase") {
         return productId !== "" && Number.isFinite(qty) && qty > 0 &&
-          Number.isInteger(price) && price > 0 && Number.isInteger(totalNum) && totalNum > 0;
+          Number.isFinite(price) && price > 0 && Number.isInteger(totalNum) && totalNum > 0;
       }
       return false;
     }
@@ -284,7 +284,11 @@ export function QuickEntryBar() {
     (draft?.kind === "deposit" && equityDepositId === "") ||
     (draft?.kind === "withdrawal" && equityWithdrawalId === "");
 
-  /** Satu handler untuk qty/harga/total: field yang diubah menghitung ulang pasangannya. */
+  /** Satuan presisi diturunkan dari total ÷ jumlah (maks 4 desimal, tanpa pembulatan rupiah). */
+  const deriveUnit = (qn: number, tn: number): string => String(Number((tn / qn).toFixed(4)));
+
+  /** Satu handler untuk qty/total: field yang diubah menghitung ulang pasangannya.
+   *  Satuan selalu diturunkan (read-only di pratinjau) — nominal ketikanlah yang tercatat. */
   const handleAmountChange = (field: "quantity" | "unitPrice" | "total", value: string) => {
     const nextQty = field === "quantity" ? value : quantity;
     const nextPrice = field === "unitPrice" ? value : unitPrice;
@@ -292,10 +296,10 @@ export function QuickEntryBar() {
     const qn = Number(nextQty);
     const pn = Number(nextPrice);
     const tn = Number(nextTotal);
-    if (field !== "total" && Number.isFinite(qn) && qn > 0 && Number.isInteger(pn) && pn > 0) {
-      nextTotal = String(qn * pn);
+    if (field !== "total" && Number.isFinite(qn) && qn > 0 && Number.isFinite(pn) && pn > 0) {
+      nextTotal = String(Math.round(qn * pn));
     } else if (field === "total" && Number.isFinite(qn) && qn > 0 && Number.isInteger(tn) && tn > 0) {
-      return applyAmounts(nextQty, String(Math.round(tn / qn)), nextTotal);
+      return applyAmounts(nextQty, deriveUnit(qn, tn), nextTotal);
     }
     applyAmounts(nextQty, nextPrice, nextTotal);
   };
@@ -377,11 +381,18 @@ export function QuickEntryBar() {
         const partyText = partyName.trim() || draft.partyQuery?.trim() || "";
         const party = partyText ? (isSale ? ` ke ${partyText}` : ` dari ${partyText}`) : "";
         description = `${isSale ? "Jual" : "Beli"} ${qty} ${selectedProduct.unit} ${selectedProduct.name}${party} (via cepat)`;
-        // Local stock math butuh milli + minor (sama seperti Fase 2).
+        // Presisi penuh dari nominal ketikan: minor bulat = round(total×10000/qty),
+        // satuan = minor/10000 (maks 4 desimal). Total tercatat persis = totalNum.
         const quantityMilli = Math.round(qty * 1000);
-        const unitMinor = price * 10_000;
+        const preciseMinor = Math.round((totalNum * 10_000) / qty);
+        const preciseUnit = preciseMinor / 10_000;
         const partyId = partyText ? resolvePartyId(partyText, isSale ? "customer" : "supplier") : null;
         if (isSale) {
+          // Movement jual memakai WAC beku (bukan harga jual) agar HPP lokal benar.
+          const localProduct = localDb ? getProductById(localDb, productId) : null;
+          const saleWacMinor = localProduct && localProduct.average_cost_minor > 0
+            ? localProduct.average_cost_minor
+            : preciseMinor;
           await postLocalThenServer({
             transactionType: "cash_in",
             description,
@@ -391,8 +402,8 @@ export function QuickEntryBar() {
             partyId,
             productId,
             quantityMilli,
-            unitCostMinor: unitMinor,
-            items: [{ productId, quantity: qty, unitPriceIdr: price }],
+            unitCostMinor: saleWacMinor,
+            items: [{ productId, quantity: qty, unitPriceIdr: preciseUnit }],
           });
         } else {
           await postLocalThenServer({
@@ -403,8 +414,8 @@ export function QuickEntryBar() {
             partyId,
             productId,
             quantityMilli,
-            unitCostMinor: unitMinor,
-            items: [{ productId, quantity: qty, unitCostIdr: price }],
+            unitCostMinor: preciseMinor,
+            items: [{ productId, quantity: qty, unitCostIdr: preciseUnit }],
           });
         }
       } else if (draft.kind === "expense") {
@@ -435,7 +446,8 @@ export function QuickEntryBar() {
           const party = partyText ? ` dari ${partyText}` : "";
           description = `Beli ${qty} ${selectedProduct.unit} ${selectedProduct.name}${party} (via cepat)`;
           const quantityMilli = Math.round(qty * 1000);
-          const unitMinor = price * 10_000;
+          const preciseMinor = Math.round((totalNum * 10_000) / qty);
+          const preciseUnit = preciseMinor / 10_000;
           await postLocalThenServer({
             transactionType: "purchase",
             description,
@@ -444,8 +456,8 @@ export function QuickEntryBar() {
             partyId: partyText ? resolvePartyId(partyText, "supplier") : null,
             productId,
             quantityMilli,
-            unitCostMinor: unitMinor,
-            items: [{ productId, quantity: qty, unitCostIdr: price }],
+            unitCostMinor: preciseMinor,
+            items: [{ productId, quantity: qty, unitCostIdr: preciseUnit }],
           });
         }
       } else if (draft.kind === "stock_loss") {
@@ -654,7 +666,7 @@ export function QuickEntryBar() {
                 {DRAFT_LABEL[draft.kind] ?? draft.kind}
                 {selectedProduct && (draft.kind === "sale" || draft.kind === "purchase") && (
                   <> {selectedProduct.name} ×{formatQuantity(qty)} @
-                  {formatIDR(Number.isInteger(price) ? price : 0)} = {formatIDR(Number.isInteger(totalNum) ? totalNum : 0)}</>
+                  {formatDecimalIDR(Number.isFinite(price) ? price : 0)} = {formatIDR(Number.isInteger(totalNum) ? totalNum : 0)}</>
                 )}
                 {selectedProduct && draft.kind === "stock_loss" && (
                   <> {selectedProduct.name} ×{formatQuantity(qty)} {selectedProduct.unit} ({draft.reason})</>
@@ -724,7 +736,7 @@ export function QuickEntryBar() {
                 )}
                 {(draft.kind === "sale" || draft.kind === "purchase") && (
                   <>
-                    <Input label="Harga satuan (Rp)" inputMode="numeric" value={unitPrice} onChange={(e) => handleAmountChange("unitPrice", e.target.value)} />
+                    <Input label="Harga satuan (Rp)" value={unitPrice} readOnly helperText="Otomatis: total ÷ jumlah" />
                     <Input label="Total (Rp)" inputMode="numeric" value={total} onChange={(e) => handleAmountChange("total", e.target.value)} />
                   </>
                 )}

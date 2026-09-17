@@ -185,6 +185,34 @@ describe("postTransaction writes against real SQLite", () => {
     });
   });
 
+  describe("fractional unit precision", () => {
+    it("records the typed total exactly for an indivisible purchase", async () => {
+      // 500rb / 252 tidak habis dibagi — nominal ketikan yang tercatat, bulat.
+      const created = await postTransaction(d1(), USER, {
+        transactionType: "purchase",
+        transactionDate: "2026-09-05",
+        cashAccountId: CASH,
+        description: "Beli presisi",
+        idempotencyKey: "sql-precision-buy-1",
+        items: [{ productId: PRODUCT, quantity: 252, unitCostIdr: 500_000 / 252 }],
+      });
+      expect(row(created.transaction_id).amount_idr).toBe(500_000);
+    });
+
+    it("records exact revenue for an indivisible sale", async () => {
+      const created = await postTransaction(d1(), USER, {
+        transactionType: "cash_in",
+        transactionDate: "2026-09-06",
+        cashAccountId: CASH,
+        counterAccountId: REVENUE,
+        description: "Jual presisi",
+        idempotencyKey: "sql-precision-sell-1",
+        items: [{ productId: PRODUCT, quantity: 3, unitPriceIdr: 100_000 / 3 }],
+      });
+      expect(row(created.transaction_id).amount_idr).toBe(100_000);
+    });
+  });
+
   it("leaves every committed journal entry balanced", () => {
     const unbalanced = sqlite
       .prepare(

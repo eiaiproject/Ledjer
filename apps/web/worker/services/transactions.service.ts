@@ -11,7 +11,6 @@ import {
   computeNewWac,
   costTotalFromMilli,
   getProduct,
-  idrToMinor,
   milliToQuantity,
   minorToIdr,
   movementsForProduct,
@@ -366,10 +365,14 @@ async function normalizePurchaseItems(
   assertUniqueItems(items);
   const result: NormalizedPurchaseItem[] = [];
   for (const item of items) {
-    const unitCostIdr = item.unitCostIdr;
-    if (unitCostIdr === undefined || !Number.isInteger(unitCostIdr) || unitCostIdr < 0 || unitCostIdr > 999_999_999_999) {
-      throw badRequest("invalid_unit_cost", "Harga beli harus bilangan bulat rupiah tidak negatif.");
+    // Satuan presisi (maks 4 desimal, dibulatkan): nominal ketikan adalah total
+    // yang tercatat; satuan hanya diturunkan. Minor (×10.000) tetap integer
+    // agar aman untuk matematika BigInt WAC.
+    const rawCost = item.unitCostIdr;
+    if (rawCost === undefined || !Number.isFinite(rawCost) || rawCost < 0 || rawCost > 999_999_999_999) {
+      throw badRequest("invalid_unit_cost", "Harga beli harus angka rupiah tidak negatif (maks 4 desimal).");
     }
+    const unitCostIdr = Math.round(rawCost * 10_000) / 10_000;
     const quantityMilli = quantityToMilli(item.quantity);
     const product = await getProduct(db, userId, item.productId);
     if (product?.is_active !== 1) {
@@ -379,7 +382,7 @@ async function normalizePurchaseItems(
       productId: item.productId,
       quantityMilli,
       unitCostIdr,
-      unitCostMinor: idrToMinor(unitCostIdr),
+      unitCostMinor: Math.round(unitCostIdr * 10_000),
       costTotalIdr: costTotalFromMilli(quantityMilli, unitCostIdr),
     });
   }
@@ -397,10 +400,11 @@ async function normalizeSaleItems(
   assertUniqueItems(items);
   const result: NormalizedSaleItem[] = [];
   for (const item of items) {
-    const unitPriceIdr = item.unitPriceIdr;
-    if (unitPriceIdr === undefined || !Number.isInteger(unitPriceIdr) || unitPriceIdr < 0 || unitPriceIdr > 999_999_999_999) {
-      throw badRequest("invalid_unit_price", "Harga jual harus bilangan bulat rupiah tidak negatif.");
+    const rawPrice = item.unitPriceIdr;
+    if (rawPrice === undefined || !Number.isFinite(rawPrice) || rawPrice < 0 || rawPrice > 999_999_999_999) {
+      throw badRequest("invalid_unit_price", "Harga jual harus angka rupiah tidak negatif (maks 4 desimal).");
     }
+    const unitPriceIdr = Math.round(rawPrice * 10_000) / 10_000;
     const quantityMilli = quantityToMilli(item.quantity);
     const product = await getProduct(db, userId, item.productId);
     if (product?.is_active !== 1) {

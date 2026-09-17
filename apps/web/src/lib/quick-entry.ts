@@ -188,18 +188,10 @@ export function buildDraft(
   }
   const product = products.find((p) => p.id === candidates[0].id)!;
   const warnings: string[] = [];
-  let unitPriceIdr: number;
-  let totalIdr: number;
-  if (parsed.totalIdr !== undefined) {
-    totalIdr = parsed.totalIdr;
-    unitPriceIdr = Math.round(totalIdr / parsed.quantity);
-    if (unitPriceIdr * parsed.quantity !== totalIdr) {
-      warnings.push(`Total tidak habis dibagi: satuan dibulatkan ke ${unitPriceIdr}.`);
-    }
-  } else {
-    unitPriceIdr = parsed.unitPriceIdr!;
-    totalIdr = parsed.quantity * unitPriceIdr;
-  }
+  // Nominal ketikan adalah total yang tercatat; satuan hanya diturunkan presisi
+  // (maks 4 desimal) sebagai patokan margin — tidak pernah dibulatkan ke rupiah.
+  const totalIdr = parsed.totalIdr ?? parsed.quantity * parsed.unitPriceIdr!;
+  const unitPriceIdr = Number((totalIdr / parsed.quantity).toFixed(4));
   const unitMismatch = parsed.unit !== undefined && parsed.unit !== product.unit;
   if (unitMismatch) {
     warnings.push(`Satuan diketik '${parsed.unit}', produk memakai '${product.unit}'.`);

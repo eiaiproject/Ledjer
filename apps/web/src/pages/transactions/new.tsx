@@ -164,7 +164,7 @@ export function NewTransactionPage() {
       const product = productById(item.productId);
       if (!product) continue;
       const qty = parseSignedDecimalInput(item.quantity, 0) ?? 0;
-      const price = parseAmount(item.unitPrice);
+      const price = parseUnitPrice(item.unitPrice);
       total += qty * price;
     }
     return Math.round(total);
@@ -194,7 +194,7 @@ export function NewTransactionPage() {
         toast.error("Jumlah produk harus lebih dari 0.");
         return null;
       }
-      const price = parseAmount(item.unitPrice);
+      const price = parseUnitPrice(item.unitPrice);
       if (!isPurchase && price <= 0) {
         toast.error("Harga jual harus lebih dari 0.");
         return null;
@@ -256,8 +256,8 @@ export function NewTransactionPage() {
               productId: item.productId,
               quantity: parseSignedDecimalInput(item.quantity, 0) ?? 0,
               ...(isPurchaseSubmit
-                ? { unitCostIdr: parseAmount(item.unitPrice) }
-                : { unitPriceIdr: parseAmount(item.unitPrice) }),
+                ? { unitCostIdr: parseUnitPrice(item.unitPrice) }
+                : { unitPriceIdr: parseUnitPrice(item.unitPrice) }),
             }))
           : undefined,
       });
@@ -412,7 +412,8 @@ export function NewTransactionPage() {
                           <Input
                             label={unitPriceRowLabel(index, isPurchase)}
                             isCurrency
-                            inputMode="numeric"
+                            allowDecimals
+                            inputMode="decimal"
                             placeholder="0"
                             value={item.unitPrice}
                             onChange={(e) => updateItem(item.key, { unitPrice: e.target.value })}
@@ -470,9 +471,7 @@ export function NewTransactionPage() {
   );
 }
 
-/** Parse input rupiah (mungkin diformat) menjadi bilangan bulat IDR. */
-function parseAmount(raw: string): number {
-  const digits = raw.replace(/[^\d]/g, "");
-  const value = Number(digits);
-  return Number.isFinite(value) ? value : 0;
+/** Parse harga satuan: desimal hingga 4 digit (agar total tercatat presisi). */
+function parseUnitPrice(raw: string): number {
+  return parseSignedDecimalInput(raw, 0, 4) ?? 0;
 }

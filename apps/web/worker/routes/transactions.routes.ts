@@ -20,8 +20,10 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const transactionItemSchema = z.object({
   productId: z.string().min(1),
   quantity: z.number().positive(),
-  unitCostIdr: z.number().int().nonnegative().optional(),
-  unitPriceIdr: z.number().int().nonnegative().optional(),
+  // Satuan boleh pecahan (maks 4 desimal, mis. 500000/252) agar total tercatat
+  // persis sama dengan nominal yang diketik — bukan hasil satuan-bulat × qty.
+  unitCostIdr: z.number().finite().nonnegative().optional(),
+  unitPriceIdr: z.number().finite().nonnegative().optional(),
 });
 
 const postTransactionSchema = z.object({

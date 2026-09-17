@@ -173,7 +173,8 @@ export function parseAmountInput(
  */
 export function parseSignedDecimalInput(
   value: unknown,
-  emptyValue: number | undefined = undefined
+  emptyValue: number | undefined = undefined,
+  decimals = 3,
 ): number | undefined {
   // Accept strings (form values) and numbers; anything else (e.g. objects)
   // is rejected instead of being stringified as "[object Object]".
@@ -199,7 +200,8 @@ export function parseSignedDecimalInput(
   // ("1.5" = 1.5); multiple dots are Indonesian thousands ("1.234.567").
   const amount = Number(`${negative ? "-" : ""}${normalized}`);
   if (!Number.isFinite(amount)) return emptyValue;
-  const rounded = Math.round(amount * 1000) / 1000;
+  const factor = 10 ** decimals;
+  const rounded = Math.round(amount * factor) / factor;
   return rounded === 0 ? 0 : rounded;
 }
 

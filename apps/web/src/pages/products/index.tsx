@@ -292,8 +292,18 @@ export function ProductsPage() {
                         <p className="px-1 pb-1 text-xs text-text-tertiary">
                           HPP {formatDecimalIDR(product.average_cost_idr)}/{product.unit} · Jual{" "}
                           {formatDecimalIDR(product.selling_price_idr)}
+                          {product.selling_price_idr > 0 && (
+                            <>
+                              {" "}· Margin{" "}
+                              <ProductMargin
+                                sellingPriceIdr={product.selling_price_idr}
+                                costIdr={product.average_cost_idr}
+                                unit={product.unit}
+                              />
+                            </>
+                          )}
                         </p>
-                        <ProductMovementHistory productId={product.id} unit={product.unit} />
+                        <ProductMovementHistory productId={product.id} unit={product.unit} sellingPriceIdr={product.selling_price_idr} />
                       </div>
                     )}
                   </li>
@@ -398,8 +408,21 @@ function parseAmount(raw: string): number {
   return Number.isFinite(value) ? value : 0;
 }
 
+/**
+ * Margin per satuan vs harga jual patokan: hijau bila menguntungkan, merah bila
+ * merugikan. Netral (tanpa ikon/emoji) dan disembunyikan bila patokan 0.
+ */
+function ProductMargin({ sellingPriceIdr, costIdr, unit }: { readonly sellingPriceIdr: number; readonly costIdr: number; readonly unit: string }) {
+  const margin = sellingPriceIdr - costIdr;
+  return (
+    <span className={margin >= 0 ? "font-medium text-leaf-700" : "font-medium text-error"}>
+      {margin >= 0 ? "+" : "−"}{formatDecimalIDR(Math.abs(margin))}/{unit}
+    </span>
+  );
+}
+
 /** Riwayat mutasi satu produk: dimuat malas saat baris dikembangkan. */
-function ProductMovementHistory({ productId, unit }: { readonly productId: string; readonly unit: string }) {
+function ProductMovementHistory({ productId, unit, sellingPriceIdr }: { readonly productId: string; readonly unit: string; readonly sellingPriceIdr: number }) {
   const { userId } = useBook();
   const query = useQuery({
     queryKey: queryKeys.products.movements(userId, productId),
@@ -431,6 +454,11 @@ function ProductMovementHistory({ productId, unit }: { readonly productId: strin
     <ul className="divide-y divide-wood-100">
       {lines.map((line: StockMovementReportLine) => {
         const incoming = line.quantity_in_milli > 0;
+        // Baris jual = keluar via cash_in (modal = WAC beku); susut/rugi tak dinilai.
+        const isSale = !incoming && line.transaction_type === "cash_in";
+        // Modal per satuan baris ini: harga beli (masuk) atau WAC beku (jual).
+        const lineCostIdr = line.unit_cost_minor / 10_000;
+        const showMargin = sellingPriceIdr > 0 && (incoming || isSale);
         return (
           <li key={line.transaction_id} className="flex items-center justify-between gap-3 px-1 py-2">
             <div className="min-w-0">
@@ -450,6 +478,11 @@ function ProductMovementHistory({ productId, unit }: { readonly productId: strin
                 {formatQuantity((incoming ? line.quantity_in_milli : line.quantity_out_milli) / 1000)} {unit}
               </p>
               <p className="text-xs text-text-tertiary">Sisa {formatQuantity(line.running_stock_milli / 1000)}</p>
+              {showMargin && (
+                <p className="text-xs">
+                  Margin <ProductMargin sellingPriceIdr={sellingPriceIdr} costIdr={lineCostIdr} unit={unit} />
+                </p>
+              )}
             </div>
           </li>
         );

@@ -80,13 +80,13 @@ describe("buildDraft", () => {
       totalIdr: 50000, unitMismatch: true,
     });
   });
-  it("total eksplisit dipecah ke satuan dengan pembulatan", () => {
+  it("total dipecah ke satuan presisi tanpa pembulatan rupiah", () => {
     const parsed = parseQuickEntryText("jual kopi 3pcs total 100000");
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(buildDraft(parsed, [
       { id: "p1", name: "Kopi", unit: "pcs", is_active: 1, current_stock: 14 },
-    ])).toMatchObject({ unitPriceIdr: 33333, totalIdr: 100000 });
+    ])).toMatchObject({ unitPriceIdr: 33333.3333, totalIdr: 100000 });
   });
   it("produk tak dikenal → error ramah", () => {
     const parsed = parseQuickEntryText("jual zebra 1 10000");
