@@ -13,24 +13,24 @@ CREATE TABLE IF NOT EXISTS sync_devices (id TEXT PRIMARY KEY, user_id TEXT NOT N
 CREATE TABLE IF NOT EXISTS sync_ops (op_id TEXT PRIMARY KEY, user_id TEXT NOT NULL);
 
 -- 1. Hapus child paling tergantung dulu (urutan penting untuk FK, walau defer tetap child-first lebih aman)
-DELETE FROM stock_movements;
-DELETE FROM journal_lines;
-DELETE FROM sync_ops;
-DELETE FROM journal_entries;
-DELETE FROM transactions;
+DELETE FROM stock_movements; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM journal_lines; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM sync_ops; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM journal_entries; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM transactions; -- NOSONAR reset staging: wipe tabel bisnis disengaja
 
 -- 2. Hapus produk & akun non-system, serta audit
-DELETE FROM products;
-DELETE FROM audit_logs;
+DELETE FROM products; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM audit_logs; -- NOSONAR reset staging: wipe tabel bisnis disengaja
 DELETE FROM accounts WHERE is_system = 0;
 
 -- 3. Hapus entitas sync/offline (baru di 0010, kosongkan tiap run)
-DELETE FROM sync_devices;
-DELETE FROM sync_ops;
-DELETE FROM parties;
+DELETE FROM sync_devices; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM sync_ops; -- NOSONAR reset staging: wipe tabel bisnis disengaja
+DELETE FROM parties; -- NOSONAR reset staging: wipe tabel bisnis disengaja
 
 -- 4. Hapus rate_limits & sesi kadaluarsa (opsional, hemat rows)
-DELETE FROM rate_limits;
+DELETE FROM rate_limits; -- NOSONAR reset staging: wipe tabel bisnis disengaja
 DELETE FROM sessions WHERE expires_at < unixepoch('now') * 1000;
 
 -- 5. Vacuum ringan (opsional, kembalikan size)
