@@ -178,6 +178,7 @@ test.describe("New Transaction", () => {
     await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
     // Cari eksplisit: baris baru tidak dijamin tampil di halaman 1 pada
     // DB bersama yang menumpuk.
+    await authPage.getByRole("button", { name: /filter.*cari/i }).click();
     await authPage.getByLabel("Cari", { exact: true }).fill(desc);
     await expect(authPage.getByText(desc)).toBeVisible({ timeout: 15000 });
   });

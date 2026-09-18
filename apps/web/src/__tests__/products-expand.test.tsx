@@ -147,9 +147,15 @@ describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
     listProductsPage.mockResolvedValue({ products: [product], total: 1 });
   });
 
+  async function openFilters() {
+    fireEvent.click(screen.getByRole('button', { name: /filter.*cari/i }));
+    expect(await screen.findByLabelText(/cari produk/i)).toBeTruthy();
+  }
+
   it('filter berupa dropdown dengan 5 opsi', async () => {
     renderPage();
     expect(await screen.findByText('Kopi')).toBeTruthy();
+    await openFilters();
     const filter = screen.getByRole('combobox', { name: /filter/i });
     expect(within(filter).getAllByRole('option')).toHaveLength(5);
     fireEvent.change(filter, { target: { value: 'low' } });
@@ -171,6 +177,7 @@ describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
   it('pencarian memfilter daftar', async () => {
     renderList();
     expect(await screen.findByText('Kopi')).toBeTruthy();
+    await openFilters();
     fireEvent.change(screen.getByLabelText(/cari produk/i), { target: { value: 'kopi' } });
     await waitFor(() => {
       expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ search: 'kopi' }));
@@ -180,6 +187,7 @@ describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
   it('dropdown Habis dan Menipis memfilter stok', async () => {
     renderList();
     expect(await screen.findByText('Kopi')).toBeTruthy();
+    await openFilters();
     const filter = screen.getByRole('combobox', { name: /filter/i });
     fireEvent.change(filter, { target: { value: 'out' } });
     await waitFor(() => {
@@ -225,6 +233,7 @@ describe('ProductsPage cari/filter/sort/paginasi/tambah', () => {
   it('urutkan memanggil dengan sort yang dipilih', async () => {
     renderList();
     expect(await screen.findByText('Kopi')).toBeTruthy();
+    await openFilters();
     fireEvent.change(screen.getByLabelText(/urutkan/i), { target: { value: 'stock_asc' } });
     await waitFor(() => {
       expect(listProductsPage).toHaveBeenCalledWith(expect.objectContaining({ sort: 'stock_asc' }));

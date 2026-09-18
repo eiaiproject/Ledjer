@@ -46,13 +46,22 @@ export function TransactionListPage() {
   const [offset, setOffset] = useState(0);
   const [prevDateParams, setPrevDateParams] = useState(`${qpFromDate}|${qpToDate}`);
   const dateParamsKey = `${qpFromDate}|${qpToDate}`;
+  // Filter dilipat (default tertutup) agar daftar lega; otomatis terbuka bila
+  // ada filter aktif (mis. deep-link tanggal) supaya tak membingungkan.
+  const [showFilters, setShowFilters] = useState(
+    transactionType !== "" || qpFromDate !== "" || qpToDate !== "",
+  );
   if (dateParamsKey !== prevDateParams) {
     setPrevDateParams(dateParamsKey);
     setFromDate(qpFromDate);
     setToDate(qpToDate);
     setOffset(0);
+    if (qpFromDate !== "" || qpToDate !== "") setShowFilters(true);
   }
   const [exporting, setExporting] = useState(false);
+  const activeFilterCount = [
+    search, transactionType, status, fromDate, toDate,
+  ].filter((v) => v !== "").length;
 
   const filters = useMemo(
     () => ({
@@ -171,7 +180,20 @@ export function TransactionListPage() {
         </Button>
       </Link>
 
-      <Card elevated>
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          aria-controls="transaction-filters"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          Filter &amp; cari{activeFilterCount > 0 ? ` (${activeFilterCount} aktif)` : ""}
+        </button>
+      </div>
+
+      {showFilters && (
+      <Card elevated id="transaction-filters">
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
           <Input
             label="Cari"
@@ -215,6 +237,7 @@ export function TransactionListPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Card elevated>
         <CardContent className="p-0">{rowsContent}</CardContent>

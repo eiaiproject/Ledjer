@@ -54,6 +54,11 @@ export function ProductsPage() {
   const [chip, setChip] = useState<FilterChip>("all");
   const [sort, setSort] = useState<ProductListSort>("name");
   const [offset, setOffset] = useState(0);
+  // Filter dilipat (default tertutup); lencana jumlah tampil bila ada yang aktif.
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [
+    deferredSearch, chip !== "all" ? chip : "", sort !== "name" ? sort : "",
+  ].filter((v) => v !== "").length;
 
   const statusParam: "active" | "inactive" | "all" =
     chip === "active" || chip === "inactive" ? chip : "all";
@@ -176,9 +181,22 @@ export function ProductsPage() {
         Tambah Produk
       </Button>
 
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          aria-controls="product-filters"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          Filter &amp; cari{activeFilterCount > 0 ? ` (${activeFilterCount} aktif)` : ""}
+        </button>
+      </div>
+
+      {showFilters && (
       <Card elevated>
         <CardContent className="space-y-3 p-4">
-          <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
+          <div id="product-filters" className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
             <Input
               label="Cari produk"
               value={search}
@@ -215,6 +233,7 @@ export function ProductsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {query.isError ? (
         <ErrorState title="Gagal memuat produk" message="Terjadi kesalahan saat mengambil daftar produk." onRetry={() => query.refetch()} />

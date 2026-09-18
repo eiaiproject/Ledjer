@@ -25,6 +25,7 @@ export function AccountsPage() {
   const [subtype, setSubtype] = useState<CashBankSubtype>("cash");
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const query = useAllAccounts();
 
@@ -73,9 +74,28 @@ export function AccountsPage() {
         </Button>
       </Link>
 
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowCreate((v) => !v)}
+          aria-expanded={showCreate}
+          aria-controls="account-create-form"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          {showCreate ? "Tutup form tambah akun" : "Tambah akun baru"}
+        </button>
+        {!showCreate && (
+          <p className="text-xs text-text-tertiary">
+            Butuh akun kas atau rekening bank baru? Buka form tambah akun.
+          </p>
+        )}
+      </div>
+
+      {showCreate && (
       <Card elevated>
         <CardContent className="p-4">
           <form
+            id="account-create-form"
             className="grid items-end gap-3 sm:grid-cols-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -107,6 +127,7 @@ export function AccountsPage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       {query.isError ? (
         <ErrorState title="Gagal memuat akun" message="Terjadi kesalahan saat mengambil daftar akun." onRetry={() => query.refetch()} />

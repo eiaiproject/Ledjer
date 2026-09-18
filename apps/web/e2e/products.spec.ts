@@ -32,7 +32,11 @@ async function openCreateModal(page: Page) {
 }
 
 async function expectProductVisible(page: Page, productName: string) {
-  // Pagination-safe: filter by unique name first.
+  // Pagination-safe: filter by unique name first (filter dilipat default;
+  // buka hanya bila belum terbuka agar idempoten).
+  if (!(await page.getByLabel("Cari produk").isVisible())) {
+    await page.getByRole("button", { name: /filter.*cari/i }).click();
+  }
   await page.getByLabel("Cari produk").fill(productName);
   try {
     await expect(page.getByText(productName).first()).toBeVisible({ timeout: 8000 });

@@ -28,6 +28,15 @@ async function expectAccountVisible(page: import("@playwright/test").Page, accou
   }
 }
 
+/**
+ * Form tambah akun dilipat (default tertutup) — buka dulu sebelum isi.
+ * Label exact agar tak ambigu dengan tombol submit "Tambah Akun".
+ */
+async function openCreateForm(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: "Tambah akun baru", exact: true }).click();
+  await page.getByLabel("Nama Akun").waitFor({ state: "visible", timeout: 10000 });
+}
+
 test.describe("Accounts page", () => {
   test("shows Kas and Bank groups with balances", async ({ authPage }) => {
     await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
@@ -38,8 +47,9 @@ test.describe("Accounts page", () => {
 
   test("creates a new cash account", async ({ authPage }) => {
     await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
+    await openCreateForm(authPage);
     await authPage.getByLabel("Nama Akun").fill(NEW_CASH_NAME);
-    await authPage.getByRole("button", { name: /Tambah Akun/ }).click();
+    await authPage.getByRole("button", { name: "Tambah Akun", exact: true }).click();
 
     await expect(authPage.getByText("Akun berhasil dibuat.")).toBeVisible({ timeout: 10000 });
     await expectAccountVisible(authPage, NEW_CASH_NAME);
@@ -47,9 +57,10 @@ test.describe("Accounts page", () => {
 
   test("creates a new bank account", async ({ authPage }) => {
     await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
+    await openCreateForm(authPage);
     await authPage.getByLabel("Jenis").selectOption("bank");
     await authPage.getByLabel("Nama Akun").fill(NEW_BANK_NAME);
-    await authPage.getByRole("button", { name: /Tambah Akun/ }).click();
+    await authPage.getByRole("button", { name: "Tambah Akun", exact: true }).click();
 
     await expect(authPage.getByText("Akun berhasil dibuat.")).toBeVisible({ timeout: 10000 });
     await expectAccountVisible(authPage, NEW_BANK_NAME);
@@ -58,8 +69,9 @@ test.describe("Accounts page", () => {
   test("rejects a duplicate account name", async ({ authPage }) => {
     await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
     // "Kas" is the seeded system account - creating it again must fail.
+    await openCreateForm(authPage);
     await authPage.getByLabel("Nama Akun").fill("Kas");
-    await authPage.getByRole("button", { name: /Tambah Akun/ }).click();
+    await authPage.getByRole("button", { name: "Tambah Akun", exact: true }).click();
 
     await expect(authPage.locator("[role='alert']")).toContainText(/sudah dipakai/i, { timeout: 10000 });
   });
@@ -75,8 +87,9 @@ test.describe("Accounts page", () => {
   test("deactivates and reactivates a non-system account", async ({ authPage }) => {
     await authPage.goto("/accounts", { waitUntil: "load", timeout: 15000 });
     // Create a fresh account first so the toggle targets it deterministically.
+    await openCreateForm(authPage);
     await authPage.getByLabel("Nama Akun").fill(REACTIVATE_CASH_NAME);
-    await authPage.getByRole("button", { name: /Tambah Akun/ }).click();
+    await authPage.getByRole("button", { name: "Tambah Akun", exact: true }).click();
     await expectAccountVisible(authPage, REACTIVATE_CASH_NAME);
 
     const row = authPage.locator("li", { hasText: REACTIVATE_CASH_NAME });
