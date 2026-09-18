@@ -69,6 +69,99 @@ function makeTx(
   };
 }
 
+/** Movement stok Ohmega: default telur + WAC berjalan, timpa seperlunya. */
+function makeMovement(overrides: Partial<StockMovement> & Pick<StockMovement, "id" | "transaction_id">): StockMovement {
+  return {
+    user_id: USER,
+    product_id: "telur",
+    movement_type: "out",
+    quantity_milli: 0,
+    unit_cost_minor: 1_972 * 10_000,
+    total_value_minor: 0,
+    stock_after_milli: 0,
+    created_at: Date.now(),
+    ...overrides,
+  };
+}
+
+/** Tiga transaksi standar (setor, masuk, keluar) untuk laporan agregat. */
+function makeStandardLedgerTxs(): Transaction[] {
+  return [
+    makeTx({
+      transaction_type: "owner_deposit",
+      cash_account_id: "bank",
+      amount_idr: 10_000_000,
+    }),
+    makeTx({
+      transaction_type: "cash_in",
+      cash_account_id: "cash",
+      counter_account_id: "rev-svc",
+      amount_idr: 500_000,
+    }),
+    makeTx({
+      transaction_type: "cash_out",
+      cash_account_id: "cash",
+      counter_account_id: "exp-marketing",
+      amount_idr: 200_000,
+    }),
+  ];
+}
+
+/** Movement standar P001 10 unit @80rb untuk uji COGS. */
+function makeP001Movements(): StockMovement[] {
+  return [
+    makeMovement({
+      id: "sm1",
+      transaction_id: "tx1",
+      product_id: "P001",
+      quantity_milli: 10_000, // 10 units
+      unit_cost_minor: 800_000, // 80,000 per unit
+      total_value_minor: 8_000_000,
+      stock_after_milli: 0,
+    }),
+  ];
+}
+
+/** Cash-in void untuk uji pengecualian transaksi batal. */
+function makeVoidedCashIn(): Transaction {
+  return makeTx({
+    id: "tx-voided",
+    user_id: USER,
+    transaction_type: "cash_in",
+    transaction_date: "2025-03-15",
+    cash_account_id: "cash",
+    counter_account_id: "rev-svc",
+    amount_idr: 500_000,
+    status: "voided",
+  });
+}
+
+/**
+ * Assert jurnal 2 baris yang seimbang: debit/akun/nominal sesuai harapan.
+ * Menggantikan 6 blok assert identik di tiap tipe transaksi.
+ */
+function expectBalancedJournal(
+  entry: { lines: JournalLine[] },
+  drAccountId: string,
+  drAmount: number,
+  crAccountId: string,
+  crAmount: number,
+): void {
+  expect(entry.lines).toHaveLength(2);
+
+  const dr = entry.lines.find((l) => l.debitIdr > 0)!;
+  const cr = entry.lines.find((l) => l.creditIdr > 0)!;
+
+  expect(dr.accountId).toBe(drAccountId);
+  expect(dr.debitIdr).toBe(drAmount);
+  expect(cr.accountId).toBe(crAccountId);
+  expect(cr.creditIdr).toBe(crAmount);
+
+  const totalDr = entry.lines.reduce((sum, l) => sum + l.debitIdr, 0);
+  const totalCr = entry.lines.reduce((sum, l) => sum + l.creditIdr, 0);
+  expect(totalDr).toBe(totalCr);
+}
+
 const USER = "user1";
 
 const CASH = makeAccount({
@@ -136,127 +229,17 @@ const ALL_ACCOUNTS = [CASH, BANK, REVENUE, EXPENSE, EQUITY, INVENTORY, COGS];
 /* ================================================================== */
 
 describe("deriveJournal", () => {
-  it("produces balanced lines for cash_in (sale)", () => {
-    const tx = makeTx({
-      transaction_type: "cash_in",
-      cash_account_id: "cash",
-      counter_account_id: "rev-svc",
-      amount_idr: 500_000,
-    });
+  it.each([
+    ["cash_in (sale)", { transaction_type: "cash_in", cash_account_id: "cash", counter_account_id: "rev-svc", amount_idr: 500_000 }, "cash", 500_000, "rev-svc", 500_000],
+    ["cash_out (expense)", { transaction_type: "cash_out", cash_account_id: "cash", counter_account_id: "exp-marketing", amount_idr: 200_000 }, "exp-marketing", 200_000, "cash", 200_000],
+    ["transfer", { transaction_type: "transfer", cash_account_id: "cash", counter_account_id: "bank", amount_idr: 1_000_000 }, "bank", 1_000_000, "cash", 1_000_000],
+    ["owner_deposit", { transaction_type: "owner_deposit", cash_account_id: "bank", amount_idr: 5_000_000 }, "bank", 5_000_000, "equity", 5_000_000],
+    ["owner_withdrawal", { transaction_type: "owner_withdrawal", cash_account_id: "cash", counter_account_id: "exp-marketing", amount_idr: 300_000 }, "exp-marketing", 300_000, "cash", 300_000],
+    ["purchase (inventory)", { transaction_type: "purchase", cash_account_id: "cash", amount_idr: 800_000 }, "inv", 800_000, "cash", 800_000],
+  ] as Array<[string, Parameters<typeof makeTx>[0], string, number, string, number]>)("produces balanced lines for %s", (_label, input, drId, drAmt, crId, crAmt) => {
+    const tx = makeTx(input);
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
-
-    expect(entry.lines).toHaveLength(2);
-
-    const dr = entry.lines.find((l) => l.debitIdr > 0)!;
-    const cr = entry.lines.find((l) => l.creditIdr > 0)!;
-
-    expect(dr.accountId).toBe("cash");
-    expect(dr.debitIdr).toBe(500_000);
-    expect(cr.accountId).toBe("rev-svc");
-    expect(cr.creditIdr).toBe(500_000);
-
-    // Balanced
-    const totalDr = entry.lines.reduce((s, l) => s + l.debitIdr, 0);
-    const totalCr = entry.lines.reduce((s, l) => s + l.creditIdr, 0);
-    expect(totalDr).toBe(totalCr);
-  });
-
-  it("produces balanced lines for cash_out (expense)", () => {
-    const tx = makeTx({
-      transaction_type: "cash_out",
-      cash_account_id: "cash",
-      counter_account_id: "exp-marketing",
-      amount_idr: 200_000,
-    });
-    const entry = deriveJournal(tx, ALL_ACCOUNTS);
-
-    expect(entry.lines).toHaveLength(2);
-
-    const dr = entry.lines.find((l) => l.debitIdr > 0)!;
-    const cr = entry.lines.find((l) => l.creditIdr > 0)!;
-
-    expect(dr.accountId).toBe("exp-marketing");
-    expect(dr.debitIdr).toBe(200_000);
-    expect(cr.accountId).toBe("cash");
-    expect(cr.creditIdr).toBe(200_000);
-  });
-
-  it("produces balanced lines for transfer", () => {
-    const tx = makeTx({
-      transaction_type: "transfer",
-      cash_account_id: "cash",
-      counter_account_id: "bank",
-      amount_idr: 1_000_000,
-    });
-    const entry = deriveJournal(tx, ALL_ACCOUNTS);
-
-    expect(entry.lines).toHaveLength(2);
-
-    const dr = entry.lines.find((l) => l.debitIdr > 0)!;
-    const cr = entry.lines.find((l) => l.creditIdr > 0)!;
-
-    expect(dr.accountId).toBe("bank");
-    expect(dr.debitIdr).toBe(1_000_000);
-    expect(cr.accountId).toBe("cash");
-    expect(cr.creditIdr).toBe(1_000_000);
-  });
-
-  it("produces balanced lines for owner_deposit", () => {
-    const tx = makeTx({
-      transaction_type: "owner_deposit",
-      cash_account_id: "bank",
-      amount_idr: 5_000_000,
-    });
-    const entry = deriveJournal(tx, ALL_ACCOUNTS);
-
-    expect(entry.lines).toHaveLength(2);
-
-    const dr = entry.lines.find((l) => l.debitIdr > 0)!;
-    const cr = entry.lines.find((l) => l.creditIdr > 0)!;
-
-    expect(dr.accountId).toBe("bank");
-    expect(dr.debitIdr).toBe(5_000_000);
-    expect(cr.accountId).toBe("equity");
-    expect(cr.creditIdr).toBe(5_000_000);
-  });
-
-  it("produces balanced lines for owner_withdrawal", () => {
-    const tx = makeTx({
-      transaction_type: "owner_withdrawal",
-      cash_account_id: "cash",
-      counter_account_id: "exp-marketing",
-      amount_idr: 300_000,
-    });
-    const entry = deriveJournal(tx, ALL_ACCOUNTS);
-
-    expect(entry.lines).toHaveLength(2);
-
-    const dr = entry.lines.find((l) => l.debitIdr > 0)!;
-    const cr = entry.lines.find((l) => l.creditIdr > 0)!;
-
-    expect(dr.accountId).toBe("exp-marketing");
-    expect(dr.debitIdr).toBe(300_000);
-    expect(cr.accountId).toBe("cash");
-    expect(cr.creditIdr).toBe(300_000);
-  });
-
-  it("produces balanced lines for purchase (inventory)", () => {
-    const tx = makeTx({
-      transaction_type: "purchase",
-      cash_account_id: "cash",
-      amount_idr: 800_000,
-    });
-    const entry = deriveJournal(tx, ALL_ACCOUNTS);
-
-    expect(entry.lines).toHaveLength(2);
-
-    const dr = entry.lines.find((l) => l.debitIdr > 0)!;
-    const cr = entry.lines.find((l) => l.creditIdr > 0)!;
-
-    expect(dr.accountId).toBe("inv");
-    expect(dr.debitIdr).toBe(800_000);
-    expect(cr.accountId).toBe("cash");
-    expect(cr.creditIdr).toBe(800_000);
+    expectBalancedJournal(entry, drId, drAmt, crId, crAmt);
   });
 
   it("sets correct transactionDate", () => {
@@ -274,20 +257,7 @@ describe("deriveJournal", () => {
 
 describe("deriveCogsJournal", () => {
   it("derives COGS lines from stock movements", () => {
-    const movements: StockMovement[] = [
-      {
-        id: "sm1",
-        user_id: USER,
-        transaction_id: "tx1",
-        product_id: "P001",
-        movement_type: "out",
-        quantity_milli: 10_000, // 10 units
-        unit_cost_minor: 800_000, // 80,000 per unit
-        total_value_minor: 8_000_000,
-        stock_after_milli: 0,
-        created_at: Date.now(),
-      },
-    ];
+    const movements: StockMovement[] = makeP001Movements();
 
     const lines = deriveCogsJournal(movements, ALL_ACCOUNTS, USER);
 
@@ -309,20 +279,7 @@ describe("deriveCogsJournal", () => {
 
   it("returns empty if inventory or COGS account not found", () => {
     const accountsNoInv = ALL_ACCOUNTS.filter((a) => a.account_kind !== "inventory");
-    const movements: StockMovement[] = [
-      {
-        id: "sm1",
-        user_id: USER,
-        transaction_id: "tx1",
-        product_id: "P001",
-        movement_type: "out",
-        quantity_milli: 10_000,
-        unit_cost_minor: 800_000,
-        total_value_minor: 8_000_000,
-        stock_after_milli: 0,
-        created_at: Date.now(),
-      },
-    ];
+    const movements: StockMovement[] = makeP001Movements();
     const lines = deriveCogsJournal(movements, accountsNoInv, USER);
     expect(lines).toHaveLength(0);
   });
@@ -412,20 +369,8 @@ describe("WAC calculations", () => {
 describe("computeProfitLoss", () => {
   it("computes P&L with income and expense sections", () => {
     const accounts = [CASH, BANK, REVENUE, EXPENSE];
-    const txs: Transaction[] = [
-      makeTx({
-        transaction_type: "cash_in",
-        cash_account_id: "cash",
-        counter_account_id: "rev-svc",
-        amount_idr: 500_000,
-      }),
-      makeTx({
-        transaction_type: "cash_out",
-        cash_account_id: "cash",
-        counter_account_id: "exp-marketing",
-        amount_idr: 200_000,
-      }),
-    ];
+    const [, cashIn, cashOut] = makeStandardLedgerTxs();
+    const txs: Transaction[] = [cashIn, cashOut];
 
     const report = computeProfitLoss(txs, accounts, "2025-01-01", "2025-12-31");
 
@@ -438,18 +383,7 @@ describe("computeProfitLoss", () => {
 
   it("excludes voided transactions", () => {
     const accounts = [CASH, BANK, REVENUE, EXPENSE];
-    const txs: Transaction[] = [
-      makeTx({
-        id: "tx-voided",
-        user_id: USER,
-        transaction_type: "cash_in",
-        transaction_date: "2025-03-15",
-        cash_account_id: "cash",
-        counter_account_id: "rev-svc",
-        amount_idr: 500_000,
-        status: "voided",
-      }),
-    ];
+    const txs: Transaction[] = [makeVoidedCashIn()];
 
     const report = computeProfitLoss(txs, accounts, "2025-01-01", "2025-12-31");
 
@@ -468,18 +402,14 @@ describe("computeProfitLoss", () => {
       transaction_date: "2026-08-02",
     });
     const movements: StockMovement[] = [
-      {
+      makeMovement({
         id: "sm1",
-        user_id: USER,
         transaction_id: "tx-jual",
-        product_id: "telur",
         movement_type: "out",
         quantity_milli: 30_000,
-        unit_cost_minor: 1_972 * 10_000,
         total_value_minor: 59_160,
         stock_after_milli: 221_000,
-        created_at: Date.now(),
-      },
+      }),
     ];
 
     const report = computeProfitLoss([tx], accounts, "2026-08-01", "2026-08-31", movements);
@@ -499,18 +429,14 @@ describe("computeProfitLoss", () => {
       transaction_date: "2026-08-01",
     });
     const movements: StockMovement[] = [
-      {
+      makeMovement({
         id: "sm2",
-        user_id: USER,
         transaction_id: "tx-beli",
-        product_id: "telur",
         movement_type: "in",
         quantity_milli: 251_000,
-        unit_cost_minor: 1_972 * 10_000,
         total_value_minor: 4_950_000,
         stock_after_milli: 251_000,
-        created_at: Date.now(),
-      },
+      }),
     ];
 
     const report = computeProfitLoss([tx], accounts, "2026-08-01", "2026-08-31", movements);
@@ -531,18 +457,14 @@ describe("computeProfitLoss", () => {
       transaction_date: "2026-08-03",
     });
     const movements: StockMovement[] = [
-      {
+      makeMovement({
         id: "sm3",
-        user_id: USER,
         transaction_id: "tx-pecah",
-        product_id: "telur",
         movement_type: "loss",
         quantity_milli: 11_000,
-        unit_cost_minor: 1_972 * 10_000,
         total_value_minor: 21_692,
         stock_after_milli: 210_000,
-        created_at: Date.now(),
-      },
+      }),
     ];
 
     const report = computeProfitLoss([tx], accounts, "2026-08-01", "2026-08-31", movements);
@@ -580,25 +502,7 @@ describe("computeProfitLoss", () => {
 describe("computeBalanceSheet", () => {
   it("computes assets and liabilities with equity", () => {
     const accounts = [CASH, BANK, REVENUE, EXPENSE, EQUITY];
-    const txs: Transaction[] = [
-      makeTx({
-        transaction_type: "owner_deposit",
-        cash_account_id: "bank",
-        amount_idr: 10_000_000,
-      }),
-      makeTx({
-        transaction_type: "cash_in",
-        cash_account_id: "cash",
-        counter_account_id: "rev-svc",
-        amount_idr: 500_000,
-      }),
-      makeTx({
-        transaction_type: "cash_out",
-        cash_account_id: "cash",
-        counter_account_id: "exp-marketing",
-        amount_idr: 200_000,
-      }),
-    ];
+    const txs: Transaction[] = makeStandardLedgerTxs();
 
     const report = computeBalanceSheet(txs, accounts, "2025-12-31");
 
@@ -658,18 +562,7 @@ describe("computeGeneralLedger", () => {
 
   it("excludes voided transactions", () => {
     const accounts = [CASH, BANK, REVENUE, EXPENSE, EQUITY];
-    const txs: Transaction[] = [
-      makeTx({
-        id: "tx-voided",
-        user_id: USER,
-        transaction_type: "cash_in",
-        transaction_date: "2025-03-15",
-        cash_account_id: "cash",
-        counter_account_id: "rev-svc",
-        amount_idr: 500_000,
-        status: "voided",
-      }),
-    ];
+    const txs: Transaction[] = [makeVoidedCashIn()];
 
     const report = computeGeneralLedger(txs, accounts, "2025-01-01", "2025-12-31", "cash");
     expect(report.entries).toHaveLength(0);

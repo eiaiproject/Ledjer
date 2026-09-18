@@ -27,6 +27,23 @@ function byAccountCode(a: { code: string }, b: { code: string }): number {
   return a.code.localeCompare(b.code);
 }
 
+type AccountTotals = Map<string, { debit: number; credit: number; account: Account }>;
+
+/** Akumulasi debit/kredit jurnal per akun (dipakai semua laporan). */
+function accumulateJournalLines(allLines: JournalLine[], accounts: Account[]): AccountTotals {
+  const accountMap: AccountTotals = new Map();
+  for (const line of allLines) {
+    const acct = accounts.find((a) => a.id === line.accountId);
+    if (!acct) continue;
+
+    const existing = accountMap.get(line.accountId) ?? { debit: 0, credit: 0, account: acct };
+    existing.debit += line.debitIdr;
+    existing.credit += line.creditIdr;
+    accountMap.set(line.accountId, existing);
+  }
+  return accountMap;
+}
+
 // ── P&L (Laba Rugi) ────────────────────────────────────────────
 
 /**
@@ -59,16 +76,7 @@ export function computeProfitLoss(
   const allLines = deriveAllJournalLines(filtered, accounts, stockMovements);
 
   // Akumulasi per akun.
-  const accountMap = new Map<string, { debit: number; credit: number; account: Account }>();
-  for (const line of allLines) {
-    const acct = accounts.find((a) => a.id === line.accountId);
-    if (!acct) continue;
-
-    const existing = accountMap.get(line.accountId) ?? { debit: 0, credit: 0, account: acct };
-    existing.debit += line.debitIdr;
-    existing.credit += line.creditIdr;
-    accountMap.set(line.accountId, existing);
-  }
+  const accountMap = accumulateJournalLines(allLines, accounts);
 
   // Pisahkan income vs expense.
   const incomeAccounts: ReportAccountLine[] = [];
@@ -131,16 +139,7 @@ export function computeBalanceSheet(
   const allLines = deriveAllJournalLines(filtered, accounts, stockMovements);
 
   // Akumulasi per akun.
-  const accountMap = new Map<string, { debit: number; credit: number; account: Account }>();
-  for (const line of allLines) {
-    const acct = accounts.find((a) => a.id === line.accountId);
-    if (!acct) continue;
-
-    const existing = accountMap.get(line.accountId) ?? { debit: 0, credit: 0, account: acct };
-    existing.debit += line.debitIdr;
-    existing.credit += line.creditIdr;
-    accountMap.set(line.accountId, existing);
-  }
+  const accountMap = accumulateJournalLines(allLines, accounts);
 
   // Hitung per kelas akun.
   const assetAccounts: ReportAccountLine[] = [];
