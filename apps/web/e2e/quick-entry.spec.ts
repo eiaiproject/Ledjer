@@ -77,6 +77,12 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
   await authPage.goto("/products");
   // Cari eksplisit: produk baru berkode PRD-XXXX tertinggi dan jatuh di
   // halaman akhir pada DB bersama yang sudah >1 halaman.
+  // Panel filter default tertutup (showFilters=false) → buka dulu agar input terlihat.
+  const filterButton = authPage.getByRole("button", { name: /Filter & cari/i });
+  if (await filterButton.isVisible()) {
+    const expanded = await filterButton.getAttribute("aria-expanded");
+    if (expanded !== "true") await filterButton.click();
+  }
   await authPage.getByLabel(/cari produk/i).fill(PRODUCT_NAME);
   await expect(authPage.getByText(PRODUCT_NAME).first()).toBeVisible({ timeout: 15000 });
   await authPage
