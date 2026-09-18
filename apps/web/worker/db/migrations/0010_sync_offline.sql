@@ -6,6 +6,7 @@
 -- - sync_ops (op-log append-only untuk sync antar-perangkat, dedup op_id, HLC)
 
 PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = TRUE;
 
 -- 1. parties — pelanggan/supplier (baru, dibutuhkan chat "ke/dari")
 CREATE TABLE IF NOT EXISTS parties (
