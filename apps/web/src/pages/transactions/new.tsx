@@ -247,24 +247,16 @@ export function NewTransactionPage() {
     }
 
     try {
-      const result = await postTransaction({
-        transactionType: data.transactionType,
-        transactionDate: data.transactionDate,
-        cashAccountId: data.cashAccountId,
-        counterAccountId: isPurchaseSubmit ? undefined : data.counterAccountId || undefined,
-        amountIdr: withItems ? undefined : amount,
-        description: data.description.trim(),
-        idempotencyKey: idempotencyKeyRef.current,
-        items: withItems
-          ? normalizedItems.map((item) => ({
-              productId: item.productId,
-              quantity: parseSignedDecimalInput(item.quantity, 0) ?? 0,
-              ...(isPurchaseSubmit
-                ? { unitCostIdr: parseUnitPrice(item.unitPrice) }
-                : { unitPriceIdr: parseUnitPrice(item.unitPrice) }),
-            }))
-          : undefined,
-      });
+      const result = await postTransaction(
+        buildPostPayload(data, {
+          isPurchaseSubmit,
+          withItems,
+          items: normalizedItems,
+          computedTotal,
+          amount,
+          idempotencyKey: idempotencyKeyRef.current,
+        }),
+      );
       invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success(result.replayed ? "Transaksi sudah tercatat sebelumnya." : "Transaksi berhasil dicatat.");
       navigate(`/transactions/${result.transaction_id}`);
@@ -499,4 +491,42 @@ export function NewTransactionPage() {
 /** Parse harga satuan: desimal hingga 4 digit (agar total tercatat presisi). */
 function parseUnitPrice(raw: string): number {
   return parseSignedDecimalInput(raw, 0, 4) ?? 0;
+}
+
+/** Susun body POST dari form tervalidasi (murni, tanpa efek). */
+function buildPostPayload(
+  data: TransactionForm,
+  ctx: {
+    isPurchaseSubmit: boolean;
+    withItems: boolean;
+    items: FormItem[];
+    computedTotal: number | null;
+    amount: number;
+    idempotencyKey: string;
+  },
+): Parameters<typeof postTransaction>[0] {
+  return {
+    transactionType: data.transactionType,
+    transactionDate: data.transactionDate,
+    cashAccountId: data.cashAccountId,
+    counterAccountId: ctx.isPurchaseSubmit ? undefined : data.counterAccountId || undefined,
+    amountIdr: ctx.withItems ? undefined : ctx.amount,
+    description: data.description.trim(),
+    idempotencyKey: ctx.idempotencyKey,
+    items: ctx.withItems ? mapPostItems(ctx.items, ctx.isPurchaseSubmit) : undefined,
+  };
+}
+
+/** Baris produk form ke payload API (murni, tanpa efek). */
+function mapPostItems(
+  items: FormItem[],
+  isPurchaseSubmit: boolean,
+): { productId: string; quantity: number; unitCostIdr?: number; unitPriceIdr?: number }[] {
+  return items.map((item) => ({
+    productId: item.productId,
+    quantity: parseSignedDecimalInput(item.quantity, 0) ?? 0,
+    ...(isPurchaseSubmit
+      ? { unitCostIdr: parseUnitPrice(item.unitPrice) }
+      : { unitPriceIdr: parseUnitPrice(item.unitPrice) }),
+  }));
 }

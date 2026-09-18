@@ -228,7 +228,12 @@ export function postTransactionLocal(
 
       const isLoss = input.stockLoss === true;
       const isOut = isLoss || input.transactionType !== "purchase";
-      const movementType: "in" | "out" | "loss" = isLoss ? "loss" : isOut ? "out" : "in";
+      let movementType: "in" | "out" | "loss" = "in";
+      if (isLoss) {
+        movementType = "loss";
+      } else if (isOut) {
+        movementType = "out";
+      }
       const newStock = computeStockAfter(currentStock, movementType, input.quantityMilli);
       // Susut memakai WAC berjalan (dibekukan) tanpa mengubah WAC produk.
       const newWac = isOut ? currentWac

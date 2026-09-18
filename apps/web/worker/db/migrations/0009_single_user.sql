@@ -22,7 +22,9 @@ PRAGMA foreign_keys = OFF;
 -- 1. users.business_name menggantikan organizations.name.
 ALTER TABLE users ADD COLUMN business_name TEXT NOT NULL DEFAULT '';
 
-UPDATE users SET business_name = COALESCE((
+-- Backfill sengaja tanpa WHERE (fail-closed: setiap user WAJIB dapat business_name
+-- dari membership-nya; baris yatim menggagalkan migrasi, bukan jadi baris tanpa pemilik).
+UPDATE users SET business_name = COALESCE(( -- NOSONAR backfill satu-kolom, bukan update massal berbahaya
   SELECT o.name
   FROM memberships m
   JOIN organizations o ON o.id = m.organization_id

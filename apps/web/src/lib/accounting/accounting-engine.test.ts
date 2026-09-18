@@ -145,7 +145,7 @@ describe("deriveJournal", () => {
     });
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
 
-    expect(entry.lines.length).toBe(2);
+    expect(entry.lines).toHaveLength(2);
 
     const dr = entry.lines.find((l) => l.debitIdr > 0)!;
     const cr = entry.lines.find((l) => l.creditIdr > 0)!;
@@ -170,7 +170,7 @@ describe("deriveJournal", () => {
     });
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
 
-    expect(entry.lines.length).toBe(2);
+    expect(entry.lines).toHaveLength(2);
 
     const dr = entry.lines.find((l) => l.debitIdr > 0)!;
     const cr = entry.lines.find((l) => l.creditIdr > 0)!;
@@ -190,7 +190,7 @@ describe("deriveJournal", () => {
     });
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
 
-    expect(entry.lines.length).toBe(2);
+    expect(entry.lines).toHaveLength(2);
 
     const dr = entry.lines.find((l) => l.debitIdr > 0)!;
     const cr = entry.lines.find((l) => l.creditIdr > 0)!;
@@ -209,7 +209,7 @@ describe("deriveJournal", () => {
     });
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
 
-    expect(entry.lines.length).toBe(2);
+    expect(entry.lines).toHaveLength(2);
 
     const dr = entry.lines.find((l) => l.debitIdr > 0)!;
     const cr = entry.lines.find((l) => l.creditIdr > 0)!;
@@ -229,7 +229,7 @@ describe("deriveJournal", () => {
     });
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
 
-    expect(entry.lines.length).toBe(2);
+    expect(entry.lines).toHaveLength(2);
 
     const dr = entry.lines.find((l) => l.debitIdr > 0)!;
     const cr = entry.lines.find((l) => l.creditIdr > 0)!;
@@ -248,7 +248,7 @@ describe("deriveJournal", () => {
     });
     const entry = deriveJournal(tx, ALL_ACCOUNTS);
 
-    expect(entry.lines.length).toBe(2);
+    expect(entry.lines).toHaveLength(2);
 
     const dr = entry.lines.find((l) => l.debitIdr > 0)!;
     const cr = entry.lines.find((l) => l.creditIdr > 0)!;
@@ -291,7 +291,7 @@ describe("deriveCogsJournal", () => {
 
     const lines = deriveCogsJournal(movements, ALL_ACCOUNTS, USER);
 
-    expect(lines.length).toBe(2);
+    expect(lines).toHaveLength(2);
 
     const dr = lines.find((l) => l.debitIdr > 0)!;
     const cr = lines.find((l) => l.creditIdr > 0)!;
@@ -304,7 +304,7 @@ describe("deriveCogsJournal", () => {
 
   it("returns empty for no movements", () => {
     const lines = deriveCogsJournal([], ALL_ACCOUNTS, USER);
-    expect(lines.length).toBe(0);
+    expect(lines).toHaveLength(0);
   });
 
   it("returns empty if inventory or COGS account not found", () => {
@@ -324,7 +324,7 @@ describe("deriveCogsJournal", () => {
       },
     ];
     const lines = deriveCogsJournal(movements, accountsNoInv, USER);
-    expect(lines.length).toBe(0);
+    expect(lines).toHaveLength(0);
   });
 });
 
@@ -432,8 +432,8 @@ describe("computeProfitLoss", () => {
     expect(report.income.total).toBe(500_000);
     expect(report.expense.total).toBe(200_000);
     expect(report.netIncome).toBe(300_000);
-    expect(report.income.accounts.length).toBe(1);
-    expect(report.expense.accounts.length).toBe(1);
+    expect(report.income.accounts).toHaveLength(1);
+    expect(report.expense.accounts).toHaveLength(1);
   });
 
   it("excludes voided transactions", () => {
@@ -637,7 +637,7 @@ describe("computeGeneralLedger", () => {
     expect(report.accountId).toBe("cash");
     expect(report.accountCode).toBe("1110");
     expect(report.accountName).toBe("Kas");
-    expect(report.entries.length).toBe(2);
+    expect(report.entries).toHaveLength(2);
 
     // First entry: debit 500K → balance 500K
     expect(report.entries[0].debitIdr).toBe(500_000);
@@ -672,6 +672,6 @@ describe("computeGeneralLedger", () => {
     ];
 
     const report = computeGeneralLedger(txs, accounts, "2025-01-01", "2025-12-31", "cash");
-    expect(report.entries.length).toBe(0);
+    expect(report.entries).toHaveLength(0);
   });
 });

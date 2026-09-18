@@ -12,6 +12,44 @@ import {
   refreshOfflineSessionInBackground,
 } from "@/lib/offline-auth";
 
+/** Offline (Failed to fetch / TypeError) — selain itu diasumsikan ApiError. */
+function isNetworkError(err: unknown): boolean {
+  return (
+    err instanceof TypeError ||
+    (err instanceof Error && /Failed to fetch|NetworkError|network|Load failed/i.test(err.message))
+  );
+}
+
+type InitialAuthResult =
+  | { status: "online"; session: AuthSession | null; user: AuthUser | null }
+  | { status: "offline"; session: AuthSession | null; user: AuthUser | null }
+  | { status: "error"; error: Error };
+
+/**
+ * Boot auth: online-ok (sekaligus simpan sesi perangkat), fallback offline
+ * dari sesi lokal terenkripsi, atau error (ApiError = sesi memang habis).
+ */
+async function resolveInitialAuth(): Promise<InitialAuthResult> {
+  try {
+    const { session, user } = await getMe();
+    if (user) {
+      void saveOfflineSession(user, session);
+    }
+    return { status: "online", session, user };
+  } catch (err) {
+    if (isApiError(err)) {
+      return { status: "error", error: err instanceof Error ? err : new Error(String(err)) };
+    }
+    if (isNetworkError(err)) {
+      const offline = await loadOfflineSession();
+      if (offline?.user) {
+        return { status: "offline", session: offline.session, user: offline.user };
+      }
+    }
+    return { status: "error", error: err instanceof Error ? err : new Error(String(err)) };
+  }
+}
+
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -23,40 +61,15 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     let cancelled = false;
 
     async function initAuth() {
-      try {
-        const { session: s, user: u } = await getMe();
-        if (cancelled) return;
-        setSession(s);
-        setUser(u);
-        setLoading(false);
-        // Online sukses → simpan sesi perangkat terenkripsi untuk akses offline
-        if (u) {
-          void saveOfflineSession(u, s);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        // Offline (Failed to fetch / TypeError) → fallback ke sesi lokal terenkripsi.
-        // ApiError (401/403/4xx) berarti sesi memang habis — jangan fallback, biarkan error.
-        const isNetworkError =
-          err instanceof TypeError ||
-          (err instanceof Error && /Failed to fetch|NetworkError|network|Load failed/i.test(err.message));
-        if (isApiError(err)) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setLoading(false);
-          return;
-        }
-        if (isNetworkError) {
-          const offline = await loadOfflineSession();
-          if (offline?.user) {
-            setSession(offline.session);
-            setUser(offline.user);
-            setLoading(false);
-            return;
-          }
-        }
-        setError(err instanceof Error ? err : new Error(String(err)));
-        setLoading(false);
+      const result = await resolveInitialAuth();
+      if (cancelled) return;
+      if (result.status === "error") {
+        setError(result.error);
+      } else {
+        setSession(result.session);
+        setUser(result.user);
       }
+      setLoading(false);
     }
 
     initAuth();

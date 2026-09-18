@@ -192,7 +192,9 @@ export function startSync(db: Database, userId: string): void {
   }, 5_000);
 
   // Also sync when coming back online.
-  onlineHandler = () => processOutbox(db, userId);
+  onlineHandler = () => {
+    void processOutbox(db, userId);
+  };
   window.addEventListener("online", onlineHandler);
 }
 

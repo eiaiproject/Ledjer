@@ -79,7 +79,7 @@ describe("Accounts repository", () => {
     createAccountLocal(db, USER, { code: "4110", name: "Pendapatan", accountClass: "income" });
 
     const all = getAllAccounts(db, USER);
-    expect(all.length).toBe(2);
+    expect(all).toHaveLength(2);
     expect(all[0].code).toBe("1110"); // sorted by code
     expect(all[1].code).toBe("4110");
   });
@@ -91,7 +91,7 @@ describe("Accounts repository", () => {
     patchAccountLocal(db, acct.id, { isActive: false });
 
     const active = getActiveAccounts(db, USER);
-    expect(active.length).toBe(1);
+    expect(active).toHaveLength(1);
     expect(active[0].code).toBe("4110");
   });
 
@@ -137,7 +137,7 @@ describe("Products repository", () => {
     expect(prod.current_stock_milli).toBe(0);
 
     const all = getAllProducts(db, USER);
-    expect(all.length).toBe(1);
+    expect(all).toHaveLength(1);
     expect(all[0].name).toBe("Widget");
   });
 
@@ -167,7 +167,7 @@ describe("Parties repository", () => {
     expect(party.party_type).toBe("customer");
 
     const all = getAllParties(db, USER);
-    expect(all.length).toBe(1);
+    expect(all).toHaveLength(1);
   });
 });
 
@@ -236,7 +236,7 @@ describe("Transactions repository", () => {
     });
 
     const txs = getTransactions(db, USER);
-    expect(txs.length).toBe(2);
+    expect(txs).toHaveLength(2);
     // Sorted by date DESC
     expect(txs[0].transaction_date).toBe("2025-06-16");
     expect(txs[1].transaction_date).toBe("2025-06-15");
@@ -260,7 +260,7 @@ describe("Transactions repository", () => {
     });
 
     const txs = getTransactions(db, USER, { fromDate: "2025-07-01", toDate: "2025-07-31" });
-    expect(txs.length).toBe(1);
+    expect(txs).toHaveLength(1);
     expect(txs[0].transaction_date).toBe("2025-07-15");
   });
 
@@ -278,7 +278,7 @@ describe("Transactions repository", () => {
 
     // Should not appear in posted transactions
     const posted = getTransactions(db, USER, { status: "posted" });
-    expect(posted.length).toBe(0);
+    expect(posted).toHaveLength(0);
   });
 
   it("throws on double void", () => {
@@ -365,6 +365,6 @@ describe("Outbox repository", () => {
     markOutboxSynced(db, [pending[0].id]);
 
     const remaining = getPendingOutbox(db, USER);
-    expect(remaining.length).toBe(0);
+    expect(remaining).toHaveLength(0);
   });
 });

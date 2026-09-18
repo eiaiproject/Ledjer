@@ -383,7 +383,7 @@ const PARTY_ACRONYMS = new Set(["pt", "cv", "ud", "pd", "fa", "tbk"]);
 export function extractOriginalParty(text: string, partyQueryLower: string): string {
   const lowered = text.toLowerCase();
   const markerIdx = Math.max(lowered.lastIndexOf(" ke "), lowered.lastIndexOf(" dari "));
-  const from = markerIdx >= 0 ? markerIdx : 0;
+  const from = Math.max(markerIdx, 0);
   const idx = lowered.indexOf(partyQueryLower, from);
   if (idx < 0) return partyQueryLower;
   const slice = text.slice(idx, idx + partyQueryLower.length);

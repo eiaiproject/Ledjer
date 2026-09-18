@@ -22,6 +22,11 @@ import type {
 } from "./types";
 import { deriveCogsJournal, deriveJournal } from "./journal-rules";
 
+/** Urutan kode akun menaik untuk baris laporan. */
+function byAccountCode(a: { code: string }, b: { code: string }): number {
+  return a.code.localeCompare(b.code);
+}
+
 // ── P&L (Laba Rugi) ────────────────────────────────────────────
 
 /**
@@ -87,11 +92,14 @@ export function computeProfitLoss(
     }
   }
 
+  incomeAccounts.sort(byAccountCode);
+  expenseAccounts.sort(byAccountCode);
+
   return {
     fromDate,
     toDate,
-    income: { total: income, accounts: incomeAccounts.sort((a, b) => a.code.localeCompare(b.code)) },
-    expense: { total: expense, accounts: expenseAccounts.sort((a, b) => a.code.localeCompare(b.code)) },
+    income: { total: income, accounts: incomeAccounts },
+    expense: { total: expense, accounts: expenseAccounts },
     netIncome: income - expense,
   };
 }
@@ -182,11 +190,15 @@ export function computeBalanceSheet(
   // Net income masuk ke equity.
   const netIncome = totalIncome - totalExpense;
 
+  assetAccounts.sort(byAccountCode);
+  liabilityAccounts.sort(byAccountCode);
+  equityAccounts.sort(byAccountCode);
+
   return {
     asOfDate,
-    assets: { total: totalAssets, accounts: assetAccounts.sort((a, b) => a.code.localeCompare(b.code)) },
-    liabilities: { total: totalLiabilities, accounts: liabilityAccounts.sort((a, b) => a.code.localeCompare(b.code)) },
-    equity: { total: totalEquity + netIncome, accounts: equityAccounts.sort((a, b) => a.code.localeCompare(b.code)) },
+    assets: { total: totalAssets, accounts: assetAccounts },
+    liabilities: { total: totalLiabilities, accounts: liabilityAccounts },
+    equity: { total: totalEquity + netIncome, accounts: equityAccounts },
     netIncome,
   };
 }
@@ -229,25 +241,12 @@ export function computeGeneralLedger(
 
   const entries: GeneralLedgerEntry[] = [];
   let runningBalance = 0;
+  const isDebitNormal = ["asset", "expense"].includes(account.account_class);
 
   for (const tx of sorted) {
-    const journal = deriveJournal(tx, accounts);
-    const lines = [...journal.lines];
-    const txMovements = (movementsByTx.get(tx.id) ?? []).filter((sm) => sm.movement_type === "out" || sm.movement_type === "loss");
-    if (txMovements.length > 0) {
-      lines.push(...deriveCogsJournal(txMovements, accounts, tx.user_id));
-    }
+    const lines = journalLinesForAccount(tx, accounts, movementsByTx, accountId);
     for (const line of lines) {
-      if (line.accountId !== accountId) continue;
-      if (line.debitIdr === 0 && line.creditIdr === 0) continue;
-
-      // Balance direction depends on account class.
-      const isDebitNormal = ["asset", "expense"].includes(account.account_class);
-      const balanceChange = isDebitNormal
-        ? line.debitIdr - line.creditIdr
-        : line.creditIdr - line.debitIdr;
-
-      runningBalance += balanceChange;
+      runningBalance += balanceChangeFor(line, isDebitNormal);
 
       entries.push({
         transactionDate: tx.transaction_date,
@@ -274,6 +273,36 @@ export function computeGeneralLedger(
 }
 
 // ── Internal Helpers ────────────────────────────────────────────
+
+/**
+ * Baris jurnal satu transaksi yang menyentuh akun tertentu (termasuk HPP
+ * dari movement keluar/hilang), tanpa baris nol. Dipisah dari loop utama
+ * agar Buku Besar tetap mudah dibaca.
+ */
+function journalLinesForAccount(
+  tx: Transaction,
+  accounts: Account[],
+  movementsByTx: Map<string, StockMovement[]>,
+  accountId: string,
+): JournalLine[] {
+  const journal = deriveJournal(tx, accounts);
+  const lines = [...journal.lines];
+  const txMovements = (movementsByTx.get(tx.id) ?? []).filter(
+    (sm) => sm.movement_type === "out" || sm.movement_type === "loss",
+  );
+  if (txMovements.length > 0) {
+    lines.push(...deriveCogsJournal(txMovements, accounts, tx.user_id));
+  }
+  return lines.filter(
+    (line) => line.accountId === accountId && (line.debitIdr !== 0 || line.creditIdr !== 0),
+  );
+}
+
+/** Perubahan saldo satu baris sesuai sisi normal akun. */
+function balanceChangeFor(line: JournalLine, isDebitNormal: boolean): number {
+  if (isDebitNormal) return line.debitIdr - line.creditIdr;
+  return line.creditIdr - line.debitIdr;
+}
 
 /**
  * Derive semua journal lines dari daftar transaksi.

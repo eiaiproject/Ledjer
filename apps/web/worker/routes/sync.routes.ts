@@ -120,11 +120,14 @@ syncRoutes.all("/:entity/:id", async (c) => {
   const entityId = c.req.param("id");
   const method = c.req.method;
 
-  let opType: "create" | "update" | "delete" = "create";
-  if (method === "POST") opType = "create";
-  else if (method === "PATCH") opType = "update";
-  else if (method === "DELETE") opType = "delete";
-  else if (method === "PUT") opType = "update";
+  let opType: "create" | "update" | "delete";
+  if (method === "PATCH" || method === "PUT") {
+    opType = "update";
+  } else if (method === "DELETE") {
+    opType = "delete";
+  } else {
+    opType = "create";
+  }
 
   let body: unknown;
   let rawOpId: string | undefined;
