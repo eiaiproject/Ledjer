@@ -79,9 +79,11 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
   // halaman akhir pada DB bersama yang sudah >1 halaman.
   // Panel filter default tertutup (showFilters=false) → buka dulu agar input terlihat.
   const filterButton = authPage.getByRole("button", { name: /Filter & cari/i });
-  if (await filterButton.isVisible()) {
-    const expanded = await filterButton.getAttribute("aria-expanded");
-    if (expanded !== "true") await filterButton.click();
+  await expect(filterButton).toBeVisible({ timeout: 10000 });
+  const expanded = await filterButton.getAttribute("aria-expanded");
+  if (expanded !== "true") {
+    await filterButton.click();
+    await expect(authPage.getByLabel(/cari produk/i)).toBeVisible({ timeout: 10000 });
   }
   await authPage.getByLabel(/cari produk/i).fill(PRODUCT_NAME);
   await expect(authPage.getByText(PRODUCT_NAME).first()).toBeVisible({ timeout: 15000 });
