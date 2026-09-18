@@ -7,7 +7,7 @@ PRAGMA foreign_keys = ON;
 
 -- 1. users.business_name
 ALTER TABLE users ADD COLUMN business_name TEXT NOT NULL DEFAULT '';
-UPDATE users SET business_name = COALESCE((
+UPDATE users SET business_name = COALESCE(( -- NOSONAR backfill satu-kolom
   SELECT o.name
   FROM memberships m
   JOIN organizations o ON o.id = m.organization_id
