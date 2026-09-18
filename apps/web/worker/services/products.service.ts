@@ -87,19 +87,14 @@ export function minorToIdr(minor: number): number {
 // Single source of truth untuk kalkulasi WAC/isomorphic ada di
 // src/lib/accounting/wac.ts — dipakai client (repo lokal) dan worker (sync).
 // Re-export di sini agar import lama dari "./products.service" tetap jalan.
-import {
-  cogsFromMilliWac,
-  computeNewWac,
-  costTotalFromMilli,
-  stockValueFromMilliWac,
-} from "../../src/lib/accounting/wac";
+import { stockValueFromMilliWac } from "../../src/lib/accounting/wac";
 
+export { stockValueFromMilliWac };
 export {
   cogsFromMilliWac,
   computeNewWac,
   costTotalFromMilli,
-  stockValueFromMilliWac,
-};
+} from "../../src/lib/accounting/wac";
 
 // ── CRUD ────────────────────────────────────────────────────────
 
