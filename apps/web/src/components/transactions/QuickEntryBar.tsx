@@ -67,6 +67,12 @@ const DRAFT_LABEL: Record<string, string> = {
   stock_loss: "Susut stok",
   ambiguous_buy: "Beli — pilih jenis",
 };
+/** Pilihan beli-ambigu: stok atau beban (null = belum pilih). */
+export type AmbiguousChoice = "purchase" | "expense" | null;
+
+/** Kolom jumlah yang bisa diubah di pratinjau. */
+export type AmountField = "quantity" | "unitPrice" | "total";
+
 function toProductLite(p: {
   id: string;
   name: string;
@@ -107,7 +113,7 @@ export interface AmbiguousValidation {
 }
 
 export function isAmbiguousDraftValid(
-  choice: "purchase" | "expense" | null,
+  choice: AmbiguousChoice,
   v: AmbiguousValidation,
 ): boolean {
   if (choice === "expense") {
@@ -139,7 +145,7 @@ export interface DraftValidationParams {
   incomeCount: number;
   expenseAccountId: string;
   expenseCount: number;
-  ambiguousChoice: "purchase" | "expense" | null;
+  ambiguousChoice: AmbiguousChoice;
   insufficient: boolean;
   equityDepositId: string;
   equityWithdrawalId: string;
@@ -451,7 +457,7 @@ export interface PreparePostContext {
   expenseAccountId: string;
   equityDepositId: string;
   equityWithdrawalId: string;
-  ambiguousChoice: "purchase" | "expense" | null;
+  ambiguousChoice: AmbiguousChoice;
   targetCashId: string;
   draftDescription?: string;
   draftReason?: string;
@@ -565,7 +571,7 @@ export function deriveUnit(qn: number, tn: number): string {
 
 /** Hitung ulang pasangan qty/total; satuan selalu diturunkan dari total. */
 export function computeAmountUpdate(
-  field: "quantity" | "unitPrice" | "total",
+  field: AmountField,
   value: string,
   state: AmountState,
 ): AmountState {
@@ -899,7 +905,7 @@ export function isBenignSyncError(err: unknown, hasLocalDb: boolean): boolean {
 /** Nominal arus keluar pratinjau (null bila bukan arus keluar / belum valid). */
 export function computeOutflowAmount(
   kind: QuickEntryDraft["kind"] | undefined,
-  ambiguousChoice: "purchase" | "expense" | null,
+  ambiguousChoice: AmbiguousChoice,
   totalNum: number,
 ): number | null {
   if (kind === undefined || !Number.isInteger(totalNum) || totalNum <= 0) return null;
@@ -920,11 +926,13 @@ interface OptionLike {
   label: string;
 }
 
-function GuideSection({ show, onToggle, onSelect }: {
+interface GuideSectionProps {
   show: boolean;
   onToggle: () => void;
   onSelect: (example: string) => void;
-}) {
+}
+
+function GuideSection({ show, onToggle, onSelect }: Readonly<GuideSectionProps>) {
   return (
     <div>
       <button
@@ -965,7 +973,7 @@ function GuideSection({ show, onToggle, onSelect }: {
   );
 }
 
-function FeedbackSection({ parseError, draftError, suggestions, draftKind, catalog, onStartDraft, onClearDraftError, doneMessage, onHelpExample }: {
+interface FeedbackSectionProps {
   parseError: string | null;
   draftError: string | null;
   suggestions: { id: string; name: string }[];
@@ -975,7 +983,9 @@ function FeedbackSection({ parseError, draftError, suggestions, draftKind, catal
   onClearDraftError: () => void;
   doneMessage: string | null;
   onHelpExample: (example: string) => void;
-}) {
+}
+
+function FeedbackSection({ parseError, draftError, suggestions, draftKind, catalog, onStartDraft, onClearDraftError, doneMessage, onHelpExample }: Readonly<FeedbackSectionProps>) {
   const pickSuggestion = (s: { id: string; name: string }) => {
     if (draftKind !== "sale" && draftKind !== "purchase" && draftKind !== "stock_loss") return;
     const rebuilt = buildDraft(
@@ -1029,7 +1039,7 @@ function FeedbackSection({ parseError, draftError, suggestions, draftKind, catal
   );
 }
 
-function DraftSummary({ draft, productName, unit, qty, price, totalNum, stock, insufficient, insufficientCash, cashBalance, outflowAmount, equityLabel, isFuture, tooOld, maxDate, txDate }: {
+interface DraftSummaryProps {
   draft: QuickEntryDraft;
   productName: string | null;
   unit: string;
@@ -1046,7 +1056,9 @@ function DraftSummary({ draft, productName, unit, qty, price, totalNum, stock, i
   tooOld: boolean;
   maxDate: string | null;
   txDate: string;
-}) {
+}
+
+function DraftSummary({ draft, productName, unit, qty, price, totalNum, stock, insufficient, insufficientCash, cashBalance, outflowAmount, equityLabel, isFuture, tooOld, maxDate, txDate }: Readonly<DraftSummaryProps>) {
   return (
     <>
       <p className="text-sm font-medium text-text-primary">
@@ -1102,7 +1114,7 @@ function DraftSummary({ draft, productName, unit, qty, price, totalNum, stock, i
   );
 }
 
-function DraftFields({ draft, candidates, catalog, productId, onProductIdChange, quantity, unitPrice, total, onAmountChange, onTotalChange, partyName, onPartyChange, cashOptions, cashValue, onCashChange, incomeOptions, incomeValue, onIncomeChange, expenseOptions, expenseAccountId, onExpenseChange, ambiguousChoice, onAmbiguousStock, onAmbiguousExpense, txDate, todayStr, onTxDateChange }: {
+interface DraftFieldsProps {
   draft: QuickEntryDraft;
   candidates: { id: string; name: string }[];
   productId: string;
@@ -1111,7 +1123,7 @@ function DraftFields({ draft, candidates, catalog, productId, onProductIdChange,
   quantity: string;
   unitPrice: string;
   total: string;
-  onAmountChange: (field: "quantity" | "unitPrice" | "total", value: string) => void;
+  onAmountChange: (field: AmountField, value: string) => void;
   onTotalChange: (value: string) => void;
   partyName: string;
   onPartyChange: (value: string) => void;
@@ -1124,13 +1136,15 @@ function DraftFields({ draft, candidates, catalog, productId, onProductIdChange,
   expenseOptions: OptionLike[];
   expenseAccountId: string;
   onExpenseChange: (value: string) => void;
-  ambiguousChoice: "purchase" | "expense" | null;
+  ambiguousChoice: AmbiguousChoice;
   onAmbiguousStock: () => void;
   onAmbiguousExpense: () => void;
   txDate: string;
   todayStr: string;
   onTxDateChange: (value: string) => void;
-}) {
+}
+
+function DraftFields({ draft, candidates, catalog, productId, onProductIdChange, quantity, unitPrice, total, onAmountChange, onTotalChange, partyName, onPartyChange, cashOptions, cashValue, onCashChange, incomeOptions, incomeValue, onIncomeChange, expenseOptions, expenseAccountId, onExpenseChange, ambiguousChoice, onAmbiguousStock, onAmbiguousExpense, txDate, todayStr, onTxDateChange }: Readonly<DraftFieldsProps>) {
   return (
     <>
       {draft.kind === "ambiguous_buy" && (
@@ -1221,12 +1235,14 @@ function DraftFields({ draft, candidates, catalog, productId, onProductIdChange,
   );
 }
 
-function DraftActions({ draftKind, valid, posting, onConfirm }: {
+interface DraftActionsProps {
   draftKind: string;
   valid: boolean;
   posting: boolean;
   onConfirm: () => void;
-}) {
+}
+
+function DraftActions({ draftKind, valid, posting, onConfirm }: Readonly<DraftActionsProps>) {
   return (
     <div className="flex items-center gap-2">
       <Badge variant={draftKind === "sale" ? "success" : "info"} size="sm">
@@ -1240,7 +1256,7 @@ function DraftActions({ draftKind, valid, posting, onConfirm }: {
   );
 }
 
-function NewProductPanel({ form, txDate, todayStr, cashOptions, cashValue, onUnitChange, onQuantityChange, onTxDateChange, onCashChange, cashBalance, isFuture, tooOld, maxDate, isOnline, error, creating, canSubmit, onCancel, onSubmit }: {
+interface NewProductPanelProps {
   form: { name: string; unit: string; quantity: string; total: number; party?: string };
   txDate: string;
   todayStr: string;
@@ -1260,7 +1276,9 @@ function NewProductPanel({ form, txDate, todayStr, cashOptions, cashValue, onUni
   canSubmit: boolean;
   onCancel: () => void;
   onSubmit: () => void;
-}) {
+}
+
+function NewProductPanel({ form, txDate, todayStr, cashOptions, cashValue, onUnitChange, onQuantityChange, onTxDateChange, onCashChange, cashBalance, isFuture, tooOld, maxDate, isOnline, error, creating, canSubmit, onCancel, onSubmit }: Readonly<NewProductPanelProps>) {
   const cashShort = cashBalance !== null && form.total > cashBalance;
   return (
     <div className="space-y-3 rounded-lg border border-wood-200 px-3 py-3">
@@ -1364,7 +1382,7 @@ export function QuickEntryBar() {
   const [incomeAccountId, setIncomeAccountId] = useState("");
   const [expenseAccountId, setExpenseAccountId] = useState("");
   const [partyName, setPartyName] = useState("");
-  const [ambiguousChoice, setAmbiguousChoice] = useState<"purchase" | "expense" | null>(null);
+  const [ambiguousChoice, setAmbiguousChoice] = useState<AmbiguousChoice>(null);
   // Tutorial selalu tertutup tiap buka halaman — tanpa ingatan antar-sesi.
   const [showGuide, setShowGuide] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1553,7 +1571,7 @@ export function QuickEntryBar() {
 
   /** Satu handler untuk qty/total: field yang diubah menghitung ulang pasangannya.
    *  Satuan selalu diturunkan (read-only di pratinjau) — nominal ketikanlah yang tercatat. */
-  const handleAmountChange = (field: "quantity" | "unitPrice" | "total", value: string) => {
+  const handleAmountChange = (field: AmountField, value: string) => {
     const updated = computeAmountUpdate(field, value, { quantity, unitPrice, total });
     applyAmounts(updated.quantity, updated.unitPrice, updated.total);
   };
