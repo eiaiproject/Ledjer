@@ -84,40 +84,22 @@ export function minorToIdr(minor: number): number {
   return minor / 10_000;
 }
 
-/** Total biaya IDR dari jumlah (milli) × harga satuan IDR, dibulatkan. */
-export function costTotalFromMilli(qtyMilli: number, unitCostIdr: number): number {
-  return Math.round((qtyMilli * unitCostIdr) / 1000);
-}
+// Single source of truth untuk kalkulasi WAC/isomorphic ada di
+// src/lib/accounting/wac.ts — dipakai client (repo lokal) dan worker (sync).
+// Re-export di sini agar import lama dari "./products.service" tetap jalan.
+import {
+  cogsFromMilliWac,
+  computeNewWac,
+  costTotalFromMilli,
+  stockValueFromMilliWac,
+} from "../../src/lib/accounting/wac";
 
-/**
- * HPP (COGS) IDR dari jumlah (milli) × harga pokok rata-rata (minor):
- * qty/1000 satuan × wac/10.000 IDR = qtyMilli × wacMinor / 10⁷.
- * BigInt dipakai agar tidak meluap untuk stok/harga besar.
- */
-export function cogsFromMilliWac(qtyMilli: number, wacMinor: number): number {
-  return Number((BigInt(qtyMilli) * BigInt(wacMinor) + 5_000_000n) / 10_000_000n);
-}
-
-/** WAC baru setelah pembelian: (stok×wac + qty×harga) / stok baru.
- *  BigInt dengan half-up rounding agar sisa pecahan tidak bias ke bawah
- *  dan terakumulasi (truncation drift) di ribuan pembelian. */
-export function computeNewWac(
-  stockMilli: number,
-  wacMinor: number,
-  qtyMilli: number,
-  unitCostMinor: number,
-): number {
-  const newStock = BigInt(stockMilli) + BigInt(qtyMilli);
-  if (newStock <= 0n) return 0;
-  return Number(
-    (BigInt(stockMilli) * BigInt(wacMinor) + BigInt(qtyMilli) * BigInt(unitCostMinor) + newStock / 2n) / newStock,
-  );
-}
-
-/** Nilai persediaan (IDR) dari stok (milli) × WAC (minor), half-up (#15). */
-export function stockValueFromMilliWac(stockMilli: number, wacMinor: number): number {
-  return Number((BigInt(stockMilli) * BigInt(wacMinor) + 5_000_000n) / 10_000_000n);
-}
+export {
+  cogsFromMilliWac,
+  computeNewWac,
+  costTotalFromMilli,
+  stockValueFromMilliWac,
+};
 
 // ── CRUD ────────────────────────────────────────────────────────
 
