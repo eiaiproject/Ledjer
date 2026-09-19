@@ -39,6 +39,11 @@ describe("parseSignedDecimalInput", () => {
     expect(parseSignedDecimalInput("-0.0004")).toBe(0);
   });
 
+  it("accepts a custom decimal cap (minor units)", () => {
+    expect(parseSignedDecimalInput("1984.12698", 0, 4)).toBe(1984.127);
+    expect(parseSignedDecimalInput("1984.12698")).toBe(1984.127);
+  });
+
   it("returns emptyValue for blank or garbage", () => {
     expect(parseSignedDecimalInput("", 0)).toBe(0);
     expect(parseSignedDecimalInput("  ", undefined)).toBeUndefined();

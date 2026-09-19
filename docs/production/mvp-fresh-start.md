@@ -9,8 +9,8 @@
 - DB produksi (`ledjer-production`) masih memakai **skema legacy pre-MVP** (33 migrasi lama, ~40+ tabel:
   invoices, products, stock, bank statements, dsb.) dan berisi data lama (saat audit: 13 user, 12 org,
   92 transaksi, 342 journal lines, 9 akun Google tertaut).
-- MVP memakai skema baru (12 tabel) dari migrasi `0001_mvp_foundation.sql`, `0002_mvp_accounting.sql`,
-  `0003_oauth_accounts.sql`.
+- MVP memakai skema baru dari migrasi `0001`–`0009`; `0009_single_user.sql` yang terakhir menghapus
+  `organizations` + `memberships` dan memindahkan nama usaha ke `users.business_name` (satu akun = satu buku).
 - Migrasi MVP murni aditif (`CREATE ... IF NOT EXISTS`) — **tidak akan** menyesuaikan/menghapus tabel
   legacy yang sudah ada. Karena itu deploy MVP di atas DB legacy menghasilkan skema campuran yang tidak
   kompatibel dengan kode MVP. **Start fresh = reset DB dulu, baru apply migrasi MVP.**
@@ -52,9 +52,7 @@ DROP TABLE IF EXISTS journal_entries;
 DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS accounts;
 DROP TABLE IF EXISTS sessions;
-DROP TABLE IF EXISTS memberships;
 DROP TABLE IF EXISTS rate_limits;
-DROP TABLE IF EXISTS organizations;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS app_metadata;
 DROP TABLE IF EXISTS d1_migrations;
@@ -79,7 +77,7 @@ pnpm exec wrangler d1 execute ledjer-production --remote --command "SELECT name 
 ```bash
 cd apps/web
 pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-# Harusnya: 0001_mvp_foundation ✅ 0002_mvp_accounting ✅ 0003_oauth_accounts ✅
+# Harusnya semua migrasi 0001–0009 ✅ (0009_single_user.sql terakhir)
 ```
 
 ### 4. Verifikasi skema persis MVP + kosong
@@ -89,11 +87,11 @@ pnpm exec wrangler d1 execute ledjer-production --remote --command \
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('d1_migrations','_cf_KV') ORDER BY name"
 
 pnpm exec wrangler d1 execute ledjer-production --remote --command \
-  "SELECT (SELECT COUNT(*) FROM users) u,(SELECT COUNT(*) FROM organizations) o,(SELECT COUNT(*) FROM accounts) a,(SELECT COUNT(*) FROM transactions) t"
+  "SELECT (SELECT COUNT(*) FROM users) u,(SELECT COUNT(*) FROM accounts) a,(SELECT COUNT(*) FROM transactions) t"
 ```
 
-**Harapan:** hanya 12 tabel MVP (`accounts app_metadata audit_logs journal_entries journal_lines
-memberships oauth_accounts organizations rate_limits sessions transactions users`) dan semua hitungan = 0.
+**Harapan:** hanya tabel MVP (`accounts app_metadata audit_logs journal_entries journal_lines
+oauth_accounts rate_limits sessions transactions users products stock_movements`) dan semua hitungan = 0.
 
 ```bash
 pnpm exec wrangler d1 migrations list DB --remote --config wrangler.jsonc   # → "No migrations to apply!"
@@ -103,7 +101,7 @@ pnpm exec wrangler d1 migrations list DB --remote --config wrangler.jsonc   # �
 
 - Deploy berjalan otomatis via `.github/workflows/auto-deploy.yml` saat push ke `main`
   (quality → migrations → deploy). Jika reset dilakukan manual lebih dulu, deploy akan aman.
-- Verifikasi post-deploy: `/api/health` 200, register user baru → org + COA terbentuk (16 akun),
+- Verifikasi post-deploy: `/api/health` 200, register user baru → user + buku + COA terbentuk (16 akun),
   login berhasil.
 
 ### 6. Rollback (jika ada masalah)
@@ -119,5 +117,5 @@ pnpm exec wrangler d1 migrations list DB --remote --config wrangler.jsonc   # �
 | Drop semua tabel | ✅ `num_tables: 0` |
 | Apply migrasi MVP fresh | ✅ 0001–0003, `No migrations to apply` |
 | Verifikasi skema | ✅ 12 tabel MVP, semua hitungan 0 |
-| Register user baru (API) | ✅ 200 → 1 user, 1 org, 16 akun COA |
+| Register user baru (API) | ✅ 200 → 1 user + nama usaha, 16 akun COA |
 | Full E2E CRUD suite | ✅ **84/84 passed** (~1.7 mnt) |

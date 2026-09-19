@@ -5,7 +5,7 @@ export type CashBankSubtype = "cash" | "bank";
 
 export interface Account {
   id: string;
-  organization_id: string;
+  user_id: string;
   code: string;
   name: string;
   account_class: AccountClass;

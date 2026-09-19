@@ -2,8 +2,8 @@ import { execute, queryFirst } from "../db/client";
 import { forbidden, unauthorized } from "../http/errors";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { logAuthEvent } from "./auth-audit.service";
+import { createDefaultAccounts } from "./ledger.service";
 import { createSession, revokeAllUserSessions, type CreatedSession } from "./session.service";
-import { createOrganizationWithOwner, type PublicOrganization } from "./organization.service";
 
 interface UserRow {
   id: string;
@@ -17,12 +17,12 @@ export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
-  organizationName: string;
+  businessName: string;
 }
 
 export interface RegisterResult {
   userId: string;
-  organization: PublicOrganization;
+  businessName: string;
   session: CreatedSession;
 }
 
@@ -43,27 +43,30 @@ export async function registerUser(
     throw forbidden("email_taken", "Email sudah terdaftar.");
   }
 
+  const businessName = input.businessName.trim();
   const userId = crypto.randomUUID();
   await execute(
     db,
     `INSERT INTO users (
-       id, email, password_hash, full_name, status, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'active', ?, ?)`,
+       id, email, password_hash, full_name, business_name, status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
     [
       userId,
       email,
       await hashPassword(input.password, pepper),
       input.fullName.trim(),
+      businessName,
       current,
       current,
     ],
   );
 
-  const organization = await createOrganizationWithOwner(db, userId, input.organizationName.trim(), current);
-  const session = await createSession(db, userId, request, organization.id);
+  // Setiap buku lahir siap pakai: chart of accounts default ikut dibuat.
+  await createDefaultAccounts(db, userId, current);
+  const session = await createSession(db, userId, request);
 
-  await logAuthEvent(db, userId, userId, "registration", { email, organizationId: organization.id });
-  return { userId, organization, session };
+  await logAuthEvent(db, userId, "registration", { email, businessName });
+  return { userId, businessName, session };
 }
 
 export async function loginUser(
@@ -89,7 +92,7 @@ export async function loginUser(
     throw forbidden("user_disabled", "Akun dinonaktifkan.");
   }
 
-  await logAuthEvent(db, user.id, user.id, "login_success", { email });
+  await logAuthEvent(db, user.id, "login_success", { email });
   return createSession(db, user.id, request);
 }
 
@@ -106,7 +109,28 @@ export async function changePassword(
     [await hashPassword(nextPassword, pepper), current, userId],
   );
   await revokeAllUserSessions(db, userId);
-  await logAuthEvent(db, userId, userId, "password_changed", {});
+  await logAuthEvent(db, userId, "password_changed", {});
+}
+
+export async function updateBusinessName(
+  db: D1Database,
+  userId: string,
+  rawName: string,
+): Promise<string> {
+  const name = rawName.trim();
+  if (!name) {
+    throw forbidden("business_name_required", "Nama usaha harus diisi.");
+  }
+  if (name.length > 120) {
+    throw forbidden("business_name_too_long", "Nama usaha maksimal 120 karakter.");
+  }
+  await execute(
+    db,
+    "UPDATE users SET business_name = ?, updated_at = ? WHERE id = ?",
+    [name, Date.now(), userId],
+  );
+  await logAuthEvent(db, userId, "business_name_updated", { businessName: name });
+  return name;
 }
 
 async function findUserByEmail(db: D1Database, email: string): Promise<UserRow | null> {
@@ -127,7 +151,7 @@ async function logDuplicateRegistration(
   await execute(
     db,
     `INSERT INTO audit_logs (
-       id, organization_id, actor_user_id, entity_type, entity_id, action,
+       id, user_id, actor_user_id, entity_type, entity_id, action,
        before_json, after_json, reason, created_at
      ) VALUES (?, NULL, NULL, 'auth', ?, 'duplicate_registration', NULL, NULL, ?, ?)`,
     [crypto.randomUUID(), email, `Duplicate registration attempt for ${email}`, current],

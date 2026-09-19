@@ -15,6 +15,22 @@ export class SqliteD1 {
   exec(sql: string): void {
     this.db.exec(sql);
   }
+
+  /**
+   * D1 batch: statements run in one transaction. Real arity/SQL errors surface
+   * here (unlike the fake-D1 shim), which is the point of this adapter.
+   */
+  async batch(statements: SqliteD1Statement[]): Promise<D1Result[]> {
+    this.db.exec("BEGIN");
+    try {
+      const results = statements.map((s) => s.runSync());
+      this.db.exec("COMMIT");
+      return results;
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    }
+  }
 }
 
 export class SqliteD1Statement {
@@ -38,11 +54,15 @@ export class SqliteD1Statement {
     return (this.db.prepare(this.sql).get(...this.values) as T | undefined) ?? null;
   }
 
-  async run(): Promise<{ success: boolean; meta: { changes: number; last_row_id: number } }> {
+  async run(): Promise<D1Result> {
+    return this.runSync();
+  }
+
+  runSync(): D1Result {
     const result = this.db.prepare(this.sql).run(...this.values);
     return {
       success: true,
       meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid) },
-    };
+    } as D1Result;
   }
 }

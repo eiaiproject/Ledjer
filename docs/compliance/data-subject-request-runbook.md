@@ -8,7 +8,6 @@
 1. Verify identity (email + current session).
 2. Export data:
    - User profile: `SELECT * FROM users WHERE id = ?`
-   - Organizations: `SELECT * FROM organization_members WHERE user_id = ?`
    - Sessions: `SELECT * FROM sessions WHERE user_id = ?`
    - Login history: `SELECT * FROM login_attempts WHERE email = ?`
 3. Compile into JSON/CSV response.
@@ -24,7 +23,6 @@
 3. Revoke all sessions.
 4. Set `users.status = 'disabled'`.
 5. Anonymize personal data in financial records (replace name with 'Deleted User').
-6. Remove organization memberships.
 7. Schedule hard delete after 90-day grace period.
 8. Log the request in audit trail.
 9. **Timeline**: Initiate within 7 days. Hard delete after 90 days.
@@ -42,7 +40,7 @@
 **User wants their data in machine-readable format.**
 
 1. Same as Access Request, but format MUST be structured (CSV/JSON).
-2. Include: profile data, transaction history (by org), account list.
+2. Include: profile data, transaction history (the user's book), account list.
 3. **Timeline**: Respond within 14 days.
 
 ## Verification

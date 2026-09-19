@@ -36,8 +36,8 @@ jobs:
       - name: pnpm audit
         run: bash scripts/check-dependency-audit.sh
 
-      - name: Org-scoping check
-        run: bash scripts/check-org-scoping.sh
+      - name: User-scoping check
+        run: bash scripts/check-user-scoping.sh
 
       - name: TypeScript typecheck
         run: pnpm --filter web typecheck

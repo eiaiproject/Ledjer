@@ -6,9 +6,9 @@ import type { D1Database } from "@cloudflare/workers-types";
 describe("exportTransactionsCsv status handling", () => {
   it("exports ALL statuses by default - matches the list view's 'Semua status'", async () => {
     const { db } = createSeedFixtures();
-    const result = await exportTransactionsCsv(db as unknown as D1Database, FIXTURE_IDS.orgs.a, {});
+    const result = await exportTransactionsCsv(db as unknown as D1Database, FIXTURE_IDS.users.ownerA, {});
 
-    // Org A fixtures: 5 posted + 1 voided.
+    // Fixture buku A: 5 posted + 1 voided.
     expect(result.totalRows).toBe(6);
     expect(result.csv).toContain("TRX-20260705-LM12"); // voided row present
     expect(result.csv).toContain(",voided,");
@@ -16,7 +16,7 @@ describe("exportTransactionsCsv status handling", () => {
 
   it("exports posted-only when an explicit status filter is given", async () => {
     const { db } = createSeedFixtures();
-    const result = await exportTransactionsCsv(db as unknown as D1Database, FIXTURE_IDS.orgs.a, {
+    const result = await exportTransactionsCsv(db as unknown as D1Database, FIXTURE_IDS.users.ownerA, {
       status: "posted",
     });
 
@@ -27,7 +27,7 @@ describe("exportTransactionsCsv status handling", () => {
 
   it("exports voided-only when status=voided", async () => {
     const { db } = createSeedFixtures();
-    const result = await exportTransactionsCsv(db as unknown as D1Database, FIXTURE_IDS.orgs.a, {
+    const result = await exportTransactionsCsv(db as unknown as D1Database, FIXTURE_IDS.users.ownerA, {
       status: "voided",
     });
 

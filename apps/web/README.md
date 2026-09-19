@@ -65,7 +65,7 @@ root workspace), yang diwajibkan oleh Wrangler v4+.
 src/
   components/            Shared UI components (components/ui = design system)
   contexts/              Auth context
-  hooks/                 Custom hooks (organization, dll.)
+  hooks/                 Custom hooks (useBook, useAccounts, dll.)
   layouts/               Dashboard & public layouts
   lib/                   API client, query keys, utils, formatters
   pages/                 Route pages (transactions, accounts, reports, settings)
@@ -75,7 +75,7 @@ worker/
   index.ts               Worker entrypoint + Hono app (middleware stack)
   env.ts                 Env/binding types
   db/                    D1 helpers, schema constants, migrations
-  middleware/            Auth, org-scoping, CSRF, error handling, logging, metrics
+  middleware/            Auth, CSRF, error handling, logging, metrics
   routes/                Hono route handlers (thin controllers)
   services/              Domain logic (accounting, auth, reports, backup, ...)
   auth/                  Password hashing, token/session helpers

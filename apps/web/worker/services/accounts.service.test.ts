@@ -10,9 +10,8 @@ import {
 } from "./accounts.service";
 import { HttpError } from "../http/errors";
 
-const ORG_A = FIXTURE_IDS.orgs.a;
-const ORG_B = FIXTURE_IDS.orgs.b;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
+const OWNER_B = FIXTURE_IDS.users.ownerB;
 
 function freshDb(): D1Database {
   return createSeedFixtures().db as unknown as D1Database;
@@ -20,7 +19,7 @@ function freshDb(): D1Database {
 
 describe("listAccounts", () => {
   it("returns active accounts with balances computed from posted journals", async () => {
-    const accounts = await listAccounts(freshDb(), ORG_A);
+    const accounts = await listAccounts(freshDb(), OWNER_A);
     const cash = accounts.find((a) => a.id === FIXTURE_IDS.accounts.cashA);
     const bank = accounts.find((a) => a.id === FIXTURE_IDS.accounts.bankA);
     // Kas = 5jt + 2jt - 1.2jt - 0.5jt + 0.8jt (Juli) = 6.1jt; Bank = 500rb.
@@ -31,24 +30,24 @@ describe("listAccounts", () => {
 
   it("filters by subtype", async () => {
     const db = freshDb();
-    const cash = await listAccounts(db, ORG_A, { subtype: "cash" });
-    const bank = await listAccounts(db, ORG_A, { subtype: "bank" });
+    const cash = await listAccounts(db, OWNER_A, { subtype: "cash" });
+    const bank = await listAccounts(db, OWNER_A, { subtype: "bank" });
     expect(cash.every((a) => a.account_subtype === "cash")).toBe(true);
     expect(bank.every((a) => a.account_subtype === "bank")).toBe(true);
   });
 
-  it("isolates organizations", async () => {
-    const accounts = await listAccounts(freshDb(), ORG_B);
-    expect(accounts.every((a) => a.organization_id === ORG_B)).toBe(true);
+  it("isolates books", async () => {
+    const accounts = await listAccounts(freshDb(), OWNER_B);
+    expect(accounts.every((a) => a.user_id === OWNER_B)).toBe(true);
     expect(accounts.some((a) => a.id === FIXTURE_IDS.accounts.cashA)).toBe(false);
   });
 });
 
 describe("nextCashBankCode", () => {
   it("returns the next code after the highest cash/bank account code", async () => {
-    const code = await nextCashBankCode(freshDb(), ORG_A);
-    // Org A has 1110 (Kas) and 1120 (Bank); 1130 is taken by Persediaan,
-    // so the next free cash/bank code is 1140.
+    const code = await nextCashBankCode(freshDb(), OWNER_A);
+    // Buku A punya 1110 (Kas) dan 1120 (Bank); 1130 dipakai Persediaan,
+    // jadi kode kas/bank bebas berikutnya adalah 1140.
     expect(code).toBe("1140");
   });
 });
@@ -56,7 +55,7 @@ describe("nextCashBankCode", () => {
 describe("createCashBankAccount", () => {
   it("creates an asset account with the next code and subtype", async () => {
     const db = freshDb();
-    const account = await createCashBankAccount(db, ORG_A, OWNER_A, {
+    const account = await createCashBankAccount(db, OWNER_A, {
       subtype: "bank",
       name: "BCA 123456",
     });
@@ -67,70 +66,70 @@ describe("createCashBankAccount", () => {
     expect(account.is_active).toBe(1);
   });
 
-  it("rejects a duplicate account name within the organization", async () => {
+  it("rejects a duplicate account name in the same book", async () => {
     const db = freshDb();
     await expect(
-      createCashBankAccount(db, ORG_A, OWNER_A, { subtype: "cash", name: "Kas" }),
+      createCashBankAccount(db, OWNER_A, { subtype: "cash", name: "Kas" }),
     ).rejects.toThrowError(HttpError);
   });
 
-  it("allows the same name in a different organization", async () => {
+  it("allows the same name in a different book", async () => {
     const db = freshDb();
-    // "Bank" exists in Org A but not in Org B → creation must succeed there.
-    const account = await createCashBankAccount(db, ORG_B, FIXTURE_IDS.users.ownerB, {
+    // "Bank" ada di buku A tapi belum di buku B → pembuatan harus berhasil.
+    const account = await createCashBankAccount(db, OWNER_B, {
       subtype: "bank",
       name: "Bank",
     });
-    expect(account.organization_id).toBe(ORG_B);
+    expect(account.user_id).toBe(OWNER_B);
   });
 });
 
 describe("patchAccount", () => {
   it("renames a non-system account", async () => {
     const db = freshDb();
-    const account = await createCashBankAccount(db, ORG_A, OWNER_A, {
+    const account = await createCashBankAccount(db, OWNER_A, {
       subtype: "cash",
       name: "Kas Kecil",
     });
-    const updated = await patchAccount(db, ORG_A, account.id, OWNER_A, { name: "Kas Besar" });
+    const updated = await patchAccount(db, OWNER_A, account.id, { name: "Kas Besar" });
     expect(updated.name).toBe("Kas Besar");
   });
 
   it("deactivates a non-system account that is not in use", async () => {
     const db = freshDb();
-    const account = await createCashBankAccount(db, ORG_A, OWNER_A, {
+    const account = await createCashBankAccount(db, OWNER_A, {
       subtype: "cash",
       name: "Kas Kecil",
     });
-    const updated = await patchAccount(db, ORG_A, account.id, OWNER_A, { isActive: false });
+    const updated = await patchAccount(db, OWNER_A, account.id, { isActive: false });
     expect(updated.is_active).toBe(0);
   });
 
   it("rejects deactivating a system account", async () => {
     const db = freshDb();
     await expect(
-      patchAccount(db, ORG_A, FIXTURE_IDS.accounts.cashA, OWNER_A, { isActive: false }),
+      patchAccount(db, OWNER_A, FIXTURE_IDS.accounts.cashA, { isActive: false }),
     ).rejects.toThrowError(HttpError);
   });
 
   it("rejects deactivating an account used by transactions", async () => {
     const db = freshDb();
     await expect(
-      patchAccount(db, ORG_A, FIXTURE_IDS.accounts.revenueA, OWNER_A, { isActive: false }),
+      patchAccount(db, OWNER_A, FIXTURE_IDS.accounts.revenueA, { isActive: false }),
     ).rejects.toThrowError(HttpError);
   });
 
-  it("throws not found for an account outside the org", async () => {
+  it("throws not found for an account outside the book", async () => {
     const db = freshDb();
     await expect(
-      patchAccount(db, ORG_A, FIXTURE_IDS.accounts.cashB, OWNER_A, { name: "X" }),
+      patchAccount(db, OWNER_A, FIXTURE_IDS.accounts.cashB, { name: "X" }),
     ).rejects.toThrowError(HttpError);
   });
 });
 describe("createAccount (non-kas: pendapatan/beban)", () => {
   it("creates an income account with the next 41xx code", async () => {
     const db = freshDb();
-    const account = await createAccount(db, ORG_A, OWNER_A, {
+    const account = await createAccount(db, OWNER_A, {
       accountClass: "income",
       name: "Pendapatan Jasa",
     });
@@ -143,22 +142,22 @@ describe("createAccount (non-kas: pendapatan/beban)", () => {
 
   it("creates an expense account past the system HPP code", async () => {
     const db = freshDb();
-    const first = await createAccount(db, ORG_A, OWNER_A, {
+    const first = await createAccount(db, OWNER_A, {
       accountClass: "expense",
       name: "Beban Iklan",
     });
     expect(first.code).toBe("6200");
-    const second = await createAccount(db, ORG_A, OWNER_A, {
+    const second = await createAccount(db, OWNER_A, {
       accountClass: "expense",
       name: "Beban Listrik",
     });
     expect(second.code).toBe("6210");
   });
 
-  it("rejects a duplicate account name within the organization", async () => {
+  it("rejects a duplicate account name in the same book", async () => {
     const db = freshDb();
     await expect(
-      createAccount(db, ORG_A, OWNER_A, { accountClass: "expense", name: "Beban Sewa" }),
+      createAccount(db, OWNER_A, { accountClass: "expense", name: "Beban Sewa" }),
     ).rejects.toThrowError(HttpError);
   });
 });

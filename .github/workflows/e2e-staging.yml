@@ -5,6 +5,15 @@ on:
     branches: [main, staging]
   pull_request:
     branches: [main]
+    paths:
+      - 'apps/web/worker/**'
+      - 'apps/web/src/lib/accounting/**'
+      - 'apps/web/worker/db/**'
+      - 'wrangler.jsonc'
+      - 'apps/web/wrangler.jsonc'
+      - 'scripts/reset-staging-to-seed.sql'
+      - '.github/workflows/e2e-staging.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -45,6 +54,18 @@ jobs:
       - name: Build app
         run: pnpm build
         working-directory: apps/web
+
+      - name: Hard reset staging to seed (hemat D1 reads)
+        if: env.HAS_CF_TOKEN == 'true'
+        # Hard reset tiap run: DB kembali = state project (16 akun system).
+        # Staging hanya untuk tes, data boleh hilang permanen — cegah tumpukan
+        # 285 akun E2E (6.9M reads di 18 Sep) & hemat kuota harian D1 (5M reads Free).
+        # Defer FK agar DELETE parent walau masih direfer child tidak fail di D1.
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        working-directory: apps/web
+        run: pnpm exec wrangler d1 execute DB --remote --env staging --config wrangler.jsonc --file ../../scripts/reset-staging-to-seed.sql || echo "reset staging skipped (already minimal)"
 
       - name: Apply D1 migrations (staging)
         if: env.HAS_CF_TOKEN == 'true'

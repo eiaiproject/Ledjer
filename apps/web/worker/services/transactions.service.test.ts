@@ -15,7 +15,6 @@ import {
 import { HttpError } from "../http/errors";
 import type { FakeD1Database } from "../test/fake-d1";
 
-const ORG_A = FIXTURE_IDS.orgs.a;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
 
 function fresh(): ReturnType<typeof createSeedFixtures> {
@@ -72,7 +71,7 @@ describe("transaction type helpers", () => {
 describe("postTransaction", () => {
   it("posts a cash_in transaction with a balanced journal", async () => {
     const { db } = fresh();
-    const result = await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+    const result = await postTransaction(db as unknown as D1Database, OWNER_A, {
       transactionType: "cash_in",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -101,7 +100,7 @@ describe("postTransaction", () => {
 
   it("posts a cash_out transaction (debit expense, credit cash)", async () => {
     const { db } = fresh();
-    await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+    await postTransaction(db as unknown as D1Database, OWNER_A, {
       transactionType: "cash_out",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -121,7 +120,7 @@ describe("postTransaction", () => {
 
   it("posts a transfer with destination debited and source credited", async () => {
     const { db } = fresh();
-    await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+    await postTransaction(db as unknown as D1Database, OWNER_A, {
       transactionType: "transfer",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -151,8 +150,8 @@ describe("postTransaction", () => {
       idempotencyKey: "idem-test-replay-0001",
     };
 
-    const first = await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, input);
-    const replay = await postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, input);
+    const first = await postTransaction(db as unknown as D1Database, OWNER_A, input);
+    const replay = await postTransaction(db as unknown as D1Database, OWNER_A, input);
 
     expect(replay.transaction_id).toBe(first.transaction_id);
     expect(replay.replayed).toBe(true);
@@ -162,7 +161,7 @@ describe("postTransaction", () => {
   it("rejects an invalid counter account class", async () => {
     const { db } = fresh();
     await expect(
-      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      postTransaction(db as unknown as D1Database, OWNER_A, {
         transactionType: "cash_in",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -177,7 +176,7 @@ describe("postTransaction", () => {
   it("rejects a transfer to the same account", async () => {
     const { db } = fresh();
     await expect(
-      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      postTransaction(db as unknown as D1Database, OWNER_A, {
         transactionType: "transfer",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -193,7 +192,7 @@ describe("postTransaction", () => {
     const { db } = fresh();
     const future = new Date(Date.now() + 30 * 86400000).toLocaleDateString("en-CA");
     await expect(
-      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      postTransaction(db as unknown as D1Database, OWNER_A, {
         transactionType: "cash_in",
         transactionDate: future,
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -208,7 +207,7 @@ describe("postTransaction", () => {
   it("rejects a zero amount", async () => {
     const { db } = fresh();
     await expect(
-      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      postTransaction(db as unknown as D1Database, OWNER_A, {
         transactionType: "cash_in",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -223,7 +222,7 @@ describe("postTransaction", () => {
   it("rejects a fractional amount instead of silently rounding it", async () => {
     const { db } = fresh();
     await expect(
-      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      postTransaction(db as unknown as D1Database, OWNER_A, {
         transactionType: "cash_in",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -241,7 +240,7 @@ describe("postTransaction", () => {
   it("rejects an amount above the IDR ceiling", async () => {
     const { db } = fresh();
     await expect(
-      postTransaction(db as unknown as D1Database, ORG_A, OWNER_A, {
+      postTransaction(db as unknown as D1Database, OWNER_A, {
         transactionType: "cash_in",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -267,7 +266,7 @@ describe("postTransaction", () => {
     };
 
     // Winner commits first (real insert path).
-    const winner = await postTransaction(base as unknown as D1Database, ORG_A, OWNER_A, input);
+    const winner = await postTransaction(base as unknown as D1Database, OWNER_A, input);
 
     // Loser simulation: its pre-insert idempotency lookup MISSES (it read
     // before the winner committed) and its batch then hits the UNIQUE index.
@@ -291,14 +290,14 @@ describe("postTransaction", () => {
         }
         if (prop === "batch") {
           return async () => {
-            throw new Error("D1_ERROR: UNIQUE constraint failed: idx_transactions_org_idempotency");
+            throw new Error("D1_ERROR: UNIQUE constraint failed: idx_transactions_user_idempotency");
           };
         }
         return Reflect.get(target, prop, receiver);
       },
     });
 
-    const loser = await postTransaction(racing as unknown as D1Database, ORG_A, OWNER_A, input);
+    const loser = await postTransaction(racing as unknown as D1Database, OWNER_A, input);
     expect(loser.transaction_id).toBe(winner.transaction_id);
     expect(loser.replayed).toBe(true);
     expect(loser.status).toBe("posted");
@@ -306,10 +305,10 @@ describe("postTransaction", () => {
 });
 
 describe("listTransactions / getTransaction", () => {
-  it("lists all posted and voided transactions for the org", async () => {
+  it("lists all posted and voided transactions for the book", async () => {
     const { db } = fresh();
-    const transactions = await listTransactions(db as unknown as D1Database, ORG_A, {});
-    const total = await countTransactions(db as unknown as D1Database, ORG_A, {});
+    const transactions = await listTransactions(db as unknown as D1Database, OWNER_A, {});
+    const total = await countTransactions(db as unknown as D1Database, OWNER_A, {});
     expect(total).toBe(6);
     expect(transactions).toHaveLength(6);
     expect(transactions[0].transaction_number).toMatch(/^TRX-/);
@@ -318,7 +317,7 @@ describe("listTransactions / getTransaction", () => {
 
   it("filters by status", async () => {
     const { db } = fresh();
-    const transactions = await listTransactions(db as unknown as D1Database, ORG_A, {
+    const transactions = await listTransactions(db as unknown as D1Database, OWNER_A, {
       status: "voided",
     });
     expect(transactions).toHaveLength(1);
@@ -327,7 +326,7 @@ describe("listTransactions / getTransaction", () => {
 
   it("filters by transaction type", async () => {
     const { db } = fresh();
-    const transactions = await listTransactions(db as unknown as D1Database, ORG_A, {
+    const transactions = await listTransactions(db as unknown as D1Database, OWNER_A, {
       transactionType: "transfer",
     });
     expect(transactions).toHaveLength(1);
@@ -338,7 +337,7 @@ describe("listTransactions / getTransaction", () => {
     const { db } = fresh();
     const txn = await getTransaction(
       db as unknown as D1Database,
-      ORG_A,
+      OWNER_A,
       FIXTURE_IDS.transactions.cashInA,
     );
     expect(txn.description).toBe("Penjualan tunai");
@@ -346,10 +345,10 @@ describe("listTransactions / getTransaction", () => {
     expect(txn.counter_account).toBe("Pendapatan Usaha");
   });
 
-  it("throws not found for a transaction outside the org", async () => {
+  it("throws not found for a transaction outside the book", async () => {
     const { db } = fresh();
     await expect(
-      getTransaction(db as unknown as D1Database, ORG_A, FIXTURE_IDS.transactions.cashInB),
+      getTransaction(db as unknown as D1Database, OWNER_A, FIXTURE_IDS.transactions.cashInB),
     ).rejects.toThrowError(HttpError);
   });
 });
@@ -359,7 +358,6 @@ describe("voidTransaction", () => {
     const { db } = fresh();
     const txn = await voidTransaction(
       db as unknown as D1Database,
-      ORG_A,
       OWNER_A,
       FIXTURE_IDS.transactions.cashOutA,
       { reason: "Salah nominal" },
@@ -374,7 +372,6 @@ describe("voidTransaction", () => {
     await expect(
       voidTransaction(
         db as unknown as D1Database,
-        ORG_A,
         OWNER_A,
         FIXTURE_IDS.transactions.voidedOutA,
         {},
@@ -382,12 +379,11 @@ describe("voidTransaction", () => {
     ).rejects.toThrowError(HttpError);
   });
 
-  it("rejects voiding a transaction from another org", async () => {
+  it("rejects voiding a transaction from another user", async () => {
     const { db } = fresh();
     await expect(
       voidTransaction(
         db as unknown as D1Database,
-        ORG_A,
         OWNER_A,
         FIXTURE_IDS.transactions.cashInB,
         {},
@@ -396,10 +392,10 @@ describe("voidTransaction", () => {
   });
 });
 describe("generateTransactionNumber", () => {
-  it("scopes uniqueness per organization (no cross-tenant collision)", async () => {
+  it("scopes uniqueness per user (no cross-user collision)", async () => {
     const { db } = fresh();
     const d = db as unknown as D1Database;
-    // Org B memegang TRX-20260615-AAAA (suffix generator dipaksa ke AAAA:
+    // User B memegang TRX-20260615-AAAA (suffix generator dipaksa ke AAAA:
     // byte 0 -> alfabet[0] = 'A').
     const spy = vi
       .spyOn(crypto, "getRandomValues")
@@ -408,19 +404,19 @@ describe("generateTransactionNumber", () => {
         return buffer;
       }) as typeof crypto.getRandomValues);
     try {
-      await postTransaction(d, FIXTURE_IDS.orgs.b, FIXTURE_IDS.users.ownerB, {
+      await postTransaction(d, FIXTURE_IDS.users.ownerB, {
         transactionType: "cash_in",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashB,
         counterAccountId: FIXTURE_IDS.accounts.revenueB,
         amountIdr: 100000,
         description: "Penjualan B",
-        idempotencyKey: "idem-collision-orgb-0001",
+        idempotencyKey: "idem-collision-userb-0001",
       });
 
-      // Org A boleh memakai nomor yang sama: tabrakan suffix lintas tenant
-      // tidak boleh menggagalkan transaksi org lain.
-      const number = await generateTransactionNumber(d, ORG_A, "2026-06-15");
+      // User A boleh memakai nomor yang sama: tabrakan suffix lintas pengguna
+      // tidak boleh menggagalkan transaksi pengguna lain.
+      const number = await generateTransactionNumber(d, OWNER_A, "2026-06-15");
       expect(number).toBe("TRX-20260615-AAAA");
     } finally {
       spy.mockRestore();

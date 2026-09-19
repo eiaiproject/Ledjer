@@ -8,9 +8,7 @@
 | Password reset tokens | 1 hour | After use or expiry | Automatic (expires_at check) | |
 | Login attempts | 90 days | After 90 days | Deletion via maintenance cron | Audit purposes |
 | OAuth accounts | Until user deleted | Account deletion | Cascade delete | |
-| Organizations | Active + 90 days | Owner deletes org | Soft delete, hard after 90 days | Requires no active members |
-| Organization members | Until membership removed | Member removed or org deleted | Soft delete (status=removed) | |
-| Organization invitations | 7 days or after acceptance | After acceptance, revocation, or expiry | Automatic | |
+| Business name (`users.business_name`) | Until account deleted | Account deleted | Deleted with the user row | Formerly `organizations.name`; no separate entity |
 | Accounts (COA) | Permanent (financial records) | Never (accounting records) | Deactivate (is_active=0) | Immutable for audit trail |
 | Transactions | Permanent (financial records) | Never | Void (not delete) | Correction via void/reversal |
 | Journal entries | Permanent (financial records) | Never | Void (not delete) | Correction via reversal entry |

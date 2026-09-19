@@ -9,14 +9,19 @@ vi.mock('@/contexts/auth-context', async () => {
   return { useAuth: () => authStub };
 });
 
-vi.mock('@/hooks/useOrganization', async () => {
-  const { orgStub } = await import('./test-utils');
-  return { useOrganization: () => orgStub };
+vi.mock('@/hooks/useBook', async () => {
+  const { bookStub } = await import('./test-utils');
+  return { useBook: () => bookStub };
 });
+vi.mock('@/lib/db/provider', () => ({
+  useLocalDb: () => null,
+}));
 
 const listProducts = vi.fn();
+const createProduct = vi.fn();
 vi.mock('@/lib/api/products', () => ({
   listProducts: (...args: unknown[]) => listProducts(...args),
+  createProduct: (...args: unknown[]) => createProduct(...args),
 }));
 
 const listCashBankAccounts = vi.fn();
@@ -27,10 +32,11 @@ vi.mock('@/lib/api/accounts', () => ({
 }));
 
 const postTransaction = vi.fn();
+const listTransactions = vi.fn();
 vi.mock('@/lib/api/transactions', () => ({
   postTransaction: (...args: unknown[]) => postTransaction(...args),
+  listTransactions: (...args: unknown[]) => listTransactions(...args),
 }));
-
 const product = {
   id: 'p-kopi',
   code: 'PRD-0001',
@@ -68,6 +74,29 @@ async function readyToSend() {
   return kirim;
 }
 
+function seedEquityAccounts() {
+  listAccounts.mockResolvedValue([
+    { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+    { id: 'eq-3110', name: 'Modal Pemilik', code: '3110', account_class: 'equity', is_active: 1 },
+    { id: 'eq-3120', name: 'Pengambilan Pemilik', code: '3120', account_class: 'equity', is_active: 1 },
+  ]);
+}
+
+/** Render + ketik chat + Kirim (pola arrange yang berulang di semua test). */
+async function renderAndSend(text: string) {
+  renderBar();
+  const kirim = await readyToSend();
+  fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: text } });
+  fireEvent.click(kirim);
+}
+
+/** renderAndSend + tekan Catat (untuk alur yang sampai tercatat). */
+async function sendAndConfirm(text: string) {
+  await renderAndSend(text);
+  const catat = await screen.findByRole('button', { name: /^Catat$/ });
+  fireEvent.click(catat);
+}
+
 describe('QuickEntryBar', () => {
   it('tombol Kirim menunjukkan loading saat katalog dimuat', async () => {
     listProducts.mockImplementation(() => new Promise(() => {}));
@@ -80,25 +109,17 @@ describe('QuickEntryBar', () => {
 
   it('ketik jual → pratinjau tampil dengan tombol Catat', async () => {
     seedCatalog();
-    renderBar();
-    const kirim = await readyToSend();
+    await renderAndSend('jual kopi 10pcs 50000');
 
-    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'jual kopi 10pcs 50000' } });
-    fireEvent.click(kirim);
-
-    // Satuan Rp 50.000 (@...) dan total Rp 500.000 (=...).
-    expect(await screen.findAllByText(/Rp 50\.000/)).toHaveLength(1);
-    expect(screen.getAllByText(/Rp 500\.000/)).toHaveLength(1);
+    // Nominal polos dibaca sebagai total Rp 50.000, satuan diturunkan Rp 5.000.
+    expect(await screen.findAllByText(/Rp 5\.000/)).toHaveLength(1);
+    expect(screen.getAllByText(/Rp 50\.000/)).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Catat$/ })).toBeEnabled();
   });
 
   it('stok kurang mematikan tombol Catat', async () => {
     seedCatalog();
-    renderBar();
-    const kirim = await readyToSend();
-
-    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'jual kopi 99pcs 50000' } });
-    fireEvent.click(kirim);
+    await renderAndSend('jual kopi 99pcs 50000');
 
     expect(await screen.findByText(/Stok tidak cukup/)).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
@@ -107,13 +128,7 @@ describe('QuickEntryBar', () => {
   it('konfirmasi memanggil postTransaction bentuk sale', async () => {
     seedCatalog();
     postTransaction.mockResolvedValue({ transaction_id: 't-1', transaction_number: 'TRX-X', status: 'posted' });
-    renderBar();
-    const kirim = await readyToSend();
-
-    fireEvent.change(screen.getByLabelText(/cepat/i), { target: { value: 'jual kopi 10pcs 50000' } });
-    fireEvent.click(kirim);
-    const catat = await screen.findByRole('button', { name: /^Catat$/ });
-    fireEvent.click(catat);
+    await sendAndConfirm('jual kopi 10pcs 50000');
 
     // Pesan inline + toast provider sungguhan (2 kemunculan).
     expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
@@ -121,9 +136,197 @@ describe('QuickEntryBar', () => {
       expect.objectContaining({
         transactionType: 'cash_in',
         counterAccountId: 'rev-1',
-        amountIdr: 500000,
-        items: [{ productId: 'p-kopi', quantity: 10, unitPriceIdr: 50000 }],
+        amountIdr: 50000,
+        items: [{ productId: 'p-kopi', quantity: 10, unitPriceIdr: 5000 }],
       }),
+    );
+  });
+
+  it('panduan tertutup default, terbuka setelah tombol diklik', async () => {
+    seedCatalog();
+    renderBar();
+    await readyToSend();
+
+    expect(screen.queryByText('jual kopi 10 butir 50rb')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /contoh dan cara pakai/i }));
+    expect(await screen.findByText('jual kopi 10 butir 50rb')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /sembunyikan/i })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('ketuk contoh mengisi input dan menutup panduan', async () => {
+    seedCatalog();
+    renderBar();
+    await readyToSend();
+
+    fireEvent.click(screen.getByRole('button', { name: /contoh dan cara pakai/i }));
+    fireEvent.click(await screen.findByText('bayar sewa 500rb'));
+
+    expect((screen.getByLabelText(/cepat/i) as HTMLInputElement).value).toBe('bayar sewa 500rb');
+    expect(screen.queryByText('jual kopi 10 butir 50rb')).toBeNull();
+  });
+
+  it('setor modal mengirim counter Modal 3110', async () => {
+    seedCatalog();
+    seedEquityAccounts();
+    postTransaction.mockResolvedValue({ transaction_id: 't-3', transaction_number: 'TRX-Z', status: 'posted' });
+    await sendAndConfirm('setor modal awal 1jt');
+
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'owner_deposit', counterAccountId: 'eq-3110', amountIdr: 1000000 }),
+    );
+  });
+
+  it('ambil prive mengirim counter 3120', async () => {
+    seedCatalog();
+    seedEquityAccounts();
+    postTransaction.mockResolvedValue({ transaction_id: 't-4', transaction_number: 'TRX-W', status: 'posted' });
+    await sendAndConfirm('ambil prive 300rb');
+
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'owner_withdrawal', counterAccountId: 'eq-3120', amountIdr: 300000 }),
+    );
+  });
+
+  it('tombol Catat mati bila kas tidak cukup', async () => {
+    seedCatalog();
+    listCashBankAccounts.mockResolvedValue([{ id: 'kas-1', name: 'Kas', balance_idr: 1000000 }]);
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+    ]);
+    await renderAndSend('beli kopi 100 butir 40jt');
+
+    expect(await screen.findByText(/Kas tidak cukup/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
+  });
+
+  it('tombol Catat mati bila tanggal lebih tua dari catatan terakhir', async () => {
+    seedCatalog();
+    const today = new Date();
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const yesterday = fmt(new Date(today.getTime() - 86400000));
+    listTransactions.mockResolvedValue({ transactions: [{ transaction_date: fmt(today) }], total: 1 });
+    await renderAndSend('transfer 200rb');
+    await screen.findByRole('button', { name: /^Catat$/ });
+    fireEvent.change(screen.getByLabelText(/^Tanggal$/), { target: { value: yesterday } });
+
+    expect(await screen.findByText(/Catatan terakhir/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
+  });
+
+  it('tanggal sama dengan catatan terakhir tetap bisa dicatat', async () => {
+    seedCatalog();
+    const today = new Date().toISOString().slice(0, 10);
+    listTransactions.mockResolvedValue({ transactions: [{ transaction_date: today }], total: 1 });
+    await renderAndSend('transfer 200rb');
+
+    expect(await screen.findByRole('button', { name: /^Catat$/ })).toBeEnabled();
+  });
+
+  it('beli tak dikenal menawarkan panel produk baru, bukan error', async () => {
+    seedCatalog();
+    await renderAndSend('beli Kopi Baru 5 bungkus 50000');
+
+    expect(await screen.findByText(/Produk baru: Kopi Baru/)).toBeTruthy();
+    expect(screen.getByText(/akan dibuat/)).toBeTruthy();
+    expect(createProduct).not.toHaveBeenCalled();
+    expect(postTransaction).not.toHaveBeenCalled();
+  });
+
+  it('buat dan catat membuat produk lalu pembelian berurutan', async () => {
+    seedCatalog();
+    listCashBankAccounts.mockResolvedValue([{ id: 'kas-1', name: 'Kas', balance_idr: 1000000 }]);
+    createProduct.mockResolvedValue({ id: 'p-baru', name: 'Kopi Baru' });
+    postTransaction.mockResolvedValue({ transaction_id: 't-5', transaction_number: 'TRX-N', status: 'posted' });
+    await renderAndSend('beli Kopi Baru 5 bungkus 50000');
+    await screen.findByText(/Produk baru: Kopi Baru/);
+
+    fireEvent.click(screen.getByRole('button', { name: /buat.*catat/i }));
+
+    await waitFor(() => expect(createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Kopi Baru', unit: 'bungkus', sellingPriceIdr: 0 }),
+    ));
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'purchase', amountIdr: 50000 }),
+    );
+    // Urutan: produk dulu, pembelian sesudahnya.
+    expect(createProduct.mock.invocationCallOrder[0]).toBeLessThan(
+      postTransaction.mock.invocationCallOrder[postTransaction.mock.invocationCallOrder.length - 1],
+    );
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+  });
+
+  it('typo dekat menampilkan kandidat, bukan panel buat-baru', async () => {
+    seedCatalog();
+    await renderAndSend('beli kopy 5pcs 50000');
+
+    expect(await screen.findByRole('button', { name: /^Catat$/ })).toBeTruthy();
+    expect(screen.queryByText(/Produk baru:/)).toBeNull();
+  });
+
+  it('ambigu pilih Stok produk tak dikenal masuk panel dengan satuan wajib isi', async () => {
+    seedCatalog();
+    await renderAndSend('beli mika telur 34500');
+    fireEvent.click(await screen.findByRole('button', { name: /^Stok$/ }));
+
+    expect(await screen.findByText(/Produk baru: mika telur/)).toBeTruthy();
+    // Satuan kosong → tombol mati.
+    expect(screen.getByRole('button', { name: /buat.*catat/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/^Satuan$/), { target: { value: 'pcs' } });
+    fireEvent.change(screen.getByLabelText(/^Jumlah$/), { target: { value: '10' } });
+    expect(screen.getByRole('button', { name: /buat.*catat/i })).toBeEnabled();
+  });
+
+  it('gagal langkah pembelian jujur bahwa produk sudah dibuat', async () => {
+    seedCatalog();
+    listCashBankAccounts.mockResolvedValue([{ id: 'kas-1', name: 'Kas', balance_idr: 1000000 }]);
+    createProduct.mockResolvedValue({ id: 'p-baru2', name: 'Kopi Lagi' });
+    const { ApiError } = await import('@/lib/api/client');
+    postTransaction.mockRejectedValueOnce(new ApiError(400, 'counter_account_required', 'Akun lawan harus diisi.'));
+    await renderAndSend('beli Kopi Lagi 5 bungkus 50000');
+    await screen.findByText(/Produk baru: Kopi Lagi/);
+    fireEvent.click(screen.getByRole('button', { name: /buat.*catat/i }));
+
+    expect(await screen.findByText(/sudah dibuat, pembelian gagal/)).toBeTruthy();
+  });
+
+  it('offline mematikan buat produk baru dengan alasan', async () => {
+    seedCatalog();
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      await renderAndSend('beli Kopi Baru 5 bungkus 50000');
+
+      expect(await screen.findByText(/Butuh koneksi internet/)).toBeTruthy();
+      expect(screen.getByRole('button', { name: /buat.*catat/i })).toBeDisabled();
+    } finally {
+      online.mockRestore();
+    }
+  });
+
+  it('tombol Catat mati bila akun ekuitas hilang', async () => {
+    seedCatalog();
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', code: '4110', account_class: 'income', is_active: 1 },
+    ]);
+    await renderAndSend('setor modal awal 1jt');
+
+    expect(await screen.findByText(/3110/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Catat$/ })).toBeDisabled();
+  });
+
+  it('bayar beban meminta kategori lalu memanggil cash_out', async () => {
+    seedCatalog();
+    listAccounts.mockResolvedValue([
+      { id: 'rev-1', name: 'Pendapatan', account_class: 'income', is_active: 1 },
+      { id: 'exp-1', name: 'Beban Lain-lain', account_class: 'expense', is_active: 1 },
+    ]);
+    postTransaction.mockResolvedValue({ transaction_id: 't-2', transaction_number: 'TRX-Y', status: 'posted' });
+    await sendAndConfirm('bayar stiker brand 16rb');
+
+    expect(await screen.findAllByText(/tercatat/i)).toHaveLength(2);
+    expect(postTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: 'cash_out', amountIdr: 16000 }),
     );
   });
 });

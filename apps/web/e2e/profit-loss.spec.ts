@@ -1,5 +1,6 @@
 import { test } from "./helpers/auth";
 import { expect } from "@playwright/test";
+import { todayJakarta } from "./helpers/dates";
 
 /**
  * Profit & Loss (Laba Rugi) E2E for the MVP report page.
@@ -42,13 +43,13 @@ test.describe("Profit & Loss report", () => {
     });
 
     const created = await authPage.evaluate(
-      async ({ description, cashId, incomeId }: { description: string; cashId: string; incomeId: string }) => {
+      async ({ description, cashId, incomeId, date }: { description: string; cashId: string; incomeId: string; date: string }) => {
         const res = await fetch("/api/transactions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             transactionType: "cash_in",
-            transactionDate: "2026-06-15",
+            transactionDate: date,
             cashAccountId: cashId,
             counterAccountId: incomeId,
             description,
@@ -58,13 +59,13 @@ test.describe("Profit & Loss report", () => {
         });
         return res.ok;
       },
-      { description: desc, cashId: accountIds.cash, incomeId: accountIds.income },
+      { description: desc, cashId: accountIds.cash, incomeId: accountIds.income, date: todayJakarta() },
     );
     expect(created).toBe(true);
 
     await authPage.goto("/reports/profit-loss", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Dari").fill(REPORT_FROM);
-    await authPage.getByLabel("Sampai").fill(REPORT_TO);
+    await authPage.getByLabel("Dari").fill(todayJakarta());
+    await authPage.getByLabel("Sampai").fill(todayJakarta());
     await authPage.getByRole("button", { name: "Tampilkan" }).click();
 
     // The account row renders the accumulated income for the period. It must be

@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { listTransactions, type Transaction } from "@/lib/api/transactions";
 import { downloadTransactionsCsv } from "@/lib/api/exports";
 import { queryKeys } from "@/lib/query-keys";
@@ -22,9 +22,13 @@ import { getStatus } from "@/lib/status-registry";
 
 const PAGE_SIZE = 25;
 
+/** Tanggal dari URL (deep-link "lihat transaksi tanggal itu") — invalid → "". */
+function sanitizeDateParam(value: string | null): string {
+  return value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+}
+
 export function TransactionListPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
 
   const [search, setSearch] = useState("");
   const [searchParams] = useSearchParams();
@@ -33,10 +37,31 @@ export function TransactionListPage() {
     TRANSACTION_TYPES.includes(initialType as (typeof TRANSACTION_TYPES)[number]) ? initialType : "",
   );
   const [status, setStatus] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  // Deep-link tanggal (mis. dari peringatan backdate di form/chat): selaraskan
+  // state saat query URL berubah (pola adjust-during-render, tanpa effect).
+  const qpFromDate = sanitizeDateParam(searchParams.get("fromDate"));
+  const qpToDate = sanitizeDateParam(searchParams.get("toDate"));
+  const [fromDate, setFromDate] = useState(qpFromDate);
+  const [toDate, setToDate] = useState(qpToDate);
   const [offset, setOffset] = useState(0);
+  const [prevDateParams, setPrevDateParams] = useState(`${qpFromDate}|${qpToDate}`);
+  const dateParamsKey = `${qpFromDate}|${qpToDate}`;
+  // Filter dilipat (default tertutup) agar daftar lega; otomatis terbuka bila
+  // ada filter aktif (mis. deep-link tanggal) supaya tak membingungkan.
+  const [showFilters, setShowFilters] = useState(
+    transactionType !== "" || qpFromDate !== "" || qpToDate !== "",
+  );
+  if (dateParamsKey !== prevDateParams) {
+    setPrevDateParams(dateParamsKey);
+    setFromDate(qpFromDate);
+    setToDate(qpToDate);
+    setOffset(0);
+    if (qpFromDate !== "" || qpToDate !== "") setShowFilters(true);
+  }
   const [exporting, setExporting] = useState(false);
+  const activeFilterCount = [
+    search, transactionType, status, fromDate, toDate,
+  ].filter((v) => v !== "").length;
 
   const filters = useMemo(
     () => ({
@@ -52,12 +77,12 @@ export function TransactionListPage() {
   );
 
   const query = useQuery({
-    queryKey: queryKeys.transactions.list(orgId, filters),
+    queryKey: queryKeys.transactions.list(userId, filters),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listTransactions(filters);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const handleExport = async () => {
@@ -155,7 +180,20 @@ export function TransactionListPage() {
         </Button>
       </Link>
 
-      <Card elevated>
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          aria-controls="transaction-filters"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          Filter &amp; cari{activeFilterCount > 0 ? ` (${activeFilterCount} aktif)` : ""}
+        </button>
+      </div>
+
+      {showFilters && (
+      <Card elevated id="transaction-filters">
         <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
           <Input
             label="Cari"
@@ -199,6 +237,7 @@ export function TransactionListPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Card elevated>
         <CardContent className="p-0">{rowsContent}</CardContent>

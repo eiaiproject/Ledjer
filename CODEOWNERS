@@ -26,7 +26,7 @@ scripts/ @eiaiproject/ledjer-infra
 apps/web/worker/services/transactions.service.ts @eiaiproject/ledjer-accounting
 apps/web/worker/services/reports.service.ts @eiaiproject/ledjer-accounting
 apps/web/worker/services/accounts.service.ts @eiaiproject/ledjer-accounting
-apps/web/worker/services/organization.service.ts @eiaiproject/ledjer-accounting
+apps/web/worker/services/ledger.service.ts @eiaiproject/ledjer-accounting
 apps/web/worker/services/exports.service.ts @eiaiproject/ledjer-accounting
 apps/web/worker/db/migrations/ @eiaiproject/ledjer-accounting
 apps/web/worker/__tests__/accounting-invariants.test.ts @eiaiproject/ledjer-accounting

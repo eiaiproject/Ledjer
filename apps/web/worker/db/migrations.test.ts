@@ -120,8 +120,8 @@ describe("Database Migrations", () => {
     sql: readFileSync(resolve(migDir, f), "utf-8"),
   }));
 
-  it("migrations are sequentially numbered 0001-0008", () => {
-    const expected = Array.from({ length: 8 }, (_, i) =>
+  it("migrations are sequentially numbered 0001-0009", () => {
+    const expected = Array.from({ length: 10 }, (_, i) =>
       String(i + 1).padStart(4, "0"),
     );
     const actual = migrations.map((m) => m.name);
@@ -147,9 +147,9 @@ describe("Database Migrations", () => {
     for (const table of CORE_TABLES) {
       expect(final.tables.has(table)).toBe(true);
     }
-    // Non-MVP tables (PRD §13.11) must not exist
+    // Non-MVP tables (PRD §13.11) must not exist — parties now required untuk offline-first chat (Fase 5)
     for (const forbidden of [
-      "transaction_lines", "parties",
+      "transaction_lines",
       "invoices", "invoice_lines", "business_documents", "document_lines",
       "notifications", "journal_templates", "manual_journal_entries",
       "period_locks", "import_batches", "import_rows", "export_jobs",

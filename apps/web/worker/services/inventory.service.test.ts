@@ -25,8 +25,6 @@ import {
 } from "./transactions.service";
 import { getBalanceSheet, getProfitLoss } from "./reports.service";
 
-const ORG_A = FIXTURE_IDS.orgs.a;
-const ORG_B = FIXTURE_IDS.orgs.b;
 const OWNER_A = FIXTURE_IDS.users.ownerA;
 const OWNER_B = FIXTURE_IDS.users.ownerB;
 
@@ -55,7 +53,7 @@ async function purchaseKopi(
   key: string,
   date = "2026-06-15",
 ): Promise<void> {
-  await postTransaction(d, ORG_A, OWNER_A, {
+  await postTransaction(d, OWNER_A, {
     transactionType: "purchase",
     transactionDate: date,
     cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -66,10 +64,10 @@ async function purchaseKopi(
 }
 
 describe("resolveInventoryAccount / resolveCogsAccount", () => {
-  it("resolves the Persediaan & HPP accounts of the organization", async () => {
+    it("resolves the Persediaan & HPP accounts of the user's book", async () => {
     const d = db();
-    const inventory = await resolveInventoryAccount(d, ORG_A);
-    const cogs = await resolveCogsAccount(d, ORG_A);
+    const inventory = await resolveInventoryAccount(d, OWNER_A);
+    const cogs = await resolveCogsAccount(d, OWNER_A);
     expect(inventory?.id).toBe(FIXTURE_IDS.accounts.inventoryA);
     expect(inventory?.account_kind).toBe("inventory");
     expect(cogs?.id).toBe(FIXTURE_IDS.accounts.cogsA);
@@ -82,7 +80,7 @@ describe("purchase (pembelian barang)", () => {
     const f = fresh();
     const d = db(f);
 
-    const result = await postTransaction(d, ORG_A, OWNER_A, {
+    const result = await postTransaction(d, OWNER_A, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -111,16 +109,16 @@ describe("purchase (pembelian barang)", () => {
     expect(movementInserts[0].values[5]).toBe(30000 * 10000); // harga beli → minor
     expect(movementInserts[0].values[6]).toBe(300000);
 
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(product?.current_stock_milli).toBe(10000);
     expect(product?.average_cost_minor).toBe(30000 * 10000);
 
     // Laporan: Persediaan (aset) naik; laba rugi tidak bertambah beban
     // (hanya beban sewa seed 1.200.000 yang sudah ada).
-    const bs = await getBalanceSheet(d, ORG_A, "2026-12-31");
+    const bs = await getBalanceSheet(d, OWNER_A, "2026-12-31");
     const persediaan = bs.assets.find((a) => a.code === "1130");
     expect(persediaan?.amount).toBe(300000);
-    const pl = await getProfitLoss(d, ORG_A, "2026-01-01", "2026-12-31");
+    const pl = await getProfitLoss(d, OWNER_A, "2026-01-01", "2026-12-31");
     expect(pl.expense.total).toBe(1200000);
   });
 
@@ -129,7 +127,7 @@ describe("purchase (pembelian barang)", () => {
     await purchaseKopi(d, 3, 10000, "idem-inv-buy-0002");
     await purchaseKopi(d, 2, 20000, "idem-inv-buy-0003");
 
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(product?.current_stock_milli).toBe(5000);
     // (3×10000 + 2×20000) / 5 = 14000 → minor.
     expect(product?.average_cost_minor).toBe(14000 * 10000);
@@ -139,17 +137,17 @@ describe("purchase (pembelian barang)", () => {
     const d = db();
     await purchaseKopi(d, 0.5, 25000, "idem-inv-buy-0004");
 
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(product?.current_stock_milli).toBe(500);
     expect(product?.average_cost_minor).toBe(25000 * 10000);
   });
 
   it("rejects a purchase with an inactive product", async () => {
     const d = db();
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.gulaA);
-    await patchProduct(d, ORG_A, OWNER_A, product!.id, { isActive: false });
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.gulaA);
+    await patchProduct(d, OWNER_A, product!.id, { isActive: false });
     await expectHttpCode(
-      postTransaction(d, ORG_A, OWNER_A, {
+      postTransaction(d, OWNER_A, {
         transactionType: "purchase",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -163,7 +161,7 @@ describe("purchase (pembelian barang)", () => {
 
   it("rejects purchases without items", async () => {
     await expectHttpCode(
-      postTransaction(db(), ORG_A, OWNER_A, {
+      postTransaction(db(), OWNER_A, {
         transactionType: "purchase",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -181,7 +179,7 @@ describe("goods sale (penjualan barang via cash_in + items)", () => {
     const d = db(f);
     await purchaseKopi(d, 10, 30000, "idem-inv-sale-0001");
 
-    await postTransaction(d, ORG_A, OWNER_A, {
+    await postTransaction(d, OWNER_A, {
       transactionType: "cash_in",
       transactionDate: "2026-06-20",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -214,17 +212,17 @@ describe("goods sale (penjualan barang via cash_in + items)", () => {
     expect(saleMovement!.values[5]).toBe(30000 * 10000); // WAC saat jual
     expect(saleMovement!.values[6]).toBe(120000);
 
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(product?.current_stock_milli).toBe(6000);
     expect(product?.average_cost_minor).toBe(30000 * 10000); // WAC tidak berubah
 
     // Laporan (rentang Juni termasuk seed: cash_in 2jt + sewa 1,2jt):
     // pendapatan 2,2jt, HPP 120rb + sewa 1,2jt, laba bersih 880rb.
-    const pl = await getProfitLoss(d, ORG_A, "2026-06-01", "2026-06-30");
+    const pl = await getProfitLoss(d, OWNER_A, "2026-06-01", "2026-06-30");
     expect(pl.income.total).toBe(2200000);
     expect(pl.expense.total).toBe(1320000);
     expect(pl.netIncome).toBe(880000);
-    const bs = await getBalanceSheet(d, ORG_A, "2026-06-30");
+    const bs = await getBalanceSheet(d, OWNER_A, "2026-06-30");
     expect(bs.assets.find((a) => a.code === "1130")?.amount).toBe(180000);
   });
 
@@ -232,7 +230,7 @@ describe("goods sale (penjualan barang via cash_in + items)", () => {
     const d = db();
     await purchaseKopi(d, 2, 30000, "idem-inv-sale-0003");
     await expectHttpCode(
-      postTransaction(d, ORG_A, OWNER_A, {
+      postTransaction(d, OWNER_A, {
         transactionType: "cash_in",
         transactionDate: "2026-06-20",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -247,7 +245,7 @@ describe("goods sale (penjualan barang via cash_in + items)", () => {
 
   it("rejects items on non-cash_in transaction types", async () => {
     await expectHttpCode(
-      postTransaction(db(), ORG_A, OWNER_A, {
+      postTransaction(db(), OWNER_A, {
         transactionType: "cash_out",
         transactionDate: "2026-06-20",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -268,28 +266,28 @@ describe("void restores stock & WAC", () => {
     await purchaseKopi(d, 5, 20000, "idem-inv-void-0001");
     await purchaseKopi(d, 3, 10000, "idem-inv-void-0002");
 
-    const productBefore = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const productBefore = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(productBefore?.current_stock_milli).toBe(8000);
     expect(productBefore?.average_cost_minor).toBe(16250 * 10000); // (5×20k+3×10k)/8
 
-    const txns = await listTransactions(d, ORG_A, {
+    const txns = await listTransactions(d, OWNER_A, {
       transactionType: "purchase",
     });
     const first = txns[0];
-    await voidTransaction(d, ORG_A, OWNER_A, first.id, { reason: "Salah harga" });
+    await voidTransaction(d, OWNER_A, first.id, { reason: "Salah harga" });
 
-    const productAfter = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const productAfter = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(productAfter?.current_stock_milli).toBe(3000);
     expect(productAfter?.average_cost_minor).toBe(10000 * 10000);
 
-    const bs = await getBalanceSheet(d, ORG_A, "2026-12-31");
+    const bs = await getBalanceSheet(d, OWNER_A, "2026-12-31");
     expect(bs.assets.find((a) => a.code === "1130")?.amount).toBe(30000);
   });
 
   it("voiding a goods sale restores stock", async () => {
     const d = db();
     await purchaseKopi(d, 10, 30000, "idem-inv-void-0003");
-    const sale = await postTransaction(d, ORG_A, OWNER_A, {
+    const sale = await postTransaction(d, OWNER_A, {
       transactionType: "cash_in",
       transactionDate: "2026-06-20",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -298,12 +296,12 @@ describe("void restores stock & WAC", () => {
       idempotencyKey: "idem-inv-void-0004",
       items: [{ productId: FIXTURE_IDS.products.kopiA, quantity: 4, unitPriceIdr: 50000 }],
     });
-    await voidTransaction(d, ORG_A, OWNER_A, sale.transaction_id, { reason: "Retur" });
+    await voidTransaction(d, OWNER_A, sale.transaction_id, { reason: "Retur" });
 
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(product?.current_stock_milli).toBe(10000);
 
-    const bs = await getBalanceSheet(d, ORG_A, "2026-12-31");
+    const bs = await getBalanceSheet(d, OWNER_A, "2026-12-31");
     expect(bs.assets.find((a) => a.code === "1130")?.amount).toBe(300000);
   });
 });
@@ -311,7 +309,7 @@ describe("void restores stock & WAC", () => {
 describe("getTransaction items", () => {
   it("returns item detail for purchase transactions", async () => {
     const d = db();
-    const result = await postTransaction(d, ORG_A, OWNER_A, {
+    const result = await postTransaction(d, OWNER_A, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -320,7 +318,7 @@ describe("getTransaction items", () => {
       items: [{ productId: FIXTURE_IDS.products.kopiA, quantity: 2, unitCostIdr: 15000 }],
     });
 
-    const txn = await getTransaction(d, ORG_A, result.transaction_id);
+    const txn = await getTransaction(d, OWNER_A, result.transaction_id);
     expect(txn.items).not.toBeNull();
     expect(txn.items).toHaveLength(1);
     expect(txn.items![0].product_code).toBe("PRD-0001");
@@ -330,7 +328,7 @@ describe("getTransaction items", () => {
 
   it("returns null items for plain transactions", async () => {
     const d = db();
-    const result = await postTransaction(d, ORG_A, OWNER_A, {
+    const result = await postTransaction(d, OWNER_A, {
       transactionType: "cash_in",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -339,7 +337,7 @@ describe("getTransaction items", () => {
       description: "Jasa",
       idempotencyKey: "idem-inv-detail-0002",
     });
-    const txn = await getTransaction(d, ORG_A, result.transaction_id);
+    const txn = await getTransaction(d, OWNER_A, result.transaction_id);
     expect(txn.items).toBeNull();
   });
 });
@@ -347,7 +345,7 @@ describe("getTransaction items", () => {
 describe("products CRUD", () => {
   it("creates a product with an auto-generated code", async () => {
     const d = db();
-    const product = await createProduct(d, ORG_A, OWNER_A, {
+    const product = await createProduct(d, OWNER_A, {
       name: "Teh Botol",
       unit: "botol",
       sellingPriceIdr: 5000,
@@ -359,14 +357,14 @@ describe("products CRUD", () => {
 
   it("rejects a duplicate product name", async () => {
     await expectHttpCode(
-      createProduct(db(), ORG_A, OWNER_A, { name: "Kopi Bubuk 250g", unit: "bungkus" }),
+      createProduct(db(), OWNER_A, { name: "Kopi Bubuk 250g", unit: "bungkus" }),
       "product_name_taken",
     );
   });
 
   it("patches name, unit, selling price and active state", async () => {
     const d = db();
-    const updated = await patchProduct(d, ORG_A, OWNER_A, FIXTURE_IDS.products.kopiA, {
+    const updated = await patchProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA, {
       name: "Kopi Bubuk Premium",
       unit: "pak",
       sellingPriceIdr: 60000,
@@ -375,7 +373,7 @@ describe("products CRUD", () => {
     expect(updated.unit).toBe("pak");
     expect(updated.selling_price_idr).toBe(60000);
 
-    const deactivated = await patchProduct(d, ORG_A, OWNER_A, FIXTURE_IDS.products.gulaA, {
+    const deactivated = await patchProduct(d, OWNER_A, FIXTURE_IDS.products.gulaA, {
       isActive: false,
     });
     expect(deactivated.is_active).toBe(0);
@@ -384,48 +382,48 @@ describe("products CRUD", () => {
   it("rejects deactivating a product used by posted movements", async () => {
     const d = db();
     await purchaseKopi(d, 1, 10000, "idem-inv-prod-0001");
-    expect(await productIsUsed(d, ORG_A, FIXTURE_IDS.products.kopiA)).toBe(true);
+    expect(await productIsUsed(d, OWNER_A, FIXTURE_IDS.products.kopiA)).toBe(true);
     await expectHttpCode(
-      patchProduct(d, ORG_A, OWNER_A, FIXTURE_IDS.products.kopiA, { isActive: false }),
+      patchProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA, { isActive: false }),
       "product_in_use",
     );
   });
 
   it("lists only active products by default and includes inactive with flag", async () => {
     const d = db();
-    await patchProduct(d, ORG_A, OWNER_A, FIXTURE_IDS.products.gulaA, { isActive: false });
-    const active = await listProducts(d, ORG_A);
+    await patchProduct(d, OWNER_A, FIXTURE_IDS.products.gulaA, { isActive: false });
+    const active = await listProducts(d, OWNER_A);
     expect(active.map((p) => p.id)).not.toContain(FIXTURE_IDS.products.gulaA);
-    const all = await listProducts(d, ORG_A, { includeInactive: true });
+    const all = await listProducts(d, OWNER_A, { includeInactive: true });
     expect(all.map((p) => p.id)).toContain(FIXTURE_IDS.products.gulaA);
   });
 });
 
-describe("tenant isolation for inventory", () => {
-  it("scopes products to their organization", async () => {
+describe("user isolation for inventory", () => {
+  it("scopes products to their user", async () => {
     const d = db();
-    const productsA = await listProducts(d, ORG_A, { includeInactive: true });
-    const productsB = await listProducts(d, ORG_B, { includeInactive: true });
+    const productsA = await listProducts(d, OWNER_A, { includeInactive: true });
+    const productsB = await listProducts(d, OWNER_B, { includeInactive: true });
     expect(productsA.every((p) => p.id !== FIXTURE_IDS.products.kopiB)).toBe(true);
     expect(productsB.map((p) => p.id)).toEqual([FIXTURE_IDS.products.kopiB]);
   });
 
-  it("posts an Org B purchase against Org B products and accounts", async () => {
+    it("posts a user B purchase against user B products and accounts", async () => {
     const f = fresh();
     const d = db(f);
-    await postTransaction(d, ORG_B, OWNER_B, {
+    await postTransaction(d, OWNER_B, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashB,
       description: "Beli kopi B",
-      idempotencyKey: "idem-inv-orgb-0001",
+      idempotencyKey: "idem-inv-userb-0001",
       items: [{ productId: FIXTURE_IDS.products.kopiB, quantity: 2, unitCostIdr: 40000 }],
     });
 
-    const product = await getProduct(d, ORG_B, FIXTURE_IDS.products.kopiB);
+    const product = await getProduct(d, OWNER_B, FIXTURE_IDS.products.kopiB);
     expect(product?.current_stock_milli).toBe(2000);
-    // Produk Org A tidak terpengaruh.
-    const productA = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    // Produk user A tidak terpengaruh.
+    const productA = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(productA?.current_stock_milli).toBe(0);
 
     const journalLineInserts = f.db.statements.filter((s) =>
@@ -435,13 +433,13 @@ describe("tenant isolation for inventory", () => {
     expect(journalLineInserts[1].values[3]).toBe(FIXTURE_IDS.accounts.cashB);
   });
 
-  it("rejects a purchase referencing another org's product", async () => {
+    it("rejects a purchase referencing another user's product", async () => {
     await expectHttpCode(
-      postTransaction(db(), ORG_A, OWNER_A, {
+      postTransaction(db(), OWNER_A, {
         transactionType: "purchase",
         transactionDate: "2026-06-15",
         cashAccountId: FIXTURE_IDS.accounts.cashA,
-        description: "Beli produk org lain",
+        description: "Beli produk pengguna lain",
         idempotencyKey: "idem-inv-cross-0001",
         items: [{ productId: FIXTURE_IDS.products.kopiB, quantity: 1, unitCostIdr: 10000 }],
       }),
@@ -455,11 +453,11 @@ describe("recalculateProductCosts", () => {
     const d = db();
     await purchaseKopi(d, 4, 10000, "idem-inv-recalc-0001");
     await purchaseKopi(d, 4, 20000, "idem-inv-recalc-0002");
-    const result = await recalculateProductCosts(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const result = await recalculateProductCosts(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(result.current_stock_milli).toBe(8000);
     expect(result.average_cost_minor).toBe(15000 * 10000);
     // Saldo Persediaan di neraca ikut terbaca dari jurnal (tidak bergantung cache).
-    const bs = await getBalanceSheet(d, ORG_A, "2026-12-31");
+    const bs = await getBalanceSheet(d, OWNER_A, "2026-12-31");
     expect(bs.assets.find((a) => a.code === "1130")?.amount).toBe(120000);
   });
 });
@@ -474,7 +472,7 @@ describe("atomic inventory commit (split-transaction guard)", () => {
       return origBatch(stmts);
     }) as typeof f.db.batch;
 
-    const result = await postTransaction(d, ORG_A, OWNER_A, {
+    const result = await postTransaction(d, OWNER_A, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -505,18 +503,18 @@ describe("guarded stock UPDATE honesty (retry signal)", () => {
   it("reports zero changes when the guard does not match", async () => {
     const f = fresh();
     const d = db(f);
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     const res = await d
       .prepare(
         `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-         WHERE id = ? AND organization_id = ? AND current_stock_milli = ? AND average_cost_minor = ?`,
+         WHERE id = ? AND user_id = ? AND current_stock_milli = ? AND average_cost_minor = ?`,
       )
       .bind(
         999,
         999,
         Date.now(),
         FIXTURE_IDS.products.kopiA,
-        ORG_A,
+        OWNER_A,
         (product?.current_stock_milli ?? 0) + 1,
         product?.average_cost_minor ?? 0,
       )
@@ -539,13 +537,13 @@ describe("concurrent writer during commit", () => {
         await d
           .prepare(
             `INSERT INTO stock_movements (
-               id, organization_id, transaction_id, product_id, quantity_milli,
+               id, user_id, transaction_id, product_id, quantity_milli,
                unit_cost_minor, cost_total_idr, created_at
              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             "concurrence-txn-0001",
-            ORG_A,
+            OWNER_A,
             "concurrence-txn-0001",
             FIXTURE_IDS.products.kopiA,
             5000,
@@ -557,15 +555,15 @@ describe("concurrent writer during commit", () => {
         await d
           .prepare(
             `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-             WHERE id = ? AND organization_id = ?`,
+             WHERE id = ? AND user_id = ?`,
           )
-          .bind(5000, 200000000, Date.now(), FIXTURE_IDS.products.kopiA, ORG_A)
+          .bind(5000, 200000000, Date.now(), FIXTURE_IDS.products.kopiA, OWNER_A)
           .run();
       }
       return origBatch(stmts);
     }) as typeof f.db.batch;
 
-    const result = await postTransaction(d, ORG_A, OWNER_A, {
+    const result = await postTransaction(d, OWNER_A, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -577,7 +575,7 @@ describe("concurrent writer during commit", () => {
 
     // Guard batch pertama meleset (cache 0/0 -> 5000/2e8), catch-up menghitung
     // ulang dari nilai kini: stok 7000, WAC floor((5*2e8 + 2*1e8)/7).
-    const product = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const product = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(product?.current_stock_milli).toBe(7000);
     expect(product?.average_cost_minor).toBe(171428571);
   });
@@ -587,7 +585,7 @@ describe("atomic void (split-transaction guard)", () => {
   it("voids status, cache restore, and audit log in a single batch", async () => {
     const f = fresh();
     const d = db(f);
-    const posted = await postTransaction(d, ORG_A, OWNER_A, {
+    const posted = await postTransaction(d, OWNER_A, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -606,7 +604,7 @@ describe("atomic void (split-transaction guard)", () => {
       return origBatch(stmts);
     }) as typeof f.db.batch;
 
-    const voided = await voidTransaction(d, ORG_A, OWNER_A, posted.transaction_id, {
+    const voided = await voidTransaction(d, OWNER_A, posted.transaction_id, {
       reason: "Salah input",
     });
     expect(voided.status).toBe("voided");
@@ -620,7 +618,7 @@ describe("atomic void (split-transaction guard)", () => {
     expect(only.some((s) => s.includes("INSERT INTO audit_logs"))).toBe(true);
 
     // Cache pulih dari riwayat (tanpa movement voided): kembali nol.
-    const kopi = await getProduct(d, ORG_A, FIXTURE_IDS.products.kopiA);
+    const kopi = await getProduct(d, OWNER_A, FIXTURE_IDS.products.kopiA);
     expect(kopi?.current_stock_milli).toBe(0);
     expect(kopi?.average_cost_minor).toBe(0);
   });
@@ -655,7 +653,7 @@ describe("WAC half-up rounding (anti truncation-drift)", () => {
 
 describe("getStockMovementReport (laporan mutasi stok)", () => {
   async function saleKopi(d: D1Database, qty: number, key: string, date: string) {
-    return postTransaction(d, ORG_A, OWNER_A, {
+    return postTransaction(d, OWNER_A, {
       transactionType: "cash_in",
       transactionDate: date,
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -671,10 +669,10 @@ describe("getStockMovementReport (laporan mutasi stok)", () => {
     await purchaseKopi(d, 10, 30000, "idem-smr-buy-0001", "2026-06-10");
     await saleKopi(d, 4, "idem-smr-sale-0001", "2026-06-15");
     const voided = await saleKopi(d, 2, "idem-smr-sale-0002", "2026-07-02");
-    await voidTransaction(d, ORG_A, OWNER_A, voided.transaction_id, { reason: "Retur" });
+    await voidTransaction(d, OWNER_A, voided.transaction_id, { reason: "Retur" });
     await purchaseKopi(d, 5, 30000, "idem-smr-buy-0002", "2026-07-10");
 
-    const full = await getStockMovementReport(d, ORG_A, {
+    const full = await getStockMovementReport(d, OWNER_A, {
       fromDate: "2026-06-01",
       toDate: "2026-07-31",
     });
@@ -694,7 +692,7 @@ describe("getStockMovementReport (laporan mutasi stok)", () => {
 
     // Filter Juli: penjualan void tak tampil, sisa berjalan tetap
     // menghitung riwayat Juni (6000 + 5000 = 11000).
-    const july = await getStockMovementReport(d, ORG_A, {
+    const july = await getStockMovementReport(d, OWNER_A, {
       fromDate: "2026-07-01",
       toDate: "2026-07-31",
     });
@@ -702,7 +700,7 @@ describe("getStockMovementReport (laporan mutasi stok)", () => {
     expect(july[0]).toMatchObject({ quantity_in_milli: 5000, running_stock_milli: 11000 });
 
     // Filter produk tanpa mutasi → kosong.
-    const gula = await getStockMovementReport(d, ORG_A, {
+    const gula = await getStockMovementReport(d, OWNER_A, {
       fromDate: "2026-06-01",
       toDate: "2026-07-31",
       productId: FIXTURE_IDS.products.gulaA,
@@ -713,7 +711,7 @@ describe("getStockMovementReport (laporan mutasi stok)", () => {
 
 describe("listProductsPage (cari/filter/sort/paginasi)", () => {
   async function makeProduct(d: D1Database, name: string, key: string): Promise<string> {
-    const created = await createProduct(d, ORG_A, OWNER_A, {
+    const created = await createProduct(d, OWNER_A, {
       name,
       unit: "pcs",
       sellingPriceIdr: 10000,
@@ -723,7 +721,7 @@ describe("listProductsPage (cari/filter/sort/paginasi)", () => {
   }
 
   async function buyStock(d: D1Database, productId: string, qty: number, key: string): Promise<void> {
-    await postTransaction(d, ORG_A, OWNER_A, {
+    await postTransaction(d, OWNER_A, {
       transactionType: "purchase",
       transactionDate: "2026-06-15",
       cashAccountId: FIXTURE_IDS.accounts.cashA,
@@ -742,20 +740,20 @@ describe("listProductsPage (cari/filter/sort/paginasi)", () => {
     await buyStock(d, mangga, 3, "idem-pg-buy-mangga");
 
     // Search: hanya yang cocok (isolasi dari seed kopi/gula).
-    const found = await listProductsPage(d, ORG_A, { search: "zz apel" });
+    const found = await listProductsPage(d, OWNER_A, { search: "zz apel" });
     expect(found.total).toBe(1);
     expect(found.products.map((p) => p.name)).toEqual(["ZZ Apel Manila"]);
 
     // Stok habis: jeruk (0) — apel & mangga berstok.
-    const empty = await listProductsPage(d, ORG_A, { search: "zz ", stock: "out" });
+    const empty = await listProductsPage(d, OWNER_A, { search: "zz ", stock: "out" });
     expect(empty.products.map((p) => p.name)).toEqual(["ZZ Jeruk Bali"]);
 
     // Stok menipis: mangga (3 ≤ 5), bukan apel (10).
-    const low = await listProductsPage(d, ORG_A, { search: "zz ", stock: "low" });
+    const low = await listProductsPage(d, OWNER_A, { search: "zz ", stock: "low" });
     expect(low.products.map((p) => p.name)).toEqual(["ZZ Mangga Harum"]);
 
     // Sort stok terendah: jeruk(0), mangga(3), apel(10).
-    const sorted = await listProductsPage(d, ORG_A, { search: "zz ", sort: "stock_asc" });
+    const sorted = await listProductsPage(d, OWNER_A, { search: "zz ", sort: "stock_asc" });
     expect(sorted.products.map((p) => p.name)).toEqual([
       "ZZ Jeruk Bali",
       "ZZ Mangga Harum",
@@ -763,10 +761,10 @@ describe("listProductsPage (cari/filter/sort/paginasi)", () => {
     ]);
 
     // Paginasi: limit 2 → 2 baris + total 3; offset 2 → sisa 1.
-    const page1 = await listProductsPage(d, ORG_A, { search: "zz ", sort: "name", limit: 2, offset: 0 });
+    const page1 = await listProductsPage(d, OWNER_A, { search: "zz ", sort: "name", limit: 2, offset: 0 });
     expect(page1.products).toHaveLength(2);
     expect(page1.total).toBe(3);
-    const page2 = await listProductsPage(d, ORG_A, { search: "zz ", sort: "name", limit: 2, offset: 2 });
+    const page2 = await listProductsPage(d, OWNER_A, { search: "zz ", sort: "name", limit: 2, offset: 2 });
     expect(page2.products).toHaveLength(1);
     expect(page2.total).toBe(3);
   });

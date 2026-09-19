@@ -7,7 +7,7 @@ export interface AuthContextType {
   readonly loading: boolean;
   readonly error: Error | null;
   readonly signIn: (email: string, password: string) => Promise<void>;
-  readonly signUp: (email: string, password: string, fullName: string, organizationName: string) => Promise<void>;
+  readonly signUp: (email: string, password: string, fullName: string, businessName: string) => Promise<void>;
   readonly signOut: () => Promise<void>;
   readonly refreshSession: () => Promise<void>;
 }

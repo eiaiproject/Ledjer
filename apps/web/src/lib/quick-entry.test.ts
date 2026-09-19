@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { buildDraft, matchProducts, parseQuickEntryText } from "./quick-entry";
+import { buildDraft, extractOriginalParty, extractOriginalText, matchProducts, normalizePartyName, parseQuickEntryText } from "./quick-entry";
 
 describe("parseQuickEntryText (inti)", () => {
-  it("memahami jual dengan qty dan harga satuan", () => {
+  it("memahami jual dengan qty dan nominal total", () => {
     expect(parseQuickEntryText("jual kopi 10pcs 50000")).toEqual({
       ok: true, kind: "sale", productQuery: "kopi",
-      quantity: 10, unit: "pcs", unitPriceIdr: 50000, totalIdr: undefined,
+      quantity: 10, unit: "pcs", unitPriceIdr: undefined, totalIdr: 50000,
     });
   });
   it("memahami beli tanpa satuan", () => {
     expect(parseQuickEntryText("Beli gula 5 20000")).toEqual({
       ok: true, kind: "purchase", productQuery: "gula",
-      quantity: 5, unit: undefined, unitPriceIdr: 20000, totalIdr: undefined,
+      quantity: 5, unit: undefined, unitPriceIdr: undefined, totalIdr: 20000,
     });
   });
   it("menolak kata kerja asing dengan pesan contoh", () => {
     expect(parseQuickEntryText("makan kopi 10 50000")).toEqual({
-      ok: false, message: "Contoh: jual kopi 10pcs 50000",
+      ok: false, message: "Contoh: jual telur 30 butir ke Nadia 81rb",
     });
   });
   it("menolak qty nol", () => {
@@ -33,11 +33,11 @@ describe("parseQuickEntryText (varian harga)", () => {
     ["beli gula 5kg 1juta", 1000000],
   ])("memahami %s", (text, price) => {
     const result = parseQuickEntryText(text);
-    expect(result).toMatchObject({ ok: true, unitPriceIdr: price });
+    expect(result).toMatchObject({ ok: true, totalIdr: price });
   });
   it("memahami qty desimal koma", () => {
     expect(parseQuickEntryText("beli gula 2,5kg 20000")).toMatchObject({
-      ok: true, quantity: 2.5, unit: "kg", unitPriceIdr: 20000,
+      ok: true, quantity: 2.5, unit: "kg", totalIdr: 20000,
     });
   });
   it("memahami keyword total", () => {
@@ -68,7 +68,7 @@ describe("matchProducts", () => {
 });
 
 describe("buildDraft", () => {
-  it("menghitung total dari satuan dan menandai mismatch satuan", () => {
+  it("menurunkan satuan dari total dan menandai mismatch satuan", () => {
     const parsed = parseQuickEntryText("jual kopi 10kg 50000");
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
@@ -76,17 +76,17 @@ describe("buildDraft", () => {
       { id: "p1", name: "Kopi", unit: "pcs", is_active: 1, current_stock: 14 },
     ]);
     expect(draft).toMatchObject({
-      productId: "p1", quantity: 10, unitPriceIdr: 50000,
-      totalIdr: 500000, unitMismatch: true,
+      productId: "p1", quantity: 10, unitPriceIdr: 5000,
+      totalIdr: 50000, unitMismatch: true,
     });
   });
-  it("total eksplisit dipecah ke satuan dengan pembulatan", () => {
+  it("total dipecah ke satuan presisi tanpa pembulatan rupiah", () => {
     const parsed = parseQuickEntryText("jual kopi 3pcs total 100000");
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(buildDraft(parsed, [
       { id: "p1", name: "Kopi", unit: "pcs", is_active: 1, current_stock: 14 },
-    ])).toMatchObject({ unitPriceIdr: 33333, totalIdr: 100000 });
+    ])).toMatchObject({ unitPriceIdr: 33333.3333, totalIdr: 100000 });
   });
   it("produk tak dikenal → error ramah", () => {
     const parsed = parseQuickEntryText("jual zebra 1 10000");
@@ -102,12 +102,102 @@ describe("parseQuickEntryText (nama berangka)", () => {
   it("nama produk boleh mengandung angka", () => {
     expect(parseQuickEntryText("jual produk qe 1788999999 2pcs 50000")).toMatchObject({
       ok: true, kind: "sale", productQuery: "produk qe 1788999999",
-      quantity: 2, unit: "pcs", unitPriceIdr: 50000,
+      quantity: 2, unit: "pcs", totalIdr: 50000,
     });
   });
   it("nama berakhiran kata total tetap utuh", () => {
     expect(parseQuickEntryText("jual mie total 2pcs 50000")).toMatchObject({
-      ok: true, productQuery: "mie total", quantity: 2, unitPriceIdr: 50000,
+      ok: true, productQuery: "mie total", quantity: 2, totalIdr: 50000,
     });
+  });
+});
+
+describe("parseQuickEntryText (urutan kata fleksibel)", () => {
+  it.each([
+    ["B: nominal tengah qty ujung + dapat", "beli telur dari Budi 495000 dapat 251 butir",
+      { kind: "purchase", productQuery: "telur", quantity: 251, unit: "butir", partyQuery: "budi", totalIdr: 495000 }],
+    ["B: tanpa kata dapat", "beli telur dari vitantri 495rb 251 butir",
+      { kind: "purchase", productQuery: "telur", quantity: 251, unit: "butir", partyQuery: "vitantri", totalIdr: 495000 }],
+    ["B: sale nominal tengah qty ujung", "jual telur ke nadia 81rb dapat 30 butir",
+      { kind: "sale", productQuery: "telur", quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000 }],
+    ["C: pihak tengah nominal ujung", "jual telur ke Nadia 30 butir 81rb",
+      { kind: "sale", productQuery: "telur", quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000 }],
+    ["D: pihak di ujung", "jual telur 30 butir 81rb ke Nadia",
+      { kind: "sale", productQuery: "telur", quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000 }],
+    ["E: qty di depan", "beli 251 butir telur dari Budi 495000",
+      { kind: "purchase", productQuery: "telur", quantity: 251, unit: "butir", partyQuery: "budi", totalIdr: 495000 }],
+    ["F: pihak di depan (1 kata)", "beli dari Budi telur 251 495rb",
+      { kind: "purchase", productQuery: "telur", quantity: 251, unit: undefined, partyQuery: "budi", totalIdr: 495000 }],
+  ])("memahami ordo %s", (_label, text, expected) => {
+    expect(parseQuickEntryText(text)).toMatchObject({ ok: true, ...expected });
+  });
+  it("F tanpa qty dan nominal gagal aman", () => {
+    expect(parseQuickEntryText("jual ke Nadia telur").ok).toBe(false);
+  });
+  it("jual tanpa qty ditolak dengan pesan spesifik", () => {
+    expect(parseQuickEntryText("jual telur ke Nadia 81rb")).toEqual({
+      ok: false, message: "Tulis jumlah dan nominalnya, contoh: jual telur 30 butir 81rb",
+    });
+  });
+});
+
+describe("extractOriginalParty + normalizePartyName", () => {
+  it("mempertahankan kapital ketikan", () => {
+    expect(extractOriginalParty("beli Telur Dari Budi 495000 dapat 251 butir", "budi")).toBe("Budi");
+  });
+  it("mempertahankan kapital multi-kata", () => {
+    expect(extractOriginalParty("jual telur ke Budi Santoso 30 butir 81rb", "budi santoso")).toBe("Budi Santoso");
+  });
+  it("fallback bila tak ditemukan", () => {
+    expect(extractOriginalParty("jual telur 30 butir 81rb", "nadia")).toBe("nadia");
+  });
+  it("extractOriginalText mengambil ejaan asli tanpa penanda", () => {
+    expect(extractOriginalText("beli Kopi Tubruk 5 bungkus 50000", "kopi tubruk")).toBe("Kopi Tubruk");
+    expect(extractOriginalText("beli kopi 5 20000", "teh")).toBe("teh");
+  });
+  it("akronim jadi kapital semua", () => {
+    expect(normalizePartyName("pt maju")).toBe("PT maju");
+    expect(normalizePartyName("Budi")).toBe("Budi");
+    expect(normalizePartyName("UD Sumber Makmur")).toBe("UD Sumber Makmur");
+  });
+});
+
+describe("parseQuickEntryText (Ohmega chat-first)", () => {
+  it("jual ke pihak dengan sejumlah nominal total", () => {
+    expect(parseQuickEntryText("jual telur 30 butir ke Nadia 81rb")).toMatchObject({
+      ok: true, kind: "sale", productQuery: "telur",
+      quantity: 30, unit: "butir", partyQuery: "nadia", totalIdr: 81000,
+    });
+  });
+  it("beli dari supplier dengan total nominal", () => {
+    expect(parseQuickEntryText("beli telur 251 butir dari Vitantri 495rb")).toMatchObject({
+      ok: true, kind: "purchase", productQuery: "telur",
+      quantity: 251, unit: "butir", partyQuery: "vitantri", totalIdr: 495000,
+    });
+  });
+  it("bayar beban tanpa produk", () => {
+    expect(parseQuickEntryText("bayar stiker brand 16rb")).toMatchObject({
+      ok: true, kind: "expense", description: "stiker brand", amountIdr: 16000,
+    });
+  });
+  it("beli non-produk tanpa qty meminta pilihan eksplisit, bukan menebak", () => {
+    expect(parseQuickEntryText("beli mika telur 34500")).toMatchObject({
+      ok: true, kind: "ambiguous_buy", description: "mika telur", amountIdr: 34500,
+    });
+  });
+  it("susut non-kas tanpa nominal", () => {
+    expect(parseQuickEntryText("telur pecah 11 butir")).toMatchObject({
+      ok: true, kind: "stock_loss", productQuery: "telur",
+      quantity: 11, unit: "butir",
+    });
+  });
+  it("transfer setor ambil hanya butuh nominal", () => {
+    expect(parseQuickEntryText("transfer 500rb")).toMatchObject({ ok: true, kind: "transfer", amountIdr: 500000 });
+    expect(parseQuickEntryText("setor 1jt")).toMatchObject({ ok: true, kind: "deposit", amountIdr: 1000000 });
+    expect(parseQuickEntryText("ambil 250rb")).toMatchObject({ ok: true, kind: "withdrawal", amountIdr: 250000 });
+  });
+  it("beli ambigu tanpa harga cukup jelas untuk ditanya, bukan ditebak", () => {
+    const result = parseQuickEntryText("beli telur");
+    expect(result.ok).toBe(false);
   });
 });

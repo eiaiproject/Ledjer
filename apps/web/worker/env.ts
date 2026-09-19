@@ -1,4 +1,3 @@
-import type { OrganizationContext } from "./services/organization.service";
 import type { CurrentSessionRow, SessionUser } from "./services/session.service";
 
 export interface Env {
@@ -21,6 +20,5 @@ export interface AppContext {
     requestId: string;
     session: CurrentSessionRow;
     user: SessionUser;
-    organizationContext: OrganizationContext;
   };
 }

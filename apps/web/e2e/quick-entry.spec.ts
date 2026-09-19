@@ -1,5 +1,6 @@
 import { test } from "./helpers/auth";
 import { expect } from "@playwright/test";
+import { todayJakarta } from "./helpers/dates";
 
 /**
  * Quick-entry chat E2E: ketik "jual ..." di /transactions → pratinjau →
@@ -14,7 +15,7 @@ const TS = Date.now();
 const PRODUCT_NAME = `QEx${TS}Zqw`;
 
 test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPage }) => {
-  const setup = await authPage.evaluate(async (name: string) => {
+  const setup = await authPage.evaluate(async ({ name, date }: { name: string; date: string }) => {
     const prodRes = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -30,7 +31,7 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         transactionType: "purchase",
-        transactionDate: "2026-09-09",
+        transactionDate: date,
         cashAccountId: kas.id,
         description: `Beli ${name}`,
         idempotencyKey: `qe-stock-${Date.now()}`,
@@ -38,7 +39,7 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
       }),
     });
     return { productId: prodBody.product.id as string, bought: buyRes.ok };
-  }, PRODUCT_NAME);
+  }, { name: PRODUCT_NAME, date: todayJakarta() });
   expect(setup.bought).toBe(true);
 
   // Verifikasi via API bahwa produk+stok sudah masuk katalog — jika teks
@@ -76,6 +77,14 @@ test("chat jual mencatat penjualan dan terlihat di mutasi stok", async ({ authPa
   await authPage.goto("/products");
   // Cari eksplisit: produk baru berkode PRD-XXXX tertinggi dan jatuh di
   // halaman akhir pada DB bersama yang sudah >1 halaman.
+  // Panel filter default tertutup (showFilters=false) → buka dulu agar input terlihat.
+  const filterButton = authPage.getByRole("button", { name: /Filter & cari/i });
+  await expect(filterButton).toBeVisible({ timeout: 10000 });
+  const expanded = await filterButton.getAttribute("aria-expanded");
+  if (expanded !== "true") {
+    await filterButton.click();
+    await expect(authPage.getByLabel(/cari produk/i)).toBeVisible({ timeout: 10000 });
+  }
   await authPage.getByLabel(/cari produk/i).fill(PRODUCT_NAME);
   await expect(authPage.getByText(PRODUCT_NAME).first()).toBeVisible({ timeout: 15000 });
   await authPage

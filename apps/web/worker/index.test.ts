@@ -69,7 +69,6 @@ describe("Worker API", () => {
     };
     // GET routes (MVP)
     await check("GET", "/api/auth/me");
-    await check("GET", "/api/organizations/current");
     await check("GET", "/api/accounts");
     await check("GET", "/api/transactions");
     await check("GET", "/api/reports/profit-loss");
@@ -79,6 +78,7 @@ describe("Worker API", () => {
     // POST routes
     await check("POST", "/api/auth/login");
     await check("POST", "/api/auth/register");
+    await check("PATCH", "/api/auth/me");
   });
 
   it("rejects mutating cookie-authenticated requests from a foreign origin", async () => {

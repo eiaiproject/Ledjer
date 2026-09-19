@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Seed the remote staging D1 database with the E2E fixture user + org.
+# Seed the remote staging D1 database with the E2E fixture user.
 # Use this after the staging database has been reset (e.g. `wrangler d1
 # migrations apply --env=staging --remote` on a fresh DB) so the CI E2E
 # workflow (e2e-staging.yml) can log in again.
 #
-# The MVP register endpoint creates the user, their organization, and the
-# default chart of accounts in one call — so seeding is just an idempotent
+# The MVP register endpoint creates the user, their book (business name), and
+# the default chart of accounts in one call — so seeding is just an idempotent
 # registration via the public API. No direct SQL needed.
 #
 # Usage:
@@ -19,7 +19,7 @@ BASE_URL="${E2E_BASE_URL:-https://ledjer-staging.eiai.workers.dev}"
 EMAIL="${E2E_EMAIL:-staging@yopmail.com}"
 PASSWORD="${E2E_PASSWORD:-Staging1234}"
 FULL_NAME='Ledjer E2E'
-ORG_NAME='Ledjer E2E Test'
+BUSINESS_NAME='Ledjer E2E Test'
 
 echo "[seed-e2e-staging] target: $BASE_URL"
 echo "[seed-e2e-staging] email:  $EMAIL"
@@ -31,7 +31,7 @@ echo "[seed-e2e-staging] email:  $EMAIL"
 echo "[seed-e2e-staging] registering $EMAIL..."
 STATUS="$(curl -sS -X POST "$BASE_URL/api/auth/register" \
   -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"fullName\":\"$FULL_NAME\",\"organizationName\":\"$ORG_NAME\"}" \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\",\"fullName\":\"$FULL_NAME\",\"businessName\":\"$BUSINESS_NAME\"}" \
   -o /tmp/ledjer-seed-register.json -w '%{http_code}')"
 echo "[seed-e2e-staging] register status: $STATUS"
 

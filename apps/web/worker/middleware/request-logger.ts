@@ -59,8 +59,8 @@ export function requestLogger(): MiddlewareHandler<AppContext> {
       entry.version = c.env.GIT_SHA;
     }
 
-    // Never log: raw URL path, query string, organization_id, user_id,
-    // email, session tokens, body, headers - any user-controlled data.
+    // Never log: raw URL path, query string, user_id, email, session tokens,
+    // body, headers - any user-controlled data.
     console.log(JSON.stringify(entry));
   };
 }

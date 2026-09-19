@@ -1,5 +1,6 @@
 import { test } from "./helpers/auth";
 import { expect, type Page } from "@playwright/test";
+import { todayJakarta, todayLongId } from "./helpers/dates";
 
 /**
  * Transaction creation E2E - MVP 5 types + void flow.
@@ -9,6 +10,7 @@ import { expect, type Page } from "@playwright/test";
  */
 
 const TS = Date.now();
+const TODAY_LONG = todayLongId();
 
 const DETAIL_URL = /\/transactions\/[0-9a-f-]{36}$/;
 
@@ -30,9 +32,10 @@ interface SubmitTransactionOptions {
  * (deliberately NOT /[^/]+$ which would also match /transactions/new).
  */
 async function submitTransaction(page: Page, opts: SubmitTransactionOptions) {
-  await page.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
-  // Date: fixed past date so the future-date guard never trips.
-  await page.getByLabel("Tanggal").fill("2026-08-01");
+  await page.goto("/transactions/new?mode=manual", { waitUntil: "load", timeout: 15000 });
+  // Tanggal dinamis hari ini: guard masa-depan tak trip, dan append-only
+  // kronologis server selalu lolos (tanggal tulis = max atau lebih baru).
+  await page.getByLabel("Tanggal").fill(todayJakarta());
   await page.getByLabel("Jenis Transaksi").selectOption(opts.type);
   // Exact label ("<code> · <name>") - selectOption only accepts plain strings.
   await page.getByLabel(opts.cashAccountLabel).selectOption({ label: "1110 · Kas" });
@@ -66,7 +69,7 @@ const CREATION_CASES: CreationCase[] = [
     counterLabel: "Kategori Pendapatan",
     counterAccount: "4110 · Pendapatan Usaha",
     amount: "500000",
-    header: "Uang Masuk · 1 Agustus 2026",
+    header: `Uang Masuk · ${TODAY_LONG}`,
     extraLabels: ["Posted", "Pendapatan Usaha"],
   },
   {
@@ -77,7 +80,7 @@ const CREATION_CASES: CreationCase[] = [
     counterLabel: "Kategori Beban",
     counterAccount: "6180 · Beban Lain-lain",
     amount: "75000",
-    header: "Uang Keluar · 1 Agustus 2026",
+    header: `Uang Keluar · ${TODAY_LONG}`,
     extraLabels: ["Beban Lain-lain"],
   },
   {
@@ -88,7 +91,7 @@ const CREATION_CASES: CreationCase[] = [
     counterLabel: "Akun Tujuan",
     counterAccount: "1120 · Bank",
     amount: "200000",
-    header: "Transfer · 1 Agustus 2026",
+    header: `Transfer · ${TODAY_LONG}`,
     extraLabels: [],
   },
   {
@@ -99,7 +102,7 @@ const CREATION_CASES: CreationCase[] = [
     counterLabel: "Modal Pemilik",
     counterAccount: "3110 · Modal Pemilik",
     amount: "1000000",
-    header: "Modal Masuk · 1 Agustus 2026",
+    header: `Modal Masuk · ${TODAY_LONG}`,
     extraLabels: [],
   },
   {
@@ -110,7 +113,7 @@ const CREATION_CASES: CreationCase[] = [
     counterLabel: "Pengambilan Pemilik",
     counterAccount: "3120 · Pengambilan Pemilik",
     amount: "250000",
-    header: "Pengambilan Pemilik · 1 Agustus 2026",
+    header: `Pengambilan Pemilik · ${TODAY_LONG}`,
     extraLabels: [],
   },
 ];
@@ -155,8 +158,8 @@ test.describe("New Transaction", () => {
   });
 
   test("empty form cannot be submitted (stays on the form)", async ({ authPage }) => {
-    await authPage.goto("/transactions/new", { waitUntil: "load", timeout: 15000 });
-    await authPage.getByLabel("Tanggal").fill("2026-08-01");
+    await authPage.goto("/transactions/new?mode=manual", { waitUntil: "load", timeout: 15000 });
+    await authPage.getByLabel("Tanggal").fill(todayJakarta());
     await authPage.getByRole("button", { name: "Simpan Transaksi" }).click();
     await expect(authPage).toHaveURL(/\/transactions\/new/, { timeout: 5000 });
   });
@@ -173,8 +176,9 @@ test.describe("New Transaction", () => {
     });
 
     await authPage.goto("/transactions", { waitUntil: "load", timeout: 15000 });
-    // Cari eksplisit: tanggal uji ditetapkan di masa lalu sehingga baris
-    // baru tidak dijamin tampil di halaman 1 pada DB bersama yang menumpuk.
+    // Cari eksplisit: baris baru tidak dijamin tampil di halaman 1 pada
+    // DB bersama yang menumpuk.
+    await authPage.getByRole("button", { name: /filter.*cari/i }).click();
     await authPage.getByLabel("Cari", { exact: true }).fill(desc);
     await expect(authPage.getByText(desc)).toBeVisible({ timeout: 15000 });
   });

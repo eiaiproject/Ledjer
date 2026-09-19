@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Plus, Scale, Wallet } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { getDashboardAlerts, getDashboardSummary } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/query-keys";
 import { StatCard } from "@/components/ui/stat-card";
@@ -18,26 +18,29 @@ import { getStatus } from "@/lib/status-registry";
 import type { Transaction } from "@/lib/api/transactions";
 
 export function DashboardPage() {
-  const { data: orgData } = useOrganization();
+  const { userId, businessName } = useBook();
   const summaryQuery = useQuery({
-    queryKey: queryKeys.dashboardSummary(orgData?.organization?.id),
+    queryKey: queryKeys.dashboardSummary(userId),
     queryFn: async () => {
-      if (!orgData?.organization?.id) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getDashboardSummary();
     },
-    enabled: !!orgData?.organization?.id,
+    enabled: !!userId,
   });
   const alertsQuery = useQuery({
-    queryKey: queryKeys.dashboardAlerts(orgData?.organization?.id),
+    queryKey: queryKeys.dashboardAlerts(userId),
     queryFn: async () => {
-      if (!orgData?.organization?.id) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getDashboardAlerts();
     },
-    enabled: !!orgData?.organization?.id,
+    enabled: !!userId,
   });
 
   const summary = summaryQuery.data;
   const alerts = alertsQuery.data;
+  // Ringkasan bulanan sekunder dilipat (default tertutup) agar dasbor lega —
+  // hero Saldo selalu tampil, angka bulanan tetap sekali ketuk.
+  const [showMonthly, setShowMonthly] = useState(false);
 
   // The summary/alerts payloads are trusted to be arrays, but guard against
   // partial responses (e.g. a stale cached summary fetched while an older
@@ -89,7 +92,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={`Halo, ${orgData?.organization?.name ?? ""}`}
+        title={`Halo, ${businessName ?? ""}`}
         description="Ringkasan keuangan usaha Anda."
       />
       <Link to="/transactions/new" className="block sm:w-fit">
@@ -120,30 +123,46 @@ export function DashboardPage() {
           href="/accounts"
           ariaDescription="Total saldo seluruh akun kas dan bank"
         />
-        <StatCard
-          label="Uang Masuk Bulan Ini"
-          value={summary?.moneyIn}
-          icon={ArrowRight}
-          tone="honey"
-          href="/transactions?type=cash_in"
-          ariaDescription="Total pendapatan bulan berjalan"
-        />
-        <StatCard
-          label="Uang Keluar Bulan Ini"
-          value={summary?.moneyOut}
-          icon={ArrowLeft}
-          tone="clay"
-          href="/transactions?type=cash_out"
-          ariaDescription="Total beban bulan berjalan"
-        />
-        <StatCard
-          label="Laba Bersih Bulan Ini"
-          value={summary?.netIncome}
-          icon={Scale}
-          tone="wood"
-          href="/reports/profit-loss"
-          ariaDescription="Pendapatan dikurangi beban bulan berjalan"
-        />
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowMonthly((v) => !v)}
+          aria-expanded={showMonthly}
+          aria-controls="ringkasan-bulanan"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          {showMonthly ? "Sembunyikan ringkasan bulan ini" : "Lihat ringkasan bulan ini"}
+        </button>
+        {showMonthly && (
+          <div id="ringkasan-bulanan" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Uang Masuk Bulan Ini"
+              value={summary?.moneyIn}
+              icon={ArrowRight}
+              tone="honey"
+              href="/transactions?type=cash_in"
+              ariaDescription="Total pendapatan bulan berjalan"
+            />
+            <StatCard
+              label="Uang Keluar Bulan Ini"
+              value={summary?.moneyOut}
+              icon={ArrowLeft}
+              tone="clay"
+              href="/transactions?type=cash_out"
+              ariaDescription="Total beban bulan berjalan"
+            />
+            <StatCard
+              label="Laba Bersih Bulan Ini"
+              value={summary?.netIncome}
+              icon={Scale}
+              tone="wood"
+              href="/reports/profit-loss"
+              ariaDescription="Pendapatan dikurangi beban bulan berjalan"
+            />
+          </div>
+        )}
       </div>
 
       <Card elevated title="Transaksi Terbaru">

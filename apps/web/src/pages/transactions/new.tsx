@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
+import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
 import { listAccounts, type Account } from "@/lib/api/accounts";
 import { listProducts, type Product } from "@/lib/api/products";
 import { postTransaction, type TransactionType } from "@/lib/api/transactions";
@@ -49,25 +50,28 @@ interface FormItem {
 export function NewTransactionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
+  const [searchParams] = useSearchParams();
+  // Form manual sekunder di balik toggle (chat di atas selalu penuh).
+  // ?mode=manual membuka langsung — dipakai deep-link dan E2E.
+  const [manualOpen, setManualOpen] = useState(() => searchParams.get("mode") === "manual");
 
   const accountsQuery = useQuery({
-    queryKey: queryKeys.accounts.fullList(orgId ?? ""),
+    queryKey: queryKeys.accounts.fullList(userId ?? ""),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listAccounts({ includeInactive: false });
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const productsQuery = useQuery({
-    queryKey: queryKeys.products.all(orgId),
+    queryKey: queryKeys.products.all(userId),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listProducts(false);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const idempotencyKeyRef = useRef(createClientToken());
@@ -76,11 +80,14 @@ export function NewTransactionPage() {
   const [goodsSale, setGoodsSale] = useState(false);
   const [items, setItems] = useState<FormItem[]>([]);
 
+  const maxDate = useMaxTransactionDate();
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema),
@@ -96,6 +103,10 @@ export function NewTransactionPage() {
 
   const watchType = watch("transactionType");
   const watchCashAccountId = watch("cashAccountId");
+  const watchDate = watch("transactionDate");
+  // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
+  // yang lebih baru (maxDate null = belum ada catatan / unknown → bebas).
+  const tooOld = maxDate !== null && watchDate !== "" && watchDate < maxDate;
 
   useEffect(() => {
     setSelectedType(watchType);
@@ -157,7 +168,7 @@ export function NewTransactionPage() {
       const product = productById(item.productId);
       if (!product) continue;
       const qty = parseSignedDecimalInput(item.quantity, 0) ?? 0;
-      const price = parseAmount(item.unitPrice);
+      const price = parseUnitPrice(item.unitPrice);
       total += qty * price;
     }
     return Math.round(total);
@@ -187,7 +198,7 @@ export function NewTransactionPage() {
         toast.error("Jumlah produk harus lebih dari 0.");
         return null;
       }
-      const price = parseAmount(item.unitPrice);
+      const price = parseUnitPrice(item.unitPrice);
       if (!isPurchase && price <= 0) {
         toast.error("Harga jual harus lebih dari 0.");
         return null;
@@ -202,7 +213,16 @@ export function NewTransactionPage() {
   };
 
   const onSubmit = async (data: TransactionForm) => {
-    if (!orgId) return;
+    if (!userId) return;
+
+    // Backstop client untuk aturan server (server tetap menolak 400 bila lolos).
+    if (maxDate !== null && data.transactionDate < maxDate) {
+      setError("transactionDate", {
+        type: "validate",
+        message: `Catatan terakhir tanggal ${maxDate}. Void dulu transaksi tanggal itu untuk mencatat tanggal ini.`,
+      });
+      return;
+    }
 
     const isPurchaseSubmit = data.transactionType === "purchase";
     const withItems = isPurchaseSubmit || (data.transactionType === "cash_in" && goodsSale);
@@ -227,25 +247,17 @@ export function NewTransactionPage() {
     }
 
     try {
-      const result = await postTransaction({
-        transactionType: data.transactionType,
-        transactionDate: data.transactionDate,
-        cashAccountId: data.cashAccountId,
-        counterAccountId: isPurchaseSubmit ? undefined : data.counterAccountId || undefined,
-        amountIdr: withItems ? undefined : amount,
-        description: data.description.trim(),
-        idempotencyKey: idempotencyKeyRef.current,
-        items: withItems
-          ? normalizedItems.map((item) => ({
-              productId: item.productId,
-              quantity: parseSignedDecimalInput(item.quantity, 0) ?? 0,
-              ...(isPurchaseSubmit
-                ? { unitCostIdr: parseAmount(item.unitPrice) }
-                : { unitPriceIdr: parseAmount(item.unitPrice) }),
-            }))
-          : undefined,
-      });
-      invalidateTransactionFinancialCaches(queryClient, orgId);
+      const result = await postTransaction(
+        buildPostPayload(data, {
+          isPurchaseSubmit,
+          withItems,
+          items: normalizedItems,
+          computedTotal,
+          amount,
+          idempotencyKey: idempotencyKeyRef.current,
+        }),
+      );
+      invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success(result.replayed ? "Transaksi sudah tercatat sebelumnya." : "Transaksi berhasil dicatat.");
       navigate(`/transactions/${result.transaction_id}`);
     } catch (err) {
@@ -273,12 +285,31 @@ export function NewTransactionPage() {
 
       <QuickEntryBar />
 
+      <div>
+        <button
+          type="button"
+          onClick={() => setManualOpen((v) => !v)}
+          aria-expanded={manualOpen}
+          aria-controls="manual-form"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          {manualOpen ? "Sembunyikan form manual" : "Form manual — multi-produk & akun spesifik"}
+        </button>
+        {!manualOpen && (
+          <p className="text-xs text-text-tertiary">
+            Butuh jual/beli beberapa produk sekaligus atau transfer ke akun tertentu? Buka form manual.
+          </p>
+        )}
+      </div>
+
       {accountsQuery.isError && (
         <Callout variant="error">Gagal memuat daftar akun. Muat ulang halaman dan coba lagi.</Callout>
       )}
 
+      {manualOpen && (
       <Card elevated>
         <CardContent>
+          <div id="manual-form">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Select
               label="Jenis Transaksi"
@@ -299,6 +330,14 @@ export function NewTransactionPage() {
               error={errors.transactionDate?.message}
               {...register("transactionDate")}
             />
+            {tooOld && maxDate && (
+              <p className="-mt-2 text-sm font-medium text-error">
+                Catatan terakhir tanggal {maxDate}. Untuk mencatat {watchDate}, void dulu transaksi tanggal {maxDate} lalu catat ulang.{" "}
+                <Link to={`/transactions?fromDate=${maxDate}&toDate=${maxDate}`} className="underline underline-offset-2">
+                  Lihat transaksi tanggal itu
+                </Link>
+              </p>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Select
@@ -388,7 +427,8 @@ export function NewTransactionPage() {
                           <Input
                             label={unitPriceRowLabel(index, isPurchase)}
                             isCurrency
-                            inputMode="numeric"
+                            allowDecimals
+                            inputMode="decimal"
                             placeholder="0"
                             value={item.unitPrice}
                             onChange={(e) => updateItem(item.key, { unitPrice: e.target.value })}
@@ -434,21 +474,59 @@ export function NewTransactionPage() {
               <Button
                 type="submit"
                 loading={isSubmitting}
-                disabled={!orgId || accountsQuery.isLoading || productsQuery.isLoading}
+                disabled={!userId || accountsQuery.isLoading || productsQuery.isLoading || tooOld}
               >
                 Simpan Transaksi
               </Button>
             </div>
           </form>
+          </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
 
-/** Parse input rupiah (mungkin diformat) menjadi bilangan bulat IDR. */
-function parseAmount(raw: string): number {
-  const digits = raw.replace(/[^\d]/g, "");
-  const value = Number(digits);
-  return Number.isFinite(value) ? value : 0;
+/** Parse harga satuan: desimal hingga 4 digit (agar total tercatat presisi). */
+function parseUnitPrice(raw: string): number {
+  return parseSignedDecimalInput(raw, 0, 4) ?? 0;
+}
+
+/** Susun body POST dari form tervalidasi (murni, tanpa efek). */
+function buildPostPayload(
+  data: TransactionForm,
+  ctx: {
+    isPurchaseSubmit: boolean;
+    withItems: boolean;
+    items: FormItem[];
+    computedTotal: number | null;
+    amount: number;
+    idempotencyKey: string;
+  },
+): Parameters<typeof postTransaction>[0] {
+  return {
+    transactionType: data.transactionType,
+    transactionDate: data.transactionDate,
+    cashAccountId: data.cashAccountId,
+    counterAccountId: ctx.isPurchaseSubmit ? undefined : data.counterAccountId || undefined,
+    amountIdr: ctx.withItems ? undefined : ctx.amount,
+    description: data.description.trim(),
+    idempotencyKey: ctx.idempotencyKey,
+    items: ctx.withItems ? mapPostItems(ctx.items, ctx.isPurchaseSubmit) : undefined,
+  };
+}
+
+/** Baris produk form ke payload API (murni, tanpa efek). */
+function mapPostItems(
+  items: FormItem[],
+  isPurchaseSubmit: boolean,
+): { productId: string; quantity: number; unitCostIdr?: number; unitPriceIdr?: number }[] {
+  return items.map((item) => ({
+    productId: item.productId,
+    quantity: parseSignedDecimalInput(item.quantity, 0) ?? 0,
+    ...(isPurchaseSubmit
+      ? { unitCostIdr: parseUnitPrice(item.unitPrice) }
+      : { unitPriceIdr: parseUnitPrice(item.unitPrice) }),
+  }));
 }

@@ -6,24 +6,24 @@ import { vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
 
 /**
- * Stub bersama untuk mock auth-context / useOrganization di test halaman.
+ * Stub bersama untuk mock auth-context / useBook di test halaman.
  * Dipakai via dynamic import di dalam factory vi.mock (async) agar lolos
  * hoisting — JANGAN diimport statis ke dalam factory vi.mock.
  */
 export const authStub = {
-  session: { id: "s1", user_id: "u1", expires_at: 0, current_organization_id: "o1" },
-  user: { id: "u1", email: "a@b.c", full_name: "A" },
+  session: { id: "s1", user_id: "u1", expires_at: 0 },
+  user: { id: "u1", email: "a@b.c", full_name: "A", business_name: "Buku A" },
   loading: false,
   signIn: vi.fn(),
   signUp: vi.fn(),
   signOut: vi.fn(),
+  refreshSession: vi.fn(),
 };
 
-export const orgStub = {
-  data: {
-    organization: { id: "o1", name: "Org A", base_currency: "IDR", status: "active", created_at: 0 },
-    member: { id: "m1", organization_id: "o1", user_id: "u1", role: "owner", status: "active" },
-  },
+export const bookStub = {
+  userId: "u1",
+  businessName: "Buku A",
+  ready: true,
 };
 
 /** Render dengan QueryClient (tanpa retry) + MemoryRouter + ToastProvider nyata. */

@@ -3,6 +3,8 @@ import { createBrowserRouter, Outlet, RouterProvider, useLocation } from "react-
 import * as Sentry from "@sentry/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth";
+import { LocalDBProvider } from "@/lib/db/provider";
+import { SyncProvider } from "@/lib/db/sync-provider";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ProtectedRoute, PublicRoute } from "@/routes/__root";
 import { DashboardLayout } from "@/layouts/dashboard";
@@ -166,9 +168,13 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <AuthProvider>
-            <Suspense fallback={<RouteFallback />}>
-              <RouterProvider router={sentryRouter} />
-            </Suspense>
+            <LocalDBProvider>
+              <SyncProvider>
+                <Suspense fallback={<RouteFallback />}>
+                  <RouterProvider router={sentryRouter} />
+                </Suspense>
+              </SyncProvider>
+            </LocalDBProvider>
           </AuthProvider>
         </ToastProvider>
       </QueryClientProvider>

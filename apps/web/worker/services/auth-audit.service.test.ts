@@ -12,7 +12,7 @@ describe("Auth Audit Service", () => {
       },
     }) as unknown as D1Database;
 
-    await logAuthEvent(db, "user-1", "org-1", "login", { provider: "password" });
+    await logAuthEvent(db, "user-1", "login", { provider: "password" });
 
     const insertCall = executedQueries.find((q) => q.includes("INSERT INTO audit_logs"));
     expect(insertCall).toBeDefined();
@@ -29,14 +29,14 @@ describe("Auth Audit Service", () => {
       },
     }) as unknown as D1Database;
 
-    await logAuthEvent(db, "user-1", "entity-1", "logout");
+    await logAuthEvent(db, "user-1", "logout");
 
     const insertCall = executedStatements.find((s) => s.includes("INSERT INTO audit_logs"));
     expect(insertCall).toBeDefined();
     expect(insertCall).toContain("'auth'");
   });
 
-  it("handles null actorUserId", async () => {
+  it("handles an anonymous event with no user", async () => {
     const { logAuthEvent } = await import("./auth-audit.service");
     const executedStatements: string[] = [];
 
@@ -46,11 +46,11 @@ describe("Auth Audit Service", () => {
       },
     }) as unknown as D1Database;
 
-    await logAuthEvent(db, null, "system", "password_reset_requested");
+    await logAuthEvent(db, null, "password_reset_requested");
 
     const insertCall = executedStatements.find((s) => s.includes("INSERT INTO audit_logs"));
     expect(insertCall).toBeDefined();
-    // Verify NULL is used for organization_id and actor_user_id
+    // user_id dan actor_user_id keduanya NULL untuk event anonim
     expect(insertCall).toContain("NULL");
   });
 
@@ -62,15 +62,15 @@ describe("Auth Audit Service", () => {
     }) as unknown as D1Database;
 
     const metadata = { provider: "google" };
-    await logAuthEvent(db, "user-1", "entity-1", "oauth_login", metadata);
+    await logAuthEvent(db, "user-1", "oauth_login", metadata);
 
     // FakeD1Database stores all run() calls in .statements
     const insertCall = (db as unknown as FakeD1Database).statements.find(
       (s) => s.sql.includes("INSERT INTO audit_logs"),
     );
     expect(insertCall).toBeDefined();
-    // after_json is at values[4] (0-indexed: id, actorUserId, entityId, action, afterJson, createdAt)
-    const afterJson = insertCall!.values[4] as string;
+    // after_json ada di values[5] (0-indexed: id, userId, actorUserId, entityId, action, afterJson, createdAt)
+    const afterJson = insertCall!.values[5] as string;
     expect(JSON.parse(afterJson)).toEqual(metadata);
   });
 });

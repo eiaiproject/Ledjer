@@ -1,18 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { listAccounts } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
 
-/** Seluruh akun organisasi (termasuk nonaktif) — dipakai chart + dropdown. */
+/** Seluruh akun buku ini (termasuk nonaktif) — dipakai chart + dropdown. */
 export function useAllAccounts() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   return useQuery({
-    queryKey: queryKeys.accounts.fullList(orgId ?? ""),
+    queryKey: queryKeys.accounts.fullList(userId ?? ""),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listAccounts({ includeInactive: true });
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import { createCashBankAccount, patchAccount, type CashBankSubtype } from "@/lib/api/accounts";
 import { queryKeys } from "@/lib/query-keys";
@@ -19,13 +19,13 @@ import { formatIDR } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
 
 export function AccountsPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const queryClient = useQueryClient();
 
   const [subtype, setSubtype] = useState<CashBankSubtype>("cash");
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const query = useAllAccounts();
 
@@ -44,7 +44,7 @@ export function AccountsPage() {
       await createCashBankAccount(subtype, trimmed);
       toast.success("Akun berhasil dibuat.");
       setName("");
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId ?? "") });
     } catch (err) {
       toast.error(translateError(err));
     } finally {
@@ -56,7 +56,7 @@ export function AccountsPage() {
     try {
       await patchAccount(accountId, { isActive: !isActive });
       toast.success(isActive ? "Akun dinonaktifkan." : "Akun diaktifkan.");
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(orgId ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId ?? "") });
     } catch (err) {
       toast.error(translateError(err));
     }
@@ -74,9 +74,28 @@ export function AccountsPage() {
         </Button>
       </Link>
 
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowCreate((v) => !v)}
+          aria-expanded={showCreate}
+          aria-controls="account-create-form"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          {showCreate ? "Tutup form tambah akun" : "Tambah akun baru"}
+        </button>
+        {!showCreate && (
+          <p className="text-xs text-text-tertiary">
+            Butuh akun kas atau rekening bank baru? Buka form tambah akun.
+          </p>
+        )}
+      </div>
+
+      {showCreate && (
       <Card elevated>
         <CardContent className="p-4">
           <form
+            id="account-create-form"
             className="grid items-end gap-3 sm:grid-cols-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -108,6 +127,7 @@ export function AccountsPage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       {query.isError ? (
         <ErrorState title="Gagal memuat akun" message="Terjadi kesalahan saat mengambil daftar akun." onRetry={() => query.refetch()} />

@@ -11,7 +11,6 @@ import {
   computeNewWac,
   costTotalFromMilli,
   getProduct,
-  idrToMinor,
   milliToQuantity,
   minorToIdr,
   movementsForProduct,
@@ -85,7 +84,6 @@ export interface PublicTransaction {
   cash_bank_account: string | null;
   counter_account: string | null;
   direction: TransactionDirection;
-  created_by: string;
   created_at: number;
   voided_at: number | null;
   void_reason: string | null;
@@ -103,7 +101,7 @@ export interface PostTransactionResult {
 
 interface TransactionRow {
   id: string;
-  organization_id: string;
+  user_id: string;
   transaction_number: string;
   transaction_type: TransactionType;
   transaction_date: string;
@@ -112,7 +110,6 @@ interface TransactionRow {
   amount_idr: number;
   cash_account_id: string;
   counter_account_id: string;
-  created_by: string;
   created_at: number;
   voided_at: number | null;
   void_reason: string | null;
@@ -195,7 +192,6 @@ function resolveJournalAccounts(
 
 export async function postTransaction(
   db: D1Database,
-  organizationId: string,
   userId: string,
   input: PostTransactionInput,
   requestId?: string,
@@ -208,7 +204,7 @@ export async function postTransaction(
 
   // Pembelian barang: jurnal Persediaan DR / Kas CR + pergerakan stok (+ WAC).
   if (type === "purchase") {
-    return postPurchase(db, organizationId, userId, {
+    return postPurchase(db, userId, {
       transactionDate, description, idempotencyKey: normalizedKey,
       cashAccountId: input.cashAccountId, items,
     }, requestId);
@@ -219,7 +215,7 @@ export async function postTransaction(
     if (type !== "cash_in") {
       throw badRequest("items_not_allowed", "Item produk hanya untuk pembelian atau penjualan barang.");
     }
-    return postGoodsSale(db, organizationId, userId, {
+    return postGoodsSale(db, userId, {
       transactionDate, description, idempotencyKey: normalizedKey,
       cashAccountId: input.cashAccountId, counterAccountId: input.counterAccountId,
       amountIdr: input.amountIdr, items,
@@ -243,14 +239,15 @@ export async function postTransaction(
     amountIdr,
     description,
   });
-  const replay = await replayIfKeyAlreadyUsed(db, organizationId, normalizedKey, payloadHash);
+  const replay = await replayIfKeyAlreadyUsed(db, userId, normalizedKey, payloadHash);
   if (replay) return replay;
 
   await assertDateNotFuture(transactionDate);
+  await assertChronological(db, userId, transactionDate);
   const current = Date.now();
 
-  const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
-  const counterAccount = await getAccount(db, organizationId, counterAccountId);
+  const cashAccount = await getAccount(db, userId, input.cashAccountId);
+  const counterAccount = await getAccount(db, userId, counterAccountId);
   await validateTransaction(type, cashAccount, counterAccount);
 
   const { debitAccount, creditAccount } = resolveJournalAccounts(type, cashAccount!, counterAccount!);
@@ -263,38 +260,38 @@ export async function postTransaction(
 
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, organizationId, transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, userId, transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
       db,
       `INSERT INTO transactions (
-         id, organization_id, transaction_number, transaction_type, transaction_date,
+         id, user_id, transaction_number, transaction_type, transaction_date,
          description, status, amount_idr, cash_account_id, counter_account_id,
-         idempotency_key, created_by, created_at, updated_at, idempotency_payload_hash
-       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?, ?)`,
+         idempotency_key, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
       [
-        transactionId, organizationId, transactionNumber, type, transactionDate,
+        transactionId, userId, transactionNumber, type, transactionDate,
         description, amountIdr, cashAccount!.id, counterAccount!.id,
-        normalizedKey, userId, current, current, payloadHash,
+        normalizedKey, current, current, payloadHash,
       ],
     ),
     statement(
       db,
       `INSERT INTO journal_entries (
-         id, organization_id, transaction_id, entry_date, description, created_at
+         id, user_id, transaction_id, entry_date, description, created_at
        ) VALUES (?, ?, ?, ?, ?, ?)`,
-      [journalEntryId, organizationId, transactionId, transactionDate, description, current],
+      [journalEntryId, userId, transactionId, transactionDate, description, current],
     ),
     ...lines.map((line) => statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, line.accountId, line.debitIdr, line.creditIdr, current],
+      [crypto.randomUUID(), userId, journalEntryId, line.accountId, line.debitIdr, line.creditIdr, current],
     )),
     writeAuditStatement(db, {
-      organizationId,
+      userId,
       actorUserId: userId,
       entityType: "transaction",
       entityId: transactionId,
@@ -309,11 +306,11 @@ export async function postTransaction(
     await executeBatch(db, statements);
   } catch (err) {
     // Two parallel requests can both miss the idempotency lookup above and
-    // race into the batch; the loser hits the UNIQUE(org, idempotency_key)
+    // race into the batch; the loser hits the UNIQUE(user_id, idempotency_key)
     // index. D1 batches are atomic, so nothing was partially written - treat
     // the constraint as a replay of the winner instead of a 500.
     if (err instanceof Error && /unique|constraint/i.test(err.message)) {
-      const raced = await replayIfKeyAlreadyUsed(db, organizationId, normalizedKey, payloadHash);
+      const raced = await replayIfKeyAlreadyUsed(db, userId, normalizedKey, payloadHash);
       if (raced) return raced;
     }
     throw err;
@@ -359,7 +356,7 @@ function assertUniqueItems(items: TransactionItemInput[]): void {
 
 async function normalizePurchaseItems(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   items: TransactionItemInput[] | undefined,
 ): Promise<NormalizedPurchaseItem[]> {
   if (!items || items.length === 0) {
@@ -368,12 +365,16 @@ async function normalizePurchaseItems(
   assertUniqueItems(items);
   const result: NormalizedPurchaseItem[] = [];
   for (const item of items) {
-    const unitCostIdr = item.unitCostIdr;
-    if (unitCostIdr === undefined || !Number.isInteger(unitCostIdr) || unitCostIdr < 0 || unitCostIdr > 999_999_999_999) {
-      throw badRequest("invalid_unit_cost", "Harga beli harus bilangan bulat rupiah tidak negatif.");
+    // Satuan presisi (maks 4 desimal, dibulatkan): nominal ketikan adalah total
+    // yang tercatat; satuan hanya diturunkan. Minor (×10.000) tetap integer
+    // agar aman untuk matematika BigInt WAC.
+    const rawCost = item.unitCostIdr;
+    if (rawCost === undefined || !Number.isFinite(rawCost) || rawCost < 0 || rawCost > 999_999_999_999) {
+      throw badRequest("invalid_unit_cost", "Harga beli harus angka rupiah tidak negatif (maks 4 desimal).");
     }
+    const unitCostIdr = Math.round(rawCost * 10_000) / 10_000;
     const quantityMilli = quantityToMilli(item.quantity);
-    const product = await getProduct(db, organizationId, item.productId);
+    const product = await getProduct(db, userId, item.productId);
     if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
@@ -381,7 +382,7 @@ async function normalizePurchaseItems(
       productId: item.productId,
       quantityMilli,
       unitCostIdr,
-      unitCostMinor: idrToMinor(unitCostIdr),
+      unitCostMinor: Math.round(unitCostIdr * 10_000),
       costTotalIdr: costTotalFromMilli(quantityMilli, unitCostIdr),
     });
   }
@@ -390,7 +391,7 @@ async function normalizePurchaseItems(
 
 async function normalizeSaleItems(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   items: TransactionItemInput[] | undefined,
 ): Promise<NormalizedSaleItem[]> {
   if (!items || items.length === 0) {
@@ -399,12 +400,13 @@ async function normalizeSaleItems(
   assertUniqueItems(items);
   const result: NormalizedSaleItem[] = [];
   for (const item of items) {
-    const unitPriceIdr = item.unitPriceIdr;
-    if (unitPriceIdr === undefined || !Number.isInteger(unitPriceIdr) || unitPriceIdr < 0 || unitPriceIdr > 999_999_999_999) {
-      throw badRequest("invalid_unit_price", "Harga jual harus bilangan bulat rupiah tidak negatif.");
+    const rawPrice = item.unitPriceIdr;
+    if (rawPrice === undefined || !Number.isFinite(rawPrice) || rawPrice < 0 || rawPrice > 999_999_999_999) {
+      throw badRequest("invalid_unit_price", "Harga jual harus angka rupiah tidak negatif (maks 4 desimal).");
     }
+    const unitPriceIdr = Math.round(rawPrice * 10_000) / 10_000;
     const quantityMilli = quantityToMilli(item.quantity);
-    const product = await getProduct(db, organizationId, item.productId);
+    const product = await getProduct(db, userId, item.productId);
     if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
@@ -440,13 +442,13 @@ interface PlannedCacheUpdate {
 /** Baca cache kini + hitung nilai berikut + susun guarded UPDATE per item. */
 async function readPlannedUpdates<T extends { productId: string; quantityMilli: number }>(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   items: T[],
   applyStock: (item: T) => (current: StockWac) => StockWac,
 ): Promise<PlannedCacheUpdate> {
   const guarded: D1PreparedStatement[] = [];
   for (const item of items) {
-    const product = await getProduct(db, organizationId, item.productId);
+    const product = await getProduct(db, userId, item.productId);
     if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
@@ -462,11 +464,11 @@ async function readPlannedUpdates<T extends { productId: string; quantityMilli: 
         db,
         `UPDATE products
          SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-         WHERE id = ? AND organization_id = ?
+         WHERE id = ? AND user_id = ?
            AND current_stock_milli = ? AND average_cost_minor = ?`,
         [
           next.stockMilli, next.wacMinor, Date.now(),
-          item.productId, organizationId,
+          item.productId, userId,
           product.current_stock_milli, product.average_cost_minor,
         ],
       ),
@@ -482,7 +484,7 @@ function allCacheCommitted(results: D1Result[], offset: number): boolean {
 
 async function commitInventoryTransaction<T extends { productId: string; quantityMilli: number }>(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   idempotencyKey: string,
   payloadHash: string,
   statements: D1PreparedStatement[],
@@ -500,13 +502,13 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
   // (UUID ganda), melainkan kejar cache saja via guarded catch-up.
   const MAX_COMMIT_ATTEMPTS = 6;
   // Percobaan pertama: batch penuh (jurnal + movements + cache).
-  let pending = await readPlannedUpdates(db, organizationId, items, applyStock);
+  let pending = await readPlannedUpdates(db, userId, items, applyStock);
   try {
     const results = await executeBatch(db, [...statements, ...pending.guarded]);
     if (allCacheCommitted(results, statements.length)) return null;
   } catch (err) {
     if (err instanceof Error && /unique|constraint/i.test(err.message)) {
-      const raced = await replayIfKeyAlreadyUsed(db, organizationId, idempotencyKey, payloadHash);
+      const raced = await replayIfKeyAlreadyUsed(db, userId, idempotencyKey, payloadHash);
       if (raced) return raced;
     }
     throw err;
@@ -516,7 +518,7 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
   // Setiap tulis cache ber-guard sehingga concurrent writer ter-serialisasi
   // via guard-miss, bukan via timpa-menimpa buta.
   for (let attempt = 1; attempt < MAX_COMMIT_ATTEMPTS; attempt += 1) {
-    pending = await readPlannedUpdates(db, organizationId, items, applyStock);
+    pending = await readPlannedUpdates(db, userId, items, applyStock);
     const results = await executeBatch(db, pending.guarded);
     if (allCacheCommitted(results, 0)) return null;
   }
@@ -524,14 +526,13 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
   // Guard terus meleset: pulihkan dari riwayat agar tak ada stale parsial,
   // lalu minta klien mencoba lagi (semantik retry lama).
   for (const item of items) {
-    await recalculateProductCosts(db, organizationId, item.productId);
+    await recalculateProductCosts(db, userId, item.productId);
   }
   throw conflict("stock_update_conflict", "Stok produk berubah saat diproses. Coba lagi.");
 }
 
 async function postPurchase(
   db: D1Database,
-  organizationId: string,
   userId: string,
   input: {
     transactionDate: string;
@@ -542,7 +543,7 @@ async function postPurchase(
   },
   requestId?: string,
 ): Promise<PostTransactionResult> {
-  const items = await normalizePurchaseItems(db, organizationId, input.items);
+  const items = await normalizePurchaseItems(db, userId, input.items);
   const totalCost = items.reduce((s, i) => s + i.costTotalIdr, 0);
   const payloadHash = await idempotencyPayloadHash({
     transactionType: "purchase",
@@ -552,70 +553,71 @@ async function postPurchase(
     description: input.description,
     items: items.map((i) => ({ productId: i.productId, quantityMilli: i.quantityMilli, unitCostIdr: i.unitCostIdr })),
   });
-  const replay = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
+  const replay = await replayIfKeyAlreadyUsed(db, userId, input.idempotencyKey, payloadHash);
   if (replay) return replay;
 
   await assertDateNotFuture(input.transactionDate);
+  await assertChronological(db, userId, input.transactionDate);
   const current = Date.now();
 
-  const cashAccount = await getAccount(db, organizationId, input.cashAccountId);
+  const cashAccount = await getAccount(db, userId, input.cashAccountId);
   if (!isCashBankAccount(cashAccount)) {
     throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
   }
-  const inventoryAccount = await resolveInventoryAccount(db, organizationId);
+  const inventoryAccount = await resolveInventoryAccount(db, userId);
   if (!inventoryAccount) {
     throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
   }
 
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, organizationId, input.transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, userId, input.transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
       db,
       `INSERT INTO transactions (
-         id, organization_id, transaction_number, transaction_type, transaction_date,
+         id, user_id, transaction_number, transaction_type, transaction_date,
          description, status, amount_idr, cash_account_id, counter_account_id,
-         idempotency_key, created_by, created_at, updated_at, idempotency_payload_hash
-       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?, ?)`,
+         idempotency_key, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
       [
-        transactionId, organizationId, transactionNumber, "purchase", input.transactionDate,
+        transactionId, userId, transactionNumber, "purchase", input.transactionDate,
         input.description, totalCost, cashAccount!.id, inventoryAccount.id,
-        input.idempotencyKey, userId, current, current, payloadHash,
+        input.idempotencyKey, current, current, payloadHash,
       ],
     ),
     statement(
       db,
       `INSERT INTO journal_entries (
-         id, organization_id, transaction_id, entry_date, description, created_at
+         id, user_id, transaction_id, entry_date, description, created_at
        ) VALUES (?, ?, ?, ?, ?, ?)`,
-      [journalEntryId, organizationId, transactionId, input.transactionDate, input.description, current],
+      [journalEntryId, userId, transactionId, input.transactionDate, input.description, current],
     ),
     statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, inventoryAccount.id, totalCost, 0, current],
+      [crypto.randomUUID(), userId, journalEntryId, inventoryAccount.id, totalCost, 0, current],
     ),
     statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, cashAccount!.id, 0, totalCost, current],
+      [crypto.randomUUID(), userId, journalEntryId, cashAccount!.id, 0, totalCost, current],
     ),
     ...items.map((item) => statement(
       db,
       `INSERT INTO stock_movements (
-         id, organization_id, transaction_id, product_id, quantity_milli,
+         id, user_id, transaction_id, product_id, quantity_milli,
          unit_cost_minor, cost_total_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, transactionId, item.productId, item.quantityMilli, item.unitCostMinor, item.costTotalIdr, current],
+      [crypto.randomUUID(), userId, transactionId, item.productId, item.quantityMilli, item.unitCostMinor, item.costTotalIdr, current],
     )),
     writeAuditStatement(db, {
-      organizationId,
+      userId,
       actorUserId: userId,
       entityType: "transaction",
       entityId: transactionId,
@@ -628,7 +630,7 @@ async function postPurchase(
 
   const committedPurchase = await commitInventoryTransaction(
     db,
-    organizationId,
+    userId,
     input.idempotencyKey,
     payloadHash,
     statements,
@@ -646,23 +648,23 @@ async function postPurchase(
 /** Validasi + resolve 4 akun yang dipakai penjualan barang (kas, pendapatan, HPP, persediaan). */
 async function resolveSaleAccounts(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   cashAccountId: string,
   counterAccountId: string,
 ): Promise<{ cashAccount: AccountRow; incomeAccount: AccountRow; hppAccount: AccountRow; inventoryAccount: AccountRow }> {
-  const cashAccount = await getAccount(db, organizationId, cashAccountId);
+  const cashAccount = await getAccount(db, userId, cashAccountId);
   if (!isCashBankAccount(cashAccount)) {
     throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
   }
-  const incomeAccount = await getAccount(db, organizationId, counterAccountId);
+  const incomeAccount = await getAccount(db, userId, counterAccountId);
   if (incomeAccount?.account_class !== "income" || incomeAccount?.is_active !== 1) {
     throw badRequest("counter_account_invalid", "Akun lawan harus akun pendapatan.");
   }
-  const hppAccount = await resolveCogsAccount(db, organizationId);
+  const hppAccount = await resolveCogsAccount(db, userId);
   if (!hppAccount) {
     throw badRequest("cogs_account_missing", "Akun HPP belum tersedia. Hubungi dukungan.");
   }
-  const inventoryAccount = await resolveInventoryAccount(db, organizationId);
+  const inventoryAccount = await resolveInventoryAccount(db, userId);
   if (!inventoryAccount) {
     throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
   }
@@ -671,7 +673,6 @@ async function resolveSaleAccounts(
 
 async function postGoodsSale(
   db: D1Database,
-  organizationId: string,
   userId: string,
   input: {
     transactionDate: string;
@@ -684,7 +685,7 @@ async function postGoodsSale(
   },
   requestId?: string,
 ): Promise<PostTransactionResult> {
-  const items = await normalizeSaleItems(db, organizationId, input.items);
+  const items = await normalizeSaleItems(db, userId, input.items);
   // Total pendapatan selalu dihitung dari item (qty × harga jual), bukan
   // dari amountIdr yang dikirim klien — menghindari selisih pembulatan.
   const revenue = items.reduce((s, i) => s + i.revenueIdr, 0);
@@ -704,83 +705,84 @@ async function postGoodsSale(
     description: input.description,
     items: items.map((i) => ({ productId: i.productId, quantityMilli: i.quantityMilli, unitPriceIdr: i.unitPriceIdr })),
   });
-  const replay = await replayIfKeyAlreadyUsed(db, organizationId, input.idempotencyKey, payloadHash);
+  const replay = await replayIfKeyAlreadyUsed(db, userId, input.idempotencyKey, payloadHash);
   if (replay) return replay;
 
   await assertDateNotFuture(input.transactionDate);
+  await assertChronological(db, userId, input.transactionDate);
   const current = Date.now();
 
   const { cashAccount, incomeAccount, hppAccount, inventoryAccount } = await resolveSaleAccounts(
     db,
-    organizationId,
+    userId,
     input.cashAccountId,
     counterAccountId,
   );
   const transactionId = crypto.randomUUID();
   const journalEntryId = crypto.randomUUID();
-  const transactionNumber = await generateTransactionNumber(db, organizationId, input.transactionDate);
+  const transactionNumber = await generateTransactionNumber(db, userId, input.transactionDate);
 
   const statements: D1PreparedStatement[] = [
     statement(
       db,
       `INSERT INTO transactions (
-         id, organization_id, transaction_number, transaction_type, transaction_date,
+         id, user_id, transaction_number, transaction_type, transaction_date,
          description, status, amount_idr, cash_account_id, counter_account_id,
-         idempotency_key, created_by, created_at, updated_at, idempotency_payload_hash
-       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?, ?)`,
+         idempotency_key, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?, ?, ?)`,
       [
-        transactionId, organizationId, transactionNumber, "cash_in", input.transactionDate,
+        transactionId, userId, transactionNumber, "cash_in", input.transactionDate,
         input.description, revenue, cashAccount!.id, incomeAccount.id,
-        input.idempotencyKey, userId, current, current, payloadHash,
+        input.idempotencyKey, current, current, payloadHash,
       ],
     ),
     statement(
       db,
       `INSERT INTO journal_entries (
-         id, organization_id, transaction_id, entry_date, description, created_at
+         id, user_id, transaction_id, entry_date, description, created_at
        ) VALUES (?, ?, ?, ?, ?, ?)`,
-      [journalEntryId, organizationId, transactionId, input.transactionDate, input.description, current],
+      [journalEntryId, userId, transactionId, input.transactionDate, input.description, current],
     ),
     // Kas DR (pendapatan) / Pendapatan CR
     statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, cashAccount!.id, revenue, 0, current],
+      [crypto.randomUUID(), userId, journalEntryId, cashAccount!.id, revenue, 0, current],
     ),
     statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, incomeAccount.id, 0, revenue, current],
+      [crypto.randomUUID(), userId, journalEntryId, incomeAccount.id, 0, revenue, current],
     ),
     // HPP DR / Persediaan CR
     statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, hppAccount.id, cogsTotal, 0, current],
+      [crypto.randomUUID(), userId, journalEntryId, hppAccount.id, cogsTotal, 0, current],
     ),
     statement(
       db,
       `INSERT INTO journal_lines (
-         id, organization_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, journalEntryId, inventoryAccount.id, 0, cogsTotal, current],
+      [crypto.randomUUID(), userId, journalEntryId, inventoryAccount.id, 0, cogsTotal, current],
     ),
     ...items.map((item) => statement(
       db,
       `INSERT INTO stock_movements (
-         id, organization_id, transaction_id, product_id, quantity_milli,
+         id, user_id, transaction_id, product_id, quantity_milli,
          unit_cost_minor, cost_total_idr, created_at
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [crypto.randomUUID(), organizationId, transactionId, item.productId, -item.quantityMilli, item.wacMinor, item.cogsIdr, current],
+      [crypto.randomUUID(), userId, transactionId, item.productId, -item.quantityMilli, item.wacMinor, item.cogsIdr, current],
     )),
     writeAuditStatement(db, {
-      organizationId,
+      userId,
       actorUserId: userId,
       entityType: "transaction",
       entityId: transactionId,
@@ -793,7 +795,7 @@ async function postGoodsSale(
 
   const committedSale = await commitInventoryTransaction(
     db,
-    organizationId,
+    userId,
     input.idempotencyKey,
     payloadHash,
     statements,
@@ -823,11 +825,11 @@ interface ExistingTransactionRow {
  */
 async function replayIfKeyAlreadyUsed(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   idempotencyKey: string,
   payloadHash: string,
 ): Promise<PostTransactionResult | null> {
-  const existing = await getTransactionByIdempotencyKey(db, organizationId, idempotencyKey);
+  const existing = await getTransactionByIdempotencyKey(db, userId, idempotencyKey);
   if (!existing) return null;
   if (
     existing.idempotency_payload_hash !== null &&
@@ -838,18 +840,18 @@ async function replayIfKeyAlreadyUsed(
       "Idempotency key sudah dipakai untuk transaksi lain. Muat ulang halaman dan coba lagi.",
     );
   }
-  return buildReplayResult(db, organizationId, existing);
+  return buildReplayResult(db, userId, existing);
 }
 
 async function buildReplayResult(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   existing: ExistingTransactionRow,
 ): Promise<PostTransactionResult> {
   const entry = await queryFirst<{ id: string }>(
     db,
-    "SELECT id FROM journal_entries WHERE transaction_id = ? AND organization_id = ?",
-    [existing.id, organizationId],
+    "SELECT id FROM journal_entries WHERE transaction_id = ? AND user_id = ?",
+    [existing.id, userId],
   );
   return {
     transaction_id: existing.id,
@@ -862,12 +864,12 @@ async function buildReplayResult(
 
 /** Shared WHERE-clause builder for transaction queries (list + count). */
 function buildTransactionFilter(
-  organizationId: string,
+  userId: string,
   filters: Omit<TransactionFilters, "limit" | "offset">,
   prefix: string,
 ): { conditions: string[]; values: D1Input[] } {
-  const conditions = [`${prefix}organization_id = ?`];
-  const values: D1Input[] = [organizationId];
+  const conditions = [`${prefix}user_id = ?`];
+  const values: D1Input[] = [userId];
 
   if (filters.fromDate) {
     conditions.push(`${prefix}transaction_date >= ?`);
@@ -896,10 +898,10 @@ function buildTransactionFilter(
 
 export async function listTransactions(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   filters: TransactionFilters = {},
 ): Promise<PublicTransaction[]> {
-  const { conditions, values } = buildTransactionFilter(organizationId, filters, "t.");
+  const { conditions, values } = buildTransactionFilter(userId, filters, "t.");
 
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const offset = Math.max(filters.offset ?? 0, 0);
@@ -919,10 +921,10 @@ export async function listTransactions(
 
 export async function countTransactions(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   filters: Omit<TransactionFilters, "limit" | "offset"> = {},
 ): Promise<number> {
-  const { conditions, values } = buildTransactionFilter(organizationId, filters, "");
+  const { conditions, values } = buildTransactionFilter(userId, filters, "");
 
   const row = await queryFirst<{ c: number }>(
     db,
@@ -934,22 +936,21 @@ export async function countTransactions(
 
 export async function getTransaction(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   transactionId: string,
 ): Promise<PublicTransaction> {
   const row = await queryFirst<TransactionRow>(
     db,
-    `${transactionSelectSql()} WHERE t.id = ? AND t.organization_id = ?`,
-    [transactionId, organizationId],
+    `${transactionSelectSql()} WHERE t.id = ? AND t.user_id = ?`,
+    [transactionId, userId],
   );
   if (!row) throw notFound("transaction_not_found", "Transaksi tidak ditemukan.");
-  const items = await transactionItems(db, organizationId, transactionId);
+  const items = await transactionItems(db, userId, transactionId);
   return toPublicTransaction(row, items);
 }
 
 export async function voidTransaction(
   db: D1Database,
-  organizationId: string,
   userId: string,
   transactionId: string,
   input: VoidTransactionInput,
@@ -960,8 +961,8 @@ export async function voidTransaction(
 
   const existing = await queryFirst<TransactionRow>(
     db,
-    "SELECT id, status, transaction_number FROM transactions WHERE id = ? AND organization_id = ?",
-    [transactionId, organizationId],
+    "SELECT id, status, transaction_number FROM transactions WHERE id = ? AND user_id = ?",
+    [transactionId, userId],
   );
   if (!existing) throw notFound("transaction_not_found", "Transaksi tidak ditemukan.");
   if (existing.status !== "posted") {
@@ -974,13 +975,13 @@ export async function voidTransaction(
   // batch atomik agar crash tak menyisakan status voided dengan cache basi.
   const movements = await queryAll<{ product_id: string }>(
     db,
-    "SELECT product_id FROM stock_movements WHERE organization_id = ? AND transaction_id = ?",
-    [organizationId, transactionId],
+    "SELECT product_id FROM stock_movements WHERE user_id = ? AND transaction_id = ?",
+    [userId, transactionId],
   );
   const productIds = [...new Set(movements.map((m) => m.product_id))];
   const restoreStatements: D1PreparedStatement[] = [];
   for (const productId of productIds) {
-    const history = await movementsForProduct(db, organizationId, productId);
+    const history = await movementsForProduct(db, userId, productId);
     const { current_stock_milli, average_cost_minor } = summarizeMovements(
       history.filter((m) => m.transaction_id !== transactionId),
     );
@@ -988,8 +989,8 @@ export async function voidTransaction(
       statement(
         db,
         `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-         WHERE id = ? AND organization_id = ?`,
-        [current_stock_milli, average_cost_minor, current, productId, organizationId],
+         WHERE id = ? AND user_id = ?`,
+        [current_stock_milli, average_cost_minor, current, productId, userId],
       ),
     );
   }
@@ -998,12 +999,12 @@ export async function voidTransaction(
     statement(
       db,
       `UPDATE transactions SET status = 'voided', voided_at = ?, void_reason = ?, updated_at = ?
-       WHERE id = ? AND organization_id = ? AND status = 'posted'`,
-      [current, reason, current, transactionId, organizationId],
+       WHERE id = ? AND user_id = ? AND status = 'posted'`,
+      [current, reason, current, transactionId, userId],
     ),
     ...restoreStatements,
     writeAuditStatement(db, {
-      organizationId,
+      userId,
       actorUserId: userId,
       entityType: "transaction",
       entityId: transactionId,
@@ -1015,7 +1016,7 @@ export async function voidTransaction(
     }),
   ]);
 
-  return getTransaction(db, organizationId, transactionId);
+  return getTransaction(db, userId, transactionId);
 }
 
 async function validateTransaction(
@@ -1065,6 +1066,27 @@ async function assertDateNotFuture(transactionDate: string): Promise<void> {
   }
 }
 
+/**
+ * Append-only kronologis: tanggal baru tak boleh lebih tua dari catatan
+ * terakhir yang posted (void dikecualikan). Ini yang menjaga WAC/HPP benar
+ * tanpa mesin revaluasi — "stok berjalan" selalu sama dengan "stok kronologis".
+ * Tanggal yang sama boleh (beberapa transaksi sehari).
+ */
+async function assertChronological(db: D1Database, userId: string, transactionDate: string): Promise<void> {
+  const row = await queryFirst<{ max_date: string | null }>(
+    db,
+    `SELECT MAX(transaction_date) AS max_date FROM transactions WHERE user_id = ? AND status = 'posted'`,
+    [userId],
+  );
+  const maxDate = row?.max_date ?? null;
+  if (maxDate !== null && transactionDate < maxDate) {
+    throw badRequest(
+      "backdate_not_allowed",
+      `Tanggal ${transactionDate} lebih tua dari catatan terakhir (${maxDate}). Void dulu transaksi tanggal ${maxDate} bila ingin mencatat tanggal ini, lalu catat ulang.`,
+    );
+  }
+}
+
 function normalizeIdempotencyKey(key: string): string {
   const normalized = key.trim();
   if (normalized.length < 8 || normalized.length > 160) {
@@ -1100,10 +1122,10 @@ function normalizeRequiredText(value: string, maxLength: number, code: string): 
   return text;
 }
 
-/** TRX-YYYYMMDD-XXXX — unik per organisasi (bukan global), human-readable (PRD TRX-08). */
+/** TRX-YYYYMMDD-XXXX — unik per pengguna (bukan global), human-readable (PRD TRX-08). */
 export async function generateTransactionNumber(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   date: string,
 ): Promise<string> {
   const base = `TRX-${date.replaceAll("-", "")}-`;
@@ -1112,8 +1134,8 @@ export async function generateTransactionNumber(
     const number = `${base}${suffix}`;
     const existing = await queryFirst<{ id: string }>(
       db,
-      "SELECT id FROM transactions WHERE organization_id = ? AND transaction_number = ?",
-      [organizationId, number],
+      "SELECT id FROM transactions WHERE user_id = ? AND transaction_number = ?",
+      [userId, number],
     );
     if (!existing) return number;
   }
@@ -1166,21 +1188,21 @@ export async function idempotencyPayloadHash(payload: {
 
 async function getTransactionByIdempotencyKey(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   idempotencyKey: string,
 ): Promise<{ id: string; transaction_number: string; idempotency_payload_hash: string | null } | null> {
   return queryFirst<{ id: string; transaction_number: string; idempotency_payload_hash: string | null }>(
     db,
-    "SELECT id, transaction_number, idempotency_payload_hash FROM transactions WHERE organization_id = ? AND idempotency_key = ?",
-    [organizationId, idempotencyKey],
+    "SELECT id, transaction_number, idempotency_payload_hash FROM transactions WHERE user_id = ? AND idempotency_key = ?",
+    [userId, idempotencyKey],
   );
 }
 
 function transactionSelectSql(): string {
   return `SELECT
-    t.id, t.organization_id, t.transaction_number, t.transaction_type, t.transaction_date,
+    t.id, t.user_id, t.transaction_number, t.transaction_type, t.transaction_date,
     t.description, t.status, t.amount_idr, t.cash_account_id, t.counter_account_id,
-    t.created_by, t.created_at, t.voided_at, t.void_reason,
+    t.created_at, t.voided_at, t.void_reason,
     cash.name AS cash_bank_account,
     counter.name AS counter_account
     FROM transactions t
@@ -1205,7 +1227,6 @@ function toPublicTransaction(
     cash_bank_account: row.cash_bank_account,
     counter_account: row.counter_account,
     direction: transactionDirection(row.transaction_type),
-    created_by: row.created_by,
     created_at: row.created_at,
     voided_at: row.voided_at,
     void_reason: row.void_reason,
@@ -1216,7 +1237,7 @@ function toPublicTransaction(
 /** Item produk dari stock_movements transaksi; null bila bukan transaksi persediaan. */
 async function transactionItems(
   db: D1Database,
-  organizationId: string,
+  userId: string,
   transactionId: string,
 ): Promise<TransactionItemInfo[] | null> {
   const rows = await queryAll<{
@@ -1232,9 +1253,9 @@ async function transactionItems(
             sm.quantity_milli, sm.unit_cost_minor, sm.cost_total_idr
      FROM stock_movements sm
      JOIN products p ON p.id = sm.product_id
-     WHERE sm.organization_id = ? AND sm.transaction_id = ?
+     WHERE sm.user_id = ? AND sm.transaction_id = ?
      ORDER BY sm.created_at ASC, sm.rowid ASC`,
-    [organizationId, transactionId],
+    [userId, transactionId],
   );
   if (rows.length === 0) return null;
   return rows.map((row) => ({

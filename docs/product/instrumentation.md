@@ -10,12 +10,12 @@ SDK is selected.
 | Event | Trigger | Properties | Privacy |
 |-------|---------|------------|---------|
 | `signup` | Registration form submitted | `method: email|google` | No email in event |
-| `org_created` | Organization created with default COA | None | No org name |
+| `book_created` | User registered (book + default COA created) | None | No business name |
 | `first_transaction` | First transaction posted | `transaction_type` | |
 | `transaction_voided` | A posted transaction is voided | None | |
 | `first_report` | First report generated | `report_type` | |
 | `export_downloaded` | CSV export downloaded | `export_type, row_count, truncated` | |
-| `weekly_active` | At least one action in 7 days | `role` | Aggregated |
+| `weekly_active` | At least one action in 7 days | None | Aggregated |
 
 ### Revenue Events (when billing exists)
 
@@ -66,7 +66,7 @@ SDK is selected.
 
 ## Implementation Guidance
 
-- **Do not**: Send PII (email, name, org name) to analytics.
+- **Do not**: Send PII (email, name, business name) to analytics.
 - **Do**: Use anonymized user IDs (hashed or random).
 - **Do**: Respect `Do Not Track` headers.
 - **Do**: Provide opt-out mechanism in settings.

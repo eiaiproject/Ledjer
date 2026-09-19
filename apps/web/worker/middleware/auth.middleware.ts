@@ -16,6 +16,7 @@ export function requireAuth(): MiddlewareHandler<AppContext> {
       id: session.user_id,
       email: session.email,
       full_name: session.full_name,
+      business_name: session.business_name,
     });
     await next();
   };
@@ -31,7 +32,7 @@ export async function getAuthenticatedSession(
 
   const session = await getSessionByToken(c.env.DB, token);
   if (!session) {
-    for (const name of sessionCookieNames()) {
+    for (const name of sessionCookieNames(c.env.APP_ENV === "production")) {
       deleteCookie(c, name, cookieOptions(c));
     }
     throw unauthorized();

@@ -3,8 +3,6 @@ import { test as base, type Page } from "@playwright/test";
 export interface AuthFixtures {
   /** Authenticated page with a valid session, navigated to the app. */
   authPage: Page;
-  /** Org ID for the authenticated user's active org. */
-  orgId: string;
 }
 
 /**
@@ -17,7 +15,7 @@ export interface AuthFixtures {
  * ledjer@yopmail.com / Ledjer26#).
  *
  * Usage:
- *   test("list accounts", async ({ authPage, orgId }) => {
+ *   test("list accounts", async ({ authPage }) => {
  *     const resp = await authPage.evaluate(async () => {
  *       const res = await fetch("/api/accounts");
  *       return res.json();
@@ -30,8 +28,6 @@ export interface AuthFixtures {
  * server's session-rotation mechanism.
  */
 export const test = base.extend<AuthFixtures>({
-  orgId: "046e96ee-6399-4704-ad25-66bc7f917742",
-
   authPage: async ({ browser }, acceptFixture) => {
     const email = process.env.E2E_EMAIL || "ledjer@yopmail.com";
     const password = process.env.E2E_PASSWORD || "Ledjer26#";
@@ -60,13 +56,9 @@ export const test = base.extend<AuthFixtures>({
           path: "/",
         },
       ]);
-      // Navigate to the app root and select the current org (mirrors what the
-      // login flow does client-side). Explicitly fetch the current org so the
-      // session's current_organization_id gets set server-side.
+      // Navigate to the app root so the session cookie is picked up by the
+      // dashboard before the spec starts.
       await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
-      await page.evaluate(async () => {
-        await fetch("/api/organizations/current");
-      });
       await page.waitForTimeout(1000);
       await acceptFixture(page);
       await context.close();
@@ -119,12 +111,6 @@ export const test = base.extend<AuthFixtures>({
     await page.goto("/", { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
     await page.waitForTimeout(2000);
 
-    // Explicitly fetch current org to set current_organization_id in session.
-    // Without this, session.current_organization_id stays null and pages that
-    // action buttons because permissions resolve to false.
-    await page.evaluate(async () => {
-      await fetch("/api/organizations/current");
-    });
     await page.waitForTimeout(1000);
 
     // Debug: check cookies

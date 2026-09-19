@@ -226,7 +226,7 @@ export async function restoreBackup(
         tables[table] = { restored: 0 };
         continue;
       }
-      allStatements.push(db.prepare(`DELETE FROM "${table}"`) /* no-org-scope */);
+      allStatements.push(db.prepare(`DELETE FROM "${table}"`) /* no-user-scope */);
     }
     // Insert parents first (CORE_TABLES order) so FK constraints hold.
     for (const table of CORE_TABLES) {
@@ -249,7 +249,7 @@ export async function restoreBackup(
       tables[table] = { restored: rows.length };
     }
 
-    // Bounded batches: a large org would otherwise exceed D1 batch limits
+    // Bounded batches: a large book would otherwise exceed D1 batch limits
     // and Worker memory with a single giant batch.
     for (let i = 0; i < allStatements.length; i += RESTORE_BATCH_SIZE) {
       await executeBatch(db, allStatements.slice(i, i + RESTORE_BATCH_SIZE));
@@ -270,11 +270,11 @@ export async function restoreBackup(
 }
 
 async function checkForExistingData(db: D1Database): Promise<string[]> {
-  const existingOrg = await db
-    .prepare("SELECT COUNT(*) as count FROM organizations")
+  const existingUser = await db
+    .prepare("SELECT COUNT(*) as count FROM users")
     .first<{ count: number }>();
-  if (existingOrg && existingOrg.count > 0) {
-    return [`target database has ${existingOrg.count} organizations; restore may overwrite existing data`];
+  if (existingUser && existingUser.count > 0) {
+    return [`target database has ${existingUser.count} users; restore may overwrite existing data`];
   }
   return [];
 }
@@ -299,7 +299,7 @@ async function fetchTableDataFromBackup(
 
 export interface RestoreVerification {
   valid: boolean;
-  organizationCount: number;
+  userCount: number;
   transactionCount: number;
   journalLineCount: number;
   balancedJournals: boolean;
@@ -312,7 +312,7 @@ export interface RestoreVerification {
  * Verify restored database integrity.
  *
  * Checks:
- * - Organizations exist and have members
+ * - Users exist and have a chart of accounts
  * - Transactions have journal entries
  * - Journal entries are balanced (debit = credit)
  * - No orphan records
@@ -323,16 +323,16 @@ export async function verifyRestore(
   const startedAt = Date.now();
   const errors: string[] = [];
 
-  const { orgCount, txCount, jlCount } = await countEntities(db);
+  const { userCount, txCount, jlCount } = await countEntities(db);
 
   const schemaValid = await verifySchemaIntegrity(db, errors);
-  await verifyOrgMembers(db, orgCount, errors);
+  await verifyUsersHaveBooks(db, userCount, errors);
   await verifyTransactionLinksAndBalance(db, txCount, errors);
   await verifyTrialBalance(db, jlCount, errors);
 
   return {
     valid: errors.length === 0,
-    organizationCount: orgCount,
+    userCount,
     transactionCount: txCount,
     journalLineCount: jlCount,
     balancedJournals: !errors.some((e) => e.includes("unbalanced") || e.includes("trial balance")),
@@ -343,15 +343,15 @@ export async function verifyRestore(
 }
 
 async function countEntities(db: D1Database): Promise<{
-  orgCount: number;
+  userCount: number;
   txCount: number;
   jlCount: number;
 }> {
-  const orgRow = await db.prepare("SELECT COUNT(*) as count FROM organizations").first<{ count: number }>();
+  const userRow = await db.prepare("SELECT COUNT(*) as count FROM users").first<{ count: number }>();
   const txRow = await db.prepare("SELECT COUNT(*) as count FROM transactions").first<{ count: number }>();
   const jlRow = await db.prepare("SELECT COUNT(*) as count FROM journal_lines").first<{ count: number }>();
   return {
-    orgCount: orgRow?.count ?? 0,
+    userCount: userRow?.count ?? 0,
     txCount: txRow?.count ?? 0,
     jlCount: jlRow?.count ?? 0,
   };
@@ -371,17 +371,18 @@ async function verifySchemaIntegrity(db: D1Database, errors: string[]): Promise<
   return valid;
 }
 
-async function verifyOrgMembers(db: D1Database, orgCount: number, errors: string[]): Promise<void> {
-  if (orgCount === 0) return;
-  const orgMembers = await db.prepare(
-    `SELECT o.id as org_id, COUNT(m.user_id) as member_count
-     FROM organizations o
-     LEFT JOIN memberships m ON m.organization_id = o.id
-     GROUP BY o.id`,
-  ).all<{ org_id: string; member_count: number }>();
-  for (const row of orgMembers.results) {
-    if (row.member_count === 0) {
-      errors.push(`org ${row.org_id} has no members`);
+/** Setiap user harus punya buku yang siap dipakai (chart of accounts default). */
+async function verifyUsersHaveBooks(db: D1Database, userCount: number, errors: string[]): Promise<void> {
+  if (userCount === 0) return;
+  const rows = await db.prepare(
+    `SELECT u.id as user_id, COUNT(a.id) as account_count
+     FROM users u
+     LEFT JOIN accounts a ON a.user_id = u.id
+     GROUP BY u.id`,
+  ).all<{ user_id: string; account_count: number }>();
+  for (const row of rows.results) {
+    if (row.account_count === 0) {
+      errors.push(`user ${row.user_id} has no chart of accounts`);
     }
   }
 }
@@ -535,7 +536,7 @@ async function checkTransactionIntegrity(
   const txObj = await bucket.get(`backups/${dateStr}/transactions.json`);
   if (!txObj) return;
 
-  const transactions: { id: string; organization_id: string }[] = JSON.parse(await txObj.text());
+  const transactions: { id: string }[] = JSON.parse(await txObj.text());
   if (transactions.length === 0) return;
 
   const jeObj = await bucket.get(`backups/${dateStr}/journal_entries.json`);

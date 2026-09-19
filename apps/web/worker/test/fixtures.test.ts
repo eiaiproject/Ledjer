@@ -2,8 +2,12 @@ import { describe, it, expect } from "vitest";
 import { createSeedFixtures, FIXTURE_IDS, INVALID_DATA } from "./fixtures";
 
 describe("Seed Fixtures", () => {
-  it("creates three organizations with different IDs", () => {
-    const ids = [FIXTURE_IDS.orgs.a, FIXTURE_IDS.orgs.b, FIXTURE_IDS.orgs.empty];
+  it("creates three users with different IDs", () => {
+    const ids = [
+      FIXTURE_IDS.users.ownerA,
+      FIXTURE_IDS.users.ownerB,
+      FIXTURE_IDS.users.ownerEmpty,
+    ];
     const unique = new Set(ids);
     expect(unique.size).toBe(3);
   });
@@ -39,7 +43,7 @@ describe("Seed Fixtures", () => {
     }
   });
 
-  it("provides posted transactions for org A and org B", () => {
+  it("provides posted transactions for book A and book B", () => {
     expect(FIXTURE_IDS.transactions.depositA).toBeTypeOf("string");
     expect(FIXTURE_IDS.transactions.cashInA).toBeTypeOf("string");
     expect(FIXTURE_IDS.transactions.cashOutA).toBeTypeOf("string");

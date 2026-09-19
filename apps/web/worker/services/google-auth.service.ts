@@ -5,7 +5,7 @@ import { createSession, type CreatedSession } from "./session.service";
 import { badRequest, conflict, unauthorized } from "../http/errors";
 import { hashPassword } from "../auth/password";
 import { logAuthEvent } from "./auth-audit.service";
-import { createOrganizationWithOwner } from "./organization.service";
+import { createDefaultAccounts } from "./ledger.service";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -177,13 +177,15 @@ async function linkOAuthAccount(
 
 /**
  * Create a new user from Google info (random unguessable password so
- * password login stays impossible for accounts created via OAuth).
+ * password login stays impossible for accounts created via OAuth) plus the
+ * default chart of accounts for their book.
  */
 async function createUserFromGoogle(
   db: D1Database,
   googleUser: GoogleUserInfo,
+  businessName: string,
+  current: number,
 ): Promise<UserRow> {
-  const current = Date.now();
   const userId = generateId();
 
   const passwordHash = await hashPassword(bytesToBase64(randomBytes(32)));
@@ -191,19 +193,21 @@ async function createUserFromGoogle(
   await execute(
     db,
     `INSERT INTO users (
-       id, email, password_hash, full_name, status, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'active', ?, ?)`,
+       id, email, password_hash, full_name, business_name, status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
     [
       userId,
       googleUser.email,
       passwordHash,
       googleUser.name || googleUser.email,
+      businessName,
       current,
       current,
     ],
   );
 
   await linkOAuthAccount(db, userId, googleUser.id, googleUser.email);
+  await createDefaultAccounts(db, userId, current);
 
   return {
     id: userId,
@@ -214,10 +218,10 @@ async function createUserFromGoogle(
 }
 
 /**
- * Default organization name for Google signups, mirroring the register
- * form's required "nama usaha". Users can rename it from settings.
+ * Default book name for Google signups, mirroring the register form's required
+ * "nama usaha". Users can rename it from settings.
  */
-function defaultOrganizationName(googleUser: GoogleUserInfo): string {
+function defaultBusinessName(googleUser: GoogleUserInfo): string {
   const firstName = (googleUser.name || "").trim().split(/\s+/)[0];
   if (firstName) return `Bisnis ${firstName}`;
   const localPart = (googleUser.email || "").split("@")[0];
@@ -261,22 +265,15 @@ export async function completeGoogleAuth(
       }
 
       await linkOAuthAccount(db, user.id, googleUser.id, googleUser.email);
-      await logAuthEvent(db, user.id, user.id, "oauth_link", { provider: "google" });
+      await logAuthEvent(db, user.id, "oauth_link", { provider: "google" });
     } else {
-      // New user: create user + organization + default COA (same as register)
-      user = await createUserFromGoogle(db, googleUser);
-      const organization = await createOrganizationWithOwner(
-        db,
-        user.id,
-        defaultOrganizationName(googleUser),
-        current,
-      );
-      await logAuthEvent(db, user.id, user.id, "registration", {
+      // New user: create user + default COA (same as register)
+      user = await createUserFromGoogle(db, googleUser, defaultBusinessName(googleUser), current);
+      await logAuthEvent(db, user.id, "registration", {
         email: googleUser.email,
-        organizationId: organization.id,
         provider: "google",
       });
-      return createSession(db, user.id, request, organization.id);
+      return createSession(db, user.id, request);
     }
   }
 
@@ -284,6 +281,6 @@ export async function completeGoogleAuth(
     throw unauthorized("Akun dinonaktifkan.");
   }
 
-  await logAuthEvent(db, user.id, user.id, "oauth_login", { provider: "google" });
+  await logAuthEvent(db, user.id, "oauth_login", { provider: "google" });
   return createSession(db, user.id, request);
 }

@@ -1,7 +1,7 @@
 import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Edit, Plus, Power } from "reicon-react";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useBook } from "@/hooks/useBook";
 import { createProduct, getProductMovements, listProductsPage, patchProduct, type Product, type ProductListSort, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,8 +38,7 @@ interface EditState {
 }
 
 export function ProductsPage() {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+  const { userId } = useBook();
   const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
@@ -55,17 +54,22 @@ export function ProductsPage() {
   const [chip, setChip] = useState<FilterChip>("all");
   const [sort, setSort] = useState<ProductListSort>("name");
   const [offset, setOffset] = useState(0);
+  // Filter dilipat (default tertutup); lencana jumlah tampil bila ada yang aktif.
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [
+    deferredSearch, chip !== "all" ? chip : "", sort !== "name" ? sort : "",
+  ].filter((v) => v !== "").length;
 
   const statusParam: "active" | "inactive" | "all" =
     chip === "active" || chip === "inactive" ? chip : "all";
   const stockParam = chip === "low" || chip === "out" ? chip : undefined;
   const query = useQuery({
-    queryKey: queryKeys.products.page(orgId, {
+    queryKey: queryKeys.products.page(userId, {
       search: deferredSearch, status: statusParam ?? "", stock: stockParam ?? "",
       sort, limit: PAGE_SIZE, offset,
     }),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return listProductsPage({
         search: deferredSearch || undefined,
         status: statusParam,
@@ -75,7 +79,7 @@ export function ProductsPage() {
         offset,
       });
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   const products = query.data?.products ?? [];
@@ -177,9 +181,22 @@ export function ProductsPage() {
         Tambah Produk
       </Button>
 
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          aria-controls="product-filters"
+          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+        >
+          Filter &amp; cari{activeFilterCount > 0 ? ` (${activeFilterCount} aktif)` : ""}
+        </button>
+      </div>
+
+      {showFilters && (
       <Card elevated>
         <CardContent className="space-y-3 p-4">
-          <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
+          <div id="product-filters" className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
             <Input
               label="Cari produk"
               value={search}
@@ -216,6 +233,7 @@ export function ProductsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {query.isError ? (
         <ErrorState title="Gagal memuat produk" message="Terjadi kesalahan saat mengambil daftar produk." onRetry={() => query.refetch()} />
@@ -293,8 +311,18 @@ export function ProductsPage() {
                         <p className="px-1 pb-1 text-xs text-text-tertiary">
                           HPP {formatDecimalIDR(product.average_cost_idr)}/{product.unit} · Jual{" "}
                           {formatDecimalIDR(product.selling_price_idr)}
+                          {product.selling_price_idr > 0 && (
+                            <>
+                              {" "}· Margin{" "}
+                              <ProductMargin
+                                sellingPriceIdr={product.selling_price_idr}
+                                costIdr={product.average_cost_idr}
+                                unit={product.unit}
+                              />
+                            </>
+                          )}
                         </p>
-                        <ProductMovementHistory productId={product.id} unit={product.unit} />
+                        <ProductMovementHistory productId={product.id} unit={product.unit} sellingPriceIdr={product.selling_price_idr} />
                       </div>
                     )}
                   </li>
@@ -399,17 +427,29 @@ function parseAmount(raw: string): number {
   return Number.isFinite(value) ? value : 0;
 }
 
+/**
+ * Margin per satuan vs harga jual patokan: hijau bila menguntungkan, merah bila
+ * merugikan. Netral (tanpa ikon/emoji) dan disembunyikan bila patokan 0.
+ */
+function ProductMargin({ sellingPriceIdr, costIdr, unit }: { readonly sellingPriceIdr: number; readonly costIdr: number; readonly unit: string }) {
+  const margin = sellingPriceIdr - costIdr;
+  return (
+    <span className={margin >= 0 ? "font-medium text-leaf-700" : "font-medium text-error"}>
+      {margin >= 0 ? "+" : "−"}{formatDecimalIDR(Math.abs(margin))}/{unit}
+    </span>
+  );
+}
+
 /** Riwayat mutasi satu produk: dimuat malas saat baris dikembangkan. */
-function ProductMovementHistory({ productId, unit }: { readonly productId: string; readonly unit: string }) {
-  const { data: orgData } = useOrganization();
-  const orgId = orgData?.organization?.id;
+function ProductMovementHistory({ productId, unit, sellingPriceIdr }: { readonly productId: string; readonly unit: string; readonly sellingPriceIdr: number }) {
+  const { userId } = useBook();
   const query = useQuery({
-    queryKey: queryKeys.products.movements(orgId, productId),
+    queryKey: queryKeys.products.movements(userId, productId),
     queryFn: async () => {
-      if (!orgId) throw new Error("No organization");
+      if (!userId) throw new Error("Not authenticated");
       return getProductMovements(productId);
     },
-    enabled: !!orgId,
+    enabled: !!userId,
   });
 
   if (query.isLoading) {
@@ -433,6 +473,11 @@ function ProductMovementHistory({ productId, unit }: { readonly productId: strin
     <ul className="divide-y divide-wood-100">
       {lines.map((line: StockMovementReportLine) => {
         const incoming = line.quantity_in_milli > 0;
+        // Baris jual = keluar via cash_in (modal = WAC beku); susut/rugi tak dinilai.
+        const isSale = !incoming && line.transaction_type === "cash_in";
+        // Modal per satuan baris ini: harga beli (masuk) atau WAC beku (jual).
+        const lineCostIdr = line.unit_cost_minor / 10_000;
+        const showMargin = sellingPriceIdr > 0 && (incoming || isSale);
         return (
           <li key={line.transaction_id} className="flex items-center justify-between gap-3 px-1 py-2">
             <div className="min-w-0">
@@ -452,6 +497,11 @@ function ProductMovementHistory({ productId, unit }: { readonly productId: strin
                 {formatQuantity((incoming ? line.quantity_in_milli : line.quantity_out_milli) / 1000)} {unit}
               </p>
               <p className="text-xs text-text-tertiary">Sisa {formatQuantity(line.running_stock_milli / 1000)}</p>
+              {showMargin && (
+                <p className="text-xs">
+                  Margin <ProductMargin sellingPriceIdr={sellingPriceIdr} costIdr={lineCostIdr} unit={unit} />
+                </p>
+              )}
             </div>
           </li>
         );

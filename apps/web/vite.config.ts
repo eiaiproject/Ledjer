@@ -79,7 +79,14 @@ export default defineConfig({
       // `wrangler deploy` reads wrangler.jsonc (plus .dev.vars is ignored),
       // so production deploys can never pick up these dev values.
       config: (cfg) => {
-        const viteCmd = process.argv.slice(2).some((a) => a === "dev" || a === "preview" || a === "serve");
+        const args = process.argv.slice(2);
+        const isBuild = args.includes("build");
+        const isVitest = !!process.env.VITEST;
+        // `pnpm --filter web dev` runs bare `vite` (no subcommand, defaults to dev server),
+        // so argv has no "dev" token — treat any non-build/non-vitest invocation as local serve.
+        const viteCmd =
+          args.some((a) => a === "dev" || a === "preview" || a === "serve") ||
+          (!isBuild && !isVitest);
         if (process.env.LEDJER_E2E_LOCAL === "1" || viteCmd) {
           cfg.vars = {
             APP_ENV: "development",
@@ -106,6 +113,9 @@ export default defineConfig({
     // MUST run last - replaces any Sentry-injected CSP with clean dev CSP
     relaxCspForDev(),
   ],
+  optimizeDeps: {
+    exclude: ["@sqlite.org/sqlite-wasm"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

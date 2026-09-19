@@ -4,7 +4,6 @@ import type { AppContext } from "../env";
 import { parseListLimit, parseListOffset, parseSearch } from "../http/params";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
-import { loadCurrentOrganization, requirePermission } from "../middleware/organization.middleware";
 import { createProduct, getStockMovementReport, listProductsPage, patchProduct } from "../services/products.service";
 import type { ProductSort, ProductStockFilter } from "../services/products.service";
 
@@ -25,17 +24,15 @@ const patchProductSchema = z.object({
 export const productsRoutes = new Hono<AppContext>();
 
 productsRoutes.use("*", requireAuth());
-productsRoutes.use("*", loadCurrentOrganization());
 
-productsRoutes.get("/", requirePermission("products:read"), async (c) => {
-  const context = c.get("organizationContext");
+productsRoutes.get("/", async (c) => {
   const params = new URL(c.req.url).searchParams;
   const status = params.get("status");
   const stock = params.get("stock") as ProductStockFilter | null;
   const sort = params.get("sort") as ProductSort | null;
   const limit = params.get("limit");
   const offset = params.get("offset");
-  const { products, total } = await listProductsPage(c.env.DB, context.organization.id, {
+  const { products, total } = await listProductsPage(c.env.DB, c.get("user").id, {
     // includeInactive lawas tetap didukung; status baru menang bila diisi.
     includeInactive: status ? status !== "active" : c.req.query("includeInactive") === "true",
     onlyInactive: status === "inactive",
@@ -48,26 +45,22 @@ productsRoutes.get("/", requirePermission("products:read"), async (c) => {
   return c.json({ products, total });
 });
 
-productsRoutes.post("/", requirePermission("products:write"), async (c) => {
-  const context = c.get("organizationContext");
+productsRoutes.post("/", async (c) => {
   const body = await readJson(c, createProductSchema);
   const product = await createProduct(
     c.env.DB,
-    context.organization.id,
-    context.member.user_id,
+    c.get("user").id,
     body,
     c.get("requestId"),
   );
   return c.json({ product });
 });
 
-productsRoutes.patch("/:productId", requirePermission("products:write"), async (c) => {
-  const context = c.get("organizationContext");
+productsRoutes.patch("/:productId", async (c) => {
   const body = await readJson(c, patchProductSchema);
   const product = await patchProduct(
     c.env.DB,
-    context.organization.id,
-    context.member.user_id,
+    c.get("user").id,
     c.req.param("productId"),
     body,
     c.get("requestId"),
@@ -75,11 +68,10 @@ productsRoutes.patch("/:productId", requirePermission("products:write"), async (
   return c.json({ product });
 });
 
-productsRoutes.get("/:productId/movements", requirePermission("products:read"), async (c) => {
-  const context = c.get("organizationContext");
+productsRoutes.get("/:productId/movements", async (c) => {
   const url = new URL(c.req.url);
   const params = url.searchParams;
-  const movements = await getStockMovementReport(c.env.DB, context.organization.id, {
+  const movements = await getStockMovementReport(c.env.DB, c.get("user").id, {
     productId: c.req.param("productId"),
     fromDate: params.get("fromDate") ?? "0000-01-01",
     toDate: params.get("toDate") ?? "9999-12-31",
