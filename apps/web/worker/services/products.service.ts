@@ -134,7 +134,7 @@ function buildProductFilter(
   }
   const search = options.search?.trim().toLowerCase();
   if (search) {
-    const bs = String.fromCharCode(92);
+    const bs = String.fromCodePoint(92);
     const escaped = search
       .replaceAll(bs, bs + bs)
       .replaceAll("%", bs + "%")

@@ -120,7 +120,7 @@ async function cleanupOldBackups(bucket: R2Bucket, current: number): Promise<voi
     for (const prefix of stale) {
       const oldObjects = await bucket.list({ prefix }); // NOSONAR:S9382 - hapus prefix usang satu per satu
       if (oldObjects.objects.length > 0) {
-        await bucket.delete(oldObjects.objects.map((o) => o.key));
+        await bucket.delete(oldObjects.objects.map((o) => o.key)); // NOSONAR:S9382 - hapus prefix usang satu per satu
       }
     }
   } catch {
@@ -169,7 +169,7 @@ export async function validateBackup(
       errors.push(`missing table: ${table}`);
       continue;
     }
-    const rows: unknown[] = JSON.parse(await obj.text());
+    const rows: unknown[] = JSON.parse(await obj.text()); // NOSONAR:S9382 - tabel dicek berurutan agar error deterministik
     if (rows.length !== info.rowCount) {
       errors.push(`row count mismatch for ${table}: ${rows.length} !== ${info.rowCount}`);
     }
@@ -280,7 +280,7 @@ export async function restoreBackup(
     // Bounded batches: a large book would otherwise exceed D1 batch limits
     // and Worker memory with a single giant batch.
     for (let i = 0; i < allStatements.length; i += RESTORE_BATCH_SIZE) {
-      await executeBatch(db, allStatements.slice(i, i + RESTORE_BATCH_SIZE));
+      await executeBatch(db, allStatements.slice(i, i + RESTORE_BATCH_SIZE)); // NOSONAR:S9382 - batch bounded harus berurutan
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -320,7 +320,7 @@ async function fetchTableDataFromBackup(
       errors.push(`missing table file: ${table}`);
       continue;
     }
-    tableData[table] = JSON.parse(await obj.text()) as Record<string, unknown>[];
+    tableData[table] = JSON.parse(await obj.text()) as Record<string, unknown>[]; // NOSONAR:S9382 - tabel diambil berurutan agar memori bounded
   }
   return tableData;
 }

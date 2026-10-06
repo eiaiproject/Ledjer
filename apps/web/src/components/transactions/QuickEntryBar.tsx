@@ -582,7 +582,7 @@ export function computeAmountUpdate(
   const nextTotal = field === "total" ? value : state.total;
   const qn = parseSignedDecimalInput(nextQty, Number.NaN, 3) ?? Number.NaN;
   const pn = parseSignedDecimalInput(nextPrice, Number.NaN, 4) ?? Number.NaN;
-  const tn = parseAmountInput(nextTotal, NaN) ?? Number.NaN;
+  const tn = parseAmountInput(nextTotal, Number.NaN) ?? Number.NaN;
   if (field !== "total" && Number.isFinite(qn) && qn > 0 && Number.isFinite(pn) && pn > 0) {
     return { quantity: nextQty, unitPrice: nextPrice, total: String(Math.round(qn * pn)) };
   }
@@ -1510,7 +1510,7 @@ export function QuickEntryBar() {
 
   const qty = parseSignedDecimalInput(quantity, Number.NaN, 3) ?? Number.NaN;
   const price = parseSignedDecimalInput(unitPrice, Number.NaN, 4) ?? Number.NaN;
-  const totalNum = parseAmountInput(total, NaN) ?? Number.NaN;
+  const totalNum = parseAmountInput(total, Number.NaN) ?? Number.NaN;
   const stock = selectedProduct?.current_stock ?? 0;
   const ids = resolveEffectiveIds({
     cashAccountId,
