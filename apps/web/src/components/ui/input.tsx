@@ -69,13 +69,13 @@ function sanitizePlainDecimal(value: string): string {
   return value.replace(/[^\d.-]/g, "");
 }
 
-/** Unit-price input: keep digits + a single comma decimal separator (max 3
- *  fraction digits). A dot in this field is always a thousands separator. */
+/** Unit-price input: keep digits + a single comma decimal separator (max 4
+ *  fraction digits, matches parseUnitPrice). A dot in this field is always a thousands separator. */
 function normalizeDecimalInput(value: string): { normalized: string; intPart: string; fracPart: string } {
   const body = value.replace(/[^\d,]/g, "");
   const commaIdx = body.lastIndexOf(",");
   const intPart = commaIdx >= 0 ? body.slice(0, commaIdx).replaceAll(",", "") : body.replaceAll(",", "");
-  const fracPart = commaIdx >= 0 ? body.slice(commaIdx + 1).replace(/\D/g, "").slice(0, 3) : "";
+  const fracPart = commaIdx >= 0 ? body.slice(commaIdx + 1).replace(/\D/g, "").slice(0, 4) : "";
   const normalized = intPart + (fracPart ? `,${fracPart}` : "");
   return { normalized, intPart, fracPart };
 }

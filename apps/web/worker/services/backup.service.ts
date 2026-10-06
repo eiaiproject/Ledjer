@@ -64,11 +64,11 @@ export async function createBackup(
   let totalRows = 0;
 
   for (const table of CORE_TABLES) {
-    const rows = await queryAll<Record<string, unknown>>(
+    const rows = await queryAll<Record<string, unknown>>( // NOSONAR:S9382 - tabel dibaca berurutan agar memori worker bounded
       db,
       `SELECT * FROM "${table}" ORDER BY rowid`,
     );
-    await jsonToR2(bucket, `${prefix}/${table}.json`, rows);
+    await jsonToR2(bucket, `${prefix}/${table}.json`, rows); // NOSONAR:S9382 - upload berurutan agar memori worker bounded
     manifest.tables[table] = { rowCount: rows.length };
     totalRows += rows.length;
   }
@@ -118,9 +118,9 @@ async function cleanupOldBackups(bucket: R2Bucket, current: number): Promise<voi
       if (match && match[1] < cutoff) stale.add(`backups/${match[1]}`);
     }
     for (const prefix of stale) {
-      const oldObjects = await bucket.list({ prefix });
+      const oldObjects = await bucket.list({ prefix }); // NOSONAR:S9382 - hapus prefix usang satu per satu
       if (oldObjects.objects.length > 0) {
-        await bucket.delete(oldObjects.objects.map((o) => o.key));
+        await bucket.delete(oldObjects.objects.map((o) => o.key)); // NOSONAR:S9382 - hapus prefix usang satu per satu
       }
     }
   } catch {
@@ -152,15 +152,24 @@ export async function validateBackup(
   if (!manifest.completedAt) {
     errors.push("backup did not complete");
   }
+  // Verifikasi integritas manifest: hash harus cocok dengan payload stabil.
+  if (manifest.sha256) {
+    const recomputed = await manifestSha256(manifest);
+    if (recomputed !== manifest.sha256) {
+      errors.push("manifest sha256 mismatch: backup mungkin rusak atau dimodifikasi");
+    }
+  } else {
+    errors.push("manifest sha256 hilang");
+  }
 
   for (const [table, info] of Object.entries(manifest.tables)) {
     rowCounts[table] = info.rowCount;
-    const obj = await bucket.get(`backups/${dateStr}/${table}.json`);
+    const obj = await bucket.get(`backups/${dateStr}/${table}.json`); // NOSONAR:S9382 - tabel dicek berurutan agar error deterministik
     if (!obj) {
       errors.push(`missing table: ${table}`);
       continue;
     }
-    const rows: unknown[] = JSON.parse(await obj.text());
+    const rows: unknown[] = JSON.parse(await obj.text()); // NOSONAR:S9382 - tabel dicek berurutan agar error deterministik
     if (rows.length !== info.rowCount) {
       errors.push(`row count mismatch for ${table}: ${rows.length} !== ${info.rowCount}`);
     }
@@ -185,18 +194,66 @@ export interface RestoreResult {
   warnings: string[];
 }
 
+/** Guard overwrite destruktif: return error bila target berisi data tanpa izin. */
+async function guardOverwrite(
+  db: D1Database,
+  allowOverwrite: boolean | undefined,
+  warnings: string[],
+): Promise<string | null> {
+  const existing = await checkForExistingData(db);
+  warnings.push(...existing);
+  if (existing.length > 0 && !allowOverwrite) {
+    return "target database not empty; pass allowOverwrite untuk restore destruktif";
+  }
+  return null;
+}
+
+/** Susun statement DELETE children-first + INSERT parents-first untuk restore. */
+function buildRestoreStatements(
+  db: D1Database,
+  tableData: Record<string, Record<string, unknown>[]>,
+  tables: Record<string, { restored: number }>,
+): D1PreparedStatement[] {
+  const allStatements: D1PreparedStatement[] = [];
+  for (const table of [...CORE_TABLES].reverse()) {
+    const rows = tableData[table];
+    if (!rows) {
+      tables[table] = { restored: 0 };
+      continue;
+    }
+    allStatements.push(db.prepare(`DELETE FROM "${table}"`) /* no-user-scope */);
+  }
+  for (const table of CORE_TABLES) {
+    const rows = tableData[table];
+    if (!rows) {
+      tables[table] = { restored: 0 };
+      continue;
+    }
+    for (const row of rows) {
+      const columns = Object.keys(row);
+      const quoted = columns.map((c) => `"${c}"`).join(", ");
+      const placeholders = columns.map(() => "?").join(", ");
+      const values = columns.map((col) => row[col] ?? null);
+      allStatements.push(
+        db.prepare(
+          `INSERT OR REPLACE INTO "${table}" (${quoted}) VALUES (${placeholders})`,
+        ).bind(...values),
+      );
+    }
+    tables[table] = { restored: rows.length };
+  }
+  return allStatements;
+}
+
 /**
- * Restore D1 database from an R2 backup snapshot.
- *
- * 1. Fetches manifest and all table JSON files from R2.
- * 2. Validates backup integrity (version, row counts).
- * 3. Clears existing data (children first, reverse CORE_TABLES order).
- * 4. Inserts all entities (parents first, CORE_TABLES order) to satisfy FKs.
+ * Restore D1 database from an R2 backup snapshot: validasi manifest,
+ * guard overwrite, ambil data tabel, tulis batch bounded.
  */
 export async function restoreBackup(
   db: D1Database,
   bucket: R2Bucket,
   dateStr: string,
+  opts: { allowOverwrite?: boolean } = {},
 ): Promise<RestoreResult> {
   const startedAt = Date.now();
   const errors: string[] = [];
@@ -208,8 +265,10 @@ export async function restoreBackup(
     return { success: false, startedAt, completedAt: null, tables, errors: validation.errors, warnings: [] };
   }
 
-  const existingWarnings = await checkForExistingData(db);
-  warnings.push(...existingWarnings);
+  const blocked = await guardOverwrite(db, opts.allowOverwrite, warnings);
+  if (blocked) {
+    return { success: false, startedAt, completedAt: null, tables, errors: [blocked], warnings };
+  }
 
   const tableData = await fetchTableDataFromBackup(bucket, dateStr, validation.rowCounts, errors);
   if (errors.length > 0) {
@@ -217,42 +276,11 @@ export async function restoreBackup(
   }
 
   try {
-    const allStatements: D1PreparedStatement[] = [];
-    // Delete children first so FK constraints hold.
-    const reversed = [...CORE_TABLES].reverse();
-    for (const table of reversed) {
-      const rows = tableData[table];
-      if (!rows) {
-        tables[table] = { restored: 0 };
-        continue;
-      }
-      allStatements.push(db.prepare(`DELETE FROM "${table}"`) /* no-user-scope */);
-    }
-    // Insert parents first (CORE_TABLES order) so FK constraints hold.
-    for (const table of CORE_TABLES) {
-      const rows = tableData[table];
-      if (!rows) {
-        tables[table] = { restored: 0 };
-        continue;
-      }
-      for (const row of rows) {
-        const columns = Object.keys(row);
-        const quoted = columns.map((c) => `"${c}"`).join(", ");
-        const placeholders = columns.map(() => "?").join(", ");
-        const values = columns.map((col) => row[col] ?? null);
-        allStatements.push(
-          db.prepare(
-            `INSERT OR REPLACE INTO "${table}" (${quoted}) VALUES (${placeholders})`,
-          ).bind(...values),
-        );
-      }
-      tables[table] = { restored: rows.length };
-    }
-
+    const allStatements = buildRestoreStatements(db, tableData, tables);
     // Bounded batches: a large book would otherwise exceed D1 batch limits
     // and Worker memory with a single giant batch.
     for (let i = 0; i < allStatements.length; i += RESTORE_BATCH_SIZE) {
-      await executeBatch(db, allStatements.slice(i, i + RESTORE_BATCH_SIZE));
+      await executeBatch(db, allStatements.slice(i, i + RESTORE_BATCH_SIZE)); // NOSONAR:S9382 - batch bounded harus berurutan
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -287,12 +315,12 @@ async function fetchTableDataFromBackup(
 ): Promise<Record<string, Record<string, unknown>[]>> {
   const tableData: Record<string, Record<string, unknown>[]> = {};
   for (const table of Object.keys(rowCounts)) {
-    const obj = await bucket.get(`backups/${dateStr}/${table}.json`);
+    const obj = await bucket.get(`backups/${dateStr}/${table}.json`); // NOSONAR:S9382 - tabel diambil berurutan agar memori bounded
     if (!obj) {
       errors.push(`missing table file: ${table}`);
       continue;
     }
-    tableData[table] = JSON.parse(await obj.text()) as Record<string, unknown>[];
+    tableData[table] = JSON.parse(await obj.text()) as Record<string, unknown>[]; // NOSONAR:S9382 - tabel diambil berurutan agar memori bounded
   }
   return tableData;
 }
@@ -361,7 +389,7 @@ async function verifySchemaIntegrity(db: D1Database, errors: string[]): Promise<
   let valid = true;
   for (const table of CORE_TABLES) {
     try {
-      const row = await db.prepare(`SELECT COUNT(*) as count FROM "${table}"`).first<{ count: number }>();
+      const row = await db.prepare(`SELECT COUNT(*) as count FROM "${table}"`).first<{ count: number }>(); // NOSONAR:S9382 - skema dicek per tabel berurutan
       if (row === null) { valid = false; errors.push(`table missing: ${table}`); }
     } catch {
       valid = false;

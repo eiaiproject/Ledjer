@@ -22,9 +22,18 @@ const emailSchema = z.email()
     return domain ? !BLOCKED_EMAIL_DOMAINS.has(domain.toLowerCase()) : true;
   }, "Email domain tidak diizinkan")
   .transform((value) => value.trim().toLowerCase());
-// Blocklist password umum (#10): murah, tanpa ubah min-length UX.
-const COMMON_PASSWORDS = new Set(["password", "password1", "12345678", "qwerty123", "abc12345", "ledjer123", "password123"]);
-const passwordSchema = z.string().min(8).max(72).regex(/[A-Za-z]/, "Password harus mengandung huruf").regex(/\d/, "Password harus mengandung angka").refine((v) => !COMMON_PASSWORDS.has(v.toLowerCase()), "Password terlalu umum, pilih yang lebih kuat.");
+// Blocklist password umum: pola lemah + urutan keyboard/angka berulang ditolak.
+const COMMON_PASSWORDS = new Set([
+  "password", "password1", "password123", "12345678", "qwerty123", "abc12345", "ledjer123", "ledjer1234",
+  "qwerty111", "aaaaaaaa1", "123456789", "1234567890", "abcdefgh1", "asdfghjk1",
+]);
+const passwordSchema = z.string().min(8).max(72).regex(/[A-Za-z]/, "Password harus mengandung huruf").regex(/\d/, "Password harus mengandung angka").refine((v) => !COMMON_PASSWORDS.has(v.toLowerCase()), "Password terlalu umum, pilih yang lebih kuat.").refine((v) => {
+  const lower = v.toLowerCase();
+  // Tolak 4+ karakter sama berurutan (aaaa, 1111) dan pola keyboard/angka sederhana.
+  if (/(.)\1{3,}/.test(lower)) return false;
+  if (/^(qwerty|asdf|zxcv|abcd|1234|abcd1234)/.test(lower)) return false;
+  return true;
+}, "Password terlalu mudah ditebak, pilih yang lebih kuat.");
 
 function clearSessionCookies(c: Context): void {
   for (const name of sessionCookieNames(c.env.APP_ENV === "production")) {
@@ -57,7 +66,7 @@ authRoutes.post("/register", async (c) => {
     throw tooManyRequests("Terlalu banyak percobaan pendaftaran. Coba lagi nanti.");
   }
 
-  const result = await registerUser(c.env.DB, body, c.req.raw, c.env.PASSWORD_PEPPER);
+  const result = await registerUser(c.env.DB, body, c.req.raw, c.env.PASSWORD_PEPPER, c.env.APP_ENV);
   setCookie(c, cookieName(c), result.session.token, {
     ...cookieOptions(c),
     expires: new Date(result.session.expiresAt),
@@ -160,6 +169,10 @@ authRoutes.get("/google/callback", async (c) => {
   const verifier = getCookie(c, "google_oauth_verifier");
   deleteCookie(c, "google_oauth_state", cookieOptions(c));
   deleteCookie(c, "google_oauth_verifier", cookieOptions(c));
+  // Fail-closed: tanpa verifier PKCE tidak boleh lanjut exchange.
+  if (!verifier) {
+    return c.redirect("/login?error=oauth_invalid_state");
+  }
 
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;

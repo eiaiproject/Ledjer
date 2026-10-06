@@ -4,7 +4,7 @@ import type { AppContext } from "../env";
 import { parseListLimit, parseListOffset, parseSearch } from "../http/params";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
-import { tooManyRequests } from "../http/errors";
+import { badRequest, tooManyRequests } from "../http/errors";
 import { checkRateLimit } from "../services/rate-limit.service";
 import {
   countTransactions,
@@ -31,10 +31,10 @@ const postTransactionSchema = z.object({
   transactionDate: dateSchema,
   cashAccountId: z.string().min(1),
   counterAccountId: z.string().min(1).optional(),
-  amountIdr: z.number().int().positive().optional(),
+  amountIdr: z.number().int().positive().max(999_999_999_999).optional(),
   description: z.string().min(1).max(200),
   idempotencyKey: z.string().min(8).max(160),
-  items: z.array(transactionItemSchema).optional(),
+  items: z.array(transactionItemSchema).max(100).optional(),
 });
 
 const voidTransactionSchema = z.object({
@@ -48,17 +48,32 @@ transactionsRoutes.use("*", requireAuth());
 const LIST_TYPE_WHITELIST = new Set(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase"]);
 const LIST_STATUS_WHITELIST = new Set(["posted", "voided"]);
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Validasi format tanggal query dan urutan from-to (throw 400 bila invalid). */
+export function assertDateRange(rawFrom: string | undefined, rawTo: string | undefined): void {
+  if ((rawFrom !== undefined && !DATE_RE.test(rawFrom)) || (rawTo !== undefined && !DATE_RE.test(rawTo))) {
+    throw badRequest("invalid_date", "Format tanggal harus YYYY-MM-DD.");
+  }
+  if (rawFrom && rawTo && rawFrom > rawTo) {
+    throw badRequest("invalid_date_range", "fromDate tidak boleh setelah toDate.");
+  }
+}
+
 transactionsRoutes.get("/", async (c) => {
   const userId = c.get("user").id;
   const url = new URL(c.req.url);
   const rawType = url.searchParams.get("transactionType") ?? undefined;
   const rawStatus = url.searchParams.get("status") ?? undefined;
+  const rawFrom = url.searchParams.get("fromDate") ?? undefined;
+  const rawTo = url.searchParams.get("toDate") ?? undefined;
+  assertDateRange(rawFrom, rawTo);
   const filters = {
     search: parseSearch(url.searchParams.get("search")),
     transactionType: rawType && LIST_TYPE_WHITELIST.has(rawType) ? rawType : undefined,
     status: rawStatus && LIST_STATUS_WHITELIST.has(rawStatus) ? rawStatus : undefined,
-    fromDate: url.searchParams.get("fromDate") ?? undefined,
-    toDate: url.searchParams.get("toDate") ?? undefined,
+    fromDate: rawFrom,
+    toDate: rawTo,
     limit: parseListLimit(url.searchParams.get("limit")),
     offset: parseListOffset(url.searchParams.get("offset")),
   };

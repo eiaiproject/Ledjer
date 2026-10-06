@@ -25,9 +25,11 @@ export function requireAuth(): MiddlewareHandler<AppContext> {
 export async function getAuthenticatedSession(
   c: Context<AppContext>,
 ): Promise<CurrentSessionRow> {
-  // Try __Host- prefix first (production), fall back to un-prefixed (dev)
-  const token = getCookie(c, "__Host-ledjer_session")
-    ?? getCookie(c, "ledjer_session");
+  const isProd = c.env.APP_ENV === "production";
+  // Produksi hanya terima __Host- (anti cookie-tossing). Dev terima fallback tanpa prefix.
+  const token = isProd
+    ? getCookie(c, "__Host-ledjer_session")
+    : (getCookie(c, "__Host-ledjer_session") ?? getCookie(c, "ledjer_session"));
   if (!token) throw unauthorized();
 
   const session = await getSessionByToken(c.env.DB, token);

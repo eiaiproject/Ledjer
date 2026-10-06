@@ -228,8 +228,12 @@ export function computeGeneralLedger(
       tx.transaction_date <= toDate,
   );
 
-  // Sort by date.
-  const sorted = [...filtered].sort((a, b) => a.transaction_date.localeCompare(b.transaction_date));
+  // Sort stabil: tanggal, lalu dibuat, lalu id agar urutan same-day deterministik vs server.
+  const sorted = [...filtered].sort((a, b) =>
+    a.transaction_date.localeCompare(b.transaction_date) ||
+    (a.created_at ?? 0) - (b.created_at ?? 0) ||
+    a.id.localeCompare(b.id),
+  );
 
   const movementsByTx = new Map<string, StockMovement[]>();
   for (const sm of stockMovements) {

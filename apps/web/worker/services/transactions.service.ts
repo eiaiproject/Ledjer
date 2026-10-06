@@ -242,13 +242,13 @@ export async function postTransaction(
   const replay = await replayIfKeyAlreadyUsed(db, userId, normalizedKey, payloadHash);
   if (replay) return replay;
 
-  await assertDateNotFuture(transactionDate);
+  assertDateNotFuture(transactionDate);
   await assertChronological(db, userId, transactionDate);
   const current = Date.now();
 
   const cashAccount = await getAccount(db, userId, input.cashAccountId);
   const counterAccount = await getAccount(db, userId, counterAccountId);
-  await validateTransaction(type, cashAccount, counterAccount);
+  validateTransaction(type, cashAccount, counterAccount);
 
   const { debitAccount, creditAccount } = resolveJournalAccounts(type, cashAccount!, counterAccount!);
 
@@ -374,7 +374,7 @@ async function normalizePurchaseItems(
     }
     const unitCostIdr = Math.round(rawCost * 10_000) / 10_000;
     const quantityMilli = quantityToMilli(item.quantity);
-    const product = await getProduct(db, userId, item.productId);
+    const product = await getProduct(db, userId, item.productId); // NOSONAR:S9382 - validasi berurutan agar error pertama deterministik
     if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
@@ -406,7 +406,7 @@ async function normalizeSaleItems(
     }
     const unitPriceIdr = Math.round(rawPrice * 10_000) / 10_000;
     const quantityMilli = quantityToMilli(item.quantity);
-    const product = await getProduct(db, userId, item.productId);
+    const product = await getProduct(db, userId, item.productId); // NOSONAR:S9382 - validasi berurutan agar error pertama deterministik
     if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
@@ -448,7 +448,7 @@ async function readPlannedUpdates<T extends { productId: string; quantityMilli: 
 ): Promise<PlannedCacheUpdate> {
   const guarded: D1PreparedStatement[] = [];
   for (const item of items) {
-    const product = await getProduct(db, userId, item.productId);
+    const product = await getProduct(db, userId, item.productId); // NOSONAR:S9382 - guard dibaca berurutan agar retry deterministik
     if (product?.is_active !== 1) {
       throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
     }
@@ -503,30 +503,37 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
   const MAX_COMMIT_ATTEMPTS = 6;
   // Percobaan pertama: batch penuh (jurnal + movements + cache).
   let pending = await readPlannedUpdates(db, userId, items, applyStock);
+  // Sisa item yang guard-nya belum commit — hanya ini yang dikejar ulang agar
+  // item yang sudah sukses tidak di-apply dua kali.
+  let remaining: T[];
   try {
     const results = await executeBatch(db, [...statements, ...pending.guarded]);
     if (allCacheCommitted(results, statements.length)) return null;
+    const guardResults = results.slice(statements.length);
+    remaining = items.filter((_, i) => (guardResults[i]?.meta.changes ?? 0) === 0);
   } catch (err) {
     if (err instanceof Error && /unique|constraint/i.test(err.message)) {
       const raced = await replayIfKeyAlreadyUsed(db, userId, idempotencyKey, payloadHash);
       if (raced) return raced;
+      // Tabrakan nomor transaksi konkuren (key berbeda) → konflik ramah, bukan 500.
+      throw conflict("transaction_number_collision", "Nomor transaksi bentrok, coba lagi.");
     }
     throw err;
   }
 
-  // Batch lolos tetapi cache belum lengkap: kejar hanya cache (guarded).
-  // Setiap tulis cache ber-guard sehingga concurrent writer ter-serialisasi
-  // via guard-miss, bukan via timpa-menimpa buta.
+  // Batch lolos tetapi cache belum lengkap: kejar hanya item yang miss.
   for (let attempt = 1; attempt < MAX_COMMIT_ATTEMPTS; attempt += 1) {
-    pending = await readPlannedUpdates(db, userId, items, applyStock);
+    pending = await readPlannedUpdates(db, userId, remaining, applyStock);
     const results = await executeBatch(db, pending.guarded);
     if (allCacheCommitted(results, 0)) return null;
+    remaining = remaining.filter((_, i) => (results[i]?.meta.changes ?? 0) === 0);
+    if (remaining.length === 0) return null;
   }
 
   // Guard terus meleset: pulihkan dari riwayat agar tak ada stale parsial,
   // lalu minta klien mencoba lagi (semantik retry lama).
   for (const item of items) {
-    await recalculateProductCosts(db, userId, item.productId);
+    await recalculateProductCosts(db, userId, item.productId); // NOSONAR:S9382 - jalur pemulihan gagal, sekuensial disengaja
   }
   throw conflict("stock_update_conflict", "Stok produk berubah saat diproses. Coba lagi.");
 }
@@ -545,6 +552,9 @@ async function postPurchase(
 ): Promise<PostTransactionResult> {
   const items = await normalizePurchaseItems(db, userId, input.items);
   const totalCost = items.reduce((s, i) => s + i.costTotalIdr, 0);
+  if (!Number.isSafeInteger(totalCost) || totalCost <= 0 || totalCost > 999_999_999_999) {
+    throw badRequest("invalid_amount", "Total pembelian harus 1..999.999.999.999 dan presisi aman.");
+  }
   const payloadHash = await idempotencyPayloadHash({
     transactionType: "purchase",
     transactionDate: input.transactionDate,
@@ -556,7 +566,7 @@ async function postPurchase(
   const replay = await replayIfKeyAlreadyUsed(db, userId, input.idempotencyKey, payloadHash);
   if (replay) return replay;
 
-  await assertDateNotFuture(input.transactionDate);
+  assertDateNotFuture(input.transactionDate);
   await assertChronological(db, userId, input.transactionDate);
   const current = Date.now();
 
@@ -708,7 +718,7 @@ async function postGoodsSale(
   const replay = await replayIfKeyAlreadyUsed(db, userId, input.idempotencyKey, payloadHash);
   if (replay) return replay;
 
-  await assertDateNotFuture(input.transactionDate);
+  assertDateNotFuture(input.transactionDate);
   await assertChronological(db, userId, input.transactionDate);
   const current = Date.now();
 
@@ -957,7 +967,8 @@ export async function voidTransaction(
   requestId?: string,
 ): Promise<PublicTransaction> {
   const current = Date.now();
-  const reason = input.reason ? input.reason.trim().slice(0, 500) : null;
+  const trimmedReason = input.reason ? input.reason.trim().slice(0, 500) : "";
+  const reason = trimmedReason || null;
 
   const existing = await queryFirst<TransactionRow>(
     db,
@@ -981,21 +992,39 @@ export async function voidTransaction(
   const productIds = [...new Set(movements.map((m) => m.product_id))];
   const restoreStatements: D1PreparedStatement[] = [];
   for (const productId of productIds) {
-    const history = await movementsForProduct(db, userId, productId);
+    const history = await movementsForProduct(db, userId, productId); // NOSONAR:S9382 - restore dihitung per produk berurutan
     const { current_stock_milli, average_cost_minor } = summarizeMovements(
       history.filter((m) => m.transaction_id !== transactionId),
     );
+    // Void tidak boleh membuat stok negatif (mis. void beli setelah stok habis terjual).
+    if (current_stock_milli < 0) {
+      throw conflict(
+        "void_stock_conflict",
+        "Stok produk tidak mencukupi untuk membatalkan transaksi ini.",
+      );
+    }
+    // Guard dengan nilai kini agar concurrent write tidak tertimpa hilang.
+    const currentProduct = await getProduct(db, userId, productId); // NOSONAR:S9382 - guard dibaca berurutan agar void deterministik
     restoreStatements.push(
       statement(
         db,
         `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-         WHERE id = ? AND user_id = ?`,
-        [current_stock_milli, average_cost_minor, current, productId, userId],
+         WHERE id = ? AND user_id = ?
+           AND current_stock_milli = ? AND average_cost_minor = ?`,
+        [
+          current_stock_milli,
+          average_cost_minor,
+          current,
+          productId,
+          userId,
+          currentProduct?.current_stock_milli ?? 0,
+          currentProduct?.average_cost_minor ?? 0,
+        ],
       ),
     );
   }
 
-  await executeBatch(db, [
+  const batchResults = await executeBatch(db, [
     statement(
       db,
       `UPDATE transactions SET status = 'voided', voided_at = ?, void_reason = ?, updated_at = ?
@@ -1016,14 +1045,24 @@ export async function voidTransaction(
     }),
   ]);
 
+  // Double-void konkuren: yang kalah update 0 baris — tolak agar tidak tulis audit ganda.
+  if ((batchResults[0]?.meta.changes ?? 0) === 0) {
+    throw conflict("transaction_not_posted", "Hanya transaksi berstatus posted yang dapat dibatalkan.");
+  }
+  // Restore cache yang guard-nya miss berarti ada writer konkuren — tolak agar klien retry dengan riwayat segar.
+  const restoreResults = batchResults.slice(1, 1 + restoreStatements.length);
+  if (restoreResults.some((r) => (r.meta.changes ?? 0) === 0) && restoreStatements.length > 0) {
+    throw conflict("stock_update_conflict", "Stok produk berubah saat diproses. Coba lagi.");
+  }
+
   return getTransaction(db, userId, transactionId);
 }
 
-async function validateTransaction(
+function validateTransaction(
   type: TransactionType,
   cashAccount: AccountRow | null,
   counterAccount: AccountRow | null,
-): Promise<void> {
+): void {
   if (!isCashBankAccount(cashAccount)) {
     throw badRequest("account_inactive", "Akun ini tidak aktif. Pilih akun lain.");
   }
@@ -1059,7 +1098,7 @@ async function validateTransaction(
   }
 }
 
-async function assertDateNotFuture(transactionDate: string): Promise<void> {
+function assertDateNotFuture(transactionDate: string): void {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
   if (transactionDate > today) {
     throw badRequest("future_date_not_allowed", "Tanggal transaksi tidak boleh lebih dari hari ini.");

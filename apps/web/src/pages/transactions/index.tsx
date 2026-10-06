@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
@@ -44,6 +44,8 @@ export function TransactionListPage() {
   const [fromDate, setFromDate] = useState(qpFromDate);
   const [toDate, setToDate] = useState(qpToDate);
   const [offset, setOffset] = useState(0);
+  // Debounce cari: hindari 1 query per huruf + race flicker.
+  const deferredSearch = useDeferredValue(search);
   const [prevDateParams, setPrevDateParams] = useState(`${qpFromDate}|${qpToDate}`);
   const dateParamsKey = `${qpFromDate}|${qpToDate}`;
   // Filter dilipat (default tertutup) agar daftar lega; otomatis terbuka bila
@@ -65,7 +67,7 @@ export function TransactionListPage() {
 
   const filters = useMemo(
     () => ({
-      search: search || undefined,
+      search: deferredSearch || undefined,
       transactionType: transactionType || undefined,
       status: status || undefined,
       fromDate: fromDate || undefined,
@@ -73,7 +75,7 @@ export function TransactionListPage() {
       limit: PAGE_SIZE,
       offset,
     }),
-    [search, transactionType, status, fromDate, toDate, offset],
+    [deferredSearch, transactionType, status, fromDate, toDate, offset],
   );
 
   const query = useQuery({
@@ -100,6 +102,14 @@ export function TransactionListPage() {
 
   const totalPages = Math.max(1, Math.ceil((query.data?.total ?? 0) / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+
+  // Clamp offset bila total menyusut (mis. void massal di tab lain) agar tidak stuck di halaman kosong.
+  // Pola adjust-during-render seperti dateParams di atas (tanpa effect).
+  const totalCount = query.data?.total ?? 0;
+  if (totalCount > 0 && offset >= totalCount) {
+    const clamped = Math.max(0, (Math.ceil(totalCount / PAGE_SIZE) - 1) * PAGE_SIZE);
+    if (clamped !== offset) setOffset(clamped);
+  }
 
   let rowsContent: ReactNode;
   if (query.isLoading) {

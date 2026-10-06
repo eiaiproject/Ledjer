@@ -176,14 +176,15 @@ describe("L2: backup retention deletes anything older than 30 days", () => {
 
 describe("M5: restore writes in bounded batches", () => {
   it("chunks large restores to at most 200 statements per batch", async () => {
-    const { restoreBackup } = await import("./backup.service");
+    const { restoreBackup, manifestSha256 } = await import("./backup.service");
     const bucket = new FakeR2Bucket();
     const dateStr = "2026-06-15";
     const users = Array.from({ length: 250 }, (_, i) => ({ id: `user-${i}` }));
     await bucket.put(`backups/${dateStr}/users.json`, JSON.stringify(users));
+    const manifestBase = { startedAt: 1, completedAt: 2, version: 1, tables: { users: { rowCount: 250 } } };
     await bucket.put(
       `backups/${dateStr}/manifest.json`,
-      JSON.stringify({ startedAt: 1, completedAt: 2, version: 1, tables: { users: { rowCount: 250 } }, sha256: "" }),
+      JSON.stringify({ ...manifestBase, sha256: await manifestSha256(manifestBase) }),
     );
     const batchSizes: number[] = [];
     const db = new FakeD1Database({

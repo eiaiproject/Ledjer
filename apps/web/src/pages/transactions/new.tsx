@@ -29,7 +29,14 @@ const transactionSchema = z.object({
   cashAccountId: z.string().min(1, "Pilih akun kas/bank"),
   counterAccountId: z.string().optional(),
   amountIdr: z.string().optional(),
-  description: z.string().min(1, "Keterangan wajib diisi").max(200, "Maksimal 200 karakter"),
+  description: z.string().trim().min(1, "Keterangan wajib diisi").max(200, "Maksimal 200 karakter"),
+}).superRefine((data, ctx) => {
+  if (data.transactionType !== "purchase" && !data.counterAccountId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["counterAccountId"], message: "Pilih akun lawan" });
+  }
+  if (data.transactionType === "transfer" && data.cashAccountId && data.cashAccountId === data.counterAccountId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["counterAccountId"], message: "Akun tujuan harus berbeda dari akun sumber" });
+  }
 });
 
 type TransactionForm = z.infer<typeof transactionSchema>;
@@ -107,6 +114,8 @@ export function NewTransactionPage() {
   // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
   // yang lebih baru (maxDate null = belum ada catatan / unknown → bebas).
   const tooOld = maxDate !== null && watchDate !== "" && watchDate < maxDate;
+  const todayStr = formatDateInputValue();
+  const isFuture = watchDate !== "" && watchDate > todayStr;
 
   useEffect(() => {
     setSelectedType(watchType);
@@ -186,25 +195,27 @@ export function NewTransactionPage() {
     setItems((prev) => prev.filter((it) => it.key !== key));
   };
 
+  const validateSingleItem = (item: FormItem, seen: Set<string>): string | null => {
+    if (!item.productId) return "Pilih produk untuk setiap baris.";
+    if (seen.has(item.productId)) return "Produk duplikat dalam satu transaksi tidak diizinkan.";
+    seen.add(item.productId);
+    const qty = parseSignedDecimalInput(item.quantity, 0) ?? 0;
+    if (qty <= 0) return "Jumlah produk harus lebih dari 0.";
+    const price = parseUnitPrice(item.unitPrice);
+    if (!isPurchase && price <= 0) return "Harga jual harus lebih dari 0.";
+    if (isPurchase && price < 0) return "Harga beli tidak valid.";
+    const product = !isPurchase ? productById(item.productId) : undefined;
+    if (product && qty > product.current_stock) return `Stok ${product.name} tidak mencukupi.`;
+    return null;
+  };
+
   const validateItems = (): FormItem[] | null => {
+    const seen = new Set<string>();
     const valid: FormItem[] = [];
     for (const item of items) {
-      if (!item.productId) {
-        toast.error("Pilih produk untuk setiap baris.");
-        return null;
-      }
-      const qty = parseSignedDecimalInput(item.quantity, 0) ?? 0;
-      if (qty <= 0) {
-        toast.error("Jumlah produk harus lebih dari 0.");
-        return null;
-      }
-      const price = parseUnitPrice(item.unitPrice);
-      if (!isPurchase && price <= 0) {
-        toast.error("Harga jual harus lebih dari 0.");
-        return null;
-      }
-      if (isPurchase && price < 0) {
-        toast.error("Harga beli tidak valid.");
+      const error = validateSingleItem(item, seen);
+      if (error) {
+        toast.error(error);
         return null;
       }
       valid.push({ ...item });
@@ -212,17 +223,40 @@ export function NewTransactionPage() {
     return valid.length > 0 ? valid : null;
   };
 
-  const onSubmit = async (data: TransactionForm) => {
-    if (!userId) return;
-
-    // Backstop client untuk aturan server (server tetap menolak 400 bila lolos).
+  const runSubmitGuards = (data: TransactionForm): boolean => {
+    if (isFuture) {
+      setError("transactionDate", { type: "validate", message: "Tanggal tidak boleh di masa depan." });
+      return true;
+    }
     if (maxDate !== null && data.transactionDate < maxDate) {
       setError("transactionDate", {
         type: "validate",
         message: `Catatan terakhir tanggal ${maxDate}. Void dulu transaksi tanggal itu untuk mencatat tanggal ini.`,
       });
-      return;
+      return true;
     }
+    if (data.transactionType === "transfer" && data.cashAccountId === data.counterAccountId) {
+      setError("counterAccountId", { type: "validate", message: "Akun tujuan harus berbeda dari akun sumber" });
+      return true;
+    }
+    return false;
+  };
+
+  const checkSubmitAmount = (withItems: boolean, amount: number): boolean => {
+    if (!withItems && (amount <= 0 || !Number.isFinite(amount))) {
+      toast.error("Nominal harus lebih dari 0.");
+      return true;
+    }
+    if (withItems && amount <= 0) {
+      toast.error("Total transaksi harus lebih dari 0.");
+      return true;
+    }
+    return false;
+  };
+
+  const onSubmit = async (data: TransactionForm) => {
+    if (!userId) return;
+    if (runSubmitGuards(data)) return;
 
     const isPurchaseSubmit = data.transactionType === "purchase";
     const withItems = isPurchaseSubmit || (data.transactionType === "cash_in" && goodsSale);
@@ -237,14 +271,7 @@ export function NewTransactionPage() {
     const amount = withItems
       ? (computedTotal ?? 0)
       : (parseAmountInput(data.amountIdr) ?? 0);
-    if (!withItems && (amount <= 0 || !Number.isFinite(amount))) {
-      toast.error("Nominal harus lebih dari 0.");
-      return;
-    }
-    if (withItems && amount <= 0) {
-      toast.error("Total transaksi harus lebih dari 0.");
-      return;
-    }
+    if (checkSubmitAmount(withItems, amount)) return;
 
     try {
       const result = await postTransaction(
@@ -257,6 +284,8 @@ export function NewTransactionPage() {
           idempotencyKey: idempotencyKeyRef.current,
         }),
       );
+      // Rotasi key agar retry setelah sukses tidak dianggap replay.
+      idempotencyKeyRef.current = createClientToken();
       invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success(result.replayed ? "Transaksi sudah tercatat sebelumnya." : "Transaksi berhasil dicatat.");
       navigate(`/transactions/${result.transaction_id}`);
@@ -327,7 +356,8 @@ export function NewTransactionPage() {
               label="Tanggal"
               type="date"
               required
-              error={errors.transactionDate?.message}
+              max={todayStr}
+              error={errors.transactionDate?.message ?? (isFuture ? "Tanggal tidak boleh di masa depan." : undefined)}
               {...register("transactionDate")}
             />
             {tooOld && maxDate && (
@@ -474,7 +504,7 @@ export function NewTransactionPage() {
               <Button
                 type="submit"
                 loading={isSubmitting}
-                disabled={!userId || accountsQuery.isLoading || productsQuery.isLoading || tooOld}
+                disabled={!userId || accountsQuery.isLoading || productsQuery.isLoading || tooOld || isFuture}
               >
                 Simpan Transaksi
               </Button>

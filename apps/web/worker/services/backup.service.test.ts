@@ -68,10 +68,9 @@ async function countSnapshotRows(bucket: FakeR2Bucket, dateStr: string): Promise
 
 /** Write manifest.json with a sha256 computed over the given table counts. */
 async function putManifest(bucket: FakeR2Bucket, dateStr: string, tables: Record<string, { rowCount: number }>): Promise<void> {
+  const { manifestSha256 } = await import("./backup.service");
   const manifest = { startedAt: 1, completedAt: 2, version: 1, tables, sha256: "" };
-  const enc = new TextEncoder();
-  const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(JSON.stringify(manifest)));
-  manifest.sha256 = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  manifest.sha256 = await manifestSha256(manifest);
   await bucket.put(`backups/${dateStr}/manifest.json`, JSON.stringify(manifest, null, 2));
 }
 
@@ -178,9 +177,12 @@ describe("Backup Service", () => {
       },
     });
 
-    const result = await restoreBackup(db as unknown as D1Database, bucket as unknown as R2Bucket, dateStr);
+    const blocked = await restoreBackup(db as unknown as D1Database, bucket as unknown as R2Bucket, dateStr);
+    expect(blocked.success).toBe(false);
+    expect(blocked.errors.some((w: string) => w.includes("not empty"))).toBe(true);
 
-    // Restore still succeeds but warns about existing data
+    const result = await restoreBackup(db as unknown as D1Database, bucket as unknown as R2Bucket, dateStr, { allowOverwrite: true });
+
     expect(result.success).toBe(true);
     expect(result.warnings.some((w: string) => w.includes("target database has"))).toBe(true);
   });
@@ -410,6 +412,7 @@ describe("Backup Service", () => {
       db as unknown as D1Database,
       bucket as unknown as R2Bucket,
       dateStr,
+      { allowOverwrite: true },
     );
     expect(restoreResult.success).toBe(true);
     expect(restoreResult.tables.users.restored).toBe(users.length);

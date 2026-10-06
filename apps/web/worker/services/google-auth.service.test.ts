@@ -126,7 +126,7 @@ describe("completeGoogleAuth", () => {
     expect(session?.user_id).toBe(user?.id);
   });
 
-  it("auto-links an existing email user when Google verifies the email, keeping their book", async () => {
+  it("menolak auto-link email yang sudah terdaftar (cegah takeover), walau Google verified", async () => {
     const { db } = createSeedFixtures();
     const existingEmail = "owner@booka.test";
 
@@ -137,45 +137,41 @@ describe("completeGoogleAuth", () => {
       verified_email: true,
     });
 
-    await completeGoogleAuth(
-      db as unknown as D1Database,
-      "auth-code-2",
-      "client-123",
-      "secret-123",
-      "https://app.test/api/auth/google/callback",
-      new Request("https://app.test"),
-    );
+    await expect(
+      completeGoogleAuth(
+        db as unknown as D1Database,
+        "auth-code-2",
+        "client-123",
+        "secret-123",
+        "https://app.test/api/auth/google/callback",
+        new Request("https://app.test"),
+      ),
+    ).rejects.toMatchObject({ code: "oauth_email_conflict" });
 
     const link = await (db as unknown as TestDb).first<{ user_id: string }>(
       "SELECT user_id FROM oauth_accounts WHERE provider = 'google' AND provider_account_id = ?",
       ["google-account-0002"],
     );
-    expect(link?.user_id).toBe(FIXTURE_IDS.users.ownerA);
-
-    // Existing book is untouched: linking never creates a second one or renames it
+    expect(link).toBeNull();
     expect(await businessNameForUser(db as unknown as TestDb, FIXTURE_IDS.users.ownerA)).toBe("PT Buku A");
   });
 
   it("logs in a returning Google user via the linked account", async () => {
     const { db } = createSeedFixtures();
 
-    // First pass: auto-link (verified email)
+    const { execute } = await import("../db/client");
+    await execute(
+      db as unknown as D1Database,
+      `INSERT INTO oauth_accounts (id, user_id, provider, provider_account_id, email, created_at, updated_at) VALUES (?, ?, 'google', ?, ?, ?, ?)`,
+      ["link-0003", FIXTURE_IDS.users.ownerA, "google-account-0003", "owner@booka.test", Date.now(), Date.now()],
+    );
     mockGoogleFetch({
       id: "google-account-0003",
       email: "owner@booka.test",
       name: "Owner A",
       verified_email: true,
     });
-    await completeGoogleAuth(
-      db as unknown as D1Database,
-      "auth-code-3",
-      "client-123",
-      "secret-123",
-      "https://app.test/api/auth/google/callback",
-      new Request("https://app.test"),
-    );
 
-    // Second pass: same Google ID → found via oauth_accounts join
     const result = await completeGoogleAuth(
       db as unknown as D1Database,
       "auth-code-4",

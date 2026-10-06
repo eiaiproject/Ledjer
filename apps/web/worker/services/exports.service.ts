@@ -42,7 +42,10 @@ export function csvEscape(value: unknown): string {
     .replaceAll("\r", " ")
     .replaceAll("\n", " ");
 
-  if (/^[=+\-@\t]/.test(text)) {
+  // Anti formula-injection: trim kiri untuk deteksi, tapi pertahankan teks asli.
+  // "=cmd", "+cmd", "-cmd", "@cmd", tab, serta spasi/U+00A0 di depan formula tetap diprefix "'".
+  const leftTrimmed = text.replace(/^[\s\u00A0]+/, "");
+  if (/^[=+\-@\t]/.test(leftTrimmed)) {
     text = `'${text}`;
   }
 

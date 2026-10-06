@@ -89,21 +89,26 @@ async function pushToServer(entry: OutboxPayload): Promise<boolean> {
       credentials: "include",
     });
 
-    // 409 Conflict → treat as synced (local-first, server is backup)
+    // 409 → anggap synced (local-first).
     if (res.status === 409) {
       return true;
     }
 
-    // 2xx → success
     if (res.ok) {
       return true;
     }
 
-    // Other errors → will retry
+    // 4xx permanen (kecuali 408/429) → buang agar outbox tidak macet.
+    if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+      console.warn(`[sync] Push ditolak permanen (${res.status}), entri dibuang agar tidak loop:`, entry.entityType, entry.entityId);
+      return true;
+    }
+
+    // Error lain → coba lagi.
     console.warn(`[sync] Push failed: ${res.status} ${res.statusText}`);
     return false;
   } catch (err) {
-    // Network error → will retry
+    // Gangguan jaringan → coba lagi.
     console.warn("[sync] Push error:", err);
     return false;
   }
@@ -133,9 +138,17 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
     const syncedIds: number[] = [];
 
     for (const entry of pending) {
-      const payload = JSON.parse(entry.payload);
+      let payload: unknown;
+      try {
+        payload = JSON.parse(entry.payload);
+      } catch {
+        // Payload rusak permanen → buang agar tidak throw tiap interval.
+        console.warn("[sync] Payload rusak, entri dibuang:", entry.id);
+        syncedIds.push(entry.id);
+        continue;
+      }
 
-      const success = await pushToServer({
+      const success = await pushToServer({ // NOSONAR:S9382 - outbox di-replay berurutan agar LWW benar
         id: entry.id,
         entityType: entry.entityType,
         entityId: entry.entityId,
@@ -173,6 +186,16 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
 
 // ── Public API ───────────────────────────────────────────────────
 
+/** Jalankan outbox tanpa mengapung: rejection selalu ditampung ke status. */
+function launchOutbox(db: Database, userId: string): void {
+  processOutbox(db, userId).catch((err: unknown) => {
+    updateStatus({
+      running: false,
+      lastError: err instanceof Error ? err : new Error(String(err)),
+    });
+  });
+}
+
 /**
  * Start background sync — panggil saat user login.
  * Sync setiap 5 detik (non-blocking).
@@ -182,18 +205,18 @@ export function startSync(db: Database, userId: string): void {
   stopSync();
 
   // Initial sync
-  processOutbox(db, userId);
+  launchOutbox(db, userId);
 
   // Interval sync
   syncInterval = setInterval(() => {
     if (navigator.onLine) {
-      processOutbox(db, userId);
+      launchOutbox(db, userId);
     }
   }, 5_000);
 
   // Also sync when coming back online.
   onlineHandler = () => {
-    void processOutbox(db, userId);
+    launchOutbox(db, userId);
   };
   window.addEventListener("online", onlineHandler);
 }

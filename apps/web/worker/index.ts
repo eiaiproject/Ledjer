@@ -1,6 +1,7 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { AppContext } from "./env";
 import { errorHandler } from "./middleware/error.middleware";
+import { requireAuth } from "./middleware/auth.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/request-logger";
@@ -30,52 +31,67 @@ app.use("*", requestLogger());
 app.use("*", metricsMiddleware());
 // CSP for static HTML SPA enforced via Cloudflare _headers file (single source of truth).
 app.use("*", secureHeaders({}));
+const LOCAL_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/;
+
+function originAllowed(origin: string, allowed: string, isDev: boolean): boolean {
+  const list = allowed.split(",").map((o) => o.trim()).filter(Boolean);
+  if (list.some((a) => origin === a || safeOrigin(origin) === a)) return true;
+  return isDev && LOCAL_ORIGIN_RE.test(origin);
+}
+
+function safeOrigin(origin: string): string | null {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return null;
+  }
+}
+
+function csrfReject(
+  c: Context<AppContext>,
+  code: string,
+  status: 403 | 500,
+  message?: string,
+) {
+  return c.json({ error: { code, message: message ?? "Origin not allowed" } }, status);
+}
+
 // Custom CSRF check with origin validation against APP_ORIGIN (ADR 0003).
 app.use("/api/*", async (c, next) => {
   const method = c.req.method;
-  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    await next();
+    return;
+  }
 
-  // Fail-closed: reject state-changing requests whose Origin is not in
-  // APP_ORIGIN (+ localhost di development), dan request tanpa Origin yang
-  // membawa session cookie (#1: tanpa bypass total di dev).
+  // Fail-closed: tolak request ubah-state yang Origin-nya tak ada di APP_ORIGIN,
+  // dan request tanpa Origin yang membawa session cookie.
   const origin = c.req.header("Origin") || c.req.header("Referer");
   const allowed = c.env.APP_ORIGIN;
   const isDev = c.env.APP_ENV !== "production";
 
   if (!origin) {
-    const cookie = c.req.header("Cookie");
-    if (cookie && (cookie.includes("ledjer_session=") || cookie.includes("__Host-ledjer_session="))) {
-      if (allowed) {
-        return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
-      }
-      return c.json({ error: { code: "csrf_missing_origin", message: "Missing Origin header with session cookie" } }, 403);
-    }
-    return next(); // No session cookie - public endpoint (health, login)
+    const cookie = c.req.header("Cookie") ?? "";
+    const hasSession = cookie.includes("ledjer_session=") || cookie.includes("__Host-ledjer_session=");
+    if (!hasSession) return next();
+    if (!allowed) return csrfReject(c, "csrf_missing_origin", 403, "Missing Origin header with session cookie");
+    return csrfReject(c, "csrf_invalid", 403);
   }
 
   if (!allowed) {
-    if (c.env.APP_ENV === "production") {
-      return c.json({ error: { code: "csrf_misconfigured", message: "Server misconfigured" } }, 500);
-    }
+    if (c.env.APP_ENV === "production") return csrfReject(c, "csrf_misconfigured", 500, "Server misconfigured");
+    if (!LOCAL_ORIGIN_RE.test(origin)) return csrfReject(c, "csrf_invalid", 403);
     return next();
   }
 
-  const allowedList = allowed.split(",").map((o) => o.trim()).filter(Boolean);
-  const ok =
-    allowedList.some((a) => {
-      if (origin === a) return true;
-      try { return new URL(origin).origin === a; } catch { return false; }
-    }) ||
-    // Dev-only: izinkan localhost/127.0.0.1 agar Vite dev tetap jalan (#1).
-    (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(origin));
-  if (!ok) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
+  if (!originAllowed(origin, allowed, isDev)) return csrfReject(c, "csrf_invalid", 403);
   return next();
 });
 
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
 app.get("/api/metrics", metricsHandler);
-app.get("/api/metrics/detailed", detailedMetricsHandler);
+app.get("/api/metrics/detailed", requireAuth(), detailedMetricsHandler);
 app.route("/api/accounts", accountsRoutes);
 app.route("/api/products", productsRoutes);
 app.route("/api/transactions", transactionsRoutes);

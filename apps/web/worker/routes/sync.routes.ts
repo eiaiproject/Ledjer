@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
 import { queryFirst } from "../db/client";
@@ -34,7 +34,7 @@ const pushSchema = z.object({
  */
 syncRoutes.post("/push", async (c) => {
   const session = await requireSession(c);
-  const body = await readJson(c, z.object({ ops: z.array(pushSchema) }).passthrough());
+  const body = await readJson(c, z.object({ ops: z.array(pushSchema).max(200) }).passthrough());
   const ops = (body as { ops: z.infer<typeof pushSchema>[] }).ops ?? [];
   const results: Array<{ op_id: string; stored: boolean }> = [];
   for (const op of ops) {
@@ -44,7 +44,7 @@ syncRoutes.post("/push", async (c) => {
     const opType = ((op.op_type ?? op.opType ?? "create") as string).toLowerCase() as "create" | "update" | "delete";
     const hlc = (op.hlc as string) ?? generateHlc();
     const payloadStr = typeof op.payload === "string" ? (op.payload as string) : JSON.stringify(op.payload ?? {});
-    const res = await pushSyncOp(c.env.DB, {
+    const res = await pushSyncOp(c.env.DB, { // NOSONAR:S9382 - op diterapkan berurutan agar LWW benar
       op_id: opId,
       user_id: session.user_id,
       device_id: null,
@@ -66,7 +66,8 @@ syncRoutes.post("/push", async (c) => {
 syncRoutes.get("/pull", async (c) => {
   const session = await requireSession(c);
   const since = c.req.query("since");
-  const limit = Math.min(Number(c.req.query("limit") ?? 100), 500);
+  const rawLimit = Number(c.req.query("limit") ?? 100);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.floor(rawLimit), 1), 500) : 100;
   const ops = await pullSyncOps(c.env.DB, session.user_id, since, limit);
   return c.json({ ops, count: ops.length });
 });
@@ -113,8 +114,9 @@ syncRoutes.get("/devices", async (c) => {
  * POST /api/sync/:entity/:id — terima single op dari outbox lokal (create/update/delete)
  * Body: JSON payload entity. Query: op_id/hlc optional.
  * Dedup by op_id, LWW by HLC untuk mutable.
+ * Hanya method tulis yang diizinkan — GET/HEAD/OPTIONS tidak boleh mutasi (CSRF via top-level navigation).
  */
-syncRoutes.all("/:entity/:id", async (c) => {
+async function handleSingleSyncOp(c: Context<AppContext>) {
   const session = await requireSession(c);
   const entity = c.req.param("entity");
   const entityId = c.req.param("id");
@@ -156,8 +158,8 @@ syncRoutes.all("/:entity/:id", async (c) => {
     op_id: opId,
     user_id: session.user_id,
     device_id: (c.req.header("X-Device-Id") as string) ?? null,
-    entity_type: entity,
-    entity_id: entityId,
+    entity_type: entity ?? "unknown",
+    entity_id: entityId ?? opId,
     op_type: opType,
     payload: payloadStr,
     hlc,
@@ -172,4 +174,13 @@ syncRoutes.all("/:entity/:id", async (c) => {
   }
 
   return c.json({ ok: true, op_id: opId, hlc }, 201);
-});
+}
+
+syncRoutes.post("/:entity/:id", handleSingleSyncOp);
+syncRoutes.put("/:entity/:id", handleSingleSyncOp);
+syncRoutes.patch("/:entity/:id", handleSingleSyncOp);
+syncRoutes.delete("/:entity/:id", handleSingleSyncOp);
+// GET/HEAD/OPTIONS tidak boleh mutasi — tolak eksplisit agar CSRF via navigasi top-level tidak bisa menulis sync_ops.
+syncRoutes.get("/:entity/:id", (c) =>
+  c.json({ error: { code: "method_not_allowed", message: "Gunakan POST/PUT/PATCH/DELETE" } }, 405),
+);

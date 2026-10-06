@@ -31,7 +31,11 @@ export async function registerUser(
   input: RegisterInput,
   request: Request,
   pepper?: string,
+  appEnv?: string,
 ): Promise<RegisterResult> {
+  if (appEnv === "production" && !pepper) {
+    throw new Error("PASSWORD_PEPPER belum dikonfigurasi");
+  }
   const email = input.email.trim().toLowerCase();
   const current = Date.now();
 
@@ -45,24 +49,38 @@ export async function registerUser(
 
   const businessName = input.businessName.trim();
   const userId = crypto.randomUUID();
-  await execute(
-    db,
-    `INSERT INTO users (
-       id, email, password_hash, full_name, business_name, status, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-    [
-      userId,
-      email,
-      await hashPassword(input.password, pepper),
-      input.fullName.trim(),
-      businessName,
-      current,
-      current,
-    ],
-  );
+  try {
+    await execute(
+      db,
+      `INSERT INTO users (
+         id, email, password_hash, full_name, business_name, status, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+      [
+        userId,
+        email,
+        await hashPassword(input.password, pepper),
+        input.fullName.trim(),
+        businessName,
+        current,
+        current,
+      ],
+    );
+  } catch (err) {
+    // Race duplikat konkuren: UNIQUE(email) → 403 ramah, bukan 500.
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+      throw forbidden("email_taken", "Email sudah terdaftar.");
+    }
+    throw err;
+  }
 
   // Setiap buku lahir siap pakai: chart of accounts default ikut dibuat.
-  await createDefaultAccounts(db, userId, current);
+  // Bila gagal di tengah, hapus user yatim agar tidak ada buku tanpa COA.
+  try {
+    await createDefaultAccounts(db, userId, current);
+  } catch (err) {
+    await execute(db, `DELETE FROM users WHERE id = ?` /* no-user-scope */, [userId]).catch(() => undefined);
+    throw err;
+  }
   const session = await createSession(db, userId, request);
 
   await logAuthEvent(db, userId, "registration", { email, businessName });

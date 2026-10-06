@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
-import { formatDateInputValue, formatDecimalIDR, formatIDR, formatQuantity, formatShortDate } from "@/lib/utils";
+import { formatDateInputValue, formatDecimalIDR, formatIDR, formatQuantity, formatShortDate, parseAmountInput, parseSignedDecimalInput } from "@/lib/utils";
 
 const GUIDE_GROUPS: { title: string; note?: string; examples: string[] }[] = [
   {
@@ -137,6 +137,7 @@ export interface DraftValidationParams {
   insufficientCash: boolean;
   isFuture: boolean;
   tooOld: boolean;
+  txDate?: string;
   productId: string;
   qty: number;
   price: number;
@@ -153,6 +154,7 @@ export interface DraftValidationParams {
 
 export function isDraftValid(p: DraftValidationParams): boolean {
   if (p.draft === null || p.posting) return false;
+  if (p.txDate !== undefined && !p.txDate) return false;
   if (!p.hasCash || p.insufficientCash || p.isFuture || p.tooOld) return false;
   const kind = p.draft.kind;
   if (kind === "sale" || kind === "purchase") {
@@ -212,8 +214,8 @@ export function isNewProductSubmittable(v: NewProductValidation): boolean {
   if (nameLen < 1 || nameLen > 80) return false;
   const unitLen = v.unit.trim().length;
   if (unitLen < 1 || unitLen > 20) return false;
-  const qty = Number(v.quantity);
-  if (!Number.isFinite(qty) || qty <= 0) return false;
+  const qty = parseSignedDecimalInput(v.quantity, Number.NaN, 3);
+  if (!Number.isFinite(qty) || (qty as number) <= 0) return false;
   if (v.total === undefined || !Number.isInteger(v.total) || v.total <= 0) return false;
   if (!v.hasCash) return false;
   if (v.cashBalance !== null && v.total > v.cashBalance) return false;
@@ -371,7 +373,7 @@ export function prepareLossPost(ctx: LossPostContext): PreparedPost {
       transactionType: "cash_out",
       description,
       cashAccountId: ctx.cashAccountId,
-      amountIdr: 1,
+      amountIdr: 0,
       productId: ctx.productId,
       quantityMilli: Math.round(ctx.qty * 1000),
       unitCostMinor: frozenMinor,
@@ -578,9 +580,9 @@ export function computeAmountUpdate(
   const nextQty = field === "quantity" ? value : state.quantity;
   const nextPrice = field === "unitPrice" ? value : state.unitPrice;
   const nextTotal = field === "total" ? value : state.total;
-  const qn = Number(nextQty);
-  const pn = Number(nextPrice);
-  const tn = Number(nextTotal);
+  const qn = parseSignedDecimalInput(nextQty, Number.NaN, 3) ?? Number.NaN;
+  const pn = parseSignedDecimalInput(nextPrice, Number.NaN, 4) ?? Number.NaN;
+  const tn = parseAmountInput(nextTotal, Number.NaN) ?? Number.NaN;
   if (field !== "total" && Number.isFinite(qn) && qn > 0 && Number.isFinite(pn) && pn > 0) {
     return { quantity: nextQty, unitPrice: nextPrice, total: String(Math.round(qn * pn)) };
   }
@@ -871,8 +873,8 @@ export function computePreviewGuards(args: {
   return {
     insufficient: stockShort,
     insufficientCash: cashShort,
-    isFuture: args.txDate > args.todayStr,
-    tooOld: args.maxDate !== null && args.txDate < args.maxDate,
+    isFuture: args.txDate !== "" && args.txDate > args.todayStr,
+    tooOld: args.txDate !== "" && args.maxDate !== null && args.txDate < args.maxDate,
     equityLabel: missingEquityLabel(args.draftKind, args.equityDepositId, args.equityWithdrawalId),
   };
 }
@@ -1506,9 +1508,9 @@ export function QuickEntryBar() {
     });
   };
 
-  const qty = Number(quantity);
-  const price = Number(unitPrice);
-  const totalNum = Number(total);
+  const qty = parseSignedDecimalInput(quantity, Number.NaN, 3) ?? Number.NaN;
+  const price = parseSignedDecimalInput(unitPrice, Number.NaN, 4) ?? Number.NaN;
+  const totalNum = parseAmountInput(total, Number.NaN) ?? Number.NaN;
   const stock = selectedProduct?.current_stock ?? 0;
   const ids = resolveEffectiveIds({
     cashAccountId,
@@ -1525,12 +1527,10 @@ export function QuickEntryBar() {
   const equityDepositId = ids.equityDepositId;
   const equityWithdrawalId = ids.equityWithdrawalId;
   const hasCash = ids.hasCash;
-  // Kecukupan kas sumber untuk arus keluar. Saldo unknown (offline/query gagal)
-  // berarti tidak diblokir — local-first tetap bisa mencatat tanpa koneksi.
+  // Saldo unknown berarti tidak diblokir (local-first tetap bisa mencatat offline).
   const cashBalance = cashQuery.data?.find((a) => a.id === effectiveCashId)?.balance_idr ?? null;
   const outflowAmount = computeOutflowAmount(draft?.kind, ambiguousChoice, totalNum);
-  // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
-  // yang lebih baru. maxDate null = belum ada catatan / unknown (offline) → bebas.
+  // maxDate null berarti bebas (belum ada catatan / offline).
   const todayStr = formatDateInputValue();
   const guards = computePreviewGuards({
     draftKind: draft?.kind,
@@ -1555,6 +1555,7 @@ export function QuickEntryBar() {
     insufficientCash,
     isFuture,
     tooOld,
+    txDate,
     productId,
     qty,
     price,
@@ -1585,6 +1586,7 @@ export function QuickEntryBar() {
   // Local-first: tulis ke SQLite perangkat dulu (offline), sync jalan di background.
   // Server tetap dipanggil bila reachable agar backup/cross-device tidak tertinggal;
   // kegagalan jaringan bukan kegagalan pencatatan.
+  const postingRef = useRef(false);
   const postLocalThenServer = async (
     input: {
       transactionType: "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase";
@@ -1601,6 +1603,7 @@ export function QuickEntryBar() {
       },
       transactionDate: string = txDate,
     ) => {
+    if (!transactionDate) throw new Error("Tanggal transaksi wajib diisi");
     if (localDb) {
       if (!userId) throw new Error("Not authenticated");
       postTransactionLocal(localDb, userId, {
@@ -1639,10 +1642,10 @@ export function QuickEntryBar() {
   };
   const handleConfirm = async () => {
     if (!valid || !draft || !userId) return;
+    if (postingRef.current) return;
+    postingRef.current = true;
     setPosting(true);
     try {
-      let description = "";
-      let postedTotal = totalNum;
       const targetCashId = cashQuery.data?.find((a) => a.id !== effectiveCashId)?.id ?? effectiveCashId;
       const prepared = preparePost(draft.kind, {
         qty,
@@ -1665,12 +1668,14 @@ export function QuickEntryBar() {
         draftReason: draft.reason,
       });
       if (!prepared) return;
-      description = prepared.description;
-      postedTotal = prepared.postedTotal;
+      const description = prepared.description;
+      const postedTotal = prepared.postedTotal;
       await postLocalThenServer(prepared.input);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.allProducts() });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
+      if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId) });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
       queryClient.invalidateQueries({ queryKey: ["max-transaction-date"] });
       toast.success("Transaksi tercatat.");
       setDoneMessage(`Transaksi tercatat: ${description} = ${formatIDR(postedTotal)}.`);
@@ -1681,6 +1686,7 @@ export function QuickEntryBar() {
     } catch (err) {
       toast.error(translateError(err));
     } finally {
+      postingRef.current = false;
       setPosting(false);
     }
   };
@@ -1727,14 +1733,14 @@ export function QuickEntryBar() {
   });
 
   const handleCreateAndPost = async () => {
-    if (!newProduct || !userId || !canCreateProduct) return;
+    if (!newProduct || !userId || !canCreateProduct || creatingProduct) return;
     setCreatingProduct(true);
     setNewProductError(null);
     const outcome = await submitNewProductPurchase(
       {
         name: newProduct.name,
         unit: newProduct.unit,
-        qty: Number(newProduct.quantity),
+        qty: parseSignedDecimalInput(newProduct.quantity, Number.NaN, 3) ?? Number.NaN,
         total: newProduct.total,
         party: newProduct.party,
         cashAccountId: effectiveCashId,

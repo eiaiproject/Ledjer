@@ -53,5 +53,6 @@ reportsRoutes.get("/general-ledger", async (c) => {
 function requiredParam(params: URLSearchParams, name: string): string {
   const value = params.get(name);
   if (!value) throw badRequest("missing_query_param", `${name} is required`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw badRequest("invalid_date", "Format tanggal harus YYYY-MM-DD.");
   return value;
 }

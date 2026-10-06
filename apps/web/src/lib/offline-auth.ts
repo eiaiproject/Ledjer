@@ -46,7 +46,7 @@ function base64ToBytes(b64: string): Uint8Array {
 
 // ── Crypto: AES-GCM ───────────────────────────────────────────────
 
-async function getDeviceKeyBytes(): Promise<Uint8Array> {
+function getDeviceKeyBytes(): Uint8Array {
   // Cari di localStorage dulu (persist antar reload)
   try {
     const stored = localStorage.getItem(DEVICE_KEY_STORAGE);
@@ -67,7 +67,7 @@ async function getDeviceKeyBytes(): Promise<Uint8Array> {
 async function getAesKey(): Promise<CryptoKey | null> {
   if (!globalThis.crypto?.subtle) return null;
   try {
-    const raw = await getDeviceKeyBytes();
+    const raw = getDeviceKeyBytes();
     return await crypto.subtle.importKey("raw", raw as unknown as BufferSource, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
   } catch {
     return null;
@@ -222,9 +222,10 @@ export async function saveOfflineSession(user: AuthUser, session: AuthSession | 
 
 /**
  * Muat sesi offline terenkripsi. Dipakai sebagai fallback saat fetch /api/auth/me gagal karena offline.
- * Return null bila belum pernah login online atau data korup.
+ * Return null bila belum pernah login online, data korup, atau sudah kedaluwarsa (>14 hari).
  */
-export async function loadOfflineSession(): Promise<OfflineSessionData | null> {
+export const OFFLINE_SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+export async function loadOfflineSession(now = Date.now()): Promise<OfflineSessionData | null> {
   // IDB dulu
   let encrypted: string | null = await idbGet(IDB_KEY);
   // Fallback LS
@@ -242,8 +243,11 @@ export async function loadOfflineSession(): Promise<OfflineSessionData | null> {
   try {
     const parsed = JSON.parse(json) as OfflineSessionData;
     if (!parsed.user?.id) return null;
-    // Expiry check: sesi absolut 14 hari, tapi offline tetap boleh buka (hanya warning)
-    // Kita tidak reject, hanya kembalikan data apa adanya — UI tetap jalan offline.
+    // Sesi offline kedaluwarsa 14 hari seperti sesi server — cegah akses abadi dari device curian.
+    if (!parsed.savedAt || now - parsed.savedAt > OFFLINE_SESSION_TTL_MS) {
+      await clearOfflineSession();
+      return null;
+    }
     return parsed;
   } catch {
     return null;

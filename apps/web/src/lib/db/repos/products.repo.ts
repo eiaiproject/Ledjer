@@ -46,14 +46,18 @@ export function getAllProducts(db: Database, userId: string): Product[] {
   );
 }
 
-/** Find a single product by ID. */
-export function getProductById(db: Database, productId: string): Product | null {
+/** Scoped per-user bila userId diisi. */
+export function getProductById(db: Database, productId: string, userId?: string): Product | null {
   const stmt = db.prepare(
-    `SELECT id, user_id, code, name, unit, selling_price_idr,
+    userId
+      ? `SELECT id, user_id, code, name, unit, selling_price_idr,
             current_stock_milli, average_cost_minor, is_active
-     FROM products WHERE id = ?`,
+      FROM products WHERE id = ? AND user_id = ?`
+      : `SELECT id, user_id, code, name, unit, selling_price_idr,
+            current_stock_milli, average_cost_minor, is_active
+      FROM products WHERE id = ?`,
   );
-  stmt.bind([productId]);
+  stmt.bind(userId ? [productId, userId] : [productId]);
   let result: Product | null = null;
   if (stmt.step()) {
     result = rowToProduct(stmt.get([]));

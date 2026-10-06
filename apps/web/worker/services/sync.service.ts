@@ -4,6 +4,7 @@
  */
 
 import { execute, queryAll, queryFirst } from "../db/client";
+import { badRequest } from "../http/errors";
 
 export interface SyncOp {
   op_id: string;
@@ -28,8 +29,22 @@ export async function pushSyncOp(
   db: D1Database,
   op: SyncOp,
 ): Promise<{ stored: boolean; reason?: string }> {
-  // Dedup op_id
-  const existing = await queryFirst<{ op_id: string }>(db, "SELECT op_id FROM sync_ops WHERE op_id = ?", [op.op_id]);
+  // Validasi batas agar satu request tidak bisa bloat D1.
+  if (!op.entity_type || op.entity_type.length > 64) {
+    throw badRequest("invalid_entity_type", "Tipe entity tidak valid.");
+  }
+  if (!op.entity_id || op.entity_id.length > 160) {
+    throw badRequest("invalid_entity_id", "ID entity tidak valid.");
+  }
+  if (op.payload.length > 100_000) {
+    throw badRequest("payload_too_large", "Payload sync terlalu besar.");
+  }
+  // Dedup op_id scoped per-user agar satu user tidak bisa memblokir op_id user lain.
+  const existing = await queryFirst<{ op_id: string }>(
+    db,
+    "SELECT op_id FROM sync_ops WHERE op_id = ? AND user_id = ?",
+    [op.op_id, op.user_id],
+  );
   if (existing) {
     return { stored: false, reason: "duplicate_op_id" };
   }
@@ -120,6 +135,11 @@ export async function upsertDevice(
   deviceName?: string,
 ): Promise<void> {
   const now = Date.now();
+  // Cegah lintas-user overwrite: device milik user lain tidak boleh di-update.
+  const owner = await queryFirst<{ user_id: string }>(db, "SELECT user_id FROM sync_devices WHERE id = ?", [deviceId]);
+  if (owner && owner.user_id !== userId) {
+    throw badRequest("device_conflict", "Perangkat sudah terdaftar untuk pengguna lain.");
+  }
   await execute(
     db,
     `INSERT INTO sync_devices (id, user_id, token_hash, device_name, created_at, last_seen)

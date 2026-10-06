@@ -47,13 +47,16 @@ export function getAllParties(db: Database, userId: string): Party[] {
   return results;
 }
 
-/** Find a single party by ID. */
-export function getPartyById(db: Database, partyId: string): Party | null {
+/** Scoped per-user bila userId diisi. */
+export function getPartyById(db: Database, partyId: string, userId?: string): Party | null {
   const stmt = db.prepare(
-    `SELECT id, user_id, name, party_type, contact, is_active, created_at, updated_at
-     FROM parties WHERE id = ?`,
+    userId
+      ? `SELECT id, user_id, name, party_type, contact, is_active, created_at, updated_at
+      FROM parties WHERE id = ? AND user_id = ?`
+      : `SELECT id, user_id, name, party_type, contact, is_active, created_at, updated_at
+      FROM parties WHERE id = ?`,
   );
-  stmt.bind([partyId]);
+  stmt.bind(userId ? [partyId, userId] : [partyId]);
   let result: Party | null = null;
   if (stmt.step()) {
     result = rowToParty(stmt.get([]));
