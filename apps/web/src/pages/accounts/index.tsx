@@ -99,7 +99,7 @@ export function AccountsPage() {
             className="grid items-end gap-3 sm:grid-cols-3"
             onSubmit={(e) => {
               e.preventDefault();
-              handleCreate();
+              void handleCreate();
             }}
           >
             <Select

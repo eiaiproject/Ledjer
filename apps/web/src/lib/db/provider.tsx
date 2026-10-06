@@ -100,7 +100,7 @@ export function LocalDBProvider({ children }: Readonly<{ children: ReactNode }>)
       }
     }
 
-    initDb();
+    void initDb();
 
     return () => {
       cancelled = true;

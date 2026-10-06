@@ -97,7 +97,7 @@ export const test = base.extend<AuthFixtures>({
         { email, password },
       );
       if (loginResult.ok) break;
-      await page.waitForTimeout(attempt * 5000);
+      await page.waitForTimeout(attempt * 5000); // NOSONAR:S9382 - backoff login harus berurutan
     }
 
     if (!loginResult.ok) {

@@ -57,7 +57,7 @@ export function SettingsPage() {
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              handleSave();
+              void handleSave();
             }}
           >
             <Input

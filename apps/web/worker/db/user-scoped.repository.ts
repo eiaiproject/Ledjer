@@ -73,7 +73,7 @@ export class UserScopedRepository {
     config: UserScopeConfig,
   ): Promise<T | null> {
     this.assertScoped(sql, values, config);
-    return this.db
+    return await this.db
       .prepare(sql)
       .bind(...(values as D1Input[]))
       .first<T | null>();
@@ -85,7 +85,7 @@ export class UserScopedRepository {
     config: UserScopeConfig,
   ): Promise<D1Result> {
     this.assertScoped(sql, values, config);
-    return this.db
+    return await this.db
       .prepare(sql)
       .bind(...(values as D1Input[]))
       .run();
