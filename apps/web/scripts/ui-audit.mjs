@@ -292,7 +292,7 @@ async function auditViewport(browser, vp, txnId) {
 
   // Public routes (no session needed)
   for (const route of PUBLIC_ROUTES) {
-    const entry = await auditRoute(page, vp, route);
+    const entry = await auditRoute(page, vp, route); // NOSONAR:S9382 - rute diaudit berurutan dalam satu page
     row.routes.push(entry);
   }
 
@@ -319,7 +319,7 @@ async function auditViewport(browser, vp, txnId) {
     authedRoutes = [...authedRoutes, { path: `/transactions/${txnId.value}`, slug: "transactions-detail" }];
   }
   for (const route of authedRoutes) {
-    const entry = await auditRoute(page, vp, route);
+    const entry = await auditRoute(page, vp, route); // NOSONAR:S9382 - rute diaudit berurutan dalam satu page
     row.routes.push(entry);
   }
 
@@ -375,7 +375,7 @@ mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch();
 const txnId = { value: null };
 for (const vp of VIEWPORTS) {
-  const row = await auditViewport(browser, vp, txnId);
+  const row = await auditViewport(browser, vp, txnId); // NOSONAR:S9382 - viewport berbagi browser dan state txnId
   report.results.push(row);
   console.log(`[${vp.name}] ${row.routes.length} routes audited`);
 }

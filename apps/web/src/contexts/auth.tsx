@@ -72,24 +72,27 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       setLoading(false);
     }
 
-    initAuth();
+    initAuth().catch(() => {
+      if (!cancelled) setError(new Error("Gagal memuat sesi."));
+      setLoading(false);
+    });
 
     // Refresh diam-diam saat kembali online (background, non-blocking)
     const handleOnline = () => {
-      void refreshOfflineSessionInBackground(getMe).then(() => {
+      void (async () => {
+        await refreshOfflineSessionInBackground(getMe);
         // Setelah refresh, coba sinkronkan state bila masih pakai offline
-        void getMe()
-          .then(({ session: s, user: u }) => {
-            if (cancelled) return;
-            if (u) {
-              setSession(s);
-              setUser(u);
-            }
-          })
-          .catch(() => {
-            // Tetap offline — biarkan state lama
-          });
-      });
+        try {
+          const { session: s, user: u } = await getMe();
+          if (cancelled) return;
+          if (u) {
+            setSession(s);
+            setUser(u);
+          }
+        } catch {
+          // Tetap offline — biarkan state lama
+        }
+      })();
     };
     window.addEventListener("online", handleOnline);
 

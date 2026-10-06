@@ -20,7 +20,7 @@ export class SqliteD1 {
    * D1 batch: statements run in one transaction. Real arity/SQL errors surface
    * here (unlike the fake-D1 shim), which is the point of this adapter.
    */
-  async batch(statements: SqliteD1Statement[]): Promise<D1Result[]> {
+  async batch(statements: SqliteD1Statement[]): Promise<D1Result[]> { // NOSONAR:S7503 - adapter meniru interface async D1
     this.db.exec("BEGIN");
     try {
       const results = statements.map((s) => s.runSync());
@@ -46,15 +46,15 @@ export class SqliteD1Statement {
     return this;
   }
 
-  async all<T>(): Promise<{ results: T[] }> {
+  async all<T>(): Promise<{ results: T[] }> { // NOSONAR:S7503 - adapter meniru interface async D1
     return { results: this.db.prepare(this.sql).all(...this.values) as T[] };
   }
 
-  async first<T>(): Promise<T | null> {
+  async first<T>(): Promise<T | null> { // NOSONAR:S7503 - adapter meniru interface async D1
     return (this.db.prepare(this.sql).get(...this.values) as T | undefined) ?? null;
   }
 
-  async run(): Promise<D1Result> {
+  async run(): Promise<D1Result> { // NOSONAR:S7503 - adapter meniru interface async D1
     return this.runSync();
   }
 
