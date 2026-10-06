@@ -134,12 +134,12 @@ function buildProductFilter(
   }
   const search = options.search?.trim().toLowerCase();
   if (search) {
-    const bs = String.fromCodePoint(92);
+    const esc = "!";
     const escaped = search
-      .replaceAll(bs, bs + bs)
-      .replaceAll("%", bs + "%")
-      .replaceAll("_", bs + "_");
-    clauses.push(String.raw`(LOWER(name) LIKE ? ESCAPE '\' OR LOWER(code) LIKE ? ESCAPE '\'')`);
+      .replaceAll(esc, esc + esc)
+      .replaceAll("%", esc + "%")
+      .replaceAll("_", esc + "_");
+    clauses.push("(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(code) LIKE ? ESCAPE '!')");
     values.push(`%${escaped}%`, `%${escaped}%`);
   }
   if (options.stock === "in") {
