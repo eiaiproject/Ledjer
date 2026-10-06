@@ -46,7 +46,7 @@ function base64ToBytes(b64: string): Uint8Array {
 
 // ── Crypto: AES-GCM ───────────────────────────────────────────────
 
-async function getDeviceKeyBytes(): Promise<Uint8Array> {
+function getDeviceKeyBytes(): Uint8Array {
   // Cari di localStorage dulu (persist antar reload)
   try {
     const stored = localStorage.getItem(DEVICE_KEY_STORAGE);
@@ -67,7 +67,7 @@ async function getDeviceKeyBytes(): Promise<Uint8Array> {
 async function getAesKey(): Promise<CryptoKey | null> {
   if (!globalThis.crypto?.subtle) return null;
   try {
-    const raw = await getDeviceKeyBytes();
+    const raw = getDeviceKeyBytes();
     return await crypto.subtle.importKey("raw", raw as unknown as BufferSource, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
   } catch {
     return null;

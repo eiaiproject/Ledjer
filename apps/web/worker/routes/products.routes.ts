@@ -5,6 +5,7 @@ import { parseListLimit, parseListOffset, parseSearch } from "../http/params";
 import { readJson } from "../http/json";
 import { requireAuth } from "../middleware/auth.middleware";
 import { tooManyRequests } from "../http/errors";
+import { assertDateRange } from "./transactions.routes";
 import { checkRateLimit } from "../services/rate-limit.service";
 import { createProduct, getStockMovementReport, listProductsPage, patchProduct } from "../services/products.service";
 import type { ProductSort, ProductStockFilter } from "../services/products.service";
@@ -79,12 +80,7 @@ productsRoutes.get("/:productId/movements", async (c) => {
   const params = url.searchParams;
   const rawFrom = params.get("fromDate") ?? undefined;
   const rawTo = params.get("toDate") ?? undefined;
-  for (const d of [rawFrom, rawTo]) {
-    if (d !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      const { badRequest } = await import("../http/errors");
-      throw badRequest("invalid_date", "Format tanggal harus YYYY-MM-DD.");
-    }
-  }
+  assertDateRange(rawFrom, rawTo);
   const movements = await getStockMovementReport(c.env.DB, c.get("user").id, {
     productId: c.req.param("productId"),
     fromDate: rawFrom ?? "0000-01-01",

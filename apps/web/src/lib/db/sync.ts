@@ -148,7 +148,7 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
         continue;
       }
 
-      const success = await pushToServer({
+      const success = await pushToServer({ // NOSONAR:S9382 - outbox di-replay berurutan agar LWW benar
         id: entry.id,
         entityType: entry.entityType,
         entityId: entry.entityId,
@@ -186,6 +186,16 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
 
 // ── Public API ───────────────────────────────────────────────────
 
+/** Jalankan outbox tanpa mengapung: rejection selalu ditampung ke status. */
+function launchOutbox(db: Database, userId: string): void {
+  processOutbox(db, userId).catch((err: unknown) => {
+    updateStatus({
+      running: false,
+      lastError: err instanceof Error ? err : new Error(String(err)),
+    });
+  });
+}
+
 /**
  * Start background sync — panggil saat user login.
  * Sync setiap 5 detik (non-blocking).
@@ -195,18 +205,18 @@ export function startSync(db: Database, userId: string): void {
   stopSync();
 
   // Initial sync
-  processOutbox(db, userId);
+  launchOutbox(db, userId);
 
   // Interval sync
   syncInterval = setInterval(() => {
     if (navigator.onLine) {
-      processOutbox(db, userId);
+      launchOutbox(db, userId);
     }
   }, 5_000);
 
   // Also sync when coming back online.
   onlineHandler = () => {
-    void processOutbox(db, userId);
+    launchOutbox(db, userId);
   };
   window.addEventListener("online", onlineHandler);
 }

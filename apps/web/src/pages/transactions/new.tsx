@@ -195,66 +195,68 @@ export function NewTransactionPage() {
     setItems((prev) => prev.filter((it) => it.key !== key));
   };
 
+  const validateSingleItem = (item: FormItem, seen: Set<string>): string | null => {
+    if (!item.productId) return "Pilih produk untuk setiap baris.";
+    if (seen.has(item.productId)) return "Produk duplikat dalam satu transaksi tidak diizinkan.";
+    seen.add(item.productId);
+    const qty = parseSignedDecimalInput(item.quantity, 0) ?? 0;
+    if (qty <= 0) return "Jumlah produk harus lebih dari 0.";
+    const price = parseUnitPrice(item.unitPrice);
+    if (!isPurchase && price <= 0) return "Harga jual harus lebih dari 0.";
+    if (isPurchase && price < 0) return "Harga beli tidak valid.";
+    const product = !isPurchase ? productById(item.productId) : undefined;
+    if (product && qty > product.current_stock) return `Stok ${product.name} tidak mencukupi.`;
+    return null;
+  };
+
   const validateItems = (): FormItem[] | null => {
     const seen = new Set<string>();
     const valid: FormItem[] = [];
     for (const item of items) {
-      if (!item.productId) {
-        toast.error("Pilih produk untuk setiap baris.");
+      const error = validateSingleItem(item, seen);
+      if (error) {
+        toast.error(error);
         return null;
-      }
-      if (seen.has(item.productId)) {
-        toast.error("Produk duplikat dalam satu transaksi tidak diizinkan.");
-        return null;
-      }
-      seen.add(item.productId);
-      const qty = parseSignedDecimalInput(item.quantity, 0) ?? 0;
-      if (qty <= 0) {
-        toast.error("Jumlah produk harus lebih dari 0.");
-        return null;
-      }
-      const price = parseUnitPrice(item.unitPrice);
-      if (!isPurchase && price <= 0) {
-        toast.error("Harga jual harus lebih dari 0.");
-        return null;
-      }
-      if (isPurchase && price < 0) {
-        toast.error("Harga beli tidak valid.");
-        return null;
-      }
-      // Cegah oversell di client (server tetap menolak 400 bila lolos race).
-      if (!isPurchase) {
-        const product = productById(item.productId);
-        if (product && qty > product.current_stock) {
-          toast.error(`Stok ${product.name} tidak mencukupi.`);
-          return null;
-        }
       }
       valid.push({ ...item });
     }
     return valid.length > 0 ? valid : null;
   };
 
-  const onSubmit = async (data: TransactionForm) => {
-    if (!userId) return;
-
-    // Backstop client untuk aturan server (server tetap menolak 400 bila lolos).
+  const runSubmitGuards = (data: TransactionForm): boolean => {
     if (isFuture) {
       setError("transactionDate", { type: "validate", message: "Tanggal tidak boleh di masa depan." });
-      return;
+      return true;
     }
     if (maxDate !== null && data.transactionDate < maxDate) {
       setError("transactionDate", {
         type: "validate",
         message: `Catatan terakhir tanggal ${maxDate}. Void dulu transaksi tanggal itu untuk mencatat tanggal ini.`,
       });
-      return;
+      return true;
     }
-
     if (data.transactionType === "transfer" && data.cashAccountId === data.counterAccountId) {
       setError("counterAccountId", { type: "validate", message: "Akun tujuan harus berbeda dari akun sumber" });
-      return;
+      return true;
     }
+    return false;
+  };
+
+  const checkSubmitAmount = (withItems: boolean, amount: number): boolean => {
+    if (!withItems && (amount <= 0 || !Number.isFinite(amount))) {
+      toast.error("Nominal harus lebih dari 0.");
+      return true;
+    }
+    if (withItems && amount <= 0) {
+      toast.error("Total transaksi harus lebih dari 0.");
+      return true;
+    }
+    return false;
+  };
+
+  const onSubmit = async (data: TransactionForm) => {
+    if (!userId) return;
+    if (runSubmitGuards(data)) return;
 
     const isPurchaseSubmit = data.transactionType === "purchase";
     const withItems = isPurchaseSubmit || (data.transactionType === "cash_in" && goodsSale);
@@ -269,14 +271,7 @@ export function NewTransactionPage() {
     const amount = withItems
       ? (computedTotal ?? 0)
       : (parseAmountInput(data.amountIdr) ?? 0);
-    if (!withItems && (amount <= 0 || !Number.isFinite(amount))) {
-      toast.error("Nominal harus lebih dari 0.");
-      return;
-    }
-    if (withItems && amount <= 0) {
-      toast.error("Total transaksi harus lebih dari 0.");
-      return;
-    }
+    if (checkSubmitAmount(withItems, amount)) return;
 
     try {
       const result = await postTransaction(

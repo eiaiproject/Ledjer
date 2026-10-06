@@ -44,7 +44,7 @@ syncRoutes.post("/push", async (c) => {
     const opType = ((op.op_type ?? op.opType ?? "create") as string).toLowerCase() as "create" | "update" | "delete";
     const hlc = (op.hlc as string) ?? generateHlc();
     const payloadStr = typeof op.payload === "string" ? (op.payload as string) : JSON.stringify(op.payload ?? {});
-    const res = await pushSyncOp(c.env.DB, {
+    const res = await pushSyncOp(c.env.DB, { // NOSONAR:S9382 - op diterapkan berurutan agar LWW benar
       op_id: opId,
       user_id: session.user_id,
       device_id: null,

@@ -214,7 +214,7 @@ export function isNewProductSubmittable(v: NewProductValidation): boolean {
   if (nameLen < 1 || nameLen > 80) return false;
   const unitLen = v.unit.trim().length;
   if (unitLen < 1 || unitLen > 20) return false;
-  const qty = parseSignedDecimalInput(v.quantity, NaN, 3);
+  const qty = parseSignedDecimalInput(v.quantity, Number.NaN, 3);
   if (!Number.isFinite(qty) || (qty as number) <= 0) return false;
   if (v.total === undefined || !Number.isInteger(v.total) || v.total <= 0) return false;
   if (!v.hasCash) return false;
@@ -580,9 +580,9 @@ export function computeAmountUpdate(
   const nextQty = field === "quantity" ? value : state.quantity;
   const nextPrice = field === "unitPrice" ? value : state.unitPrice;
   const nextTotal = field === "total" ? value : state.total;
-  const qn = parseSignedDecimalInput(nextQty, NaN, 3) ?? NaN;
-  const pn = parseSignedDecimalInput(nextPrice, NaN, 4) ?? NaN;
-  const tn = parseAmountInput(nextTotal, NaN) ?? NaN;
+  const qn = parseSignedDecimalInput(nextQty, Number.NaN, 3) ?? Number.NaN;
+  const pn = parseSignedDecimalInput(nextPrice, Number.NaN, 4) ?? Number.NaN;
+  const tn = parseAmountInput(nextTotal, NaN) ?? Number.NaN;
   if (field !== "total" && Number.isFinite(qn) && qn > 0 && Number.isFinite(pn) && pn > 0) {
     return { quantity: nextQty, unitPrice: nextPrice, total: String(Math.round(qn * pn)) };
   }
@@ -1508,9 +1508,9 @@ export function QuickEntryBar() {
     });
   };
 
-  const qty = parseSignedDecimalInput(quantity, NaN, 3) ?? NaN;
-  const price = parseSignedDecimalInput(unitPrice, NaN, 4) ?? NaN;
-  const totalNum = parseAmountInput(total, NaN) ?? NaN;
+  const qty = parseSignedDecimalInput(quantity, Number.NaN, 3) ?? Number.NaN;
+  const price = parseSignedDecimalInput(unitPrice, Number.NaN, 4) ?? Number.NaN;
+  const totalNum = parseAmountInput(total, NaN) ?? Number.NaN;
   const stock = selectedProduct?.current_stock ?? 0;
   const ids = resolveEffectiveIds({
     cashAccountId,
@@ -1646,8 +1646,6 @@ export function QuickEntryBar() {
     postingRef.current = true;
     setPosting(true);
     try {
-      let description = "";
-      let postedTotal = totalNum;
       const targetCashId = cashQuery.data?.find((a) => a.id !== effectiveCashId)?.id ?? effectiveCashId;
       const prepared = preparePost(draft.kind, {
         qty,
@@ -1670,8 +1668,8 @@ export function QuickEntryBar() {
         draftReason: draft.reason,
       });
       if (!prepared) return;
-      description = prepared.description;
-      postedTotal = prepared.postedTotal;
+      const description = prepared.description;
+      const postedTotal = prepared.postedTotal;
       await postLocalThenServer(prepared.input);
       queryClient.invalidateQueries({ queryKey: queryKeys.products.allProducts() });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
@@ -1742,7 +1740,7 @@ export function QuickEntryBar() {
       {
         name: newProduct.name,
         unit: newProduct.unit,
-        qty: parseSignedDecimalInput(newProduct.quantity, NaN, 3) ?? NaN,
+        qty: parseSignedDecimalInput(newProduct.quantity, Number.NaN, 3) ?? Number.NaN,
         total: newProduct.total,
         party: newProduct.party,
         cashAccountId: effectiveCashId,
