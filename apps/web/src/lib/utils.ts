@@ -158,9 +158,18 @@ export function parseAmountInput(
   emptyValue: number | undefined = undefined
 ) {
   const rawValue = value == null ? "" : String(value as string);
-  const digits = rawValue.replace(/\D/g, "");
+  const trimmed = rawValue.trim();
+  if (!trimmed) return emptyValue;
+  const negative = trimmed.startsWith("-") || trimmed.endsWith("-");
+  // Nominal utuh: abaikan desimal koma, pertahankan minus untuk validasi >0.
+  let normalized = trimmed.replace(/[^\d.,]/g, "");
+  if (!normalized) return emptyValue;
+  if (normalized.includes(",")) {
+    normalized = normalized.slice(0, normalized.indexOf(","));
+  }
+  const digits = normalized.replace(/\D/g, "");
   if (!digits) return emptyValue;
-  const amount = Number(digits);
+  const amount = Number(digits) * (negative ? -1 : 1);
   return Number.isFinite(amount) ? amount : emptyValue;
 }
 

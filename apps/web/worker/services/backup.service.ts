@@ -152,6 +152,15 @@ export async function validateBackup(
   if (!manifest.completedAt) {
     errors.push("backup did not complete");
   }
+  // Verifikasi integritas manifest: hash harus cocok dengan payload stabil.
+  if (manifest.sha256) {
+    const recomputed = await manifestSha256(manifest);
+    if (recomputed !== manifest.sha256) {
+      errors.push("manifest sha256 mismatch: backup mungkin rusak atau dimodifikasi");
+    }
+  } else {
+    errors.push("manifest sha256 hilang");
+  }
 
   for (const [table, info] of Object.entries(manifest.tables)) {
     rowCounts[table] = info.rowCount;
@@ -197,6 +206,7 @@ export async function restoreBackup(
   db: D1Database,
   bucket: R2Bucket,
   dateStr: string,
+  opts: { allowOverwrite?: boolean } = {},
 ): Promise<RestoreResult> {
   const startedAt = Date.now();
   const errors: string[] = [];
@@ -210,6 +220,17 @@ export async function restoreBackup(
 
   const existingWarnings = await checkForExistingData(db);
   warnings.push(...existingWarnings);
+  // Destruktif: tolak bila target berisi data kecuali caller eksplisit izinkan overwrite.
+  if (existingWarnings.length > 0 && !opts.allowOverwrite) {
+    return {
+      success: false,
+      startedAt,
+      completedAt: null,
+      tables,
+      errors: ["target database not empty; pass allowOverwrite untuk restore destruktif"],
+      warnings,
+    };
+  }
 
   const tableData = await fetchTableDataFromBackup(bucket, dateStr, validation.rowCounts, errors);
   if (errors.length > 0) {

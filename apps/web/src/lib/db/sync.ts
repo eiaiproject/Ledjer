@@ -89,21 +89,26 @@ async function pushToServer(entry: OutboxPayload): Promise<boolean> {
       credentials: "include",
     });
 
-    // 409 Conflict → treat as synced (local-first, server is backup)
+    // 409 → anggap synced (local-first).
     if (res.status === 409) {
       return true;
     }
 
-    // 2xx → success
     if (res.ok) {
       return true;
     }
 
-    // Other errors → will retry
+    // 4xx permanen (kecuali 408/429) → buang agar outbox tidak macet.
+    if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+      console.warn(`[sync] Push ditolak permanen (${res.status}), entri dibuang agar tidak loop:`, entry.entityType, entry.entityId);
+      return true;
+    }
+
+    // Error lain → coba lagi.
     console.warn(`[sync] Push failed: ${res.status} ${res.statusText}`);
     return false;
   } catch (err) {
-    // Network error → will retry
+    // Gangguan jaringan → coba lagi.
     console.warn("[sync] Push error:", err);
     return false;
   }
@@ -133,7 +138,15 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
     const syncedIds: number[] = [];
 
     for (const entry of pending) {
-      const payload = JSON.parse(entry.payload);
+      let payload: unknown;
+      try {
+        payload = JSON.parse(entry.payload);
+      } catch {
+        // Payload rusak permanen → buang agar tidak throw tiap interval.
+        console.warn("[sync] Payload rusak, entri dibuang:", entry.id);
+        syncedIds.push(entry.id);
+        continue;
+      }
 
       const success = await pushToServer({
         id: entry.id,

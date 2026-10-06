@@ -83,14 +83,18 @@ export function getAccountsBySubtype(db: Database, userId: string, subtype: stri
   );
 }
 
-/** Find a single account by ID. */
-export function getAccountById(db: Database, accountId: string): Account | null {
+/** Scoped per-user bila userId diisi. */
+export function getAccountById(db: Database, accountId: string, userId?: string): Account | null {
   return queryOneAccount(
     db,
-    `SELECT id, user_id, code, name, account_class, account_subtype,
+    userId
+      ? `SELECT id, user_id, code, name, account_class, account_subtype,
             account_kind, is_system, is_active
-     FROM accounts WHERE id = ?`,
-    [accountId],
+      FROM accounts WHERE id = ? AND user_id = ?`
+      : `SELECT id, user_id, code, name, account_class, account_subtype,
+            account_kind, is_system, is_active
+      FROM accounts WHERE id = ?`,
+    userId ? [accountId, userId] : [accountId],
   );
 }
 

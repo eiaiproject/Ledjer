@@ -166,13 +166,19 @@ async function linkOAuthAccount(
   if (existing) return; // Already linked
 
   const current = Date.now();
-  await execute(
-    db,
-    `INSERT INTO oauth_accounts (
-       id, user_id, provider, provider_account_id, email, created_at, updated_at
-     ) VALUES (?, ?, 'google', ?, ?, ?, ?)`,
-    [generateId(), userId, googleId, googleEmail, current, current],
-  );
+  try {
+    await execute(
+      db,
+      `INSERT INTO oauth_accounts (
+         id, user_id, provider, provider_account_id, email, created_at, updated_at
+       ) VALUES (?, ?, 'google', ?, ?, ?, ?)`,
+      [generateId(), userId, googleId, googleEmail.trim().toLowerCase(), current, current],
+    );
+  } catch (err) {
+    // Race link konkuren: UNIQUE(provider, provider_account_id) → idempotent.
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) return;
+    throw err;
+  }
 }
 
 /**
@@ -189,6 +195,7 @@ async function createUserFromGoogle(
   const userId = generateId();
 
   const passwordHash = await hashPassword(bytesToBase64(randomBytes(32)));
+  const email = googleUser.email.trim().toLowerCase();
 
   await execute(
     db,
@@ -197,7 +204,7 @@ async function createUserFromGoogle(
      ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
     [
       userId,
-      googleUser.email,
+      email,
       passwordHash,
       googleUser.name || googleUser.email,
       businessName,
@@ -206,13 +213,13 @@ async function createUserFromGoogle(
     ],
   );
 
-  await linkOAuthAccount(db, userId, googleUser.id, googleUser.email);
+  await linkOAuthAccount(db, userId, googleUser.id, email);
   await createDefaultAccounts(db, userId, current);
 
   return {
     id: userId,
-    email: googleUser.email,
-    full_name: googleUser.name || googleUser.email,
+    email,
+    full_name: googleUser.name || email,
     status: "active",
   };
 }
@@ -254,18 +261,17 @@ export async function completeGoogleAuth(
     user = await findUserByEmail(db, googleUser.email);
 
     if (user) {
-      // Email match: only auto-link when Google confirms the email is verified.
-      // Google's verified_email flag is trusted - email ownership is already
-      // proven by Google's account creation process.
+      // Email lokal tak terverifikasi: tolak auto-link agar tak bisa takeover.
       if (!googleUser.verified_email) {
         throw conflict(
           "oauth_email_conflict",
           "Email Google tidak terverifikasi. Masuk dengan password terlebih dahulu.",
         );
       }
-
-      await linkOAuthAccount(db, user.id, googleUser.id, googleUser.email);
-      await logAuthEvent(db, user.id, "oauth_link", { provider: "google" });
+      throw conflict(
+        "oauth_email_conflict",
+        "Email ini sudah terdaftar. Masuk dengan password terlebih dahulu, lalu tautkan Google dari pengaturan.",
+      );
     } else {
       // New user: create user + default COA (same as register)
       user = await createUserFromGoogle(db, googleUser, defaultBusinessName(googleUser), current);

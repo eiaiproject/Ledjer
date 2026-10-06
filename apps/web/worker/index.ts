@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppContext } from "./env";
 import { errorHandler } from "./middleware/error.middleware";
+import { requireAuth } from "./middleware/auth.middleware";
 
 import { secureHeaders } from "hono/secure-headers";
 import { requestLogger } from "./middleware/request-logger";
@@ -57,6 +58,11 @@ app.use("/api/*", async (c, next) => {
     if (c.env.APP_ENV === "production") {
       return c.json({ error: { code: "csrf_misconfigured", message: "Server misconfigured" } }, 500);
     }
+    // Non-prod tanpa APP_ORIGIN: hanya localhost yang lolos, origin asing tetap ditolak.
+    if (origin) {
+      const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(origin);
+      if (!isLocal) return c.json({ error: { code: "csrf_invalid", message: "Origin not allowed" } }, 403);
+    }
     return next();
   }
 
@@ -75,7 +81,7 @@ app.use("/api/*", async (c, next) => {
 app.route("/api/auth", authRoutes);
 app.route("/api/health", healthRoutes);
 app.get("/api/metrics", metricsHandler);
-app.get("/api/metrics/detailed", detailedMetricsHandler);
+app.get("/api/metrics/detailed", requireAuth(), detailedMetricsHandler);
 app.route("/api/accounts", accountsRoutes);
 app.route("/api/products", productsRoutes);
 app.route("/api/transactions", transactionsRoutes);

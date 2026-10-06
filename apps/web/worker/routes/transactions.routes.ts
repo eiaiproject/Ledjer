@@ -31,10 +31,10 @@ const postTransactionSchema = z.object({
   transactionDate: dateSchema,
   cashAccountId: z.string().min(1),
   counterAccountId: z.string().min(1).optional(),
-  amountIdr: z.number().int().positive().optional(),
+  amountIdr: z.number().int().positive().max(999_999_999_999).optional(),
   description: z.string().min(1).max(200),
   idempotencyKey: z.string().min(8).max(160),
-  items: z.array(transactionItemSchema).optional(),
+  items: z.array(transactionItemSchema).max(100).optional(),
 });
 
 const voidTransactionSchema = z.object({
@@ -53,12 +53,24 @@ transactionsRoutes.get("/", async (c) => {
   const url = new URL(c.req.url);
   const rawType = url.searchParams.get("transactionType") ?? undefined;
   const rawStatus = url.searchParams.get("status") ?? undefined;
+  const rawFrom = url.searchParams.get("fromDate") ?? undefined;
+  const rawTo = url.searchParams.get("toDate") ?? undefined;
+  for (const d of [rawFrom, rawTo]) {
+    if (d !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const { badRequest } = await import("../http/errors");
+      throw badRequest("invalid_date", "Format tanggal harus YYYY-MM-DD.");
+    }
+  }
+  if (rawFrom && rawTo && rawFrom > rawTo) {
+    const { badRequest } = await import("../http/errors");
+    throw badRequest("invalid_date_range", "fromDate tidak boleh setelah toDate.");
+  }
   const filters = {
     search: parseSearch(url.searchParams.get("search")),
     transactionType: rawType && LIST_TYPE_WHITELIST.has(rawType) ? rawType : undefined,
     status: rawStatus && LIST_STATUS_WHITELIST.has(rawStatus) ? rawStatus : undefined,
-    fromDate: url.searchParams.get("fromDate") ?? undefined,
-    toDate: url.searchParams.get("toDate") ?? undefined,
+    fromDate: rawFrom,
+    toDate: rawTo,
     limit: parseListLimit(url.searchParams.get("limit")),
     offset: parseListOffset(url.searchParams.get("offset")),
   };

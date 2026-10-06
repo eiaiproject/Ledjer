@@ -134,8 +134,9 @@ function buildProductFilter(
   }
   const search = options.search?.trim().toLowerCase();
   if (search) {
-    clauses.push("(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)");
-    values.push(`%${search}%`, `%${search}%`);
+    const escaped = search.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+    clauses.push("(LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(code) LIKE ? ESCAPE '\\')");
+    values.push(`%${escaped}%`, `%${escaped}%`);
   }
   if (options.stock === "in") {
     clauses.push("current_stock_milli > 0");

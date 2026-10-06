@@ -45,8 +45,8 @@ function handleUnauthorized(): void {
   queryClient.clear();
   toast.error("Sesi Anda telah berakhir. Silakan masuk kembali.");
 
-  const from = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.href = `/login?from=${from}`;
+  const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.href = `/login?redirect=${redirect}`;
 }
 
 export async function apiRequest<T>(
@@ -97,6 +97,9 @@ export async function apiDownload(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
     let body: ApiErrorBody | undefined;
     try {
       body = (await response.json()) as ApiErrorBody;
@@ -111,8 +114,13 @@ export async function apiDownload(
     );
   }
 
+  const blob = await response.blob();
+  // CSV: prepend BOM agar Excel Windows tidak mojibake.
+  const contentType = response.headers.get("Content-Type") ?? "";
+  const isCsv = contentType.includes("csv") || path.endsWith(".csv");
+  const finalBlob = isCsv && blob.type !== "text/csv;charset=utf-8" ? new Blob(["\uFEFF", blob], { type: "text/csv;charset=utf-8" }) : blob;
   return {
-    blob: await response.blob(),
+    blob: finalBlob,
     filename: filenameFromContentDisposition(response.headers.get("Content-Disposition")),
   };
 }

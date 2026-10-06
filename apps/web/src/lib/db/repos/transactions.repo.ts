@@ -78,9 +78,12 @@ export function getTransactions(
 
   sql += ` ORDER BY transaction_date DESC, created_at DESC`;
 
-  if (opts.limit) {
+  if (opts.limit != null) {
     sql += ` LIMIT ?`;
     bind.push(opts.limit);
+  } else if (opts.offset) {
+    // SQLite: OFFSET tanpa LIMIT tidak valid — pakai LIMIT -1 (tanpa batas).
+    sql += ` LIMIT -1`;
   }
   if (opts.offset) {
     sql += ` OFFSET ?`;
@@ -98,15 +101,20 @@ export function getTransactions(
   return results;
 }
 
-/** Fetch a single transaction by ID. */
-export function getTransactionById(db: Database, transactionId: string): Transaction | null {
+/** Scoped per-user bila userId diisi. */
+export function getTransactionById(db: Database, transactionId: string, userId?: string): Transaction | null {
   const stmt = db.prepare(
-    `SELECT id, user_id, op_id, transaction_type, transaction_date, description,
+    userId
+      ? `SELECT id, user_id, op_id, transaction_type, transaction_date, description,
             party_id, product_id, cash_account_id, counter_account_id,
             amount_idr, status, void_of_id, rule_version, created_at, updated_at
-     FROM transactions WHERE id = ?`,
+      FROM transactions WHERE id = ? AND user_id = ?`
+      : `SELECT id, user_id, op_id, transaction_type, transaction_date, description,
+            party_id, product_id, cash_account_id, counter_account_id,
+            amount_idr, status, void_of_id, rule_version, created_at, updated_at
+      FROM transactions WHERE id = ?`,
   );
-  stmt.bind([transactionId]);
+  stmt.bind(userId ? [transactionId, userId] : [transactionId]);
   let result: Transaction | null = null;
   if (stmt.step()) {
     result = rowToTransaction(stmt.get([]));
@@ -188,8 +196,8 @@ export function postTransactionLocal(
   const now = Date.now();
   const ruleVersion = 1;
 
-  // Validate: amount must be positive.
-  if (input.amountIdr <= 0) {
+  // Validate: amount must be positive (0 diizinkan untuk susut non-kas).
+  if (input.amountIdr < 0 || (!input.stockLoss && input.amountIdr <= 0)) {
     throw new Error("Amount must be positive");
   }
 
@@ -211,8 +219,8 @@ export function postTransactionLocal(
       ],
     });
 
-    // 2. Stock movement (if product involved)
-    if (input.productId && input.quantityMilli && input.unitCostMinor) {
+    // unitCost 0 sah (WAC 0 / susut).
+    if (input.productId && input.quantityMilli != null && input.quantityMilli > 0 && input.unitCostMinor != null && input.unitCostMinor >= 0) {
       const stmt = db.prepare(
         `SELECT current_stock_milli, average_cost_minor FROM products WHERE id = ?`,
       );
@@ -279,7 +287,7 @@ export function postTransactionLocal(
 
 /**
  * Void a transaction — local DB first.
- * Sets status = 'voided' and appends outbox.
+ * Sets status = 'voided', reverses product stock, and appends outbox.
  */
 export function voidTransactionLocal(db: Database, transactionId: string): Transaction {
   const tx = getTransactionById(db, transactionId);
@@ -287,10 +295,40 @@ export function voidTransactionLocal(db: Database, transactionId: string): Trans
   if (tx.status === "voided") throw new Error("Transaction already voided");
 
   const now = Date.now();
-  db.exec({
-    sql: `UPDATE transactions SET status = 'voided', updated_at = ? WHERE id = ?`,
-    bind: [now, transactionId],
-  });
+  db.exec("BEGIN");
+  try {
+    db.exec({
+      sql: `UPDATE transactions SET status = 'voided', updated_at = ? WHERE id = ?`,
+      bind: [now, transactionId],
+    });
+
+    // Kembalikan stok dari movements transaksi ini.
+    const movements = getStockMovementsForTransactions(db, [transactionId]);
+    for (const m of movements) {
+      const stmt = db.prepare(`SELECT current_stock_milli FROM products WHERE id = ?`);
+      stmt.bind([m.product_id]);
+      let currentStock = 0;
+      if (stmt.step()) currentStock = Number(stmt.get([])[0]);
+      stmt.finalize();
+      // "in" menambah stok → void kurangi; "out"/"loss" mengurangi → void tambahkan.
+      const restored = m.movement_type === "in" ? currentStock - m.quantity_milli : currentStock + m.quantity_milli;
+      if (restored < 0) {
+        throw new Error("Stok tidak mencukupi untuk membatalkan transaksi ini");
+      }
+      db.exec({
+        sql: `UPDATE products SET current_stock_milli = ?, updated_at = ? WHERE id = ?`,
+        bind: [restored, now, m.product_id],
+      });
+      db.exec({
+        sql: `DELETE FROM stock_movements WHERE id = ?`,
+        bind: [m.id],
+      });
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 
   appendOutbox(db, tx.user_id, "transaction", transactionId, "update", {
     status: "voided",

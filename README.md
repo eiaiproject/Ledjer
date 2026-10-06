@@ -146,19 +146,25 @@ apps/
   web/
     src/                      React application (Vite)
       components/             Shared UI components
+      contexts/               React contexts (auth)
+      routes/                 Route guards (protected/public)
       layouts/                Page layouts (dashboard, auth)
       pages/                  Route pages
       hooks/                  Custom React hooks
-      lib/                    API client, utilities
+      lib/                    API client, utilities, offline-first DB & sync
     worker/                   Cloudflare Worker API
       db/migrations/          D1 migration files
       routes/                 Hono route handlers
       services/               Domain logic & business rules
-      middleware/             Auth, CSRF, org-scoping, error handling
+      middleware/             Auth, CSRF, user-scoping, error handling
     e2e/                      Playwright end-to-end tests
 docs/
+  adr/                      Architecture decision records
+  api/                      OpenAPI + proposal P1 (belum diimplementasi)
   architecture/               Architecture decisions & diagrams
+  product/                  Product notes & instrumentation
   production/                 Runbooks (monitoring, incident response)
+  security/                 Security policies (CSP, CSRF)
   compliance/                 Security & dependency policies
   accounting-rules.md         Accounting rules & conventions
   testing.md                  Testing guide & conventions

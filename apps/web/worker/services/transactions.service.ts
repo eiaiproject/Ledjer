@@ -503,24 +503,31 @@ async function commitInventoryTransaction<T extends { productId: string; quantit
   const MAX_COMMIT_ATTEMPTS = 6;
   // Percobaan pertama: batch penuh (jurnal + movements + cache).
   let pending = await readPlannedUpdates(db, userId, items, applyStock);
+  // Sisa item yang guard-nya belum commit — hanya ini yang dikejar ulang agar
+  // item yang sudah sukses tidak di-apply dua kali.
+  let remaining: T[];
   try {
     const results = await executeBatch(db, [...statements, ...pending.guarded]);
     if (allCacheCommitted(results, statements.length)) return null;
+    const guardResults = results.slice(statements.length);
+    remaining = items.filter((_, i) => (guardResults[i]?.meta.changes ?? 0) === 0);
   } catch (err) {
     if (err instanceof Error && /unique|constraint/i.test(err.message)) {
       const raced = await replayIfKeyAlreadyUsed(db, userId, idempotencyKey, payloadHash);
       if (raced) return raced;
+      // Tabrakan nomor transaksi konkuren (key berbeda) → konflik ramah, bukan 500.
+      throw conflict("transaction_number_collision", "Nomor transaksi bentrok, coba lagi.");
     }
     throw err;
   }
 
-  // Batch lolos tetapi cache belum lengkap: kejar hanya cache (guarded).
-  // Setiap tulis cache ber-guard sehingga concurrent writer ter-serialisasi
-  // via guard-miss, bukan via timpa-menimpa buta.
+  // Batch lolos tetapi cache belum lengkap: kejar hanya item yang miss.
   for (let attempt = 1; attempt < MAX_COMMIT_ATTEMPTS; attempt += 1) {
-    pending = await readPlannedUpdates(db, userId, items, applyStock);
+    pending = await readPlannedUpdates(db, userId, remaining, applyStock);
     const results = await executeBatch(db, pending.guarded);
     if (allCacheCommitted(results, 0)) return null;
+    remaining = remaining.filter((_, i) => (results[i]?.meta.changes ?? 0) === 0);
+    if (remaining.length === 0) return null;
   }
 
   // Guard terus meleset: pulihkan dari riwayat agar tak ada stale parsial,
@@ -545,6 +552,9 @@ async function postPurchase(
 ): Promise<PostTransactionResult> {
   const items = await normalizePurchaseItems(db, userId, input.items);
   const totalCost = items.reduce((s, i) => s + i.costTotalIdr, 0);
+  if (!Number.isSafeInteger(totalCost) || totalCost <= 0 || totalCost > 999_999_999_999) {
+    throw badRequest("invalid_amount", "Total pembelian harus 1..999.999.999.999 dan presisi aman.");
+  }
   const payloadHash = await idempotencyPayloadHash({
     transactionType: "purchase",
     transactionDate: input.transactionDate,
@@ -957,7 +967,8 @@ export async function voidTransaction(
   requestId?: string,
 ): Promise<PublicTransaction> {
   const current = Date.now();
-  const reason = input.reason ? input.reason.trim().slice(0, 500) : null;
+  const trimmedReason = input.reason ? input.reason.trim().slice(0, 500) : "";
+  const reason = trimmedReason ? trimmedReason : null;
 
   const existing = await queryFirst<TransactionRow>(
     db,
@@ -985,17 +996,35 @@ export async function voidTransaction(
     const { current_stock_milli, average_cost_minor } = summarizeMovements(
       history.filter((m) => m.transaction_id !== transactionId),
     );
+    // Void tidak boleh membuat stok negatif (mis. void beli setelah stok habis terjual).
+    if (current_stock_milli < 0) {
+      throw conflict(
+        "void_stock_conflict",
+        "Stok produk tidak mencukupi untuk membatalkan transaksi ini.",
+      );
+    }
+    // Guard dengan nilai kini agar concurrent write tidak tertimpa hilang.
+    const currentProduct = await getProduct(db, userId, productId);
     restoreStatements.push(
       statement(
         db,
         `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ?
-         WHERE id = ? AND user_id = ?`,
-        [current_stock_milli, average_cost_minor, current, productId, userId],
+         WHERE id = ? AND user_id = ?
+           AND current_stock_milli = ? AND average_cost_minor = ?`,
+        [
+          current_stock_milli,
+          average_cost_minor,
+          current,
+          productId,
+          userId,
+          currentProduct?.current_stock_milli ?? 0,
+          currentProduct?.average_cost_minor ?? 0,
+        ],
       ),
     );
   }
 
-  await executeBatch(db, [
+  const batchResults = await executeBatch(db, [
     statement(
       db,
       `UPDATE transactions SET status = 'voided', voided_at = ?, void_reason = ?, updated_at = ?
@@ -1015,6 +1044,16 @@ export async function voidTransaction(
       current,
     }),
   ]);
+
+  // Double-void konkuren: yang kalah update 0 baris — tolak agar tidak tulis audit ganda.
+  if ((batchResults[0]?.meta.changes ?? 0) === 0) {
+    throw conflict("transaction_not_posted", "Hanya transaksi berstatus posted yang dapat dibatalkan.");
+  }
+  // Restore cache yang guard-nya miss berarti ada writer konkuren — tolak agar klien retry dengan riwayat segar.
+  const restoreResults = batchResults.slice(1, 1 + restoreStatements.length);
+  if (restoreResults.some((r) => (r.meta.changes ?? 0) === 0) && restoreStatements.length > 0) {
+    throw conflict("stock_update_conflict", "Stok produk berubah saat diproses. Coba lagi.");
+  }
 
   return getTransaction(db, userId, transactionId);
 }
