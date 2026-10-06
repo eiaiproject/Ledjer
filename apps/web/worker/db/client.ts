@@ -34,7 +34,7 @@ export async function execute(
   sql: string,
   values: readonly D1Input[] = [],
 ): Promise<D1Result> {
-  return db.prepare(sql).bind(...normalizeD1Values(values)).run();
+  return await db.prepare(sql).bind(...normalizeD1Values(values)).run();
 }
 
 export function statement(

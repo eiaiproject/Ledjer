@@ -25,6 +25,6 @@ console.log('  Match:', actualB64 === parts[3] ? '✅ PASS' : '❌ FAIL');
 
 // Test with various pepper values
 for (const pep of ['', undefined, 'test-pepper']) {
-  const a = await derive('Ledjer123', b64ToBytes(parts[2]), pep ?? '');
+  const a = await derive('Ledjer123', b64ToBytes(parts[2]), pep ?? ''); // NOSONAR:S9382 - skrip verifikasi sekuensial
   console.log(`  With pepper "${pep}": ${b64(a) === parts[3] ? '✅' : '❌'}`);
 }

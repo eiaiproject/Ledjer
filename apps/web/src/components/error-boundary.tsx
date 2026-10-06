@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
       Sentry.captureException(error, { extra: { errorInfo } });
       // Buka dialog feedback agar user bisa lapor setelah error
       const fb = Sentry.getFeedback() as { createForm: (opts?: Record<string, unknown>) => Promise<void> } | undefined;
-      fb?.createForm();
+      fb?.createForm().catch(() => undefined);
     }
   }
 
