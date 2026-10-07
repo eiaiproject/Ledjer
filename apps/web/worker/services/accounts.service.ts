@@ -161,16 +161,27 @@ export async function createCashBankAccount(
 export const STOCK_LOSS_ACCOUNT_CODE = "6195";
 const STOCK_LOSS_ACCOUNT_NAME = "Beban Susut Persediaan";
 
-export async function ensureStockLossAccount(db: D1Database, userId: string): Promise<AccountRow> {
-  const existing = await queryFirst<AccountRow>(
+/** Cari akun beban susut milik buku (dipakai saat cek awal dan recovery balap). */
+async function findStockLossAccount(db: D1Database, userId: string): Promise<AccountRow | null> {
+  return queryFirst<AccountRow>(
     db,
     `SELECT ${accountColumns} FROM accounts WHERE user_id = ? AND code = ?`,
     [userId, STOCK_LOSS_ACCOUNT_CODE],
   );
-  if (existing && existing.is_active !== 1) {
+}
+
+/** Pakai akun yang sudah ada; tolak bila dinonaktifkan. */
+function reuseStockLossAccount(existing: AccountRow | null): AccountRow | null {
+  if (!existing) return null;
+  if (existing.is_active !== 1) {
     throw badRequest("account_inactive", "Akun beban susut dinonaktifkan. Hubungi dukungan.");
   }
-  if (existing) return existing;
+  return existing;
+}
+
+export async function ensureStockLossAccount(db: D1Database, userId: string): Promise<AccountRow> {
+  const reused = reuseStockLossAccount(await findStockLossAccount(db, userId));
+  if (reused) return reused;
 
   // Dua susut paralel dapat balap membuat akun yang sama; pemenang di-read ulang.
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -191,11 +202,7 @@ export async function ensureStockLossAccount(db: D1Database, userId: string): Pr
       return account;
     } catch (err) {
       if (attempt < 2 && err instanceof Error && /unique|constraint/i.test(err.message)) {
-        const raced = await queryFirst<AccountRow>(
-          db,
-          `SELECT ${accountColumns} FROM accounts WHERE user_id = ? AND code = ?`,
-          [userId, STOCK_LOSS_ACCOUNT_CODE],
-        );
+        const raced = await findStockLossAccount(db, userId); // NOSONAR:S9382 - recovery balap kode jalan berurutan dalam retry
         if (raced) return raced;
         continue;
       }
