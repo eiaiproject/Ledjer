@@ -173,6 +173,9 @@ export interface CreateTransactionInput {
   unitCostMinor?: number;
   /** Susut non-kas: movement "loss" tanpa arus kas (pecah/konsumsi/hilang). */
   stockLoss?: boolean;
+  /** Payload item bentuk server; disimpan di outbox agar replay sync memakai
+   *  bentuk request yang sama persis dengan POST /api/transactions. */
+  items?: { productId: string; quantity: number; unitPriceIdr?: number; unitCostIdr?: number }[];
 }
 
 /**
@@ -280,14 +283,49 @@ export function postTransactionLocal(
     cashAccountId: input.cashAccountId,
     counterAccountId: input.counterAccountId ?? null,
     amountIdr: input.amountIdr,
+    items: input.items ?? null,
   });
 
   return getTransactionById(db, id)!;
 }
 
 /**
+ * Stok & WAC hasil hitung ulang dari seluruh movement posted produk.
+ * Half-up identik dengan computeNewWac supaya angka lokal dan worker sama.
+ */
+function summarizePostedMovementsForProduct(
+  db: Database,
+  userId: string,
+  productId: string,
+): { stockMilli: number; wacMinor: number } {
+  const stmt = db.prepare(
+    `SELECT sm.quantity_milli, sm.unit_cost_minor
+     FROM stock_movements sm
+     JOIN transactions t ON t.id = sm.transaction_id
+     WHERE sm.user_id = ? AND sm.product_id = ? AND t.status = 'posted'
+     ORDER BY sm.created_at ASC, sm.rowid ASC`,
+  );
+  stmt.bind([userId, productId]);
+  let stock = 0n;
+  let wac = 0n;
+  while (stmt.step()) {
+    const row = stmt.get([]);
+    const qty = BigInt(Number(row[0]));
+    if (qty > 0n) {
+      const next = stock + qty;
+      wac = (stock * wac + qty * BigInt(Number(row[1])) + next / 2n) / next;
+      stock = next;
+    } else {
+      stock += qty;
+    }
+  }
+  stmt.finalize();
+  return { stockMilli: Number(stock), wacMinor: Number(wac) };
+}
+
+/**
  * Void a transaction — local DB first.
- * Sets status = 'voided', reverses product stock, and appends outbox.
+ * Sets status = 'voided' and recalculates product stock/WAC from posted history.
  */
 export function voidTransactionLocal(db: Database, transactionId: string): Transaction {
   const tx = getTransactionById(db, transactionId);
@@ -302,26 +340,18 @@ export function voidTransactionLocal(db: Database, transactionId: string): Trans
       bind: [now, transactionId],
     });
 
-    // Kembalikan stok dari movements transaksi ini.
-    const movements = getStockMovementsForTransactions(db, [transactionId]);
-    for (const m of movements) {
-      const stmt = db.prepare(`SELECT current_stock_milli FROM products WHERE id = ?`);
-      stmt.bind([m.product_id]);
-      let currentStock = 0;
-      if (stmt.step()) currentStock = Number(stmt.get([])[0]);
-      stmt.finalize();
-      // "in" menambah stok → void kurangi; "out"/"loss" mengurangi → void tambahkan.
-      const restored = m.movement_type === "in" ? currentStock - m.quantity_milli : currentStock + m.quantity_milli;
-      if (restored < 0) {
+    // Ratakan dengan server: movements TIDAK dihapus (jejak audit tetap) dan
+    // stok/WAC dihitung ulang dari riwayat posted — movement transaksi ini
+    // otomatis tereliminasi karena statusnya kini voided.
+    const productIds = [...new Set(getStockMovementsForTransactions(db, [transactionId]).map((m) => m.product_id))];
+    for (const productId of productIds) {
+      const { stockMilli, wacMinor } = summarizePostedMovementsForProduct(db, tx.user_id, productId);
+      if (stockMilli < 0) {
         throw new Error("Stok tidak mencukupi untuk membatalkan transaksi ini");
       }
       db.exec({
-        sql: `UPDATE products SET current_stock_milli = ?, updated_at = ? WHERE id = ?`,
-        bind: [restored, now, m.product_id],
-      });
-      db.exec({
-        sql: `DELETE FROM stock_movements WHERE id = ?`,
-        bind: [m.id],
+        sql: `UPDATE products SET current_stock_milli = ?, average_cost_minor = ?, updated_at = ? WHERE id = ?`,
+        bind: [stockMilli, wacMinor, now, productId],
       });
     }
     db.exec("COMMIT");

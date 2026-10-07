@@ -17,7 +17,7 @@ import {
 } from "@/lib/quick-entry";
 import { createProduct, listProducts } from "@/lib/api/products";
 import { listAccounts, listCashBankAccounts } from "@/lib/api/accounts";
-import { postTransaction } from "@/lib/api/transactions";
+import { postTransaction, type PostTransactionInput } from "@/lib/api/transactions";
 import { isApiError } from "@/lib/api/client";
 import { useLocalDb } from "@/lib/db/provider";
 import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
@@ -235,7 +235,8 @@ export function readFrozenWacMinor(db: Database | null, productId: string): numb
 // ── Penyiapan posting (modul murni) ──────────────────────────────
 
 export type PostTransactionType =
-  | "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase";
+  | "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase"
+  | "stock_loss";
 
 export interface PostSpecInput {
   transactionType: PostTransactionType;
@@ -366,11 +367,12 @@ export interface LossPostContext {
 
 export function prepareLossPost(ctx: LossPostContext): PreparedPost {
   const description = `${ctx.selectedName} ${ctx.reason ?? "pecah"} ${ctx.qty} ${ctx.selectedUnit} (via cepat)`;
-  // WAC dibaca dari produk lokal (sumber kebenaran); fallback harga input.
+  // WAC dibaca dari produk lokal; fallback harga input — dipakai jalur lokal
+  // offline. Server selalu menghitung HPP dari WAC-nya sendiri.
   const frozenMinor = readFrozenWacMinor(ctx.db, ctx.productId) ?? ctx.fallbackMinor;
   return {
     input: {
-      transactionType: "cash_out",
+      transactionType: "stock_loss",
       description,
       cashAccountId: ctx.cashAccountId,
       amountIdr: 0,
@@ -378,6 +380,7 @@ export function prepareLossPost(ctx: LossPostContext): PreparedPost {
       quantityMilli: Math.round(ctx.qty * 1000),
       unitCostMinor: frozenMinor,
       stockLoss: true,
+      items: [{ productId: ctx.productId, quantity: ctx.qty }],
     },
     description,
     postedTotal: 0,
@@ -757,7 +760,7 @@ export interface NewProductSubmission {
 }
 
 export type SubmissionOutcome =
-  | { ok: true; description: string; postedTotal: number }
+  | { ok: true; description: string; postedTotal: number; offline?: boolean }
   | { ok: false; message: string };
 
 /** Buat produk lalu catat pembelian; kembalikan hasil akhir yang siap tampil. */
@@ -765,7 +768,7 @@ export async function submitNewProductPurchase(
   form: NewProductSubmission,
   api: {
     resolveProduct: (name: string, unit: string) => Promise<{ id: string; createdNow: boolean }>;
-    post: (input: PostSpecInput, date: string) => Promise<void>;
+    post: (input: PostSpecInput, date: string) => Promise<{ offline: boolean }>;
     resolveParty: (name: string) => string | null;
   },
 ): Promise<SubmissionOutcome> {
@@ -781,8 +784,9 @@ export async function submitNewProductPurchase(
   const partyId = form.party ? api.resolveParty(form.party) : null;
   const partySuffix = form.party ? ` dari ${form.party}` : "";
   const description = `Beli ${form.qty} ${form.unit.trim()} ${form.name.trim()}${partySuffix} (via cepat)`;
+  let offline: boolean;
   try {
-    await api.post(
+    const outcome = await api.post(
       {
         transactionType: "purchase",
         description,
@@ -796,6 +800,7 @@ export async function submitNewProductPurchase(
       },
       form.txDate,
     );
+    offline = outcome.offline;
   } catch (err) {
     if (createdNow) {
       return {
@@ -805,7 +810,7 @@ export async function submitNewProductPurchase(
     }
     return { ok: false, message: translateError(err) };
   }
-  return { ok: true, description, postedTotal: form.total };
+  return { ok: true, description, postedTotal: form.total, offline };
 }
 
 export interface EffectiveIds {
@@ -1583,63 +1588,64 @@ export function QuickEntryBar() {
     setTotal(nextTotal);
   };
 
-  // Local-first: tulis ke SQLite perangkat dulu (offline), sync jalan di background.
-  // Server tetap dipanggil bila reachable agar backup/cross-device tidak tertinggal;
-  // kegagalan jaringan bukan kegagalan pencatatan.
+  // Server-first: validasi server adalah gerbang tulis, jadi penolakan 4xx
+  // tidak pernah meninggalkan buku lokal yang sudah berubah. Buku lokal +
+  // outbox hanya dipakai saat server benar-benar tak terjangkau; replay sync
+  // memvalidasi ulang (dan menghitung WAC) di sisi server saat online.
   const postingRef = useRef(false);
-  const postLocalThenServer = async (
-    input: {
-      transactionType: "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase";
-      description: string;
-      cashAccountId: string;
-      counterAccountId?: string;
-      amountIdr: number;
-      partyId?: string | null;
-      productId?: string | null;
-      quantityMilli?: number;
-      unitCostMinor?: number;
-      stockLoss?: boolean;
-        items?: Array<{ productId: string; quantity: number; unitPriceIdr?: number; unitCostIdr?: number }>;
-      },
-      transactionDate: string = txDate,
-    ) => {
+  const postQuickEntry = async (
+    input: PostSpecInput,
+    idempotencyKey: string,
+    transactionDate: string = txDate,
+  ): Promise<{ offline: boolean }> => {
     if (!transactionDate) throw new Error("Tanggal transaksi wajib diisi");
-    if (localDb) {
-      if (!userId) throw new Error("Not authenticated");
+    const serverInput: PostTransactionInput = {
+      transactionType: input.transactionType,
+      transactionDate,
+      description: input.description,
+      idempotencyKey,
+    };
+    if (input.cashAccountId) serverInput.cashAccountId = input.cashAccountId;
+    if (input.counterAccountId) serverInput.counterAccountId = input.counterAccountId;
+    if (input.amountIdr > 0) serverInput.amountIdr = input.amountIdr;
+    if (input.items) serverInput.items = input.items;
+    try {
+      await postTransaction(serverInput);
+      return { offline: false };
+    } catch (err) {
+      // Validasi 4xx = user harus melihatnya; tidak ditulis ke mana pun.
+      if (isApiError(err) && !(err.status >= 500 || err.status === 408 || err.status === 429)) throw err;
+
+      if (!localDb || !userId) throw err;
       postTransactionLocal(localDb, userId, {
-        transactionType: input.transactionType,
+        // Susut disimpan lokal sebagai marker cash_out (jurnal lokal diturunkan
+        // dari movement "loss"); replay sync memetakannya ke tipe stock_loss.
+        transactionType: input.transactionType === "stock_loss" ? "cash_out" : input.transactionType,
         transactionDate,
         description: input.description,
         partyId: input.partyId,
         productId: input.productId,
-        cashAccountId: input.cashAccountId,
+        cashAccountId: input.cashAccountId ?? "",
         counterAccountId: input.counterAccountId,
         amountIdr: input.amountIdr,
         quantityMilli: input.quantityMilli,
         unitCostMinor: input.unitCostMinor,
         stockLoss: input.stockLoss,
+        items: input.items,
       });
-    }
-    try {
-      const serverInput: Record<string, unknown> = {
-        transactionType: input.transactionType,
-        transactionDate,
-        cashAccountId: input.cashAccountId,
-        description: input.description,
-        idempotencyKey: crypto.randomUUID(),
-      };
-      if (input.counterAccountId) serverInput.counterAccountId = input.counterAccountId;
-      if (input.amountIdr > 0) serverInput.amountIdr = input.amountIdr;
-      if (input.items) serverInput.items = input.items;
-      await postTransaction(serverInput as unknown as Parameters<typeof postTransaction>[0]);
-    } catch (err) {
-      // Hanya kegagalan jaringan/server (bukan validasi) yang boleh optimis:
-      // outbox menyimpan op untuk sync berikutnya. Error validasi 4xx
-      // (mis. akun lawan hilang) harus terlihat agar tidak dikira tercatat.
-      if (localDb && (!isApiError(err) || err.status >= 500 || err.status === 408 || err.status === 429)) return;
-      throw err;
+      return { offline: true };
     }
   };
+  /** Key idempotensi stabil per draft: percobaan ulang atas draft yang sama
+   *  menghasilkan replay, draft baru (atau hasil edit) mendapat key baru. */
+  const draftKeyRef = useRef<{ draft: QuickEntryDraft; key: string } | null>(null);
+  const idempotencyKeyForDraft = (target: QuickEntryDraft): string => {
+    if (draftKeyRef.current?.draft !== target) {
+      draftKeyRef.current = { draft: target, key: crypto.randomUUID() };
+    }
+    return draftKeyRef.current.key;
+  };
+
   const handleConfirm = async () => {
     if (!valid || !draft || !userId) return;
     if (postingRef.current) return;
@@ -1670,15 +1676,19 @@ export function QuickEntryBar() {
       if (!prepared) return;
       const description = prepared.description;
       const postedTotal = prepared.postedTotal;
-      await postLocalThenServer(prepared.input);
+      const outcome = await postQuickEntry(prepared.input, idempotencyKeyForDraft(draft));
       queryClient.invalidateQueries({ queryKey: queryKeys.products.allProducts() });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
       if (userId) queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all(userId) });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       queryClient.invalidateQueries({ queryKey: ["max-transaction-date"] });
-      toast.success("Transaksi tercatat.");
-      setDoneMessage(`Transaksi tercatat: ${description} = ${formatIDR(postedTotal)}.`);
+      toast.success(outcome.offline ? "Tercatat di perangkat. Menunggu sinkronisasi." : "Transaksi tercatat.");
+      setDoneMessage(
+        outcome.offline
+          ? `Tercatat offline: ${description} = ${formatIDR(postedTotal)}. Akan disinkronkan saat online.`
+          : `Transaksi tercatat: ${description} = ${formatIDR(postedTotal)}.`,
+      );
       setText("");
       setDraft(null);
       setParseError(null);
@@ -1748,7 +1758,7 @@ export function QuickEntryBar() {
       },
       {
         resolveProduct: resolveOrCreateProductId,
-        post: postLocalThenServer,
+        post: (input, date) => postQuickEntry(input, crypto.randomUUID(), date),
         resolveParty: (name) => resolvePartyId(localDb, userId, name, "supplier"),
       },
     );
@@ -1761,8 +1771,12 @@ export function QuickEntryBar() {
     queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.allDashboard() });
     queryClient.invalidateQueries({ queryKey: ["max-transaction-date"] });
-    toast.success("Produk dibuat dan pembelian tercatat.");
-    setDoneMessage(`Transaksi tercatat: ${outcome.description} = ${formatIDR(outcome.postedTotal)}.`);
+    toast.success(outcome.offline ? "Produk dibuat. Pembelian menunggu sinkronisasi." : "Produk dibuat dan pembelian tercatat.");
+    setDoneMessage(
+      outcome.offline
+        ? `Tercatat offline: ${outcome.description} = ${formatIDR(outcome.postedTotal)}. Akan disinkronkan saat online.`
+        : `Transaksi tercatat: ${outcome.description} = ${formatIDR(outcome.postedTotal)}.`,
+    );
     setText("");
     setNewProduct(null);
     setParseError(null);

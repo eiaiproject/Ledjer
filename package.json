@@ -31,7 +31,15 @@
     "test:e2e:deploy": "E2E_MODE=deploy-smoke E2E_BASE_URL=https://ledjer.id pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/security-public.spec.ts --project=chromium",
     "test:e2e:cross-browser-smoke": "E2E_CROSS_BROWSER=1 pnpm --filter web exec playwright test e2e/smoke.spec.ts e2e/static-routes.spec.ts --project=firefox --project=webkit"
   },
-  "keywords": ["accounting", "bookkeeping", "umkm", "indonesia", "double-entry", "cloudflare", "d1"],
+  "keywords": [
+    "accounting",
+    "bookkeeping",
+    "umkm",
+    "indonesia",
+    "double-entry",
+    "cloudflare",
+    "d1"
+  ],
   "author": "eiaiproject",
   "homepage": "https://ledjer.id",
   "repository": {
@@ -56,6 +64,6 @@
     }
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^5.0.0"
+    "@vitest/coverage-v8": "^5.0.3"
   }
 }

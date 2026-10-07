@@ -87,6 +87,7 @@ export const TRANSACTION_TYPE_VALUES = [
   "owner_deposit",
   "owner_withdrawal",
   "purchase",
+  "stock_loss",
 ] as const;
 export const TRANSACTION_STATUS_VALUES = ["posted", "voided"] as const;
 

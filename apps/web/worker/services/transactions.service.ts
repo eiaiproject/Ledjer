@@ -5,7 +5,7 @@ import { normalizeDate } from "../http/date";
 import type { TransactionType, TransactionStatus } from "../db/schema";
 import type { D1Database, D1PreparedStatement, D1Result } from "@cloudflare/workers-types";
 import { sha256Hex } from "../auth/tokens";
-import { getAccount, isCashBankAccount, type AccountRow } from "./accounts.service";
+import { ensureStockLossAccount, getAccount, isCashBankAccount, type AccountRow } from "./accounts.service";
 import {
   cogsFromMilliWac,
   computeNewWac,
@@ -37,7 +37,8 @@ export interface TransactionItemInput {
 export interface PostTransactionInput {
   transactionType: TransactionType;
   transactionDate: string;
-  cashAccountId: string;
+  /** Wajib kecuali stock_loss — susut tidak menyentuh kas. */
+  cashAccountId?: string;
   counterAccountId?: string;
   amountIdr?: number;
   description: string;
@@ -130,6 +131,7 @@ const TRANSACTION_TYPES = new Set<TransactionType>([
   "owner_deposit",
   "owner_withdrawal",
   "purchase",
+  "stock_loss",
 ]);
 
 export const TRANSACTION_LABELS: Record<TransactionType, string> = {
@@ -139,6 +141,7 @@ export const TRANSACTION_LABELS: Record<TransactionType, string> = {
   owner_deposit: "Modal Masuk",
   owner_withdrawal: "Pengambilan Pemilik",
   purchase: "Pembelian Barang",
+  stock_loss: "Susut Stok",
 };
 
 export function transactionTypeLabel(type: TransactionType): string {
@@ -154,6 +157,8 @@ export function transactionDirection(type: TransactionType): TransactionDirectio
     case "owner_withdrawal":
     case "purchase":
       return "out";
+    // Susut bukan pergerakan kas — jangan ditampilkan sebagai uang keluar.
+    case "stock_loss":
     case "transfer":
       return "neutral";
   }
@@ -187,7 +192,25 @@ function resolveJournalAccounts(
     case "owner_withdrawal":
     case "purchase":
       return { debitAccount: counterAccount, creditAccount: cashAccount };
+    case "stock_loss":
+      // Jurnal susut disusun sendiri di postStockLoss (Beban DR / Persediaan CR).
+      throw badRequest("transaction_type_invalid", "Jenis transaksi tidak valid.");
   }
+}
+
+/** Validasi input transaksi biasa (tanpa persediaan); urutan cek dipertahankan. */
+function assertPlainTransactionInput(input: PostTransactionInput): { cashAccountId: string; amountIdr: number; counterAccountId: string } {
+  if (!input.cashAccountId) {
+    throw badRequest("cash_account_required", "Akun kas/bank harus diisi.");
+  }
+  if (input.amountIdr === undefined) {
+    throw badRequest("amount_required", "Nominal wajib diisi.");
+  }
+  const amountIdr = toIdr(input.amountIdr);
+  if (!input.counterAccountId) {
+    throw badRequest("counter_account_required", "Akun lawan harus diisi.");
+  }
+  return { cashAccountId: input.cashAccountId, amountIdr, counterAccountId: input.counterAccountId };
 }
 
 export async function postTransaction(
@@ -210,6 +233,13 @@ export async function postTransaction(
     }, requestId);
   }
 
+  // Susut stok: jurnal Beban Susut DR / Persediaan CR, kas tidak tersentuh.
+  if (type === "stock_loss") {
+    return postStockLoss(db, userId, {
+      transactionDate, description, idempotencyKey: normalizedKey, items,
+    }, requestId);
+  }
+
   // Penjualan barang: cash_in dengan items → Kas DR / Pendapatan CR + HPP DR / Persediaan CR.
   if (items && items.length > 0) {
     if (type !== "cash_in") {
@@ -223,18 +253,11 @@ export async function postTransaction(
   }
 
   // Transaksi biasa (tanpa persediaan) - perilaku MVP asli.
-  if (input.amountIdr === undefined) {
-    throw badRequest("amount_required", "Nominal wajib diisi.");
-  }
-  const amountIdr = toIdr(input.amountIdr);
-  const counterAccountId = input.counterAccountId;
-  if (!counterAccountId) {
-    throw badRequest("counter_account_required", "Akun lawan harus diisi.");
-  }
+  const { cashAccountId, amountIdr, counterAccountId } = assertPlainTransactionInput(input);
   const payloadHash = await idempotencyPayloadHash({
     transactionType: type,
     transactionDate,
-    cashAccountId: input.cashAccountId,
+    cashAccountId,
     counterAccountId,
     amountIdr,
     description,
@@ -246,7 +269,7 @@ export async function postTransaction(
   await assertChronological(db, userId, transactionDate);
   const current = Date.now();
 
-  const cashAccount = await getAccount(db, userId, input.cashAccountId);
+  const cashAccount = await getAccount(db, userId, cashAccountId);
   const counterAccount = await getAccount(db, userId, counterAccountId);
   validateTransaction(type, cashAccount, counterAccount);
 
@@ -545,11 +568,12 @@ async function postPurchase(
     transactionDate: string;
     description: string;
     idempotencyKey: string;
-    cashAccountId: string;
+    cashAccountId?: string;
     items: TransactionItemInput[] | undefined;
   },
   requestId?: string,
 ): Promise<PostTransactionResult> {
+  if (!input.cashAccountId) throw badRequest("cash_account_required", "Akun kas/bank harus diisi.");
   const items = await normalizePurchaseItems(db, userId, input.items);
   const totalCost = items.reduce((s, i) => s + i.costTotalIdr, 0);
   if (!Number.isSafeInteger(totalCost) || totalCost <= 0 || totalCost > 999_999_999_999) {
@@ -688,13 +712,14 @@ async function postGoodsSale(
     transactionDate: string;
     description: string;
     idempotencyKey: string;
-    cashAccountId: string;
+    cashAccountId?: string;
     counterAccountId: string | undefined;
     amountIdr: number | undefined;
     items: TransactionItemInput[] | undefined;
   },
   requestId?: string,
 ): Promise<PostTransactionResult> {
+  if (!input.cashAccountId) throw badRequest("cash_account_required", "Akun kas/bank harus diisi.");
   const items = await normalizeSaleItems(db, userId, input.items);
   // Total pendapatan selalu dihitung dari item (qty × harga jual), bukan
   // dari amountIdr yang dikirim klien — menghindari selisih pembulatan.
@@ -816,6 +841,156 @@ async function postGoodsSale(
     }),
   );
   if (committedSale) return committedSale;
+
+  return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
+}
+
+/** Susut: stok turun dengan WAC beku; nilai menjadi beban, bukan kas. */
+interface NormalizedLossItem {
+  productId: string;
+  quantityMilli: number;
+  wacMinor: number;
+  costIdr: number;
+}
+
+async function normalizeLossItems(
+  db: D1Database,
+  userId: string,
+  items: TransactionItemInput[] | undefined,
+): Promise<NormalizedLossItem[]> {
+  if (!items || items.length === 0) {
+    throw badRequest("items_required", "Minimal satu produk harus diisi.");
+  }
+  assertUniqueItems(items);
+  const result: NormalizedLossItem[] = [];
+  for (const item of items) {
+    const quantityMilli = quantityToMilli(item.quantity);
+    const product = await getProduct(db, userId, item.productId); // NOSONAR:S9382 - validasi berurutan agar error pertama deterministik
+    if (product?.is_active !== 1) {
+      throw badRequest("product_inactive", "Produk tidak aktif. Pilih produk lain.");
+    }
+    if (product.current_stock_milli < quantityMilli) {
+      throw badRequest("insufficient_stock", `Stok ${product.name} tidak mencukupi.`);
+    }
+    result.push({
+      productId: item.productId,
+      quantityMilli,
+      wacMinor: product.average_cost_minor,
+      costIdr: cogsFromMilliWac(quantityMilli, product.average_cost_minor),
+    });
+  }
+  return result;
+}
+
+async function postStockLoss(
+  db: D1Database,
+  userId: string,
+  input: {
+    transactionDate: string;
+    description: string;
+    idempotencyKey: string;
+    items: TransactionItemInput[] | undefined;
+  },
+  requestId?: string,
+): Promise<PostTransactionResult> {
+  const items = await normalizeLossItems(db, userId, input.items);
+  const totalCost = items.reduce((s, i) => s + i.costIdr, 0);
+  if (!Number.isSafeInteger(totalCost) || totalCost <= 0 || totalCost > 999_999_999_999) {
+    throw badRequest("invalid_amount", "Nilai susut harus lebih dari 0. Produk belum punya harga pokok — catat pembeliannya dulu.");
+  }
+  const payloadHash = await idempotencyPayloadHash({
+    transactionType: "stock_loss",
+    transactionDate: input.transactionDate,
+    cashAccountId: "",
+    amountIdr: totalCost,
+    description: input.description,
+    items: items.map((i) => ({ productId: i.productId, quantityMilli: i.quantityMilli })),
+  });
+  const replay = await replayIfKeyAlreadyUsed(db, userId, input.idempotencyKey, payloadHash);
+  if (replay) return replay;
+
+  assertDateNotFuture(input.transactionDate);
+  await assertChronological(db, userId, input.transactionDate);
+  const current = Date.now();
+
+  const lossAccount = await ensureStockLossAccount(db, userId);
+  const inventoryAccount = await resolveInventoryAccount(db, userId);
+  if (!inventoryAccount) {
+    throw badRequest("inventory_account_missing", "Akun Persediaan belum tersedia. Hubungi dukungan.");
+  }
+
+  const transactionId = crypto.randomUUID();
+  const journalEntryId = crypto.randomUUID();
+  const transactionNumber = await generateTransactionNumber(db, userId, input.transactionDate);
+
+  const statements: D1PreparedStatement[] = [
+    statement(
+      db,
+      `INSERT INTO transactions (
+         id, user_id, transaction_number, transaction_type, transaction_date,
+         description, status, amount_idr, cash_account_id, counter_account_id,
+         idempotency_key, created_at, updated_at, idempotency_payload_hash
+       ) VALUES (?, ?, ?, 'stock_loss', ?, ?, 'posted', ?, NULL, ?, ?, ?, ?, ?)`,
+      [
+        transactionId, userId, transactionNumber, input.transactionDate,
+        input.description, totalCost, lossAccount.id,
+        input.idempotencyKey, current, current, payloadHash,
+      ],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_entries (
+         id, user_id, transaction_id, entry_date, description, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
+      [journalEntryId, userId, transactionId, input.transactionDate, input.description, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, 0, ?)`,
+      [crypto.randomUUID(), userId, journalEntryId, lossAccount.id, totalCost, current],
+    ),
+    statement(
+      db,
+      `INSERT INTO journal_lines (
+         id, user_id, journal_entry_id, account_id, debit_idr, credit_idr, created_at
+       ) VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      [crypto.randomUUID(), userId, journalEntryId, inventoryAccount.id, totalCost, current],
+    ),
+    ...items.map((item) => statement(
+      db,
+      `INSERT INTO stock_movements (
+         id, user_id, transaction_id, product_id, quantity_milli,
+         unit_cost_minor, cost_total_idr, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [crypto.randomUUID(), userId, transactionId, item.productId, -item.quantityMilli, item.wacMinor, item.costIdr, current],
+    )),
+    writeAuditStatement(db, {
+      userId,
+      actorUserId: userId,
+      entityType: "transaction",
+      entityId: transactionId,
+      action: "transaction_created",
+      after: { transaction_type: "stock_loss", amount_idr: totalCost, transaction_number: transactionNumber, items: items.length },
+      requestId,
+      current,
+    }),
+  ];
+
+  const committedLoss = await commitInventoryTransaction(
+    db,
+    userId,
+    input.idempotencyKey,
+    payloadHash,
+    statements,
+    items,
+    (item) => ({ stockMilli, wacMinor }) => ({
+      stockMilli: stockMilli - item.quantityMilli,
+      wacMinor,
+    }),
+  );
+  if (committedLoss) return committedLoss;
 
   return { transaction_id: transactionId, transaction_number: transactionNumber, journal_entry_id: journalEntryId, status: "posted" };
 }
@@ -1049,10 +1224,15 @@ export async function voidTransaction(
   if ((batchResults[0]?.meta.changes ?? 0) === 0) {
     throw conflict("transaction_not_posted", "Hanya transaksi berstatus posted yang dapat dibatalkan.");
   }
-  // Restore cache yang guard-nya miss berarti ada writer konkuren — tolak agar klien retry dengan riwayat segar.
+  // Guard miss berarti writer konkuren mengubah cache di antara baca dan
+  // batch — status voided sudah ter-commit dalam batch yang sama, jadi retry
+  // void mustahil. Pulihkan cache dari riwayat: movement transaksi ini otomatis
+  // tereliminasi karena statusnya kini voided.
   const restoreResults = batchResults.slice(1, 1 + restoreStatements.length);
-  if (restoreResults.some((r) => (r.meta.changes ?? 0) === 0) && restoreStatements.length > 0) {
-    throw conflict("stock_update_conflict", "Stok produk berubah saat diproses. Coba lagi.");
+  if (restoreStatements.length > 0 && restoreResults.some((r) => (r.meta.changes ?? 0) === 0)) {
+    for (const productId of productIds) {
+      await recalculateProductCosts(db, userId, productId); // NOSONAR:S9382 - pemulihan sekuensial per produk
+    }
   }
 
   return getTransaction(db, userId, transactionId);
@@ -1095,6 +1275,9 @@ function validateTransaction(
         throw badRequest("counter_account_invalid", "Akun lawan harus akun ekuitas.");
       }
       break;
+    case "stock_loss":
+      // Tidak pernah lewat jalur generic (di-route ke postStockLoss).
+      throw badRequest("transaction_type_invalid", "Jenis transaksi tidak valid.");
   }
 }
 
@@ -1110,6 +1293,10 @@ function assertDateNotFuture(transactionDate: string): void {
  * terakhir yang posted (void dikecualikan). Ini yang menjaga WAC/HPP benar
  * tanpa mesin revaluasi — "stok berjalan" selalu sama dengan "stok kronologis".
  * Tanggal yang sama boleh (beberapa transaksi sehari).
+ *
+ * Cek-then-insert di sini tidak atomik, tapi dua post paralel dari satu browser
+ * sudah dicegah UI (postingRef) dan D1 menserialisasi tulisan — jendela race
+ * hanya antar-perangkat simultan pada buku yang sama.
  */
 async function assertChronological(db: D1Database, userId: string, transactionDate: string): Promise<void> {
   const row = await queryFirst<{ max_date: string | null }>(

@@ -17,11 +17,17 @@ import type { Database } from "@sqlite.org/sqlite-wasm";
 import { applyLocalSchema } from "./local-schema";
 import { seedDefaultAccounts } from "./seed";
 
-// DB handle singleton (ditetapkan sekali saat init).
-let dbInstance: Database | null = null;
+// Satu handle per user aktif (satu akun = satu buku = satu file lokal),
+// di-cache agar ganti akun di device yang sama tidak berbagi handle.
+const instances = new Map<string, { db: Database; backend: LocalDbBackend }>();
 
-/** Nama file OPFS untuk buku lokal (satu akun = satu buku = satu file). */
+/** Nama file OPFS default tanpa user (anon/dev). */
 export const LOCAL_DB_FILENAME = "file:ledjer.sqlite3?vfs=opfs";
+
+/** Nama file OPFS per buku — userId UUID sehingga aman sebagai nama file. */
+export function localDbFilenameFor(userId: string): string {
+  return `file:ledjer-${userId}.sqlite3?vfs=opfs`;
+}
 
 /** Backend persistensi yang dipakai DB lokal: opfs > js-storage > memory. */
 export type LocalDbBackend = "opfs" | "js-storage" | "memory";
@@ -45,20 +51,25 @@ export function isOpfsAvailable(sqlite3: {
   }
 }
 /**
- * Inisialisasi database lokal SQLite-WASM.
+ * Inisialisasi database lokal SQLite-WASM untuk user aktif.
  *
- * Cascade: OPFS (`OpfsDb`, butuh worker + COOP/COEP) → `JsStorageDb('local')`
+ * Cascade: OPFS (`OpfsDb`, butuh worker + COOP/COEP) → `JsStorageDb`
  * → `:memory:`. Deteksi via properti (bukan try/catch buta) agar error asli
  * tidak tertelan; tiap lapis hanya dicoba bila konstruktornya ada.
  *
- * @param userId — ID user yang sedang aktif (untuk seed CoA).
+ * @param userId — ID user yang sedang aktif (menentukan file + seed CoA).
  * @returns Database handle yang sudah siap dipakai.
  */
 export async function initLocalDb(userId?: string): Promise<Database> {
-  if (dbInstance) return dbInstance;
+  const key = userId ?? "anonymous";
+  const cached = instances.get(key);
+  if (cached) {
+    dbBackend = cached.backend;
+    return cached.db;
+  }
 
   const sqlite3 = await sqlite3InitModule();
-  const opened = openPersistentDb(sqlite3);
+  const opened = openPersistentDb(sqlite3, key);
 
   // Apply schema (CREATE TABLE IF NOT EXISTS — idempotent).
   applyLocalSchema(opened.db);
@@ -68,7 +79,7 @@ export async function initLocalDb(userId?: string): Promise<Database> {
     seedCoA(opened.db, userId);
   }
 
-  dbInstance = opened.db;
+  instances.set(key, opened);
   dbBackend = opened.backend;
   return opened.db;
 }
@@ -79,11 +90,12 @@ function openPersistentDb(sqlite3: {
     JsStorageDb?: new (opts?: { filename?: "local" | "session"; flags?: string }) => Database;
     OpfsDb?: new (filename: string, flags?: string) => Database;
   };
-}): { db: Database; backend: LocalDbBackend } {
+}, key: string): { db: Database; backend: LocalDbBackend } {
+  const filename = key === "anonymous" ? LOCAL_DB_FILENAME : localDbFilenameFor(key);
   const Opfs = sqlite3.oo1.OpfsDb;
   if (typeof Opfs === "function") {
     try {
-      return { db: new Opfs(LOCAL_DB_FILENAME, "c"), backend: "opfs" };
+      return { db: new Opfs(filename, "c"), backend: "opfs" };
     } catch {
       // OPFS belum siap (bukan worker / tanpa COOP-COEP) — lanjut ke lapis berikut.
     }
@@ -91,7 +103,8 @@ function openPersistentDb(sqlite3: {
   const JsStorage = sqlite3.oo1.JsStorageDb;
   if (typeof JsStorage === "function") {
     try {
-      return { db: new JsStorage({ filename: "local" }), backend: "js-storage" };
+      // Nama file JsStorageDb dipakai sebagai key storage; beri namespace per user.
+      return { db: new JsStorage({ filename: (key === "anonymous" ? "local" : `ledjer-${key}`) as "local" }), backend: "js-storage" };
     } catch {
       // Storage penuh / localStorage diblokir — fallback ke memori.
     }
@@ -121,12 +134,13 @@ function seedCoA(db: Database, userId: string): void {
 }
 
 /**
- * Hanya untuk testing — reset singleton agar test berikutnya bisa init ulang.
+ * Hanya untuk testing — tutup semua handle agar test berikutnya bisa init ulang.
  * @internal
  */
 export function _resetLocalDbForTesting(): void {
-  if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
+  for (const { db } of instances.values()) {
+    db.close();
   }
+  instances.clear();
+  dbBackend = null;
 }

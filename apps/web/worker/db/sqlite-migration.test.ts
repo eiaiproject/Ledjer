@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -94,7 +95,7 @@ describe("Migrations against real SQLite", () => {
     }).not.toThrow();
   });
 
-  it("transactions CHECK constraint accepts 'purchase' and rejects unknown types", () => {
+  it("transactions CHECK constraint accepts 'purchase'/'stock_loss' and rejects unknown types", () => {
     // Regression: migration 0006 introduced the purchase transaction type, but
     // the original transactions CHECK (0002) only allowed the 5 cash-based
     // types. 0007 recreates the table to widen the constraint. This test
@@ -110,6 +111,14 @@ describe("Migrations against real SQLite", () => {
       db.exec(
         "INSERT INTO transactions (id, user_id, transaction_number, transaction_type, transaction_date, description, status, amount_idr, cash_account_id, counter_account_id, created_at, updated_at) " +
         "VALUES ('tx-purchase', 'user-purchase', 'TRX-20260101-P001', 'purchase', '2026-01-01', 'test', 'posted', 50000, 'acct-purchase', 'acct-purchase', 1, 1)"
+      );
+    }).not.toThrow();
+
+    // stock_loss must be accepted (widened by 0011, non-cash inventory shrinkage)
+    expect(() => {
+      db.exec(
+        "INSERT INTO transactions (id, user_id, transaction_number, transaction_type, transaction_date, description, status, amount_idr, cash_account_id, counter_account_id, created_at, updated_at) " +
+        "VALUES ('tx-loss', 'user-purchase', 'TRX-20260101-L001', 'stock_loss', '2026-01-01', 'test', 'posted', 5000, NULL, 'acct-purchase', 1, 1)"
       );
     }).not.toThrow();
 

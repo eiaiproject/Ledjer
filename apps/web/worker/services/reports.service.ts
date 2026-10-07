@@ -264,6 +264,8 @@ export async function getGeneralLedger(
        transaction_id,
        transaction_number,
        description,
+       entry_status,
+       void_reason,
        debit,
        credit,
        running_balance_idr

@@ -1,6 +1,7 @@
 import type { TransactionDirection, TransactionType } from "./api/transactions";
 
-// Label user (Bahasa Indonesia) untuk 6 jenis transaksi MVP (PRD TRX-01).
+// Label user (Bahasa Indonesia) per jenis transaksi; stock_loss tidak ada di
+// form manual (TRANSACTION_TYPES) — hanya lewat input cepat.
 export const TRANSACTION_LABELS: Record<TransactionType, string> = {
   cash_in: "Uang Masuk",
   cash_out: "Uang Keluar",
@@ -8,6 +9,7 @@ export const TRANSACTION_LABELS: Record<TransactionType, string> = {
   owner_deposit: "Modal Masuk",
   owner_withdrawal: "Pengambilan Pemilik",
   purchase: "Pembelian Barang",
+  stock_loss: "Susut Stok",
 };
 
 export const TRANSACTION_TYPES: TransactionType[] = [
@@ -51,6 +53,8 @@ export function counterAccountLabel(type: TransactionType): string {
       return "Pengambilan Pemilik";
     case "purchase":
       return "Akun Persediaan";
+    case "stock_loss":
+      return "Beban Susut";
   }
 }
 
@@ -66,5 +70,7 @@ export function cashAccountLabel(type: TransactionType): string {
       return "Akun Kas/Bank Sumber";
     case "transfer":
       return "Akun Sumber";
+    case "stock_loss":
+      return "Tanpa Kas";
   }
 }
