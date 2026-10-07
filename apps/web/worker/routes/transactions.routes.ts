@@ -14,7 +14,7 @@ import {
   voidTransaction,
 } from "../services/transactions.service";
 
-const transactionTypeSchema = z.enum(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase"]);
+const transactionTypeSchema = z.enum(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase", "stock_loss"]);
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 const transactionItemSchema = z.object({
@@ -29,7 +29,8 @@ const transactionItemSchema = z.object({
 const postTransactionSchema = z.object({
   transactionType: transactionTypeSchema,
   transactionDate: dateSchema,
-  cashAccountId: z.string().min(1),
+  // stock_loss tidak menyentuh kas — wajib untuk tipe lainnya (divalidasi service).
+  cashAccountId: z.string().min(1).optional(),
   counterAccountId: z.string().min(1).optional(),
   amountIdr: z.number().int().positive().max(999_999_999_999).optional(),
   description: z.string().min(1).max(200),
@@ -45,7 +46,7 @@ export const transactionsRoutes = new Hono<AppContext>();
 
 transactionsRoutes.use("*", requireAuth());
 
-const LIST_TYPE_WHITELIST = new Set(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase"]);
+const LIST_TYPE_WHITELIST = new Set(["cash_in", "cash_out", "transfer", "owner_deposit", "owner_withdrawal", "purchase", "stock_loss"]);
 const LIST_STATUS_WHITELIST = new Set(["posted", "voided"]);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

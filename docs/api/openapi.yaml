@@ -358,18 +358,18 @@ paths:
           application/json:
             schema:
               type: object
-              required: [transactionType, transactionDate, cashAccountId, description, idempotencyKey]
+              required: [transactionType, transactionDate, description, idempotencyKey]
               properties:
                 transactionType: { $ref: "#/components/schemas/TransactionType" }
                 transactionDate: { type: string, format: date, description: "YYYY-MM-DD; future dates (Asia/Jakarta) are rejected" }
-                cashAccountId: { type: string }
-                counterAccountId: { type: string, description: "Required for all types except purchase (inventory account is auto-resolved)" }
-                amountIdr: { type: integer, exclusiveMinimum: 0, description: "Required for non-inventory types; for goods sale the total is computed from items" }
+                cashAccountId: { type: string, description: "Required for all types except stock_loss (non-cash shrinkage)" }
+                counterAccountId: { type: string, description: "Required for all types except purchase and stock_loss (account sides are auto-resolved)" }
+                amountIdr: { type: integer, exclusiveMinimum: 0, description: "Required for non-inventory types; for goods sale and stock_loss the total is computed from items/WAC" }
                 description: { type: string, minLength: 1, maxLength: 200 }
                 idempotencyKey: { type: string, minLength: 8, maxLength: 160 }
                 items:
                   type: array
-                  description: "Items for inventory transactions: required for purchase; optional for cash_in (goods sale)"
+                  description: "Items for inventory transactions: required for purchase and stock_loss; optional for cash_in (goods sale)"
                   items:
                     type: object
                     required: [productId, quantity]
@@ -608,7 +608,7 @@ components:
       enum: [asset, liability, equity, income, expense]
     TransactionType:
       type: string
-      enum: [cash_in, cash_out, transfer, owner_deposit, owner_withdrawal, purchase]
+      enum: [cash_in, cash_out, transfer, owner_deposit, owner_withdrawal, purchase, stock_loss]
     TransactionStatus:
       type: string
       enum: [posted, voided]

@@ -67,48 +67,121 @@ interface OutboxPayload {
 }
 
 /**
- * Push single outbox entry ke server.
- * Returns true if successful, false if conflict (treat as synced — local is truth).
+ * True bila response server boleh dianggap selesai (tak perlu retry).
+ * 409 = konflik idempotensi (replay); 4xx permanen lain (kecuali 408/429)
+ * dibuang agar outbox tidak macet; 5xx/jaringan → retry.
  */
-async function pushToServer(entry: OutboxPayload): Promise<boolean> {
-  const url = `/api/sync/${entry.entityType}/${entry.entityId}`;
+function pushOutcome(res: Response, label: string): boolean {
+  if (res.status === 409 || res.ok) return true;
+  if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+    console.warn(`[sync] Push ditolak permanen (${res.status}), entri dibuang agar tidak loop: ${label}`);
+    return true;
+  }
+  console.warn(`[sync] Push failed: ${res.status} ${res.statusText} (${label})`);
+  return false;
+}
 
+/** Payload lama (sebelum items ikut disimpan) — rekonstruksi dari field tunggal. */
+function legacyItemsFromPayload(payload: Record<string, unknown>): Array<{
+  productId: string;
+  quantity: number;
+  unitPriceIdr?: number;
+  unitCostIdr?: number;
+}> | null {
+  const productId = payload.productId;
+  const quantityMilli = payload.quantityMilli;
+  if (typeof productId !== "string" || typeof quantityMilli !== "number" || quantityMilli <= 0) return null;
+  const quantity = quantityMilli / 1000;
+  const item: { productId: string; quantity: number; unitPriceIdr?: number; unitCostIdr?: number } = { productId, quantity };
+  if (typeof payload.unitCostMinor === "number") item.unitCostIdr = payload.unitCostMinor / 10_000;
+  if (typeof payload.amountIdr === "number" && payload.amountIdr > 0) item.unitPriceIdr = payload.amountIdr / quantity;
+  return [item];
+}
+
+/** Body POST /api/transactions dari payload outbox — server menghitung ulang WAC/HPP. */
+function buildTransactionReplayBody(entry: OutboxPayload, payload: Record<string, unknown>): Record<string, unknown> {
+  const stockLoss = payload.stockLoss === true;
+  const body: Record<string, unknown> = {
+    transactionType: stockLoss ? "stock_loss" : payload.transactionType,
+    transactionDate: payload.transactionDate,
+    description:
+      typeof payload.description === "string" && payload.description
+        ? payload.description
+        : "Transaksi offline (via cepat)",
+    idempotencyKey:
+      typeof payload.opId === "string" && payload.opId.length >= 8 ? payload.opId : `outbox-${entry.id}`,
+  };
+  if (!stockLoss && typeof payload.cashAccountId === "string" && payload.cashAccountId) {
+    body.cashAccountId = payload.cashAccountId;
+  }
+  if (typeof payload.counterAccountId === "string" && payload.counterAccountId) {
+    body.counterAccountId = payload.counterAccountId;
+  }
+  if (typeof payload.amountIdr === "number" && payload.amountIdr > 0) {
+    body.amountIdr = payload.amountIdr;
+  }
+  const items = Array.isArray(payload.items) ? payload.items : legacyItemsFromPayload(payload);
+  if (items && items.length > 0) body.items = items;
+  return body;
+}
+
+/**
+ * Replay op transaksi lewat endpoint REST aslinya (POST /api/transactions atau
+ * void), bukan op-log: server memvalidasi ulang dan menghitung WAC/HPP dari
+ * state-nya sendiri, jadi buku server benar-benar menerima data offline.
+ */
+async function replayTransactionOp(entry: OutboxPayload, payload: Record<string, unknown>): Promise<boolean> {
+  const label = `transaction ${entry.entityId}`;
+  try {
+    if (entry.opType === "update") {
+      if (payload.status !== "voided") return true;
+      const res = await fetch(`/api/transactions/${entry.entityId}/void`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ reason: typeof payload.reason === "string" ? payload.reason : null }),
+      });
+      return pushOutcome(res, label);
+    }
+    if (entry.opType === "delete") return true;
+    const res = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(buildTransactionReplayBody(entry, payload)),
+    });
+    return pushOutcome(res, label);
+  } catch (err) {
+    console.warn("[sync] Replay error:", err);
+    return false;
+  }
+}
+
+/**
+ * Op non-transaksi (akun/produk/pihak): ke op-log /api/sync dengan op_id dan
+ * HLC stabil per entri outbox — retry tidak lagi membuat duplikat dan LWW
+ * server memakai urutan kejadian lokal, bukan waktu push.
+ */
+async function pushSyncOpEntry(entry: OutboxPayload): Promise<boolean> {
   const methodMap: Record<string, string> = {
     create: "POST",
     update: "PATCH",
     delete: "DELETE",
   };
-
   const method = methodMap[entry.opType] ?? "POST";
-
   try {
-    const res = await fetch(url, {
+    const res = await fetch(`/api/sync/${entry.entityType}/${entry.entityId}`, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: entry.payload,
       credentials: "include",
+      body: JSON.stringify({
+        op_id: `outbox-${entry.id}`,
+        hlc: `${entry.createdAt}-${String(entry.id).padStart(6, "0")}`,
+        payload: entry.payload,
+      }),
     });
-
-    // 409 → anggap synced (local-first).
-    if (res.status === 409) {
-      return true;
-    }
-
-    if (res.ok) {
-      return true;
-    }
-
-    // 4xx permanen (kecuali 408/429) → buang agar outbox tidak macet.
-    if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
-      console.warn(`[sync] Push ditolak permanen (${res.status}), entri dibuang agar tidak loop:`, entry.entityType, entry.entityId);
-      return true;
-    }
-
-    // Error lain → coba lagi.
-    console.warn(`[sync] Push failed: ${res.status} ${res.statusText}`);
-    return false;
+    return pushOutcome(res, `${entry.entityType} ${entry.entityId}`);
   } catch (err) {
-    // Gangguan jaringan → coba lagi.
     console.warn("[sync] Push error:", err);
     return false;
   }
@@ -138,9 +211,9 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
     const syncedIds: number[] = [];
 
     for (const entry of pending) {
-      let payload: unknown;
+      let payload: Record<string, unknown>;
       try {
-        payload = JSON.parse(entry.payload);
+        payload = JSON.parse(entry.payload) as Record<string, unknown>;
       } catch {
         // Payload rusak permanen → buang agar tidak throw tiap interval.
         console.warn("[sync] Payload rusak, entri dibuang:", entry.id);
@@ -148,14 +221,10 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
         continue;
       }
 
-      const success = await pushToServer({ // NOSONAR:S9382 - outbox di-replay berurutan agar LWW benar
-        id: entry.id,
-        entityType: entry.entityType,
-        entityId: entry.entityId,
-        opType: entry.opType,
-        payload: JSON.stringify(payload),
-        createdAt: entry.createdAt,
-      });
+      // Outbox di-replay berurutan agar LWW benar; paralel merusak urutan.
+      const success = entry.entityType === "transaction"
+        ? await replayTransactionOp(entry, payload) // NOSONAR:S9382 - replay berurutan agar LWW benar
+        : await pushSyncOpEntry(entry); // NOSONAR:S9382 - push berurutan agar LWW benar
 
       if (success) {
         syncedIds.push(entry.id);

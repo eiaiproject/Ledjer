@@ -1,10 +1,11 @@
 # Ledjer - Accounting Rules Reference (MVP Cash-Only)
 
 This document describes the accounting model actually implemented in the MVP:
-6 cash-based transaction types (termasuk pembelian barang dengan persediaan
-berbasis moving-average cost) posted as balanced double-entry journals against
-a default chart of accounts. It is the single source of truth for the current
-schema (`apps/web/worker/db/migrations`).
+6 cash-based transaction types plus `stock_loss` untuk susut stok non-tunai
+(termasuk pembelian barang dengan persediaan berbasis moving-average cost)
+posted as balanced double-entry journals against a default chart of accounts.
+It is the single source of truth for the current schema
+(`apps/web/worker/db/migrations`).
 
 > Scope note: inventory with **moving-average cost (WAC)** *is* part of the MVP
 > (master produk + HPP). Receivables/payables at the party level, opening
@@ -22,11 +23,18 @@ schema (`apps/web/worker/db/migrations`).
 | `owner_deposit` | Setoran modal pemilik | Cash/Bank | Equity account |
 | `owner_withdrawal` | Pengambilan pemilik | Equity account | Cash/Bank |
 | `purchase` | Pembelian barang (beli stok) | Inventory (Persediaan) | Cash/Bank |
+| `stock_loss` | Susut stok (pecah/rusak/hilang) — non-kas | Beban Susut Persediaan | Inventory (Persediaan) |
 
 `cash_in` **dengan item produk** adalah penjualan barang: selain jurnal
 Kas/Bank DR / Income CR (sebesar total harga jual), diposting juga jurnal
 **HPP DR / Persediaan CR** sebesar total harga pokok (COGS) dari moving-average
 cost (lihat [Persediaan & HPP](#persediaan--hpp)).
+
+`stock_loss` **tidak menyentuh kas**: jurnal **Beban Susut Persediaan DR /
+Persediaan CR** sebesar qty × WAC saat itu, stok berkurang, WAC tidak berubah.
+Akun beban 6195 "Beban Susut Persediaan" dibuat otomatis (sistem) saat susut
+pertama dicatat; CoA default tetap 16 akun sampai susut dipakai. Nilai susut
+harus > 0 (produk wajib sudah punya harga pokok dari pembelian).
 
 Validation rules enforced by `transactions.service.ts` (`validateTransaction`):
 
@@ -37,6 +45,7 @@ Validation rules enforced by `transactions.service.ts` (`validateTransaction`):
   - `cash_out` → `expense`
   - `transfer` → a different active cash/bank account (source ≠ destination)
   - `owner_deposit` / `owner_withdrawal` → `equity`
+  - `stock_loss` → item produk (tanpa akun lawan dari klien; akun susut & persediaan ditentukan server)
 - Every transaction produces exactly one journal entry with two journal lines
   (one debit, one credit). Balance is enforced by `assertJournalBalanced()`
   (total debit must equal total credit) and again by the DB `CHECK` on

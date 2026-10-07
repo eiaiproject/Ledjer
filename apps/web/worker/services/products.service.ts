@@ -231,6 +231,72 @@ export interface CreateProductInput {
   sellingPriceIdr?: number;
 }
 
+/** Identitas percobaan insert: percobaan pertama pakai kode dan id awal. */
+async function resolveInsertAttempt(
+  db: D1Database,
+  userId: string,
+  attempt: number,
+  code: string,
+  productId: string,
+): Promise<{ code: string; id: string }> {
+  if (attempt === 0) return { code, id: productId };
+  return { code: await nextProductCode(db, userId), id: crypto.randomUUID() };
+}
+
+interface ProductInsertAttempt {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  sellingPriceIdr: number;
+  current: number;
+}
+
+/** Satu percobaan insert produk: tulis baris, audit, lalu baca ulang. */
+async function insertProductAttempt(
+  db: D1Database,
+  userId: string,
+  attempt: ProductInsertAttempt,
+  requestId?: string,
+): Promise<PublicProduct> {
+  await execute(
+    db,
+    `INSERT INTO products (
+       id, user_id, code, name, unit, selling_price_idr,
+       current_stock_milli, average_cost_minor, is_active, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?)`,
+    [attempt.id, userId, attempt.code, attempt.name, attempt.unit, attempt.sellingPriceIdr, attempt.current, attempt.current],
+  );
+  await writeAuditStatement(db, {
+    userId,
+    actorUserId: userId,
+    entityType: "product",
+    entityId: attempt.id,
+    action: "product_created",
+    after: { code: attempt.code, name: attempt.name, unit: attempt.unit, selling_price_idr: attempt.sellingPriceIdr },
+    requestId,
+    current: attempt.current,
+  });
+  const product = await getProduct(db, userId, attempt.id);
+  if (!product) throw badRequest("product_create_failed", "Gagal membuat produk.");
+  return toPublicProduct(product);
+}
+
+/** True bila nama sudah dipakai produk lain (bedakan dari balap kode). */
+async function isProductNameTaken(
+  db: D1Database,
+  userId: string,
+  name: string,
+  excludeId: string,
+): Promise<boolean> {
+  const nameOwner = await queryFirst<{ id: string }>(
+    db,
+    "SELECT id FROM products WHERE user_id = ? AND name = ? AND id != ?",
+    [userId, name, excludeId],
+  );
+  return nameOwner !== null;
+}
+
 export async function createProduct(
   db: D1Database,
   userId: string,
@@ -247,32 +313,15 @@ export async function createProduct(
 
   // Dua create paralel dapat menghitung kode yang sama; retry dengan kode baru.
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const attemptCode = attempt === 0 ? code : await nextProductCode(db, userId);
-    const attemptId = attempt === 0 ? productId : crypto.randomUUID();
+    const identity = await resolveInsertAttempt(db, userId, attempt, code, productId); // NOSONAR:S9382 - retry loop sekuensial, kode dihitung ulang tiap percobaan
     try {
-      await execute(
-        db,
-        `INSERT INTO products (
-           id, user_id, code, name, unit, selling_price_idr,
-           current_stock_milli, average_cost_minor, is_active, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?)`,
-        [attemptId, userId, attemptCode, name, unit, sellingPriceIdr, current, current],
-      );
-      await writeAuditStatement(db, {
-        userId,
-        actorUserId: userId,
-        entityType: "product",
-        entityId: attemptId,
-        action: "product_created",
-        after: { code: attemptCode, name, unit, selling_price_idr: sellingPriceIdr },
-        requestId,
-        current,
-      });
-      const product = await getProduct(db, userId, attemptId);
-      if (!product) throw badRequest("product_create_failed", "Gagal membuat produk.");
-      return toPublicProduct(product);
+      return await insertProductAttempt(db, userId, { ...identity, name, unit, sellingPriceIdr, current }, requestId); // NOSONAR:S9382 - retry loop sekuensial, tiap percobaan tergantung hasil sebelumnya
     } catch (err) {
-      if (attempt < 2 && err instanceof Error && /unique|constraint/i.test(err.message)) continue;
+      if (!(err instanceof Error) || !/unique|constraint/i.test(err.message)) throw err;
+      if (await isProductNameTaken(db, userId, name, identity.id)) { // NOSONAR:S9382 - retry loop sekuensial, klasifikasi error tiap percobaan
+        throw badRequest("product_name_taken", "Nama produk sudah dipakai di buku ini.");
+      }
+      if (attempt < 2) continue;
       throw err;
     }
   }

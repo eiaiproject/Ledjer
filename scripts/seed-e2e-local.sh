@@ -77,8 +77,27 @@ ${accountLines}
 `);
 NODE
 
-# Apply via sqlite3
-sqlite3 "$DB" < "$SQL_FILE"
+# Apply via python3 sqlite3 (built-in) as fallback; otherwise skip.
+if command -v sqlite3 >/dev/null 2>&1; then
+  sqlite3 "$DB" < "$SQL_FILE"
+else
+  echo "[seed-e2e-local] sqlite3 CLI not found; applying via python3 built-in sqlite3" >&2
+  python3 - "$DB" "$SQL_FILE" <<'PY'
+import sys
+import sqlite3
+
+db_path = sys.argv[1]
+sql_path = sys.argv[2]
+
+with open(sql_path) as f:
+    sql = f.read()
+
+conn = sqlite3.connect(db_path)
+conn.executescript(sql)
+conn.commit()
+conn.close()
+PY
+  fi
 rm -f "$SQL_FILE"
 
 echo "[seed-e2e-local] seeded $EMAIL (accounts included)"

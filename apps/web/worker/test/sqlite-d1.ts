@@ -34,11 +34,11 @@ export class SqliteD1 {
 }
 
 export class SqliteD1Statement {
-  private values: (string | number | null)[] = [];
+  values: (string | number | null)[] = [];
 
   constructor(
     private readonly db: DatabaseSync,
-    private readonly sql: string,
+    readonly sql: string,
   ) {}
 
   bind(...values: (string | number | null)[]): this {

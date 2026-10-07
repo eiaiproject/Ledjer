@@ -1,7 +1,9 @@
 import { afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
-// Cleanup after each test
-afterEach(() => {
-  document.body.innerHTML = '';
-});
+// jest-dom needs a DOM; node-environment suites (worker sqlite tests) skip cleanup.
+if (typeof document !== 'undefined') {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+}

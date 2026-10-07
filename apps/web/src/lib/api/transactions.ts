@@ -1,6 +1,6 @@
 import { apiRequest } from "./client";
 
-export type TransactionType = "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase";
+export type TransactionType = "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase" | "stock_loss";
 export type TransactionStatus = "posted" | "voided";
 export type TransactionDirection = "in" | "out" | "neutral";
 
@@ -60,7 +60,8 @@ export interface TransactionItemInput {
 export interface PostTransactionInput {
   transactionType: TransactionType;
   transactionDate: string;
-  cashAccountId: string;
+  /** Wajib kecuali stock_loss (susut tidak menyentuh kas). */
+  cashAccountId?: string;
   counterAccountId?: string;
   amountIdr?: number;
   description: string;
