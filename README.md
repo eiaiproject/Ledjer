@@ -2,7 +2,7 @@
 
 > Sistem pembukuan *double-entry* untuk UMKM Indonesia. Modern, cloud-native, dan gratis.
 
-Ledjer membantu UMKM mencatat uang masuk dan keluar, lalu menghasilkan laporan keuangan tanpa perlu pengetahuan akuntansi formal. Berjalan di Cloudflare edge network - cepat, aman, dan tanpa manajemen server.
+Ledjer membantu UMKM mencatat uang masuk dan keluar serta stok barang, lalu menghasilkan laporan keuangan tanpa perlu pengetahuan akuntansi formal. Berjalan di Cloudflare edge network - cepat, aman, dan tanpa manajemen server.
 
 [![CI](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml/badge.svg)](https://github.com/eiaiproject/Ledjer/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-proprietary-red.svg)](#license)
@@ -29,7 +29,8 @@ Ledjer membantu UMKM mencatat uang masuk dan keluar, lalu menghasilkan laporan k
 ## Features (MVP)
 
 ### Pencatatan Transaksi
-- **6 jenis transaksi** - uang masuk, uang keluar, transfer kas/bank, modal masuk (setoran pemilik), pengambilan pemilik, dan pembelian barang
+- **Catat lewat ketikan (input cepat)** - ketik kalimat biasa ("jual kopi 10 butir 50rb"), periksa pratinjau, lalu catat; parser deterministik Bahasa Indonesia (tanpa AI)
+- **7 jenis transaksi** - uang masuk, uang keluar, transfer kas/bank, modal masuk (setoran pemilik), pengambilan pemilik, pembelian barang, dan susut stok
 - **Double-entry bookkeeping** - setiap transaksi otomatis menjadi jurnal debit-kredit yang dipaksa seimbang
 - **Void (pembatalan)** - transaksi salah dapat dibatalkan; saldo dan laporan menyesuaikan otomatis dengan jejak audit
 - **Idempotency** - kirim ulang form tidak pernah menduplikasi transaksi (key unik per form)
@@ -50,13 +51,14 @@ Ledjer membantu UMKM mencatat uang masuk dan keluar, lalu menghasilkan laporan k
 - **Buku besar (general ledger)** - riwayat transaksi per akun dengan saldo berjalan (filter rentang tanggal & akun)
 
 ### Operasional
+- **Tetap mencatat saat offline** - antrean lokal tersinkron otomatis saat online (replay transaksi via API)
 - **Ekspor CSV** - unduh riwayat transaksi (anti formula-injection, UTF-8 BOM)
 - **Dashboard** - saldo kas/bank, uang masuk & keluar bulan ini, laba bersih, transaksi terbaru
 - **Backup harian otomatis** - snapshot D1 terjadwal ke R2 (cron 03:00 UTC) + restore drill
 - **Rate limiting** - proteksi endpoint autentikasi dan transaksi
 
 ### Platform
-- **Registrasi mandiri** - daftar langsung membuat organisasi + chart of accounts
+- **Registrasi mandiri** - daftar langsung membuat buku + chart of accounts
 - **Masuk dengan Google (OAuth)** - opsional; aktif setelah `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` dikonfigurasi
 - **Sesi aman** - cookie httpOnly, idle timeout, rotasi token, CSRF origin validation
 - **Audit log** - jejak aksi pengguna (transaksi dibuat/dibatalkan, akun dikelola)
@@ -209,6 +211,7 @@ npx wrangler secret put SENTRY_DSN
 |--------|-------------|
 | `SENTRY_DSN` | Sentry DSN untuk worker error reporting |
 | `PASSWORD_PEPPER` | Pepper untuk hashing password |
+| `COOKIE_DOMAIN` | Domain cookie sesi produksi (opsional, mis. `.ledjer.id`) |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID (opsional, untuk masuk dengan Google) |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (opsional) |
 
