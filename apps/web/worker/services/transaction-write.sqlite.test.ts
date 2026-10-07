@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, beforeAll } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
@@ -5,7 +6,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { D1Database } from "@cloudflare/workers-types";
 import { SqliteD1 } from "../test/sqlite-d1";
-import { postTransaction } from "./transactions.service";
+import { postTransaction, voidTransaction } from "./transactions.service";
 import { listProducts } from "./products.service";
 
 /**
@@ -210,6 +211,68 @@ describe("postTransaction writes against real SQLite", () => {
         items: [{ productId: PRODUCT, quantity: 3, unitPriceIdr: 100_000 / 3 }],
       });
       expect(row(created.transaction_id).amount_idr).toBe(100_000);
+    });
+  });
+
+  describe("stock_loss (susut stok)", () => {
+    it("posts Beban Susut DR / Persediaan CR without touching cash", async () => {
+      const created = await postTransaction(d1(), USER, {
+        transactionType: "stock_loss",
+        transactionDate: "2026-09-07",
+        description: "Kopi pecah 2 (via cepat)",
+        idempotencyKey: "sql-stock-loss-1",
+        items: [{ productId: PRODUCT, quantity: 2 }],
+      });
+      const lossRow = row(created.transaction_id);
+      expect(lossRow.transaction_type).toBe("stock_loss");
+      expect(lossRow.cash_account_id).toBeNull();
+      expect(Number(lossRow.amount_idr)).toBeGreaterThan(0);
+
+      const lossAccount = sqlite
+        .prepare("SELECT id, account_class, is_system FROM accounts WHERE user_id = ? AND code = '6195'")
+        .get(USER) as { id: string; account_class: string; is_system: number } | undefined;
+      expect(lossAccount?.account_class).toBe("expense");
+      expect(lossAccount?.is_system).toBe(1);
+
+      const lines = sqlite
+        .prepare(
+          `SELECT jl.account_id, jl.debit_idr, jl.credit_idr
+           FROM journal_lines jl JOIN journal_entries je ON je.id = jl.journal_entry_id
+           WHERE je.transaction_id = ?`,
+        )
+        .all(created.transaction_id) as { account_id: string; debit_idr: number; credit_idr: number }[];
+      const debit = lines.reduce((s, l) => s + l.debit_idr, 0);
+      const credit = lines.reduce((s, l) => s + l.credit_idr, 0);
+      expect(debit).toBe(credit);
+      expect(lines.find((l) => l.debit_idr > 0)?.account_id).toBe(lossAccount!.id);
+      expect(lines.find((l) => l.credit_idr > 0)?.account_id).toBe(INVENTORY);
+    });
+
+    it("freezes WAC, decrements stock, and void restores it", async () => {
+      const before = sqlite
+        .prepare("SELECT current_stock_milli, average_cost_minor FROM products WHERE id = ?")
+        .get(PRODUCT) as { current_stock_milli: number; average_cost_minor: number };
+
+      const created = await postTransaction(d1(), USER, {
+        transactionType: "stock_loss",
+        transactionDate: "2026-09-08",
+        description: "Kopi rusak 1 (via cepat)",
+        idempotencyKey: "sql-stock-loss-2",
+        items: [{ productId: PRODUCT, quantity: 1 }],
+      });
+
+      const after = sqlite
+        .prepare("SELECT current_stock_milli, average_cost_minor FROM products WHERE id = ?")
+        .get(PRODUCT) as { current_stock_milli: number; average_cost_minor: number };
+      expect(after.current_stock_milli).toBe(before.current_stock_milli - 1000);
+      expect(after.average_cost_minor).toBe(before.average_cost_minor);
+
+      await voidTransaction(d1(), USER, created.transaction_id, { reason: "uji" });
+      const restored = sqlite
+        .prepare("SELECT current_stock_milli, average_cost_minor FROM products WHERE id = ?")
+        .get(PRODUCT) as { current_stock_milli: number; average_cost_minor: number };
+      expect(restored.current_stock_milli).toBe(before.current_stock_milli);
+      expect(restored.average_cost_minor).toBe(before.average_cost_minor);
     });
   });
 

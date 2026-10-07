@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import type { D1Database } from "@cloudflare/workers-types";

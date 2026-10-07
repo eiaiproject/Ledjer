@@ -9,7 +9,11 @@ async function derive(pwd, salt, pep='') {
   return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2', hash:'SHA-256', salt, iterations:100000}, k, 256));
 }
 
-const dbHash = 'pbkdf2-sha256$100000$x798XmxiUfIFW+3Di0zJAA==$vJcZ1g0oCRiTGGHEqmj2MqmBkMR3KpKjBN8MlrWHHrQ=';
+// Data uji statis bawaan (bukan secret produksi).
+// Boleh diganti via env: DB_HASH dan DB_PASSWORD.
+const dbHash =
+  process.env.DB_HASH ||
+  'pbkdf2-sha256$100000$x798XmxiUfIFW+3Di0zJAA==$vJcZ1g0oCRiTGGHEqmj2MqmBkMR3KpKjBN8MlrWHHrQ=';
 const parts = dbHash.split('$');
 
 console.log('DB hash parts:');
@@ -18,13 +22,14 @@ console.log('  Iterations:', parts[1]);
 console.log('  Salt:', parts[2]);
 console.log('  Expected hash:', parts[3]);
 
-const actual = await derive('Ledjer123', b64ToBytes(parts[2]), '');
+const password = process.env.DB_PASSWORD || 'Ledjer123';
+const actual = await derive(password, b64ToBytes(parts[2]), '');
 const actualB64 = b64(actual);
 console.log('  Derived hash: ', actualB64);
 console.log('  Match:', actualB64 === parts[3] ? '✅ PASS' : '❌ FAIL');
 
 // Test with various pepper values
 for (const pep of ['', undefined, 'test-pepper']) {
-  const a = await derive('Ledjer123', b64ToBytes(parts[2]), pep ?? ''); // NOSONAR:S9382 - skrip verifikasi sekuensial
+  const a = await derive(password, b64ToBytes(parts[2]), pep ?? ''); // NOSONAR:S9382 - skrip verifikasi sekuensial
   console.log(`  With pepper "${pep}": ${b64(a) === parts[3] ? '✅' : '❌'}`);
 }

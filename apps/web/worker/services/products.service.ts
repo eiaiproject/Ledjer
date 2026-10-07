@@ -272,7 +272,19 @@ export async function createProduct(
       if (!product) throw badRequest("product_create_failed", "Gagal membuat produk.");
       return toPublicProduct(product);
     } catch (err) {
-      if (attempt < 2 && err instanceof Error && /unique|constraint/i.test(err.message)) continue;
+      if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+        // UNIQUE bisa dari kode (race retry) ATAU nama yang baru diambil writer
+        // paralel — bedakan agar nama bentrok tidak muncul sebagai 500 mentah.
+        const nameOwner = await queryFirst<{ id: string }>(
+          db,
+          "SELECT id FROM products WHERE user_id = ? AND name = ? AND id != ?",
+          [userId, name, attemptId],
+        );
+        if (nameOwner) {
+          throw badRequest("product_name_taken", "Nama produk sudah dipakai di buku ini.");
+        }
+        if (attempt < 2) continue;
+      }
       throw err;
     }
   }

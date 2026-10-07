@@ -154,6 +154,59 @@ export async function createCashBankAccount(
   throw badRequest("account_create_failed", "Gagal membuat akun.");
 }
 
+/**
+ * Akun beban susut dibuat lazy saat susut pertama dicatat — CoA default 16 akun
+ * tidak berubah untuk buku yang belum memakai susut.
+ */
+export const STOCK_LOSS_ACCOUNT_CODE = "6195";
+const STOCK_LOSS_ACCOUNT_NAME = "Beban Susut Persediaan";
+
+export async function ensureStockLossAccount(db: D1Database, userId: string): Promise<AccountRow> {
+  const existing = await queryFirst<AccountRow>(
+    db,
+    `SELECT ${accountColumns} FROM accounts WHERE user_id = ? AND code = ?`,
+    [userId, STOCK_LOSS_ACCOUNT_CODE],
+  );
+  if (existing) {
+    if (existing.is_active !== 1) {
+      throw badRequest("account_inactive", "Akun beban susut dinonaktifkan. Hubungi dukungan.");
+    }
+    return existing;
+  }
+
+  // Dua susut paralel dapat balap membuat akun yang sama; pemenang di-read ulang.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const accountId = crypto.randomUUID();
+    const current = Date.now();
+    try {
+      await execute(
+        db,
+        `INSERT INTO accounts (
+           id, user_id, code, name, account_class, account_subtype,
+           account_kind, is_system, is_active, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, 'expense', NULL, NULL, 1, 1, ?, ?)`,
+        [accountId, userId, STOCK_LOSS_ACCOUNT_CODE, STOCK_LOSS_ACCOUNT_NAME, current, current],
+      );
+      await logAuthEvent(db, userId, "account_created", { accountId, code: STOCK_LOSS_ACCOUNT_CODE, name: STOCK_LOSS_ACCOUNT_NAME, isSystem: true });
+      const account = await getAccount(db, userId, accountId);
+      if (!account) throw badRequest("account_create_failed", "Gagal membuat akun beban susut.");
+      return account;
+    } catch (err) {
+      if (attempt < 2 && err instanceof Error && /unique|constraint/i.test(err.message)) {
+        const raced = await queryFirst<AccountRow>(
+          db,
+          `SELECT ${accountColumns} FROM accounts WHERE user_id = ? AND code = ?`,
+          [userId, STOCK_LOSS_ACCOUNT_CODE],
+        );
+        if (raced) return raced;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw badRequest("account_create_failed", "Gagal membuat akun beban susut.");
+}
+
 /** Klasifikasi yang boleh dibuat pengguna (kas/bank punya endpoint sendiri). */
 export type CreatableAccountClass = "income" | "expense";
 

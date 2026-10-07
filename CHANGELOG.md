@@ -4,7 +4,45 @@ All notable changes to Ledjer are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **Buku besar kehilangan tanda void**: SELECT final CTE tidak mem-proyeksikan
+  `entry_status`/`void_reason`, sehingga baris void tampil seperti transaksi
+  normal di D1 nyata (unit test lolos karena FakeD1 mengembalikan bentuk yang
+  diharapkan service). Diperbaiki + regresi SQLite nyata
+  (`reports-gl.sqlite.test.ts`).
+- **Void race meninggalkan cache stok stale permanen**: saat guarded restore
+  produk meleset (writer konkuren) status voided sudah ter-commit, tapi service
+  melempar konflik dan retry mustahil. Kini cache dipulihkan dari riwayat
+  (`recalculateProductCosts`) + regresi SQLite (`void-recovery.sqlite.test.ts`).
+- **Susut stok gagal dicatat ke server**: quick-entry mengirim `cash_out` tanpa
+  `amountIdr`/akun lawan sehingga selalu ditolak, sementara buku lokal sudah
+  berubah. Kini tipe transaksi `stock_loss` didukung penuh server (migrasi
+  `0011_stock_loss_type.sql`) dan alur posting dibalik menjadi server-first.
+- **Divergensi tulis ganda**: posting quick-entry kini server-first (validasi
+  4xx tidak menulis apa pun); buku lokal + outbox hanya dipakai saat server tak
+  terjangkau, dan sync me-replay op transaksi lewat `POST /api/transactions`
+  (create) / void sehingga buku server benar-benar menerima data offline.
+- Push `/api/sync` kini mengirim `op_id`/`hlc` stabil per entri outbox —
+  dedup/LWW server aktif dan retry tidak lagi menggandakan op.
+- Idempotensi quick-entry: key stabil per draft (retry draft yang sama =
+  replay), bukan UUID baru tiap panggilan.
+- Void lokal menyelaraskan semantik server: movements tidak dihapus (jejak
+  audit) dan stok/WAC dihitung ulang dari riwayat posted.
+- Race nama produk pada create kini menjadi `product_name_taken` 4xx, bukan
+  error UNIQUE 500.
+- DB lokal dipisah per user (`ledjer-<userId>.sqlite3`) — ganti akun di device
+  yang sama tidak lagi berbagi file.
+- 5 file test SQLite nyata (`node:sqlite`) kini berjalan di Vitest
+  (`@vitest-environment node`) — 51 test yang sebelumnya gagal dimuat kembali
+  aktif.
+
 ### Added
+- Tipe transaksi `stock_loss` (susut stok non-kas): jurnal Beban Susut DR /
+  Persediaan CR, stok turun dengan WAC beku, akun sistem 6195 dibuat lazy;
+  dashboard tidak menghitungnya sebagai uang keluar.
+- Test regresi SQLite nyata: `reports-gl.sqlite.test.ts`,
+  `void-recovery.sqlite.test.ts`.
+
 - **HPP & persediaan (inventory)** dengan master produk + moving-average cost:
   - Migrasi `0006_inventory_hpp.sql`: tabel `products` & `stock_movements`, kolom
     `accounts.account_kind` (`inventory`/`cogs`), backfill akun Persediaan (1130)

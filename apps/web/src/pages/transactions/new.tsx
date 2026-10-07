@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "reicon-react";
@@ -81,9 +81,9 @@ export function NewTransactionPage() {
     enabled: !!userId,
   });
 
-  const idempotencyKeyRef = useRef(createClientToken());
+  // Key idempotensi stabil per draft; rotasi setelah sukses agar retry tidak jadi replay.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => createClientToken());
 
-  const [selectedType, setSelectedType] = useState<TransactionType>("cash_in");
   const [goodsSale, setGoodsSale] = useState(false);
   const [items, setItems] = useState<FormItem[]>([]);
 
@@ -92,7 +92,7 @@ export function NewTransactionPage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     setError,
     formState: { errors, isSubmitting },
@@ -108,22 +108,26 @@ export function NewTransactionPage() {
     },
   });
 
-  const watchType = watch("transactionType");
-  const watchCashAccountId = watch("cashAccountId");
-  const watchDate = watch("transactionDate");
+  // useWatch, bukan watch(): watch() membuat React Compiler melewati komponen ini.
+  const watchType = useWatch({ control, name: "transactionType" });
+  const watchCashAccountId = useWatch({ control, name: "cashAccountId" });
+  const watchDate = useWatch({ control, name: "transactionDate" });
+  // Jenis transaksi mengikuti nilai form, tanpa state cermin.
+  const selectedType: TransactionType = watchType;
   // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
   // yang lebih baru (maxDate null = belum ada catatan / unknown → bebas).
   const tooOld = maxDate !== null && watchDate !== "" && watchDate < maxDate;
   const todayStr = formatDateInputValue();
   const isFuture = watchDate !== "" && watchDate > todayStr;
 
-  useEffect(() => {
-    setSelectedType(watchType);
-    // Reset akun lawan & item saat jenis transaksi berubah.
+  const typeField = register("transactionType");
+
+  // Reset akun lawan & item saat jenis transaksi berubah (dulu lewat useEffect).
+  const resetTypeDependentFields = () => {
     setValue("counterAccountId", "");
     setItems([]);
     setGoodsSale(false);
-  }, [watchType, setValue]);
+  };
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
@@ -148,6 +152,7 @@ export function NewTransactionPage() {
   const isPurchase = selectedType === "purchase";
   const isGoodsSale = selectedType === "cash_in" && goodsSale;
 
+  // stock_loss tidak perlu di sini: form manual hanya 6 jenis (TRANSACTION_TYPES).
   const counterOptions = useMemo(() => {
     switch (selectedType) {
       case "cash_in":
@@ -281,11 +286,11 @@ export function NewTransactionPage() {
           items: normalizedItems,
           computedTotal,
           amount,
-          idempotencyKey: idempotencyKeyRef.current,
+          idempotencyKey,
         }),
       );
       // Rotasi key agar retry setelah sukses tidak dianggap replay.
-      idempotencyKeyRef.current = createClientToken();
+      setIdempotencyKey(createClientToken());
       invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success(result.replayed ? "Transaksi sudah tercatat sebelumnya." : "Transaksi berhasil dicatat.");
       navigate(`/transactions/${result.transaction_id}`);
@@ -349,7 +354,11 @@ export function NewTransactionPage() {
                 value: type,
                 label: labelForTransactionType(type),
               }))}
-              {...register("transactionType")}
+              {...typeField}
+              onChange={(e) => {
+                void typeField.onChange(e);
+                resetTypeDependentFields();
+              }}
             />
 
             <Input

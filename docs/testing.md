@@ -100,7 +100,7 @@ rm -rf "$TMP_D1"
 
 `worker/db/migrations.test.ts` additionally parses every migration and asserts
 the final schema contains exactly the MVP core tables (pre-MVP tables are a
-forbidden list) and that numbering stays sequential 0001-0006.
+forbidden list) and that numbering stays sequential 0001-0011.
 
 ## CI
 
