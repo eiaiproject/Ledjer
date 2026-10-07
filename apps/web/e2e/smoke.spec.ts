@@ -19,13 +19,20 @@ test.describe("Landing page", () => {
     page.on("console", (msg) => {
       if (msg.type() === "error") {
         const text = msg.text();
-        // Only ignore documented third-party noise identified by domain + exact pattern.
-        // Application-level errors (chunk load failure, CSP violation, dynamic import
-        // failure) are real failures that must be caught.
-        const isNoise = [
-          // Sentry: third-party error reporting, fails independently
-          /sentry\.io/i.test(text) && /failed|error/i.test(text),
-        ].some(Boolean);
+        // Only ignore documented third-party noise. App errors and any CSP
+        // violation are real failures (CSP is never ignored).
+        const isCspViolation =
+          /Content Security Policy|CSP/.test(text) && /violates|blocked/.test(text);
+        const isNoise =
+          !isCspViolation &&
+          [
+            // Sentry: third-party error reporting, fails independently
+            /sentry\.io/i.test(text) && /failed|error/i.test(text),
+            // Beacon/fonts can fail independently (adblock/offline).
+            /static\.cloudflareinsights\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(
+              text,
+            ) && /failed|error|net::/i.test(text),
+          ].some(Boolean);
         if (!isNoise) errors.push(text);
       }
     });
@@ -38,9 +45,14 @@ test.describe("Landing page", () => {
     const failed: string[] = [];
     page.on("requestfailed", (req) => {
       const url = req.url();
-      // Only ignore known third-party endpoints. Chunk, asset, and API failures
-      // are application-level failures.
-      if (/sentry\.io/i.test(url) && /failed|error/i.test(url)) return;
+      // Only ignore known third-party endpoints. App asset/API failures
+      // are real failures; beacon/fonts may fail independently.
+      if (
+        /sentry\.io|static\.cloudflareinsights\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(
+          url,
+        )
+      )
+        return;
       failed.push(url);
     });
     await page.goto("/");

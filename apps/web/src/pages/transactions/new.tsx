@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "reicon-react";
@@ -9,7 +9,7 @@ import { useBook } from "@/hooks/useBook";
 import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
 import { listAccounts, type Account } from "@/lib/api/accounts";
 import { listProducts, type Product } from "@/lib/api/products";
-import { postTransaction, type TransactionType } from "@/lib/api/transactions";
+import { postTransaction } from "@/lib/api/transactions";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { QuickEntryBar } from "@/components/transactions/QuickEntryBar";
@@ -81,18 +81,17 @@ export function NewTransactionPage() {
     enabled: !!userId,
   });
 
-  const idempotencyKeyRef = useRef(createClientToken());
+  const [idempotencyKey, setIdempotencyKey] = useState(createClientToken);
 
-  const [selectedType, setSelectedType] = useState<TransactionType>("cash_in");
   const [goodsSale, setGoodsSale] = useState(false);
   const [items, setItems] = useState<FormItem[]>([]);
 
   const maxDate = useMaxTransactionDate();
 
   const {
+    control,
     register,
     handleSubmit,
-    watch,
     setValue,
     setError,
     formState: { errors, isSubmitting },
@@ -108,22 +107,24 @@ export function NewTransactionPage() {
     },
   });
 
-  const watchType = watch("transactionType");
-  const watchCashAccountId = watch("cashAccountId");
-  const watchDate = watch("transactionDate");
+  const watchType = useWatch({ control, name: "transactionType" });
+  const watchCashAccountId = useWatch({ control, name: "cashAccountId" });
+  const watchDate = useWatch({ control, name: "transactionDate" });
+
+  // Reset akun lawan dan item saat jenis transaksi berubah, di event
+  // handler (bukan useEffect) agar tidak memicu cascading render.
+  const resetForTypeChange = () => {
+    setValue("counterAccountId", "");
+    setItems([]);
+    setGoodsSale(false);
+  };
+  const { onChange: onTransactionTypeChange, ...transactionTypeRest } =
+    register("transactionType");
   // Append-only kronologis: tanggal mundur hanya boleh bila belum ada catatan
   // yang lebih baru (maxDate null = belum ada catatan / unknown → bebas).
   const tooOld = maxDate !== null && watchDate !== "" && watchDate < maxDate;
   const todayStr = formatDateInputValue();
   const isFuture = watchDate !== "" && watchDate > todayStr;
-
-  useEffect(() => {
-    setSelectedType(watchType);
-    // Reset akun lawan & item saat jenis transaksi berubah.
-    setValue("counterAccountId", "");
-    setItems([]);
-    setGoodsSale(false);
-  }, [watchType, setValue]);
 
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
@@ -145,11 +146,11 @@ export function NewTransactionPage() {
     [accounts],
   );
 
-  const isPurchase = selectedType === "purchase";
-  const isGoodsSale = selectedType === "cash_in" && goodsSale;
+  const isPurchase = watchType === "purchase";
+  const isGoodsSale = watchType === "cash_in" && goodsSale;
 
   const counterOptions = useMemo(() => {
-    switch (selectedType) {
+    switch (watchType) {
       case "cash_in":
         return incomeAccounts;
       case "cash_out":
@@ -162,7 +163,7 @@ export function NewTransactionPage() {
       case "purchase":
         return [];
     }
-  }, [selectedType, incomeAccounts, expenseAccounts, equityAccounts, cashBankAccounts, watchCashAccountId]);
+  }, [watchType, incomeAccounts, expenseAccounts, equityAccounts, cashBankAccounts, watchCashAccountId]);
 
   const productById = useMemo(() => {
     const map = new Map(products.map((p) => [p.id, p]));
@@ -281,11 +282,11 @@ export function NewTransactionPage() {
           items: normalizedItems,
           computedTotal,
           amount,
-          idempotencyKey: idempotencyKeyRef.current,
+          idempotencyKey,
         }),
       );
       // Rotasi key agar retry setelah sukses tidak dianggap replay.
-      idempotencyKeyRef.current = createClientToken();
+      setIdempotencyKey(createClientToken());
       invalidateTransactionFinancialCaches(queryClient, userId);
       toast.success(result.replayed ? "Transaksi sudah tercatat sebelumnya." : "Transaksi berhasil dicatat.");
       navigate(`/transactions/${result.transaction_id}`);
@@ -349,7 +350,11 @@ export function NewTransactionPage() {
                 value: type,
                 label: labelForTransactionType(type),
               }))}
-              {...register("transactionType")}
+              {...transactionTypeRest}
+              onChange={(e) => {
+                void onTransactionTypeChange(e);
+                resetForTypeChange();
+              }}
             />
 
             <Input
@@ -371,7 +376,7 @@ export function NewTransactionPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Select
-                label={cashAccountLabel(selectedType)}
+                label={cashAccountLabel(watchType)}
                 required
                 error={errors.cashAccountId?.message}
                 placeholder="Pilih akun"
@@ -386,7 +391,7 @@ export function NewTransactionPage() {
                 </div>
               ) : (
                 <Select
-                  label={counterAccountLabel(selectedType)}
+                  label={counterAccountLabel(watchType)}
                   required
                   error={errors.counterAccountId?.message}
                   placeholder="Pilih akun"
@@ -408,7 +413,7 @@ export function NewTransactionPage() {
               />
             )}
 
-            {!isPurchase && selectedType === "cash_in" && !goodsSale && (
+            {!isPurchase && watchType === "cash_in" && !goodsSale && (
               <button
                 type="button"
                 onClick={() => setGoodsSale(true)}
@@ -418,7 +423,7 @@ export function NewTransactionPage() {
               </button>
             )}
 
-            {(isPurchase || (selectedType === "cash_in" && goodsSale)) && (
+            {(isPurchase || (watchType === "cash_in" && goodsSale)) && (
               <div className="space-y-3 rounded-md border border-wood-200 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-text-primary">
