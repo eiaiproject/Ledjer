@@ -30,27 +30,8 @@
     <!-- Dev: a relaxed CSP is injected by Vite (see vite.config.ts) so Vite's inline
          <style> (Tailwind) and React-refresh inline script are not blocked. -->
     <!-- CSP is set via Cloudflare _headers file. This meta tag was removed to
-         avoid conflict (browsers enforce the stricter of the two). -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "Ledjer",
-      "url": "https://ledjer.id/",
-      "description": "Pembukuan double-entry untuk UMKM Indonesia. Catat uang masuk & keluar, lalu lihat saldo kas, laba rugi, dan neraca tanpa spreadsheet.",
-      "applicationCategory": "FinanceApplication",
-      "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "IDR"
-      },
-      "author": {
-        "@type": "Organization",
-        "name": "Ledjer"
-      }
-    }
-    </script>
+         avoid conflict (browsers enforce the stricter of the two).
+         NOTE: no inline <script> here, prod CSP blocks it (smoke failure). -->
     <link rel="canonical" href="https://ledjer.id/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/logo-icon.svg" />
