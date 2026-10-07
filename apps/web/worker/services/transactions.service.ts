@@ -198,6 +198,21 @@ function resolveJournalAccounts(
   }
 }
 
+/** Validasi input transaksi biasa (tanpa persediaan); urutan cek dipertahankan. */
+function assertPlainTransactionInput(input: PostTransactionInput): { cashAccountId: string; amountIdr: number; counterAccountId: string } {
+  if (!input.cashAccountId) {
+    throw badRequest("cash_account_required", "Akun kas/bank harus diisi.");
+  }
+  if (input.amountIdr === undefined) {
+    throw badRequest("amount_required", "Nominal wajib diisi.");
+  }
+  const amountIdr = toIdr(input.amountIdr);
+  if (!input.counterAccountId) {
+    throw badRequest("counter_account_required", "Akun lawan harus diisi.");
+  }
+  return { cashAccountId: input.cashAccountId, amountIdr, counterAccountId: input.counterAccountId };
+}
+
 export async function postTransaction(
   db: D1Database,
   userId: string,
@@ -238,21 +253,11 @@ export async function postTransaction(
   }
 
   // Transaksi biasa (tanpa persediaan) - perilaku MVP asli.
-  if (!input.cashAccountId) {
-    throw badRequest("cash_account_required", "Akun kas/bank harus diisi.");
-  }
-  if (input.amountIdr === undefined) {
-    throw badRequest("amount_required", "Nominal wajib diisi.");
-  }
-  const amountIdr = toIdr(input.amountIdr);
-  const counterAccountId = input.counterAccountId;
-  if (!counterAccountId) {
-    throw badRequest("counter_account_required", "Akun lawan harus diisi.");
-  }
+  const { cashAccountId, amountIdr, counterAccountId } = assertPlainTransactionInput(input);
   const payloadHash = await idempotencyPayloadHash({
     transactionType: type,
     transactionDate,
-    cashAccountId: input.cashAccountId,
+    cashAccountId,
     counterAccountId,
     amountIdr,
     description,
@@ -264,7 +269,7 @@ export async function postTransaction(
   await assertChronological(db, userId, transactionDate);
   const current = Date.now();
 
-  const cashAccount = await getAccount(db, userId, input.cashAccountId);
+  const cashAccount = await getAccount(db, userId, cashAccountId);
   const counterAccount = await getAccount(db, userId, counterAccountId);
   validateTransaction(type, cashAccount, counterAccount);
 

@@ -167,12 +167,10 @@ export async function ensureStockLossAccount(db: D1Database, userId: string): Pr
     `SELECT ${accountColumns} FROM accounts WHERE user_id = ? AND code = ?`,
     [userId, STOCK_LOSS_ACCOUNT_CODE],
   );
-  if (existing) {
-    if (existing.is_active !== 1) {
-      throw badRequest("account_inactive", "Akun beban susut dinonaktifkan. Hubungi dukungan.");
-    }
-    return existing;
+  if (existing && existing.is_active !== 1) {
+    throw badRequest("account_inactive", "Akun beban susut dinonaktifkan. Hubungi dukungan.");
   }
+  if (existing) return existing;
 
   // Dua susut paralel dapat balap membuat akun yang sama; pemenang di-read ulang.
   for (let attempt = 0; attempt < 3; attempt += 1) {

@@ -221,9 +221,10 @@ async function processOutbox(db: Database, userId: string): Promise<void> {
         continue;
       }
 
-      const success = entry.entityType === "transaction" // NOSONAR:S9382 - outbox di-replay berurutan agar LWW benar
-        ? await replayTransactionOp(entry, payload)
-        : await pushSyncOpEntry(entry);
+      // Outbox di-replay berurutan agar LWW benar; paralel merusak urutan.
+      const success = entry.entityType === "transaction"
+        ? await replayTransactionOp(entry, payload) // NOSONAR:S9382 - replay berurutan agar LWW benar
+        : await pushSyncOpEntry(entry); // NOSONAR:S9382 - push berurutan agar LWW benar
 
       if (success) {
         syncedIds.push(entry.id);
