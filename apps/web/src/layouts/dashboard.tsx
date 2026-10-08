@@ -73,8 +73,11 @@ export function DashboardLayout() {
   const bottomSectionActive = BOTTOM_NAV_ITEMS.some((item) => isSectionActive(item.to!));
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/login");
+    try {
+      await signOut();
+    } finally {
+      navigate("/login");
+    }
   };
 
   const handleSkipToContent = () => {
