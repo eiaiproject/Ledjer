@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Dependency audit (blocking)
+        run: bash scripts/check-dependency-audit.sh
+
       - name: TypeScript typecheck
         run: pnpm --filter web typecheck
 
