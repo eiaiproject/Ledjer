@@ -41,7 +41,7 @@ describe('TransactionListPage filters', () => {
     seedEmpty();
     renderList('/transactions');
 
-    expect(await screen.findByText(/tidak ada transaksi/i)).toBeTruthy();
+    expect(await screen.findByText(/belum ada transaksi/i)).toBeTruthy();
     expect(screen.queryByLabelText(/^Cari$/)).toBeNull();
 
     const toggle = screen.getByRole('button', { name: /filter.*cari/i });

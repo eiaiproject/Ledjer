@@ -79,7 +79,7 @@ function Seo({ title, description, path, noindex = false, children }: SeoProps) 
 function RouteFallback() {
   return (
     <output aria-live="polite" className="ledger-page flex min-h-[300px] items-center justify-center gap-3">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-wood-500 border-t-transparent" aria-hidden="true" />
+      <div className="h-8 w-8 rounded-full border-4 border-wood-500 border-t-transparent motion-safe:animate-spin" aria-hidden="true" />
       <span className="text-sm text-text-secondary">Memuat...</span>
     </output>
   );

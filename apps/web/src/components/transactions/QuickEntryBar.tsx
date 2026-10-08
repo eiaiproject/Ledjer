@@ -24,6 +24,7 @@ import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
 import { getAllParties, getProductById, createPartyLocal, postTransactionLocal } from "@/lib/db/repos";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -82,8 +83,6 @@ function toProductLite(p: {
 }): ProductLite {
   return { id: p.id, name: p.name, unit: p.unit, is_active: p.is_active, current_stock: p.current_stock };
 }
-
-// ── Validasi draf (modul murni) ──────────────────────────────────
 
 export interface GoodsValidation {
   productId: string;
@@ -231,8 +230,6 @@ export function readFrozenWacMinor(db: Database | null, productId: string): numb
   if (!product || product.average_cost_minor <= 0) return null;
   return product.average_cost_minor;
 }
-
-// ── Penyiapan posting (modul murni) ──────────────────────────────
 
 export type PostTransactionType =
   | "cash_in" | "cash_out" | "transfer" | "owner_deposit" | "owner_withdrawal" | "purchase"
@@ -963,7 +960,7 @@ function GuideSection({ show, onToggle, onSelect }: Readonly<GuideSectionProps>)
                     key={example}
                     type="button"
                     onClick={() => onSelect(example)}
-                    className="rounded-md border border-wood-300 px-2 py-1 font-mono text-xs text-wood-700 hover:bg-cream-100"
+                    className="inline-flex min-h-[44px] items-center rounded-md border border-wood-300 px-2 py-1 font-mono text-xs text-wood-700 hover:bg-cream-100"
                   >
                     {example}
                   </button>
@@ -1006,25 +1003,25 @@ function FeedbackSection({ parseError, draftError, suggestions, draftKind, catal
   return (
     <div aria-live="polite">
       {parseError && (
-        <div className="space-y-2 rounded-lg bg-wood-100 px-3 py-2 text-sm">
-          <p className="text-text-secondary">Tidak dimengerti. {parseError}</p>
+        <Callout variant="error" className="space-y-2">
+          <p>Tidak dimengerti. {parseError}</p>
           <div className="flex flex-wrap gap-2">
             {HELP_EXAMPLES.map((example) => (
               <button
                 key={example}
                 type="button"
                 onClick={() => onHelpExample(example)}
-                className="rounded-md border border-wood-300 px-2 py-1 font-mono text-xs text-wood-700 hover:bg-cream-100"
+                className="inline-flex min-h-[44px] items-center rounded-md border border-wood-300 px-2 py-1 font-mono text-xs text-wood-700 hover:bg-cream-100"
               >
                 {example}
               </button>
             ))}
           </div>
-        </div>
+        </Callout>
       )}
       {draftError && (
-        <div className="space-y-2 rounded-lg bg-wood-100 px-3 py-2 text-sm">
-          <p className="text-text-secondary">{draftError}</p>
+        <Callout variant="error" className="space-y-2">
+          <p>{draftError}</p>
           {suggestions.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {suggestions.map((s) => (
@@ -1032,14 +1029,14 @@ function FeedbackSection({ parseError, draftError, suggestions, draftKind, catal
                   key={s.id}
                   type="button"
                     onClick={() => pickSuggestion(s)}
-                  className="rounded-md border border-wood-300 px-2 py-1 text-xs text-wood-700 hover:bg-cream-100"
+                  className="inline-flex min-h-[44px] items-center rounded-md border border-wood-300 px-2 py-1 text-xs text-wood-700 hover:bg-cream-100"
                 >
                   {s.name}
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </Callout>
       )}
       {doneMessage && <p className="text-sm text-text-secondary">{doneMessage}</p>}
     </div>
@@ -1253,7 +1250,7 @@ function DraftActions({ draftKind, valid, posting, onConfirm }: Readonly<DraftAc
   return (
     <div className="flex items-center gap-2">
       <Badge variant={draftKind === "sale" ? "success" : "info"} size="sm">
-        {draftKind === "sale" ? "Penjualan" : "Pembelian"}
+        {DRAFT_LABEL[draftKind] ?? draftKind}
       </Badge>
       <div className="flex-1" />
       <Button onClick={onConfirm} disabled={!valid} loading={posting}>
@@ -1701,8 +1698,6 @@ export function QuickEntryBar() {
     }
   };
 
-  // ── Produk baru dari info beli ──────────────────────────────────────
-
   const openNewProduct = (seed: {
     name: string;
     unit: string;
@@ -1833,7 +1828,7 @@ export function QuickEntryBar() {
           catalog={catalog}
           onStartDraft={startDraft}
           onClearDraftError={() => setDraftError(null)}
-          doneMessage={null}
+          doneMessage={doneMessage}
           onHelpExample={(example) => setText(example)}
         />
 
@@ -1919,7 +1914,6 @@ export function QuickEntryBar() {
             />
           )}
 
-          {doneMessage && <p className="text-sm text-text-secondary">{doneMessage}</p>}
       </CardContent>
     </Card>
   );

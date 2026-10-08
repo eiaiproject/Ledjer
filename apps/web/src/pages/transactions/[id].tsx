@@ -55,7 +55,11 @@ export function TransactionDetailPage() {
 
   let detailContent: ReactNode = null;
   if (query.isLoading) {
-    detailContent = <div className="h-40 animate-pulse rounded-xl bg-wood-100" />;
+    detailContent = (
+      <div className="h-40 rounded-xl bg-wood-100 motion-safe:animate-pulse" role="status" aria-live="polite">
+        <span className="sr-only">Memuat detail transaksi.</span>
+      </div>
+    );
   } else if (query.isError) {
     detailContent = (
       <ErrorState

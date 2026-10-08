@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 
 interface GoogleAuthButtonProps {
-  /** "signup" or "login" */
   readonly mode: "signup" | "login";
   readonly onClick: () => void;
   readonly loading: boolean;

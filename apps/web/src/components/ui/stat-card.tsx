@@ -88,7 +88,13 @@ export function StatCard({
     if (isLoading)
       return (
         <>
-          <div aria-hidden="true" className="h-6 w-32 animate-pulse rounded bg-white/15" />
+          <div
+            aria-hidden="true"
+            className={cn(
+              "h-6 w-32 rounded motion-safe:animate-pulse",
+              hero ? "bg-white/15" : "bg-wood-100",
+            )}
+          />
           <span className="sr-only">Memuat nilai.</span>
         </>
       );

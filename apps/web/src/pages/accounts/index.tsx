@@ -136,11 +136,15 @@ export function AccountsPage() {
           <AccountGroup
             title="Kas"
             accounts={cashAccounts}
+            isLoading={query.isLoading}
+            onCreate={() => setShowCreate(true)}
             onToggleActive={handleToggleActive}
           />
           <AccountGroup
             title="Bank"
             accounts={bankAccounts}
+            isLoading={query.isLoading}
+            onCreate={() => setShowCreate(true)}
             onToggleActive={handleToggleActive}
           />
         </div>
@@ -152,17 +156,36 @@ export function AccountsPage() {
 function AccountGroup({
   title,
   accounts,
+  isLoading,
+  onCreate,
   onToggleActive,
 }: {
   readonly title: string;
   readonly accounts: { id: string; code: string; name: string; balance_idr?: number; is_active: number }[];
+  readonly isLoading: boolean;
+  readonly onCreate: () => void;
   readonly onToggleActive: (accountId: string, isActive: boolean) => void;
 }) {
   return (
     <Card elevated title={title}>
       <CardContent className="p-0">
-        {accounts.length === 0 ? (
-          <EmptyState title={`Belum ada akun ${title.toLowerCase()}`} description="Tambahkan akun untuk mulai mencatat." />
+        {isLoading ? (
+          <div className="space-y-3 p-5" role="status" aria-live="polite">
+            <span className="sr-only">Memuat daftar akun.</span>
+            {[0, 1].map((i) => (
+              <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
+            ))}
+          </div>
+        ) : accounts.length === 0 ? (
+          <EmptyState
+            title={`Belum ada akun ${title.toLowerCase()}`}
+            description="Tambahkan akun untuk mulai mencatat."
+            action={
+              <Button variant="secondary" size="sm" onClick={onCreate}>
+                Tambah Akun
+              </Button>
+            }
+          />
         ) : (
           <ul className="divide-y divide-wood-100">
             {accounts.map((account) => (

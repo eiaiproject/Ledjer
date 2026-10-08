@@ -37,8 +37,8 @@ export function ConfirmDialog({
         <div className={cn("mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full", iconVariantStyles)}>
           <AlertTriangle className="h-6 w-6" />
         </div>
-        <h3 className="break-words text-lg font-semibold text-wood-800">{title}</h3>
-        <p className="mt-2 break-words text-sm text-wood-600">{message}</p>
+        <h3 className="break-words text-lg font-semibold text-text-primary">{title}</h3>
+        <p className="mt-2 break-words text-sm text-text-secondary">{message}</p>
       </ModalContent>
       <ModalFooter>
         <Button variant="ghost" onClick={onClose} disabled={loading}>

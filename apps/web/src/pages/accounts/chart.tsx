@@ -107,7 +107,16 @@ export function ChartOfAccountsPage() {
   };
 
   let groupsContent: ReactNode;
-  if (query.isError) {
+  if (query.isLoading) {
+    groupsContent = (
+      <div className="space-y-3 p-5" role="status" aria-live="polite">
+        <span className="sr-only">Memuat bagan akun.</span>
+        {[0, 1, 2].map((i) => (
+          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  } else if (query.isError) {
     groupsContent = (
       <ErrorState
         title="Gagal memuat bagan akun"
@@ -116,10 +125,22 @@ export function ChartOfAccountsPage() {
       />
     );
   } else if (groups.length === 0) {
+    const searching = search.trim() !== "";
     groupsContent = (
       <EmptyState
-        title="Belum ada akun"
-        description="Akun bawaan dibuat otomatis saat buku dibuat."
+        title={searching ? "Tidak ada hasil" : "Belum ada akun"}
+        description={
+          searching
+            ? "Tidak ada akun yang cocok dengan pencarian."
+            : "Akun bawaan dibuat otomatis saat buku dibuat."
+        }
+        action={
+          searching ? (
+            <Button variant="secondary" size="sm" onClick={() => setSearch("")}>
+              Hapus Pencarian
+            </Button>
+          ) : undefined
+        }
       />
     );
   } else {

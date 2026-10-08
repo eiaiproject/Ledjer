@@ -390,7 +390,6 @@ export function DashboardLayout() {
         </div>
       </dialog>
 
-      {/* Main Content */}
       <main
         id="main-content"
         tabIndex={-1}

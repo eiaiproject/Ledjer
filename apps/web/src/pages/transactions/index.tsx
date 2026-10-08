@@ -117,7 +117,7 @@ export function TransactionListPage() {
       <div className="space-y-3 p-5" role="status" aria-live="polite">
         <span className="sr-only">Memuat daftar transaksi.</span>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} aria-hidden="true" className="h-12 animate-pulse rounded-md bg-wood-100" />
+          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
         ))}
       </div>
     );
@@ -138,14 +138,35 @@ export function TransactionListPage() {
       </ul>
     );
   } else {
+    const filtering = activeFilterCount > 0;
     rowsContent = (
       <EmptyState
-        title="Tidak ada transaksi"
-        description="Belum ada transaksi yang cocok dengan filter ini."
+        title={filtering ? "Tidak ada hasil" : "Belum ada transaksi"}
+        description={
+          filtering
+            ? "Belum ada transaksi yang cocok dengan filter ini."
+            : "Catat transaksi pertama Anda untuk melihatnya di sini."
+        }
         action={
-          <Link to="/transactions/new">
-            <Button>Catat Transaksi</Button>
-          </Link>
+          filtering ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSearch("");
+                setTransactionType("");
+                setStatus("");
+                setFromDate("");
+                setToDate("");
+                setOffset(0);
+              }}
+            >
+              Hapus Filter
+            </Button>
+          ) : (
+            <Link to="/transactions/new">
+              <Button>Catat Transaksi</Button>
+            </Link>
+          )
         }
       />
     );

@@ -339,6 +339,9 @@ export function NewTransactionPage() {
       {accountsQuery.isError && (
         <Callout variant="error">Gagal memuat daftar akun. Muat ulang halaman dan coba lagi.</Callout>
       )}
+      {productsQuery.isError && (
+        <Callout variant="error">Gagal memuat daftar produk. Muat ulang halaman dan coba lagi.</Callout>
+      )}
 
       {manualOpen && (
       <Card elevated>
@@ -387,6 +390,14 @@ export function NewTransactionPage() {
                 options={accountOptions(cashBankAccounts)}
                 {...register("cashAccountId")}
               />
+              {cashBankAccounts.length === 0 && !accountsQuery.isLoading && (
+                <p className="text-sm text-text-secondary">
+                  Belum ada akun kas/bank.{" "}
+                  <Link to="/accounts" className="underline underline-offset-2">
+                    Kelola akun
+                  </Link>
+                </p>
+              )}
               {isPurchase ? (
                 <div className="flex items-end pb-2">
                   <p className="w-full rounded-md border border-wood-200 bg-cream-100 px-3 py-2.5 text-sm text-text-secondary">
@@ -402,6 +413,14 @@ export function NewTransactionPage() {
                   options={accountOptions(counterOptions)}
                   {...register("counterAccountId")}
                 />
+              )}
+              {!isPurchase && counterOptions.length === 0 && !accountsQuery.isLoading && (
+                <p className="text-sm text-text-secondary sm:col-span-2">
+                  Tidak ada akun lawan yang bisa dipilih.{" "}
+                  <Link to="/accounts" className="underline underline-offset-2">
+                    Kelola akun
+                  </Link>
+                </p>
               )}
             </div>
 
@@ -421,9 +440,21 @@ export function NewTransactionPage() {
               <button
                 type="button"
                 onClick={() => setGoodsSale(true)}
-                className="block min-h-[24px] text-left text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800"
+                className="block min-h-[44px] text-left text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800"
               >
                 Ini penjualan barang? Isi daftar produknya di sini.
+              </button>
+            )}
+            {!isPurchase && selectedType === "cash_in" && goodsSale && (
+              <button
+                type="button"
+                onClick={() => {
+                  setGoodsSale(false);
+                  setItems([]);
+                }}
+                className="block min-h-[44px] text-left text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800"
+              >
+                Tutup daftar produk
               </button>
             )}
 

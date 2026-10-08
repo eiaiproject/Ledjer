@@ -1,3 +1,5 @@
+import { FileText } from "reicon-react";
+import { Link } from "react-router-dom";
 import { formatIDR } from "@/lib/utils";
 import type { ReportAccountLine } from "@/lib/api/reports";
 
@@ -11,11 +13,13 @@ export function ReportSection({
   total,
   lines,
   emptyText,
+  emptyAction,
 }: {
   readonly title: string;
   readonly total: number;
   readonly lines: readonly ReportAccountLine[];
   readonly emptyText: string;
+  readonly emptyAction?: React.ReactNode;
 }) {
   return (
     <>
@@ -24,7 +28,15 @@ export function ReportSection({
         <p className="num-mono text-sm font-semibold text-text-primary">{formatIDR(total)}</p>
       </div>
       {lines.length === 0 ? (
-        <p className="border-b border-wood-100 px-5 py-4 text-sm text-text-tertiary">{emptyText}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-wood-100 px-5 py-4">
+          <FileText className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+          <p className="text-sm text-text-tertiary">{emptyText}</p>
+          {emptyAction ?? (
+            <Link to="/transactions/new" className="text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800">
+              Catat transaksi
+            </Link>
+          )}
+        </div>
       ) : (
         <ul className="divide-y divide-wood-100 border-b border-wood-100">
           {lines.map((line) => (

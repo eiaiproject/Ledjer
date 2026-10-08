@@ -240,13 +240,27 @@ export function ProductsPage() {
       ) : (
         <Card elevated title="Daftar Produk">
           <CardContent className="p-0">
-            {products.length === 0 ? (
+            {query.isLoading ? (
+              <div className="space-y-3 p-5" role="status" aria-live="polite">
+                <span className="sr-only">Memuat daftar produk.</span>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
+                ))}
+              </div>
+            ) : products.length === 0 ? (
               <EmptyState
                 title={filtering ? "Tidak ada produk yang cocok" : "Belum ada produk"}
                 description={
                   filtering
                     ? "Coba kata kunci atau filter lain."
                     : "Tambahkan produk untuk mulai mencatat pembelian & penjualan barang."
+                }
+                action={
+                  filtering ? undefined : (
+                    <Button size="sm" onClick={() => setCreateOpen(true)}>
+                      Tambah Produk
+                    </Button>
+                  )
                 }
               />
             ) : (
@@ -453,7 +467,7 @@ function ProductMovementHistory({ productId, unit, sellingPriceIdr }: { readonly
   });
 
   if (query.isLoading) {
-    return <div className="h-16 animate-pulse rounded-lg bg-wood-100" aria-label="Memuat riwayat mutasi" />;
+    return <div className="h-16 rounded-xl bg-wood-100 motion-safe:animate-pulse" role="status" aria-label="Memuat riwayat mutasi" />;
   }
   if (query.isError) {
     return (

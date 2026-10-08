@@ -31,7 +31,11 @@ export function BalanceSheetPage() {
 
   let reportContent: ReactNode = null;
   if (query.isLoading) {
-    reportContent = <div className="h-48 animate-pulse rounded-xl bg-wood-100" />;
+    reportContent = (
+      <div className="h-48 rounded-xl bg-wood-100 motion-safe:animate-pulse" role="status" aria-live="polite">
+        <span className="sr-only">Menghitung neraca.</span>
+      </div>
+    );
   } else if (query.isError) {
     reportContent = (
       <ErrorState title="Gagal memuat laporan" message="Terjadi kesalahan saat menghitung neraca." onRetry={() => query.refetch()} />
@@ -101,7 +105,7 @@ export function BalanceSheetPage() {
             }}
           >
             <Input label="Tanggal" type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
-            <Button type="submit">Tampilkan</Button>
+            <Button type="submit" loading={query.isFetching}>Tampilkan</Button>
           </form>
         </CardContent>
       </Card>
