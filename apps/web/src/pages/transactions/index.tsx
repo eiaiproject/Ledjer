@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "reicon-react";
@@ -25,6 +25,73 @@ const PAGE_SIZE = 25;
 /** Tanggal dari URL (deep-link "lihat transaksi tanggal itu") — invalid → "". */
 function sanitizeDateParam(value: string | null): string {
   return value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+}
+
+/** Isi daftar transaksi: loading, error, baris, atau kosong — dipisah agar halaman tetap ramping. */
+function TransactionRows({
+  isLoading,
+  isError,
+  transactions,
+  filtering,
+  onRetry,
+  onClearFilters,
+}: {
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly transactions: Transaction[] | null;
+  readonly filtering: boolean;
+  readonly onRetry: () => void;
+  readonly onClearFilters: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3 p-5" role="status" aria-live="polite">
+        <span className="sr-only">Memuat daftar transaksi.</span>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <ErrorState
+        title="Gagal memuat transaksi"
+        message="Terjadi kesalahan saat mengambil daftar transaksi."
+        onRetry={onRetry}
+      />
+    );
+  }
+  if (transactions && transactions.length > 0) {
+    return (
+      <ul className="divide-y divide-wood-100">
+        {transactions.map((transaction) => (
+          <TransactionRow key={transaction.id} transaction={transaction} />
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <EmptyState
+      title={filtering ? "Tidak ada hasil" : "Belum ada transaksi"}
+      description={
+        filtering
+          ? "Belum ada transaksi yang cocok dengan filter ini."
+          : "Catat transaksi pertama Anda untuk melihatnya di sini."
+      }
+      action={
+        filtering ? (
+          <Button variant="secondary" onClick={onClearFilters}>
+            Hapus Filter
+          </Button>
+        ) : (
+          <Link to="/transactions/new">
+            <Button>Catat Transaksi</Button>
+          </Link>
+        )
+      }
+    />
+  );
 }
 
 export function TransactionListPage() {
@@ -111,66 +178,14 @@ export function TransactionListPage() {
     if (clamped !== offset) setOffset(clamped);
   }
 
-  let rowsContent: ReactNode;
-  if (query.isLoading) {
-    rowsContent = (
-      <div className="space-y-3 p-5" role="status" aria-live="polite">
-        <span className="sr-only">Memuat daftar transaksi.</span>
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
-        ))}
-      </div>
-    );
-  } else if (query.isError) {
-    rowsContent = (
-      <ErrorState
-        title="Gagal memuat transaksi"
-        message="Terjadi kesalahan saat mengambil daftar transaksi."
-        onRetry={() => query.refetch()}
-      />
-    );
-  } else if (query.data && query.data.transactions.length > 0) {
-    rowsContent = (
-      <ul className="divide-y divide-wood-100">
-        {query.data.transactions.map((transaction) => (
-          <TransactionRow key={transaction.id} transaction={transaction} />
-        ))}
-      </ul>
-    );
-  } else {
-    const filtering = activeFilterCount > 0;
-    rowsContent = (
-      <EmptyState
-        title={filtering ? "Tidak ada hasil" : "Belum ada transaksi"}
-        description={
-          filtering
-            ? "Belum ada transaksi yang cocok dengan filter ini."
-            : "Catat transaksi pertama Anda untuk melihatnya di sini."
-        }
-        action={
-          filtering ? (
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSearch("");
-                setTransactionType("");
-                setStatus("");
-                setFromDate("");
-                setToDate("");
-                setOffset(0);
-              }}
-            >
-              Hapus Filter
-            </Button>
-          ) : (
-            <Link to="/transactions/new">
-              <Button>Catat Transaksi</Button>
-            </Link>
-          )
-        }
-      />
-    );
-  }
+  const clearFilters = () => {
+    setSearch("");
+    setTransactionType("");
+    setStatus("");
+    setFromDate("");
+    setToDate("");
+    setOffset(0);
+  };
 
   return (
     <div className="space-y-4">
@@ -271,7 +286,16 @@ export function TransactionListPage() {
       )}
 
       <Card elevated>
-        <CardContent className="p-0">{rowsContent}</CardContent>
+        <CardContent className="p-0">
+          <TransactionRows
+            isLoading={query.isLoading}
+            isError={query.isError}
+            transactions={query.data?.transactions ?? null}
+            filtering={activeFilterCount > 0}
+            onRetry={() => query.refetch()}
+            onClearFilters={clearFilters}
+          />
+        </CardContent>
       </Card>
 
       {query.data && query.data.total > PAGE_SIZE && (

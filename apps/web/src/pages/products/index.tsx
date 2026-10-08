@@ -37,6 +37,138 @@ interface EditState {
   sellingPriceIdr: string;
 }
 
+/** Isi daftar produk: loading, kosong, atau baris — dipisah agar ProductsPage tetap ramping. */
+function ProductListBody({
+  isLoading,
+  filtering,
+  products,
+  expandedId,
+  onToggleExpand,
+  onEdit,
+  onToggleActive,
+  onCreate,
+}: {
+  readonly isLoading: boolean;
+  readonly filtering: boolean;
+  readonly products: Product[];
+  readonly expandedId: string | null;
+  readonly onToggleExpand: (productId: string) => void;
+  readonly onEdit: (product: Product) => void;
+  readonly onToggleActive: (product: Product) => void;
+  readonly onCreate: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3 p-5" role="status" aria-live="polite">
+        <span className="sr-only">Memuat daftar produk.</span>
+        {[0, 1, 2].map((i) => (
+          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+  if (products.length === 0) {
+    return (
+      <EmptyState
+        title={filtering ? "Tidak ada produk yang cocok" : "Belum ada produk"}
+        description={
+          filtering
+            ? "Coba kata kunci atau filter lain."
+            : "Tambahkan produk untuk mulai mencatat pembelian & penjualan barang."
+        }
+        action={
+          filtering ? undefined : (
+            <Button size="sm" onClick={onCreate}>
+              Tambah Produk
+            </Button>
+          )
+        }
+      />
+    );
+  }
+  return (
+    <ul className="divide-y divide-wood-100">
+      {products.map((product) => {
+        const expanded = expandedId === product.id;
+        return (
+        <li key={product.id} className="px-5 py-3">
+          <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => onToggleExpand(product.id)}
+            aria-expanded={expanded}
+            aria-controls={`movements-${product.id}`}
+            aria-label={`Riwayat mutasi ${product.name}`}
+            className="group flex min-w-0 flex-1 items-center justify-between gap-4 rounded-lg text-left transition-colors hover:bg-cream-100/60"
+          >
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors group-hover:bg-wood-100">
+              <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+            </span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
+                {product.name}
+                {product.is_active !== 1 && (
+                  <Badge variant="neutral" size="sm">
+                    Nonaktif
+                  </Badge>
+                )}
+              </span>
+              <span className="mt-0.5 block text-xs text-text-tertiary">
+                {product.code} · Stok {formatQuantity(product.current_stock)} {product.unit}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="num-mono block text-sm font-semibold text-text-primary">
+              {formatIDR(product.stock_value_idr)}
+            </span>
+          </span>
+          </button>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <Button variant="ghost" size="sm" aria-label={`Edit ${product.name}`} onClick={() => onEdit(product)}>
+              <Edit className="h-4 w-4" />
+              <span className="hidden sm:inline">Edit</span>
+            </Button>
+            {product.is_active === 1 ? (
+              <Button variant="ghost" size="sm" aria-label={`Nonaktifkan ${product.name}`} onClick={() => onToggleActive(product)}>
+                <Power className="h-4 w-4" />
+                <span className="hidden sm:inline">Nonaktifkan</span>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" aria-label={`Aktifkan ${product.name}`} onClick={() => onToggleActive(product)}>
+                <Power className="h-4 w-4" />
+                <span className="hidden sm:inline">Aktifkan</span>
+              </Button>
+            )}
+          </div>
+          </div>
+          {expanded && (
+            <div id={`movements-${product.id}`} className="mt-2 border-t border-wood-100 pt-2">
+              <p className="px-1 pb-1 text-xs text-text-tertiary">
+                HPP {formatDecimalIDR(product.average_cost_idr)}/{product.unit} · Jual{" "}
+                {formatDecimalIDR(product.selling_price_idr)}
+                {product.selling_price_idr > 0 && (
+                  <>
+                    {" "}· Margin{" "}
+                    <ProductMargin
+                      sellingPriceIdr={product.selling_price_idr}
+                      costIdr={product.average_cost_idr}
+                      unit={product.unit}
+                    />
+                  </>
+                )}
+              </p>
+              <ProductMovementHistory productId={product.id} unit={product.unit} sellingPriceIdr={product.selling_price_idr} />
+            </div>
+          )}
+        </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ProductsPage() {
   const { userId } = useBook();
   const queryClient = useQueryClient();
@@ -240,110 +372,16 @@ export function ProductsPage() {
       ) : (
         <Card elevated title="Daftar Produk">
           <CardContent className="p-0">
-            {query.isLoading ? (
-              <div className="space-y-3 p-5" role="status" aria-live="polite">
-                <span className="sr-only">Memuat daftar produk.</span>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
-                ))}
-              </div>
-            ) : products.length === 0 ? (
-              <EmptyState
-                title={filtering ? "Tidak ada produk yang cocok" : "Belum ada produk"}
-                description={
-                  filtering
-                    ? "Coba kata kunci atau filter lain."
-                    : "Tambahkan produk untuk mulai mencatat pembelian & penjualan barang."
-                }
-                action={
-                  filtering ? undefined : (
-                    <Button size="sm" onClick={() => setCreateOpen(true)}>
-                      Tambah Produk
-                    </Button>
-                  )
-                }
-              />
-            ) : (
-              <ul className="divide-y divide-wood-100">
-                {products.map((product) => {
-                  const expanded = expandedId === product.id;
-                  return (
-                  <li key={product.id} className="px-5 py-3">
-                    <div className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(expanded ? null : product.id)}
-                      aria-expanded={expanded}
-                      aria-controls={`movements-${product.id}`}
-                      aria-label={`Riwayat mutasi ${product.name}`}
-                      className="group flex min-w-0 flex-1 items-center justify-between gap-4 rounded-lg text-left transition-colors hover:bg-cream-100/60"
-                    >
-                    <span className="flex min-w-0 items-center gap-1">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-wood-500 transition-colors group-hover:bg-wood-100">
-                        <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
-                          {product.name}
-                          {product.is_active !== 1 && (
-                            <Badge variant="neutral" size="sm">
-                              Nonaktif
-                            </Badge>
-                          )}
-                        </span>
-                        <span className="mt-0.5 block text-xs text-text-tertiary">
-                          {product.code} · Stok {formatQuantity(product.current_stock)} {product.unit}
-                        </span>
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="num-mono block text-sm font-semibold text-text-primary">
-                        {formatIDR(product.stock_value_idr)}
-                      </span>
-                    </span>
-                    </button>
-                    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-                      <Button variant="ghost" size="sm" aria-label={`Edit ${product.name}`} onClick={() => openEdit(product)}>
-                        <Edit className="h-4 w-4" />
-                        <span className="hidden sm:inline">Edit</span>
-                      </Button>
-                      {product.is_active === 1 ? (
-                        <Button variant="ghost" size="sm" aria-label={`Nonaktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
-                          <Power className="h-4 w-4" />
-                          <span className="hidden sm:inline">Nonaktifkan</span>
-                        </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" aria-label={`Aktifkan ${product.name}`} onClick={() => handleToggleActive(product)}>
-                          <Power className="h-4 w-4" />
-                          <span className="hidden sm:inline">Aktifkan</span>
-                        </Button>
-                      )}
-                    </div>
-                    </div>
-                    {expanded && (
-                      <div id={`movements-${product.id}`} className="mt-2 border-t border-wood-100 pt-2">
-                        <p className="px-1 pb-1 text-xs text-text-tertiary">
-                          HPP {formatDecimalIDR(product.average_cost_idr)}/{product.unit} · Jual{" "}
-                          {formatDecimalIDR(product.selling_price_idr)}
-                          {product.selling_price_idr > 0 && (
-                            <>
-                              {" "}· Margin{" "}
-                              <ProductMargin
-                                sellingPriceIdr={product.selling_price_idr}
-                                costIdr={product.average_cost_idr}
-                                unit={product.unit}
-                              />
-                            </>
-                          )}
-                        </p>
-                        <ProductMovementHistory productId={product.id} unit={product.unit} sellingPriceIdr={product.selling_price_idr} />
-                      </div>
-                    )}
-                  </li>
-                  );
-                })}
-              </ul>
-            )}
+            <ProductListBody
+              isLoading={query.isLoading}
+              filtering={filtering}
+              products={products}
+              expandedId={expandedId}
+              onToggleExpand={(id) => setExpandedId(expandedId === id ? null : id)}
+              onEdit={openEdit}
+              onToggleActive={handleToggleActive}
+              onCreate={() => setCreateOpen(true)}
+            />
           </CardContent>
         </Card>
       )}
@@ -467,7 +505,11 @@ function ProductMovementHistory({ productId, unit, sellingPriceIdr }: { readonly
   });
 
   if (query.isLoading) {
-    return <div className="h-16 rounded-xl bg-wood-100 motion-safe:animate-pulse" role="status" aria-label="Memuat riwayat mutasi" />;
+    return (
+      <output className="block h-16 rounded-xl bg-wood-100 motion-safe:animate-pulse" aria-label="Memuat riwayat mutasi">
+        <span className="sr-only">Memuat riwayat mutasi.</span>
+      </output>
+    );
   }
   if (query.isError) {
     return (
