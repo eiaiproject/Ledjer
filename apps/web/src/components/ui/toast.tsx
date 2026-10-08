@@ -66,7 +66,6 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
     info: (message: string) => addToast(message, "info"),
   }), [addToast]);
 
-  // Set global toast on mount
   useEffect(() => {
     setGlobalToast(toast);
   }, [toast]);
@@ -129,6 +128,8 @@ function ToastContainer({
             aria-live={t.variant === "error" ? "assertive" : "polite"}
             onMouseEnter={() => onPause(t.id)}
             onMouseLeave={() => onResume(t.id, t.duration)}
+            onFocus={() => onPause(t.id)}
+            onBlur={() => onResume(t.id, t.duration)}
             className={cn(
               "flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-md transition-all",
               VARIANT_STYLES[t.variant]
@@ -138,7 +139,7 @@ function ToastContainer({
             <span className="flex-1">{t.message}</span>
             <button               type="button"
               onClick={() => onDismiss(t.id)}
-              className="ml-2 rounded-sm text-current opacity-60 hover:opacity-100 focus-visible:outline-wood-500"
+              className="ml-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm text-current focus-visible:outline-wood-500"
               aria-label="Tutup"
             >
               <X className="h-4 w-4" />

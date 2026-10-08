@@ -35,13 +35,19 @@ fi
 
 EXCEPTIONS_FILE="docs/compliance/dependency-exceptions.json"
 
-# Run pnpm audit and capture output
+# Run pnpm audit and capture output (fail closed: empty/malformed output
+# means the tool failed, never a clean bill of health).
 echo "=== Running pnpm audit ==="
 AUDIT_OUTPUT=$(pnpm audit --audit-level=low --json 2>/dev/null || true)
 
 if [[ -z "$AUDIT_OUTPUT" ]]; then
-  echo "[audit] No vulnerabilities found or audit JSON empty"
-  exit 0
+  echo "ERROR: pnpm audit produced no output (tool failure?), failing closed" >&2
+  exit 1
+fi
+
+if ! echo "$AUDIT_OUTPUT" | jq empty 2>/dev/null; then
+  echo "ERROR: pnpm audit output is not valid JSON, failing closed" >&2
+  exit 1
 fi
 
 # Parse vulnerability counts from pnpm 10 audit JSON (npm-compatible object shape).

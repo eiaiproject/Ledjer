@@ -11,6 +11,7 @@ import {
   clearOfflineSession,
   refreshOfflineSessionInBackground,
 } from "@/lib/offline-auth";
+import { toast } from "@/components/ui/toast";
 
 /** Offline (Failed to fetch / TypeError) — selain itu diasumsikan ApiError. */
 function isNetworkError(err: unknown): boolean {
@@ -103,11 +104,17 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, [queryClient]);
 
   const signOut = useCallback(async () => {
-    await logout();
-    await clearOfflineSession();
-    setSession(null);
-    setUser(null);
-    queryClient.clear();
+    try {
+      await logout();
+    } catch {
+      // Revoke server best-effort: teardown lokal tetap wajib jalan.
+      toast.error("Keluar dari server gagal, sesi perangkat ini tetap dihapus.");
+    } finally {
+      await clearOfflineSession();
+      setSession(null);
+      setUser(null);
+      queryClient.clear();
+    }
   }, [queryClient]);
 
   const signIn = useCallback(async (email: string, password: string) => {

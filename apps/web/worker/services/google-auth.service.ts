@@ -273,6 +273,13 @@ export async function completeGoogleAuth(
         "Email ini sudah terdaftar. Masuk dengan password terlebih dahulu, lalu tautkan Google dari pengaturan.",
       );
     } else {
+      // Email baru wajib terverifikasi di Google, sama seperti cabang existing.
+      if (!googleUser.verified_email) {
+        throw conflict(
+          "oauth_email_conflict",
+          "Email Google tidak terverifikasi. Masuk dengan password terlebih dahulu.",
+        );
+      }
       // New user: create user + default COA (same as register)
       user = await createUserFromGoogle(db, googleUser, defaultBusinessName(googleUser), current);
       await logAuthEvent(db, user.id, "registration", {

@@ -20,6 +20,21 @@ import { TRAKTEER_URL } from "@/lib/external";
 export function PublicLayout({ children }: { readonly children: ReactNode }) {
   return (
     <div className="ledger-page flex min-h-dvh flex-col bg-cream-100">
+      {/* Skip to content link - WCAG 2.4.1, pola sama dengan dasbor */}
+      <a
+        href="#main-content"
+        onClick={(e) => {
+          e.preventDefault();
+          const main = document.getElementById("main-content");
+          if (main) {
+            main.focus();
+            main.scrollIntoView();
+          }
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[var(--z-toast)] focus:rounded-lg focus:bg-cream-50 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-wood-900 focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-wood-500"
+      >
+        Langsung ke konten utama
+      </a>
       <header className="ledger-safe-top sticky top-0 z-sticky border-b border-wood-200 bg-cream-50/95 backdrop-blur-sm">
         <nav
           aria-label="Navigasi utama"
@@ -43,7 +58,7 @@ export function PublicLayout({ children }: { readonly children: ReactNode }) {
         </nav>
       </header>
 
-      <main id="main-content" className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
         {children}
       </main>
 

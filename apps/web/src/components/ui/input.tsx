@@ -20,8 +20,6 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix
   size?: "sm" | "md" | "lg";
 }
 
-// ─── Pure helpers (module level, no JSX) ─────────────────────────
-
 /** id ?? label-derived id ?? generated id - no chained logical operators in JSX. */
 function resolveInputId(id: string | undefined, label: string | undefined, generatedId: string): string {
   if (id) return id;
@@ -132,8 +130,6 @@ function buildInputClassName(opts: {
     opts.className,
   );
 }
-
-// ─── Component ──────────────────────────────────────────────────
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   (

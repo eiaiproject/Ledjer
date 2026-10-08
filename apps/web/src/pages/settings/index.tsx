@@ -9,7 +9,7 @@ import { toast } from "@/components/ui/toast";
 import { translateError } from "@/lib/errors";
 
 export function SettingsPage() {
-  const { user, refreshSession } = useAuth();
+  const { user, loading, refreshSession } = useAuth();
 
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -86,11 +86,29 @@ export function SettingsPage() {
           <dl className="space-y-3">
             <div className="flex items-center justify-between gap-4">
               <dt className="text-sm text-text-secondary">Nama</dt>
-              <dd className="break-words text-sm font-medium text-text-primary">{user?.full_name ?? "-"}</dd>
+              <dd className="break-words text-sm font-medium text-text-primary">
+                {loading ? (
+                  <span role="status" aria-live="polite">
+                    <span className="sr-only">Memuat data akun.</span>
+                    <span aria-hidden="true" className="inline-block h-4 w-24 rounded bg-wood-100 motion-safe:animate-pulse" />
+                  </span>
+                ) : (
+                  (user?.full_name ?? "-")
+                )}
+              </dd>
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-sm text-text-secondary">Email</dt>
-              <dd className="break-words text-sm font-medium text-text-primary">{user?.email ?? "-"}</dd>
+              <dd className="break-words text-sm font-medium text-text-primary">
+                {loading ? (
+                  <span role="status" aria-live="polite">
+                    <span className="sr-only">Memuat data akun.</span>
+                    <span aria-hidden="true" className="inline-block h-4 w-32 rounded bg-wood-100 motion-safe:animate-pulse" />
+                  </span>
+                ) : (
+                  (user?.email ?? "-")
+                )}
+              </dd>
             </div>
           </dl>
         </CardContent>

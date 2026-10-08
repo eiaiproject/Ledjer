@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useBook } from "@/hooks/useBook";
 import { getGeneralLedger, type GeneralLedgerEntry } from "@/lib/api/reports";
@@ -99,7 +100,11 @@ export function GeneralLedgerPage() {
 
   let reportContent: ReactNode = null;
   if (query.isLoading) {
-    reportContent = <div className="h-48 animate-pulse rounded-xl bg-wood-100" />;
+    reportContent = (
+      <div className="h-48 rounded-xl bg-wood-100 motion-safe:animate-pulse" role="status" aria-live="polite">
+        <span className="sr-only">Memuat buku besar.</span>
+      </div>
+    );
   } else if (query.isError) {
     reportContent = (
       <ErrorState
@@ -142,10 +147,31 @@ export function GeneralLedgerPage() {
       </>
     );
   } else if (report) {
+    const filtering = submitted.accountId !== "" || submitted.fromDate !== initialRange.from || submitted.toDate !== initialRange.to;
     reportContent = (
       <EmptyState
         title="Tidak ada jurnal pada periode ini"
         description="Belum ada transaksi posted yang cocok dengan filter ini."
+        action={
+          filtering ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setFromDate(initialRange.from);
+                setToDate(initialRange.to);
+                setAccountId("");
+                setSubmitted({ fromDate: initialRange.from, toDate: initialRange.to, accountId: "" });
+              }}
+            >
+              Hapus Filter
+            </Button>
+          ) : (
+            <Link to="/transactions/new">
+              <Button size="sm">Catat Transaksi</Button>
+            </Link>
+          )
+        }
       />
     );
   }
@@ -174,7 +200,7 @@ export function GeneralLedgerPage() {
               onChange={(e) => setAccountId(e.target.value)}
               options={accountOptions}
             />
-            <Button type="submit">Tampilkan</Button>
+            <Button type="submit" loading={query.isFetching}>Tampilkan</Button>
           </form>
         </CardContent>
       </Card>

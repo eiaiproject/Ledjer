@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "reicon-react";
@@ -136,11 +136,15 @@ export function AccountsPage() {
           <AccountGroup
             title="Kas"
             accounts={cashAccounts}
+            isLoading={query.isLoading}
+            onCreate={() => setShowCreate(true)}
             onToggleActive={handleToggleActive}
           />
           <AccountGroup
             title="Bank"
             accounts={bankAccounts}
+            isLoading={query.isLoading}
+            onCreate={() => setShowCreate(true)}
             onToggleActive={handleToggleActive}
           />
         </div>
@@ -152,51 +156,76 @@ export function AccountsPage() {
 function AccountGroup({
   title,
   accounts,
+  isLoading,
+  onCreate,
   onToggleActive,
 }: {
   readonly title: string;
   readonly accounts: { id: string; code: string; name: string; balance_idr?: number; is_active: number }[];
+  readonly isLoading: boolean;
+  readonly onCreate: () => void;
   readonly onToggleActive: (accountId: string, isActive: boolean) => void;
 }) {
+  let content: ReactNode;
+  if (isLoading) {
+    content = (
+      <div className="space-y-3 p-5" role="status" aria-live="polite">
+        <span className="sr-only">Memuat daftar akun.</span>
+        {[0, 1].map((i) => (
+          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  } else if (accounts.length === 0) {
+    content = (
+      <EmptyState
+        title={`Belum ada akun ${title.toLowerCase()}`}
+        description="Tambahkan akun untuk mulai mencatat."
+        action={
+          <Button variant="secondary" size="sm" onClick={onCreate}>
+            Tambah Akun
+          </Button>
+        }
+      />
+    );
+  } else {
+    content = (
+      <ul className="divide-y divide-wood-100">
+        {accounts.map((account) => (
+          <li key={account.id} className="flex items-center justify-between gap-4 px-5 py-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
+                {account.name}
+                {account.is_active !== 1 && (
+                  <Badge variant="neutral" size="sm">
+                    Nonaktif
+                  </Badge>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-text-tertiary">{account.code}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <p className="num-mono text-sm font-semibold text-text-primary">
+                {formatIDR(account.balance_idr ?? 0)}
+              </p>
+              {account.is_active === 1 ? (
+                <Button variant="ghost" size="sm" onClick={() => onToggleActive(account.id, true)}>
+                  Nonaktifkan
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => onToggleActive(account.id, false)}>
+                  Aktifkan
+                </Button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     <Card elevated title={title}>
-      <CardContent className="p-0">
-        {accounts.length === 0 ? (
-          <EmptyState title={`Belum ada akun ${title.toLowerCase()}`} description="Tambahkan akun untuk mulai mencatat." />
-        ) : (
-          <ul className="divide-y divide-wood-100">
-            {accounts.map((account) => (
-              <li key={account.id} className="flex items-center justify-between gap-4 px-5 py-3">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 break-words text-sm font-medium text-text-primary">
-                    {account.name}
-                    {account.is_active !== 1 && (
-                      <Badge variant="neutral" size="sm">
-                        Nonaktif
-                      </Badge>
-                    )}
-                  </p>
-                  <p className="mt-0.5 text-xs text-text-tertiary">{account.code}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <p className="num-mono text-sm font-semibold text-text-primary">
-                    {formatIDR(account.balance_idr ?? 0)}
-                  </p>
-                  {account.is_active === 1 ? (
-                    <Button variant="ghost" size="sm" onClick={() => onToggleActive(account.id, true)}>
-                      Nonaktifkan
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => onToggleActive(account.id, false)}>
-                      Aktifkan
-                    </Button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
+      <CardContent className="p-0">{content}</CardContent>
     </Card>
   );
 }

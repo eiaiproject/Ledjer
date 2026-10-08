@@ -206,4 +206,37 @@ describe("completeGoogleAuth", () => {
       ),
     ).rejects.toMatchObject({ code: "oauth_email_conflict" });
   });
+
+  it("rejects new signup when Google reports the email as unverified", async () => {
+    const { db } = createSeedFixtures();
+    mockGoogleFetch({
+      id: "google-account-0005",
+      email: "fresh-unverified@test.example",
+      name: "Fresh Unverified",
+      verified_email: false,
+    });
+
+    await expect(
+      completeGoogleAuth(
+        db as unknown as D1Database,
+        "auth-code-6",
+        "client-123",
+        "secret-123",
+        "https://app.test/api/auth/google/callback",
+        new Request("https://app.test"),
+      ),
+    ).rejects.toMatchObject({ code: "oauth_email_conflict" });
+
+    const user = await (db as unknown as TestDb).first<{ id: string }>(
+      "SELECT id FROM users WHERE email = ?",
+      ["fresh-unverified@test.example"],
+    );
+    expect(user).toBeNull();
+
+    const link = await (db as unknown as TestDb).first<{ user_id: string }>(
+      "SELECT user_id FROM oauth_accounts WHERE provider = 'google' AND provider_account_id = ?",
+      ["google-account-0005"],
+    );
+    expect(link).toBeNull();
+  });
 });

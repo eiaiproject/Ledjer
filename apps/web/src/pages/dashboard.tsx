@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Plus, Scale, Wallet } from "reicon-react";
+import { Minus, Plus, Scale, Wallet } from "reicon-react";
 import { useBook } from "@/hooks/useBook";
 import { getDashboardAlerts, getDashboardSummary } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/query-keys";
@@ -55,7 +55,7 @@ export function DashboardPage() {
       <div className="space-y-3 p-5" role="status" aria-live="polite">
         <span className="sr-only">Memuat transaksi terbaru.</span>
         {[0, 1, 2].map((i) => (
-          <div key={i} aria-hidden="true" className="h-12 animate-pulse rounded-md bg-wood-100" />
+          <div key={i} aria-hidden="true" className="h-12 rounded-xl bg-wood-100 motion-safe:animate-pulse" />
         ))}
       </div>
     );
@@ -92,7 +92,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={`Halo, ${businessName ?? ""}`}
+        title={businessName ? `Halo, ${businessName}` : "Halo"}
         description="Ringkasan keuangan usaha Anda."
       />
       <Link to="/transactions/new" className="block sm:w-fit">
@@ -113,57 +113,67 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Saldo Kas & Bank"
-          value={summary?.cashBankBalance}
-          icon={Wallet}
-          tone="leaf"
-          hero
-          href="/accounts"
-          ariaDescription="Total saldo seluruh akun kas dan bank"
+      {summaryQuery.isError ? (
+        <ErrorState
+          title="Gagal memuat ringkasan"
+          message="Terjadi kesalahan saat mengambil ringkasan keuangan."
+          onRetry={() => summaryQuery.refetch()}
         />
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowMonthly((v) => !v)}
-          aria-expanded={showMonthly}
-          aria-controls="ringkasan-bulanan"
-          className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
-        >
-          {showMonthly ? "Sembunyikan ringkasan bulan ini" : "Lihat ringkasan bulan ini"}
-        </button>
-        {showMonthly && (
-          <div id="ringkasan-bulanan" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              label="Uang Masuk Bulan Ini"
-              value={summary?.moneyIn}
-              icon={ArrowRight}
-              tone="honey"
-              href="/transactions?type=cash_in"
-              ariaDescription="Total pendapatan bulan berjalan"
-            />
-            <StatCard
-              label="Uang Keluar Bulan Ini"
-              value={summary?.moneyOut}
-              icon={ArrowLeft}
-              tone="clay"
-              href="/transactions?type=cash_out"
-              ariaDescription="Total beban bulan berjalan"
-            />
-            <StatCard
-              label="Laba Bersih Bulan Ini"
-              value={summary?.netIncome}
-              icon={Scale}
-              tone="wood"
-              href="/reports/profit-loss"
-              ariaDescription="Pendapatan dikurangi beban bulan berjalan"
+              label="Saldo Kas & Bank"
+              value={summary?.cashBankBalance}
+              icon={Wallet}
+              tone="leaf"
+              hero
+              href="/accounts"
+              ariaDescription="Total saldo seluruh akun kas dan bank"
             />
           </div>
-        )}
-      </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowMonthly((v) => !v)}
+              aria-expanded={showMonthly}
+              aria-controls="ringkasan-bulanan"
+              className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
+            >
+              {showMonthly ? "Sembunyikan ringkasan bulan ini" : "Lihat ringkasan bulan ini"}
+            </button>
+            {showMonthly && (
+              <div id="ringkasan-bulanan" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <StatCard
+                  label="Uang Masuk Bulan Ini"
+                  value={summary?.moneyIn}
+                  icon={Plus}
+                  tone="honey"
+                  href="/transactions?type=cash_in"
+                  ariaDescription="Total pendapatan bulan berjalan"
+                />
+                <StatCard
+                  label="Uang Keluar Bulan Ini"
+                  value={summary?.moneyOut}
+                  icon={Minus}
+                  tone="clay"
+                  href="/transactions?type=cash_out"
+                  ariaDescription="Total beban bulan berjalan"
+                />
+                <StatCard
+                  label="Laba Bersih Bulan Ini"
+                  value={summary?.netIncome}
+                  icon={Scale}
+                  tone="wood"
+                  href="/reports/profit-loss"
+                  ariaDescription="Pendapatan dikurangi beban bulan berjalan"
+                />
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <Card elevated title="Transaksi Terbaru">
         <CardContent className="p-0">{recentTransactionsNode}</CardContent>
