@@ -28,6 +28,9 @@ interface RouteStats {
 
 const routeStats = new Map<string, RouteStats>();
 
+/** Batas kardinalitas kunci route: kunci terlama dibuang (Map = urutan insert). */
+export const MAX_ROUTE_KEYS = 500;
+
 /** Report-specific timing durations in ms */
 const reportDurations: number[] = [];
 
@@ -40,6 +43,10 @@ function getRouteKey(method: string, path: string): string {
 function recordLatency(routeKey: string, durationMs: number): void {
   let stats = routeStats.get(routeKey);
   if (!stats) {
+    if (routeStats.size >= MAX_ROUTE_KEYS) {
+      const oldest = routeStats.keys().next();
+      if (!oldest.done) routeStats.delete(oldest.value);
+    }
     stats = { count: 0, latencyBuckets: new Array(BUCKET_BOUNDARIES.length + 1).fill(0) };
     routeStats.set(routeKey, stats);
   }
