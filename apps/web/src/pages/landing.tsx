@@ -121,14 +121,14 @@ export function LandingPage() {
             </div>
           </div>
 
-          <p className="mx-auto mt-12 max-w-3xl text-center text-sm leading-relaxed text-wood-600">
-            Salah catat bisa dibatalkan berjejak
-            <span aria-hidden="true" className="mx-2">·</span>
-            Kirim ulang tidak dobel
-            <span aria-hidden="true" className="mx-2">·</span>
-            Tetap mencatat saat offline
-            <span aria-hidden="true" className="mx-2">·</span>
-            Saldo kas terpantau di dashboard
+          <p className="mx-auto mt-12 flex max-w-3xl flex-wrap items-center justify-center gap-x-2 text-center text-sm leading-relaxed text-wood-600">
+            <span>Salah catat bisa dibatalkan berjejak</span>
+            <span aria-hidden="true">·</span>
+            <span>Kirim ulang tidak dobel</span>
+            <span aria-hidden="true">·</span>
+            <span>Tetap mencatat saat offline</span>
+            <span aria-hidden="true">·</span>
+            <span>Saldo kas terpantau di dashboard</span>
           </p>
         </section>
       </main>
