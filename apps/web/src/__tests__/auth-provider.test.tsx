@@ -108,10 +108,7 @@ describe('AuthProvider', () => {
     });
   });
 
-  it('signOut clears local session even when server logout rejects', async () => {
-    mocks.getMe.mockResolvedValue({ session: null, user: null });
-    mocks.logout.mockRejectedValueOnce(new Error('Network failure'));
-
+  function renderAuth() {
     render(
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -119,6 +116,21 @@ describe('AuthProvider', () => {
         </AuthProvider>
       </QueryClientProvider>
     );
+  }
+
+  it.each([
+    {
+      name: 'even when server logout rejects',
+      setup: () => mocks.logout.mockRejectedValueOnce(new Error('Network failure')),
+    },
+    {
+      name: 'when server logout succeeds',
+      setup: () => mocks.logout.mockResolvedValueOnce({ ok: true }),
+    },
+  ])('signOut clears local session $name', async ({ setup }) => {
+    mocks.getMe.mockResolvedValue({ session: null, user: null });
+    setup();
+    renderAuth();
 
     await waitFor(() => {
       expect(screen.getByText('Session: none')).toBeTruthy();
@@ -130,30 +142,6 @@ describe('AuthProvider', () => {
       expect(mocks.logout).toHaveBeenCalledTimes(1);
       expect(mocks.clearOfflineSession).toHaveBeenCalledTimes(1);
       expect(screen.getByText('Session: none')).toBeTruthy();
-    });
-  });
-
-  it('signOut clears local session when server logout succeeds', async () => {
-    mocks.getMe.mockResolvedValue({ session: null, user: null });
-    mocks.logout.mockResolvedValueOnce({ ok: true });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Consumer />
-        </AuthProvider>
-      </QueryClientProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Session: none')).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Keluar' }));
-
-    await waitFor(() => {
-      expect(mocks.logout).toHaveBeenCalledTimes(1);
-      expect(mocks.clearOfflineSession).toHaveBeenCalledTimes(1);
     });
   });
 });
