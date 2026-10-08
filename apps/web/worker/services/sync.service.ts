@@ -61,12 +61,21 @@ export async function pushSyncOp(
     }
   }
 
-  await execute(
-    db,
-    `INSERT INTO sync_ops (op_id, user_id, device_id, entity_type, entity_id, op_type, payload, hlc, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [op.op_id, op.user_id, op.device_id, op.entity_type, op.entity_id, op.op_type, op.payload, op.hlc, op.created_at],
-  );
+  try {
+    await execute(
+      db,
+      `INSERT INTO sync_ops (op_id, user_id, device_id, entity_type, entity_id, op_type, payload, hlc, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [op.op_id, op.user_id, op.device_id, op.entity_type, op.entity_id, op.op_type, op.payload, op.hlc, op.created_at],
+    );
+  } catch (err) {
+    // Balap constraint (UNIQUE user_id+op_id, termasuk squat lintas-buku):
+    // perlakukan sebagai duplikat per-buku, bukan 500.
+    if (err instanceof Error && /unique|constraint/i.test(err.message)) {
+      return { stored: false, reason: "duplicate_op_id" };
+    }
+    throw err;
+  }
 
   return { stored: true };
 }
