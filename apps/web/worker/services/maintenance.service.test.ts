@@ -14,12 +14,14 @@ describe("maintenance cleanup", () => {
       sessions: 1,
       auditLogs: 1,
       rateLimits: 1,
+      syncOps: 1,
     });
-    expect(db.statements).toHaveLength(3);
+    expect(db.statements).toHaveLength(4);
     expect(db.statements.map((statement) => statement.sql)).toEqual([
       expect.stringContaining("DELETE FROM sessions"),
       expect.stringContaining("DELETE FROM audit_logs"),
       expect.stringContaining("DELETE FROM rate_limits"),
+      expect.stringContaining("DELETE FROM sync_ops"),
     ]);
   });
 });

@@ -5,6 +5,8 @@ import { queryFirst } from "../db/client";
 import { requireSession } from "./auth.routes";
 import { createUserSnapshot, pullSyncOps, pushSyncOp } from "../services/sync.service";
 import { readJson } from "../http/json";
+import { checkRateLimit } from "../services/rate-limit.service";
+import { tooManyRequests } from "../http/errors";
 
 export const syncRoutes = new Hono<AppContext>();
 
@@ -34,6 +36,9 @@ const pushSchema = z.object({
  */
 syncRoutes.post("/push", async (c) => {
   const session = await requireSession(c);
+  if (await checkRateLimit(c.env.DB, "sync_push", session.user_id, { max: 60, windowMs: 60000 })) {
+    throw tooManyRequests("Terlalu banyak permintaan sync. Coba lagi nanti.");
+  }
   const body = await readJson(c, z.object({ ops: z.array(pushSchema).max(200) }).passthrough());
   const ops = (body as { ops: z.infer<typeof pushSchema>[] }).ops ?? [];
   const results: Array<{ op_id: string; stored: boolean }> = [];
@@ -118,6 +123,9 @@ syncRoutes.get("/devices", async (c) => {
  */
 async function handleSingleSyncOp(c: Context<AppContext>) {
   const session = await requireSession(c);
+  if (await checkRateLimit(c.env.DB, "sync_op", session.user_id, { max: 60, windowMs: 60000 })) {
+    throw tooManyRequests("Terlalu banyak permintaan sync. Coba lagi nanti.");
+  }
   const entity = c.req.param("entity");
   const entityId = c.req.param("id");
   const method = c.req.method;

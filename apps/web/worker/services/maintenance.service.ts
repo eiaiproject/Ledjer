@@ -7,7 +7,11 @@ export interface CleanupResult {
   sessions: number;
   auditLogs: number;
   rateLimits: number;
+  syncOps: number;
 }
+
+/** Retensi op-log sync per-buku: cukup untuk replay device, tidak menumpuk selamanya. */
+export const SYNC_OPS_RETENTION_DAYS = 30;
 
 export async function cleanupExpiredRows(
   db: D1Database,
@@ -31,10 +35,16 @@ export async function cleanupExpiredRows(
     "DELETE FROM rate_limits WHERE created_at <= ?",
     [current - 3600000], // 1 hour retention
   );
+  const syncOps = await execute(
+    db,
+    "DELETE FROM sync_ops WHERE created_at <= ?",
+    [current - SYNC_OPS_RETENTION_DAYS * MS_PER_DAY],
+  );
 
   return {
     sessions: sessions.meta.changes ?? 0,
     auditLogs: auditLogs.meta.changes ?? 0,
     rateLimits: rateLimits.meta.changes ?? 0,
+    syncOps: syncOps.meta.changes ?? 0,
   };
 }

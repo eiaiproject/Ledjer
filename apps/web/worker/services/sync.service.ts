@@ -111,8 +111,9 @@ export async function pullSyncOps(
 export async function getUserSnapshotOps(
   db: D1Database,
   userId: string,
+  limit = 10000,
 ): Promise<SyncOp[]> {
-  return queryAll<SyncOp>(db, "SELECT * FROM sync_ops WHERE user_id = ? ORDER BY hlc ASC", [userId]);
+  return queryAll<SyncOp>(db, "SELECT * FROM sync_ops WHERE user_id = ? ORDER BY hlc ASC LIMIT ?", [userId, limit]);
 }
 
 /**
