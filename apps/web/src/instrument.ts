@@ -56,9 +56,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     replaysSessionSampleRate: 0.05,
     replaysOnErrorSampleRate: 1,
 
-    // Enable structured log API
-    enableLogs: true,
-
     // Privacy - fine-grained control over data collection (SDK ≥10.57.0)
     dataCollection: {
       userInfo: false,
@@ -67,11 +64,21 @@ if (import.meta.env.VITE_SENTRY_DSN) {
         request: false,
         response: false,
       },
-      queryParams: false,
+      urlQueryParams: false,
       httpBodies: [],
       genAI: {
         inputs: false,
         outputs: false,
+      },
+      mcp: {
+        inputs: false,
+        outputs: false,
+      },
+      databaseQueryData: false,
+      queues: false,
+      graphQL: {
+        document: false,
+        variables: false,
       },
       stackFrameVariables: false,
       frameContextLines: 3,

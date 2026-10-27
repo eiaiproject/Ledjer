@@ -122,7 +122,7 @@ app.notFound((c) => {
   return c.env.ASSETS.fetch(c.req.raw);
 });
 
-import { withSentry } from "@sentry/cloudflare";
+import { withSentry, type CloudflareOptions } from "@sentry/cloudflare";
 
 /** Create a daily backup and run restore drill, logging results. */
 async function runBackupAndDrill(env: AppContext["Bindings"]): Promise<void> {
@@ -164,19 +164,18 @@ const worker: ExportedHandler<AppContext["Bindings"]> = {
   },
 };
 
-const wrappedHandler = withSentry(
-  (env: AppContext["Bindings"]) => {
-    const dsn = env.SENTRY_DSN;
-    if (!dsn) return { enabled: false };
-    return {
-      dsn,
-      environment: env.APP_ENV ?? "development",
-      release: env.GIT_SHA,
-      tracesSampleRate: 0.1,
-    };
-  },
-  worker,
-);
+const sentryOptions = (env: AppContext["Bindings"]): CloudflareOptions => {
+  const dsn = env.SENTRY_DSN;
+  if (!dsn) return { enabled: false };
+  return {
+    dsn,
+    environment: env.APP_ENV ?? "development",
+    release: env.GIT_SHA,
+    tracesSampleRate: 0.1,
+  };
+};
+
+const wrappedHandler = withSentry(sentryOptions, worker);
 
 export { app, wrappedHandler };
 export default wrappedHandler;
