@@ -308,10 +308,13 @@ select:-webkit-autofill:focus {
    controls on phones are intentionally set to 16px (the app's form inputs
    are designed at text-sm/text-xs, so this only bumps them up). */
 @media (max-width: 640px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-  select,
-  textarea {
-    font-size: 16px !important;
+  /* html + :is() outranks the text-sm/text-xs utilities without !important. */
+  html :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea
+  ) {
+    font-size: 16px;
   }
 }
 
@@ -542,7 +545,7 @@ p, li {
 
 /* Print styles */
 @media print {
-  nav, .no-print { display: none !important; }
+  html :is(nav, .no-print) { display: none; }
   body { background: white; }
 }
 
@@ -551,10 +554,24 @@ p, li {
     scroll-behavior: auto;
   }
 
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+  /* `*` alone loses to class selectors on specificity, so the animated
+     classes are listed explicitly. Tailwind utilities are layered, which
+     the unlayered `*` rule already overrides. */
+  *,
+  *::before,
+  *::after,
+  .ledger-page,
+  .ledger-interactive,
+  .ledger-pressable,
+  .ledger-drawer-backdrop,
+  .ledger-drawer,
+  .ledger-mockup,
+  .ledger-row,
+  .ledger-flow-line,
+  .ledger-balance-stamp,
+  .ledger-soft-float {
+    animation: none;
+    transition: none;
   }
 }
 
