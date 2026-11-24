@@ -74,14 +74,18 @@ the `authPage` fixture from `e2e/helpers/auth.ts`.
 The `authPage` fixture logs in via the login API, or skips login entirely when
 `PLAYWRIGHT_SESSION_TOKEN` is set (a session row inserted directly into the
 target D1 - see `scripts/create-e2e-session.mjs`) to stay under the login rate
-limit during full runs. Credentials come from `E2E_EMAIL` / `E2E_PASSWORD`
-(defaults: `ledjer@yopmail.com` / `Ledjer26#`).
+limit during full runs. Credentials come from `E2E_EMAIL` / `E2E_PASSWORD`.
+There is no default password; set `E2E_PASSWORD` before seeding or running
+authenticated specs. `pnpm ci:local:full` generates a random one per run.
 
 Local seeding (after `db:migrations:apply:local`):
 
 ```bash
+export E2E_PASSWORD="$(node -p "require('node:crypto').randomBytes(18).toString('base64url')")"
 bash scripts/seed-e2e-local.sh
 ```
+
+Use the same `E2E_PASSWORD` in the shell that runs Playwright.
 
 ## D1 Migrations
 

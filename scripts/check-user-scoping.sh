@@ -88,10 +88,10 @@ while IFS= read -r file; do
 
         # Only check SELECT/UPDATE/DELETE queries
         if echo "$sql_content" | grep -qiE "^\s*(SELECT|UPDATE|DELETE)\s" && ! echo "$sql_content" | grep -qi "user_id"; then
-            echo "ERROR: $rel:$line_num — query appears to lack user_id scoping"
-            echo "  SQL: ${sql_content:0:80}..."
-            echo "  Fix: add user_id = ? to WHERE clause"
-            echo "  Or add inline /* no-user-scope */ comment if intentional"
+            echo "ERROR: $rel:$line_num — query appears to lack user_id scoping" >&2
+            echo "  SQL: ${sql_content:0:80}..." >&2
+            echo "  Fix: add user_id = ? to WHERE clause" >&2
+            echo "  Or add inline /* no-user-scope */ comment if intentional" >&2
             HAS_ERRORS=1
         fi
       fi
@@ -100,10 +100,10 @@ while IFS= read -r file; do
 done < <(find "$PROJECT_ROOT/apps/web/worker/services" -name '*.ts' -type f)
 
 if [[ "$HAS_ERRORS" -eq 1 ]]; then
-  echo ""
-  echo "Some queries may lack user_id scoping."
-  echo "If the query is intentionally cross-user (auth, maintenance, system),"
-  echo "add the file to docs/compliance/user-scope-exceptions.json or inline /* no-user-scope */."
+  echo "" >&2
+  echo "Some queries may lack user_id scoping." >&2
+  echo "If the query is intentionally cross-user (auth, maintenance, system)," >&2
+  echo "add the file to docs/compliance/user-scope-exceptions.json or inline /* no-user-scope */." >&2
   exit 1
 fi
 
