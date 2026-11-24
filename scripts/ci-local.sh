@@ -78,6 +78,10 @@ if [[ "$FULL" -eq 1 ]]; then
   pnpm --filter web db:migrations:list
 
   section "Seed E2E fixture"
+  if [[ -z "${E2E_PASSWORD:-}" ]]; then
+    E2E_PASSWORD="$(node -p "require('node:crypto').randomBytes(18).toString('base64url')")"
+    export E2E_PASSWORD
+  fi
   bash "${ROOT}/scripts/seed-e2e-local.sh"
 
   section "Playwright public E2E"

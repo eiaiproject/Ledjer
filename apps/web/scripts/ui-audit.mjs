@@ -20,7 +20,7 @@
  *
  * Prerequisites (all local):
  *   pnpm --filter web db:migrations:apply:local
- *   bash scripts/seed-e2e-local.sh
+ *   E2E_PASSWORD=<generated> bash scripts/seed-e2e-local.sh
  *   LEDJER_E2E_LOCAL=1 LEDJER_CSP_LOCAL=1 pnpm --filter web build
  *   LEDJER_E2E_LOCAL=1 pnpm --filter web preview   # port 4173
  *
@@ -40,7 +40,11 @@ const baseUrl = process.env.AUDIT_BASE_URL || "http://localhost:4173";
 const outDir = process.env.AUDIT_OUT || path.join(os.tmpdir(), "ledjer-ui-audit");
 
 const EMAIL = process.env.AUDIT_EMAIL || "ledjer@yopmail.com";
-const PASSWORD = process.env.AUDIT_PASSWORD || "Ledjer26#";
+const PASSWORD = process.env.AUDIT_PASSWORD || process.env.E2E_PASSWORD;
+if (!PASSWORD) {
+  console.error("AUDIT_PASSWORD or E2E_PASSWORD must be set for the UI audit.");
+  process.exit(1);
+}
 
 const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },

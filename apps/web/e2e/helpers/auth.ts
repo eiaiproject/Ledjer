@@ -11,8 +11,8 @@ export interface AuthFixtures {
  * Logs in via the login API using the configured E2E credentials, then
  * navigates to the app to establish the session.
  *
- * Credentials are read from E2E_EMAIL / E2E_PASSWORD env vars (defaults:
- * ledjer@yopmail.com / Ledjer26#).
+ * Credentials are read from E2E_EMAIL / E2E_PASSWORD env vars. E2E_PASSWORD
+ * is required; there is no committed default.
  *
  * Usage:
  *   test("list accounts", async ({ authPage }) => {
@@ -30,7 +30,10 @@ export interface AuthFixtures {
 export const test = base.extend<AuthFixtures>({
   authPage: async ({ browser }, acceptFixture) => {
     const email = process.env.E2E_EMAIL || "ledjer@yopmail.com";
-    const password = process.env.E2E_PASSWORD || "Ledjer26#";
+    const password = process.env.E2E_PASSWORD;
+    if (!password) {
+      throw new Error("E2E_PASSWORD is required for authenticated E2E tests.");
+    }
     const baseURL = process.env.E2E_BASE_URL || "https://ledjer.id";
 
     const context = await browser.newContext({
