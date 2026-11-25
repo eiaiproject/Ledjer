@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "reicon-react";
+import { Plus } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import { createCashBankAccount, patchAccount, type CashBankSubtype } from "@/lib/api/accounts";

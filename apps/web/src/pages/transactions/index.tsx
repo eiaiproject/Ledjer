@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Plus } from "reicon-react";
+import { Download, Plus } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { listTransactions, type Transaction } from "@/lib/api/transactions";
 import { downloadTransactionsCsv } from "@/lib/api/exports";

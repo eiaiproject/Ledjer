@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { X } from "reicon-react";
+import { X } from "lucide-react";
 import { useDialogFocusTrap } from "@/hooks/useDialogFocusTrap";
 import { cn } from "@/lib/utils";
 

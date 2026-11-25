@@ -14,7 +14,7 @@ import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
 import { getSafeRedirectPath } from "@/lib/redirect";
 import { startGoogleAuth } from "@/lib/api/auth";
-import { Lock, Envelope } from "reicon-react";
+import { Lock, Mail } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email wajib diisi").email("Format email tidak valid"),
@@ -119,7 +119,7 @@ export function LoginPage() {
                   type="email"
                   required
                   placeholder="email@contoh.com"
-                  prefix={<Envelope className="h-4 w-4 text-wood-500" />}
+                  prefix={<Mail className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
                   autoComplete="email"
                 />

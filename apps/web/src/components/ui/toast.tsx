@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type ComponentType } from "react";
-import { AlertTriangle, CheckCircle, InfoCircle, X, XCircle } from "reicon-react";
+import { CircleCheck, CircleX, Info, TriangleExclamationPoint, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { setGlobalToast, type Toast, type ToastVariant } from "@/components/ui/toast-api";
 
@@ -94,10 +94,10 @@ const VARIANT_STYLES: Record<ToastVariant, string> = {
 };
 
 const ICONS: Record<ToastVariant, ComponentType<{ className?: string }>> = {
-  success: CheckCircle,
-  error: XCircle,
-  warning: AlertTriangle,
-  info: InfoCircle,
+  success: CircleCheck,
+  error: CircleX,
+  warning: TriangleExclamationPoint,
+  info: Info,
 };
 
 function ToastContainer({

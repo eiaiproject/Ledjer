@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowLeft } from "reicon-react";
+import { ArrowLeft, TriangleExclamationPoint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
@@ -16,7 +16,7 @@ export function NotFoundPage() {
           <CardContent className="p-6">
             <div className="flex flex-col items-center text-center">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning-bg text-warning">
-                <AlertTriangle className="h-6 w-6" />
+                <TriangleExclamationPoint className="h-6 w-6" />
               </div>
               <h1 className="text-xl font-bold text-text-primary">Halaman tidak ditemukan</h1>
               <h2 className="mt-2 text-sm font-semibold text-text-secondary">

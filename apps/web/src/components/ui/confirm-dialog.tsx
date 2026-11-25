@@ -1,4 +1,4 @@
-import { AlertTriangle } from "reicon-react";
+import { TriangleExclamationPoint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { Modal, ModalContent, ModalFooter } from "./modal";
@@ -35,7 +35,7 @@ export function ConfirmDialog({
     <Modal open={open} onClose={closeDialog} size="sm" ariaLabel={title}>
       <ModalContent className="text-center">
         <div className={cn("mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full", iconVariantStyles)}>
-          <AlertTriangle className="h-6 w-6" />
+          <TriangleExclamationPoint className="h-6 w-6" />
         </div>
         <h3 className="break-words text-lg font-semibold text-text-primary">{title}</h3>
         <p className="mt-2 break-words text-sm text-text-secondary">{message}</p>

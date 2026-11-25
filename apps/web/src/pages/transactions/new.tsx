@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod/v3";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash } from "reicon-react";
+import { Plus, Trash } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { useMaxTransactionDate } from "@/hooks/useMaxTransactionDate";
 import { listAccounts, type Account } from "@/lib/api/accounts";

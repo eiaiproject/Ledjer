@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Chart, ChevronRight, Download, Package, Receipt } from "reicon-react";
+import { ChartColumn, ChevronRight, Download, Package, Receipt } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { PublicFooter } from "@/components/public-footer";
@@ -87,7 +87,7 @@ export function LandingPage() {
           <div className="mx-auto mt-12 grid max-w-4xl gap-4">
             <div className="rounded-xl border border-wood-200 bg-surface p-6 sm:flex sm:items-start sm:gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-leaf-100">
-                <Chart className="h-5 w-5 text-leaf-600" aria-hidden="true" />
+                <ChartColumn className="h-5 w-5 text-leaf-600" aria-hidden="true" />
               </div>
               <div className="mt-3 sm:mt-0">
                 <h2 className="text-base font-semibold text-wood-900">Laporan keuangan otomatis</h2>

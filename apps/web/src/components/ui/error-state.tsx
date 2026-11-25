@@ -1,4 +1,4 @@
-import { AlertTriangle } from "reicon-react";
+import { TriangleExclamationPoint } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
 import { translateError } from "@/lib/errors";
@@ -23,7 +23,7 @@ export function ErrorState({ error, message, title, onRetry, className, headingL
   return (
     <div className={cn("flex min-w-0 flex-col items-center justify-center px-4 py-12 text-center", className)} role="alert" aria-live="assertive">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-error/10 mb-4">
-        <AlertTriangle className="h-8 w-8 text-error" />
+        <TriangleExclamationPoint className="h-8 w-8 text-error" />
       </div>
       <Heading className="max-w-full break-words text-lg font-semibold text-wood-800">{heading}</Heading>
       {displayMessage && (

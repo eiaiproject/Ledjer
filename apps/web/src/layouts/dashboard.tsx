@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Chart, Heart, Home, Logout, Menu, Package, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
+import { ChartColumn, ChevronDown, Heart, House, LogOut, Menu, Package, Plus, Receipt, Settings, Wallet, X } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { useDialogFocusTrap } from "@/hooks/useDialogFocusTrap";
 import { useAuth } from "@/contexts/auth-context";
@@ -13,13 +13,13 @@ type NavItem =
   | { label: string; icon: ComponentType<{ className?: string }>; children: { to: string; label: string }[]; to?: never };
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/dashboard", label: "Beranda", icon: Home },
+  { to: "/dashboard", label: "Beranda", icon: House },
   { to: "/transactions", label: "Transaksi", icon: Receipt },
   { to: "/accounts", label: "Kas & Bank", icon: Wallet },
   { to: "/products", label: "Produk", icon: Package },
   {
     label: "Laporan",
-    icon: Chart,
+    icon: ChartColumn,
     children: [
       { to: "/reports/profit-loss", label: "Laba Rugi" },
       { to: "/reports/balance-sheet", label: "Neraca" },
@@ -147,12 +147,10 @@ export function DashboardLayout() {
                     >
                       <Icon className="h-5 w-5 shrink-0" />
                       <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
-                      <span
-                        className={cn("text-wood-300 transition-transform", isExpanded && "rotate-180")}
+                      <ChevronDown
+                        className={cn("h-4 w-4 shrink-0 text-wood-300 transition-transform", isExpanded && "rotate-180")}
                         aria-hidden="true"
-                      >
-                        ▾
-                      </span>
+                      />
                     </button>
                     {isExpanded && (
                       <ul id={menuId} className="mt-1 ml-8 space-y-1">
@@ -224,7 +222,7 @@ export function DashboardLayout() {
               className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-wood-300 hover:bg-wood-600 hover:text-cream-50"
               aria-label="Keluar"
             >
-              <Logout className="h-4 w-4" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -321,12 +319,10 @@ export function DashboardLayout() {
                       >
                         <Icon className="h-5 w-5" />
                         <span className="min-w-0 flex-1 break-words text-left">{item.label}</span>
-                        <span
-                          className={cn("text-wood-300 transition-transform", isExpanded && "rotate-180")}
+                        <ChevronDown
+                          className={cn("h-4 w-4 shrink-0 text-wood-300 transition-transform", isExpanded && "rotate-180")}
                           aria-hidden="true"
-                        >
-                          ▾
-                        </span>
+                        />
                       </button>
                       {isExpanded && (
                         <ul id={menuId} className="mt-1 ml-8 space-y-1">
@@ -401,7 +397,7 @@ export function DashboardLayout() {
                 className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-wood-300 hover:bg-wood-600 hover:text-cream-50"
                 aria-label="Keluar"
               >
-                <Logout className="h-4 w-4" />
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>

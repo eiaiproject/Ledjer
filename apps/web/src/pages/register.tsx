@@ -13,7 +13,7 @@ import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import { translateError } from "@/lib/errors";
 import { startGoogleAuth } from "@/lib/api/auth";
-import { Lock, Envelope, User, Store } from "reicon-react";
+import { Lock, Mail, Store, User } from "lucide-react";
 
 const passwordSchema = z
   .string()
@@ -147,7 +147,7 @@ export function RegisterPage() {
                   type="email"
                   required
                   placeholder="email@contoh.com"
-                  prefix={<Envelope className="h-4 w-4 text-wood-500" />}
+                  prefix={<Mail className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
                   autoComplete="email"
                 />

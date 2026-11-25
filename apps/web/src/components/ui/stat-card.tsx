@@ -1,7 +1,7 @@
 import { type ComponentType } from "react";
 import { cn, formatIDR } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "reicon-react";
+import { ChevronRight } from "lucide-react";
 
 interface StatCardProps {
   label: string;
