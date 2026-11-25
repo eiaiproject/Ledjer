@@ -140,7 +140,8 @@ self.addEventListener("fetch", (event) => {
   // Navigasi dan fetch HTML — network-first, fallback shell. App routes have
   // no file extension; treating them as HTML also covers browsers that do not
   // report mode="navigate" for a client-side route request.
-  const looksLikeAppRoute = !/\.[^/]+$/.test(url.pathname);
+  const lastSegment = url.pathname.slice(url.pathname.lastIndexOf("/") + 1);
+  const looksLikeAppRoute = !lastSegment.includes(".");
   const isHtml =
     request.mode === "navigate" ||
     request.destination === "document" ||

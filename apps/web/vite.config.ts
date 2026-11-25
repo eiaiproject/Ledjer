@@ -48,7 +48,7 @@ function assetManifestPlugin(): Plugin {
     writeBundle(options, bundle) {
       const assets = Object.keys(bundle)
         .filter((file) => file.startsWith("assets/") && /\.(?:js|css|wasm)$/.test(file))
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .map((file) => `/${file}`);
       if (assets.length === 0 || !options.dir) return;
       fs.writeFileSync(

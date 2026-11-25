@@ -468,6 +468,7 @@ export function NewTransactionPage() {
                   <ul className="space-y-3">
                     {items.map((item, index) => {
                       const product = productById(item.productId);
+                      const priceLabel = isPurchase ? "Harga Beli" : "Harga Jual";
                       const stockOk = !isPurchase && product !== undefined
                         ? (parseSignedDecimalInput(item.quantity, 0) ?? 0) <= product.current_stock
                         : true;
@@ -491,8 +492,8 @@ export function NewTransactionPage() {
                             error={!stockOk ? "Melebihi stok" : undefined}
                           />
                           <Input
-                            label={index === 0 ? (isPurchase ? "Harga Beli (Rp)" : "Harga Jual (Rp)") : undefined}
-                            aria-label={index === 0 ? undefined : `${isPurchase ? "Harga Beli" : "Harga Jual"} baris ${index + 1}`}
+                            label={index === 0 ? `${priceLabel} (Rp)` : undefined}
+                            aria-label={index === 0 ? undefined : `${priceLabel} baris ${index + 1}`}
                             isCurrency
                             allowDecimals
                             inputMode="decimal"

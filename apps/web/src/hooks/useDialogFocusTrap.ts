@@ -40,9 +40,11 @@ export function useDialogFocusTrap(
       const index = items.indexOf(active as HTMLElement);
       // Drive the cycle ourselves: WebKit does not always tab through every
       // link/button in a native dialog, and can drop focus onto <body>.
+      const startIndex = event.shiftKey ? items.length - 1 : 0;
+      const step = event.shiftKey ? -1 : 1;
       const nextIndex = index === -1
-        ? (event.shiftKey ? items.length - 1 : 0)
-        : (index + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+        ? startIndex
+        : (index + step + items.length) % items.length;
 
       event.preventDefault();
       items[nextIndex].focus();

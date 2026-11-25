@@ -40,6 +40,16 @@ function resolvePrefix(isCurrency: boolean, prefix: ReactNode, leftIcon: ReactNo
   return prefix ?? leftIcon;
 }
 
+function resolveInputType(
+  type: InputHTMLAttributes<HTMLInputElement>["type"],
+  hasPasswordToggle: boolean,
+  passwordVisible: boolean,
+): InputHTMLAttributes<HTMLInputElement>["type"] {
+  if (type === "number") return "text";
+  if (hasPasswordToggle && passwordVisible) return "text";
+  return type;
+}
+
 type InputModeValue = InputHTMLAttributes<HTMLInputElement>["inputMode"];
 
 /** inputMode for numeric fields: decimal keypad for unit prices, numeric for
@@ -102,6 +112,44 @@ function assignRef(
   }
 }
 
+function InputTrailing({
+  hasPasswordToggle,
+  passwordVisible,
+  label,
+  suffix,
+  onToggle,
+}: {
+  hasPasswordToggle: boolean;
+  passwordVisible: boolean;
+  label?: string;
+  suffix?: ReactNode;
+  onToggle: () => void;
+}): ReactNode {
+  if (hasPasswordToggle) {
+    const action = passwordVisible ? "Sembunyikan" : "Tampilkan";
+    const fieldName = label ? label.toLocaleLowerCase("id-ID") : "password";
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={`${action} ${fieldName}`}
+        aria-pressed={passwordVisible}
+        className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-wood-600 hover:bg-cream-100 hover:text-wood-800"
+      >
+        {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    );
+  }
+  if (suffix) {
+    return (
+      <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
+        {suffix}
+      </span>
+    );
+  }
+  return null;
+}
+
 function buildInputClassName(opts: {
   size: "sm" | "md" | "lg";
   hasError: boolean;
@@ -117,6 +165,12 @@ function buildInputClassName(opts: {
   if (opts.hasPrefix) {
     prefixClass = opts.prefixIsString ? "pl-10" : "pl-9";
   }
+  let rightPadding: string | undefined;
+  if (opts.hasPasswordToggle) {
+    rightPadding = "pr-12";
+  } else if (opts.hasSuffix) {
+    rightPadding = "pr-8";
+  }
   return cn(
     "w-full rounded-md border bg-cream-50 text-wood-900",
     "placeholder:text-text-muted",
@@ -126,7 +180,7 @@ function buildInputClassName(opts: {
     SIZE_STYLES[opts.size],
     opts.hasError ? "border-error" : "border-wood-400",
     prefixClass,
-    opts.hasPasswordToggle ? "pr-12" : opts.hasSuffix ? "pr-8" : undefined,
+    rightPadding,
     opts.isCurrency || opts.isNumeric ? "num-mono" : undefined,
     opts.isCurrency ? "text-right" : undefined,
     "min-w-0",
@@ -177,7 +231,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     // ponytail: number inputs use text+inputmode to prevent scroll increment
     // (native spinners are also removed globally in index.css)
     const hasPasswordToggle = Boolean(showPasswordToggle && type === "password");
-    const resolvedType = type === "number" ? "text" : hasPasswordToggle && passwordVisible ? "text" : type;
+    const resolvedType = resolveInputType(type, hasPasswordToggle, passwordVisible);
     const internalRef = useRef<HTMLInputElement | null>(null);
     const setRefs = (node: HTMLInputElement | null) => assignRef(ref, node, internalRef);
 
@@ -288,21 +342,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               className,
             })}
           />
-          {hasPasswordToggle ? (
-            <button
-              type="button"
-              onClick={() => setPasswordVisible((visible) => !visible)}
-              aria-label={`${passwordVisible ? "Sembunyikan" : "Tampilkan"} ${label ? label.toLocaleLowerCase("id-ID") : "password"}`}
-              aria-pressed={passwordVisible}
-              className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-wood-600 hover:bg-cream-100 hover:text-wood-800"
-            >
-              {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          ) : suffix ? (
-            <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
-              {suffix}
-            </span>
-          ) : null}
+          <InputTrailing
+            hasPasswordToggle={hasPasswordToggle}
+            passwordVisible={passwordVisible}
+            label={label}
+            suffix={suffix}
+            onToggle={() => setPasswordVisible((visible) => !visible)}
+          />
         </div>
       </Field>
     );
