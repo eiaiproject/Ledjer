@@ -1,4 +1,4 @@
-import { FileText } from "reicon-react";
+import { FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatIDR } from "@/lib/utils";
 import type { ReportAccountLine } from "@/lib/api/reports";

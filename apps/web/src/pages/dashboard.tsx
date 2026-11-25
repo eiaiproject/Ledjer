@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, Scale, Wallet } from "reicon-react";
+import { Minus, Plus, Scale, Wallet } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { getDashboardAlerts, getDashboardSummary } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/query-keys";

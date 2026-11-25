@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Edit, Plus, Power } from "reicon-react";
+import { ChevronDown, Pencil, Plus, Power } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { createProduct, getProductMovements, listProductsPage, patchProduct, type Product, type ProductListSort, type StockMovementReportLine } from "@/lib/api/products";
 import { queryKeys } from "@/lib/query-keys";
@@ -128,7 +128,7 @@ function ProductListBody({
           </button>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Button variant="ghost" size="sm" aria-label={`Edit ${product.name}`} onClick={() => onEdit(product)}>
-              <Edit className="h-4 w-4" />
+              <Pencil className="h-4 w-4" />
               <span className="hidden sm:inline">Edit</span>
             </Button>
             {product.is_active === 1 ? (

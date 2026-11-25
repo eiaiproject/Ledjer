@@ -1,5 +1,5 @@
 import { forwardRef, useId, useRef, useState, type ChangeEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type MutableRefObject } from "react";
-import { Eye, EyeOff } from "reicon-react";
+import { Eye, EyeOff } from "lucide-react";
 import { cn, formatAmountInput, formatDecimalInput } from "@/lib/utils";
 import { Field } from "./field";
 import { SIZE_STYLES } from "./size-styles";

@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
-import { AlertTriangle } from "reicon-react";
+import { TriangleExclamationPoint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-[300px] flex-col items-center justify-center px-4 py-12 text-center" role="alert" aria-live="assertive">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-error/10 mb-4">
-            <AlertTriangle className="h-8 w-8 text-error" aria-hidden="true" />
+            <TriangleExclamationPoint className="h-8 w-8 text-error" aria-hidden="true" />
           </div>
           <h1 className="mt-3 text-xl font-bold text-text-primary">
             Terjadi kesalahan

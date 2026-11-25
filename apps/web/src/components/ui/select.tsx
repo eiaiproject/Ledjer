@@ -1,6 +1,6 @@
 import { forwardRef, useId, type ReactNode, type SelectHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "reicon-react";
+import { ChevronDown } from "lucide-react";
 import { Field } from "./field";
 import { SIZE_STYLES } from "./size-styles";
 

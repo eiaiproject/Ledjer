@@ -1,5 +1,5 @@
 import { type ComponentType, type ReactNode } from "react";
-import { AlertTriangle, CheckCircle, InfoCircle, XCircle } from "reicon-react";
+import { CircleCheck, CircleX, Info, TriangleExclamationPoint } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type CalloutVariant = "info" | "success" | "warning" | "error";
@@ -12,10 +12,10 @@ const VARIANT_STYLES: Record<CalloutVariant, string> = {
 };
 
 const ICONS: Record<CalloutVariant, ComponentType<{ className?: string }>> = {
-  success: CheckCircle,
-  error: XCircle,
-  warning: AlertTriangle,
-  info: InfoCircle,
+  success: CircleCheck,
+  error: CircleX,
+  warning: TriangleExclamationPoint,
+  info: Info,
 };
 
 interface CalloutProps {

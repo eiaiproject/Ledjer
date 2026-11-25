@@ -1,6 +1,6 @@
 import { isValidElement, type ComponentType } from "react";
 import { Button } from "./button";
-import { FileText } from "reicon-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type IconProp = ComponentType<{ className?: string }> | React.ReactElement;

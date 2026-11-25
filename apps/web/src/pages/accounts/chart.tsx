@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, Plus } from "reicon-react";
+import { ArrowLeft, ChevronDown, Plus } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { useAllAccounts } from "@/hooks/useAccounts";
 import {

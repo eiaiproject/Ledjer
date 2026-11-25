@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Undo } from "reicon-react";
+import { ArrowLeft, Undo } from "lucide-react";
 import { useBook } from "@/hooks/useBook";
 import { getTransaction, voidTransaction } from "@/lib/api/transactions";
 import { queryKeys, invalidateTransactionFinancialCaches } from "@/lib/query-keys";
