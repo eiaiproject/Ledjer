@@ -54,7 +54,7 @@ async function submitRegisterForm(
   await page.getByRole("textbox", { name: /nama usaha/i }).fill("Toko Test");
   await page.getByRole("textbox", { name: /email/i }).fill(opts.email);
   await page.locator('input[type="password"]').first().fill(opts.password);
-  await page.getByLabel(/konfirmasi password/i).fill(opts.confirm);
+  await page.getByRole("textbox", { name: /konfirmasi password/i }).fill(opts.confirm);
   await page.getByRole("button", { name: /buat akun gratis/i }).click();
 }
 

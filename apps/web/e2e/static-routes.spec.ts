@@ -28,9 +28,7 @@ test.describe("Public static routes", () => {
       const resp = await page.goto(route.path, { waitUntil: "load", timeout: 15000 });
       expect(resp?.status()).toBe(200);
 
-      const title = await page.title();
-      expect(title).toMatch(route.title);
-
+      await expect(page).toHaveTitle(route.title);
       await expect(page.locator("body")).toContainText(route.content);
     });
   }

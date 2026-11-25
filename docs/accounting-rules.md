@@ -10,7 +10,7 @@ It is the single source of truth for the current schema
 > Scope note: inventory with **moving-average cost (WAC)** *is* part of the MVP
 > (master produk + HPP). Receivables/payables at the party level, opening
 > balances, manual journals, and invoice-level settlement are **not** part of
-> the MVP. Proposals for those live in [docs/api/p1-*](docs/api); do not assume
+> the MVP. Proposals for those live in [docs/api](api/README.md); do not assume
 > any of them exist in the codebase.
 
 ## Transaction Types

@@ -1,57 +1,64 @@
 # Ledjer Worker
 
-Cloudflare Worker API for Ledjer (MVP cash-only).
+Cloudflare Worker API for Ledjer. For the product overview and full setup instructions, see the [root README](../../../README.md).
 
 ## Routes
 
+```text
+GET  /api/health, /api/health/ready       Health and readiness checks
+GET  /api/metrics, /api/metrics/detailed  In-memory request metrics
+POST /api/auth/register                   Email/password registration
+POST /api/auth/login                      Email/password login
+POST /api/auth/logout                     Revoke the current session
+GET  /api/auth/me                         Current user and session
+PATCH /api/auth/me                        Update the business name
+GET  /api/auth/google/start               Start Google OAuth
+GET  /api/auth/google/callback            Finish Google OAuth
+GET  /api/accounts                        Chart of accounts
+POST /api/accounts/cash-bank              Create a cash or bank account
+PATCH /api/accounts/:accountId            Rename or toggle an account
+GET  /api/products                        Product list with stock and WAC
+POST /api/products                        Create a product
+PATCH /api/products/:productId            Update a product
+GET  /api/transactions                    List transactions
+POST /api/transactions                    Create a transaction
+GET  /api/transactions/:transactionId     Transaction detail
+POST /api/transactions/:transactionId/void  Void a posted transaction
+GET  /api/reports/profit-loss             Profit and loss
+GET  /api/reports/balance-sheet           Balance sheet
+GET  /api/reports/general-ledger          General ledger
+GET  /api/dashboard/summary, /alerts      Dashboard aggregates and warnings
+GET  /api/exports/transactions.csv        Transaction CSV export
 ```
-/api/health, /api/health/ready - Health & readiness checks
-/api/metrics, /api/metrics/detailed - In-memory request metrics
-/api/auth/register, /login, /logout, /me - Email/password auth
-/api/auth/me - Current user + session (GET) / rename the book (PATCH)
-/api/auth/google/start, /google/callback - Google OAuth
-/api/accounts - Chart of accounts list
-/api/accounts/cash-bank - Create a cash/bank account
-/api/accounts/:accountId - Rename / toggle active (PATCH)
-/api/products - Product list (stock & WAC)
-/api/products - Create product
-/api/products/:productId - Rename / price / toggle active (PATCH)
-/api/transactions - List (filters, pagination) + create (idempotent; termasuk stock_loss)
-/api/transactions/:transactionId - Detail (incl. product items)
-/api/transactions/:transactionId/void - Void a posted transaction
 
-Inventory flows: `purchase` posts Persediaan DR / Kas CR + stock movement (WAC
-updated); `cash_in` with `items` posts Kas DR / Income CR + HPP DR / Persediaan
-CR (COGS from WAC, stock decremented); `stock_loss` with `items` posts Beban
-Susut DR / Persediaan CR (non-cash, WAC frozen; akun 6195 dibuat otomatis).
-Void recalculates stock & WAC from posted movements.
-/api/reports/profit-loss - Laba rugi (date range)
-/api/reports/balance-sheet - Neraca (as-of date)
-/api/reports/general-ledger - Buku besar per akun (date range ± account)
-/api/dashboard/summary, /alerts - Dashboard aggregates & warnings
-/api/exports/transactions.csv - Transaction CSV export
-```
+Inventory behavior is part of the current API:
 
-Every `/api/*` route runs behind the CSRF origin check in `worker/index.ts`
-(see [ADR 0003](../../../docs/adr/0003-csrf-origin-validation.md)), and
-protected groups mount `requireAuth()`. Book-scoped queries filter by
-`session.user_id` — satu akun = satu buku, no role layer.
+- `purchase` posts Inventory debit / Cash or Bank credit and adds stock at the purchase cost.
+- `cash_in` with `items` posts Cash debit / Income credit and Cost of Goods Sold debit / Inventory credit using moving-average cost.
+- `stock_loss` with `items` posts Inventory Loss debit / Inventory credit without touching cash.
+- Voiding recalculates stock and average cost from posted stock movements.
+
+Every `/api/*` request passes through the CSRF origin check in `worker/index.ts`. Protected route groups mount `requireAuth()`, and book queries filter by `session.user_id`. One account owns one book; there is no role layer.
 
 ## Local Development
 
+From the repository root:
+
 ```bash
-pnpm --filter web dev        # Vite dev server + Worker (port 5173)
-pnpm --filter web cf:dev     # Alias `pnpm dev` (Vite dev + Worker)
+pnpm --filter web dev
+pnpm --filter web db:migrations:apply:local
 ```
 
-## D1 Migrations
+`pnpm --filter web dev` runs the Vite frontend and Worker API together on port 5173.
+
+## Migrations
 
 ```bash
 pnpm --filter web db:migrations:apply:local
 pnpm --filter web db:migrations:list
 ```
 
-Fresh-database verification:
+Migrations are forward-only. Fresh-database verification:
 
 ```bash
 TMP_D1="$(mktemp -d /tmp/ledjer-d1.XXXXXX)"
@@ -61,34 +68,29 @@ rm -rf "$TMP_D1"
 
 ## Tests
 
+From the repository root:
+
 ```bash
 pnpm --filter web exec vitest run worker/
 ```
 
-Worker tests run against `worker/test/fake-d1.ts` (an in-memory FakeD1Database
-that mirrors SQL shapes) seeded by `worker/test/fixtures.ts` (three
-users, each with their own book, full COA + posted transactions). See
-[docs/testing.md](../../../docs/testing.md).
+Worker tests run against `worker/test/fake-d1.ts`, an in-memory Fake D1 database seeded by `worker/test/fixtures.ts`. See [docs/testing.md](../../../docs/testing.md) for the complete testing guide.
 
 ## Structure
 
-```
+```text
 worker/
-  index.ts              - Worker entrypoint + Hono app (CSRF, logging, metrics,
-                          routes, cron backup + cleanup, Sentry wrapper)
-  env.ts                - Env/binding types + AppContext variables
-  auth/                 - Password hashing (PBKDF2 + pepper), tokens, encoding
-  middleware/           - Auth (session), error handler,
-                          structured request logger, metrics
-  routes/               - Hono route handlers (thin controllers)
-  services/             - Domain logic (transactions, accounts, reports,
-                          dashboard, exports, auth/session/oauth, backup, ...)
+  index.ts                  Worker entrypoint, Hono app, cron, and Sentry wrapper
+  env.ts                    Environment and binding types
+  auth/                     Password hashing, tokens, and encoding
+  middleware/               Auth, error handling, logging, and metrics
+  routes/                   Hono route handlers
+  services/                 Transactions, reports, accounts, auth, backup, and sync
   db/
-    client.ts           - D1 query helpers (queryAll/queryFirst/execute/batch)
-    schema.ts           - Table/column constants + user-scoped table list
-    user-scoped.repository.ts - Runtime user-scoping guard (optional wrapper)
-    migrations/         - Forward-only D1 SQL migrations (0001-0009)
-  http/                 - Error types, JSON/Zod parsing + redaction,
-                          audit-log writer, date normalization
-  test/                 - FakeD1Database + deterministic seed fixtures
+    client.ts               D1 query helpers
+    schema.ts               Table and column constants
+    user-scoped.repository.ts  Runtime user-scoping guard
+    migrations/             Forward-only D1 migrations
+  http/                     Errors, JSON parsing, redaction, and audit logging
+  test/                     Fake D1 database and deterministic fixtures
 ```
