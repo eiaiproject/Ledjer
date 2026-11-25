@@ -118,13 +118,13 @@ function InputTrailing({
   label,
   suffix,
   onToggle,
-}: {
+}: Readonly<{
   hasPasswordToggle: boolean;
   passwordVisible: boolean;
   label?: string;
   suffix?: ReactNode;
   onToggle: () => void;
-}): ReactNode {
+}>): ReactNode {
   if (hasPasswordToggle) {
     const action = passwordVisible ? "Sembunyikan" : "Tampilkan";
     const fieldName = label ? label.toLocaleLowerCase("id-ID") : "password";
