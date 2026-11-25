@@ -19,11 +19,11 @@ type ButtonProps<C extends ElementType = "button"> = ButtonBaseProps &
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary: "bg-wood-500 text-text-on-primary hover:bg-wood-600 active:bg-wood-700 shadow-sm",
-  secondary: "bg-cream-50 text-wood-700 border border-wood-200 hover:bg-cream-100 active:bg-cream-200",
+  secondary: "bg-cream-50 text-wood-700 border border-wood-400 hover:bg-cream-100 active:bg-cream-200",
   success: "bg-leaf-600 text-text-on-success hover:bg-leaf-700 active:bg-leaf-800 shadow-sm",
   danger: "bg-error text-text-on-primary hover:opacity-90 active:opacity-80 shadow-sm",
   ghost: "text-wood-600 hover:bg-cream-100 active:bg-cream-200",
-  outline: "border border-wood-300 text-wood-700 hover:bg-cream-100 active:bg-cream-200",
+  outline: "border border-wood-400 text-wood-700 hover:bg-cream-100 active:bg-cream-200",
   link: "text-wood-600 underline-offset-4 hover:underline p-0 h-auto",
   destructive: "bg-error text-white hover:bg-error/90 active:bg-error/80 shadow-sm",
 };
@@ -41,8 +41,14 @@ export function Button<C extends ElementType = "button">({
   ...props
 }: ButtonProps<C>) {
   const Component = as ?? "button";
+  // A bare <button> defaults to type="submit" inside forms. Default to
+  // "button" so only explicitly-typed submit controls submit a form.
+  const resolvedType = as
+    ? undefined
+    : ((props as { type?: "button" | "submit" | "reset" }).type ?? "button");
   return (
     <Component
+      {...(resolvedType ? { type: resolvedType } : {})}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
@@ -59,6 +65,18 @@ export function Button<C extends ElementType = "button">({
         fullWidth && "w-full",
         className
       )}
+      onPointerDownCapture={(event) => {
+        // Safari does not focus a button on click. Focus it before React's
+        // onClick opens a dialog so the opener is known for focus return.
+        if (!as && event.currentTarget instanceof HTMLElement) {
+          event.currentTarget.focus({ preventScroll: true });
+        }
+      }}
+      onClickCapture={(event) => {
+        if (!as && event.currentTarget instanceof HTMLElement) {
+          event.currentTarget.focus({ preventScroll: true });
+        }
+      }}
       {...props}
     >
       {loading && <Spinner size="sm" className="text-current" />}

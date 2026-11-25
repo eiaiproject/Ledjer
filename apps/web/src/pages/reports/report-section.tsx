@@ -32,7 +32,7 @@ export function ReportSection({
           <FileText className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
           <p className="text-sm text-text-tertiary">{emptyText}</p>
           {emptyAction ?? (
-            <Link to="/transactions/new" className="text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800">
+            <Link to="/transactions/new" className="inline-flex min-h-11 items-center text-sm text-wood-600 underline underline-offset-2 hover:text-wood-800">
               Catat transaksi
             </Link>
           )}

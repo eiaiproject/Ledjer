@@ -68,11 +68,9 @@ export function AccountsPage() {
         title="Kas & Bank"
         description="Kelola akun kas dan rekening bank usaha Anda."
       />
-      <Link to="/accounts/chart" className="block sm:w-auto">
-        <Button variant="secondary" fullWidth className="sm:w-auto">
-          Bagan Akun
-        </Button>
-      </Link>
+      <Button as={Link} to="/accounts/chart" variant="secondary" fullWidth className="sm:w-auto">
+        Bagan Akun
+      </Button>
 
       <div>
         <button
@@ -179,6 +177,7 @@ function AccountGroup({
   } else if (accounts.length === 0) {
     content = (
       <EmptyState
+        headingLevel={3}
         title={`Belum ada akun ${title.toLowerCase()}`}
         description="Tambahkan akun untuk mulai mencatat."
         action={

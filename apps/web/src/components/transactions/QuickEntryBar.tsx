@@ -66,7 +66,7 @@ const DRAFT_LABEL: Record<string, string> = {
   deposit: "Setoran modal",
   withdrawal: "Pengambilan pemilik",
   stock_loss: "Susut stok",
-  ambiguous_buy: "Beli — pilih jenis",
+  ambiguous_buy: "Beli: pilih jenis",
 };
 /** Pilihan beli-ambigu: stok atau beban (null = belum pilih). */
 export type AmbiguousChoice = "purchase" | "expense" | null;
@@ -1291,7 +1291,7 @@ function NewProductPanel({ form, txDate, todayStr, cashOptions, cashValue, onUni
       </p>
       <p className="text-xs text-text-tertiary">
         Produk &apos;{form.name}&apos; akan dibuat
-        (satuan di bawah, harga jual Rp0 — margin disembunyikan sampai diisi).
+        (satuan di bawah, harga jual Rp0, margin disembunyikan sampai diisi).
         Pembelian {formatIDR(form.total)} akan dicatat: kas berkurang, stok bertambah.
         {form.party ? ` Supplier: ${form.party}.` : ""}
       </p>

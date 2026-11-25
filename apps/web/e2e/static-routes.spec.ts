@@ -15,6 +15,11 @@ const PUBLIC_ROUTES = [
   { path: "/", title: /Ledjer/i, content: "Ledjer" },
   { path: "/login", title: /Ledjer/i, content: /email/i },
   { path: "/register", title: /Ledjer/i, content: /email/i },
+  { path: "/privacy", title: /Kebijakan Privasi/i, content: /Data yang kami kumpulkan/i },
+  { path: "/terms", title: /Syarat Layanan/i, content: /Syarat Layanan/i },
+  { path: "/security", title: /Keamanan/i, content: /Melaporkan kerentanan/i },
+  { path: "/contact", title: /Kontak/i, content: /Pertanyaan produk/i },
+  { path: "/refund", title: /Pengembalian Dana/i, content: /Status biaya/i },
 ];
 
 test.describe("Public static routes", () => {

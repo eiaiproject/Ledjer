@@ -211,7 +211,8 @@ html {
   scroll-behavior: smooth;
   text-rendering: optimizeLegibility;
   min-width: 320px;
-  overflow-x: hidden;
+  /* Keep focused controls above the fixed mobile bottom bar. */
+  scroll-padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px);
   /* Kill the grey tap flash on Android Chrome; :focus-visible outlines still
      provide the keyboard/accessibility focus indicator. */
   -webkit-tap-highlight-color: transparent;
@@ -475,13 +476,6 @@ p, li {
 ::selection {
   background: var(--color-leaf-200);
   color: var(--color-leaf-900);
-}
-
-/* Ensure no horizontal overflow from page-level elements */
-.ledger-page-root {
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Shared product motion: short, stateful, and reduced-motion friendly. */

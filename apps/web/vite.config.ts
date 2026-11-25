@@ -1,4 +1,5 @@
 import { defineConfig, type Plugin } from "vite";
+import fs from "node:fs";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
@@ -6,6 +7,9 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from "node:path";
 
 const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN;
+// A new value on every build gives the service worker a fresh script URL and
+// cache namespace, so manifest/icons cannot stay stale across deploys.
+const BUILD_ID = process.env.CF_PAGES_COMMIT_SHA?.slice(0, 12) || String(Date.now());
 
 // In dev, Vite injects Tailwind CSS as an inline <style> and a React-refresh
 // inline script. The production CSP (style-src 'self', script-src 'self') blocks
@@ -35,6 +39,26 @@ function relaxCspForDev(): Plugin {
 
 const isAnalyze = process.env.ANALYZE === "true";
 
+// The service worker installs the shell before the app has been visited under
+// its control. Emit the hashed JS/CSS/WASM list so install can precache the
+// complete app shell, not just index.html and the icons.
+function assetManifestPlugin(): Plugin {
+  return {
+    name: "asset-manifest",
+    writeBundle(options, bundle) {
+      const assets = Object.keys(bundle)
+        .filter((file) => file.startsWith("assets/") && /\.(?:js|css|wasm)$/.test(file))
+        .sort()
+        .map((file) => `/${file}`);
+      if (assets.length === 0 || !options.dir) return;
+      fs.writeFileSync(
+        path.join(options.dir, "asset-manifest.json"),
+        JSON.stringify(assets),
+      );
+    },
+  };
+}
+
 function bundleAnalyzerPlugin(): Plugin | undefined {
   if (!isAnalyze) return undefined;
   try {
@@ -57,6 +81,9 @@ function bundleAnalyzerPlugin(): Plugin | undefined {
 }
 
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   build: {
     chunkSizeWarningLimit: 750,
     rollupOptions: {
@@ -71,6 +98,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    assetManifestPlugin(),
     cloudflare({
       // Local serving only: the in-process worker must accept localhost
       // origins (CSRF) and behave as development. Applies to `vite dev`,

@@ -16,21 +16,27 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/logo-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/logo-icon.svg",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/logo-icon.svg",
+      "src": "/icon-maskable-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
@@ -40,21 +46,21 @@
       "short_name": "Transaksi",
       "description": "Catat transaksi baru",
       "url": "/transactions/new?source=pwa",
-      "icons": [{ "src": "/logo-icon.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "Lihat ringkasan keuangan",
       "url": "/dashboard?source=pwa",
-      "icons": [{ "src": "/logo-icon.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Laporan",
       "short_name": "Laporan",
       "description": "Akses laporan keuangan",
       "url": "/reports/profit-loss?source=pwa",
-      "icons": [{ "src": "/logo-icon.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

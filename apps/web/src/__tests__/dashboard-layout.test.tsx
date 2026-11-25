@@ -43,10 +43,13 @@ describe('DashboardLayout bottom nav (distill: 5 slot)', () => {
     expect(within(nav).getByRole('button', { name: /lainnya/i })).toBeTruthy();
   });
 
-  it('Lainnya aktif saat berada di rute yang hanya ada di drawer (mis. Pengaturan)', () => {
+  it('Lainnya membuka dialog dan tidak memakai aria-current di rute drawer (mis. Pengaturan)', () => {
     renderLayoutAt('/settings');
     const nav = bottomNav();
-    expect(within(nav).getByRole('button', { name: /lainnya/i }).getAttribute('aria-current')).toBe('page');
+    const trigger = within(nav).getByRole('button', { name: /lainnya/i });
+    expect(trigger.getAttribute('aria-current')).toBeNull();
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('tab Transaksi tetap aktif di halaman detail (/transactions/:id)', () => {

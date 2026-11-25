@@ -41,12 +41,6 @@ const transactionSchema = z.object({
 
 type TransactionForm = z.infer<typeof transactionSchema>;
 
-/** Label harga per baris produk: hanya baris pertama berlabel, ikut jenis transaksi. */
-function unitPriceRowLabel(index: number, isPurchase: boolean): string | undefined {
-  if (index !== 0) return undefined;
-  return isPurchase ? "Harga Beli (Rp)" : "Harga Jual (Rp)";
-}
-
 interface FormItem {
   key: string;
   productId: string;
@@ -327,7 +321,7 @@ export function NewTransactionPage() {
           aria-controls="manual-form"
           className="min-h-[44px] rounded-md px-1 py-1 text-left text-sm font-medium text-wood-600 underline decoration-wood-300 underline-offset-4 hover:text-wood-700"
         >
-          {manualOpen ? "Sembunyikan form manual" : "Form manual — multi-produk & akun spesifik"}
+          {manualOpen ? "Sembunyikan form manual" : "Form manual: multi-produk dan akun spesifik"}
         </button>
         {!manualOpen && (
           <p className="text-xs text-text-tertiary">
@@ -481,6 +475,7 @@ export function NewTransactionPage() {
                         <li key={item.key} className="grid gap-2 sm:grid-cols-[1fr_110px_130px_auto]">
                           <Select
                             label={index === 0 ? "Produk" : undefined}
+                            aria-label={index === 0 ? undefined : `Produk baris ${index + 1}`}
                             value={item.productId}
                             onChange={(e) => updateItem(item.key, { productId: e.target.value })}
                             options={productOptions}
@@ -488,6 +483,7 @@ export function NewTransactionPage() {
                           />
                           <Input
                             label={index === 0 ? "Jumlah" : undefined}
+                            aria-label={index === 0 ? undefined : `Jumlah baris ${index + 1}`}
                             inputMode="decimal"
                             placeholder="0"
                             value={item.quantity}
@@ -495,7 +491,8 @@ export function NewTransactionPage() {
                             error={!stockOk ? "Melebihi stok" : undefined}
                           />
                           <Input
-                            label={unitPriceRowLabel(index, isPurchase)}
+                            label={index === 0 ? (isPurchase ? "Harga Beli (Rp)" : "Harga Jual (Rp)") : undefined}
+                            aria-label={index === 0 ? undefined : `${isPurchase ? "Harga Beli" : "Harga Jual"} baris ${index + 1}`}
                             isCurrency
                             allowDecimals
                             inputMode="decimal"

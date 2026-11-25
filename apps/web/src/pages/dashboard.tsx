@@ -62,6 +62,7 @@ export function DashboardPage() {
   } else if (summaryQuery.isError) {
     recentTransactionsNode = (
       <ErrorState
+        headingLevel={3}
         title="Gagal memuat transaksi"
         message="Terjadi kesalahan saat mengambil data transaksi terbaru."
         onRetry={() => summaryQuery.refetch()}
@@ -78,12 +79,13 @@ export function DashboardPage() {
   } else {
     recentTransactionsNode = (
       <EmptyState
+        headingLevel={3}
         title="Belum ada transaksi"
         description="Catat transaksi pertama Anda untuk melihat ringkasannya di sini."
         action={
-          <Link to="/transactions/new">
-            <Button>Catat Transaksi</Button>
-          </Link>
+          <Button as={Link} to="/transactions/new">
+            Catat Transaksi
+          </Button>
         }
       />
     );
@@ -95,12 +97,10 @@ export function DashboardPage() {
         title={businessName ? `Halo, ${businessName}` : "Halo"}
         description="Ringkasan keuangan usaha Anda."
       />
-      <Link to="/transactions/new" className="block sm:w-fit">
-        <Button fullWidth className="sm:w-auto">
-          <Plus className="h-4 w-4" />
-          Transaksi Baru
-        </Button>
-      </Link>
+      <Button as={Link} to="/transactions/new" fullWidth className="sm:w-auto">
+        <Plus className="h-4 w-4" />
+        Transaksi Baru
+      </Button>
 
       {negativeBalanceAccounts.length > 0 && (
         <Card className="border-clay-200 bg-clay-50">

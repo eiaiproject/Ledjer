@@ -17,7 +17,7 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "siz
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, options, placeholder, size = "md", leftIcon, id, required, children, ...props }, ref) => {
     const generatedId = useId();
-    const selectId = id || label?.toLowerCase().replace(/\s/g, "-") || generatedId;
+    const selectId = id || generatedId;
     const feedbackId = `${selectId}-feedback`;
     const describedBy = error || helperText ? feedbackId : undefined;
 
@@ -33,6 +33,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             id={selectId}
             required={required}
+            aria-required={required || undefined}
             aria-invalid={error ? true : undefined}
             aria-describedby={describedBy}
             className={cn(
@@ -41,7 +42,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               SIZE_STYLES[size],
-              error ? "border-error" : "border-wood-200",
+              error ? "border-error" : "border-wood-400",
               leftIcon && "pl-9",
               "min-w-0",
               className

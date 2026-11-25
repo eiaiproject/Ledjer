@@ -24,7 +24,7 @@ const passwordSchema = z
 const registerSchema = z
   .object({
     fullName: z.string().min(2, "Nama harus minimal 2 karakter"),
-    email: z.string().email("Email tidak valid"),
+    email: z.string().min(1, "Email wajib diisi").email("Format email tidak valid"),
     businessName: z.string().min(1, "Nama usaha harus diisi"),
     password: passwordSchema,
     confirmPassword: z.string(),
@@ -130,10 +130,11 @@ export function RegisterPage() {
                 </Callout>
               )}
 
-              <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
                 <Input
                   {...register("fullName")}
                   label="Nama lengkap"
+                  required
                   placeholder="Nama lengkap"
                   prefix={<User className="h-4 w-4 text-wood-500" />}
                   error={errors.fullName?.message}
@@ -144,6 +145,7 @@ export function RegisterPage() {
                   {...register("email")}
                   label="Email"
                   type="email"
+                  required
                   placeholder="email@contoh.com"
                   prefix={<Envelope className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
@@ -153,6 +155,7 @@ export function RegisterPage() {
                 <Input
                   {...register("businessName")}
                   label="Nama usaha"
+                  required
                   placeholder="Contoh: Toko Sumber Rejeki"
                   prefix={<Store className="h-4 w-4 text-wood-500" />}
                   error={errors.businessName?.message}
@@ -163,7 +166,10 @@ export function RegisterPage() {
                   {...register("password")}
                   label="Password"
                   type="password"
-                  placeholder="Minimal 8 karakter, mengandung huruf dan angka"
+                  required
+                  showPasswordToggle
+                  helperText="Minimal 8 karakter, mengandung huruf dan angka."
+                  placeholder="Buat password"
                   prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.password?.message}
                   autoComplete="new-password"
@@ -173,11 +179,25 @@ export function RegisterPage() {
                   {...register("confirmPassword")}
                   label="Konfirmasi password"
                   type="password"
-                  placeholder="Konfirmasi password"
+                  required
+                  showPasswordToggle
+                  placeholder="Ulangi password"
                   prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.confirmPassword?.message}
                   autoComplete="new-password"
                 />
+
+                <p className="text-xs leading-relaxed text-wood-500">
+                  Dengan membuat akun, Anda menyetujui{" "}
+                  <Link to="/terms" className="font-medium text-wood-700 underline decoration-wood-300 underline-offset-2 hover:text-wood-900">
+                    Syarat Layanan
+                  </Link>{" "}
+                  dan{" "}
+                  <Link to="/privacy" className="font-medium text-wood-700 underline decoration-wood-300 underline-offset-2 hover:text-wood-900">
+                    Kebijakan Privasi
+                  </Link>
+                  .
+                </p>
 
                 <Button type="submit" fullWidth loading={loading}>
                   Buat akun gratis
@@ -207,7 +227,7 @@ export function RegisterPage() {
                 </Link>
               </p>
               <p className="mt-3 text-center text-xs text-wood-500">
-                Gratis digunakan saat ini &middot; Tanpa kartu kredit
+                Gratis. Tanpa kartu kredit.
               </p>
             </CardContent>
           </Card>
