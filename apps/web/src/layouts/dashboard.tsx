@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from "re
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Chart, Heart, Home, Logout, Menu, Package, Plus, Receipt, Settings, Wallet, X } from "reicon-react";
 import { useBook } from "@/hooks/useBook";
+import { useDialogFocusTrap } from "@/hooks/useDialogFocusTrap";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
@@ -42,14 +43,24 @@ export function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["Laporan"]);
   const mobileDialogRef = useRef<HTMLDialogElement>(null);
+  const drawerReturnFocusRef = useRef<HTMLElement | null>(null);
+  useDialogFocusTrap(mobileMenuOpen, mobileDialogRef);
 
   useEffect(() => {
     const dialog = mobileDialogRef.current;
     if (!dialog) return;
     if (mobileMenuOpen && !dialog.open) {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== dialog) {
+        drawerReturnFocusRef.current = active;
+      }
       dialog.showModal();
-    } else if (!mobileMenuOpen && dialog.open) {
-      dialog.close();
+      dialog.querySelector<HTMLElement>("[data-drawer-initial-focus]")?.focus();
+    } else if (!mobileMenuOpen) {
+      if (dialog.open) dialog.close();
+      const target = drawerReturnFocusRef.current;
+      drawerReturnFocusRef.current = null;
+      if (target?.isConnected) target.focus();
     }
   }, [mobileMenuOpen]);
 
@@ -97,7 +108,7 @@ export function DashboardLayout() {
       <a
         href="#main-content"
         onClick={(e) => { e.preventDefault(); handleSkipToContent(); }}
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[var(--z-toast)] focus:rounded-lg focus:bg-cream-50 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-wood-900 focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-wood-500"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[var(--z-toast)] focus:min-h-11 focus:rounded-lg focus:bg-cream-50 focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-wood-900 focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-wood-500"
       >
         Langsung ke konten utama
       </a>
@@ -224,9 +235,15 @@ export function DashboardLayout() {
         <div className="flex h-14 items-center justify-between px-4">
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(true)}
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              setMobileMenuOpen(true);
+            }}
             className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-wood-600 hover:bg-cream-200"
             aria-label="Buka menu"
+            aria-haspopup="dialog"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu-dialog"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -256,14 +273,14 @@ export function DashboardLayout() {
       {/* Mobile Menu Dialog */}
       <dialog
         ref={mobileDialogRef}
+        id="mobile-menu-dialog"
         onClose={handleDialogClose}
         className="fixed inset-0 z-[var(--z-modal)] m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden border-0 bg-transparent p-0 backdrop:bg-transparent lg:hidden"
         aria-label="Menu navigasi"
       >
-        <button
-          type="button"
-          aria-label="Tutup menu"
-          className="ledger-drawer-backdrop absolute inset-0 border-0 bg-wood-900/50 p-0"
+        <div
+          aria-hidden="true"
+          className="ledger-drawer-backdrop absolute inset-0 bg-wood-900/50"
           onClick={() => mobileDialogRef.current?.close()}
         />
         <div className="ledger-drawer ledger-safe-top absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-wood-700 shadow-xl">
@@ -341,6 +358,7 @@ export function DashboardLayout() {
                     <Link
                       to={item.to!}
                       onClick={() => setMobileMenuOpen(false)}
+                      data-drawer-initial-focus={item.to === "/dashboard" ? true : undefined}
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
@@ -394,7 +412,7 @@ export function DashboardLayout() {
         id="main-content"
         tabIndex={-1}
         className={cn(
-          "bg-background outline-none transition-[padding] duration-300 ease-out",
+          "bg-background transition-[padding] duration-300 ease-out focus:outline-2 focus:outline-offset-[-2px] focus:outline-wood-500",
           "pt-[calc(56px+env(safe-area-inset-top,0px))] lg:pl-60 lg:pt-0",
           showBottomNav && "pb-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] lg:pb-0"
         )}
@@ -419,7 +437,7 @@ export function DashboardLayout() {
                   to={item.to!}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] font-medium leading-tight transition-colors",
+                    "relative flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-xs font-medium leading-tight transition-colors",
                     active ? "text-wood-800" : "text-wood-500 hover:text-wood-700"
                   )}
                 >
@@ -438,13 +456,18 @@ export function DashboardLayout() {
             })}
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(true)}
+              onClick={(event) => {
+                event.currentTarget.focus({ preventScroll: true });
+                setMobileMenuOpen(true);
+              }}
               className={cn(
-                "flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-[10px] font-medium leading-tight transition-colors",
+                "flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-2 text-xs font-medium leading-tight transition-colors",
                 !bottomSectionActive ? "text-wood-800" : "text-wood-500"
               )}
               aria-label="Menu lainnya"
-              aria-current={!bottomSectionActive ? "page" : undefined}
+              aria-haspopup="dialog"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-menu-dialog"
             >
               <div className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",

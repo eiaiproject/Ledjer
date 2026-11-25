@@ -17,10 +17,12 @@ export function Field({ label, error, helperText, required, htmlFor, feedbackId,
   return (
     <div className={cn("w-full min-w-0", className)}>
       {label && (
-        <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-text-secondary">
-          {label}
-          {required && <span className="ml-1 text-error">*</span>}
-        </label>
+        <div className="mb-1 flex items-center gap-1">
+          <label htmlFor={htmlFor} className="block text-sm font-medium text-text-secondary">
+            {label}
+          </label>
+          {required && <span className="text-error" aria-hidden="true">*</span>}
+        </div>
       )}
       {children}
       {error && (

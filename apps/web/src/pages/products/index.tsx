@@ -70,6 +70,7 @@ function ProductListBody({
   if (products.length === 0) {
     return (
       <EmptyState
+        headingLevel={3}
         title={filtering ? "Tidak ada produk yang cocok" : "Belum ada produk"}
         description={
           filtering

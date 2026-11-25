@@ -27,6 +27,7 @@ const ProfitLossPage = lazy(async () => ({ default: (await import("@/pages/repor
 const BalanceSheetPage = lazy(async () => ({ default: (await import("@/pages/reports/balance-sheet")).BalanceSheetPage }));
 const GeneralLedgerPage = lazy(async () => ({ default: (await import("@/pages/reports/general-ledger")).GeneralLedgerPage }));
 const SettingsPage = lazy(async () => ({ default: (await import("@/pages/settings/index")).SettingsPage }));
+const LegalPage = lazy(async () => ({ default: (await import("@/pages/legal")).LegalPage }));
 const NotFoundPage = lazy(async () => ({ default: (await import("@/pages/not-found")).NotFoundPage }));
 
 type SeoProps = Readonly<{
@@ -95,56 +96,172 @@ const routerConfig = [
       </Seo>
     ),
   },
-  // Public pages share PublicLayout (header + main + footer).
+  // Public pages share PublicLayout (header + main + footer). Legal pages stay
+  // readable even when the visitor already has a session; auth pages redirect.
   {
     path: "/",
     element: (
-      <PublicRoute>
-        <PublicLayout>
-          <Outlet />
-        </PublicLayout>
-      </PublicRoute>
+      <PublicLayout>
+        <Outlet />
+      </PublicLayout>
     ),
     children: [
       {
         path: "login",
         element: (
-          <Seo title="Masuk - Ledjer" description="Masuk ke akun Ledjer." noindex>
-            <LoginPage />
-          </Seo>
+          <PublicRoute>
+            <Seo title="Masuk - Ledjer" description="Masuk ke akun Ledjer." noindex>
+              <LoginPage />
+            </Seo>
+          </PublicRoute>
         ),
       },
       {
         path: "register",
         element: (
-          <Seo title="Daftar - Ledjer" description="Buat akun Ledjer untuk mulai mencatat pembukuan." noindex>
-            <RegisterPage />
+          <PublicRoute>
+            <Seo title="Daftar - Ledjer" description="Buat akun Ledjer untuk mulai mencatat pembukuan." noindex>
+              <RegisterPage />
+            </Seo>
+          </PublicRoute>
+        ),
+      },
+      {
+        path: "privacy",
+        element: (
+          <Seo title="Kebijakan Privasi - Ledjer" description="Data apa yang Ledjer kumpulkan dan bagaimana Anda mengendalikannya.">
+            <LegalPage page="privacy" />
+          </Seo>
+        ),
+      },
+      {
+        path: "terms",
+        element: (
+          <Seo title="Syarat Layanan - Ledjer" description="Ketentuan penggunaan akun dan layanan Ledjer.">
+            <LegalPage page="terms" />
+          </Seo>
+        ),
+      },
+      {
+        path: "security",
+        element: (
+          <Seo title="Keamanan - Ledjer" description="Cara melaporkan kerentanan dan kontrol keamanan Ledjer.">
+            <LegalPage page="security" />
+          </Seo>
+        ),
+      },
+      {
+        path: "contact",
+        element: (
+          <Seo title="Kontak - Ledjer" description="Kanal kontak produk, privasi, dan keamanan Ledjer.">
+            <LegalPage page="contact" />
+          </Seo>
+        ),
+      },
+      {
+        path: "refund",
+        element: (
+          <Seo title="Pengembalian Dana - Ledjer" description="Status biaya dan kebijakan pengembalian dana Ledjer.">
+            <LegalPage page="refund" />
           </Seo>
         ),
       },
     ],
   },
   {
-    element: (
-      <Seo title="Aplikasi Ledjer" description="Area aplikasi Ledjer." noindex>
-        <ProtectedRoute />
-      </Seo>
-    ),
+    element: <ProtectedRoute />,
     children: [
       {
         element: <DashboardLayout />,
         children: [
-          { path: "/dashboard", element: <DashboardPage /> },
-          { path: "/transactions", element: <TransactionListPage /> },
-          { path: "/transactions/new", element: <NewTransactionPage /> },
-          { path: "/transactions/:id", element: <TransactionDetailPage /> },
-          { path: "/accounts", element: <AccountsPage /> },
-          { path: "/accounts/chart", element: <ChartOfAccountsPage /> },
-          { path: "/products", element: <ProductsPage /> },
-          { path: "/reports/profit-loss", element: <ProfitLossPage /> },
-          { path: "/reports/balance-sheet", element: <BalanceSheetPage /> },
-          { path: "/reports/general-ledger", element: <GeneralLedgerPage /> },
-          { path: "/settings", element: <SettingsPage /> },
+          {
+            path: "/dashboard",
+            element: (
+              <Seo title="Beranda - Ledjer" description="Ringkasan keuangan usaha Anda." noindex>
+                <DashboardPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/transactions",
+            element: (
+              <Seo title="Transaksi - Ledjer" description="Semua catatan uang masuk dan keluar." noindex>
+                <TransactionListPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/transactions/new",
+            element: (
+              <Seo title="Transaksi Baru - Ledjer" description="Catat transaksi baru." noindex>
+                <NewTransactionPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/transactions/:id",
+            element: (
+              <Seo title="Detail Transaksi - Ledjer" description="Detail transaksi dan jurnal." noindex>
+                <TransactionDetailPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/accounts",
+            element: (
+              <Seo title="Kas & Bank - Ledjer" description="Kelola akun kas dan rekening bank usaha." noindex>
+                <AccountsPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/accounts/chart",
+            element: (
+              <Seo title="Bagan Akun - Ledjer" description="Daftar akun pembukuan usaha." noindex>
+                <ChartOfAccountsPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/products",
+            element: (
+              <Seo title="Produk - Ledjer" description="Kelola produk dan stok usaha." noindex>
+                <ProductsPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/reports/profit-loss",
+            element: (
+              <Seo title="Laba Rugi - Ledjer" description="Laporan pendapatan dan beban." noindex>
+                <ProfitLossPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/reports/balance-sheet",
+            element: (
+              <Seo title="Neraca - Ledjer" description="Laporan aset, liabilitas, dan ekuitas." noindex>
+                <BalanceSheetPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/reports/general-ledger",
+            element: (
+              <Seo title="Buku Besar - Ledjer" description="Riwayat jurnal per akun." noindex>
+                <GeneralLedgerPage />
+              </Seo>
+            ),
+          },
+          {
+            path: "/settings",
+            element: (
+              <Seo title="Pengaturan - Ledjer" description="Kelola profil usaha dan akun Anda." noindex>
+                <SettingsPage />
+              </Seo>
+            ),
+          },
         ],
       },
     ],

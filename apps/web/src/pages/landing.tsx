@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Chart, ChevronRight, Download, Package, Receipt } from "reicon-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
-import { TRAKTEER_URL } from "@/lib/external";
+import { PublicFooter } from "@/components/public-footer";
 
 export function LandingPage() {
   return (
@@ -18,7 +18,7 @@ export function LandingPage() {
             main.scrollIntoView();
           }
         }}
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[var(--z-toast)] focus:rounded-lg focus:bg-cream-50 focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-wood-900 focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-wood-500"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[var(--z-toast)] focus:min-h-11 focus:rounded-lg focus:bg-cream-50 focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-wood-900 focus:shadow-lg focus:outline-2 focus:outline-offset-2 focus:outline-wood-500"
       >
         Langsung ke konten utama
       </a>
@@ -37,14 +37,14 @@ export function LandingPage() {
             >
               Masuk
             </Link>
-            <Link to="/register">
-              <Button size="sm">Daftar Gratis</Button>
-            </Link>
+            <Button as={Link} to="/register" size="sm">
+              Mulai Gratis
+            </Button>
           </div>
         </nav>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+      <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-2 focus:outline-offset-[-2px] focus:outline-wood-500">
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold text-leaf-700">Pembukuan double-entry untuk UMKM Indonesia</p>
@@ -57,14 +57,12 @@ export function LandingPage() {
               laba rugi, dan neraca. Tanpa perlu paham akuntansi.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link to="/register">
-                <Button size="lg">Mulai Gratis</Button>
-              </Link>
-              <Link to="/login">
-                <Button size="lg" variant="secondary">
-                  Masuk
-                </Button>
-              </Link>
+              <Button as={Link} to="/register" size="lg">
+                Mulai Gratis
+              </Button>
+              <Button as={Link} to="/login" size="lg" variant="secondary">
+                Masuk
+              </Button>
             </div>
           </div>
 
@@ -133,20 +131,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer aria-label="Informasi footer" className="border-t border-wood-200 bg-cream-50">
-        <p className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-wood-500 sm:px-6 lg:px-8">
-          © {new Date().getFullYear()} Ledjer. Hak cipta dilindungi.
-          <span aria-hidden="true" className="mx-2">·</span>
-          <a
-            href={TRAKTEER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline-offset-2 hover:text-wood-800 hover:underline"
-          >
-            Dukung kami di Trakteer
-          </a>
-        </p>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

@@ -9,12 +9,16 @@ type ActionProp =
   | { label: string; onClick: () => void | Promise<void> }
   | React.ReactElement;
 
+type HeadingLevel = 2 | 3 | 4;
+
 interface EmptyStateProps {
   readonly icon?: IconProp;
   readonly title: string;
   readonly description?: string;
   readonly action?: ActionProp;
   readonly className?: string;
+  /** Keep the heading under its card heading (default 2 for top-level states). */
+  readonly headingLevel?: HeadingLevel;
 }
 
 function renderIcon(icon: IconProp | undefined): React.ReactNode {
@@ -40,13 +44,15 @@ function renderAction(action: ActionProp | undefined): React.ReactNode {
   return action as React.ReactNode;
 }
 
-export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, className, headingLevel = 2 }: EmptyStateProps) {
+  const Heading = ({ 2: "h2", 3: "h3", 4: "h4" } as const)[headingLevel];
+
   return (
     <div className={cn("flex min-w-0 flex-col items-center justify-center px-4 py-8 text-center sm:py-10", className)}>
       <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-wood-100 bg-cream-100 sm:mb-4 sm:h-16 sm:w-16">
         {renderIcon(icon)}
       </div>
-      <h3 className="max-w-full break-words text-lg font-semibold text-text-primary">{title}</h3>
+      <Heading className="max-w-full break-words text-lg font-semibold text-text-primary">{title}</Heading>
       {description && (
         <p className="mt-1 max-w-sm break-words text-sm text-text-secondary leading-relaxed">{description}</p>
       )}

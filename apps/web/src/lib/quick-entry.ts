@@ -156,7 +156,7 @@ export function buildDraft(
       kind: "ambiguous_buy",
       amountIdr: parsed.amountIdr,
       description: parsed.description,
-      warnings: ["\"Beli\" tanpa jumlah — pilih Stok bila barang dagangan, Beban bila sekali pakai."],
+      warnings: ["\"Beli\" tanpa jumlah: pilih Stok bila barang dagangan, Beban bila sekali pakai."],
     };
   }
   if (parsed.kind === "stock_loss") {

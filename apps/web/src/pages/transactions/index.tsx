@@ -85,9 +85,9 @@ function TransactionRows({
             Hapus Filter
           </Button>
         ) : (
-          <Link to="/transactions/new">
-            <Button>Catat Transaksi</Button>
-          </Link>
+          <Button as={Link} to="/transactions/new">
+            Catat Transaksi
+          </Button>
         )
       }
     />
@@ -205,26 +205,21 @@ export function TransactionListPage() {
           {
             key: "new",
             children: (
-              <Link to="/transactions/new" className="hidden lg:block">
-                <Button>
-                  <Plus className="h-4 w-4" />
-                  Transaksi Baru
-                </Button>
-              </Link>
+              <Button as={Link} to="/transactions/new" className="hidden lg:inline-flex">
+                <Plus className="h-4 w-4" />
+                Transaksi Baru
+              </Button>
             ),
           },
         ]}
       />
 
-      <Link
-        to="/transactions/new"
-        className="sticky top-[calc(56px+env(safe-area-inset-top,0px)+8px)] z-[var(--z-sticky)] block lg:hidden"
-      >
-        <Button fullWidth className="shadow-lg">
+      <div className="sticky top-[calc(56px+env(safe-area-inset-top,0px)+8px)] z-[var(--z-sticky)] lg:hidden">
+        <Button as={Link} to="/transactions/new" fullWidth className="shadow-lg">
           <Plus className="h-4 w-4" />
           Transaksi Baru
         </Button>
-      </Link>
+      </div>
 
       <div>
         <button

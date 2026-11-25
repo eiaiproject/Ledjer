@@ -17,7 +17,7 @@ import { startGoogleAuth } from "@/lib/api/auth";
 import { Lock, Envelope } from "reicon-react";
 
 const loginSchema = z.object({
-  email: z.string().email("Email tidak valid"),
+  email: z.string().min(1, "Email wajib diisi").email("Format email tidak valid"),
   password: z.string().min(1, "Password wajib diisi"),
 });
 
@@ -104,7 +104,7 @@ export function LoginPage() {
           <Card>
             <CardContent className="p-6">
               <h1 className="text-xl font-bold text-text-primary">Masuk</h1>
-              <p className="mt-1 text-sm text-text-secondary">Masuk ke akun Anda.</p>
+              <p className="mt-1 text-sm text-text-secondary">Gunakan email dan password Anda.</p>
 
               {(error || oauthError) && (
                 <Callout variant="error" className="mt-4">
@@ -112,11 +112,12 @@ export function LoginPage() {
                 </Callout>
               )}
 
-              <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">
                 <Input
                   {...register("email")}
                   label="Email"
                   type="email"
+                  required
                   placeholder="email@contoh.com"
                   prefix={<Envelope className="h-4 w-4 text-wood-500" />}
                   error={errors.email?.message}
@@ -127,6 +128,8 @@ export function LoginPage() {
                   {...register("password")}
                   label="Password"
                   type="password"
+                  required
+                  showPasswordToggle
                   placeholder="Password"
                   prefix={<Lock className="h-4 w-4 text-wood-500" />}
                   error={errors.password?.message}

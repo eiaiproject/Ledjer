@@ -15,6 +15,11 @@ const PUBLIC_ROUTES = [
   { path: "/", title: /Ledjer/i, content: "Ledjer" },
   { path: "/login", title: /Ledjer/i, content: /email/i },
   { path: "/register", title: /Ledjer/i, content: /email/i },
+  { path: "/privacy", title: /Kebijakan Privasi/i, content: /Data yang kami kumpulkan/i },
+  { path: "/terms", title: /Syarat Layanan/i, content: /Syarat Layanan/i },
+  { path: "/security", title: /Keamanan/i, content: /Melaporkan kerentanan/i },
+  { path: "/contact", title: /Kontak/i, content: /Pertanyaan produk/i },
+  { path: "/refund", title: /Pengembalian Dana/i, content: /Status biaya/i },
 ];
 
 test.describe("Public static routes", () => {
@@ -23,9 +28,7 @@ test.describe("Public static routes", () => {
       const resp = await page.goto(route.path, { waitUntil: "load", timeout: 15000 });
       expect(resp?.status()).toBe(200);
 
-      const title = await page.title();
-      expect(title).toMatch(route.title);
-
+      await expect(page).toHaveTitle(route.title);
       await expect(page.locator("body")).toContainText(route.content);
     });
   }

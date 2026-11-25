@@ -93,12 +93,18 @@ Density is task-focused in-app and persuasive-but-concrete on the landing page: 
 - Dense but scannable — predictable nav, forgiving forms, clear error recovery
 - Trust through correctness — balanced journals, CSV export, no ads or data sale
 
+## 1.1 Dials
+
+- **ENERGY: 3/10.** Calm and factual. No countdowns, growth-hack banners, or celebratory confetti around money.
+- **RHYTHM: 4/10.** Tight, predictable task rhythm in-app; landing sections breathe more, with one featured card before the supporting row.
+- **MOTION: 2/10.** Short state feedback only. Page entrance, drawer, and modal are the ceiling; money and reports never bounce or float for decoration.
+
 ## 2. Colors
 
 Earthy paper neutrals carry the surface; teak brown carries action; leaf, clay, honey, and sky carry meaning only.
 
 ### Primary
-- **Aged Teak** (#8B5A3C, wood-500): Primary buttons, active controls. Always with cream-50 text (#FDFBF6).
+- **Aged Teak** (#8B5A3C, wood-500): Primary buttons, active controls. Cream-50 text (#FDFBF6) has **5.60:1** contrast, passing AA for normal text.
 - **Deep Teak** (#533525, wood-700): Button hover/active, sidebar inverse surface, secondary text. The workhorse ink after Ledger Bark.
 - **Ledger Bark** (#2A1B17, wood-900): Primary text on cream. 14.6:1 on cream-50.
 
@@ -113,7 +119,7 @@ Earthy paper neutrals carry the surface; teak brown carries action; leaf, clay, 
 ### Neutral
 - **Kertas Kas** (#F9F4EB, cream-100): Page background.
 - **Fresh Ledger** (#FDFBF6, cream-50): Default surface, text-on-primary.
-- **Ledger Edge** (#E4D0BA, wood-200): Default border; strong border wood-300 (#C9A787), subtle border wood-100 (#F2E8DC).
+- **Ledger Edge** (#E4D0BA, wood-200): Decorative card border; strong border wood-400 (#A87B52, 3.61:1 on cream-50) for interactive controls, subtle border wood-100 (#F2E8DC).
 - **Brick Red** (#A12D1E): Error text. Background #FAEBE5, border #E8B5A8.
 
 ### Named Rules
@@ -164,7 +170,7 @@ Calm, tactile, and forgiving — 44px targets, visible focus, instant press feed
 - **Shape:** Gently rounded rectangles (8px `rounded-md`, 12px `rounded-lg` for lg only).
 - **Primary:** Aged Teak background (#8B5A3C) + cream-50 text, `h-10 px-3 text-sm` (md), `h-12 px-4 text-base` (lg). Min-height 44px on all sizes.
 - **Hover / Focus:** Hover Deep Teak (#533525) + `translateY(-1px)` 200ms `cubic-bezier(0.16,1,0.3,1)`; focus `outline: 2px solid #8B5A3C offset 2px`; active `translateY(0)`; disabled 50% opacity, no lift.
-- **Secondary / Ghost / Tertiary:** Secondary cream-50 + wood-700 text + wood-200 border; Outline wood-300 border; Ghost wood-600 text, cream-100 hover; Link wood-600 underline-offset-4; Success leaf-500; Danger/error #A12D1E.
+- **Secondary / Ghost / Tertiary:** Secondary cream-50 + wood-700 text + wood-400 border; Outline wood-400 border; Ghost wood-600 text, cream-100 hover; Link wood-600 underline-offset-4; Success leaf-500; Danger/error #A12D1E.
 
 ### Chips
 - **Style:** Pill (`rounded-full border`), tinted bg + darker text + matching border (e.g. success `bg #F1F6EC / text #54733D / border #B8D29C`).
@@ -178,12 +184,12 @@ Calm, tactile, and forgiving — 44px targets, visible focus, instant press feed
 - **Internal Padding:** 20px (`p-5`); header `px-5 py-4`, title `px-5 pt-4 text-base semibold`.
 
 ### Inputs / Fields
-- **Style:** Cream-50 fill, 1px wood-200 stroke, 8px radius, `h-10` md. Prefix `Rp` in wood-500, currency right-aligned mono. Under 16px bumps to 16px on phones to prevent auto-zoom.
+- **Style:** Cream-50 fill, 1px wood-400 stroke (3.61:1 against cream-50), 8px radius, `h-10` md. Prefix `Rp` in wood-500, currency right-aligned mono. Under 16px bumps to 16px on phones to prevent auto-zoom.
 - **Focus:** White bg + `outline: 2px solid #8B5A3C offset 2px`. No glow, no layout shift.
 - **Error / Disabled:** Error `border #A12D1E` + `aria-invalid` + inline message; disabled 50% opacity, no spinners (native number spinners removed globally, text + numeric keypad instead).
 
 ### Navigation
-- **Style:** Sticky top header, cream-50/95 + `backdrop-blur-sm`, 1px wood-200 bottom border. Max-w-6xl, `px-4 sm:px-6 lg:px-8`, 44px targets. Logo left, Masuk (ghost) + Daftar Gratis (primary sm) right. Footer cream-50, centered `text-xs wood-500`, Trakteer link underlined on hover.
+- **Style:** Sticky top header, cream-50/95 + `backdrop-blur-sm`, 1px wood-200 bottom border. Max-w-6xl, `px-4 sm:px-6 lg:px-8`, 44px targets. Logo left, Masuk (ghost) + Mulai Gratis (primary sm) right. Footer cream-50, centered `text-xs wood-500`, legal links and Trakteer link underlined on hover.
 
 ### Ledger Status Callout
 Signature status block: tinted bg + matching border + variant icon + optional bold title, `rounded-lg border px-4 py-3 text-sm`. Error uses `role="alert"`. Always icon + text, never color alone.
@@ -192,7 +198,7 @@ Signature status block: tinted bg + matching border + variant icon + optional bo
 
 ### Do:
 - **Do** keep surfaces paper-calm — Kertas Kas page (#F9F4EB), Fresh Ledger cards (#FDFBF6), 1px Ledger Edge borders.
-- **Do** use Aged Teak (#8B5A3C) as the single action voice with cream-50 text (7.5:1+).
+- **Do** use Aged Teak (#8B5A3C) as the single action voice with cream-50 text (5.60:1, AA for normal text).
 - **Do** set money in JetBrains Mono, tabular-nums, right-aligned; keep Rupiah, kas, and bank context visible.
 - **Do** keep 44px touch targets, 2px wood-500 focus rings, `prefers-reduced-motion` fallbacks (crossfade or instant).
 - **Do** pair status hue with shape — badge dot + border, callout icon + title — so meaning survives color-blindness.

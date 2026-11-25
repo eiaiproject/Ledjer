@@ -167,9 +167,9 @@ export function GeneralLedgerPage() {
               Hapus Filter
             </Button>
           ) : (
-            <Link to="/transactions/new">
-              <Button size="sm">Catat Transaksi</Button>
-            </Link>
+            <Button as={Link} to="/transactions/new" size="sm">
+              Catat Transaksi
+            </Button>
           )
         }
       />

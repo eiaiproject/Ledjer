@@ -63,7 +63,7 @@ export function AuthBrandPanel({ title, description, entries, className }: AuthB
           <div className="ledger-flow-line mt-4 h-px bg-leaf-300" />
           <div className="ledger-balance-stamp mt-3 inline-flex items-center gap-1.5 rounded-full bg-leaf-100 px-3 py-1.5 text-xs font-semibold text-leaf-700">
             <CheckCircle className="h-3.5 w-3.5" />
-            Debet dan kredit seimbang
+            Debit dan kredit seimbang
           </div>
           <p className="mt-3 text-xs text-wood-500">Ilustrasi, bukan data sungguhan.</p>
         </div>

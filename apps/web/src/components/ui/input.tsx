@@ -1,4 +1,5 @@
 import { forwardRef, useId, useRef, useState, type ChangeEvent, type FocusEvent, type InputHTMLAttributes, type ReactNode, type MutableRefObject } from "react";
+import { Eye, EyeOff } from "reicon-react";
 import { cn, formatAmountInput, formatDecimalInput } from "@/lib/utils";
 import { Field } from "./field";
 import { SIZE_STYLES } from "./size-styles";
@@ -10,6 +11,7 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix
   prefix?: ReactNode;
   suffix?: ReactNode;
   leftIcon?: ReactNode;
+  showPasswordToggle?: boolean;
   containerClassName?: string;
   isCurrency?: boolean;
   isNumeric?: boolean;
@@ -20,11 +22,11 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "prefix
   size?: "sm" | "md" | "lg";
 }
 
-/** id ?? label-derived id ?? generated id - no chained logical operators in JSX. */
-function resolveInputId(id: string | undefined, label: string | undefined, generatedId: string): string {
-  if (id) return id;
-  if (label) return label.toLowerCase().replace(/\s/g, "-");
-  return generatedId;
+/** Explicit id wins; otherwise use React's unique id. Never derive from label
+ *  text, because repeated labels (product rows, quick-entry preview) would
+ *  create duplicate ids and labels that point at the wrong field. */
+function resolveInputId(id: string | undefined, generatedId: string): string {
+  return id ?? generatedId;
 }
 
 function resolveDescribedBy(error: string | undefined, helperText: string | undefined, feedbackId: string): string | undefined {
@@ -36,6 +38,16 @@ function resolveDescribedBy(error: string | undefined, helperText: string | unde
 function resolvePrefix(isCurrency: boolean, prefix: ReactNode, leftIcon: ReactNode): ReactNode {
   if (isCurrency) return prefix ?? "Rp";
   return prefix ?? leftIcon;
+}
+
+function resolveInputType(
+  type: InputHTMLAttributes<HTMLInputElement>["type"],
+  hasPasswordToggle: boolean,
+  passwordVisible: boolean,
+): InputHTMLAttributes<HTMLInputElement>["type"] {
+  if (type === "number") return "text";
+  if (hasPasswordToggle && passwordVisible) return "text";
+  return type;
 }
 
 type InputModeValue = InputHTMLAttributes<HTMLInputElement>["inputMode"];
@@ -100,12 +112,51 @@ function assignRef(
   }
 }
 
+function InputTrailing({
+  hasPasswordToggle,
+  passwordVisible,
+  label,
+  suffix,
+  onToggle,
+}: Readonly<{
+  hasPasswordToggle: boolean;
+  passwordVisible: boolean;
+  label?: string;
+  suffix?: ReactNode;
+  onToggle: () => void;
+}>): ReactNode {
+  if (hasPasswordToggle) {
+    const action = passwordVisible ? "Sembunyikan" : "Tampilkan";
+    const fieldName = label ? label.toLocaleLowerCase("id-ID") : "password";
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={`${action} ${fieldName}`}
+        aria-pressed={passwordVisible}
+        className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-wood-600 hover:bg-cream-100 hover:text-wood-800"
+      >
+        {passwordVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    );
+  }
+  if (suffix) {
+    return (
+      <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
+        {suffix}
+      </span>
+    );
+  }
+  return null;
+}
+
 function buildInputClassName(opts: {
   size: "sm" | "md" | "lg";
   hasError: boolean;
   hasPrefix: boolean;
   prefixIsString: boolean;
   hasSuffix: boolean;
+  hasPasswordToggle: boolean;
   isCurrency: boolean;
   isNumeric: boolean;
   className?: string;
@@ -114,6 +165,12 @@ function buildInputClassName(opts: {
   if (opts.hasPrefix) {
     prefixClass = opts.prefixIsString ? "pl-10" : "pl-9";
   }
+  let rightPadding: string | undefined;
+  if (opts.hasPasswordToggle) {
+    rightPadding = "pr-12";
+  } else if (opts.hasSuffix) {
+    rightPadding = "pr-8";
+  }
   return cn(
     "w-full rounded-md border bg-cream-50 text-wood-900",
     "placeholder:text-text-muted",
@@ -121,9 +178,9 @@ function buildInputClassName(opts: {
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wood-500",
     "disabled:opacity-50 disabled:cursor-not-allowed",
     SIZE_STYLES[opts.size],
-    opts.hasError ? "border-error" : "border-wood-200",
+    opts.hasError ? "border-error" : "border-wood-400",
     prefixClass,
-    opts.hasSuffix ? "pr-8" : undefined,
+    rightPadding,
     opts.isCurrency || opts.isNumeric ? "num-mono" : undefined,
     opts.isCurrency ? "text-right" : undefined,
     "min-w-0",
@@ -141,6 +198,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       prefix,
       suffix,
       leftIcon,
+      showPasswordToggle,
       containerClassName,
       isCurrency,
       isNumeric,
@@ -155,8 +213,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     const generatedId = useId();
-    const inputId = resolveInputId(id, label, generatedId);
+    const inputId = resolveInputId(id, generatedId);
     const feedbackId = `${inputId}-feedback`;
+    const [passwordVisible, setPasswordVisible] = useState(false);
     const describedBy = resolveDescribedBy(error, helperText, feedbackId);
     const resolvedPrefix = resolvePrefix(Boolean(isCurrency), prefix, leftIcon);
     // Formatted numeric inputs (currency/qty-with-separators) strip non-digits
@@ -171,7 +230,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const numericInputMode = resolveInputMode({ isNumericInput, hasDecimals, isFormattedInput, inputMode });
     // ponytail: number inputs use text+inputmode to prevent scroll increment
     // (native spinners are also removed globally in index.css)
-    const resolvedType = type === "number" ? "text" : type;
+    const hasPasswordToggle = Boolean(showPasswordToggle && type === "password");
+    const resolvedType = resolveInputType(type, hasPasswordToggle, passwordVisible);
     const internalRef = useRef<HTMLInputElement | null>(null);
     const setRefs = (node: HTMLInputElement | null) => assignRef(ref, node, internalRef);
 
@@ -262,6 +322,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={setRefs}
             id={inputId}
             required={required}
+            aria-required={required || undefined}
             type={resolvedType}
             inputMode={numericInputMode}
             aria-invalid={error ? true : undefined}
@@ -275,16 +336,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               hasPrefix: Boolean(resolvedPrefix),
               prefixIsString: typeof resolvedPrefix === "string",
               hasSuffix: Boolean(suffix),
+              hasPasswordToggle,
               isCurrency: Boolean(isCurrency),
               isNumeric: Boolean(isNumeric),
               className,
             })}
           />
-          {suffix && (
-            <span className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-sm text-wood-500">
-              {suffix}
-            </span>
-          )}
+          <InputTrailing
+            hasPasswordToggle={hasPasswordToggle}
+            passwordVisible={passwordVisible}
+            label={label}
+            suffix={suffix}
+            onToggle={() => setPasswordVisible((visible) => !visible)}
+          />
         </div>
       </Field>
     );

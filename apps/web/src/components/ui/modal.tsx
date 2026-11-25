@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "reicon-react";
+import { useDialogFocusTrap } from "@/hooks/useDialogFocusTrap";
 import { cn } from "@/lib/utils";
 
 type ModalProps = Readonly<{
@@ -21,16 +22,60 @@ const sizeStyles = {
 
 export function Modal({ open, onClose, title, children, size = "md", className, ariaLabel }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const [rendered, setRendered] = useState(open);
+  if (open && !rendered) setRendered(true);
+  useDialogFocusTrap(open, dialogRef);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open) dialog.showModal();
-    else dialog.close();
+    let frame = 0;
+
+    if (open) {
+      if (!dialog.open) {
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && active !== dialog) {
+          returnFocusRef.current = active;
+        }
+        dialog.showModal();
+      }
+      // Native showModal() focuses the first focusable control, which is the
+      // close button in a titled dialog. Prefer the first real field so the
+      // form is immediately usable; fall back to a safe action.
+      frame = window.requestAnimationFrame(() => {
+        if (!dialog.open) return;
+        const field = dialog.querySelector<HTMLElement>(
+          'input:not([type="hidden"]), select, textarea',
+        );
+        const fallback = dialog.querySelector<HTMLElement>(
+          '[data-modal-initial-focus], button',
+        );
+        (field ?? fallback)?.focus();
+      });
+    } else {
+      if (dialog.open) dialog.close();
+      // Native focus return is inconsistent across browsers (WebKit leaves
+      // focus on the page), so restore the opener explicitly.
+      const target = returnFocusRef.current;
+      returnFocusRef.current = null;
+      if (target?.isConnected) target.focus();
+    }
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, [open]);
 
-  if (!open) return null;
+  // Keep the dialog mounted so .close() can run before React removes it. This
+  // preserves native focus return and avoids focusing <body> after a modal.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, []);
 
   return (
     <dialog
@@ -46,22 +91,28 @@ export function Modal({ open, onClose, title, children, size = "md", className, 
         event.preventDefault();
         onClose();
       }}
+      onClose={() => setRendered(false)}
     >
-      {title && (
-        <div className="flex items-center justify-between border-b border-wood-100 px-5 py-4">
-          <h2 id={titleId} className="text-lg font-semibold text-text-primary">
-            {title}
-          </h2>
-          <button             type="button"
-            onClick={onClose}
-            className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-wood-500 hover:bg-cream-200 hover:text-wood-600"
-            aria-label="Tutup"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      {(open || rendered) && (
+        <>
+          {title && (
+            <div className="flex items-center justify-between border-b border-wood-100 px-5 py-4">
+              <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+                {title}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-wood-500 hover:bg-cream-200 hover:text-wood-600"
+                aria-label="Tutup"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+          {children}
+        </>
       )}
-      {children}
     </dialog>
   );
 }
